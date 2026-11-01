@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function () {
+        var NativeWebSocket = window.WebSocket;
+        if (!NativeWebSocket) return;
+        function PatchedWebSocket(url, protocols) {
+          if (protocols === 'vite-hmr' || protocols === 'vite-ping') {
+            var target = new EventTarget();
+            target.readyState = 1;
+            target.OPEN = 1;
+            target.url = String(url || '');
+            target.protocol = String(protocols || '');
+            target.send = function () {};
+            target.close = function () {};
+            return target;
+          }
+          return protocols !== undefined
+            ? new NativeWebSocket(url, protocols)
+            : new NativeWebSocket(url);
+        }
+        PatchedWebSocket.prototype = NativeWebSocket.prototype;
+        PatchedWebSocket.CONNECTING = NativeWebSocket.CONNECTING;
+        PatchedWebSocket.OPEN = NativeWebSocket.OPEN;
+        PatchedWebSocket.CLOSING = NativeWebSocket.CLOSING;
+        PatchedWebSocket.CLOSED = NativeWebSocket.CLOSED;
+        window.WebSocket = PatchedWebSocket;
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>جذوري | Juthori — منصة الأنساب والإرث العائلي العربي</title>
+    <meta name="description" content="منصة جذوري الرقمية لاكتشاف الجذور وعمود النسب المحقق، بناء شجرة العائلة، وحفظ وتوثيق إرث العائلات في 22 دولة عربية والمهجر." />
+    <meta property="og:title" content="جذوري | Juthori — منصة الأنساب والإرث العائلي العربي" />
+    <meta property="og:description" content="منصة جذوري الرقمية لاكتشاف الجذور وعمود النسب المحقق، بناء شجرة العائلة، وحفظ وتوثيق إرث العائلة في 22 دولة عربية والمهجر." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-[#F7F2E9] text-[#252321] antialiased selection:bg-[#D8755B]/20 selection:text-[#252321]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

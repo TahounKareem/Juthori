@@ -1,0 +1,8 @@
+{
+  "name": "Juthori Platform",
+  "description": "Heritage platform for exploring ancestral lineage, managing family trees, and preserving Arab genealogical history securely.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

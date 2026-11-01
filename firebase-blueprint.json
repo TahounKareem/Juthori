@@ -1,0 +1,401 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Represents the user's primary profile, role, legal account type, subscription tier, and current wallet balance.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique Firebase Auth UID of the user."
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Full Arabic name of the user."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 100,
+          "description": "Registered email address."
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Contact phone number with international country code."
+        },
+        "accountType": {
+          "type": "string",
+          "enum": ["individual", "record_keeper"],
+          "description": "Legal status: Individual (فرد) or Family Record Keeper (أمين السجل)."
+        },
+        "originCountry": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Country of ancestral origin (e.g., SA, EG, YE)."
+        },
+        "tribeName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Tribe name if known."
+        },
+        "familyBranch": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Family branch (الفخذ / الفرع)."
+        },
+        "subscriptionTier": {
+          "type": "string",
+          "enum": ["free", "basic_verified", "premium_annual"],
+          "description": "Current subscription tier: Free, Basic ($5 verified root), or Premium Annual ($60/yr)."
+        },
+        "walletBalance": {
+          "type": "number",
+          "description": "Available wallet credit balance in USD."
+        },
+        "isRootUnlocked": {
+          "type": "boolean",
+          "description": "Whether the $5 connection root is unlocked."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Server timestamp of registration."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Server timestamp of last profile update."
+        }
+      },
+      "required": ["userId", "fullName", "email", "accountType", "subscriptionTier", "walletBalance", "createdAt"]
+    },
+    "ResearchTicket": {
+      "title": "ResearchTicket",
+      "description": "Genealogical investigation ticket initiated when a lineage search yields no immediate automated match. Genealogists investigate historical sources and notify the customer upon resolution.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique ticket ID."
+        },
+        "ticketNumber": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Human-readable sequential ticket code (e.g. JTH-8201)."
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the user who owns this search ticket."
+        },
+        "userFullName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Name of the requesting customer."
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Customer contact email."
+        },
+        "userPhone": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Customer contact phone."
+        },
+        "targetAncestor": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Target lineage chain supplied by customer (e.g. حسن زهير آل مقيت)."
+        },
+        "tribeName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Target tribe or clan."
+        },
+        "familyBranch": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Family branch or known region."
+        },
+        "originCountry": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Country of origin."
+        },
+        "additionalNotes": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Family oral history notes, known migrations, or elder testimonials."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending_review", "investigating", "lineage_found", "completed", "no_records_found"],
+          "description": "Current lifecycle status of genealogical research."
+        },
+        "assignedResearcherId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the genealogical researcher assigned to the case."
+        },
+        "assignedResearcherName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Display name of the genealogist."
+        },
+        "researchFindings": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "Genealogist's findings, verified lineage chain, references to manuscripts and chronicles."
+        },
+        "verifiedSources": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Citations of historical documents, waqf registries, or Ottoman census records."
+        },
+        "clientNotified": {
+          "type": "boolean",
+          "description": "Whether an in-app and email notification has been dispatched to the client."
+        },
+        "openedAt": {
+          "type": "string",
+          "description": "Timestamp when ticket was created."
+        },
+        "resolvedAt": {
+          "type": "string",
+          "description": "Timestamp when research was concluded."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last modification."
+        }
+      },
+      "required": ["id", "ticketNumber", "userId", "userFullName", "targetAncestor", "status", "openedAt"]
+    },
+    "WalletTransaction": {
+      "title": "WalletTransaction",
+      "description": "Financial ledger entry for user wallet balance changes (bonuses, top-ups, service purchases).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique transaction ID."
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of user."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["credit", "debit"],
+          "description": "Credit (deposit/bonus) or Debit (feature purchase)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount in USD."
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Description of transaction (e.g. رصيد ترحيبي مع الاشتراك السنوي, شراء شهادة مشجرة مذهبة)."
+        },
+        "referenceId": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Reference ID (e.g. subscription order ID or service request ID)."
+        },
+        "balanceAfter": {
+          "type": "number",
+          "description": "User wallet balance after this transaction."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of the transaction."
+        }
+      },
+      "required": ["id", "userId", "type", "amount", "reason", "balanceAfter", "createdAt"]
+    },
+    "CustomerNotification": {
+      "title": "CustomerNotification",
+      "description": "Proactive customer support message, feature announcement, or ticket status update sent to a user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique notification ID."
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of recipient user."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Notification headline."
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Message body."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["ticket_update", "feature_announcement", "wallet_bonus", "system_notice"],
+          "description": "Category of the notification."
+        },
+        "actionUrl": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Optional in-app route or action identifier (e.g. /dashboard#vault)."
+        },
+        "actionLabel": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Optional CTA button label (e.g. جرّب خزانتي الآن)."
+        },
+        "isRead": {
+          "type": "boolean",
+          "description": "Read status."
+        },
+        "senderRole": {
+          "type": "string",
+          "enum": ["system", "support", "researcher"],
+          "description": "Role of the message sender."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of dispatch."
+        }
+      },
+      "required": ["id", "userId", "title", "body", "category", "isRead", "createdAt"]
+    },
+    "StaffMember": {
+      "title": "StaffMember",
+      "description": "Internal Juthori team member record for genealogical researchers, support specialists, and platform managers.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of staff member."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 100,
+          "description": "Staff work email."
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Full staff name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "researcher", "support"],
+          "description": "Operational role: Platform Admin, Genealogist/Researcher, or Customer Care Agent."
+        },
+        "specialization": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Genealogical specialty (e.g. أنساب قبائل نجد والحجاز, وثائق بلاد الشام, سجلات مصر والمغرب العربي)."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether staff account is active."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["uid", "email", "displayName", "role", "isActive", "createdAt"]
+    },
+    "CrmCampaign": {
+      "title": "CrmCampaign",
+      "description": "Periodic broadcast campaigns and proactive outreach sequences managed by customer service to engage users with new platform features.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique campaign ID."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Campaign title."
+        },
+        "targetAudience": {
+          "type": "string",
+          "enum": ["all_users", "free_users", "basic_users", "premium_users"],
+          "description": "Target user segment."
+        },
+        "messageTitle": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Headline of the message sent to users."
+        },
+        "messageBody": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Detailed promotional or educational content."
+        },
+        "bonusCreditsUsd": {
+          "type": "number",
+          "description": "Optional promo wallet credit granted upon engagement."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "completed"],
+          "description": "Lifecycle of the campaign."
+        },
+        "sentCount": {
+          "type": "number",
+          "description": "Number of users reached."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Campaign creation timestamp."
+        }
+      },
+      "required": ["id", "title", "targetAudience", "messageTitle", "messageBody", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "entities/UserProfile" },
+      "description": "Public and private user account profile, including subscription status, legal type, and wallet balance."
+    },
+    "/users/{userId}/wallet_transactions/{txId}": {
+      "schema": { "$ref": "entities/WalletTransaction" },
+      "description": "Subcollection recording all financial credit and debit transactions for the user's wallet."
+    },
+    "/users/{userId}/notifications/{notifId}": {
+      "schema": { "$ref": "entities/CustomerNotification" },
+      "description": "Subcollection storing in-app customer service messages, research ticket updates, and feature notices for the user."
+    },
+    "/research_tickets/{ticketId}": {
+      "schema": { "$ref": "entities/ResearchTicket" },
+      "description": "Central registry of genealogical research tickets opened when automated matches are absent, processed by Juthori researchers."
+    },
+    "/staff/{staffId}": {
+      "schema": { "$ref": "entities/StaffMember" },
+      "description": "Registry of platform admins, genealogists, and customer care specialists for role-based access control."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "entities/StaffMember" },
+      "description": "Whitelist collection for master administrators."
+    },
+    "/crm_campaigns/{campaignId}": {
+      "schema": { "$ref": "entities/CrmCampaign" },
+      "description": "Operational campaigns for proactive customer outreach and feature promotions."
+    }
+  }
+}
