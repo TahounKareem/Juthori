@@ -2013,22 +2013,424 @@ export function buildAlphaMergedIntoAdamSpine(
 export function upgradeAlphaResultToMergedAdam(
   result: LineageSearchResult
 ): LineageSearchResult {
-  const regionLabel = result.originRegion || 'دير الزور — وادي الفرات (سوريا)';
-  const mergedNodes = buildAlphaMergedIntoAdamSpine(
-    result.familyName,
-    regionLabel,
-    result.rootBranchName || 'قبيلة خابور',
-    result.rootTribeName || 'قبيلة العقيدات'
-  );
+  const regionLabel = result.originRegion || 'الجزيرة العربية';
+  const baseAlphaNodes =
+    result.adamSpineNodes && result.adamSpineNodes.length > 1
+      ? result.adamSpineNodes
+      : buildAlphaOnly3NodesSpine(
+          result.familyName,
+          regionLabel,
+          result.rootBranchName || 'قبيلة خابور',
+          result.rootTribeName || 'قبيلة العقيدات'
+        );
+
+  const motherTribeText = `${result.rootTribeName || ''} ${
+    baseAlphaNodes[baseAlphaNodes.length - 1]?.name || ''
+  }`;
+
+  const isAnazzah = motherTribeText.includes('عنزة') || motherTribeText.includes('عنزه');
+  const isShammar = motherTribeText.includes('شمر') || motherTribeText.includes('طيء');
+  const isBelharith =
+    motherTribeText.includes('بلحارث') || motherTribeText.includes('الحارث');
+  const isKinanah =
+    motherTribeText.includes('كنانة') || motherTribeText.includes('كنانه');
+
+  const upperTribalTail: Array<{
+    name: string;
+    code: string;
+    rankLabel: string;
+    region: string;
+    eraNote: string;
+  }> = isKinanah
+    ? [
+        {
+          name: 'خزيمة',
+          code: 'MD3',
+          rankLabel: 'جد مضري قديم',
+          region: 'الحجاز وتهامة',
+          eraNote: 'خزيمة بن مدركة بن إلياس بن مضر.',
+        },
+        {
+          name: 'مدركة',
+          code: 'MD2',
+          rankLabel: 'جد خندف',
+          region: 'الحجاز',
+          eraNote: 'مدركة بن إلياس بن مضر.',
+        },
+        {
+          name: 'إلياس',
+          code: 'MD1',
+          rankLabel: 'جد القبائل الخندفية',
+          region: 'الحجاز',
+          eraNote: 'إلياس بن مضر بن نزار.',
+        },
+        {
+          name: 'مضر',
+          code: 'MD0',
+          rankLabel: 'الجذم العدناني العظيم (مضر)',
+          region: 'الحجاز والجزيرة العربية',
+          eraNote: 'مضر بن نزار بن معد بن عدنان.',
+        },
+        {
+          name: 'نزار',
+          code: 'NZ0',
+          rankLabel: 'جد العرب النزارية',
+          region: 'الحجاز ونجد',
+          eraNote: 'نزار بن معد بن عدنان.',
+        },
+        {
+          name: 'معد',
+          code: 'MA0',
+          rankLabel: 'الجد الجامع للعرب المعدية',
+          region: 'الحجاز والجزيرة العربية',
+          eraNote: 'معد بن عدنان — عمود العرب العدنانية.',
+        },
+        {
+          name: 'عدنان',
+          code: 'CD0',
+          rankLabel: 'أصل العرب العدنانية المستعربة',
+          region: 'مكة المكرمة والحجاز',
+          eraNote: 'عدنان — الجد الأعلى المجمع عليه لقبائل مضر وربيعة.',
+        },
+        {
+          name: 'إسماعيل عليه السلام',
+          code: 'IS0',
+          rankLabel: 'نبي الله إسماعيل الذبيح عليه السلام',
+          region: 'مكة المكرمة',
+          eraNote: 'نبي الله إسماعيل بن إبراهيم الخليل عليهما السلام.',
+        },
+        {
+          name: 'إبراهيم عليه السلام',
+          code: 'IB0',
+          rankLabel: 'خليل الرحمن نبي الله إبراهيم عليه السلام',
+          region: 'مكة المكرمة والشرق القديم',
+          eraNote: 'أبو الأنبياء نبي الله إبراهيم عليه السلام.',
+        },
+        {
+          name: 'سام',
+          code: 'SM0',
+          rankLabel: 'أبو الشعوب السامية',
+          region: 'الشرق الأدنى القديم',
+          eraNote: 'سام بن نوح عليه السلام.',
+        },
+        {
+          name: 'نوح عليه السلام',
+          code: 'NH0',
+          rankLabel: 'نبي الله نوح (الأب الثاني للبشرية)',
+          region: 'بلاد الرافدين والشرق القديم',
+          eraNote: 'شيخ المرسلين نبي الله نوح عليه السلام.',
+        },
+        {
+          name: 'آدم عليه السلام',
+          code: 'AD0',
+          rankLabel: 'أبو البشر نبي الله آدم عليه السلام',
+          region: 'مهد الخليقة',
+          eraNote: 'منتهى سلاسل الأنساب البشرية قاطبة في شجرة آدم.',
+        },
+      ]
+    : isAnazzah
+    ? [
+        {
+          name: 'وائل بن هزان',
+          code: 'AN2',
+          rankLabel: 'الجد الجامع لبطون بني وائل',
+          region: 'شبه الجزيرة العربية',
+          eraNote: 'وائل بن هزان في عمود عنزة بن أسد.',
+        },
+        {
+          name: 'أسد بن ربيعة',
+          code: 'M1',
+          rankLabel: 'الجذم الربعي الكبير (أسد بن ربيعة)',
+          region: 'الجزيرة العربية',
+          eraNote: 'أسد بن ربيعة بن نزار — أصل قبائل عنزة.',
+        },
+        {
+          name: 'ربيعة',
+          code: 'M0',
+          rankLabel: 'الجذم العدناني العظيم (ربيعة الفرس)',
+          region: 'الجزيرة العربية',
+          eraNote: 'ربيعة بن نزار بن معد بن عدنان.',
+        },
+        {
+          name: 'نزار',
+          code: 'NZ0',
+          rankLabel: 'جد العرب النزارية',
+          region: 'الحجاز ونجد',
+          eraNote: 'نزار بن معد بن عدنان.',
+        },
+        {
+          name: 'معد',
+          code: 'MA0',
+          rankLabel: 'الجد الجامع للعرب المعدية',
+          region: 'الحجاز والجزيرة العربية',
+          eraNote: 'معد بن عدنان — عمود العرب العدنانية.',
+        },
+        {
+          name: 'عدنان',
+          code: 'CD0',
+          rankLabel: 'أصل العرب العدنانية المستعربة',
+          region: 'مكة المكرمة والحجاز',
+          eraNote: 'عدنان — الجد الأعلى المجمع عليه لقبائل ربيعة ومضر.',
+        },
+        {
+          name: 'إسماعيل عليه السلام',
+          code: 'IS0',
+          rankLabel: 'نبي الله إسماعيل الذبيح عليه السلام',
+          region: 'مكة المكرمة',
+          eraNote: 'نبي الله إسماعيل بن إبراهيم الخليل عليهما السلام.',
+        },
+        {
+          name: 'إبراهيم عليه السلام',
+          code: 'IB0',
+          rankLabel: 'خليل الرحمن نبي الله إبراهيم عليه السلام',
+          region: 'مكة المكرمة والشرق القديم',
+          eraNote: 'أبو الأنبياء نبي الله إبراهيم عليه السلام.',
+        },
+        {
+          name: 'سام',
+          code: 'SM0',
+          rankLabel: 'أبو الشعوب السامية',
+          region: 'الشرق الأدنى القديم',
+          eraNote: 'سام بن نوح عليه السلام.',
+        },
+        {
+          name: 'نوح عليه السلام',
+          code: 'NH0',
+          rankLabel: 'نبي الله نوح (الأب الثاني للبشرية)',
+          region: 'بلاد الرافدين والشرق القديم',
+          eraNote: 'شيخ المرسلين نبي الله نوح عليه السلام.',
+        },
+        {
+          name: 'آدم عليه السلام',
+          code: 'AD0',
+          rankLabel: 'أبو البشر نبي الله آدم عليه السلام',
+          region: 'مهد الخليقة',
+          eraNote: 'منتهى سلاسل الأنساب البشرية قاطبة في شجرة آدم.',
+        },
+      ]
+    : isShammar
+    ? [
+        {
+          name: 'طيء (جلهمة)',
+          code: 'TY0',
+          rankLabel: 'الجذم الطائي العظيم (قبيلة طيء)',
+          region: 'جبلا أجأ وسلمى (حائل) والجزيرة',
+          eraNote: 'طيء (جلهمة) بن أدد — الأصل التاريخي لقبائل شمر وطيء.',
+        },
+        {
+          name: 'أدد',
+          code: 'AD1',
+          rankLabel: 'الجد الجامع لقبائل طيء ومذحج',
+          region: 'الجزيرة العربية',
+          eraNote: 'أدد بن زيد بن يشجب بن عريب بن زيد بن كهلان.',
+        },
+        {
+          name: 'كهلان',
+          code: 'K0',
+          rankLabel: 'الجذم الأعظم للعرب القحطانية',
+          region: 'اليمن القديم والجزيرة العربية',
+          eraNote: 'كهلان بن سبأ بن يشجب بن يعرب بن قحطان.',
+        },
+        {
+          name: 'سبأ',
+          code: 'S2',
+          rankLabel: 'الملك والجد الجامع لقبائل سبأ',
+          region: 'مأرب واليمن القديم',
+          eraNote: 'سبأ (عبد شمس) بن يشجب بن يعرب بن قحطان.',
+        },
+        {
+          name: 'قحطان',
+          code: 'Q0',
+          rankLabel: 'أصل العرب العاربة قاطبة',
+          region: 'الجزيرة العربية',
+          eraNote: 'قحطان بن عابر — الجد الأكبر لكافة القبائل القحطانية.',
+        },
+        {
+          name: 'سام',
+          code: 'SM0',
+          rankLabel: 'أبو الشعوب السامية',
+          region: 'الشرق الأدنى القديم',
+          eraNote: 'سام بن نوح عليه السلام.',
+        },
+        {
+          name: 'نوح عليه السلام',
+          code: 'NH0',
+          rankLabel: 'نبي الله نوح (الأب الثاني للبشرية)',
+          region: 'بلاد الرافدين والشرق القديم',
+          eraNote: 'شيخ المرسلين نبي الله نوح عليه السلام.',
+        },
+        {
+          name: 'آدم عليه السلام',
+          code: 'AD0',
+          rankLabel: 'أبو البشر نبي الله آدم عليه السلام',
+          region: 'مهد الخليقة',
+          eraNote: 'منتهى سلاسل الأنساب البشرية قاطبة في شجرة آدم.',
+        },
+      ]
+    : isBelharith
+    ? [
+        {
+          name: 'الحارث بن كعب',
+          code: 'HR1',
+          rankLabel: 'الجد الجامع لبطون بني الحارث',
+          region: 'الحجاز والسراة ونجران',
+          eraNote: 'الحارث بن كعب بن عمرو في عمود القبائل القحطانية.',
+        },
+        {
+          name: 'مذحج (مالك بن أدد)',
+          code: 'M0',
+          rankLabel: 'الجذم القبلي العظيم',
+          region: 'السراة والحجاز واليمن',
+          eraNote: 'مالك (مذحج) بن أدد بن زيد بن كهلان.',
+        },
+        {
+          name: 'كهلان',
+          code: 'K0',
+          rankLabel: 'الجذم الأعظم للعرب القحطانية',
+          region: 'اليمن القديم والجزيرة العربية',
+          eraNote: 'كهلان بن سبأ بن يشجب بن يعرب بن قحطان.',
+        },
+        {
+          name: 'سبأ',
+          code: 'S2',
+          rankLabel: 'الملك والجد الجامع لقبائل سبأ',
+          region: 'مأرب واليمن القديم',
+          eraNote: 'سبأ (عبد شمس) بن يشجب بن يعرب بن قحطان.',
+        },
+        {
+          name: 'قحطان',
+          code: 'Q0',
+          rankLabel: 'أصل العرب العاربة قاطبة',
+          region: 'الجزيرة العربية',
+          eraNote: 'قحطان بن عابر — الجد الأكبر لكافة القبائل القحطانية.',
+        },
+        {
+          name: 'سام',
+          code: 'SM0',
+          rankLabel: 'أبو الشعوب السامية',
+          region: 'الشرق الأدنى القديم',
+          eraNote: 'سام بن نوح عليه السلام.',
+        },
+        {
+          name: 'نوح عليه السلام',
+          code: 'NH0',
+          rankLabel: 'نبي الله نوح (الأب الثاني للبشرية)',
+          region: 'بلاد الرافدين والشرق القديم',
+          eraNote: 'شيخ المرسلين نبي الله نوح عليه السلام.',
+        },
+        {
+          name: 'آدم عليه السلام',
+          code: 'AD0',
+          rankLabel: 'أبو البشر نبي الله آدم عليه السلام',
+          region: 'مهد الخليقة',
+          eraNote: 'منتهى سلاسل الأنساب البشرية قاطبة في شجرة آدم.',
+        },
+      ]
+    : [
+        {
+          name: 'عمرو بن معدي كرب الزبيدي',
+          code: 'Z1',
+          rankLabel: 'عقدة الالتقاء المعتمدة في شجرة آدم (فرسان زبيد)',
+          region: 'الجزيرة العربية ووادي الفرات',
+          eraNote: 'الجد الجامع لبطون العقيدات وزبيد الفرات.',
+        },
+        {
+          name: 'زبيد (منبه الأصغر)',
+          code: 'Z0',
+          rankLabel: 'البطن القبلي الكبير (زبيد مذحج)',
+          region: 'الجزيرة العربية والشام والعراق',
+          eraNote: 'قبيلة زبيد الكبرى (منبه الأصغر بن صعب بن سعد العشيرة).',
+        },
+        {
+          name: 'سعد العشيرة',
+          code: 'M2',
+          rankLabel: 'الجذم المذحجي الجامع',
+          region: 'اليمن والجزيرة العربية',
+          eraNote: 'سعد العشيرة بن مذحج (مالك) بن أدد.',
+        },
+        {
+          name: 'مذحج (مالك)',
+          code: 'M0',
+          rankLabel: 'الجذم القبلي العظيم (مذحج)',
+          region: 'اليمن والحجاز والجزيرة',
+          eraNote: 'مذحج (مالك بن أدد) — أصل قبائل زبيد وسعد العشيرة وجنب.',
+        },
+        {
+          name: 'كهلان',
+          code: 'K0',
+          rankLabel: 'الجذم الأعظم للعرب القحطانية',
+          region: 'اليمن القديم والجزيرة العربية',
+          eraNote: 'كهلان بن سبأ بن يشجب بن يعرب بن قحطان.',
+        },
+        {
+          name: 'سبأ',
+          code: 'S2',
+          rankLabel: 'الملك والجد الجامع لقبائل سبأ',
+          region: 'مأرب واليمن القديم',
+          eraNote: 'سبأ (عبد شمس) بن يشجب بن يعرب بن قحطان.',
+        },
+        {
+          name: 'قحطان',
+          code: 'Q0',
+          rankLabel: 'أصل العرب العاربة قاطبة',
+          region: 'الجزيرة العربية',
+          eraNote: 'قحطان بن عابر — الجد الأكبر لكافة القبائل القحطانية.',
+        },
+        {
+          name: 'سام',
+          code: 'SM0',
+          rankLabel: 'أبو الشعوب السامية',
+          region: 'الشرق الأدنى القديم',
+          eraNote: 'سام بن نوح عليه السلام — جد العرب والآراميين والكنعانيين.',
+        },
+        {
+          name: 'نوح عليه السلام',
+          code: 'NH0',
+          rankLabel: 'نبي الله نوح (الأب الثاني للبشرية)',
+          region: 'بلاد الرافدين والشرق القديم',
+          eraNote: 'شيخ المرسلين نبي الله نوح بن لامك عليه السلام.',
+        },
+        {
+          name: 'آدم عليه السلام',
+          code: 'AD0',
+          rankLabel: 'أبو البشر نبي الله آدم عليه السلام',
+          region: 'مهد الخليقة',
+          eraNote: 'منتهى سلاسل الأنساب البشرية قاطبة في شجرة آدم.',
+        },
+      ];
+
+  const combinedNodes: UpperAncestorNode[] = [
+    ...baseAlphaNodes.map((n, i) => ({
+      ...n,
+      orderNumber: i + 1,
+      isCodedStation: true,
+      dataLakeSource: 'adam_tree' as const,
+    })),
+    ...upperTribalTail.map((item, idx) => ({
+      id: `merged-upper-${idx + 1}`,
+      orderNumber: baseAlphaNodes.length + idx + 1,
+      name: item.name,
+      code: item.code,
+      rankLabel: item.rankLabel,
+      isCodedStation: true,
+      region: item.region,
+      eraNote: item.eraNote,
+      dataLakeSource: 'adam_tree' as const,
+    })),
+  ];
+
+  const mergedNodes = enrichSpineNodesWithNeo4jRelations(combinedNodes);
+
   return {
     ...result,
+    matched: true,
     isAlphaOnlyBeforeMerge: false,
     isAlphaMergedIntoAdam: true,
     adamSpineNodes: mergedNodes,
-    upperAncestors: mergedNodes.filter((n) => n.orderNumber > 3),
+    upperAncestors: mergedNodes.filter((n) => n.orderNumber > baseAlphaNodes.length),
     capsules: [],
     confidenceLabel:
-      'تم اعتماد الربط الأعلى من لوحة الباحثين: متصل بالكامل عبر (العقيدات ⬅️ زبيد ⬅️ مذحج ⬅️ قحطان ⬅️ آدم عليه السلام)',
+      'تم اعتماد الربط من لوحة الباحثين وتغذية شجرة آدم حتى آدم عليه السلام ✓',
   };
 }
 
@@ -2569,8 +2971,9 @@ export function resolveDeterministicLineage(
   );
 
   const clientName = form.firstName.trim() || 'العميل';
-  const fatherName = form.fatherName.trim() || '—';
-  const grandfatherName = form.grandfatherName.trim() || '—';
+  const fatherName = form.fatherName.trim() === '—' ? '' : form.fatherName.trim();
+  const grandfatherName =
+    form.grandfatherName.trim() === '—' ? '' : form.grandfatherName.trim();
   const displayFamilyName = form.familyName.trim() || 'العائلة';
 
   // ---------------------------------------------------------------------------

@@ -1,190 +1,310 @@
 import { ArabCountryInfo } from '../types/juthori';
 
+export const GENERAL_DIASPORA_COUNTRY_INFO: ArabCountryInfo = {
+  code: 'GLOBAL',
+  name: 'عام (المهجر / جميع الدول الأخرى)',
+  capital: 'المهجر',
+  regionLabel: 'المهجر والعالم العربي',
+  slogan: 'جذورك العربية وأصالة نسبك.. إرثٌ حيّ يجمع العائلة أينما كنت',
+  heritageNote: 'بوابتك الموثوقة لاكتشاف عمود النسب وبناء وحفظ شجرة عائلتك عبر الأجيال.',
+  heroImageUrl:
+    'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=1920&q=85',
+};
+
 export const ARAB_COUNTRIES_22: ArabCountryInfo[] = [
   {
     code: 'SA',
     name: 'السعودية',
     capital: 'الرياض',
     regionLabel: 'الجزيرة العربية ونجد والحجاز وعسير',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'حواضر الجزيرة العربية وموطن المشجرات القبلية والأسرية المحققة عبر القرون.',
+    slogan: 'عزوتك وتاريخ أهلك.. موثّق من الجذر لليوم',
+    heritageNote: 'من حواضر نجد والحجاز وعسير والشرقية والشمال.. نحفظ سيرة الأجداد للأحفاد.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1586724237569-f3d0c1dee8c6?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'AE',
     name: 'الإمارات',
     capital: 'أبوظبي',
     regionLabel: 'ساحل الخليج العربي والواحات',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'توثيق أنساب الحواضر الساحلية والواحات العريقة من ليوا والعين إلى دبي والشارقة.',
+    slogan: 'أصلك وفصلك.. إرث الأوّلين باقي للأبناء',
+    heritageNote: 'نوثّق سير الحمايل والقبائل وأنساب أهل الخليج من أمهات المصادر.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'KW',
     name: 'الكويت',
     capital: 'مدينة الكويت',
     regionLabel: 'شمال الخليج العربي',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'سجلات الأسر الكويتية الممتدة بين حاضرة البحر وبادية الجزيرة العربية.',
+    slogan: 'أصلك وفصلك.. إرث الأوّلين باقي للأبناء',
+    heritageNote: 'نوثّق سير الحمايل والقبائل وأنساب أهل الخليج من أمهات المصادر.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'QA',
     name: 'قطر',
     capital: 'الدوحة',
     regionLabel: 'شبه جزيرة قطر والخليج',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'ترابط أنساب القبائل والعائلات القطرية في دواوين التراث والوثائق المحققة.',
+    slogan: 'أصلك وفصلك.. إرث الأوّلين باقي للأبناء',
+    heritageNote: 'نوثّق سير الحمايل والقبائل وأنساب أهل الخليج من أمهات المصادر.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'BH',
     name: 'البحرين',
     capital: 'المنامة',
     regionLabel: 'أرخبيل أوال والخليج',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'أرشيف البيوتات العلمية والتجارية العريقة في المنامة والمحرق.',
+    slogan: 'أصلك وفصلك.. إرث الأوّلين باقي للأبناء',
+    heritageNote: 'نوثّق سير الحمايل والقبائل وأنساب أهل الخليج من أمهات المصادر.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'OM',
     name: 'عُمان',
     capital: 'مسقط',
     regionLabel: 'عُمان الداخل والساحل وظفار',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'موسوعات الأنساب العُمانية الموثقة من نزوى وصحار إلى ظفار.',
+    slogan: 'أصالة النسب وعراقة التاريخ.. من الجذور للأحفاد',
+    heritageNote: 'سجل موثق يجمع أنساب القبائل والحواضر العُمانية عبر العصور.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1578895101408-1a36b834405b?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'YE',
     name: 'اليمن',
     capital: 'صنعاء',
     regionLabel: 'مخلاف اليمن وحضرموت ومأرب',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'معين الجذور القحطانية ومشجرات الإكليل وحواضر صنعاء وحضرموت وتعز.',
+    slogan: 'أصل العرب ومعدن النسب.. تاريخك موثّق من الجذور',
+    heritageNote: 'من صنعاء وحضرموت لمأرب وتعز.. نوثق مشجرات القبائل والأسر العريقة.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'EG',
     name: 'مصر',
     capital: 'القاهرة',
     regionLabel: 'وادي النيل والصعيد والدلتا',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'دفاتر الأنساب والبيوتات المصرية في الصعيد والشرقية والدلتا والقاهرة المحروسة.',
+    slogan: 'أصلك الطيب وعيلتك الكبيرة.. تاريخ متوثّق من الجدود للأحفاد',
+    heritageNote: 'من بحري للصعيد والواحات.. بنجمع فروع العيلة ونحفظ أصولها في مكان واحد.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1572252821143-035a024857ac?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'JO',
     name: 'الأردن',
     capital: 'عمّان',
     regionLabel: 'البلقاء والكرك وحوران والبادية',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'توثيق العشائر والعائلات الأردنية الممتدة من الكرك والسلط إلى إربد ومعان.',
+    slogan: 'جذور العيلة وأصل النسب.. حكاية عز ما بتغيب',
+    heritageNote: 'من حواضر الشام ووادي الفرات للقدس وعمان.. منجمع شمل العيلة ومنحفظ تاريخها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'PS',
     name: 'فلسطين',
     capital: 'القدس',
     regionLabel: 'القدس وجبل نابلس والخليل والساحل',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'حفظ سجلات العائلات المقدسية والفلسطينية وصكوك الوقف والذاكرة المتوارثة.',
+    slogan: 'جذور العيلة وأصل النسب.. حكاية عز ما بتغيب',
+    heritageNote: 'من حواضر الشام ووادي الفرات للقدس وعمان.. منجمع شمل العيلة ومنحفظ تاريخها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'LB',
     name: 'لبنان',
     capital: 'بيروت',
     regionLabel: 'جبل لبنان والساحل والبقاع',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'تدوين تواريخ الأسر البيروتية والطرابلسية والجبلية وامتداداتها في المهجر.',
+    slogan: 'جذور العيلة وأصل النسب.. حكاية عز ما بتغيب',
+    heritageNote: 'من حواضر الشام ووادي الفرات للقدس وعمان.. منجمع شمل العيلة ومنحفظ تاريخها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'SY',
     name: 'سوريا',
     capital: 'دمشق',
     regionLabel: 'دمشق وحلب وحمص والجزيرة الفراتية',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'خزائن أنساب حواضر الشام العريقة في دمشق وحلب وحماة وحمص ودير الزور.',
+    slogan: 'جذور العيلة وأصل النسب.. حكاية عز ما بتغيب',
+    heritageNote: 'من حواضر الشام ووادي الفرات للقدس وعمان.. منجمع شمل العيلة ومنحفظ تاريخها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'IQ',
     name: 'العراق',
     capital: 'بغداد',
     regionLabel: 'بغداد والموصل والبصرة والفرات الأوسط',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'مشجرات القبائل والبيوتات العلمية في بغداد والموصل والبصرة والنجف.',
+    slogan: 'أصلك وفصلك وتاريخ عشيرتك.. موثّق من الجذور',
+    heritageNote: 'من بغداد والبصرة للموصل والفرات.. نحفظ أعمدة النسب ومآثر الأجداد.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'MA',
     name: 'المغرب',
     capital: 'الرباط',
     regionLabel: 'فاس ومراكش والرباط وسوس',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'كنانيش النسب والظهائر التاريخية لأسر وحواضر المغرب الأقصى.',
+    slogan: 'أصل العائلة وشجرة الجدّود.. تاريخ عريق محفوظ للأجيال',
+    heritageNote: 'من الأطلس للصحراء والحواضر العتيقة.. نجمع فروع العائلة ونوثق أصولها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1539020140153-e479b8c22e70?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'DZ',
     name: 'الجزائر',
     capital: 'الجزائر',
     regionLabel: 'تلمسان وقسنطينة والأوراس والصحراء',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'عقود الأنساب والمخطوطات العائلية في تلمسان وقسنطينة والجزائر وغرداية.',
+    slogan: 'أصل العائلة وشجرة الجدّود.. تاريخ عريق محفوظ للأجيال',
+    heritageNote: 'من الأطلس للصحراء والحواضر العتيقة.. نجمع فروع العائلة ونوثق أصولها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1539020140153-e479b8c22e70?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'TN',
     name: 'تونس',
     capital: 'تونس',
     regionLabel: 'حاضرة تونس والقيروان وصفاقس',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'دفاتر العائلات التونسية والقيروانية والأندلسية الموثقة.',
+    slogan: 'أصل العائلة وشجرة الجدّود.. تاريخ عريق محفوظ للأجيال',
+    heritageNote: 'من الأطلس للصحراء والحواضر العتيقة.. نجمع فروع العائلة ونوثق أصولها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1539020140153-e479b8c22e70?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'LY',
     name: 'ليبيا',
     capital: 'طرابلس',
     regionLabel: 'طرابلس وبرقة وفزان',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'أصول القبائل والبيوت الليبية الممتدة بين الساحل والجبل الأخضر والواحات.',
+    slogan: 'أصل العائلة وشجرة الجدّود.. تاريخ عريق محفوظ للأجيال',
+    heritageNote: 'من الأطلس للصحراء والحواضر العتيقة.. نجمع فروع العائلة ونوثق أصولها.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1539020140153-e479b8c22e70?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'SD',
     name: 'السودان',
     capital: 'الخرطوم',
     regionLabel: 'وادي النيل الأوسط ودارفور وكردفان',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'طبقات النسب والمشجرات السودانية المحفوظة على ضفاف النيل والجزيرة.',
+    slogan: 'أصلك وأهلك.. تاريخ ممتد ونسب محفوظ للأجيال',
+    heritageNote: 'نوثق سلاسل الأنساب والقبائل والأسر السودانية العريقة من المصادر المعتمدة.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'MR',
     name: 'موريتانيا',
     capital: 'نواكشوط',
     regionLabel: 'بلاد شنقيط وولاته وأدرار',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'مكتبات شنقيط العريقة وحواضر حفظ الأنساب والسير العربية في الصحراء الكبرى.',
+    slogan: 'جذورك العربية وأصالة نسبك.. إرثٌ حيّ يجمع العائلة أينما كنت',
+    heritageNote: 'بوابتك الموثوقة لاكتشاف عمود النسب وبناء وحفظ شجرة عائلتك عبر الأجيال.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'SO',
     name: 'الصومال',
     capital: 'مقديشو',
     regionLabel: 'مقديشو وزيلع والقرن الأفريقي',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'تقاليد حفظ عمود النسب المتصل جيلًا بعد جيل في حواضر الساحل الشرقي.',
+    slogan: 'جذورك العربية وأصالة نسبك.. إرثٌ حيّ يجمع العائلة أينما كنت',
+    heritageNote: 'بوابتك الموثوقة لاكتشاف عمود النسب وبناء وحفظ شجرة عائلتك عبر الأجيال.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'DJ',
     name: 'جيبوتي',
     capital: 'جيبوتي',
     regionLabel: 'باب المندب وتاجورة',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'همزة الوصل البحرية والأسرية بين ضفتي البحر الأحمر وعدن.',
+    slogan: 'جذورك العربية وأصالة نسبك.. إرثٌ حيّ يجمع العائلة أينما كنت',
+    heritageNote: 'بوابتك الموثوقة لاكتشاف عمود النسب وبناء وحفظ شجرة عائلتك عبر الأجيال.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=1920&q=85',
   },
   {
     code: 'KM',
     name: 'جزر القمر',
     capital: 'موروني',
     regionLabel: 'أرخبيل القمر وموروني',
-    slogan: 'نسقي شجرة العائلة.. عنصر الاستمرارية في تكوين وبناء الشجرة',
-    heritageNote: 'امتداد البيوت الحضرمية والعُمانية والعربية في أرخبيل المحيط الهندي.',
+    slogan: 'جذورك العربية وأصالة نسبك.. إرثٌ حيّ يجمع العائلة أينما كنت',
+    heritageNote: 'بوابتك الموثوقة لاكتشاف عمود النسب وبناء وحفظ شجرة عائلتك عبر الأجيال.',
+    heroImageUrl:
+      'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=1920&q=85',
   },
+];
+
+export const PORTAL_COUNTRY_SWITCHER_OPTIONS: ArabCountryInfo[] = [
+  ...ARAB_COUNTRIES_22,
+  GENERAL_DIASPORA_COUNTRY_INFO,
 ];
 
 export const ORIGIN_COUNTRY_OPTIONS: string[] = [
   ...ARAB_COUNTRIES_22.map((c) => c.name),
-  'المهجر (Diaspora)',
+  'عام (المهجر / جميع الدول الأخرى)',
 ];
 
 export function getCountryInfoByName(countryName: string): ArabCountryInfo {
-  const found = ARAB_COUNTRIES_22.find((c) => c.name === countryName);
-  return found ?? ARAB_COUNTRIES_22[0];
+  if (
+    !countryName ||
+    countryName.includes('المهجر') ||
+    countryName.includes('عام') ||
+    countryName === 'GLOBAL'
+  ) {
+    return GENERAL_DIASPORA_COUNTRY_INFO;
+  }
+  const found = ARAB_COUNTRIES_22.find(
+    (c) => c.name === countryName || c.code.toUpperCase() === countryName.toUpperCase()
+  );
+  return found ?? GENERAL_DIASPORA_COUNTRY_INFO;
+}
+
+export function resolveVisitorCountryName(
+  ipCountryCode?: string,
+  ipCountryName?: string
+): string {
+  if (ipCountryCode) {
+    const byCode = ARAB_COUNTRIES_22.find(
+      (c) => c.code.toUpperCase() === ipCountryCode.trim().toUpperCase()
+    );
+    if (byCode) return byCode.name;
+  }
+  if (ipCountryName) {
+    const byName = ARAB_COUNTRIES_22.find((c) =>
+      ipCountryName.includes(c.name) || c.name.includes(ipCountryName)
+    );
+    if (byName) return byName.name;
+  }
+  // Browser timezone fallback if IP is localhost/unspecified
+  if (typeof Intl !== 'undefined') {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      const tzMap: Record<string, string> = {
+        'Asia/Riyadh': 'السعودية',
+        'Asia/Dubai': 'الإمارات',
+        'Asia/Kuwait': 'الكويت',
+        'Asia/Qatar': 'قطر',
+        'Asia/Bahrain': 'البحرين',
+        'Asia/Muscat': 'عُمان',
+        'Asia/Aden': 'اليمن',
+        'Africa/Cairo': 'مصر',
+        'Asia/Amman': 'الأردن',
+        'Asia/Gaza': 'فلسطين',
+        'Asia/Hebron': 'فلسطين',
+        'Asia/Jerusalem': 'فلسطين',
+        'Asia/Beirut': 'لبنان',
+        'Asia/Damascus': 'سوريا',
+        'Asia/Baghdad': 'العراق',
+        'Africa/Casablanca': 'المغرب',
+        'Africa/Algiers': 'الجزائر',
+        'Africa/Tunis': 'تونس',
+        'Africa/Tripoli': 'ليبيا',
+        'Africa/Khartoum': 'السودان',
+      };
+      if (tzMap[tz]) return tzMap[tz];
+    } catch {
+      // ignore
+    }
+  }
+  return 'السعودية';
 }

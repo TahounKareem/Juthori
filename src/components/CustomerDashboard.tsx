@@ -208,6 +208,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     });
   };
 
+  // Reset unlocked capsules when switching families so intermediate rings start folded
+  useEffect(() => {
+    setUnlockedCapsules([]);
+  }, [result.familyName]);
+
   // Callback executed after Step 3 of CheckoutModal completes
   const handleConfirmCheckoutSuccess = (
     order: CheckoutOrderRequest,
@@ -229,7 +234,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       setWalletBalance((prev) => prev + (order.bonusWalletUsd ?? 25));
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — عضوية بريميوم السنوية ($60)`,
-        'فتح المحطات الرئيسية في شجرة آدم وتفعيل التبويبات الخمسة + إيداع $25 رصيد هدية في المحفظة'
+        'فتح المحطات الرئيسية في شجرة آدم والمصادر وتفعيل التبويبات الخمسة + إيداع $25 رصيد هدية في المحفظة'
       );
     } else if (order.type === 'unlock_capsule' && order.capsuleId) {
       setUnlockedCapsules((prev) =>
@@ -258,11 +263,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const handleTabClick = (tab: (typeof DASHBOARD_TABS)[number]) => {
     if (tab.premium && !caps.arePremiumTabsUnlocked) {
       setLockedTabPromptName(tab.label);
-      return;
-    }
-
-    if (tab.id === DashboardTab.MyTree && caps.requiresCharterUpgradeForTree) {
-      setShowCharterModal(true);
       return;
     }
 
@@ -326,7 +326,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321]">
+    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-hidden">
       {/* 0. Top Email Verification Banner (disappears once email is verified) */}
       {!isEmailVerified && (
         <aside
@@ -598,20 +598,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </div>
           </div>
 
-          {/* Main Dashboard Navigation Tabs (Unified Brand Colors — No Green) */}
+          {/* Main Dashboard Navigation Tabs (Smooth Mobile Touch Scroll + Clear Active Indicator) */}
           <nav
             aria-label="تبويبات لوحة تحكم العميل"
-            className="flex items-center gap-2 overflow-x-auto py-2.5 no-scrollbar"
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth touch-pan-x py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0"
           >
             {DASHBOARD_TABS.map((tab) => {
               const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
               const isSelected = activeUtilityDrawer === null && activeTab === tab.id;
 
               let buttonClasses =
-                'px-4 py-2 rounded-xl text-sm font-display font-bold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ';
+                'relative px-4 py-2.5 rounded-xl text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] ';
 
               if (isSelected) {
-                buttonClasses += 'bg-[#D8755B] text-white shadow-xs';
+                buttonClasses +=
+                  'bg-[#D8755B] text-white shadow-sm ring-2 ring-[#D8755B]/30';
               } else if (isLocked) {
                 buttonClasses +=
                   'bg-[#EDE6DA]/60 text-[#252321]/50 hover:bg-[#EDE6DA]';
@@ -631,6 +632,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   }
                   className={buttonClasses}
                 >
+                  {isSelected && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-[#F3D299] shrink-0"
+                      aria-hidden="true"
+                    />
+                  )}
                   <span>{tab.label}</span>
                   {isLocked && (
                     <Lock
@@ -878,6 +885,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
             walletBalance={walletBalance}
             onUpdateImmediateParents={onUpdateImmediateParents}
+            onOpenMyTreeTab={() => {
+              const treeTab = DASHBOARD_TABS.find(
+                (t) => t.id === DashboardTab.MyTree
+              );
+              if (treeTab) handleTabClick(treeTab);
+            }}
           />
         ) : (
           <PremiumTabViews

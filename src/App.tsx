@@ -18,6 +18,7 @@ import {
   RegistrationFormState,
   SilentGeoMetadata,
 } from './types/juthori';
+import { resolveVisitorCountryName } from './data/arabCountries';
 import {
   resolveDeterministicLineage,
   searchJuthoriLineage,
@@ -58,7 +59,10 @@ const DEFAULT_DEMO_SEED = {
 
 export function App() {
   const [form, setForm] = useState<RegistrationFormState>(DEFAULT_FORM_STATE);
-  const [selectedPortalCountry, setSelectedPortalCountry] = useState<string>('السعودية');
+  const [selectedPortalCountry, setSelectedPortalCountry] = useState<string>(() =>
+    resolveVisitorCountryName()
+  );
+  const [userManuallySelectedCountry, setUserManuallySelectedCountry] = useState(false);
   const [silentGeo, setSilentGeo] = useState<SilentGeoMetadata>({
     ip: '127.0.0.1',
     ip_country: 'السعودية',
@@ -103,14 +107,21 @@ export function App() {
     DashboardStateMode.State2MatchedUnpaid
   );
 
-  // Silent IP Geolocation Capture in background
+  // Silent IP Geolocation Capture in background + Auto-Detect Country for Hero
   useEffect(() => {
     let active = true;
     fetch('/api/juthori/geo')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (active && data && data.ip_country) {
+        if (active && data && (data.ip_country || data.ip_country_code)) {
           setSilentGeo(data);
+          const detectedCountry = resolveVisitorCountryName(
+            data.ip_country_code,
+            data.ip_country
+          );
+          if (!userManuallySelectedCountry && detectedCountry) {
+            setSelectedPortalCountry(detectedCountry);
+          }
         }
       })
       .catch(() => {
@@ -120,7 +131,7 @@ export function App() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [userManuallySelectedCountry]);
 
   // Firebase Auth Observer to synchronize logged-in user profile
   useEffect(() => {
@@ -162,21 +173,22 @@ export function App() {
   }, [activeView, searchStep]);
 
   // Step 1: Submit search from Landing Page -> launches intermediate Verification Screen (Step 2)
+  // Every new account is automatically registered as "Individual" (فرد)
   const handleSubmitSearch = async () => {
     setIsSearching(true);
+    setIsAlphaMergedIntoAdam(false);
+    setForm((prev) => ({ ...prev, accountType: AccountLegalType.Individual }));
 
-    const rawResult = await searchJuthoriLineage(form, {
-      ip_country: silentGeo.ip_country,
-      ip_city: silentGeo.ip_city,
-    });
+    const rawResult = await searchJuthoriLineage(
+      { ...form, accountType: AccountLegalType.Individual },
+      {
+        ip_country: silentGeo.ip_country,
+        ip_city: silentGeo.ip_city,
+      }
+    );
 
-    const finalResult =
-      rawResult.isAlphaOnlyBeforeMerge && isAlphaMergedIntoAdam
-        ? upgradeAlphaResultToMergedAdam(rawResult)
-        : rawResult;
-
-    setLineageResult(finalResult);
-    setDashboardStateMode(finalResult.recommendedInitialState);
+    setLineageResult(rawResult);
+    setDashboardStateMode(rawResult.recommendedInitialState);
     setSearchStep(2);
     setIsSearching(false);
     setActiveView('searching');
@@ -248,6 +260,16 @@ export function App() {
       });
       setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
     } else if (selectedDisambiguation === 'not_sure_ticket') {
+      setLineageResult((prev) => ({
+        ...prev,
+        matched: false,
+        isAlphaOnlyBeforeMerge: false,
+        isAlphaMergedIntoAdam: false,
+        requiresBlindDisambiguation: false,
+        adamSpineNodes: prev.adamSpineNodes?.slice(0, 1) || [],
+        upperAncestors: [],
+        capsules: [],
+      }));
       setDashboardStateMode(DashboardStateMode.State3Unmatched);
     }
 
@@ -368,9 +390,11 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
-  // Live Researcher Studio Callback inside Staff Portal: Merge Alpha nodes (الابو حليحل / الابو معيط -> خابور -> العقيدات) into Adam's Tree
+  // Live Researcher Studio Callback inside Staff Portal: Merge Alpha or P1 ticket nodes into Adam's Tree
   const handleApproveAlphaMergeIntoAdam = ({
     familyName,
+    subRootName,
+    motherTribeName,
   }: {
     familyName: string;
     subRootName: string;
@@ -382,11 +406,16 @@ export function App() {
       if (
         prev.isAlphaOnlyBeforeMerge ||
         prev.isAlphaMergedIntoAdam ||
+        !prev.matched ||
         prev.familyName.includes('حليحل') ||
         prev.familyName.includes('معيط') ||
         prev.familyName.includes('خابور')
       ) {
-        return upgradeAlphaResultToMergedAdam(prev);
+        return upgradeAlphaResultToMergedAdam({
+          ...prev,
+          rootBranchName: subRootName || prev.rootBranchName,
+          rootTribeName: motherTribeName || prev.rootTribeName,
+        });
       }
       const resolved = resolveDeterministicLineage({
         firstName: form.firstName || 'كريم',
@@ -395,8 +424,8 @@ export function App() {
         familyName: familyName || 'الابو معيط',
         originCountry: 'سوريا',
         originRegion: 'دير الزور',
-        tribeName: 'العقيدات',
-        branchName: 'خابور',
+        tribeName: motherTribeName || 'العقيدات',
+        branchName: subRootName || 'خابور',
       });
       return upgradeAlphaResultToMergedAdam(resolved);
     });
@@ -455,15 +484,18 @@ export function App() {
     nextFatherName: string,
     nextGrandfatherName: string
   ) => {
+    const cleanFather = nextFatherName.trim() === '—' ? '' : nextFatherName.trim();
+    const cleanGrandfather =
+      nextGrandfatherName.trim() === '—' ? '' : nextGrandfatherName.trim();
     setForm((prev) => ({
       ...prev,
-      fatherName: nextFatherName,
-      grandfatherName: nextGrandfatherName,
+      fatherName: cleanFather,
+      grandfatherName: cleanGrandfather,
     }));
     setLineageResult((prev) => ({
       ...prev,
-      fatherName: nextFatherName || '—',
-      grandfatherName: nextGrandfatherName || '—',
+      fatherName: cleanFather,
+      grandfatherName: cleanGrandfather,
     }));
   };
 
@@ -496,7 +528,10 @@ export function App() {
           form={form}
           onChangeForm={setForm}
           selectedPortalCountry={selectedPortalCountry}
-          onSelectPortalCountry={setSelectedPortalCountry}
+          onSelectPortalCountry={(countryName) => {
+            setUserManuallySelectedCountry(true);
+            setSelectedPortalCountry(countryName);
+          }}
           onSubmitSearch={handleSubmitSearch}
           isSearching={isSearching}
           searchStep={searchStep}

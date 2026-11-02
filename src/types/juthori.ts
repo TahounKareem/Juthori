@@ -29,6 +29,7 @@ export interface ArabCountryInfo {
   regionLabel: string;
   slogan: string;
   heritageNote: string;
+  heroImageUrl: string;
 }
 
 export interface SilentGeoMetadata {

@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Sparkles,
   MapPin,
-  ArrowUp,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -41,6 +40,7 @@ interface LineageSpineColumnProps {
     fatherName: string,
     grandfatherName: string
   ) => void;
+  onOpenMyTreeTab?: () => void;
 }
 
 const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
@@ -70,6 +70,12 @@ const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
   },
 ];
 
+const CASE_1_ADAM_VIP_MARKETING_COPY =
+  'اشترك في الباقة السنوية لتوثيق واستعراض كامل عمود نسب عائلتك التاريخي حتى آدم عليه السلام وفتح المصادر التاريخية';
+
+const CASE_2_ALPHA_VIP_MARKETING_COPY =
+  'اشترك في الباقة السنوية لاستكمال توثيق وكشف حلقات عمود نسبك الأعلى حتى آدم عليه السلام والاطلاع على المصادر والمراجع التاريخية';
+
 /**
  * Strips redundant descriptive prefixes from a node name when the top badge
  * already indicates the classification (e.g., "القبيلة الأم", "الفرع الجامع", "العائلة المباشرة").
@@ -79,6 +85,26 @@ export function getCleanSpineNodeName(rawName: string): string {
     .replace(/^(القبيلة الأم|الفرع الجامع|العائلة المباشرة)\s*:\s*/u, '')
     .replace(/^(من قبيلة|قبيلة|قبائل|فرع|عائلة)\s+/u, '')
     .trim();
+}
+
+/**
+ * Sanitizes optional Father / Grandfather input so empty strings, dashes ("—", "-"),
+ * or placeholder strings are treated as empty and never rendered as cards.
+ */
+export function cleanOptionalParentName(rawName?: string): string {
+  if (!rawName) return '';
+  const cleaned = rawName.trim();
+  if (
+    !cleaned ||
+    cleaned === '—' ||
+    cleaned === '-' ||
+    cleaned === '--' ||
+    cleaned === 'غير محدد' ||
+    cleaned === 'غير متوفر'
+  ) {
+    return '';
+  }
+  return cleaned;
 }
 
 export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
@@ -91,14 +117,19 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onRequestUnlockCapsule,
   onRequestUnlockAllCapsulesBundle,
   walletBalance,
+  onOpenMyTreeTab,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
     useState<UpperAncestorNode | null>(null);
   const [showSourceDetails, setShowSourceDetails] = useState<boolean>(true);
 
-  const fatherName = result.fatherName?.trim() || '';
-  const grandfatherName = result.grandfatherName?.trim() || '';
+  const fatherName = cleanOptionalParentName(result.fatherName);
+  const grandfatherName = cleanOptionalParentName(result.grandfatherName);
+
+  // Case 3: Unmatched family (or user selected "لست متأكداً" in disambiguation)
+  const isUnmatchedCase =
+    !result.matched || stateMode === DashboardStateMode.State3Unmatched;
 
   const spineNodes: UpperAncestorNode[] =
     result.adamSpineNodes && result.adamSpineNodes.length > 0
@@ -120,43 +151,53 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     .filter((c: AncestorCapsule) => unlockedCapsules.includes(c.id))
     .reduce((acc: number, c: AncestorCapsule) => acc + c.ancestors.length, 0);
 
-  const visibleAdamNodesCount = result.isAlphaMergedIntoAdam
-    ? totalFamilySpineNodesCount
-    : codedStationsCount + unlockedIntermediateNodesCount;
+  const visibleAdamNodesCount =
+    result.isAlphaMergedIntoAdam || result.isAlphaOnlyBeforeMerge
+      ? totalFamilySpineNodesCount
+      : codedStationsCount + unlockedIntermediateNodesCount;
 
-  const remainingLockedCapsules = capsulesList.filter(
-    (c: AncestorCapsule) => !unlockedCapsules.includes(c.id)
-  );
+  const remainingLockedCapsules =
+    result.isAlphaOnlyBeforeMerge || result.isAlphaMergedIntoAdam || isUnmatchedCase
+      ? []
+      : capsulesList.filter(
+          (c: AncestorCapsule) => !unlockedCapsules.includes(c.id)
+        );
   const remainingLockedAncestorsCount = remainingLockedCapsules.reduce(
     (acc: number, c: AncestorCapsule) => acc + c.ancestors.length,
     0
   );
 
+  const unifiedVipMarketingCopy = result.isAlphaOnlyBeforeMerge
+    ? CASE_2_ALPHA_VIP_MARKETING_COPY
+    : CASE_1_ADAM_VIP_MARKETING_COPY;
+
   // ============================================================================
-  // CONNECTOR BADGE ("من (سليل غير مباشر)" vs "بن (سليل مباشر)")
+  // CONNECTOR BADGE (Strictly "↑ بن" vs "↑ من" without extra parenthetical text)
   // ============================================================================
   const renderConnectorBadge = (
-    connectorType: SpineConnectorLabel = 'من (سليل غير مباشر)'
+    connectorType: SpineConnectorLabel | 'بن' | 'من' = 'من (سليل غير مباشر)'
   ) => {
-    const isDirectBin = connectorType === 'بن (سليل مباشر)';
+    const isDirectBin =
+      connectorType === 'بن' || connectorType === 'بن (سليل مباشر)';
+    const shortConnectorText = isDirectBin ? '↑ بن' : '↑ من';
+
     return (
       <div className="flex justify-center relative z-20 my-1">
         <div
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-display font-bold shadow-2xs border ${
+          className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-display font-bold shadow-2xs border ${
             isDirectBin
               ? 'bg-[#FAF6F0] border-[#8D4925]/45 text-[#8D4925]'
               : 'bg-[#FFF8F0] border-[#D8755B]/60 text-[#D8755B]'
           }`}
         >
-          <ArrowUp className="w-3 h-3" />
-          <span>{connectorType}</span>
+          <span>{shortConnectorText}</span>
         </div>
       </div>
     );
   };
 
   // ============================================================================
-  // 1. CLIENT NODE (Bottom of Spine - Read-Only Official Record)
+  // 1. CLIENT NODE (Bottom of Spine - "أمين السجل")
   // ============================================================================
   const renderClientNode = () => (
     <div className="max-w-[420px] w-full mx-auto rounded-2xl bg-white border-2 border-[#252321] py-3 px-4 shadow-sm relative z-20 text-right">
@@ -165,7 +206,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           <HeritageNodeAvatar personRole="client" size="md" />
           <div className="min-w-0">
             <div className="text-[11px] font-bold text-[#8D4925]">
-              نقطة البداية · صاحب السجل
+              أمين السجل
             </div>
             <div className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
               {result.clientName}
@@ -180,7 +221,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   );
 
   // ============================================================================
-  // 2. FATHER NODE (Rendered ONLY if fatherName is not empty)
+  // 2. FATHER NODE (Rendered ONLY if fatherName is filled - "الأب")
   // ============================================================================
   const renderFatherNode = () => {
     if (!fatherName) return null;
@@ -191,7 +232,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <HeritageNodeAvatar personRole="father" size="md" />
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-[#8D4925]">
-                الأب المباشر
+                الأب
               </div>
               <div className="text-sm sm:text-base font-display font-bold text-[#252321] truncate">
                 {fatherName}
@@ -207,7 +248,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // 3. GRANDFATHER NODE (Rendered ONLY if grandfatherName is not empty)
+  // 3. GRANDFATHER NODE (Rendered ONLY if grandfatherName is filled - "الجد")
   // ============================================================================
   const renderGrandfatherNode = () => {
     if (!grandfatherName) return null;
@@ -218,7 +259,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <HeritageNodeAvatar personRole="grandfather" size="md" />
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-[#8D4925]">
-                الجد المباشر
+                الجد
               </div>
               <div className="text-sm sm:text-base font-display font-bold text-[#252321] truncate">
                 {grandfatherName}
@@ -234,7 +275,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // 4. FAMILY STATION NODE (عقدة العائلة - بيت النسب)
+  // 4. FAMILY STATION NODE (عقدة العائلة المباشرة - بيت النسب)
   // ============================================================================
   const renderFamilyStationNode = () => {
     const station1Node = spineNodes[0];
@@ -265,10 +306,73 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // 5. SINGLE LOCKED LAYER / ROOT CARD (Strictly Layer Title + Interactive Lock Icon 🔒)
+  // 5A. THE $5 LOCKED ROOT PAYWALL CARD ("الجذر")
+  // Shown in Case 1 & Case 2 before paying $5
   // ============================================================================
-  const renderLockedLayerCard = (
+  const renderLockedRoot5UsdCard = () => (
+    <div
+      data-testid="root-unlock-5usd-card"
+      onClick={onUnlockRoot5Usd}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onUnlockRoot5Usd();
+        }
+      }}
+      title="اضغط لفتح الجذر الآن مقابل $5 فقط"
+      className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A] border-2 border-[#D97706] hover:border-[#B45309] p-4 sm:p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group relative z-20 text-right overflow-hidden"
+    >
+      {/* Subtle golden shimmer aura */}
+      <div
+        className="absolute -top-10 -left-10 w-32 h-32 rounded-full bg-[#F59E0B]/20 blur-xl pointer-events-none"
+        aria-hidden="true"
+      />
+
+      <div className="flex items-center justify-between gap-3.5 relative z-10">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <HeritageNodeAvatar eraOverride="major_tribe" size="lg" />
+          <div className="min-w-0 space-y-1">
+            <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321] group-hover:text-[#92400E] transition-colors">
+              الجذر
+            </h3>
+            <p className="text-xs sm:text-sm font-display font-bold text-[#78350F] leading-snug">
+              اكشف جذر عائلتك وتعرّف على الفرع الجامع والقبيلة الأم — افتح الجذر الآن مقابل $5 فقط
+            </p>
+          </div>
+        </div>
+
+        {/* Large, prominent, eye-catching golden lock icon */}
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <div className="relative flex items-center justify-center">
+            <span
+              className="absolute inset-0 rounded-full bg-[#F59E0B]/40 animate-ping"
+              style={{ animationDuration: '2.4s' }}
+              aria-hidden="true"
+            />
+            <span
+              aria-label="مقفل — اضغط للفتح مقابل $5"
+              className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#92400E] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-2xl sm:text-3xl shadow-md group-hover:scale-105 transition-transform"
+            >
+              🔒
+            </span>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-[#92400E] group-hover:bg-[#78350F] text-[#FEF3C7] text-[11px] font-display font-extrabold shadow-2xs transition-colors whitespace-nowrap">
+            افتح الآن · $5
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ============================================================================
+  // 5B. LOCKED UPPER LINEAGE LAYER CARD (Visible ONLY after $5 Root is Unlocked)
+  // Large prominent lock icon 🔒 + unified marketing copy
+  // ============================================================================
+  const renderLockedUpperLayerCard = (
     title: string,
+    marketingSubtitle: string,
     era: ExtendedEraType,
     onClickAction: () => void,
     testId?: string
@@ -284,18 +388,23 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           onClickAction();
         }
       }}
-      title="اضغط لفتح هذه الطبقة الموثقة"
-      className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-l from-[#FAF5EC] via-[#F6EFE2] to-[#EFE5D4] border border-[#B98A78]/80 hover:border-[#D8755B] py-3 px-4 shadow-2xs flex items-center justify-between gap-3 transition-all cursor-pointer group relative z-20 text-right"
+      title={marketingSubtitle}
+      className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF3E6] to-[#F3E5AB]/70 border-2 border-[#D4AF37]/75 hover:border-[#D8755B] py-3.5 px-4 shadow-xs hover:shadow-md flex items-center justify-between gap-3.5 transition-all cursor-pointer group relative z-20 text-right"
     >
       <div className="flex items-center gap-3 min-w-0">
-        <HeritageNodeAvatar eraOverride={era} size="sm" />
-        <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors truncate">
-          {title}
-        </span>
+        <HeritageNodeAvatar eraOverride={era} size="md" />
+        <div className="min-w-0 space-y-1">
+          <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors truncate">
+            {title}
+          </div>
+          <p className="text-[11px] font-semibold text-[#8D4925] leading-snug">
+            {marketingSubtitle}
+          </p>
+        </div>
       </div>
       <span
         aria-label="مقفل — اضغط للفتح"
-        className="w-8 h-8 rounded-full bg-white/90 group-hover:bg-[#D8755B] text-[#8D4925] group-hover:text-white border border-[#B98A78]/45 flex items-center justify-center text-sm shadow-2xs transition-colors shrink-0"
+        className="w-11 h-11 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#8D4925] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-xl shadow-sm group-hover:scale-105 transition-transform shrink-0"
       >
         🔒
       </span>
@@ -303,7 +412,111 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   );
 
   // ============================================================================
-  // 6. SINGLE ADAM NODE CARD (Compact max-w-[420px], No Prefix Repetition, No 3rd Line)
+  // 5C. CASE 2 VIP RESEARCHER FOLLOW-UP CARD (Alpha Family in Annual VIP before Researcher Merge)
+  // ============================================================================
+  const renderAlphaVipPendingResearcherMergeCard = () => {
+    const tribeLabel = getCleanSpineNodeName(
+      result.rootTribeName || 'قبيلة العقيدات'
+    );
+    const fullTribeDisplay = result.rootTribeName?.startsWith('قبيلة')
+      ? result.rootTribeName
+      : `قبيلة ${tribeLabel}`;
+
+    return (
+      <div
+        data-testid="alpha-vip-researcher-followup-card"
+        className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] border-2 border-[#D4AF37] p-4 sm:p-5 shadow-md relative z-20 text-right space-y-2"
+      >
+        <div className="flex items-start gap-3">
+          <HeritageNodeAvatar eraOverride="ancient_root" size="md" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] leading-snug">
+              ⏳ جاري استكمال ربط وتوثيق الطبقات العليا حتى آدم عليه السلام
+            </h3>
+            <p className="text-xs text-[#252321]/85 leading-relaxed font-medium">
+              باقتك السنوية مفعّلة — يعمل فريق النسابين حالياً على المراجعة النهائية لوصل ({fullTribeDisplay}) بعمودها التاريخي الأعلى، وستظهر العُقد المفتوحة هنا تلقائياً فور اعتمادها.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // 5D. CASE 3 UNMATCHED FAMILY SPINE (Before VIP vs After VIP)
+  // ============================================================================
+  const renderUnmatchedFamilyUpperSection = () => {
+    // 1. Before Subscription (Free Account)
+    if (!caps.isVip) {
+      return (
+        <div
+          data-testid="unmatched-special-research-paywall-card"
+          className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A] border-2 border-[#D97706] p-5 shadow-md relative z-20 text-right space-y-4"
+        >
+          <div className="flex items-start justify-between gap-3.5">
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] leading-snug">
+                لم يظهر تطابق آلي مباشر لعائلة ({result.familyName}) في الفهرس الفوري
+              </h3>
+              <p className="text-xs text-[#78350F] font-semibold leading-relaxed">
+                اشترك في الباقة السنوية ليقوم فريق الباحثين المتخصصين بالبحث المعمّق في أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلتك وربطه حتى آدم عليه السلام.
+              </p>
+            </div>
+
+            <div className="w-13 h-13 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#92400E] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-lg shadow-md shrink-0 whitespace-nowrap">
+              <span>🔒 🔍</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onUpgradeAnnualVip}
+            className="w-full py-3 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
+          >
+            <span>اشترك في الباقة السنوية وافتح تذكرة بحث لعائلتك ←</span>
+          </button>
+        </div>
+      );
+    }
+
+    // 2. After Annual VIP Subscription (Active P1 Research Ticket)
+    return (
+      <div
+        data-testid="unmatched-active-p1-ticket-card"
+        className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] border-2 border-[#8D4925] p-5 shadow-md relative z-20 text-right space-y-3.5"
+      >
+        <div className="flex items-start gap-3.5">
+          <div className="w-12 h-12 rounded-full bg-[#252321] text-[#F5D78E] border-2 border-[#D4AF37] flex items-center justify-center text-xl shrink-0 shadow-xs">
+            🔍
+          </div>
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              تذكرة أولوية قصوى P1 · مفعّلة ✓
+            </div>
+            <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] leading-snug">
+              🔍 تذكرة بحث وتوثيق نشطة لدى فريق الباحثين — جاري استخراج وتوثيق عمود نسب العائلة
+            </h3>
+            <p className="text-xs text-[#252321]/80 leading-relaxed">
+              يعمل فريق النسابين والمحققين حالياً على مراجعة أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلة ({result.familyName}). يمكنك الآن البدء ببناء شجرة أسرتك القريبة في تبويب «شجرتي» ريثما يعتمد الباحثون عمودك الكامل.
+            </p>
+          </div>
+        </div>
+
+        {onOpenMyTreeTab && (
+          <button
+            type="button"
+            onClick={onOpenMyTreeTab}
+            className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
+          >
+            ابدأ ببناء شجرة أسرتك القريبة في «شجرتي» ←
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // 6. SINGLE ADAM NODE CARD (Compact max-w-[420px])
   // ============================================================================
   const renderAdamNodeCard = (node: UpperAncestorNode) => {
     const isSubRootNode =
@@ -323,7 +536,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     const eraBadgeText = getHistoricalEraBadgeLabel(resolvedEra);
     const cleanTitle = getCleanSpineNodeName(node.name);
 
-    // A) Root Nodes (Sub-Branch or Mother Tribe)
+    // A) Root Nodes (الجذر — Sub-Branch or Mother Tribe)
     if (isRootNode) {
       return (
         <div
@@ -337,10 +550,14 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar node={node} size="md" />
+              <HeritageNodeAvatar
+                node={node}
+                eraOverride="major_tribe"
+                size="md"
+              />
               <div className="min-w-0">
                 <div className="text-[11px] font-bold text-[#E67E22]">
-                  {isSubRootNode ? 'الفرع الجامع' : 'القبيلة الأم'}
+                  {isSubRootNode ? 'الجذر · الفرع الجامع' : 'الجذر · القبيلة الأم'}
                 </div>
                 <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
                   {cleanTitle}
@@ -423,10 +640,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // 7. COMPACT PILL BADGE FOR INTERMEDIATE ANCESTORS (🔒 +8 أجداد)
+  // 7. COMPACT PILL BADGE FOR INTERMEDIATE ANCESTORS (🔒 +3 أجداد)
   // ============================================================================
   const renderCompactIntermediatePillBadge = (ringGroup: AncestorCapsule) => {
     const count = ringGroup.ancestors.length;
+    const countLabel = count === 1 ? '+1 جد' : `+${count} أجداد`;
     return (
       <div
         key={ringGroup.id}
@@ -435,18 +653,18 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         <button
           type="button"
           onClick={() => onRequestUnlockCapsule(ringGroup)}
-          title={`اضغط لإظهار أسماء الأجداد الفرعيين (${ringGroup.betweenLabel})`}
+          title={`اضغط لفتح أسماء الأجداد الفرعيين من رصيد المحفظة (${ringGroup.betweenLabel})`}
           className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#F7F2E9] hover:bg-[#EFE6D5] border border-[#E6DFD3] hover:border-[#D8755B] text-[#8D4925] text-xs font-display font-bold shadow-2xs transition-all cursor-pointer"
         >
           <span>🔒</span>
-          <span>+{count} أجداد</span>
+          <span>{countLabel}</span>
         </button>
       </div>
     );
   };
 
   // ============================================================================
-  // 8. VIP FULL SPINE RENDERING (Top = Adam directly, quiet bar in middle)
+  // 8. CASE 1 VIP SPINE RENDERING (Coded stations open up to Adam; non-coded folded in pills)
   // ============================================================================
   const renderVipFullAdamSpine = () => {
     type SpineRenderEntry =
@@ -540,49 +758,79 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // 9. SHORT 3-NODE ALPHA-ONLY SPINE (Before Researcher Merge)
+  // 9. CASE 2 ALPHA-ONLY SPINE (Before Researcher Merge)
+  // - Before $5: Only locked "الجذر" card
+  // - After $5 (Non-VIP): 4 locked upper layers + unlocked Alpha Root nodes
+  // - After Annual VIP (Before Researcher Merge): Reassuring Researcher Follow-up Card + unlocked Alpha Root nodes
   // ============================================================================
   const renderAlphaOnlyBeforeMergeSpine = () => {
-    const subBranchNode =
-      spineNodes.find((n: UpperAncestorNode) => n.orderNumber === 2) ||
-      spineNodes[1];
-    const motherTribeNode =
-      spineNodes.find((n: UpperAncestorNode) => n.orderNumber === 3) ||
-      spineNodes[2];
+    if (!caps.isRootUnlocked) {
+      // Stage 1 (Free): ONLY the locked "الجذر" card is rendered at the summit!
+      return (
+        <div className="space-y-2.5 relative z-20">
+          {renderLockedRoot5UsdCard()}
+        </div>
+      );
+    }
+
+    const alphaUpperRootNodes = [...spineNodes.slice(1)].reverse();
 
     return (
       <div className="space-y-2.5 relative z-20">
-        {!caps.isRootUnlocked ? (
-          renderLockedLayerCard(
-            'نقطة الربط بالجذر',
-            'major_tribe',
-            onUnlockRoot5Usd,
-            'root-unlock-5usd-card'
-          )
+        {!caps.isVip ? (
+          <>
+            {LOCKED_UPPER_LINEAGE_LAYERS.map((layerItem) => (
+              <React.Fragment key={layerItem.id}>
+                {renderLockedUpperLayerCard(
+                  layerItem.label,
+                  CASE_2_ALPHA_VIP_MARKETING_COPY,
+                  layerItem.era,
+                  onUpgradeAnnualVip,
+                  layerItem.id
+                )}
+              </React.Fragment>
+            ))}
+            {renderConnectorBadge('من')}
+          </>
         ) : (
-          <div className="space-y-2">
-            {motherTribeNode && renderAdamNodeCard(motherTribeNode)}
-
-            {motherTribeNode &&
-              subBranchNode &&
-              subBranchNode.id !== motherTribeNode.id &&
-              renderConnectorBadge(
-                resolveSpineConnectorLabel(subBranchNode, motherTribeNode, false)
-              )}
-
-            {subBranchNode &&
-              subBranchNode.id !== motherTribeNode?.id &&
-              renderAdamNodeCard(subBranchNode)}
-          </div>
+          <>
+            {renderAlphaVipPendingResearcherMergeCard()}
+            {renderConnectorBadge('من')}
+          </>
         )}
+
+        <div className="space-y-2">
+          {alphaUpperRootNodes.map((node, idx) => {
+            const nextNodeBelow = alphaUpperRootNodes[idx + 1];
+            return (
+              <React.Fragment key={node.id}>
+                {renderAdamNodeCard(node)}
+                {nextNodeBelow &&
+                  renderConnectorBadge(
+                    resolveSpineConnectorLabel(nextNodeBelow, node, false)
+                  )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
     );
   };
 
   // ============================================================================
-  // 10. NON-VIP SPINE FOR FULL ADAM CHAINS (Free Stage 1 & $5 Basic Stage 2)
+  // 10. CASE 1 NON-VIP SPINE FOR FULL ADAM CHAINS (Free Stage 1 vs $5 Basic Stage 2)
   // ============================================================================
   const renderNonVipSpineAboveFamily = () => {
+    // Stage 1 (Unpaid Free User): Strictly hide the 4 upper layers; "الجذر" is the summit
+    if (!caps.isRootUnlocked) {
+      return (
+        <div className="space-y-2.5 relative z-20">
+          {renderLockedRoot5UsdCard()}
+        </div>
+      );
+    }
+
+    // Stage 2 ($5 Paid — Root Unlocked, Non-VIP): Show the 4 locked upper layers + Unlocked Root
     const subRootStation =
       spineNodes.find(
         (n: UpperAncestorNode) => n.code === 'B2' || n.code === 'B1'
@@ -594,49 +842,35 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
     return (
       <div className="space-y-2.5 relative z-20">
-        {/* Locked Upper Lineage Layers (Concise layer title + lock icon 🔒 only) */}
         {LOCKED_UPPER_LINEAGE_LAYERS.map((layerItem) => (
           <React.Fragment key={layerItem.id}>
-            {renderLockedLayerCard(
+            {renderLockedUpperLayerCard(
               layerItem.label,
+              CASE_1_ADAM_VIP_MARKETING_COPY,
               layerItem.era,
-              onUpgradeAnnualVip
+              onUpgradeAnnualVip,
+              layerItem.id
             )}
           </React.Fragment>
         ))}
 
-        {renderConnectorBadge('من (سليل غير مباشر)')}
+        {renderConnectorBadge('من')}
 
-        {/* THE ROOT SECTION: Locked Root Card in Stage 1, Unlocked Root Nodes in Stage 2 */}
-        {!caps.isRootUnlocked ? (
-          renderLockedLayerCard(
-            'نقطة الربط بالجذر',
-            'major_tribe',
-            onUnlockRoot5Usd,
-            'root-unlock-5usd-card'
-          )
-        ) : (
-          <div className="space-y-2 relative z-20">
-            {motherTribeStation && renderAdamNodeCard(motherTribeStation)}
+        <div className="space-y-2 relative z-20">
+          {motherTribeStation && renderAdamNodeCard(motherTribeStation)}
 
-            {motherTribeStation &&
-              subRootStation &&
-              subRootStation.id !== motherTribeStation.id &&
-              renderConnectorBadge('من (سليل غير مباشر)')}
+          {motherTribeStation &&
+            subRootStation &&
+            subRootStation.id !== motherTribeStation.id &&
+            renderConnectorBadge('من')}
 
-            {subRootStation &&
-              subRootStation.id !== motherTribeStation?.id &&
-              renderAdamNodeCard(subRootStation)}
-          </div>
-        )}
+          {subRootStation &&
+            subRootStation.id !== motherTribeStation?.id &&
+            renderAdamNodeCard(subRootStation)}
+        </div>
       </div>
     );
   };
-
-  const firstRingId = capsulesList[0]?.id;
-  const isFirstRingUnlocked = firstRingId
-    ? unlockedCapsules.includes(firstRingId)
-    : true;
 
   return (
     <div
@@ -664,10 +898,16 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 عمود نسب عائلة {result.familyName} الموثق
               </h2>
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#D8755B]/15 text-[#D8755B]">
-                {caps.isVip
+                {isUnmatchedCase
+                  ? caps.isVip
+                    ? '🔍 تذكرة بحث وتوثيق نشطة (P1)'
+                    : 'قيد الفحص والتوثيق الخاص'
+                  : result.isAlphaOnlyBeforeMerge && caps.isVip
+                  ? `الجذر مفتوح (${totalFamilySpineNodesCount} عُقد) · جاري ربط الطبقات العليا`
+                  : caps.isVip
                   ? `${visibleAdamNodesCount} عقدة مفتوحة من أصل ${totalFamilySpineNodesCount}`
                   : caps.isRootUnlocked
-                  ? `نقطة الربط مفتوحة (${getCleanSpineNodeName(result.rootBranchName)} · ${getCleanSpineNodeName(result.rootTribeName)})`
+                  ? `الجذر مفتوح (${getCleanSpineNodeName(result.rootBranchName)} · ${getCleanSpineNodeName(result.rootTribeName)})`
                   : 'نتيجة الفحص: تطابق موثق ✓'}
               </span>
             </div>
@@ -678,6 +918,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             {caps.isVip &&
+              !isUnmatchedCase &&
+              !result.isAlphaOnlyBeforeMerge &&
               !result.isAlphaMergedIntoAdam &&
               remainingLockedCapsules.length > 0 &&
               onRequestUnlockAllCapsulesBundle && (
@@ -702,202 +944,171 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         </div>
 
         {/* Centered Vertical Pedigree Spine (Ascending Bottom-to-Top) */}
-        <div className="relative py-4 min-h-[420px]">
+        <div className="relative py-4 min-h-[380px]">
           <div
             className="absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-0.5 bg-gradient-to-t from-[#252321]/30 via-[#D8755B]/40 to-[#8D4925]/30 rounded-full pointer-events-none"
             aria-hidden="true"
           />
 
           <div className="space-y-2">
-            {result.isAlphaOnlyBeforeMerge
+            {/* Upper Spine Section (Handled strictly for Case 1, Case 2, and Case 3) */}
+            {isUnmatchedCase
+              ? renderUnmatchedFamilyUpperSection()
+              : result.isAlphaOnlyBeforeMerge
               ? renderAlphaOnlyBeforeMergeSpine()
               : caps.isVip
               ? renderVipFullAdamSpine()
               : renderNonVipSpineAboveFamily()}
 
-            {/* Connector above Family Station */}
-            {renderConnectorBadge(
-              resolveSpineConnectorLabel(
-                spineNodes[0],
-                spineNodes[1] || null,
-                !result.isAlphaOnlyBeforeMerge &&
-                  (!caps.isVip ||
-                    (!result.isAlphaMergedIntoAdam && !isFirstRingUnlocked))
-              )
-            )}
+            {/* Connector between Family Station and Root/Upper Spine ("↑ من") */}
+            {renderConnectorBadge('من')}
 
-            {/* Family Station Node (بيت النسب) */}
+            {/* Family Station Node (العائلة المباشرة - بيت النسب) */}
             {renderFamilyStationNode()}
 
-            {/* Connector between topmost Personal Card and Family Station Node */}
-            {renderConnectorBadge(
-              resolveSpineConnectorLabel(
-                {
-                  name: grandfatherName || fatherName || result.clientName,
-                  representation: 'INDIVIDUAL',
-                  relation_type: 'DIRECT_DESCENDANT',
-                  relation_nature: 'INDIRECT',
-                },
-                spineNodes[0],
-                true
-              )
-            )}
+            {/* Connector between topmost Personal Card (Grandfather, Father, or Record Keeper) and Family Station ("↑ من") */}
+            {renderConnectorBadge('من')}
 
-            {/* Grandfather Node (ONLY rendered if grandfatherName is provided) */}
+            {/* Grandfather Node (ONLY rendered if grandfatherName is filled) */}
             {grandfatherName && (
               <>
                 {renderGrandfatherNode()}
-                {renderConnectorBadge(
-                  resolveSpineConnectorLabel(
-                    {
-                      name: fatherName || result.clientName,
-                      representation: 'INDIVIDUAL',
-                      relation_type: 'DIRECT_CHILD_OF',
-                      relation_nature: 'DIRECT',
-                    },
-                    {
-                      name: grandfatherName || 'الجد',
-                      representation: 'INDIVIDUAL',
-                      relation_type: 'DIRECT_DESCENDANT',
-                      relation_nature: 'INDIRECT',
-                    },
-                    !fatherName
-                  )
-                )}
+                {renderConnectorBadge(fatherName ? 'بن' : 'من')}
               </>
             )}
 
-            {/* Father Node (ONLY rendered if fatherName is provided) */}
+            {/* Father Node (ONLY rendered if fatherName is filled) */}
             {fatherName && (
               <>
                 {renderFatherNode()}
-                {renderConnectorBadge(
-                  resolveSpineConnectorLabel(
-                    {
-                      name: result.clientName,
-                      representation: 'INDIVIDUAL',
-                      relation_type: 'DIRECT_CHILD_OF',
-                      relation_nature: 'DIRECT',
-                    },
-                    {
-                      name: fatherName || 'الأب',
-                      representation: 'INDIVIDUAL',
-                      relation_type: 'DIRECT_CHILD_OF',
-                      relation_nature: 'DIRECT',
-                    },
-                    false
-                  )
-                )}
+                {renderConnectorBadge('بن')}
               </>
             )}
 
-            {/* Client Node at Bottom */}
+            {/* Client Node at Bottom ("أمين السجل") */}
             {renderClientNode()}
           </div>
         </div>
 
         {/* ======================================================== */}
         {/* VERIFIED HISTORICAL SOURCES CARD                         */}
+        {/* Shown in Case 1 & Case 2 only after $5 Root is unlocked  */}
         {/* ======================================================== */}
-        <div className="mt-10 pt-6 border-t border-[#B98A78]/35 max-w-2xl mx-auto w-full relative z-20">
-          {!caps.isVip ? (
-            <div
-              onClick={onUpgradeAnnualVip}
-              className="rounded-2xl bg-gradient-to-br from-[#FAF5EC] via-[#F6EFE2] to-[#EFE4D2] border border-[#B98A78] hover:border-[#D8755B] py-3.5 px-4 shadow-2xs hover:shadow-sm transition-all cursor-pointer group text-right flex items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#8D4925] via-[#B98A78] to-[#D8755B] text-[#FAF6F0] border border-[#F3D299] flex items-center justify-center shrink-0">
-                  <BookOpenCheck className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors truncate">
-                    المصادر والمراجع التاريخية الموثقة لعائلة {result.familyName}
-                  </h3>
-                </div>
-              </div>
-              <span className="w-8 h-8 rounded-full bg-white/90 group-hover:bg-[#D8755B] text-[#8D4925] group-hover:text-white border border-[#B98A78]/45 flex items-center justify-center text-sm shadow-2xs transition-colors shrink-0">
-                🔒
-              </span>
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white border-2 border-[#8D4925]/35 p-5 sm:p-6 shadow-xs text-right space-y-4">
-              <button
-                type="button"
-                onClick={() => setShowSourceDetails((prev) => !prev)}
-                className="w-full flex items-center justify-between gap-4 text-right cursor-pointer"
+        {!isUnmatchedCase && caps.isRootUnlocked && (
+          <div className="mt-10 pt-6 border-t border-[#B98A78]/35 max-w-2xl mx-auto w-full relative z-20">
+            {!caps.isVip ? (
+              <div
+                onClick={onUpgradeAnnualVip}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onUpgradeAnnualVip();
+                  }
+                }}
+                className="rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F3E5AB]/75 border-2 border-[#D4AF37]/80 hover:border-[#D8755B] p-4 shadow-xs hover:shadow-md transition-all cursor-pointer group text-right flex items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#8D4925] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <BookOpenCheck className="w-6 h-6" />
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8D4925] via-[#B98A78] to-[#D8755B] text-[#FAF6F0] border-2 border-[#F5D78E] flex items-center justify-center shrink-0 shadow-xs">
+                    <BookOpenCheck className="w-5 h-5" />
                   </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
-                        بطاقة المصادر والمراجع التاريخية المعتمدة
-                      </h3>
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925]">
-                        ✓ إسناد مصدري موثق
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#8D4925] font-semibold mt-0.5">
-                      «{result.verifiedSourceCitation}»
+                  <div className="min-w-0 space-y-1">
+                    <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors truncate">
+                      المصادر والمراجع التاريخية الموثقة لعائلة {result.familyName}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#8D4925] leading-snug">
+                      {unifiedVipMarketingCopy}
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-[#8D4925] px-3 py-1.5 rounded-xl bg-[#8D4925]/10 shrink-0">
-                  {showSourceDetails ? 'إخفاء التفاصيل ▲' : 'عرض التفاصيل ▼'}
+                <span
+                  aria-label="مقفل — اضغط للفتح"
+                  className="w-11 h-11 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#8D4925] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-xl shadow-sm group-hover:scale-105 transition-transform shrink-0"
+                >
+                  🔒
                 </span>
-              </button>
-
-              {showSourceDetails && (
-                <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
-                  <div>
-                    <div className="text-xs font-display font-bold text-[#252321] mb-1.5">
-                      المحطات الرئيسية الموثقة لعائلة {result.familyName}:
+              </div>
+            ) : (
+              <div className="rounded-3xl bg-white border-2 border-[#8D4925]/35 p-5 sm:p-6 shadow-xs text-right space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setShowSourceDetails((prev) => !prev)}
+                  className="w-full flex items-center justify-between gap-4 text-right cursor-pointer"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-[#8D4925] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <BookOpenCheck className="w-6 h-6" />
                     </div>
-                    <p className="text-xs sm:text-sm text-[#252321]/85 leading-relaxed bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#B98A78]/25 font-serif">
-                      {spineNodes
-                        .filter((n: UpperAncestorNode) => n.isCodedStation)
-                        .map((n: UpperAncestorNode) => n.name)
-                        .join(' ➔ ')}
-                      .
-                    </p>
-                  </div>
-
-                  {result.secondarySources && result.secondarySources.length > 0 && (
-                    <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-1.5">
-                      <div className="text-xs font-display font-bold text-[#8D4925]">
-                        المصادر والمراجع التاريخية المعتمدة للسلسلة:
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
+                          بطاقة المصادر والمراجع التاريخية المعتمدة
+                        </h3>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925]">
+                          ✓ إسناد مصدري موثق
+                        </span>
                       </div>
-                      <ul className="space-y-1 text-xs text-[#252321]/85 list-disc list-inside">
-                        {result.secondarySources.map((src: string, i: number) => (
-                          <li key={i}>{src}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {selectedAncestor && (
-                    <div className="bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#B98A78]/25 space-y-1.5">
-                      <div className="text-xs font-bold text-[#8D4925]">
-                        إضاءة تاريخية على العقدة المختارة ({selectedAncestor.name}):
-                      </div>
-                      <p className="text-xs text-[#252321]/80 leading-relaxed">
-                        {selectedAncestor.eraNote}
+                      <p className="text-xs text-[#8D4925] font-semibold mt-0.5">
+                        «{result.verifiedSourceCitation}»
                       </p>
-                      {selectedAncestor.region && (
-                        <div className="flex items-center gap-1.5 text-xs text-[#8D4925] font-semibold pt-0.5">
-                          <MapPin className="w-3.5 h-3.5" />
-                          <span>{selectedAncestor.region}</span>
-                        </div>
-                      )}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  </div>
+                  <span className="text-xs font-bold text-[#8D4925] px-3 py-1.5 rounded-xl bg-[#8D4925]/10 shrink-0">
+                    {showSourceDetails ? 'إخفاء التفاصيل ▲' : 'عرض التفاصيل ▼'}
+                  </span>
+                </button>
+
+                {showSourceDetails && (
+                  <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
+                    <div>
+                      <div className="text-xs font-display font-bold text-[#252321] mb-1.5">
+                        المحطات الرئيسية الموثقة لعائلة {result.familyName}:
+                      </div>
+                      <p className="text-xs sm:text-sm text-[#252321]/85 leading-relaxed bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#B98A78]/25 font-serif">
+                        {spineNodes
+                          .filter((n: UpperAncestorNode) => n.isCodedStation)
+                          .map((n: UpperAncestorNode) => n.name)
+                          .join(' ➔ ')}
+                        .
+                      </p>
+                    </div>
+
+                    {result.secondarySources && result.secondarySources.length > 0 && (
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-1.5">
+                        <div className="text-xs font-display font-bold text-[#8D4925]">
+                          المصادر والمراجع التاريخية المعتمدة للسلسلة:
+                        </div>
+                        <ul className="space-y-1 text-xs text-[#252321]/85 list-disc list-inside">
+                          {result.secondarySources.map((src: string, i: number) => (
+                            <li key={i}>{src}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedAncestor && (
+                      <div className="bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#B98A78]/25 space-y-1.5">
+                        <div className="text-xs font-bold text-[#8D4925]">
+                          إضاءة تاريخية على العقدة المختارة ({selectedAncestor.name}):
+                        </div>
+                        <p className="text-xs text-[#252321]/80 leading-relaxed">
+                          {selectedAncestor.eraNote}
+                        </p>
+                        {selectedAncestor.region && (
+                          <div className="flex items-center gap-1.5 text-xs text-[#8D4925] font-semibold pt-0.5">
+                            <MapPin className="w-3.5 h-3.5" />
+                            <span>{selectedAncestor.region}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

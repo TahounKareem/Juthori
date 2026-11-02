@@ -319,7 +319,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   }, [result.familyName, result.clientName]);
 
   // Display Depth Selector State (محدّد مدى العرض فوق الشجرة)
-  const [spineDepth, setSpineDepth] = useState<TreeSpineDepthMode>('sub_branch');
+  const [spineDepth, setSpineDepth] = useState<TreeSpineDepthMode>(
+    caps.isVip ? 'adam_full' : 'sub_branch'
+  );
+
+  useEffect(() => {
+    if (caps.isVip) {
+      setSpineDepth('adam_full');
+    }
+  }, [caps.isVip]);
+
   const [depthLockPrompt, setDepthLockPrompt] = useState<{
     targetDepth: TreeSpineDepthMode;
     label: string;
@@ -1143,24 +1152,24 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   // ============================================================================
   // NATURAL LINEAGE SPINE RENDERER ABOVE THE FAMILY TREE
-  // (Same card design and Neo4j 4-condition connectors as LineageSpineColumn.tsx)
+  // (Same card design and simplified "↑ بن" / "↑ من" connectors as LineageSpineColumn.tsx)
   // ============================================================================
   const renderSpineConnectorBadge = (
     connectorLabel: SpineConnectorLabel = 'من (سليل غير مباشر)'
   ) => {
     const isDirectBin = connectorLabel === 'بن (سليل مباشر)';
+    const shortConnectorText = isDirectBin ? '↑ بن' : '↑ من';
     return (
       <div className="flex flex-col items-center relative z-10 my-1">
         <div className="w-0.5 h-3.5 bg-[#8D4925]/45" />
         <div
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-display font-bold shadow-2xs border ${
+          className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-display font-bold shadow-2xs border ${
             isDirectBin
               ? 'bg-[#FAF6F0] border-[#8D4925]/45 text-[#8D4925]'
               : 'bg-[#FFF8F0] border-[#D8755B]/60 text-[#D8755B]'
           }`}
         >
-          <ArrowUp className="w-3 h-3" />
-          <span>{connectorLabel}</span>
+          <span>{shortConnectorText}</span>
         </div>
         <div className="w-0.5 h-3.5 bg-[#8D4925]/45" />
       </div>
@@ -1225,10 +1234,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar node={node} size="md" />
+              <HeritageNodeAvatar
+                node={node}
+                eraOverride="major_tribe"
+                size="md"
+              />
               <div className="min-w-0">
                 <div className="text-[11px] font-bold text-[#E67E22]">
-                  {isSubRootNode ? 'الفرع الجامع' : 'القبيلة الأم'}
+                  {isSubRootNode ? 'الجذر · الفرع الجامع' : 'الجذر · القبيلة الأم'}
                 </div>
                 <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
                   {cleanTitle}
@@ -1323,7 +1336,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       if (node.orderNumber === 1) continue; // Family station rendered at base of natural spine
       if (node.orderNumber > targetMaxOrder) break;
 
-      if (node.isCodedStation) {
+      if (result.isAlphaMergedIntoAdam || node.isCodedStation) {
         ascendingUpperEntries.push({ kind: 'node', node });
       } else if (node.capsuleId) {
         if (unlockedCapsules.includes(node.capsuleId)) {
@@ -1345,13 +1358,30 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     return (
       <div className="w-full max-w-[420px] mx-auto flex flex-col items-center">
-        {/* If user selected historical_stock or adam_full on an Alpha-only family before researcher merge */}
+        {/* Case 2: Alpha-only family before researcher merge */}
         {result.isAlphaOnlyBeforeMerge &&
           (spineDepth === 'historical_stock' || spineDepth === 'adam_full') && (
-            <div className="w-full mb-3 rounded-2xl bg-[#FAF5EC] border border-[#B98A78]/65 p-3 text-right text-xs text-[#252321]/80">
-              السلسلة الموثقة حالياً لعائلة {result.familyName} تصل إلى القبيلة الأم ({result.rootTribeName})، ويجري استكمال ربط الطبقات العليا.
+            <div className="w-full mb-3 rounded-2xl bg-[#FAF5EC] border-2 border-[#D4AF37]/80 p-3.5 text-right text-xs text-[#252321]/85 space-y-1 shadow-2xs">
+              <div className="font-display font-extrabold text-[#252321]">
+                ⏳ جاري استكمال ربط وتوثيق الطبقات العليا حتى آدم عليه السلام
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                باقتك السنوية مفعّلة — يعمل فريق النسابين حالياً على المراجعة النهائية لوصل ({result.rootTribeName}) بعمودها التاريخي الأعلى، وستظهر العُقد المفتوحة هنا تلقائياً فور اعتمادها.
+              </p>
             </div>
           )}
+
+        {/* Case 3: Unmatched family with active P1 research ticket */}
+        {!result.matched && spineDepth !== 'family' && (
+          <div className="w-full mb-3 rounded-2xl bg-[#FAF5EC] border-2 border-[#8D4925]/70 p-3.5 text-right text-xs text-[#252321]/85 space-y-1 shadow-2xs">
+            <div className="font-display font-extrabold text-[#252321]">
+              🔍 تذكرة بحث وتوثيق نشطة لدى فريق الباحثين — جاري استخراج وتوثيق عمود نسب العائلة
+            </div>
+            <p className="text-[11px] leading-relaxed">
+              تظهر عُقد عمود النسب الأعلى هنا تلقائياً فور اعتماد فريق الباحثين لتذكرة عائلة ({result.familyName}).
+            </p>
+          </div>
+        )}
 
         {/* Top-to-Bottom Upper Spine Nodes */}
         {topToBottomEntries.map((entry, idx) => {
@@ -1875,14 +1905,84 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     },
   ];
 
+  const [agreedToLegalCharter, setAgreedToLegalCharter] = useState(true);
+
+  if (accountType !== AccountLegalType.RecordKeeper) {
+    return (
+      <div className="max-w-2xl mx-auto py-4 sm:py-8 text-right">
+        <div className="rounded-3xl bg-white border-2 border-[#D8755B]/65 p-5 sm:p-8 shadow-xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-2.5 h-full bg-[#D8755B]" />
+
+          <div className="flex items-start gap-4 pr-2">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#D8755B]/15 border border-[#D8755B]/35 text-[#D8755B] flex items-center justify-center shrink-0">
+              <FileSignature className="w-6 h-6 sm:w-7 sm:h-7" aria-hidden="true" />
+            </div>
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF3EA] border border-[#D8755B]/35 text-[#8D4925] text-xs font-display font-bold">
+                <span>🏛️ الترقية القانونية المجانية لبناء المشجرة</span>
+              </span>
+              <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321] leading-snug">
+                وثيقة الإقرار والمواثيق القانونية لأمين السجل (رب الأسرة)
+              </h2>
+              <p className="text-xs sm:text-sm text-[#252321]/75 leading-relaxed">
+                حسابك مسجّل حالياً كـ <strong>«حساب فرد»</strong>. للبدء ببناء وتفرع شجرة عائلة{' '}
+                <strong>({result.familyName})</strong> التفاعلية، يرجى الموافقة والتوقيع إلكترونياً على ميثاق أمين السجل لتحويل حسابك فوراً إلى <strong>«أمين السجل»</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-4 sm:p-5 text-xs sm:text-sm text-[#252321]/90 space-y-2.5 leading-relaxed mr-2">
+            <div className="font-display font-extrabold text-[#252321] flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#D8755B] shrink-0" />
+              <span>بنود ميثاق أمين السجل المعتمدة في منصة جذوري:</span>
+            </div>
+            <p>
+              1. <strong>صحة البيانات النسبية:</strong> أقرّ بصحة ودقة بيانات الأفراد والآباء والأبناء والفروع الذين أقوم بإضافتهم في مشجرة الأسرة المباشرة على مسؤوليتي الأدبية والقانونية.
+            </p>
+            <p>
+              2. <strong>حماية الخصوصية العائلية:</strong> ألتزم باحترام خصوصية الأحياء وتطبيق خيارات حجب الأسماء أو البيانات الخاصة وفق رغبة الأسرة وأعرافها.
+            </p>
+            <p>
+              3. <strong>التدقيق والتوثيق الأعلى:</strong> تخضع طلبات وصل الفروع العليا بعمود النسب التاريخي لمراجعة واعتماد فريق الباحثين والنسابين في منصة جذوري.
+            </p>
+          </div>
+
+          <label className="flex items-start gap-3 pr-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={agreedToLegalCharter}
+              onChange={(e) => setAgreedToLegalCharter(e.target.checked)}
+              className="mt-1 w-4 h-4 rounded border-[#B98A78] text-[#D8755B] focus:ring-[#D8755B] cursor-pointer"
+            />
+            <span className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+              أقرّ بأنني قرأت بنود وثيقة الإقرار والمواثيق القانونية وأوافق عليها بصفتي أمين سجل العائلة.
+            </span>
+          </label>
+
+          <div className="pt-1 pr-2">
+            <button
+              type="button"
+              disabled={!agreedToLegalCharter}
+              onClick={onSignCharterAndEnableTree}
+              className="w-full min-h-[46px] py-3.5 px-6 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] disabled:opacity-50 text-white font-display font-extrabold text-sm sm:text-base inline-flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-md"
+            >
+              <CheckCircle2 className="w-5 h-5 shrink-0" aria-hidden="true" />
+              <span>الموافقة والتوقيع الإلكتروني — التحول إلى «أمين السجل» وبدء بناء المشجرة</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 text-right">
       {/* ==================================================================== */}
       {/* 1. CLEAN TOP HEADER BAR & DISPLAY DEPTH SELECTOR                      */}
       {/* ==================================================================== */}
-      <div className="rounded-3xl bg-white border border-[#B98A78]/45 p-5 sm:p-6 shadow-xs space-y-5">
+      <div className="rounded-3xl bg-white border border-[#B98A78]/45 p-4 sm:p-6 shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
+          <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321]">
             شجرة عائلة {result.familyName}
           </h2>
 
@@ -1936,7 +2036,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           <div
             role="group"
             aria-label="عرض الشجرة من أمين السجل وحتى"
-            className="flex flex-wrap items-center gap-2"
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x pb-1 sm:pb-0 sm:flex-wrap"
           >
             {DEPTH_SELECTOR_OPTIONS.map((opt) => {
               const isSelected = spineDepth === opt.id;
@@ -1945,7 +2045,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   key={opt.id}
                   type="button"
                   onClick={() => handleSelectSpineDepth(opt.id, opt.label)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-display font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-display font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border shrink-0 ${
                     isSelected
                       ? 'bg-[#252321] text-[#F7F2E9] border-[#252321] shadow-xs'
                       : 'bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] border-[#B98A78]/45'
@@ -1991,7 +2091,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {/* 2. INTERACTIVE TREE CANVAS CONNECTED TO NATURAL LINEAGE SPINE        */}
       {/* ==================================================================== */}
       <div
-        className="rounded-3xl border-2 border-[#B98A78]/45 p-5 sm:p-8 shadow-sm relative overflow-x-auto"
+        className="rounded-3xl border-2 border-[#B98A78]/45 p-3 sm:p-8 shadow-sm relative overflow-x-auto touch-pan-x touch-pan-y scroll-smooth"
         style={{
           backgroundColor: '#FAF6F0',
           backgroundImage: 'radial-gradient(#B98A78 1.15px, transparent 1.15px)',
@@ -1999,7 +2099,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         }}
       >
         <div
-          className="flex flex-col items-center min-w-[320px] mx-auto transition-transform origin-top"
+          className="flex flex-col items-center min-w-[300px] mx-auto transition-transform origin-top"
           style={{
             transform: `scale(${zoomPercent / 100})`,
           }}
