@@ -13,6 +13,7 @@ import {
   X,
   ArrowRight,
   Mail,
+  LogOut,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -46,7 +47,7 @@ interface CustomerDashboardProps {
   silentGeo: SilentGeoMetadata;
   userEmail: string;
   onBackToLanding: () => void;
-  onOpenStaffPortal?: () => void;
+  onLogout?: () => void;
   onUpdateImmediateParents?: (fatherName: string, grandfatherName: string) => void;
 }
 
@@ -73,7 +74,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   silentGeo,
   userEmail,
   onBackToLanding,
-  onOpenStaffPortal,
+  onLogout,
   onUpdateImmediateParents,
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Lineage);
@@ -261,6 +262,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   };
 
   const handleTabClick = (tab: (typeof DASHBOARD_TABS)[number]) => {
+    if (tab.id === DashboardTab.Home) {
+      setActiveUtilityDrawer(null);
+      onBackToLanding();
+      return;
+    }
+
     if (tab.premium && !caps.arePremiumTabsUnlocked) {
       setLockedTabPromptName(tab.label);
       return;
@@ -595,6 +602,19 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               >
                 <Globe className="w-4 h-4" aria-hidden="true" />
               </button>
+
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  title="تسجيل الخروج والعودة للصفحة الرئيسية"
+                  aria-label="تسجيل الخروج"
+                  className="px-3 h-10 rounded-xl bg-[#F7F2E9] hover:bg-red-50 text-[#252321] hover:text-red-700 border border-[#B98A78]/35 hover:border-red-300 text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">تسجيل الخروج</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -685,39 +705,54 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </div>
 
             {activeUtilityDrawer === 'profile' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                  <div className="text-[#252321]/65 text-xs">الاسم والعائلة</div>
-                  <div className="font-bold text-base mt-1 text-[#252321]">
-                    {result.clientName}
-                    {result.fatherName && result.fatherName !== '—'
-                      ? ` بن ${result.fatherName}`
-                      : ''}{' '}
-                    {result.familyName}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
+                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
+                    <div className="text-[#252321]/65 text-xs">الاسم والعائلة</div>
+                    <div className="font-bold text-base mt-1 text-[#252321]">
+                      {result.clientName}
+                      {result.fatherName && result.fatherName !== '—'
+                        ? ` بن ${result.fatherName}`
+                        : ''}{' '}
+                      {result.familyName}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
+                    <div className="text-[#252321]/65 text-xs">البريد الإلكتروني</div>
+                    <div className="font-mono text-xs sm:text-sm mt-1 text-[#252321]" dir="ltr">
+                      {userEmail}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
+                    <div className="text-[#252321]/65 text-xs">الصفة القانونية</div>
+                    <div className="font-bold text-[#D8755B] mt-1">
+                      {accountType === AccountLegalType.RecordKeeper
+                        ? '🏛️ رب أسرة - أمين السجل'
+                        : '👤 حساب فرد'}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
+                    <div className="text-[#252321]/65 text-xs">
+                      التقاط الموقع التلقائي الصامت (IP Geo)
+                    </div>
+                    <div className="font-semibold mt-1 text-[#252321]">
+                      {silentGeo.ip_country} — {silentGeo.ip_city}
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                  <div className="text-[#252321]/65 text-xs">البريد الإلكتروني</div>
-                  <div className="font-mono text-xs sm:text-sm mt-1 text-[#252321]" dir="ltr">
-                    {userEmail}
+
+                {onLogout && (
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={onLogout}
+                      className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>تسجيل الخروج وإنهاء الجلسة النشطة</span>
+                    </button>
                   </div>
-                </div>
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                  <div className="text-[#252321]/65 text-xs">الصفة القانونية</div>
-                  <div className="font-bold text-[#D8755B] mt-1">
-                    {accountType === AccountLegalType.RecordKeeper
-                      ? '🏛️ رب أسرة - أمين السجل'
-                      : '👤 حساب فرد'}
-                  </div>
-                </div>
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                  <div className="text-[#252321]/65 text-xs">
-                    التقاط الموقع التلقائي الصامت (IP Geo)
-                  </div>
-                  <div className="font-semibold mt-1 text-[#252321]">
-                    {silentGeo.ip_country} — {silentGeo.ip_city}
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -915,22 +950,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         )}
       </main>
 
-      {/* Quiet Editorial Footer with Exclusive Staff Portal Link */}
+      {/* Quiet Editorial Footer inside Customer Dashboard (Staff Portal hidden here) */}
       <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-8 mt-12">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#252321]/75">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" onClick={onBackToLanding} />
             <span>جميع الحقوق محفوظة. جذوري © 2026 — juthori.com</span>
           </div>
-          {onOpenStaffPortal && (
-            <button
-              type="button"
-              onClick={onOpenStaffPortal}
-              className="px-3.5 py-2 rounded-xl bg-[#F7F2E9] hover:bg-[#252321] text-[#252321] hover:text-[#F7F2E9] border border-[#B98A78]/50 font-display font-bold text-xs transition-colors cursor-pointer"
-            >
-              🔒 بوابة الإدارة والعمليات (Staff Portal)
-            </button>
-          )}
         </div>
       </footer>
 

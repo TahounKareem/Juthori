@@ -194,19 +194,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   const countryInfo = getCountryInfoByName(selectedPortalCountry);
 
-  // Global Scroll-to-Top Observer whenever activePublicPage changes
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [activePublicPage]);
-
   const navigatePublicPage = (pageId: PublicPageId) => {
     setActivePublicPage(pageId);
     setMobileMenuOpen(false);
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
+    const targetId = pageId === 'home' ? 'hero-portal' : pageId;
+    const el = document.getElementById(targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (pageId === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleFieldChange = <K extends keyof RegistrationFormState>(
@@ -214,13 +211,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     value: RegistrationFormState[K]
   ) => {
     onChangeForm((prev) => ({ ...prev, [key]: value }));
-    if (validationErrors[key]) {
-      setValidationErrors((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
+    setValidationErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      if (key === 'originCountry' || key === 'originRegion') {
+        delete next.originCountry;
+        delete next.originRegion;
+      }
+      return next;
+    });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -432,11 +431,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       <main className="flex-1">
-        {activePublicPage === 'home' && (
-          <section
-            id="hero-portal"
-            className="relative w-full overflow-hidden min-h-[680px] lg:min-h-[760px] flex items-center py-8 sm:py-12 lg:py-14"
-          >
+        <section
+          id="hero-portal"
+          className="scroll-mt-20 relative w-full overflow-hidden min-h-[680px] lg:min-h-[760px] flex items-center py-8 sm:py-12 lg:py-14"
+        >
             {/* Dynamic Country Architectural Heritage Image Background */}
             <div className="absolute inset-0 z-0">
               <ResilientImage
@@ -729,13 +727,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         )}
                       </div>
 
-                      {/* Row 3: (المنطقة أو المدينة - اختياري) */}
+                      {/* Row 3: (الموطن الأصلي) */}
                       <div>
                         <label
                           htmlFor="input-origin-region"
                           className="block text-[11px] font-bold text-[#252321] mb-1"
                         >
-                          المنطقة أو المدينة (اختياري)
+                          الموطن الأصلي
                         </label>
                         <input
                           id="input-origin-region"
@@ -747,6 +745,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           placeholder="مثال: نجد، الحجاز، دير الزور..."
                           className="w-full h-9 rounded-xl bg-white/85 border border-[#B98A78]/55 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:bg-white focus:border-[#D8755B]"
                         />
+                        {(validationErrors.originRegion || validationErrors.originCountry) && (
+                          <p className="mt-1.5 rounded-lg bg-[#FAF3EA] border border-[#D8755B]/45 px-2.5 py-1.5 text-[11px] text-[#8D4925] font-bold leading-snug">
+                            {validationErrors.originRegion || validationErrors.originCountry}
+                          </p>
+                        )}
                       </div>
 
                       {/* Row 4: Compact Expandable Toggle "+ بيانات إضافية (القبيلة / الفرع)" */}
@@ -779,7 +782,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                   htmlFor="input-tribe-name"
                                   className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
                                 >
-                                  القبيلة (اختياري)
+                                  القبيلة
                                 </label>
                                 <input
                                   id="input-tribe-name"
@@ -798,7 +801,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                   htmlFor="input-branch-name"
                                   className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
                                 >
-                                  الفرع / الفخذ (اختياري)
+                                  الفرع / الفخذ
                                 </label>
                                 <input
                                   id="input-branch-name"
@@ -838,419 +841,341 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
               </div>
             </div>
-          </section>
-        )}
+        </section>
 
-        {/* C & D. Section 2 & 3: Core Strengths (4 Cards) + The 6 Platform Services (Shown on Home AND on 'what-is-juthori' page) */}
-        {(activePublicPage === 'home' || activePublicPage === 'what-is-juthori') && (
-          <div className={activePublicPage === 'what-is-juthori' ? 'min-h-[calc(100vh-5rem)]' : ''}>
-            {/* C. Section 2: Core Strengths (نقاط القوة - 4 Cards) */}
-            <section
-              id="what-is-juthori"
-              className="border-t border-[#B98A78]/25 bg-[#EDE6DA]/55 py-16 lg:py-20"
-            >
-              <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
-                  <div className="max-w-2xl">
-                    <p className="text-xs font-semibold text-[#D8755B] mb-2">
-                      ما هو جذوري · ركائز المنصة
-                    </p>
-                    <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
-                      أربع ركائز تفصل بين التوثيق النسبي المحقق والتخمين غير المسند
-                    </h2>
-                  </div>
-                  {activePublicPage === 'what-is-juthori' && (
-                    <button
-                      type="button"
-                      onClick={() => navigatePublicPage('home')}
-                      className="self-start md:self-auto px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer"
-                    >
-                      ابدأ فحص نسب عائلتك مجاناً ←
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {CORE_STRENGTHS.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <article
-                        key={item.number}
-                        className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-6 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-5">
-                            <span className="text-sm font-mono font-semibold text-[#B98A78] tabular-nums">
-                              {item.number}
-                            </span>
-                            <div className="w-10 h-10 rounded-xl bg-[#EDE6DA] flex items-center justify-center text-[#D8755B]">
-                              <Icon className="w-5 h-5" aria-hidden="true" />
-                            </div>
-                          </div>
-                          <h3 className="text-lg font-display font-bold text-[#252321] mb-2.5">
-                            {item.title}
-                          </h3>
-                          <p className="text-sm text-[#252321]/80 leading-relaxed">
-                            {item.description}
-                          </p>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            {/* D. Section 3: The 6 Platform Services (الخدمات الـ 6) */}
-            <section className="py-16 lg:py-24 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
-                <div className="max-w-2xl">
-                  <p className="text-xs font-semibold text-[#D8755B] mb-2">
-                    منظومة خدمات جذوري المتكاملة
-                  </p>
-                  <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
-                    ستة أعمدة رقمية لحفظ النسب وبناء الشجرة وصون ذاكرة العائلة
-                  </h2>
-                </div>
-                <p className="text-sm text-[#252321]/75 max-w-md">
-                  تبدأ رحلتك مجاناً باكتشاف نقطة الربط، وتتوسع نحو منظومة متكاملة لإدارة سجل العائلة وموقعها الخاص.
+        {/* C. Section 2: Core Strengths (ما هو جذوري · نقاط القوة - 4 Cards) */}
+        <section
+          id="what-is-juthori"
+          className="scroll-mt-20 border-t border-[#B98A78]/25 bg-[#EDE6DA]/55 py-16 lg:py-20"
+        >
+          <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold text-[#D8755B] mb-2">
+                  ما هو جذوري · ركائز المنصة
                 </p>
+                <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
+                  أربع ركائز تفصل بين التوثيق النسبي المحقق والتخمين غير المسند
+                </h2>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 items-stretch">
-                {PLATFORM_SERVICES_6.map((service, index) => {
-                  const Icon = service.icon;
-                  const isHighlighted = index === 0 || index === 1;
-                  return (
-                    <article
-                      key={service.number}
-                      className={`rounded-2xl p-6 flex flex-col justify-between border transition-transform duration-150 hover:-translate-y-0.5 ${
-                        isHighlighted
-                          ? 'bg-[#D8755B] text-white border-[#D8755B]'
-                          : 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/45'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-6">
-                          <span
-                            className={`text-xs font-mono font-semibold tabular-nums ${
-                              isHighlighted ? 'text-white/80' : 'text-[#B98A78]'
-                            }`}
-                          >
-                            {service.number}
-                          </span>
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                              isHighlighted
-                                ? 'bg-white/15 text-white'
-                                : 'bg-[#F7F2E9] text-[#D8755B]'
-                            }`}
-                          >
-                            <Icon className="w-5 h-5" aria-hidden="true" />
-                          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {CORE_STRENGTHS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article
+                    key={item.number}
+                    className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-6 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-5">
+                        <span className="text-sm font-mono font-semibold text-[#B98A78] tabular-nums">
+                          {item.number}
+                        </span>
+                        <div className="w-10 h-10 rounded-xl bg-[#EDE6DA] flex items-center justify-center text-[#D8755B]">
+                          <Icon className="w-5 h-5" aria-hidden="true" />
                         </div>
-
-                        <h3 className="text-lg font-display font-bold leading-snug mb-1.5">
-                          {service.title}
-                        </h3>
-                        <p
-                          className={`text-xs font-medium mb-4 ${
-                            isHighlighted ? 'text-white/85' : 'text-[#D8755B]'
-                          }`}
-                        >
-                          {service.subtitle}
-                        </p>
-                        <p
-                          className={`text-sm leading-relaxed ${
-                            isHighlighted ? 'text-white/95' : 'text-[#252321]/80'
-                          }`}
-                        >
-                          {service.description}
-                        </p>
                       </div>
+                      <h3 className="text-lg font-display font-bold text-[#252321] mb-2.5">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-[#252321]/80 leading-relaxed">
+                        {item.description}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-                      <div
-                        className={`mt-6 pt-4 border-t text-xs font-medium ${
-                          isHighlighted
-                            ? 'border-white/20 text-white/90'
-                            : 'border-[#B98A78]/30 text-[#252321]/70'
+        {/* D. Section 3: The 6 Platform Services (الخدمات الـ 6) */}
+        <section className="py-16 lg:py-24 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold text-[#D8755B] mb-2">
+                منظومة خدمات جذوري المتكاملة
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
+                ستة أعمدة رقمية لحفظ النسب وبناء الشجرة وصون ذاكرة العائلة
+              </h2>
+            </div>
+            <p className="text-sm text-[#252321]/75 max-w-md">
+              تبدأ رحلتك مجاناً باكتشاف نقطة الربط، وتتوسع نحو منظومة متكاملة لإدارة سجل العائلة وموقعها الخاص.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 items-stretch">
+            {PLATFORM_SERVICES_6.map((service, index) => {
+              const Icon = service.icon;
+              const isHighlighted = index === 0 || index === 1;
+              return (
+                <article
+                  key={service.number}
+                  className={`rounded-2xl p-6 flex flex-col justify-between border transition-transform duration-150 hover:-translate-y-0.5 ${
+                    isHighlighted
+                      ? 'bg-[#D8755B] text-white border-[#D8755B]'
+                      : 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/45'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-6">
+                      <span
+                        className={`text-xs font-mono font-semibold tabular-nums ${
+                          isHighlighted ? 'text-white/80' : 'text-[#B98A78]'
                         }`}
                       >
-                        {index === 1 ? 'يتطلب صفة أمين السجل' : 'متاح ضمن منظومة جذوري'}
+                        {service.number}
+                      </span>
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          isHighlighted
+                            ? 'bg-white/15 text-white'
+                            : 'bg-[#F7F2E9] text-[#D8755B]'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" aria-hidden="true" />
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-        )}
+                    </div>
 
-        {/* E. Section 4: About Us & Knowledge Center (Shown on Home, 'about-us', and 'knowledge-center') */}
-        {(activePublicPage === 'home' ||
-          activePublicPage === 'about-us' ||
-          activePublicPage === 'knowledge-center') && (
-          <section
-            id="about-us"
-            className={`border-t border-[#B98A78]/25 bg-[#EDE6DA]/45 py-16 lg:py-20 ${
-              activePublicPage !== 'home' ? 'min-h-[calc(100vh-5rem)]' : ''
-            }`}
-          >
-            <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {(activePublicPage === 'home' || activePublicPage === 'about-us') && (
-                <div
-                  className={
-                    activePublicPage === 'about-us'
-                      ? 'lg:col-span-12 max-w-4xl mx-auto space-y-6'
-                      : 'lg:col-span-6 space-y-4'
-                  }
-                >
-                  <p className="text-xs font-semibold text-[#D8755B]">
-                    من نحن · منهجية الفهرسة والتحقيق
-                  </p>
-                  <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
-                    مشروع عربي يجمع تحقيق المخطوطات التراثية وهندسة قواعد البيانات العلائقية
-                  </h2>
-                  <p className="text-sm sm:text-base text-[#252321]/80 leading-relaxed">
-                    تأسست منصة «جذوري» لسد الفجوة بين أمهات كتب الأنساب العربية والمشجرات العائلية الموثقة وبين الأجيال المعاصرة في 22 دولة عربية والمهجر، وفق ضوابط شرعية وقانونية تحفظ خصوصية الأسر وتمنح أمين السجل صلاحية التوثيق المعتمد.
-                  </p>
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#B98A78]/30">
-                    <div>
-                      <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
-                        +2.27M
-                      </div>
-                      <div className="text-xs text-[#252321]/70 mt-0.5">
-                        عقدة نسب مهيكلة
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
-                        22
-                      </div>
-                      <div className="text-xs text-[#252321]/70 mt-0.5">
-                        دولة عربية + المهجر
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
-                        $0
-                      </div>
-                      <div className="text-xs text-[#252321]/70 mt-0.5">
-                        رسوم الفحص الأولي
-                      </div>
-                    </div>
+                    <h3 className="text-lg font-display font-bold leading-snug mb-1.5">
+                      {service.title}
+                    </h3>
+                    <p
+                      className={`text-xs font-medium mb-4 ${
+                        isHighlighted ? 'text-white/85' : 'text-[#D8755B]'
+                      }`}
+                    >
+                      {service.subtitle}
+                    </p>
+                    <p
+                      className={`text-sm leading-relaxed ${
+                        isHighlighted ? 'text-white/95' : 'text-[#252321]/80'
+                      }`}
+                    >
+                      {service.description}
+                    </p>
                   </div>
-                  {activePublicPage === 'about-us' && (
-                    <div className="pt-4">
-                      <button
-                        type="button"
-                        onClick={() => navigatePublicPage('home')}
-                        className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold transition-colors cursor-pointer"
-                      >
-                        ابدأ البحث في سجل عائلتك ←
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(activePublicPage === 'home' || activePublicPage === 'knowledge-center') && (
-                <div
-                  id="knowledge-center"
-                  className={
-                    activePublicPage === 'knowledge-center'
-                      ? 'lg:col-span-12 space-y-8'
-                      : 'lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5'
-                  }
-                >
-                  {activePublicPage === 'knowledge-center' && (
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#B98A78]/30 pb-6">
-                      <div>
-                        <p className="text-xs font-semibold text-[#D8755B] mb-2">
-                          المركز المعرفي · دراسات الأنساب وتحقيق المخطوطات
-                        </p>
-                        <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321]">
-                          المرجع العلمي لطبقات الأنساب العربية وتوثيق المشجرات
-                        </h2>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigatePublicPage('home')}
-                        className="self-start md:self-auto px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer"
-                      >
-                        العودة للرئيسية وفحص النسب ←
-                      </button>
-                    </div>
-                  )}
 
                   <div
-                    className={
-                      activePublicPage === 'knowledge-center'
-                        ? 'grid grid-cols-1 sm:grid-cols-2 gap-6'
-                        : 'contents'
-                    }
+                    className={`mt-6 pt-4 border-t text-xs font-medium ${
+                      isHighlighted
+                        ? 'border-white/20 text-white/90'
+                        : 'border-[#B98A78]/30 text-[#252321]/70'
+                    }`}
                   >
-                    <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
-                      <div className="aspect-[16/10] overflow-hidden">
-                        <ResilientImage
-                          src={JUTHORI_MEDIA.manuscriptScroll}
-                          alt="المركز المعرفي — تحقيق المخطوطات والمشجرات"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-5">
-                        <p className="text-xs text-[#D8755B] font-semibold mb-1">
-                          المركز المعرفي · تحقيق المصادر
-                        </p>
-                        <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
-                          مراتب الطبقات والربط الثلاثي بالجذر
-                        </h3>
-                        <p className="text-xs text-[#252321]/75 leading-relaxed">
-                          كيف نطابق العقدة العائلية (FE0) بالفرع القبلي الموثق (الجذر - B2) والقبيلة الأم الموثقة (B0) صعوداً إلى الجذوم الكبرى في جمهرة أنساب العرب والإكليل.
-                        </p>
-                      </div>
-                    </div>
+                    {index === 1 ? 'يتطلب صفة أمين السجل' : 'متاح ضمن منظومة جذوري'}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
-                    <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
-                      <div className="aspect-[16/10] overflow-hidden">
-                        <ResilientImage
-                          src={JUTHORI_MEDIA.memoryVault}
-                          alt="خزانة الذاكرة — صون الوثائق والصور العائلية"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-5">
-                        <p className="text-xs text-[#D8755B] font-semibold mb-1">
-                          المركز المعرفي · ميثاق أمين السجل
-                        </p>
-                        <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
-                          الفرق بين حساب الفرد وأمين السجل
-                        </h3>
-                        <p className="text-xs text-[#252321]/75 leading-relaxed">
-                          ضماناً لعدم تعدد الروايات غير الموثقة، يُسند بناء شجرة العائلة إلى رب الأسرة الموقع على ميثاق دقة البيانات العائلية.
-                        </p>
-                      </div>
-                    </div>
+        {/* E. Section 4: About Us & Knowledge Center */}
+        <section
+          id="about-us"
+          className="scroll-mt-20 border-t border-[#B98A78]/25 bg-[#EDE6DA]/45 py-16 lg:py-20"
+        >
+          <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-6 space-y-4">
+              <p className="text-xs font-semibold text-[#D8755B]">
+                من نحن · منهجية الفهرسة والتحقيق
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
+                مشروع عربي يجمع تحقيق المخطوطات التراثية وهندسة قواعد البيانات العلائقية
+              </h2>
+              <p className="text-sm sm:text-base text-[#252321]/80 leading-relaxed">
+                تأسست منصة «جذوري» لسد الفجوة بين أمهات كتب الأنساب العربية والمشجرات العائلية الموثقة وبين الأجيال المعاصرة في 22 دولة عربية والمهجر، وفق ضوابط شرعية وقانونية تحفظ خصوصية الأسر وتمنح أمين السجل صلاحية التوثيق المعتمد.
+              </p>
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#B98A78]/30">
+                <div>
+                  <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
+                    +2.27M
+                  </div>
+                  <div className="text-xs text-[#252321]/70 mt-0.5">
+                    عقدة نسب مهيكلة
                   </div>
                 </div>
-              )}
+                <div>
+                  <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
+                    22
+                  </div>
+                  <div className="text-xs text-[#252321]/70 mt-0.5">
+                    دولة عربية + المهجر
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
+                    $0
+                  </div>
+                  <div className="text-xs text-[#252321]/70 mt-0.5">
+                    رسوم الفحص الأولي
+                  </div>
+                </div>
+              </div>
             </div>
-          </section>
-        )}
 
-        {/* F. Support & Contact Center (#support-center) — Shown on Home AND on 'support-center' */}
-        {(activePublicPage === 'home' || activePublicPage === 'support-center') && (
-          <section
-            id="support-center"
-            className={`py-16 lg:py-20 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 ${
-              activePublicPage === 'support-center' ? 'min-h-[calc(100vh-5rem)]' : ''
-            }`}
-          >
-            <div className="rounded-2xl bg-[#EDE6DA] border border-[#B98A78]/45 p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              <div className="lg:col-span-5 space-y-3">
-                <p className="text-xs font-semibold text-[#D8755B]">
-                  مركز التواصل والدعم
-                </p>
-                <h2 className="text-2xl font-display font-bold text-[#252321]">
-                  هل لديك مشجرة عائلية محققة أو استفسار نسبي؟
-                </h2>
-                <p className="text-sm text-[#252321]/80 leading-relaxed">
-                  يستقبل فريق التحقيق والأرشفة في منصة جذوري طلبات توثيق المشجرات الأسرية واستفسارات أمناء السجل في جميع الدول العربية.
-                </p>
-                <div className="pt-2 text-xs text-[#252321]/75 space-y-1">
-                  <p>البريد الرسمي: support@juthori.com</p>
-                  <p>ساعات عمل لجنة التحقيق: الأحد – الخميس (9:00 ص – 6:00 م بتوقيت مكة المكرمة)</p>
+            <div
+              id="knowledge-center"
+              className="scroll-mt-24 lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5"
+            >
+              <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
+                <div className="aspect-[16/10] overflow-hidden">
+                  <ResilientImage
+                    src={JUTHORI_MEDIA.manuscriptScroll}
+                    alt="المركز المعرفي — تحقيق المخطوطات والمشجرات"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="text-xs text-[#D8755B] font-semibold mb-1">
+                    المركز المعرفي · تحقيق المصادر
+                  </p>
+                  <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
+                    مراتب الطبقات والربط الثلاثي بالجذر
+                  </h3>
+                  <p className="text-xs text-[#252321]/75 leading-relaxed">
+                    كيف نطابق العقدة العائلية (FE0) بالفرع القبلي الموثق (الجذر - B2) والقبيلة الأم الموثقة (B0) صعوداً إلى الجذوم الكبرى في جمهرة أنساب العرب والإكليل.
+                  </p>
                 </div>
               </div>
 
-              <div className="lg:col-span-7">
-                {supportSent ? (
-                  <div className="rounded-xl bg-[#F7F2E9] border border-[#D8755B]/45 p-6 text-right">
-                    <h3 className="text-base font-display font-bold text-[#D8755B] mb-1">
-                      تم استلام رسالتك بنجاح في مركز التواصل والدعم
-                    </h3>
-                    <p className="text-sm text-[#252321]/80 mb-4">
-                      سيتواصل معك فريق التحقيق وخدمة العملاء عبر بريدك الإلكتروني خلال 24 ساعة عمل.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSupportSent(false)}
-                      className="px-4 py-2 rounded-xl bg-[#252321] text-white text-xs font-semibold cursor-pointer"
+              <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
+                <div className="aspect-[16/10] overflow-hidden">
+                  <ResilientImage
+                    src={JUTHORI_MEDIA.memoryVault}
+                    alt="خزانة الذاكرة — صون الوثائق والصور العائلية"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="text-xs text-[#D8755B] font-semibold mb-1">
+                    المركز المعرفي · ميثاق أمين السجل
+                  </p>
+                  <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
+                    الفرق بين حساب الفرد وأمين السجل
+                  </h3>
+                  <p className="text-xs text-[#252321]/75 leading-relaxed">
+                    ضماناً لعدم تعدد الروايات غير الموثقة، يُسند بناء شجرة العائلة إلى رب الأسرة الموقع على ميثاق دقة البيانات العائلية.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* F. Support & Contact Center (#support-center) */}
+        <section
+          id="support-center"
+          className="scroll-mt-20 py-16 lg:py-20 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8"
+        >
+          <div className="rounded-2xl bg-[#EDE6DA] border border-[#B98A78]/45 p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-5 space-y-3">
+              <p className="text-xs font-semibold text-[#D8755B]">
+                مركز التواصل والدعم
+              </p>
+              <h2 className="text-2xl font-display font-bold text-[#252321]">
+                هل لديك مشجرة عائلية محققة أو استفسار نسبي؟
+              </h2>
+              <p className="text-sm text-[#252321]/80 leading-relaxed">
+                يستقبل فريق التحقيق والأرشفة في منصة جذوري طلبات توثيق المشجرات الأسرية واستفسارات أمناء السجل في جميع الدول العربية.
+              </p>
+              <div className="pt-2 text-xs text-[#252321]/75 space-y-1">
+                <p>البريد الرسمي: support@juthori.com</p>
+                <p>ساعات عمل لجنة التحقيق: الأحد – الخميس (9:00 ص – 6:00 م بتوقيت مكة المكرمة)</p>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              {supportSent ? (
+                <div className="rounded-xl bg-[#F7F2E9] border border-[#D8755B]/45 p-6 text-right">
+                  <h3 className="text-base font-display font-bold text-[#D8755B] mb-1">
+                    تم استلام رسالتك بنجاح في مركز التواصل والدعم
+                  </h3>
+                  <p className="text-sm text-[#252321]/80 mb-4">
+                    سيتواصل معك فريق التحقيق وخدمة العملاء عبر بريدك الإلكتروني خلال 24 ساعة عمل.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSupportSent(false)}
+                    className="px-4 py-2 rounded-xl bg-[#252321] text-white text-xs font-semibold cursor-pointer"
+                  >
+                    إرسال رسالة أخرى
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSupportSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4" noValidate>
+                  <div>
+                    <label
+                      htmlFor="support-name"
+                      className="block text-xs font-medium text-[#252321] mb-1"
                     >
-                      إرسال رسالة أخرى
+                      الاسم الكامل
+                    </label>
+                    <input
+                      id="support-name"
+                      type="text"
+                      value={supportName}
+                      onChange={(e) => setSupportName(e.target.value)}
+                      placeholder="الاسم الثلاثي"
+                      className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="support-email"
+                      className="block text-xs font-medium text-[#252321] mb-1"
+                    >
+                      البريد الإلكتروني
+                    </label>
+                    <input
+                      id="support-email"
+                      type="email"
+                      dir="ltr"
+                      value={supportEmail}
+                      onChange={(e) => setSupportEmail(e.target.value)}
+                      placeholder="you@domain.com"
+                      className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-right text-sm text-[#252321]"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="support-message"
+                      className="block text-xs font-medium text-[#252321] mb-1"
+                    >
+                      موضوع الطلب أو اسم المشجرة
+                    </label>
+                    <textarea
+                      id="support-message"
+                      rows={3}
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="اكتب استفسارك أو نبذة عن الوثائق المتوفرة لدى عائلتك..."
+                      className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                    />
+                  </div>
+                  {supportError && (
+                    <p className="sm:col-span-2 text-xs text-red-700 font-medium">
+                      {supportError}
+                    </p>
+                  )}
+                  <div className="sm:col-span-2 flex justify-end">
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Send className="w-4 h-4" aria-hidden="true" />
+                      <span>إرسال إلى مركز الدعم</span>
                     </button>
                   </div>
-                ) : (
-                  <form onSubmit={handleSupportSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4" noValidate>
-                    <div>
-                      <label
-                        htmlFor="support-name"
-                        className="block text-xs font-medium text-[#252321] mb-1"
-                      >
-                        الاسم الكامل
-                      </label>
-                      <input
-                        id="support-name"
-                        type="text"
-                        value={supportName}
-                        onChange={(e) => setSupportName(e.target.value)}
-                        placeholder="الاسم الثلاثي"
-                        className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="support-email"
-                        className="block text-xs font-medium text-[#252321] mb-1"
-                      >
-                        البريد الإلكتروني
-                      </label>
-                      <input
-                        id="support-email"
-                        type="email"
-                        dir="ltr"
-                        value={supportEmail}
-                        onChange={(e) => setSupportEmail(e.target.value)}
-                        placeholder="you@domain.com"
-                        className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-right text-sm text-[#252321]"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label
-                        htmlFor="support-message"
-                        className="block text-xs font-medium text-[#252321] mb-1"
-                      >
-                        موضوع الطلب أو اسم المشجرة
-                      </label>
-                      <textarea
-                        id="support-message"
-                        rows={3}
-                        value={supportMessage}
-                        onChange={(e) => setSupportMessage(e.target.value)}
-                        placeholder="اكتب استفسارك أو نبذة عن الوثائق المتوفرة لدى عائلتك..."
-                        className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
-                      />
-                    </div>
-                    {supportError && (
-                      <p className="sm:col-span-2 text-xs text-red-700 font-medium">
-                        {supportError}
-                      </p>
-                    )}
-                    <div className="sm:col-span-2 flex justify-end">
-                      <button
-                        type="submit"
-                        className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <Send className="w-4 h-4" aria-hidden="true" />
-                        <span>إرسال إلى مركز الدعم</span>
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
+                </form>
+              )}
             </div>
-          </section>
-        )}
+          </div>
+        </section>
       </main>
 
       {/* Quiet Editorial Footer */}
@@ -1259,10 +1184,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-col items-center text-center space-y-3.5">
             <JuthoriLogo
               size="sm"
-              onClick={() => {
-                setActivePublicPage('home');
-                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-              }}
+              onClick={() => navigatePublicPage('home')}
             />
 
             <p className="text-sm sm:text-base font-display font-bold text-[#252321] pt-1">
@@ -1288,7 +1210,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   onClick={onOpenStaffPortal}
                   className="px-4 py-2 rounded-xl bg-[#F7F2E9] hover:bg-[#252321] text-[#252321] hover:text-[#F7F2E9] border border-[#B98A78]/50 text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
                 >
-                  🔒 بوابة الإدارة والعمليات (Staff Portal)
+                  🔒 بوابة الإدارة والعمليات
                 </button>
               </div>
             )}

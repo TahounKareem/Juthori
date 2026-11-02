@@ -208,6 +208,9 @@ export function validateStep1LineageForm(form: RegistrationFormState): FormValid
   if (!form.familyName.trim()) {
     errors.familyName = 'يرجى إدخال اسم العائلة للبحث في قاعدة الأنساب';
   }
+  if (!form.originCountry.trim() && !(form.originRegion || '').trim()) {
+    errors.originRegion = 'يرجى تحديد الدولة أو كتابة الموطن الأصلي لاستكمال البحث بدقة';
+  }
 
   return {
     valid: Object.keys(errors).length === 0,

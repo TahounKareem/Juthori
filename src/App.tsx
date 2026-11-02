@@ -57,8 +57,41 @@ const DEFAULT_DEMO_SEED = {
   email: 'hassan.almuqit@juthori.com',
 };
 
+const ACTIVE_SESSION_STORAGE_KEY = 'juthori_active_user_session';
+
+interface SavedCustomerSession {
+  isLoggedIn: boolean;
+  form: RegistrationFormState;
+  lineageResult: LineageSearchResult;
+  dashboardStateMode: DashboardStateMode;
+  isAlphaMergedIntoAdam: boolean;
+}
+
+function loadSavedCustomerSession(): SavedCustomerSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedCustomerSession;
+    if (parsed && parsed.isLoggedIn && parsed.lineageResult) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function App() {
-  const [form, setForm] = useState<RegistrationFormState>(DEFAULT_FORM_STATE);
+  const initialSession = loadSavedCustomerSession();
+
+  const [hasActiveSession, setHasActiveSession] = useState<boolean>(() =>
+    Boolean(initialSession?.isLoggedIn)
+  );
+
+  const [form, setForm] = useState<RegistrationFormState>(
+    () => initialSession?.form || DEFAULT_FORM_STATE
+  );
   const [selectedPortalCountry, setSelectedPortalCountry] = useState<string>(() =>
     resolveVisitorCountryName()
   );
@@ -72,7 +105,9 @@ export function App() {
   });
 
   const [isSearching, setIsSearching] = useState(false);
-  const [searchStep, setSearchStep] = useState<1 | 2 | 3>(1);
+  const [searchStep, setSearchStep] = useState<1 | 2 | 3>(() =>
+    initialSession?.isLoggedIn ? 3 : 1
+  );
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const [activeView, setActiveView] = useState<
@@ -80,9 +115,6 @@ export function App() {
   >(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('autostart') === '1' || params.get('view') === 'dashboard') {
-        return 'dashboard';
-      }
       if (
         params.get('view') === 'researcher' ||
         params.get('view') === 'staff' ||
@@ -90,22 +122,49 @@ export function App() {
       ) {
         return 'staff_portal';
       }
+      if (params.get('autostart') === '1' || params.get('view') === 'dashboard') {
+        return 'dashboard';
+      }
+      if (initialSession?.isLoggedIn) {
+        return 'dashboard';
+      }
     }
     return 'landing';
   });
 
   const [previousPlatformView, setPreviousPlatformView] = useState<
     'landing' | 'dashboard'
-  >('landing');
+  >(() => (initialSession?.isLoggedIn ? 'dashboard' : 'landing'));
 
-  const [isAlphaMergedIntoAdam, setIsAlphaMergedIntoAdam] = useState(false);
+  const [isAlphaMergedIntoAdam, setIsAlphaMergedIntoAdam] = useState<boolean>(() =>
+    Boolean(initialSession?.isAlphaMergedIntoAdam)
+  );
 
-  const [lineageResult, setLineageResult] = useState<LineageSearchResult>(() =>
-    resolveDeterministicLineage(DEFAULT_DEMO_SEED)
+  const [lineageResult, setLineageResult] = useState<LineageSearchResult>(
+    () => initialSession?.lineageResult || resolveDeterministicLineage(DEFAULT_DEMO_SEED)
   );
   const [dashboardStateMode, setDashboardStateMode] = useState<DashboardStateMode>(
-    DashboardStateMode.State2MatchedUnpaid
+    () => initialSession?.dashboardStateMode || DashboardStateMode.State2MatchedUnpaid
   );
+
+  // Persist active customer session in localStorage so page refresh stays on CustomerDashboard
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (hasActiveSession) {
+      try {
+        const sessionPayload: SavedCustomerSession = {
+          isLoggedIn: true,
+          form,
+          lineageResult,
+          dashboardStateMode,
+          isAlphaMergedIntoAdam,
+        };
+        localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify(sessionPayload));
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+  }, [hasActiveSession, form, lineageResult, dashboardStateMode, isAlphaMergedIntoAdam]);
 
   // Silent IP Geolocation Capture in background + Auto-Detect Country for Hero
   useEffect(() => {
@@ -304,6 +363,7 @@ export function App() {
       agreedToTerms: true,
     }));
 
+    setHasActiveSession(true);
     setSearchStep(3);
     setPreviousPlatformView('dashboard');
     setActiveView('dashboard');
@@ -355,6 +415,7 @@ export function App() {
         agreedToTerms: true,
       }));
 
+      setHasActiveSession(true);
       setSearchStep(3);
       setPreviousPlatformView('dashboard');
       setActiveView('dashboard');
@@ -383,11 +444,25 @@ export function App() {
     const result = resolveDeterministicLineage(payload);
     setLineageResult(result);
     setDashboardStateMode(result.recommendedInitialState);
+    setHasActiveSession(true);
     setSearchStep(3);
     setLoginModalOpen(false);
     setPreviousPlatformView('dashboard');
     setActiveView('dashboard');
     window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleLogoutCustomer = () => {
+    setHasActiveSession(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+    }
+    auth.signOut().catch(() => {});
+    setForm(DEFAULT_FORM_STATE);
+    setSearchStep(1);
+    setPreviousPlatformView('landing');
+    setActiveView('landing');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   // Live Researcher Studio Callback inside Staff Portal: Merge Alpha or P1 ticket nodes into Adam's Tree
@@ -473,6 +548,7 @@ export function App() {
 
     setLineageResult(finalRes);
     setDashboardStateMode(order.stateMode);
+    setHasActiveSession(true);
     setSearchStep(3);
     setPreviousPlatformView('dashboard');
     setActiveView('dashboard');
@@ -581,11 +657,7 @@ export function App() {
             setActiveView('landing');
             window.scrollTo({ top: 0, behavior: 'auto' });
           }}
-          onOpenStaffPortal={() => {
-            setPreviousPlatformView('dashboard');
-            setActiveView('staff_portal');
-            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-          }}
+          onLogout={handleLogoutCustomer}
           onUpdateImmediateParents={handleUpdateImmediateParents}
         />
       )}
