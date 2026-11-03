@@ -15,10 +15,18 @@ import {
   initializeFirestore,
   doc,
   getDocFromServer,
+  setLogLevel,
   Firestore,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import appletFirebaseConfig from '../firebase-applet-config.json';
+
+// Silence internal @firebase/firestore WebChannel transport retry logs in iframe/VPN environments
+try {
+  setLogLevel('silent');
+} catch {
+  // Ignore if unsupported in test environment
+}
 
 // Your web app's official Firebase configuration (juthori-com)
 export const JUTHORI_FIREBASE_CONFIG = {
@@ -78,17 +86,18 @@ try {
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Helper to initialize Firestore with ignoreUndefinedProperties: true so optional undefined fields never crash setDoc()
+// Helper to initialize Firestore with ignoreUndefinedProperties: true and experimentalAutoDetectLongPolling: true
+// so WebChannel never hangs for 10 seconds behind VPNs, proxies, or preview iframes.
 function initResilientFirestore(targetApp: FirebaseApp, databaseId?: string): Firestore {
+  const settings = {
+    ignoreUndefinedProperties: true,
+    experimentalAutoDetectLongPolling: true,
+  };
   try {
     if (databaseId) {
-      return initializeFirestore(
-        targetApp,
-        { ignoreUndefinedProperties: true },
-        databaseId
-      );
+      return initializeFirestore(targetApp, settings, databaseId);
     }
-    return initializeFirestore(targetApp, { ignoreUndefinedProperties: true });
+    return initializeFirestore(targetApp, settings);
   } catch {
     return databaseId ? getFirestore(targetApp, databaseId) : getFirestore(targetApp);
   }

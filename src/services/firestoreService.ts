@@ -1414,9 +1414,6 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
 }
 
 export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecord> {
-  if (hasEnsuredMaestroInSession) {
-    return FOUNDING_MAESTRO_MEMBER;
-  }
   hasEnsuredMaestroInSession = true;
   try {
     const maestroUserProfile: UserProfileData = {
@@ -1475,12 +1472,21 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
     // 3. If there is an active customer session in localStorage, ensure its user profile, order, and research ticket are written to Firestore
     if (typeof window !== 'undefined') {
       try {
-        const rawSession = localStorage.getItem('juthori_active_user_session');
+        const rawSession =
+          localStorage.getItem('juthori_active_customer_session_v1') ||
+          localStorage.getItem('juthori_active_user_session');
         if (rawSession) {
           const parsed = JSON.parse(rawSession);
-          const sessEmail = (parsed?.email || '').trim().toLowerCase();
-          const sessResult = parsed?.result;
+          const sessEmail = (
+            parsed?.form?.email ||
+            parsed?.email ||
+            ''
+          )
+            .trim()
+            .toLowerCase();
+          const sessResult = parsed?.lineageResult || parsed?.result;
           const sessUid =
+            parsed?.userId ||
             parsed?.uid ||
             auth.currentUser?.uid ||
             (sessEmail ? `usr_${sessEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}` : '');
@@ -1494,9 +1500,23 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
             ]
               .filter((s: string) => s && s !== '—')
               .join(' ');
-            const stateMode = parsed?.stateMode || 'state0_free_onboarding';
+            const stateMode =
+              parsed?.dashboardStateMode ||
+              parsed?.stateMode ||
+              'state0_free_onboarding';
             const isVip = stateMode === 'annual_vip';
             const isPaid5 = stateMode === 'state1_paid5_basic';
+            const legalType =
+              parsed?.form?.accountType === 'record_keeper' ||
+              parsed?.accountType === 'record_keeper'
+                ? 'record_keeper'
+                : 'individual';
+            const phoneVal = parsed?.userPhone || parsed?.phone || '';
+            const defaultCountryVal =
+              parsed?.userDefaultCountry ||
+              parsed?.defaultCountry ||
+              sessResult.originCountry ||
+              'السعودية';
 
             await Promise.allSettled([
               createUserProfileIfMissing(
@@ -1514,16 +1534,15 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
                       : '',
                   familyName: sessResult.familyName || '',
                   email: sessEmail,
-                  phone: parsed?.phone || '',
-                  accountType:
-                    parsed?.accountType === 'record_keeper'
-                      ? 'record_keeper'
-                      : 'individual',
-                  defaultCountry:
-                    parsed?.defaultCountry || sessResult.originCountry || 'السعودية',
+                  phone: phoneVal,
+                  accountType: legalType,
+                  defaultCountry: defaultCountryVal,
                   originCountry: sessResult.originCountry || 'السعودية',
                   originRegion:
-                    parsed?.originRegion || sessResult.originRegion || '',
+                    parsed?.form?.originRegion ||
+                    parsed?.originRegion ||
+                    sessResult.originRegion ||
+                    '',
                   subscriptionTier: isVip
                     ? 'premium_annual'
                     : isPaid5
@@ -1546,11 +1565,8 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
                 originCountry: sessResult.originCountry || 'السعودية',
                 originRegion: sessResult.originRegion || 'غير محدد',
                 email: sessEmail,
-                phone: parsed?.phone || '—',
-                legalRole:
-                  parsed?.accountType === 'record_keeper'
-                    ? 'record_keeper'
-                    : 'individual',
+                phone: phoneVal || '—',
+                legalRole: legalType,
                 accountStatus: isVip
                   ? 'annual_vip'
                   : isPaid5
@@ -1579,7 +1595,7 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
                 userId: sessUid,
                 userFullName: fullName,
                 userEmail: sessEmail,
-                userPhone: parsed?.phone || '',
+                userPhone: phoneVal,
                 familyName: sessResult.familyName || '',
                 originCountry: sessResult.originCountry || 'السعودية',
                 originRegion: sessResult.originRegion || '',
@@ -1618,7 +1634,7 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
       'newsletter_subscribers',
     ];
     await Promise.allSettled(
-      targetCollections.map((col) => dualGetCollection< { id?: string; userId?: string } >(col))
+      targetCollections.map((col) => dualGetCollection<{ id?: string; userId?: string }>(col))
     );
 
     return {

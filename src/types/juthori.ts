@@ -118,6 +118,25 @@ export interface CorroboratingAlphaEvidence {
   locations?: string | null;
   notables?: string | null;
   priority_tier: AlphaPriorityTier;
+  is_consensus_winner?: boolean;
+  consensus_badge?: string;
+}
+
+export interface SuggestedAdamBridgeForResearcher {
+  matched_station_name: string;
+  adam_node_id: string;
+  adam_node_name: string;
+  adam_chain_preview: string;
+  confidence_label?: string;
+}
+
+export interface Lake3UnlinkedProjectRecord {
+  record_id: string;
+  project_source: string;
+  family_or_tribe_name: string;
+  snippet: string;
+  locations?: string;
+  notes?: string;
 }
 
 export interface BackgroundResearcherTicketPayload {
@@ -137,7 +156,7 @@ export interface BlindDisambiguationOption {
   geographicScope: string; // Stage 2 geographic localities (e.g. "العمارة / ميسان / واسط", "سوق الشيوخ / المنتفق / ذي قار")
   nearBranchHint: string;
   isConsensusWinner?: boolean;
-  consensusBadge?: string; // e.g. "مرجّح في عدة مصادر"
+  consensusBadge?: string; // e.g. "توافق (3) مصادر"
   sourcesCount?: number;
 }
 
@@ -200,8 +219,13 @@ export interface LineageSearchResult {
   rootSummaryLabel: string;
   upperAncestors: UpperAncestorNode[];
   adamSpineNodes: UpperAncestorNode[];
+  full_stitched_lineage_for_researcher?: UpperAncestorNode[];
+  suggested_adam_bridge_for_researcher?: SuggestedAdamBridgeForResearcher;
+  lake3_unlinked_projects_for_researcher?: Lake3UnlinkedProjectRecord[];
+  ai_research_hypotheses?: string[];
   capsules: AncestorCapsule[];
   requiresBlindDisambiguation: boolean;
+  disambiguation_stage?: 'STAGE_1_TRIBE_ROOT' | 'STAGE_2_GEOGRAPHY';
   disambiguationOptions: BlindDisambiguationOption[];
   optionAResultOverride?: Partial<LineageSearchResult>;
   optionBResultOverride?: Partial<LineageSearchResult>;

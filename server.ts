@@ -280,6 +280,146 @@ async function startServer() {
   app.post('/api/v1/juthori/researcher/close-enrichment-ticket', handleCloseEnrichmentTicket);
 
   // 3B. German Neo4j Lineage Engine (Port 8090) — Adam Tree Explorer APIs
+  const DEFAULT_ADAM_TREE_STATS = {
+    total_nodes: 474949,
+    total_coded_nodes: 35560,
+    mt_roots: [
+      {
+        node_id: 'MT_SABA_01',
+        name: 'سبأ',
+        arc_code: 'M',
+        representation: 'TRIBE',
+        relation_nature: 'DIRECT',
+        skipped_generations: 12,
+      },
+      {
+        node_id: 'MT_MUDAR_02',
+        name: 'مضر',
+        arc_code: 'M',
+        representation: 'TRIBE',
+        relation_nature: 'DIRECT',
+        skipped_generations: 19,
+      },
+      {
+        node_id: 'MT_RABIAH_03',
+        name: 'ربيعة',
+        arc_code: 'M',
+        representation: 'TRIBE',
+        relation_nature: 'DIRECT',
+        skipped_generations: 19,
+      },
+      {
+        node_id: 'MT_QUDAAH_04',
+        name: 'قضاعة',
+        arc_code: 'M',
+        representation: 'TRIBE',
+        relation_nature: 'DIRECT_DESCENDANT',
+        skipped_generations: 14,
+      },
+      {
+        node_id: 'MT_HIMYAR_05',
+        name: 'حمير بن سبأ',
+        arc_code: 'M',
+        representation: 'TRIBE',
+        relation_nature: 'DIRECT',
+        skipped_generations: 13,
+      },
+      {
+        node_id: 'MT_IYAD_ANMAR_06',
+        name: 'إياد وأنمار بن نزار',
+        arc_code: 'M',
+        representation: 'TRIBE',
+        relation_nature: 'DIRECT',
+        skipped_generations: 19,
+      },
+    ],
+  };
+
+  const handleAdamTreeStats = async (_req: express.Request, res: express.Response) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/stats`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({
+          source: 'live_german_engine',
+          total_nodes: Number(data?.total_nodes || data?.data?.total_nodes || 474949),
+          total_coded_nodes: Number(
+            data?.total_coded_nodes || data?.data?.total_coded_nodes || 35560
+          ),
+          mt_roots:
+            Array.isArray(data?.mt_roots) && data.mt_roots.length > 0
+              ? data.mt_roots
+              : Array.isArray(data?.data?.mt_roots) && data.data.mt_roots.length > 0
+              ? data.data.mt_roots
+              : DEFAULT_ADAM_TREE_STATS.mt_roots,
+          data,
+        });
+        return;
+      }
+      res.status(200).json({
+        source: 'local_neo4j_fallback',
+        ...DEFAULT_ADAM_TREE_STATS,
+      });
+    } catch {
+      clearTimeout(timeout);
+      res.status(200).json({
+        source: 'local_neo4j_fallback',
+        ...DEFAULT_ADAM_TREE_STATS,
+      });
+    }
+  };
+
+  app.get('/api/v1/juthori/adam-tree/stats', handleAdamTreeStats);
+  app.get('/api/juthori/adam-tree/stats', handleAdamTreeStats);
+
+  const handleAdamTreeChildren = async (req: express.Request, res: express.Response) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const nodeId = encodeURIComponent(String(req.params.id || ''));
+    const codedOnly = String(req.query.coded_only || 'false') === 'true';
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/children/${nodeId}?coded_only=${codedOnly}`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({
+          source: 'live_german_engine',
+          children: Array.isArray(data?.children)
+            ? data.children
+            : Array.isArray(data?.data?.children)
+            ? data.data.children
+            : Array.isArray(data)
+            ? data
+            : null,
+          data,
+        });
+        return;
+      }
+      res.status(200).json({ source: 'local_neo4j_fallback', children: null });
+    } catch {
+      clearTimeout(timeout);
+      res.status(200).json({ source: 'local_neo4j_fallback', children: null });
+    }
+  };
+
+  app.get('/api/v1/juthori/adam-tree/children/:id', handleAdamTreeChildren);
+  app.get('/api/juthori/adam-tree/children/:id', handleAdamTreeChildren);
+
   const handleAdamTreeSearch = async (req: express.Request, res: express.Response) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4500);

@@ -1006,13 +1006,16 @@ export function App() {
     setIsAlphaMergedIntoAdam(true);
     setLineageResult((prev) => {
       const applyExtraEnrichment = (res: LineageSearchResult): LineageSearchResult => {
-        const mergedSources = Array.from(
-          new Set([
-            ...(res.verified_sources || []),
-            ...(res.secondarySources || []),
-            ...addedVerifiedSources,
-          ])
-        );
+        const mergedSources =
+          !isAdamEnrichmentOnly && addedVerifiedSources.length > 0
+            ? Array.from(new Set(addedVerifiedSources))
+            : Array.from(
+                new Set([
+                  ...(res.verified_sources || []),
+                  ...(res.secondarySources || []),
+                  ...addedVerifiedSources,
+                ])
+              );
         const mergedSiblings = Array.from(
           new Set([
             ...(res.sibling_branches_in_record || []),
@@ -1029,6 +1032,8 @@ export function App() {
 
         return {
           ...res,
+          verifiedSourceCitation:
+            mergedSources[0] || res.verifiedSourceCitation,
           verified_sources: mergedSources,
           secondarySources: mergedSources,
           sibling_branches_in_record: mergedSiblings,

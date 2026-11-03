@@ -206,7 +206,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     localResolvedOption === 'escalated_ticket';
 
   const spineNodes: UpperAncestorNode[] =
-    effectiveResult.adamSpineNodes && effectiveResult.adamSpineNodes.length > 0
+    isResearcherDirectPreview &&
+    effectiveResult.full_stitched_lineage_for_researcher &&
+    effectiveResult.full_stitched_lineage_for_researcher.length > 0
+      ? effectiveResult.full_stitched_lineage_for_researcher
+      : effectiveResult.adamSpineNodes && effectiveResult.adamSpineNodes.length > 0
       ? effectiveResult.adamSpineNodes
       : effectiveResult.upperAncestors;
 
@@ -870,7 +874,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 );
               })}
 
-              {/* Option: لا أعرف / لست متأكداً -> Triggers Stage 2 Geographic Verification */}
+              {/* Option: لا أعرف / لست متأكداً (الاحتكام للمواضع الجغرافية) -> Triggers Stage 2 (STAGE_2_GEOGRAPHY / NEED_LOCATION_STEP) */}
               <label
                 onClick={() => setStage1Choice('not_sure_stage1')}
                 className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
@@ -888,11 +892,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     className="w-4 h-4 accent-[#D8755B] cursor-pointer shrink-0"
                   />
                   <span className="text-sm font-display font-bold text-[#252321]">
-                    لا أعرف / لست متأكداً
+                    لا أعرف / لست متأكداً (الاحتكام للمواضع الجغرافية)
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-[#8D4925] bg-[#FAF6F0] px-2 py-0.5 rounded border border-[#B98A78]/35">
-                  ينقلك للتحقق بالمواضع
+                <span className="text-[10px] font-bold font-mono text-[#8D4925] bg-[#FAF6F0] px-2 py-0.5 rounded border border-[#B98A78]/35">
+                  NEED_LOCATION_STEP
                 </span>
               </label>
             </div>
@@ -1381,7 +1385,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 onClick={onOpenAsResearcherTicket}
                 className="px-3.5 py-1.5 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-display font-bold shadow-xs transition-all cursor-pointer"
               >
-                📥 فتح كتذكرة في صندوق التذاكر للتحقيق والربط
+                📥 فتح كتذكرة عمل نشطة في صندوق التذاكر
               </button>
             )}
           </div>
