@@ -37,6 +37,10 @@ import {
   getHistoricalEraBadgeLabel,
   resolveNodeHistoricalEra,
 } from './HeritageNodeAvatar';
+import {
+  fetchUserFamilyTreeFromFirebase,
+  saveUserFamilyTreeToFirebase,
+} from '../services/firestoreService';
 
 export type ArabicHonorificTitle =
   | 'بدون'
@@ -132,6 +136,8 @@ interface InteractiveFamilyTreeBuilderProps {
   onRequestUnlockCapsule?: (capsule: AncestorCapsule) => void;
   onRequestUnlockAllCapsulesBundle?: () => void;
   walletBalance?: number;
+  userAvatarUrl?: string;
+  userId?: string;
 }
 
 const ARABIC_ORDINAL_GRANDFATHER: Record<number, string> = {
@@ -202,6 +208,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   unlockedCapsules = [],
   onRequestUnlockCapsule,
   onRequestUnlockAllCapsulesBundle,
+  userAvatarUrl,
+  userId,
 }) => {
   // Build initial tree nodes from registration data (Auto-Initialization)
   const buildInitialTree = (): InteractiveTreePerson[] => {
@@ -237,6 +245,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       birthPlace: result.originRegion || result.originCountry,
       femalePrivacyMasked: false,
       biography: `أمين سجل عائلة ${result.familyName} المعتمد في منصة جذوري.`,
+      photoUrl: userAvatarUrl || undefined,
     });
 
     // 2. Auto-generated Father if provided during registration
@@ -315,8 +324,50 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [people, setPeople] = useState<InteractiveTreePerson[]>(buildInitialTree);
 
   useEffect(() => {
-    setPeople(buildInitialTree());
-  }, [result.familyName, result.clientName]);
+    let active = true;
+    if (userId) {
+      fetchUserFamilyTreeFromFirebase<InteractiveTreePerson>(userId)
+        .then((savedNodes) => {
+          if (!active) return;
+          if (savedNodes && Array.isArray(savedNodes) && savedNodes.length > 0) {
+            setPeople(
+              savedNodes.map((node) =>
+                node.isRecordKeeper && userAvatarUrl && !node.photoUrl
+                  ? { ...node, photoUrl: userAvatarUrl }
+                  : node
+              )
+            );
+          } else {
+            setPeople(buildInitialTree());
+          }
+        })
+        .catch(() => {
+          if (active) setPeople(buildInitialTree());
+        });
+    } else {
+      setPeople(buildInitialTree());
+    }
+    return () => {
+      active = false;
+    };
+  }, [result.familyName, result.clientName, userId]);
+
+  // Sync Record Keeper photoUrl when user uploads a new profile avatar
+  useEffect(() => {
+    if (!userAvatarUrl) return;
+    setPeople((prev) =>
+      prev.map((node) =>
+        node.isRecordKeeper ? { ...node, photoUrl: userAvatarUrl } : node
+      )
+    );
+  }, [userAvatarUrl]);
+
+  // Persist family tree nodes to Firebase whenever modified
+  useEffect(() => {
+    if (userId && people.length > 0) {
+      saveUserFamilyTreeToFirebase(userId, result.familyName, people).catch(() => {});
+    }
+  }, [people, userId, result.familyName]);
 
   // Display Depth Selector State (محدّد مدى العرض فوق الشجرة)
   const [spineDepth, setSpineDepth] = useState<TreeSpineDepthMode>(

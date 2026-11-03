@@ -103,8 +103,34 @@ export interface AncestorCapsule {
   ancestors: UpperAncestorNode[];
 }
 
+export type AlphaPriorityTier =
+  | 'PRIORITY_1_COUNTRY_BOOK'
+  | 'PRIORITY_2_GENERAL_BOOK';
+
+export interface CorroboratingAlphaEvidence {
+  alpha_id: string;
+  record_name: string;
+  source_book: string;
+  page?: string | null;
+  volume?: string | null;
+  lineage_ancestors?: string | null;
+  child_branches?: string | null;
+  locations?: string | null;
+  notables?: string | null;
+  priority_tier: AlphaPriorityTier;
+}
+
+export interface BackgroundResearcherTicketPayload {
+  ticket_id: string;
+  ticket_type: string;
+  priority: string;
+  sources_count: number;
+  description_ar: string;
+}
+
 export interface BlindDisambiguationOption {
   id: 'option_a' | 'option_b';
+  choice_id?: string;
   badge: string;
   title: string;
   geographicScope: string;
@@ -125,24 +151,40 @@ export interface CheckoutOrderRequest {
 export interface LineageSearchResult {
   matched: boolean;
   engineSource: 'live_german_engine' | 'neo4j_verified_graph';
+  primary_source_of_truth?:
+    | 'ADAM_MASTER_TREE'
+    | 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED'
+    | 'DISAMBIGUATION_REQUIRED'
+    | 'UNMATCHED_P1_TICKET';
+  priorityTierMatched?:
+    | 'TIER_1_ADAM_MASTER_TREE'
+    | 'TIER_2_PRIORITY_1_COUNTRY_BOOK'
+    | 'TIER_3_PRIORITY_2_GENERAL_BOOK'
+    | 'TIER_4_UNMATCHED';
   clientName: string;
   fatherName: string;
   grandfatherName: string;
   familyName: string;
   familyCode: string;
+  adamNodeId?: string;
   originCountry: string;
   originRegion?: string;
   resolvedGeoOntologyLabel?: string;
+  inferred_client_countries?: string[];
+  matched_location?: string;
+  enrichedLocations?: string[];
+  sibling_branches_in_record?: string[];
   siblingBranches?: string[];
   siblingBranchesLabel?: string;
+  notables_in_record?: string[];
   rootBranchName: string;
   rootBranchCode: string;
   rootTribeName: string;
   rootTribeCode: string;
   rootSummaryLabel: string;
   upperAncestors: UpperAncestorNode[];
-  adamSpineNodes: UpperAncestorNode[]; // Full 40 nodes from 01 to 40. آدم عليه السلام
-  capsules: AncestorCapsule[]; // 8 capsules holding the 26 uncoded ancestors
+  adamSpineNodes: UpperAncestorNode[];
+  capsules: AncestorCapsule[];
   requiresBlindDisambiguation: boolean;
   disambiguationOptions: BlindDisambiguationOption[];
   optionAResultOverride?: Partial<LineageSearchResult>;
@@ -150,10 +192,14 @@ export interface LineageSearchResult {
   disambiguationPathsSummaryForTicket?: string;
   isAlphaOnlyBeforeMerge?: boolean;
   isAlphaMergedIntoAdam?: boolean;
+  isAdamNodeEnrichedWithAlpha?: boolean;
   alphaParallelSource?: string;
   alphaBackgroundTicketCode?: string;
   verifiedSourceCitation: string;
+  verified_sources?: string[];
   secondarySources: string[];
+  corroborating_alpha_evidence_for_researcher?: CorroboratingAlphaEvidence[];
+  background_researcher_ticket?: BackgroundResearcherTicketPayload;
   historicalRegion: string;
   conflictingNarrativesNote: string;
   confidenceLabel: string;

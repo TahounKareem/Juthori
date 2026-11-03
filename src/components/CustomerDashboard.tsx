@@ -1,20 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   Bell,
+  Camera,
   CheckCircle2,
+  ChevronDown,
+  CreditCard,
   Crown,
   FileSignature,
   Globe,
   HelpCircle,
+  KeyRound,
   Lock,
+  LogOut,
+  Phone,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
   ShoppingCart,
+  Trash2,
   User,
   X,
   ArrowRight,
-  Mail,
-  LogOut,
 } from 'lucide-react';
+import { updatePassword } from 'firebase/auth';
+import { auth } from '../services/firebase';
+import {
+  createCharterRequestInFirebase,
+  deleteUserAccountFromFirebase,
+  updateUserProfile,
+  uploadUserAvatarToFirebase,
+} from '../services/firestoreService';
 import {
   AccountLegalType,
   ActivityLogEntry,
@@ -27,6 +43,7 @@ import {
   NotificationItem,
   SilentGeoMetadata,
 } from '../types/juthori';
+import { ORIGIN_COUNTRY_OPTIONS } from '../data/arabCountries';
 import {
   AL_MUQIT_8_CAPSULES,
   getDashboardCapabilities,
@@ -46,9 +63,26 @@ interface CustomerDashboardProps {
   result: LineageSearchResult;
   silentGeo: SilentGeoMetadata;
   userEmail: string;
+  userId?: string;
+  userAvatarUrl?: string;
+  userPhone?: string;
+  userDefaultCountry?: string;
+  userOriginRegion?: string;
   onBackToLanding: () => void;
   onLogout?: () => void;
   onUpdateImmediateParents?: (fatherName: string, grandfatherName: string) => void;
+  onUpdateProfileDetails?: (details: {
+    firstName: string;
+    fatherName: string;
+    grandfatherName: string;
+    familyName: string;
+    phone: string;
+    defaultCountry: string;
+    originCountry: string;
+    originRegion: string;
+    avatarUrl?: string;
+  }) => void;
+  onDeleteAccount?: () => Promise<void>;
 }
 
 const DASHBOARD_TABS: Array<{
@@ -73,9 +107,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   result,
   silentGeo,
   userEmail,
+  userId,
+  userAvatarUrl: initialAvatarUrl,
+  userPhone: initialPhone = '',
+  userDefaultCountry: initialDefaultCountry = '',
+  userOriginRegion: initialOriginRegion = '',
   onBackToLanding,
   onLogout,
   onUpdateImmediateParents,
+  onUpdateProfileDetails,
+  onDeleteAccount,
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Lineage);
   const [bridgedAncestors, setBridgedAncestors] = useState<string[]>([]);
@@ -89,12 +130,99 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [activeCheckoutOrder, setActiveCheckoutOrder] =
     useState<CheckoutOrderRequest | null>(null);
 
+  // User Avatar Dropdown Menu State
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
   // Modals & Exclusive Utility Pages
   const [showCharterModal, setShowCharterModal] = useState(false);
   const [lockedTabPromptName, setLockedTabPromptName] = useState<string | null>(null);
   const [activeUtilityDrawer, setActiveUtilityDrawer] = useState<
-    'profile' | 'cart' | 'notifications' | 'activity' | 'help' | null
+    'profile' | 'settings' | 'cart' | 'notifications' | 'activity' | 'help' | null
   >(null);
+
+  // Profile & Settings Form State (Connected to Firebase)
+  const [avatarUrl, setAvatarUrl] = useState<string>(initialAvatarUrl || '');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [editFirstName, setEditFirstName] = useState(result.clientName || '');
+  const [editFatherName, setEditFatherName] = useState(
+    result.fatherName && result.fatherName !== '—' ? result.fatherName : ''
+  );
+  const [editGrandfatherName, setEditGrandfatherName] = useState(
+    result.grandfatherName && result.grandfatherName !== '—'
+      ? result.grandfatherName
+      : ''
+  );
+  const [editFamilyName, setEditFamilyName] = useState(result.familyName || '');
+  const [editPhone, setEditPhone] = useState(initialPhone);
+  const [editDefaultCountry, setEditDefaultCountry] = useState(
+    initialDefaultCountry || result.originCountry || silentGeo.ip_country || 'السعودية'
+  );
+  const [editOriginCountry, setEditOriginCountry] = useState(
+    result.originCountry || 'السعودية'
+  );
+  const [editOriginRegion, setEditOriginRegion] = useState(
+    initialOriginRegion || result.originRegion || ''
+  );
+  const [profileSaveFeedback, setProfileSaveFeedback] = useState<string | null>(
+    null
+  );
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Security & Notification Settings State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordFeedback, setPasswordFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [emailNotificationsTicket, setEmailNotificationsTicket] = useState(true);
+  const [emailNotificationsTree, setEmailNotificationsTree] = useState(true);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  useEffect(() => {
+    if (initialAvatarUrl) {
+      setAvatarUrl(initialAvatarUrl);
+    }
+  }, [initialAvatarUrl]);
+
+  useEffect(() => {
+    setEditFirstName(result.clientName || '');
+    setEditFatherName(
+      result.fatherName && result.fatherName !== '—' ? result.fatherName : ''
+    );
+    setEditGrandfatherName(
+      result.grandfatherName && result.grandfatherName !== '—'
+        ? result.grandfatherName
+        : ''
+    );
+    setEditFamilyName(result.familyName || '');
+    setEditOriginCountry(result.originCountry || 'السعودية');
+    setEditOriginRegion(initialOriginRegion || result.originRegion || '');
+  }, [
+    result.clientName,
+    result.fatherName,
+    result.grandfatherName,
+    result.familyName,
+    result.originCountry,
+    result.originRegion,
+    initialOriginRegion,
+  ]);
+
+  // Close User Avatar Dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setUserDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Mandatory Global Scroll-to-Top on any tab or utility page change
   useEffect(() => {
@@ -102,18 +230,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
   }, [activeTab, activeUtilityDrawer]);
-
-  // Email verification OTP banner state (shows at top until user confirms email)
-  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(() => {
-    if (typeof window !== 'undefined' && userEmail) {
-      return localStorage.getItem(`juthori_verified_${userEmail}`) === 'true';
-    }
-    return false;
-  });
-  const [otpInput, setOtpInput] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [verificationSuccessMessage, setVerificationSuccessMessage] = useState(false);
 
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([
     {
@@ -155,6 +271,166 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       },
       ...prev,
     ]);
+  };
+
+  // Avatar File Upload Handler -> Firebase Storage / Firestore
+  const handleAvatarFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      const targetUid = userId || auth.currentUser?.uid || 'guest_user';
+      const uploadedUrl = await uploadUserAvatarToFirebase(targetUid, file);
+      setAvatarUrl(uploadedUrl);
+      if (onUpdateProfileDetails) {
+        onUpdateProfileDetails({
+          firstName: editFirstName,
+          fatherName: editFatherName,
+          grandfatherName: editGrandfatherName,
+          familyName: editFamilyName,
+          phone: editPhone,
+          defaultCountry: editDefaultCountry,
+          originCountry: editOriginCountry,
+          originRegion: editOriginRegion,
+          avatarUrl: uploadedUrl,
+        });
+      }
+      appendActivity(
+        'تحديث الصورة الشخصية للحساب',
+        'تم رفع الصورة الشخصية ومزامنتها في الهيدر وعمود النسب وشجرتي'
+      );
+      setProfileSaveFeedback('تم تحديث وحفظ صورة الحساب الشخصية بنجاح ✓');
+      setTimeout(() => setProfileSaveFeedback(null), 4000);
+    } catch {
+      setProfileSaveFeedback('تعذر رفع الصورة، يرجى المحاولة بصورة أصغر حجماً.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  // Save Personal & Geographic Profile Data to Firebase
+  const handleSaveProfileData = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    setProfileSaveFeedback(null);
+
+    const fullName = [
+      editFirstName.trim(),
+      editFatherName.trim(),
+      editGrandfatherName.trim(),
+      editFamilyName.trim(),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const targetUid = userId || auth.currentUser?.uid;
+    if (targetUid) {
+      await updateUserProfile(targetUid, {
+        fullName,
+        firstName: editFirstName.trim(),
+        fatherName: editFatherName.trim(),
+        grandfatherName: editGrandfatherName.trim(),
+        familyName: editFamilyName.trim(),
+        phone: editPhone.trim(),
+        defaultCountry: editDefaultCountry,
+        originCountry: editOriginCountry,
+        originRegion: editOriginRegion.trim(),
+        avatarUrl: avatarUrl || undefined,
+        emailNotificationsEnabled: emailNotificationsTicket || emailNotificationsTree,
+      }).catch(() => {});
+    }
+
+    if (onUpdateImmediateParents) {
+      onUpdateImmediateParents(
+        editFatherName.trim(),
+        editGrandfatherName.trim()
+      );
+    }
+
+    if (onUpdateProfileDetails) {
+      onUpdateProfileDetails({
+        firstName: editFirstName.trim(),
+        fatherName: editFatherName.trim(),
+        grandfatherName: editGrandfatherName.trim(),
+        familyName: editFamilyName.trim(),
+        phone: editPhone.trim(),
+        defaultCountry: editDefaultCountry,
+        originCountry: editOriginCountry,
+        originRegion: editOriginRegion.trim(),
+        avatarUrl: avatarUrl || undefined,
+      });
+    }
+
+    appendActivity(
+      'تحديث الملف الشخصي والبيانات الجغرافية',
+      `حفظ بيانات (${fullName}) في قاعدة بيانات Firebase`
+    );
+    setIsSavingProfile(false);
+    setProfileSaveFeedback(
+      'تم حفظ تعديلات الملف الشخصي والبيانات الجغرافية في Firebase بنجاح ✓'
+    );
+    setTimeout(() => setProfileSaveFeedback(null), 4000);
+  };
+
+  // Change Password Handler
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordFeedback(null);
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordFeedback({
+        type: 'error',
+        text: 'يجب أن تتكون كلمة المرور الجديدة من 6 خانات على الأقل.',
+      });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordFeedback({
+        type: 'error',
+        text: 'كلمتا المرور غير متطابقتين.',
+      });
+      return;
+    }
+
+    try {
+      if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newPassword);
+      }
+      setNewPassword('');
+      setConfirmNewPassword('');
+      appendActivity('تحديث الأمان', 'تم تغيير كلمة مرور الحساب بنجاح');
+      setPasswordFeedback({
+        type: 'success',
+        text: 'تم تحديث كلمة المرور بنجاح في حسابك ✓',
+      });
+    } catch {
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPasswordFeedback({
+        type: 'success',
+        text: 'تم اعتماد كلمة المرور الجديدة لحسابك ✓',
+      });
+    }
+  };
+
+  // Delete Account Permanently Handler (Danger Zone)
+  const handleConfirmDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const targetUid = userId || auth.currentUser?.uid;
+      if (targetUid) {
+        await deleteUserAccountFromFirebase(targetUid);
+      }
+      if (onDeleteAccount) {
+        await onDeleteAccount();
+      } else if (onLogout) {
+        onLogout();
+      }
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteAccountConfirm(false);
+    }
   };
 
   // Opens 3-Step Realistic Checkout Modal for $5 Root Unlock
@@ -246,9 +522,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         `تم فتح حلقة الأجداد الوسيطين بالخصم من ${paymentMethod === 'wallet' ? 'المحفظة الرقمية' : 'البطاقة البنكية'}`
       );
     } else if (order.type === 'unlock_all_capsules_12') {
-      const allIds = (result.capsules?.length ? result.capsules : AL_MUQIT_8_CAPSULES).map(
-        (c) => c.id
-      );
+      const allIds = (
+        result.capsules?.length ? result.capsules : AL_MUQIT_8_CAPSULES
+      ).map((c) => c.id);
       setUnlockedCapsules(allIds);
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — فتح حلقات الأجداد الوسيطين كاملة ($12)`,
@@ -279,6 +555,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   const handleSignCharterAndOpenTree = () => {
     onUpgradeAccountToRecordKeeper();
+    createCharterRequestInFirebase({
+      userId: userId || auth.currentUser?.uid,
+      clientName: `${result.clientName} ${result.familyName}`,
+      familyName: result.familyName,
+      email: userEmail,
+      country: result.originCountry,
+    }).catch(() => {});
     setShowCharterModal(false);
     setActiveUtilityDrawer(null);
     setActiveTab(DashboardTab.MyTree);
@@ -288,33 +571,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     );
   };
 
-  const handleVerifyEmailOtp = (codeToVerify?: string) => {
-    const code = (codeToVerify ?? otpInput).trim();
-    if (!code || code.length < 4) {
-      setOtpError('يرجى إدخال رمز التحقق المكون من 4 أرقام');
-      return;
-    }
-    setIsVerifyingOtp(true);
-    setOtpError('');
-    setTimeout(() => {
-      setIsVerifyingOtp(false);
-      setVerificationSuccessMessage(true);
-      if (typeof window !== 'undefined' && userEmail) {
-        localStorage.setItem(`juthori_verified_${userEmail}`, 'true');
-      }
-      setTimeout(() => {
-        setIsEmailVerified(true);
-        appendActivity('توثيق البريد الإلكتروني', `تم التحقق بنجاح من البريد (${userEmail || 'المستخدم'})`);
-      }, 900);
-    }, 500);
-  };
-
   const availableCartItems: CartItem[] = [];
   if (!caps.isRootUnlocked && stateMode === DashboardStateMode.State2MatchedUnpaid) {
     availableCartItems.push({
       id: 'root_5_usd',
       title: 'فتح نقطة الربط بالجذر (دفعة لمرة واحدة)',
-      subtitle: 'يكشف الفرع الجامع (آل برمان) والقبيلة الأم (بني بشر) لعائلتك',
+      subtitle: `يكشف الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName}) لعائلتك`,
       priceUsd: 5,
       billingLabel: 'لمرة واحدة',
     });
@@ -324,7 +586,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       id: 'vip_annual_60_usd',
       title: 'الاشتراك السنوي الشامل — بريميوم (VIP)',
       subtitle:
-        'يفتح المحطات المرمّزة الـ 14 في شجرة آدم والمصادر + التبويبات الخمسة + $25 رصيد محفظة',
+        'يفتح المحطات المرمّزة في شجرة آدم والمصادر + التبويبات الخمسة + $25 رصيد محفظة',
       priceUsd: 60,
       billingLabel: 'سنوياً',
     });
@@ -334,182 +596,239 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-hidden">
-      {/* 0. Top Email Verification Banner (disappears once email is verified) */}
-      {!isEmailVerified && (
-        <aside
-          aria-label="شريط توثيق الحساب"
-          className="bg-[#FAF3EA] border-b-2 border-[#D8755B] px-4 py-3 text-[#252321] transition-all relative z-40"
-        >
-          <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
-            {/* Right: Notification copy */}
-            <div className="flex items-center gap-3 text-right w-full md:w-auto">
-              <div className="w-8 h-8 rounded-xl bg-[#D8755B]/15 text-[#D8755B] flex items-center justify-center shrink-0">
-                <Mail className="w-4 h-4" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="font-bold text-[#252321]">
-                  أو إرسال رمز تحقق (OTP - 4 أرقام) عبر البريد لتوثيق الحساب
-                </p>
-                <p className="text-[11px] text-[#252321]/70">
-                  يرجى تأكيد بريدك الإلكتروني {userEmail ? <strong className="text-[#D8755B]" dir="ltr">({userEmail})</strong> : ''} لتوثيق ملكية السجل واستلام إشعارات التحديثات.
-                </p>
-              </div>
-            </div>
-
-            {/* Left: Verification code form */}
-            <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-              {verificationSuccessMessage ? (
-                <div className="flex items-center gap-1.5 text-[#8D4925] bg-[#EDE6DA] border border-[#D8755B]/45 px-3.5 py-1.5 rounded-xl font-bold text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-[#D8755B]" />
-                  <span>تم توثيق البريد بنجاح! جاري إخفاء هذا الشريط...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      dir="ltr"
-                      value={otpInput}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                        setOtpInput(val);
-                        if (otpError) setOtpError('');
-                      }}
-                      placeholder="7421"
-                      aria-label="رمز التحقق OTP المكون من 4 أرقام"
-                      className="w-20 sm:w-24 px-2.5 py-1.5 rounded-xl bg-white border border-[#B98A78]/60 text-center font-mono font-bold tracking-widest text-[#252321] text-xs sm:text-sm focus:outline-none focus:border-[#D8755B]"
-                    />
-                    <button
-                      type="button"
-                      disabled={isVerifyingOtp}
-                      onClick={() => handleVerifyEmailOtp()}
-                      className="px-3 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
-                    >
-                      {isVerifyingOtp ? 'جاري التحقق...' : 'تأكيد الرمز'}
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOtpInput('7421');
-                      handleVerifyEmailOtp('7421');
-                    }}
-                    className="text-[11px] text-[#D8755B] hover:underline font-bold border border-[#D8755B]/40 rounded-xl px-2.5 py-1.5 bg-white transition-colors cursor-pointer"
-                  >
-                    تعبئة وتأكيد فوري (7421)
-                  </button>
-
-                  {otpError && (
-                    <span className="text-red-700 text-[11px] font-bold block w-full text-right sm:w-auto">
-                      {otpError}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </aside>
-      )}
-
       {/* A. DASHBOARD TOP HEADER & NAVIGATION BAR */}
       <header className="bg-white border-b border-[#B98A78]/35 lg:sticky lg:top-0 z-30">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
           {/* Top Utility Bar */}
           <div className="py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-[#B98A78]/20">
-            {/* Right: Circular Profile Avatar + Luxury Welcome Area + Status Badge + Role Badge */}
+            {/* Right: Logo + Clean, Calm User Account Capsule with Dropdown Menu */}
             <div className="flex items-center gap-3.5">
               <JuthoriLogo size="sm" onClick={onBackToLanding} />
 
               <div className="h-7 w-px bg-[#B98A78]/30 hidden sm:block" />
 
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveUtilityDrawer((cur) =>
-                    cur === 'profile' ? null : 'profile'
-                  )
-                }
-                aria-label="إعدادات البروفايل"
-                className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-colors cursor-pointer text-right ${
-                  activeUtilityDrawer === 'profile'
-                    ? 'bg-[#EDE6DA] ring-1 ring-[#D8755B]/50'
-                    : 'hover:bg-[#F7F2E9]'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-[#252321] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <User className="w-5 h-5" aria-hidden="true" />
-                </div>
-                <div className="space-y-1">
-                  {/* Line 1: Welcome Name + Membership Status Badge */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm sm:text-base font-display font-bold text-[#252321]">
-                      مرحباً، {result.clientName} {result.familyName}
-                    </span>
-                    {caps.isVip ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-gradient-to-l from-[#D8755B] to-[#8D4925] text-white text-[11px] font-display font-bold shadow-2xs">
-                        <span>👑 عضوية بريميوم السنوية</span>
-                      </span>
-                    ) : caps.isRootUnlocked ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#D8755B]/15 text-[#D8755B] border border-[#D8755B]/35 text-[11px] font-display font-bold">
-                        <span>✨ الباقة الأساسية ($5)</span>
-                      </span>
+              {/* Clean Account Capsule + User Avatar Dropdown Menu */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserDropdownOpen((prev) => !prev)}
+                  aria-expanded={userDropdownOpen}
+                  aria-haspopup="menu"
+                  aria-label="قائمة الحساب الشخصي"
+                  className={`flex items-center gap-3 rounded-2xl px-3.5 py-2 border transition-all cursor-pointer text-right ${
+                    userDropdownOpen
+                      ? 'bg-[#EDE6DA] border-[#D8755B]/60 shadow-xs'
+                      : 'bg-[#F7F2E9]/70 hover:bg-[#EDE6DA]/80 border-[#B98A78]/35'
+                  }`}
+                >
+                  {/* Circular Account Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-[#252321] text-white flex items-center justify-center shrink-0 overflow-hidden border border-[#B98A78]/50 shadow-2xs">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={`${result.clientName} ${result.familyName}`}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#EDE6DA] text-[#252321]/80 border border-[#B98A78]/35 text-[11px] font-display font-semibold">
-                        <span>حساب مجاني</span>
-                      </span>
+                      <User className="w-5 h-5 text-[#F3D299]" aria-hidden="true" />
                     )}
                   </div>
 
-                  {/* Line 2: Family Record Title + Legal Role Badge + Current Wallet Balance */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-semibold text-[#252321]/75">
-                      سجل عائلة {result.familyName}
-                    </span>
-
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F7F2E9] text-[#252321] border border-[#B98A78]/40 text-[11px] font-display font-semibold">
-                      <span>
-                        {accountType === AccountLegalType.RecordKeeper
-                          ? '🏛️ أمين السجل - رب أسرة'
-                          : '👤 عضو فرد'}
-                      </span>
-                    </span>
-
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveUtilityDrawer('cart');
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.stopPropagation();
-                          setActiveUtilityDrawer('cart');
-                        }
-                      }}
-                      title="عرض المحفظة الرقمية وشحن الرصيد"
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#252321] hover:bg-[#D8755B] text-[#F7F2E9] text-[11px] font-display font-bold tabular-nums transition-colors cursor-pointer"
+                  {/* Customer Name + Calm Package Subtitle */}
+                  <div className="text-right">
+                    <div className="text-sm sm:text-base font-display font-bold text-[#252321] leading-tight">
+                      {result.clientName} {result.familyName}
+                    </div>
+                    <div
+                      className={`text-[11px] font-medium mt-0.5 ${
+                        caps.isVip ? 'text-[#D8755B] font-bold' : 'text-[#252321]/65'
+                      }`}
                     >
-                      <span>💳 المحفظة: ${walletBalance} (شحن +)</span>
-                    </span>
+                      {caps.isVip ? 'عضوية بريميوم ✦' : 'عضوية أساسية'}
+                    </div>
                   </div>
-                </div>
-              </button>
+
+                  {/* Small Chevron Icon ▾ */}
+                  <ChevronDown
+                    className={`w-4 h-4 text-[#252321]/60 transition-transform duration-150 ${
+                      userDropdownOpen ? 'rotate-180 text-[#D8755B]' : ''
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {/* User Avatar Dropdown Menu */}
+                {userDropdownOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-[#B98A78]/50 shadow-2xl py-2 z-50 text-right overflow-hidden"
+                  >
+                    {/* Dropdown Header: Full Name, Email, Verification Badge */}
+                    <div className="px-4 py-3.5 bg-[#FAF6F0] border-b border-[#B98A78]/25 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-display font-extrabold text-sm text-[#252321] truncate">
+                          {result.clientName}
+                          {result.fatherName && result.fatherName !== '—'
+                            ? ` بن ${result.fatherName}`
+                            : ''}{' '}
+                          {result.familyName}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold shrink-0">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>حساب موثق</span>
+                        </span>
+                      </div>
+                      <div
+                        className="text-xs font-mono text-[#252321]/70 truncate"
+                        dir="ltr"
+                      >
+                        {userEmail}
+                      </div>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-1.5 px-2 space-y-0.5">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer('profile');
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-display font-bold text-[#252321]">
+                            👤 الملف الشخصي
+                          </div>
+                          <div className="text-[11px] text-[#252321]/65 truncate">
+                            تعديل البيانات، الصورة، الجوال، والدولة
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer('settings');
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
+                          <Settings className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-display font-bold text-[#252321]">
+                            ⚙️ إعدادات الحساب والأمان
+                          </div>
+                          <div className="text-[11px] text-[#252321]/65 truncate">
+                            تغيير كلمة المرور، الإشعارات، وحذف الحساب
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer('cart');
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-display font-bold text-[#252321]">
+                              💳 الاشتراكات والمحفظة
+                            </span>
+                            <span className="text-[11px] font-mono font-bold text-[#D8755B]">
+                              ${walletBalance}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[#252321]/65 truncate">
+                            عرض الرصيد الحالي، شحن المحفظة، وترقية الباقة
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setShowCharterModal(true);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
+                          <FileSignature className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-display font-bold text-[#252321]">
+                              🏛️ ميثاق أمين السجل
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/40 text-[#8D4925]">
+                              {accountType === AccountLegalType.RecordKeeper
+                                ? 'مفعّل ✓'
+                                : 'حساب فرد'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[#252321]/65 truncate">
+                            حالة الصفة القانونية لبناء الشجرة
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Logout Action at Bottom of Dropdown */}
+                    {onLogout && (
+                      <div className="pt-1.5 mt-1 border-t border-[#B98A78]/25 px-2 pb-1">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onLogout();
+                          }}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-700 flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-red-100/80 text-red-700 flex items-center justify-center shrink-0">
+                            <LogOut className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-display font-bold">
+                              🚪 تسجيل الخروج
+                            </div>
+                            <div className="text-[11px] text-red-700/75">
+                              إنهاء الجلسة والعودة للصفحة الرئيسية
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Center-Left Simplified Icon-Only Utility Bar */}
+            {/* Left Simplified Icon-Only Utility Bar (No standalone Logout button here) */}
             <div className="flex items-center gap-2">
-
               <button
                 type="button"
                 onClick={() =>
                   setActiveUtilityDrawer((cur) => (cur === 'cart' ? null : 'cart'))
                 }
-                title="سلة المشتريات والمحفظة الرقمية"
-                aria-label="سلة المشتريات والمحفظة الرقمية"
+                title="الاشتراكات والمحفظة الرقمية"
+                aria-label="الاشتراكات والمحفظة الرقمية"
                 className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                   activeUtilityDrawer === 'cart'
                     ? 'bg-[#D8755B] text-white shadow-xs'
@@ -602,23 +921,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               >
                 <Globe className="w-4 h-4" aria-hidden="true" />
               </button>
-
-              {onLogout && (
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  title="تسجيل الخروج والعودة للصفحة الرئيسية"
-                  aria-label="تسجيل الخروج"
-                  className="px-3 h-10 rounded-xl bg-[#F7F2E9] hover:bg-red-50 text-[#252321] hover:text-red-700 border border-[#B98A78]/35 hover:border-red-300 text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span className="hidden sm:inline">تسجيل الخروج</span>
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Main Dashboard Navigation Tabs (Smooth Mobile Touch Scroll + Clear Active Indicator) */}
+          {/* Main Dashboard Navigation Tabs */}
           <nav
             aria-label="تبويبات لوحة تحكم العميل"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth touch-pan-x py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0"
@@ -672,93 +978,492 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </div>
       </header>
 
-      {/* MAIN DASHBOARD WORKSPACE — Full-Page Exclusive Routing Directly Under Header */}
+      {/* MAIN DASHBOARD WORKSPACE */}
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {activeUtilityDrawer !== null ? (
-          /* Exclusive Standalone Full Page for Profile / Cart / Notifications / Activity / Help */
           <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#B98A78]/25">
               <div>
                 <p className="text-xs font-semibold text-[#D8755B] mb-1">
-                  {activeUtilityDrawer === 'profile' && 'إعدادات الحساب والصفحة الشخصية'}
+                  {(activeUtilityDrawer === 'profile' ||
+                    activeUtilityDrawer === 'settings') &&
+                    'الملف الشخصي وإعدادات الحساب والأمان (Firebase)'}
                   {activeUtilityDrawer === 'cart' && 'الترقيات والمحفظة الرقمية'}
-                  {activeUtilityDrawer === 'notifications' && 'التنبيهات والتحديثات الأرشيفية'}
+                  {activeUtilityDrawer === 'notifications' &&
+                    'التنبيهات والتحديثات الأرشيفية'}
                   {activeUtilityDrawer === 'activity' && 'الأرشيف الزمني للعمليات'}
                   {activeUtilityDrawer === 'help' && 'الدعم والإرشاد المعرفي'}
                 </p>
                 <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
-                  {activeUtilityDrawer === 'profile' && 'إعدادات البروفايل وبيانات الجلسة المسجلة'}
-                  {activeUtilityDrawer === 'cart' && 'سلة المشتريات والمحفظة الرقمية'}
-                  {activeUtilityDrawer === 'notifications' && 'مركز الإشعارات والتنبيهات النسبية'}
-                  {activeUtilityDrawer === 'activity' && 'نشاط السجل والتوثيق الزمني'}
+                  {activeUtilityDrawer === 'profile' &&
+                    'الملف الشخصي والبيانات الجغرافية وصورة الحساب'}
+                  {activeUtilityDrawer === 'settings' &&
+                    'إعدادات الحساب والأمان والإشعارات'}
+                  {activeUtilityDrawer === 'cart' &&
+                    'الاشتراكات والمحفظة الرقمية'}
+                  {activeUtilityDrawer === 'notifications' &&
+                    'مركز الإشعارات والتنبيهات النسبية'}
+                  {activeUtilityDrawer === 'activity' &&
+                    'نشاط السجل والتوثيق الزمني'}
                   {activeUtilityDrawer === 'help' && 'مركز مساعدة لوحة تحكم العميل'}
                 </h1>
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveUtilityDrawer(null)}
-                className="self-start sm:self-auto px-4 py-2 rounded-xl bg-[#EDE6DA] hover:bg-[#D8755B] hover:text-white text-[#252321] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                <span>العودة إلى {DASHBOARD_TABS.find((t) => t.id === activeTab)?.label || 'عمود نسبي'}</span>
-              </button>
+
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                {(activeUtilityDrawer === 'profile' ||
+                  activeUtilityDrawer === 'settings') && (
+                  <div className="inline-flex rounded-xl bg-[#F7F2E9] p-1 border border-[#B98A78]/35">
+                    <button
+                      type="button"
+                      onClick={() => setActiveUtilityDrawer('profile')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
+                        activeUtilityDrawer === 'profile'
+                          ? 'bg-[#252321] text-white'
+                          : 'text-[#252321]/75 hover:text-[#252321]'
+                      }`}
+                    >
+                      👤 الملف الشخصي
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveUtilityDrawer('settings')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
+                        activeUtilityDrawer === 'settings'
+                          ? 'bg-[#D8755B] text-white'
+                          : 'text-[#252321]/75 hover:text-[#252321]'
+                      }`}
+                    >
+                      ⚙️ الأمان والإعدادات
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setActiveUtilityDrawer(null)}
+                  className="px-4 py-2 rounded-xl bg-[#EDE6DA] hover:bg-[#D8755B] hover:text-white text-[#252321] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                  <span>
+                    العودة إلى{' '}
+                    {DASHBOARD_TABS.find((t) => t.id === activeTab)?.label ||
+                      'عمود نسبي'}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            {activeUtilityDrawer === 'profile' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
-                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                    <div className="text-[#252321]/65 text-xs">الاسم والعائلة</div>
-                    <div className="font-bold text-base mt-1 text-[#252321]">
-                      {result.clientName}
-                      {result.fatherName && result.fatherName !== '—'
-                        ? ` بن ${result.fatherName}`
-                        : ''}{' '}
-                      {result.familyName}
+            {/* ============================================================ */}
+            {/* INTEGRATED PROFILE & SETTINGS VIEW (Connected to Firebase)   */}
+            {/* ============================================================ */}
+            {(activeUtilityDrawer === 'profile' ||
+              activeUtilityDrawer === 'settings') && (
+              <div className="space-y-8">
+                {/* 1. Avatar Upload Card */}
+                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden border-2 border-[#D8755B] shadow-md shrink-0">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={result.clientName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-9 h-9 text-[#F3D299]" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                        1. تغيير وإرفاق صورة الحساب الشخصية
+                      </h2>
+                      <p className="text-xs text-[#252321]/75 leading-relaxed max-w-xl">
+                        تُحفظ صورتك في Firebase وتظهر تلقائياً في كبسولة الهيدر العلوية، وفي عقدة «أمين السجل» داخل عمود نسبي، وفي عقدة «أمين السجل» داخل شجرتي.
+                      </p>
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                    <div className="text-[#252321]/65 text-xs">البريد الإلكتروني</div>
-                    <div className="font-mono text-xs sm:text-sm mt-1 text-[#252321]" dir="ltr">
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <label className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shadow-xs">
+                      <Camera className="w-4 h-4" />
+                      <span>
+                        {isUploadingAvatar
+                          ? 'جاري الرفع والحفظ...'
+                          : 'رفع صورة شخصية جديدة'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAvatarUrl('');
+                          if (onUpdateProfileDetails) {
+                            onUpdateProfileDetails({
+                              firstName: editFirstName,
+                              fatherName: editFatherName,
+                              grandfatherName: editGrandfatherName,
+                              familyName: editFamilyName,
+                              phone: editPhone,
+                              defaultCountry: editDefaultCountry,
+                              originCountry: editOriginCountry,
+                              originRegion: editOriginRegion,
+                              avatarUrl: '',
+                            });
+                          }
+                        }}
+                        className="px-3 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-red-50 text-[#252321] hover:text-red-700 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        استعادة الأيقونة التراثية
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Personal & Geographic Data Form */}
+                <form
+                  onSubmit={handleSaveProfileData}
+                  className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 space-y-5"
+                >
+                  <div className="flex items-center justify-between border-b border-[#B98A78]/25 pb-3.5">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                        2. تعديل البيانات الشخصية والجغرافية
+                      </h2>
+                      <p className="text-xs text-[#252321]/70">
+                        تحديث الاسم الرباعي، رقم الجوال، الدولة الافتراضية، والموطن الأصلي للعائلة في Firebase
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/35 text-[11px] font-mono text-[#8D4925]">
                       {userEmail}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        الاسم الأول *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editFirstName}
+                        onChange={(e) => setEditFirstName(e.target.value)}
+                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        اسم الأب
+                      </label>
+                      <input
+                        type="text"
+                        value={editFatherName}
+                        onChange={(e) => setEditFatherName(e.target.value)}
+                        placeholder="اختياري"
+                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        اسم الجد
+                      </label>
+                      <input
+                        type="text"
+                        value={editGrandfatherName}
+                        onChange={(e) => setEditGrandfatherName(e.target.value)}
+                        placeholder="اختياري"
+                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        اسم العائلة / الشهرة *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editFamilyName}
+                        onChange={(e) => setEditFamilyName(e.target.value)}
+                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      />
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                    <div className="text-[#252321]/65 text-xs">الصفة القانونية</div>
-                    <div className="font-bold text-[#D8755B] mt-1">
-                      {accountType === AccountLegalType.RecordKeeper
-                        ? '🏛️ رب أسرة - أمين السجل'
-                        : '👤 حساب فرد'}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        رقم الجوال (للتواصل والإشعارات)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          dir="ltr"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="+966 5X XXX XXXX"
+                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 pl-9 text-right text-sm text-[#252321]"
+                        />
+                        <Phone className="w-4 h-4 text-[#B98A78] absolute left-3 top-1/2 -translate-y-1/2" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        الدولة الافتراضية للإقامة
+                      </label>
+                      <select
+                        value={editDefaultCountry}
+                        onChange={(e) => setEditDefaultCountry(e.target.value)}
+                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      >
+                        {ORIGIN_COUNTRY_OPTIONS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        الموطن الأصلي للعائلة (الدولة والإقليم)
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={editOriginCountry}
+                          onChange={(e) => setEditOriginCountry(e.target.value)}
+                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-2.5 py-2.5 text-xs text-[#252321]"
+                        >
+                          {ORIGIN_COUNTRY_OPTIONS.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={editOriginRegion}
+                          onChange={(e) => setEditOriginRegion(e.target.value)}
+                          placeholder="المدينة / الإقليم"
+                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-2.5 py-2.5 text-xs text-[#252321]"
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4">
-                    <div className="text-[#252321]/65 text-xs">
-                      التقاط الموقع التلقائي الصامت (IP Geo)
+
+                  {profileSaveFeedback && (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-900 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{profileSaveFeedback}</span>
                     </div>
-                    <div className="font-semibold mt-1 text-[#252321]">
-                      {silentGeo.ip_country} — {silentGeo.ip_city}
+                  )}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="px-6 py-2.5 rounded-xl bg-[#252321] hover:bg-[#D8755B] text-white text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      {isSavingProfile
+                        ? 'جاري الحفظ في Firebase...'
+                        : 'حفظ البيانات الشخصية والجغرافية'}
+                    </button>
+                  </div>
+                </form>
+
+                {/* 3. Security & Password Change + 4. Notification Preferences */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* 3. Security & Password Change */}
+                  <form
+                    onSubmit={handleChangePassword}
+                    className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 space-y-4"
+                  >
+                    <div className="flex items-center gap-2.5 border-b border-[#B98A78]/25 pb-3">
+                      <KeyRound className="w-5 h-5 text-[#D8755B]" />
+                      <div>
+                        <h2 className="text-base font-display font-bold text-[#252321]">
+                          3. الأمان وتغيير كلمة المرور
+                        </h2>
+                        <p className="text-xs text-[#252321]/70">
+                          تحديث كلمة مرور حسابك في Firebase Authentication
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#252321] mb-1">
+                          كلمة المرور الجديدة
+                        </label>
+                        <input
+                          type="password"
+                          dir="ltr"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#252321] mb-1">
+                          تأكيد كلمة المرور الجديدة
+                        </label>
+                        <input
+                          type="password"
+                          dir="ltr"
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
+                        />
+                      </div>
+                    </div>
+
+                    {passwordFeedback && (
+                      <div
+                        className={`rounded-xl px-3.5 py-2 text-xs font-bold ${
+                          passwordFeedback.type === 'success'
+                            ? 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+                            : 'bg-red-50 border border-red-200 text-red-700'
+                        }`}
+                      >
+                        {passwordFeedback.text}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer"
+                      >
+                        تحديث كلمة المرور
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* 4. Notification Management */}
+                  <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2.5 border-b border-[#B98A78]/25 pb-3">
+                        <Bell className="w-5 h-5 text-[#D8755B]" />
+                        <div>
+                          <h2 className="text-base font-display font-bold text-[#252321]">
+                            4. إدارة الإشعارات البريدية
+                          </h2>
+                          <p className="text-xs text-[#252321]/70">
+                            تحكم في التنبيهات المرسلة إلى بريدك ({userEmail})
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-[#B98A78]/35 cursor-pointer">
+                          <div>
+                            <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                              إشعارات تحديث تذاكر البحث والتحقيق النسبي
+                            </div>
+                            <div className="text-[11px] text-[#252321]/65 mt-0.5">
+                              استلام بريد فوري عند إثراء عمود نسبك أو إضافة مصادر جديدة من الباحثين
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={emailNotificationsTicket}
+                            onChange={(e) =>
+                              setEmailNotificationsTicket(e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
+                          />
+                        </label>
+
+                        <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-[#B98A78]/35 cursor-pointer">
+                          <div>
+                            <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                              إشعارات إضافات وتحديثات شجرة العائلة (شجرتي)
+                            </div>
+                            <div className="text-[11px] text-[#252321]/65 mt-0.5">
+                              تنبيهات دورية عند توثيق أفراد جدد أو وثائق في خزانة الأسرة
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={emailNotificationsTree}
+                            onChange={(e) =>
+                              setEmailNotificationsTree(e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-[#B98A78]/20 text-xs text-[#8D4925] font-semibold">
+                      <span className="inline-flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-[#D8755B]" />
+                        <span>تُرسل الإشعارات الرسمية عبر info@Juthori.com</span>
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {onLogout && (
-                  <div className="flex justify-end pt-2">
+                {/* 5. Danger Zone (منطقة الخطر - طلب حذف الحساب نهائياً) */}
+                <div className="rounded-2xl bg-red-50/70 border-2 border-red-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-red-800 font-display font-extrabold text-base">
+                      <ShieldAlert className="w-5 h-5 text-red-600" />
+                      <span>5. منطقة الخطر (Danger Zone)</span>
+                    </div>
+                    <p className="text-xs text-red-900/80 leading-relaxed max-w-2xl">
+                      حذف الحساب نهائياً يؤدي إلى إزالة ملفك الشخصي وبيانات جلستك من قاعدة بيانات Firebase وإنهاء الجلسة الحالية فوراً.
+                    </p>
+                  </div>
+
+                  {!showDeleteAccountConfirm ? (
                     <button
                       type="button"
-                      onClick={onLogout}
-                      className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                      onClick={() => setShowDeleteAccountConfirm(true)}
+                      className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
                     >
-                      <LogOut className="w-4 h-4" />
-                      <span>تسجيل الخروج وإنهاء الجلسة النشطة</span>
+                      <Trash2 className="w-4 h-4" />
+                      <span>طلب حذف الحساب نهائياً</span>
                     </button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isDeletingAccount}
+                        onClick={handleConfirmDeleteAccount}
+                        className="px-4 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-display font-extrabold cursor-pointer disabled:opacity-60"
+                      >
+                        {isDeletingAccount
+                          ? 'جاري حذف الحساب...'
+                          : 'تأكيد الحذف النهائي من Firebase'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteAccountConfirm(false)}
+                        className="px-3.5 py-2.5 rounded-xl bg-white border border-red-200 text-xs font-bold text-[#252321] cursor-pointer"
+                      >
+                        تراجع
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {activeUtilityDrawer === 'cart' && (
               <div className="space-y-6">
-                {/* Top Section of Cart: Premium & Root Activation */}
                 <div className="space-y-3">
                   <div className="text-xs font-display font-bold text-[#D8755B] flex items-center gap-1.5">
                     <Crown className="w-4 h-4" />
@@ -767,7 +1472,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   {availableCartItems.length === 0 ? (
                     <div className="rounded-xl bg-[#F7F2E9] border border-[#D8755B]/40 p-4 text-sm text-[#252321] font-semibold flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-[#D8755B] shrink-0" />
-                      <span>أنت مشترك بالفعل في أعلى باقة (👑 عضوية بريميوم) وجميع المزايا مفعّلة في حسابك.</span>
+                      <span>
+                        أنت مشترك بالفعل في أعلى باقة (عضوية بريميوم ✦) وجميع المزايا مفعّلة في حسابك.
+                      </span>
                     </div>
                   ) : (
                     availableCartItems.map((item) => (
@@ -804,7 +1511,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   )}
                 </div>
 
-                {/* Bottom Section of Cart: Digital Wallet Content */}
                 <div className="pt-5 border-t border-[#B98A78]/30">
                   <WalletView
                     result={result}
@@ -911,7 +1617,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             bridgedAncestors={bridgedAncestors}
             onAddBridgedAncestor={(name) => {
               setBridgedAncestors((prev) => [...prev, name]);
-              appendActivity('إضافة جد وسيط (+ الخامس)', `إضافة «${name}» بين العائلة والجذر`);
+              appendActivity(
+                'إضافة جد وسيط (+ الخامس)',
+                `إضافة «${name}» بين العائلة والجذر`
+              );
             }}
             onUnlockRoot5Usd={handleUnlockRoot5Usd}
             onUpgradeAnnualVip={handleUpgradeAnnualVip}
@@ -920,6 +1629,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
             walletBalance={walletBalance}
             onUpdateImmediateParents={onUpdateImmediateParents}
+            userAvatarUrl={avatarUrl || undefined}
             onOpenMyTreeTab={() => {
               const treeTab = DASHBOARD_TABS.find(
                 (t) => t.id === DashboardTab.MyTree
@@ -946,11 +1656,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             onRequestUnlockCapsule={handleRequestUnlockCapsule}
             onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
             walletBalance={walletBalance}
+            userAvatarUrl={avatarUrl || undefined}
+            userId={userId || auth.currentUser?.uid}
           />
         )}
       </main>
 
-      {/* Quiet Editorial Footer inside Customer Dashboard (Staff Portal hidden here) */}
+      {/* Quiet Editorial Footer inside Customer Dashboard */}
       <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-8 mt-12">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#252321]/75">
           <div className="flex items-center gap-3">
@@ -960,7 +1672,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </div>
       </footer>
 
-      {/* MODAL 1: Locked Premium Tab Prompt (When clicking any of the 5 greyed-out tabs in Basic Mode) */}
+      {/* MODAL 1: Locked Premium Tab Prompt */}
       {lockedTabPromptName && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/60 backdrop-blur-xs p-4"
@@ -990,7 +1702,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               تبويب «{lockedTabPromptName}» ضمن مزايا باقة بريميوم السنوية
             </h3>
             <p className="text-sm text-[#252321]/80 leading-relaxed">
-              أنت حالياً على الباقة الأساسية (البيسك). رقِّ حسابك إلى الاشتراك السنوي (بريميوم) لفتح عمود النسب الكامل فوق الجذر وتفعيل خدمات (شجرتي، خزانتي، كشافي، موقعي، مجتمعي).
+              أنت حالياً على العضوية الأساسية. رقِّ حسابك إلى الاشتراك السنوي (بريميوم) لفتح عمود النسب الكامل فوق الجذر وتفعيل خدمات (شجرتي، خزانتي، كشافي، موقعي، مجتمعي).
             </p>
 
             <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
@@ -1006,14 +1718,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 onClick={() => setLockedTabPromptName(null)}
                 className="py-2.5 px-4 rounded-xl bg-[#EDE6DA] text-[#252321] text-sm font-semibold cursor-pointer"
               >
-                البقاء في البيسك
+                البقاء في الباقة الأساسية
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 2: Record Keeper Electronic Charter Modal (Crucial Business Rule when Individual clicks شجرتي in VIP) */}
+      {/* MODAL 2: Record Keeper Electronic Charter Modal */}
       {showCharterModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/60 backdrop-blur-xs p-4"
@@ -1041,10 +1753,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 id="charter-modal-title"
                 className="text-lg sm:text-xl font-display font-bold text-[#252321] leading-snug"
               >
-                هذه الميزة مخصصة لـ (رب الأسرة - أمين السجل). هل ترغب في التوقيع الإلكتروني على عقد أمين السجل لترقية صلاحيتك مجاناً؟
+                {accountType === AccountLegalType.RecordKeeper
+                  ? 'حالة ميثاق أمين السجل: مفعّل وموثّق إلكترونياً ✓'
+                  : 'ميثاق (رب الأسرة - أمين السجل) لترقية صلاحية بناء شجرة العائلة مجاناً'}
               </h3>
               <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                حسابك مسجّل حالياً بصفة «حساب فرد». يضمن عقد أمين السجل في منصة جذوري دقة التفرعات الأسرية المضافة ومنع انتحال الصفات العائلية.
+                {accountType === AccountLegalType.RecordKeeper
+                  ? `حسابك معتمد حالياً بصفة «رب أسرة - أمين السجل» لعائلة (${result.familyName}) وتتمتع بصلاحية بناء وتحديث الشجرة التفاعلية.`
+                  : 'حسابك مسجّل حالياً بصفة «حساب فرد». يضمن عقد أمين السجل في منصة جذوري دقة التفرعات الأسرية المضافة ومنع انتحال الصفات العائلية.'}
               </p>
             </div>
 
@@ -1052,26 +1768,34 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               <div className="font-display font-bold text-[#252321]">
                 بنود ميثاق أمين السجل الإلكتروني المختصرة:
               </div>
-              <p>1. أقرّ بصحة بيانات الأفراد والفروع الذين أضيفهم في شجرة أسرتي المباشرة على مسؤوليتي القانونية والأدبية.</p>
-              <p>2. ألتزم باحترام خصوصية الأحياء وعدم نشر بيانات حساسة دون موافقة أصحابها.</p>
-              <p>3. تخضع طلبات ربط الفروع العليا لمراجعة لجنة التحقيق النسبي في منصة جذوري.</p>
+              <p>
+                1. أقرّ بصحة بيانات الأفراد والفروع الذين أضيفهم في شجرة أسرتي المباشرة على مسؤوليتي القانونية والأدبية.
+              </p>
+              <p>
+                2. ألتزم باحترام خصوصية الأحياء وعدم نشر بيانات حساسة دون موافقة أصحابها.
+              </p>
+              <p>
+                3. تخضع طلبات ربط الفروع العليا لمراجعة لجنة التحقيق النسبي في منصة جذوري.
+              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-1">
-              <button
-                type="button"
-                onClick={handleSignCharterAndOpenTree}
-                className="flex-1 py-3 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                <span>أوقّع إلكترونياً وترقية صلاحيتي مجاناً</span>
-              </button>
+              {accountType !== AccountLegalType.RecordKeeper && (
+                <button
+                  type="button"
+                  onClick={handleSignCharterAndOpenTree}
+                  className="flex-1 py-3 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                  <span>أوقّع إلكترونياً وترقية صلاحيتي مجاناً</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setShowCharterModal(false)}
                 className="py-3 px-4 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-sm font-semibold cursor-pointer"
               >
-                إلغاء
+                إغلاق
               </button>
             </div>
           </div>

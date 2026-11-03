@@ -35,6 +35,8 @@ interface PremiumTabViewsProps {
   onRequestUnlockCapsule?: (capsule: AncestorCapsule) => void;
   onRequestUnlockAllCapsulesBundle?: () => void;
   walletBalance?: number;
+  userAvatarUrl?: string;
+  userId?: string;
 }
 
 export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
@@ -52,6 +54,8 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   onRequestUnlockCapsule,
   onRequestUnlockAllCapsulesBundle,
   walletBalance = 0,
+  userAvatarUrl,
+  userId,
 }) => {
   // 2. My Vault (خزانتي) State
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([
@@ -215,6 +219,8 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         onRequestUnlockCapsule={onRequestUnlockCapsule}
         onRequestUnlockAllCapsulesBundle={onRequestUnlockAllCapsulesBundle}
         walletBalance={walletBalance}
+        userAvatarUrl={userAvatarUrl}
+        userId={userId}
       />
     );
   }

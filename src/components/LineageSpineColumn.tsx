@@ -41,6 +41,7 @@ interface LineageSpineColumnProps {
     grandfatherName: string
   ) => void;
   onOpenMyTreeTab?: () => void;
+  userAvatarUrl?: string;
 }
 
 const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
@@ -118,6 +119,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onRequestUnlockAllCapsulesBundle,
   walletBalance,
   onOpenMyTreeTab,
+  userAvatarUrl,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
@@ -203,7 +205,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     <div className="max-w-[420px] w-full mx-auto rounded-2xl bg-white border-2 border-[#252321] py-3 px-4 shadow-sm relative z-20 text-right">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <HeritageNodeAvatar personRole="client" size="md" />
+          <HeritageNodeAvatar
+            personRole="client"
+            size="md"
+            customImageUrl={userAvatarUrl}
+          />
           <div className="min-w-0">
             <div className="text-[11px] font-bold text-[#8D4925]">
               أمين السجل
@@ -1043,11 +1049,16 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
-                          بطاقة المصادر والمراجع التاريخية المعتمدة
+                          بطاقة المصادر والمراجع التاريخية المجمعة ({(result.verified_sources?.length || result.secondarySources?.length || 1)} مراجع)
                         </h3>
                         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925]">
-                          ✓ إسناد مصدري موثق
+                          ✓ تجميع متعدد المصادر (Multi-Source Aggregation)
                         </span>
+                        {result.isAdamNodeEnrichedWithAlpha && (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                            ✓ تم إثراء شجرة آدم بالمصادر الإضافية المعتمدة من مشاريع ألفا
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-[#8D4925] font-semibold mt-0.5">
                         «{result.verifiedSourceCitation}»
@@ -1074,16 +1085,110 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       </p>
                     </div>
 
-                    {result.secondarySources && result.secondarySources.length > 0 && (
-                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-1.5">
-                        <div className="text-xs font-display font-bold text-[#8D4925]">
-                          المصادر والمراجع التاريخية المعتمدة للسلسلة:
+                    {/* Aggregated Verified Sources List (Books, Volumes & Pages) */}
+                    {(() => {
+                      const aggregatedSources =
+                        result.verified_sources && result.verified_sources.length > 0
+                          ? result.verified_sources
+                          : result.secondarySources && result.secondarySources.length > 0
+                          ? result.secondarySources
+                          : [result.verifiedSourceCitation];
+
+                      return (
+                        <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-display font-extrabold text-[#8D4925]">
+                              قائمة المصادر والمراجع التاريخية المجمعة (الكتب والأجزاء والصفحات):
+                            </div>
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-[#8D4925]/25 text-[#8D4925]">
+                              verified_sources ({aggregatedSources.length})
+                            </span>
+                          </div>
+                          <ul className="space-y-1.5 text-xs text-[#252321]/90">
+                            {aggregatedSources.map((src: string, i: number) => (
+                              <li
+                                key={i}
+                                className="flex items-start gap-2 bg-white px-3 py-2 rounded-xl border border-[#B98A78]/25 font-semibold"
+                              >
+                                <span className="w-5 h-5 rounded-full bg-[#8D4925]/15 text-[#8D4925] text-[10px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                  {i + 1}
+                                </span>
+                                <span className="leading-relaxed">{src}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                        <ul className="space-y-1 text-xs text-[#252321]/85 list-disc list-inside">
-                          {result.secondarySources.map((src: string, i: number) => (
-                            <li key={i}>{src}</li>
+                      );
+                    })()}
+
+                    {/* Aggregated Sibling Branches List */}
+                    {(() => {
+                      const aggregatedSiblings =
+                        result.sibling_branches_in_record &&
+                        result.sibling_branches_in_record.length > 0
+                          ? result.sibling_branches_in_record
+                          : result.siblingBranches || [];
+
+                      if (aggregatedSiblings.length === 0) return null;
+
+                      return (
+                        <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/35 p-3.5 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-display font-extrabold text-[#252321]">
+                              قائمة الفروع الشقيقة المجمعة في المصادر المرصودة ({aggregatedSiblings.length} فروع):
+                            </div>
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-[#B98A78]/35 text-[#8D4925]">
+                              sibling_branches_in_record
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {aggregatedSiblings.map((branch: string, idx: number) => (
+                              <span
+                                key={`${branch}-${idx}`}
+                                className="px-2.5 py-1 rounded-xl bg-white border border-[#8D4925]/30 text-xs font-display font-bold text-[#252321] shadow-2xs"
+                              >
+                                {branch}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {result.notables_in_record && result.notables_in_record.length > 0 && (
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
+                        <div className="text-xs font-display font-bold text-[#8D4925]">
+                          الأعلام والشخصيات المرصودة في السجل:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.notables_in_record.map((notable: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"
+                            >
+                              {notable}
+                            </span>
                           ))}
-                        </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.enrichedLocations && result.enrichedLocations.length > 0 && (
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
+                        <div className="text-xs font-display font-bold text-[#8D4925]">
+                          المواضع الجغرافية الموثقة في المراجع الموازية:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.enrichedLocations.map((loc: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"
+                            >
+                              <MapPin className="w-3 h-3 text-[#D8755B]" />
+                              <span>{loc}</span>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
 

@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Represents the user's primary profile, role, legal account type, subscription tier, and current wallet balance.",
+      "description": "Represents the customer's primary profile, avatar, role, legal account type, subscription tier, notification preferences, and current wallet balance.",
       "type": "object",
       "properties": {
         "userId": {
@@ -15,6 +15,26 @@
           "maxLength": 150,
           "description": "Full Arabic name of the user."
         },
+        "firstName": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "First name."
+        },
+        "fatherName": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Father name."
+        },
+        "grandfatherName": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Grandfather name."
+        },
+        "familyName": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Family or clan surname."
+        },
         "email": {
           "type": "string",
           "format": "email",
@@ -24,17 +44,32 @@
         "phone": {
           "type": "string",
           "maxLength": 30,
-          "description": "Contact phone number with international country code."
+          "description": "Contact phone number."
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 350000,
+          "description": "Uploaded profile avatar URL or data URI."
         },
         "accountType": {
           "type": "string",
           "enum": ["individual", "record_keeper"],
           "description": "Legal status: Individual (فرد) or Family Record Keeper (أمين السجل)."
         },
+        "defaultCountry": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Default residence country."
+        },
         "originCountry": {
           "type": "string",
           "maxLength": 60,
-          "description": "Country of ancestral origin (e.g., SA, EG, YE)."
+          "description": "Country of ancestral origin."
+        },
+        "originRegion": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Region or city of ancestral origin."
         },
         "tribeName": {
           "type": "string",
@@ -59,35 +94,181 @@
           "type": "boolean",
           "description": "Whether the $5 connection root is unlocked."
         },
+        "emailNotificationsEnabled": {
+          "type": "boolean",
+          "description": "Whether email notifications for research tickets and family tree updates are enabled."
+        },
         "createdAt": {
           "type": "string",
-          "description": "Server timestamp of registration."
+          "description": "Timestamp of registration."
         },
         "updatedAt": {
           "type": "string",
-          "description": "Server timestamp of last profile update."
+          "description": "Timestamp of last profile update."
         }
       },
       "required": ["userId", "fullName", "email", "accountType", "subscriptionTier", "walletBalance", "createdAt"]
     },
-    "ResearchTicket": {
-      "title": "ResearchTicket",
-      "description": "Genealogical investigation ticket initiated when a lineage search yields no immediate automated match. Genealogists investigate historical sources and notify the customer upon resolution.",
+    "FamilyTreeDocument": {
+      "title": "FamilyTreeDocument",
+      "description": "Stores the interactive family tree nodes (شجرتي) for a customer.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner UID."
+        },
+        "familyName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Family name."
+        },
+        "peopleJson": {
+          "type": "string",
+          "maxLength": 500000,
+          "description": "Serialized interactive tree nodes."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last modification timestamp."
+        }
+      },
+      "required": ["userId", "familyName", "peopleJson", "updatedAt"]
+    },
+    "CustomerOrder": {
+      "title": "CustomerOrder",
+      "description": "Represents a real customer lineage search & subscription order visible in the /Team Operations Hub.",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique order ID."
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Customer UID."
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Full customer name."
+        },
+        "firstName": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "First name."
+        },
+        "fatherName": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Father name."
+        },
+        "grandfatherName": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Grandfather name."
+        },
+        "familyName": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Family name."
+        },
+        "originCountry": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Origin country."
+        },
+        "originRegion": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Origin region."
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Customer email."
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Customer phone."
+        },
+        "legalRole": {
+          "type": "string",
+          "enum": ["individual", "record_keeper"],
+          "description": "Legal account role."
+        },
+        "accountStatus": {
+          "type": "string",
+          "enum": ["free", "paid_5_root", "annual_vip"],
+          "description": "Subscription status."
+        },
+        "walletBalanceUsd": {
+          "type": "number",
+          "description": "Current wallet balance."
+        },
+        "paidRevenueUsd": {
+          "type": "number",
+          "description": "Total revenue paid in USD."
+        },
+        "matchStatus": {
+          "type": "string",
+          "enum": ["auto_adam_full", "staged_3_nodes", "pending_geo_clarification", "open_research_ticket", "enriched_delivered"],
+          "description": "Lineage match status."
+        },
+        "ticketId": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Associated ticket ID."
+        },
+        "ticketType": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Ticket classification."
+        },
+        "assignedResearcher": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Assigned researcher name."
+        },
+        "slaStatus": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "SLA lifecycle status."
+        },
+        "nodesCountLabel": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Summary of lineage nodes."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["id", "fullName", "familyName", "email", "accountStatus", "matchStatus", "createdAt"]
+    },
+    "ResearchTicket": {
+      "title": "ResearchTicket",
+      "description": "Genealogical investigation or enrichment ticket stored in Firebase and processed in Researcher Studio.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-#]+$",
           "description": "Unique ticket ID."
         },
         "ticketNumber": {
           "type": "string",
-          "maxLength": 20,
-          "description": "Human-readable sequential ticket code (e.g. JTH-8201)."
+          "maxLength": 40,
+          "description": "Human-readable sequential ticket code."
         },
         "userId": {
           "type": "string",
-          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128,
           "description": "UID of the user who owns this search ticket."
         },
         "userFullName": {
@@ -108,7 +289,7 @@
         "targetAncestor": {
           "type": "string",
           "maxLength": 200,
-          "description": "Target lineage chain supplied by customer (e.g. حسن زهير آل مقيت)."
+          "description": "Target lineage chain supplied by customer."
         },
         "tribeName": {
           "type": "string",
@@ -127,12 +308,12 @@
         },
         "additionalNotes": {
           "type": "string",
-          "maxLength": 1000,
-          "description": "Family oral history notes, known migrations, or elder testimonials."
+          "maxLength": 2000,
+          "description": "Family oral history notes or corroborating evidence summary."
         },
         "status": {
           "type": "string",
-          "enum": ["pending_review", "investigating", "lineage_found", "completed", "no_records_found"],
+          "enum": ["pending_review", "investigating", "lineage_found", "completed", "no_records_found", "CLOSED_AND_ENRICHED"],
           "description": "Current lifecycle status of genealogical research."
         },
         "assignedResearcherId": {
@@ -148,16 +329,21 @@
         "researchFindings": {
           "type": "string",
           "maxLength": 5000,
-          "description": "Genealogist's findings, verified lineage chain, references to manuscripts and chronicles."
+          "description": "Genealogist's findings and verified lineage chain."
         },
         "verifiedSources": {
           "type": "string",
-          "maxLength": 2000,
-          "description": "Citations of historical documents, waqf registries, or Ottoman census records."
+          "maxLength": 3000,
+          "description": "Citations of historical documents."
+        },
+        "studioPayloadJson": {
+          "type": "string",
+          "maxLength": 100000,
+          "description": "Serialized ResearcherStudioTicket payload if applicable."
         },
         "clientNotified": {
           "type": "boolean",
-          "description": "Whether an in-app and email notification has been dispatched to the client."
+          "description": "Whether notification has been dispatched to the client."
         },
         "openedAt": {
           "type": "string",
@@ -176,7 +362,7 @@
     },
     "WalletTransaction": {
       "title": "WalletTransaction",
-      "description": "Financial ledger entry for user wallet balance changes (bonuses, top-ups, service purchases).",
+      "description": "Financial ledger entry for user wallet balance changes.",
       "type": "object",
       "properties": {
         "id": {
@@ -192,7 +378,7 @@
         "type": {
           "type": "string",
           "enum": ["credit", "debit"],
-          "description": "Credit (deposit/bonus) or Debit (feature purchase)."
+          "description": "Credit or Debit."
         },
         "amount": {
           "type": "number",
@@ -201,12 +387,12 @@
         "reason": {
           "type": "string",
           "maxLength": 200,
-          "description": "Description of transaction (e.g. رصيد ترحيبي مع الاشتراك السنوي, شراء شهادة مشجرة مذهبة)."
+          "description": "Description of transaction."
         },
         "referenceId": {
           "type": "string",
           "maxLength": 100,
-          "description": "Reference ID (e.g. subscription order ID or service request ID)."
+          "description": "Reference ID."
         },
         "balanceAfter": {
           "type": "number",
@@ -252,12 +438,12 @@
         "actionUrl": {
           "type": "string",
           "maxLength": 200,
-          "description": "Optional in-app route or action identifier (e.g. /dashboard#vault)."
+          "description": "Optional in-app route or action identifier."
         },
         "actionLabel": {
           "type": "string",
           "maxLength": 60,
-          "description": "Optional CTA button label (e.g. جرّب خزانتي الآن)."
+          "description": "Optional CTA button label."
         },
         "isRead": {
           "type": "boolean",
@@ -275,127 +461,133 @@
       },
       "required": ["id", "userId", "title", "body", "category", "isRead", "createdAt"]
     },
-    "StaffMember": {
-      "title": "StaffMember",
-      "description": "Internal Juthori team member record for genealogical researchers, support specialists, and platform managers.",
+    "TeamMember": {
+      "title": "TeamMember",
+      "description": "Isolated /Team staff and admin member record with strict RBAC roles.",
       "type": "object",
       "properties": {
-        "uid": {
+        "id": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Firebase Auth UID of staff member."
+          "description": "Unique team member ID."
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Full Arabic name."
         },
         "email": {
           "type": "string",
           "format": "email",
-          "maxLength": 100,
-          "description": "Staff work email."
+          "maxLength": 120,
+          "description": "Work email address."
         },
-        "displayName": {
+        "passwordHash": {
           "type": "string",
           "maxLength": 120,
-          "description": "Full staff name."
+          "description": "Credential for /Team portal authentication."
         },
         "role": {
           "type": "string",
-          "enum": ["admin", "researcher", "support"],
-          "description": "Operational role: Platform Admin, Genealogist/Researcher, or Customer Care Agent."
+          "enum": ["المايسترو", "مدير عام", "مدير البحوث", "مدير إدارة الطلبات وخدمة العملاء", "مدير تحرير المركز المعرفي"],
+          "description": "Strict RBAC role in /Team."
         },
-        "specialization": {
+        "status": {
           "type": "string",
-          "maxLength": 200,
-          "description": "Genealogical specialty (e.g. أنساب قبائل نجد والحجاز, وثائق بلاد الشام, سجلات مصر والمغرب العربي)."
-        },
-        "isActive": {
-          "type": "boolean",
-          "description": "Whether staff account is active."
+          "enum": ["نشط", "موقوف"],
+          "description": "Account status."
         },
         "createdAt": {
           "type": "string",
           "description": "Creation timestamp."
         }
       },
-      "required": ["uid", "email", "displayName", "role", "isActive", "createdAt"]
+      "required": ["id", "name", "email", "role", "status", "createdAt"]
     },
-    "CrmCampaign": {
-      "title": "CrmCampaign",
-      "description": "Periodic broadcast campaigns and proactive outreach sequences managed by customer service to engage users with new platform features.",
+    "KnowledgeArticle": {
+      "title": "KnowledgeArticle",
+      "description": "Article or genealogical study published in the Juthori Knowledge Center (المركز المعرفي).",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Unique campaign ID."
+          "description": "Article ID."
         },
         "title": {
           "type": "string",
-          "maxLength": 150,
-          "description": "Campaign title."
+          "maxLength": 200,
+          "description": "Article title."
         },
-        "targetAudience": {
+        "category": {
           "type": "string",
-          "enum": ["all_users", "free_users", "basic_users", "premium_users"],
-          "description": "Target user segment."
+          "maxLength": 80,
+          "description": "Article category (e.g. تحقيق المصادر, ميثاق أمين السجل, دراسات الأنساب)."
         },
-        "messageTitle": {
+        "summary": {
           "type": "string",
-          "maxLength": 150,
-          "description": "Headline of the message sent to users."
+          "maxLength": 500,
+          "description": "Brief summary displayed on cards."
         },
-        "messageBody": {
+        "content": {
           "type": "string",
-          "maxLength": 1000,
-          "description": "Detailed promotional or educational content."
+          "maxLength": 20000,
+          "description": "Full article content."
         },
-        "bonusCreditsUsd": {
-          "type": "number",
-          "description": "Optional promo wallet credit granted upon engagement."
+        "authorName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Author or editor name."
         },
         "status": {
           "type": "string",
-          "enum": ["draft", "active", "completed"],
-          "description": "Lifecycle of the campaign."
-        },
-        "sentCount": {
-          "type": "number",
-          "description": "Number of users reached."
+          "enum": ["published", "draft"],
+          "description": "Publication status."
         },
         "createdAt": {
           "type": "string",
-          "description": "Campaign creation timestamp."
+          "description": "Creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp."
         }
       },
-      "required": ["id", "title", "targetAudience", "messageTitle", "messageBody", "status", "createdAt"]
+      "required": ["id", "title", "category", "summary", "content", "authorName", "status", "createdAt"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "entities/UserProfile" },
-      "description": "Public and private user account profile, including subscription status, legal type, and wallet balance."
+      "description": "Customer account profile, avatar, subscription status, legal type, and wallet balance."
     },
     "/users/{userId}/wallet_transactions/{txId}": {
       "schema": { "$ref": "entities/WalletTransaction" },
-      "description": "Subcollection recording all financial credit and debit transactions for the user's wallet."
+      "description": "Subcollection recording financial credit and debit transactions."
     },
     "/users/{userId}/notifications/{notifId}": {
       "schema": { "$ref": "entities/CustomerNotification" },
-      "description": "Subcollection storing in-app customer service messages, research ticket updates, and feature notices for the user."
+      "description": "Subcollection storing in-app customer notifications."
+    },
+    "/users/{userId}/family_tree/{treeId}": {
+      "schema": { "$ref": "entities/FamilyTreeDocument" },
+      "description": "Subcollection storing interactive family tree data (شجرتي)."
+    },
+    "/customer_orders/{orderId}": {
+      "schema": { "$ref": "entities/CustomerOrder" },
+      "description": "Real customer orders and lineage search records managed in /Team."
     },
     "/research_tickets/{ticketId}": {
       "schema": { "$ref": "entities/ResearchTicket" },
-      "description": "Central registry of genealogical research tickets opened when automated matches are absent, processed by Juthori researchers."
+      "description": "Genealogical research and enrichment tickets."
     },
-    "/staff/{staffId}": {
-      "schema": { "$ref": "entities/StaffMember" },
-      "description": "Registry of platform admins, genealogists, and customer care specialists for role-based access control."
+    "/team_members/{memberId}": {
+      "schema": { "$ref": "entities/TeamMember" },
+      "description": "Isolated /Team staff and RBAC accounts."
     },
-    "/admins/{adminUid}": {
-      "schema": { "$ref": "entities/StaffMember" },
-      "description": "Whitelist collection for master administrators."
-    },
-    "/crm_campaigns/{campaignId}": {
-      "schema": { "$ref": "entities/CrmCampaign" },
-      "description": "Operational campaigns for proactive customer outreach and feature promotions."
+    "/knowledge_articles/{articleId}": {
+      "schema": { "$ref": "entities/KnowledgeArticle" },
+      "description": "Articles and studies for the Knowledge Center."
     }
   }
 }

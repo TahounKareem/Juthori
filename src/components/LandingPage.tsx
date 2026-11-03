@@ -36,6 +36,11 @@ import {
 import {
   validateStep1LineageForm,
 } from '../utils/lineageEngine';
+import {
+  createSupportTicketInFirebase,
+  fetchKnowledgeArticlesFromFirebase,
+  KnowledgeArticleRecord,
+} from '../services/firestoreService';
 
 interface LandingPageProps {
   form: RegistrationFormState;
@@ -46,7 +51,6 @@ interface LandingPageProps {
   isSearching: boolean;
   searchStep: 1 | 2 | 3;
   onOpenLogin: () => void;
-  onOpenStaffPortal?: () => void;
   silentGeo: SilentGeoMetadata;
 }
 
@@ -176,7 +180,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   isSearching,
   searchStep,
   onOpenLogin,
-  onOpenStaffPortal,
 }) => {
   const [activePublicPage, setActivePublicPage] = useState<PublicPageId>('home');
   const [showOptionalTribe, setShowOptionalTribe] = useState(false);
@@ -184,6 +187,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     Partial<Record<keyof RegistrationFormState, string>>
   >({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [publishedArticles, setPublishedArticles] = useState<KnowledgeArticleRecord[]>([]);
 
   // Support form state
   const [supportName, setSupportName] = useState('');
@@ -191,6 +195,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [supportMessage, setSupportMessage] = useState('');
   const [supportSent, setSupportSent] = useState(false);
   const [supportError, setSupportError] = useState('');
+
+  useEffect(() => {
+    fetchKnowledgeArticlesFromFirebase(true)
+      .then((articles) => {
+        if (articles.length > 0) {
+          setPublishedArticles(articles);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const countryInfo = getCountryInfoByName(selectedPortalCountry);
 
@@ -233,13 +247,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     await onSubmitSearch();
   };
 
-  const handleSupportSubmit = (e: React.FormEvent) => {
+  const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supportName.trim() || !supportEmail.trim() || !supportMessage.trim()) {
       setSupportError('يرجى تعبئة الاسم والبريد الإلكتروني وتفاصيل الاستفسار.');
       return;
     }
     setSupportError('');
+    await createSupportTicketInFirebase({
+      clientName: supportName.trim(),
+      email: supportEmail.trim(),
+      category: 'استفسار نسبي',
+      subject: supportMessage.trim(),
+    }).catch(() => {});
     setSupportSent(true);
     setSupportName('');
     setSupportEmail('');
@@ -1063,6 +1083,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </p>
                 </div>
               </div>
+
+              {publishedArticles.map((art) => (
+                <div
+                  key={art.id}
+                  className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col sm:col-span-2"
+                >
+                  <div className="p-5 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-[#D8755B] font-semibold">
+                        المركز المعرفي · {art.category}
+                      </p>
+                      <span className="text-[11px] text-[#252321]/60">
+                        {art.authorName}
+                      </span>
+                    </div>
+                    <h3 className="text-base font-display font-bold text-[#252321]">
+                      {art.title}
+                    </h3>
+                    <p className="text-xs text-[#252321]/80 leading-relaxed">
+                      {art.summary || art.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -1202,18 +1246,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <p className="text-xs text-[#252321]/70 font-sans" dir="rtl">
               جميع الحقوق محفوظة. جذوري © 2026
             </p>
-
-            {onOpenStaffPortal && (
-              <div className="pt-3 border-t border-[#B98A78]/25 w-full max-w-md flex justify-center">
-                <button
-                  type="button"
-                  onClick={onOpenStaffPortal}
-                  className="px-4 py-2 rounded-xl bg-[#F7F2E9] hover:bg-[#252321] text-[#252321] hover:text-[#F7F2E9] border border-[#B98A78]/50 text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
-                >
-                  🔒 بوابة الإدارة والعمليات
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </footer>

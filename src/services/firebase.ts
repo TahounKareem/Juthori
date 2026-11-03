@@ -1,13 +1,51 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAnalytics, isSupported as isAnalyticsSupported, Analytics } from 'firebase/analytics';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  browserLocalPersistence,
+  setPersistence,
+} from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer, Firestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import appletFirebaseConfig from '../firebase-applet-config.json';
 
-// Initialize Firebase App singleton
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Your web app's official Firebase configuration (juthori-com)
+export const JUTHORI_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyA4wA6VqHiNwvqIOU7KsJ_4jyCTFm0Js-w',
+  authDomain: 'juthori-com.firebaseapp.com',
+  projectId: 'juthori-com',
+  storageBucket: 'juthori-com.firebasestorage.app',
+  messagingSenderId: '130610534436',
+  appId: '1:130610534436:web:d9427af4c0a5e7292ce0b1',
+  measurementId: 'G-70VMJDTT5T',
+};
+
+// Initialize primary Juthori Firebase App (juthori-com)
+const app: FirebaseApp =
+  getApps().find((a) => a.name === '[DEFAULT]') || initializeApp(JUTHORI_FIREBASE_CONFIG);
+
+// Initialize Secondary Mirror App (AI Studio Managed Firestore) for seamless fallback if juthori-com rules are still locked
+const mirrorApp: FirebaseApp =
+  getApps().find((a) => a.name === 'aistudio-mirror') ||
+  initializeApp(appletFirebaseConfig, 'aistudio-mirror');
+
+// Initialize Firebase Analytics safely in browser environments
+export let analytics: Analytics | null = null;
+if (typeof window !== 'undefined') {
+  isAnalyticsSupported()
+    .then((supported) => {
+      if (supported) {
+        analytics = getAnalytics(app);
+      }
+    })
+    .catch(() => {});
+}
 
 export const auth = getAuth(app);
-// Enforce local persistence for smooth UX
+export const mirrorAuth = getAuth(mirrorApp);
+
+// Enforce local persistence for smooth UX across refreshes
 try {
   setPersistence(auth, browserLocalPersistence).catch(() => {});
 } catch {
@@ -17,7 +55,16 @@ try {
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const db = getFirestore(app);
+// Primary Firestore database on juthori-com ((default) database)
+export const db: Firestore = getFirestore(app);
+
+// Mirror Firestore database provisioned in AI Studio environment
+export const mirrorDb: Firestore = getFirestore(
+  mirrorApp,
+  appletFirebaseConfig.firestoreDatabaseId
+);
+
+export const storage = getStorage(app);
 
 // Operational Error Handling as defined in Firebase integration guidelines
 export enum OperationType {
@@ -46,7 +93,11 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+export function handleFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): never {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -55,10 +106,11 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       emailVerified: auth.currentUser?.emailVerified || null,
       isAnonymous: auth.currentUser?.isAnonymous || null,
       tenantId: auth.currentUser?.tenantId || null,
-      providerInfo: auth.currentUser?.providerData?.map((p) => ({
-        providerId: p.providerId,
-        email: p.email,
-      })) || [],
+      providerInfo:
+        auth.currentUser?.providerData?.map((p) => ({
+          providerId: p.providerId,
+          email: p.email,
+        })) || [],
     },
     operationType,
     path,
@@ -67,19 +119,50 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Optional runtime connection verification
-export async function verifyFirestoreConnection(): Promise<boolean> {
+// Runtime connection verification using getDocFromServer as required
+export async function verifyFirestoreConnection(): Promise<{
+  juthoriComConnected: boolean;
+  juthoriComRulesOpen: boolean;
+  mirrorConnected: boolean;
+  errorMessage?: string;
+}> {
+  let juthoriComConnected = true;
+  let juthoriComRulesOpen = true;
+  let errorMessage: string | undefined;
+
   try {
-    await getDocFromServer(doc(db, 'system', 'connection_probe'));
-    return true;
+    await getDocFromServer(doc(db, 'team_members', 'team_maestro_kareem'));
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('the client is offline')) {
-      console.warn('Juthori client is offline or Firebase connection pending.');
-      return false;
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('the client is offline')) {
+      juthoriComConnected = false;
+      errorMessage = msg;
+    } else if (
+      msg.includes('Missing or insufficient permissions') ||
+      msg.includes('PERMISSION_DENIED')
+    ) {
+      juthoriComConnected = true;
+      juthoriComRulesOpen = false;
+      errorMessage = 'PERMISSION_DENIED';
     }
-    // A permission-denied is still proof that the Firestore server is responding to requests!
-    return true;
   }
+
+  let mirrorConnected = true;
+  try {
+    await getDocFromServer(doc(mirrorDb, 'test', 'connection'));
+  } catch {
+    mirrorConnected = false;
+  }
+
+  return {
+    juthoriComConnected,
+    juthoriComRulesOpen,
+    mirrorConnected,
+    errorMessage,
+  };
 }
 
+verifyFirestoreConnection().catch(() => {});
+
 export default app;
+

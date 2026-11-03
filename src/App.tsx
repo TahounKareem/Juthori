@@ -10,6 +10,8 @@ import {
   fetchUserProfile,
   createUserProfileIfMissing,
   createResearchTicket,
+  upsertCustomerOrderInFirebase,
+  bootstrapJuthoriFirestoreDatabase,
 } from './services/firestoreService';
 import {
   AccountLegalType,
@@ -61,6 +63,10 @@ const ACTIVE_SESSION_STORAGE_KEY = 'juthori_active_user_session';
 
 interface SavedCustomerSession {
   isLoggedIn: boolean;
+  userId?: string;
+  userAvatarUrl?: string;
+  userPhone?: string;
+  userDefaultCountry?: string;
   form: RegistrationFormState;
   lineageResult: LineageSearchResult;
   dashboardStateMode: DashboardStateMode;
@@ -82,11 +88,40 @@ function loadSavedCustomerSession(): SavedCustomerSession | null {
   }
 }
 
+function isTeamRouteInWindow(): boolean {
+  if (typeof window === 'undefined') return false;
+  const pathname = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  const viewParam = (params.get('view') || '').toLowerCase();
+
+  return (
+    pathname === '/team' ||
+    pathname.startsWith('/team/') ||
+    hash === '#/team' ||
+    hash === '#team' ||
+    viewParam === 'team' ||
+    viewParam === 'staff' ||
+    viewParam === 'admin' ||
+    viewParam === 'researcher'
+  );
+}
+
 export function App() {
   const initialSession = loadSavedCustomerSession();
 
   const [hasActiveSession, setHasActiveSession] = useState<boolean>(() =>
     Boolean(initialSession?.isLoggedIn)
+  );
+  const [userId, setUserId] = useState<string>(() => initialSession?.userId || '');
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string>(
+    () => initialSession?.userAvatarUrl || ''
+  );
+  const [userPhone, setUserPhone] = useState<string>(
+    () => initialSession?.userPhone || ''
+  );
+  const [userDefaultCountry, setUserDefaultCountry] = useState<string>(
+    () => initialSession?.userDefaultCountry || initialSession?.form?.originCountry || ''
   );
 
   const [form, setForm] = useState<RegistrationFormState>(
@@ -114,14 +149,10 @@ export function App() {
     'landing' | 'searching' | 'dashboard' | 'staff_portal'
   >(() => {
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (
-        params.get('view') === 'researcher' ||
-        params.get('view') === 'staff' ||
-        params.get('view') === 'admin'
-      ) {
+      if (isTeamRouteInWindow()) {
         return 'staff_portal';
       }
+      const params = new URLSearchParams(window.location.search);
       if (params.get('autostart') === '1' || params.get('view') === 'dashboard') {
         return 'dashboard';
       }
@@ -147,13 +178,34 @@ export function App() {
     () => initialSession?.dashboardStateMode || DashboardStateMode.State2MatchedUnpaid
   );
 
-  // Persist active customer session in localStorage so page refresh stays on CustomerDashboard
+  // Listen for URL changes to /Team or #/Team and bootstrap Firestore collections
+  useEffect(() => {
+    bootstrapJuthoriFirestoreDatabase().catch(() => {});
+    if (typeof window === 'undefined') return;
+    const handleLocationChange = () => {
+      if (isTeamRouteInWindow()) {
+        setActiveView('staff_portal');
+      }
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
+  // Persist active customer session in localStorage so page refresh or returning visitor stays on CustomerDashboard
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (hasActiveSession) {
       try {
         const sessionPayload: SavedCustomerSession = {
           isLoggedIn: true,
+          userId,
+          userAvatarUrl,
+          userPhone,
+          userDefaultCountry,
           form,
           lineageResult,
           dashboardStateMode,
@@ -164,7 +216,17 @@ export function App() {
         // Ignore storage quota errors
       }
     }
-  }, [hasActiveSession, form, lineageResult, dashboardStateMode, isAlphaMergedIntoAdam]);
+  }, [
+    hasActiveSession,
+    userId,
+    userAvatarUrl,
+    userPhone,
+    userDefaultCountry,
+    form,
+    lineageResult,
+    dashboardStateMode,
+    isAlphaMergedIntoAdam,
+  ]);
 
   // Silent IP Geolocation Capture in background + Auto-Detect Country for Hero
   useEffect(() => {
@@ -192,29 +254,55 @@ export function App() {
     };
   }, [userManuallySelectedCountry]);
 
-  // Firebase Auth Observer to synchronize logged-in user profile
+  // Firebase Auth Observer to synchronize logged-in user profile and keep customer session active
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        setUserId(user.uid);
         try {
           const profile = await fetchUserProfile(user.uid);
           if (profile) {
             const nameParts = (profile.fullName || user.displayName || '').split(' ');
+            const resolvedFirst = profile.firstName || nameParts[0] || '';
+            const resolvedFather = profile.fatherName || nameParts[1] || '';
+            const resolvedGrand = profile.grandfatherName || nameParts[2] || '';
+            const resolvedFamily =
+              profile.familyName || nameParts.slice(3).join(' ') || '';
+
+            if (profile.avatarUrl) {
+              setUserAvatarUrl(profile.avatarUrl);
+            }
+            if (profile.phone) {
+              setUserPhone(profile.phone);
+            }
+            if (profile.defaultCountry) {
+              setUserDefaultCountry(profile.defaultCountry);
+            }
+
             setForm((prev) => ({
               ...prev,
               email: profile.email || user.email || prev.email,
-              firstName: nameParts[0] || prev.firstName,
-              fatherName: nameParts[1] || prev.fatherName,
-              grandfatherName: nameParts[2] || prev.grandfatherName,
-              familyName: nameParts.slice(3).join(' ') || prev.familyName,
+              firstName: resolvedFirst || prev.firstName,
+              fatherName: resolvedFather || prev.fatherName,
+              grandfatherName: resolvedGrand || prev.grandfatherName,
+              familyName: resolvedFamily || prev.familyName,
               tribeName: profile.tribeName || prev.tribeName,
               branchName: profile.familyBranch || prev.branchName,
               originCountry: profile.originCountry || prev.originCountry,
+              originRegion: profile.originRegion || prev.originRegion,
               accountType:
                 profile.accountType === 'record_keeper'
                   ? AccountLegalType.RecordKeeper
                   : AccountLegalType.Individual,
             }));
+
+            // If user is authenticated in Firebase and not on /Team, ensure they go directly to CustomerDashboard
+            if (!isTeamRouteInWindow()) {
+              setHasActiveSession(true);
+              setSearchStep(3);
+              setPreviousPlatformView('dashboard');
+              setActiveView((curr) => (curr === 'staff_portal' ? curr : 'dashboard'));
+            }
           }
         } catch (err) {
           console.warn('Profile fetch note:', err);
@@ -232,7 +320,6 @@ export function App() {
   }, [activeView, searchStep]);
 
   // Step 1: Submit search from Landing Page -> launches intermediate Verification Screen (Step 2)
-  // Every new account is automatically registered as "Individual" (فرد)
   const handleSubmitSearch = async () => {
     setIsSearching(true);
     setIsAlphaMergedIntoAdam(false);
@@ -268,7 +355,7 @@ export function App() {
     accountType: AccountLegalType;
     selectedDisambiguation?: 'option_a' | 'option_b' | 'not_sure_ticket';
   }) => {
-    let uid = auth.currentUser?.uid;
+    let uid = auth.currentUser?.uid || userId;
     if (!uid) {
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -283,21 +370,36 @@ export function App() {
       }
     }
 
+    const safeUid = uid || `usr_${Date.now()}`;
+    setUserId(safeUid);
+
     const fullName = `${form.firstName} ${form.fatherName} ${form.grandfatherName} ${form.familyName}`
       .replace(/\s+/g, ' ')
       .trim();
 
     await createUserProfileIfMissing(
-      { uid: uid || `usr_${Date.now()}`, email, displayName: fullName },
+      { uid: safeUid, email, displayName: fullName },
       {
         fullName,
+        firstName: form.firstName,
+        fatherName: form.fatherName,
+        grandfatherName: form.grandfatherName,
+        familyName: form.familyName,
         email,
-        accountType,
-        originCountry: form.originCountry,
+        accountType:
+          accountType === AccountLegalType.RecordKeeper
+            ? 'record_keeper'
+            : 'individual',
+        defaultCountry: form.originCountry || selectedPortalCountry,
+        originCountry: form.originCountry || selectedPortalCountry,
+        originRegion: form.originRegion,
         tribeName: form.tribeName,
         familyBranch: form.branchName,
       }
     );
+
+    let effectiveMode = dashboardStateMode;
+    let effectiveMatched = lineageResult.matched;
 
     if (selectedDisambiguation === 'option_a' && lineageResult.optionAResultOverride) {
       setLineageResult((prev) => ({
@@ -305,6 +407,8 @@ export function App() {
         ...prev.optionAResultOverride,
         requiresBlindDisambiguation: false,
       }));
+      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
+      effectiveMatched = true;
       setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
     } else if (selectedDisambiguation === 'option_b' && lineageResult.optionBResultOverride) {
       setLineageResult((prev) => {
@@ -317,6 +421,8 @@ export function App() {
           ? upgradeAlphaResultToMergedAdam(nextBase)
           : nextBase;
       });
+      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
+      effectiveMatched = true;
       setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
     } else if (selectedDisambiguation === 'not_sure_ticket') {
       setLineageResult((prev) => ({
@@ -329,13 +435,16 @@ export function App() {
         upperAncestors: [],
         capsules: [],
       }));
+      effectiveMode = DashboardStateMode.State3Unmatched;
+      effectiveMatched = false;
       setDashboardStateMode(DashboardStateMode.State3Unmatched);
     }
 
-    if (!lineageResult.matched || selectedDisambiguation === 'not_sure_ticket') {
+    let createdTicketNumber = 'AUTO-ADAM';
+    if (!effectiveMatched || selectedDisambiguation === 'not_sure_ticket') {
       try {
-        await createResearchTicket({
-          userId: uid || `usr_${Date.now()}`,
+        const t = await createResearchTicket({
+          userId: safeUid,
           userFullName: fullName,
           userEmail: email,
           targetAncestor: fullName,
@@ -350,10 +459,60 @@ export function App() {
                 'طلب تحرٍّ أرشيفي أولي (P1) مفتوح من آلية حسم الشك الثنائية.'
               : 'طلب فحص أرشيفي مفتوح تلقائياً من رحلة الاستكشاف عند عدم وجود تطابق فوري.',
         });
+        createdTicketNumber = t.ticketNumber;
       } catch (ticketErr) {
         console.warn('Could not auto-open research ticket:', ticketErr);
       }
     }
+
+    // Record real customer order in Firebase (/customer_orders) for /Team visibility
+    await upsertCustomerOrderInFirebase({
+      id: `ORD-${safeUid.slice(-6).toUpperCase()}`,
+      userId: safeUid,
+      fullName: fullName || form.familyName,
+      firstName: form.firstName,
+      fatherName: form.fatherName,
+      grandfatherName: form.grandfatherName,
+      familyName: form.familyName,
+      originCountry: form.originCountry || selectedPortalCountry || 'السعودية',
+      originRegion: form.originRegion || '',
+      email,
+      phone: userPhone || '—',
+      legalRole:
+        accountType === AccountLegalType.RecordKeeper ? 'record_keeper' : 'individual',
+      accountStatus:
+        effectiveMode === DashboardStateMode.AnnualVip
+          ? 'annual_vip'
+          : effectiveMode === DashboardStateMode.State1Paid5Basic
+          ? 'paid_5_root'
+          : 'free',
+      walletBalanceUsd: effectiveMode === DashboardStateMode.AnnualVip ? 25 : 0,
+      paidRevenueUsd:
+        effectiveMode === DashboardStateMode.AnnualVip
+          ? 60
+          : effectiveMode === DashboardStateMode.State1Paid5Basic
+          ? 5
+          : 0,
+      matchStatus: !effectiveMatched
+        ? 'open_research_ticket'
+        : lineageResult.isAlphaOnlyBeforeMerge
+        ? 'staged_3_nodes'
+        : 'auto_adam_full',
+      ticketId: createdTicketNumber,
+      ticketType: !effectiveMatched
+        ? 'طلب عميل P1'
+        : lineageResult.isAlphaOnlyBeforeMerge
+        ? 'إثراء شجرة آدم P2'
+        : 'آلي مكتمل',
+      assignedResearcher: 'فريق التحقيق النَّسبي',
+      slaStatus: !effectiveMatched ? 'جديدة' : 'مكتملة وتمت تغذية شجرة آدم',
+      nodesCountLabel: !effectiveMatched
+        ? 'تذكرة بحث مفتوحة'
+        : lineageResult.isAlphaOnlyBeforeMerge
+        ? '3 عُقد (مشاريع ألفا)'
+        : `${lineageResult.adamSpineNodes.length} عقدة (شجرة آدم)`,
+      createdAt: new Date().toISOString(),
+    });
 
     setForm((prev) => ({
       ...prev,
@@ -375,26 +534,44 @@ export function App() {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
+      setUserId(user.uid);
+      if (user.photoURL) {
+        setUserAvatarUrl(user.photoURL);
+      }
+
       const fullName =
         `${form.firstName} ${form.fatherName} ${form.grandfatherName} ${form.familyName}`
           .replace(/\s+/g, ' ')
-          .trim() || (user.displayName || 'مستخدم جذوري');
+          .trim() ||
+        user.displayName ||
+        'مستخدم جذوري';
 
       await createUserProfileIfMissing(
         { uid: user.uid, email: user.email, displayName: user.displayName || fullName },
         {
           fullName,
+          firstName: form.firstName,
+          fatherName: form.fatherName,
+          grandfatherName: form.grandfatherName,
+          familyName: form.familyName,
           email: user.email || 'user@juthori.com',
-          accountType: form.accountType,
-          originCountry: form.originCountry,
+          avatarUrl: user.photoURL || '',
+          accountType:
+            form.accountType === AccountLegalType.RecordKeeper
+              ? 'record_keeper'
+              : 'individual',
+          defaultCountry: form.originCountry || selectedPortalCountry,
+          originCountry: form.originCountry || selectedPortalCountry,
+          originRegion: form.originRegion,
           tribeName: form.tribeName,
           familyBranch: form.branchName,
         }
       );
 
+      let ticketNum = 'AUTO-GOOGLE';
       if (!lineageResult.matched) {
         try {
-          await createResearchTicket({
+          const t = await createResearchTicket({
             userId: user.uid,
             userFullName: fullName,
             userEmail: user.email || '',
@@ -402,12 +579,41 @@ export function App() {
             tribeName: form.tribeName,
             familyBranch: form.branchName,
             originCountry: form.originCountry,
-            additionalNotes: 'طلب فحص أرشيفي مفتوح تلقائياً عبر تسجيل الدخول السريع بحساب Google.',
+            additionalNotes:
+              'طلب فحص أرشيفي مفتوح تلقائياً عبر تسجيل الدخول السريع بحساب Google.',
           });
+          ticketNum = t.ticketNumber;
         } catch (ticketErr) {
           console.warn('Ticket error:', ticketErr);
         }
       }
+
+      await upsertCustomerOrderInFirebase({
+        id: `ORD-${user.uid.slice(-6).toUpperCase()}`,
+        userId: user.uid,
+        fullName,
+        firstName: form.firstName || fullName.split(' ')[0] || 'مستخدم',
+        fatherName: form.fatherName,
+        grandfatherName: form.grandfatherName,
+        familyName: form.familyName || 'جذوري',
+        originCountry: form.originCountry || selectedPortalCountry || 'السعودية',
+        originRegion: form.originRegion || '',
+        email: user.email || 'user@juthori.com',
+        phone: userPhone || '—',
+        legalRole: 'individual',
+        accountStatus: 'free',
+        walletBalanceUsd: 0,
+        paidRevenueUsd: 0,
+        matchStatus: lineageResult.matched ? 'auto_adam_full' : 'open_research_ticket',
+        ticketId: ticketNum,
+        ticketType: lineageResult.matched ? 'آلي مكتمل' : 'طلب عميل P1',
+        assignedResearcher: 'فريق التحقيق النَّسبي',
+        slaStatus: lineageResult.matched ? 'مكتملة وتمت تغذية شجرة آدم' : 'جديدة',
+        nodesCountLabel: lineageResult.matched
+          ? `${lineageResult.adamSpineNodes.length} عقدة`
+          : 'تذكرة بحث مفتوحة',
+        createdAt: new Date().toISOString(),
+      });
 
       setForm((prev) => ({
         ...prev,
@@ -454,6 +660,9 @@ export function App() {
 
   const handleLogoutCustomer = () => {
     setHasActiveSession(false);
+    setUserId('');
+    setUserAvatarUrl('');
+    setUserPhone('');
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
     }
@@ -470,27 +679,140 @@ export function App() {
     familyName,
     subRootName,
     motherTribeName,
+    isAdamEnrichmentOnly,
+    addedVerifiedSources = [],
+    addedSiblingBranches = [],
+    addedNotables = [],
+    addedLocations = [],
   }: {
     familyName: string;
     subRootName: string;
     motherTribeName: string;
     approveSources: boolean;
+    isAdamEnrichmentOnly?: boolean;
+    addedVerifiedSources?: string[];
+    addedSiblingBranches?: string[];
+    addedNotables?: string[];
+    addedLocations?: string[];
   }) => {
+    if (isAdamEnrichmentOnly) {
+      setLineageResult((prev) => {
+        const isSameFamily =
+          prev.familyName === familyName ||
+          prev.familyName.includes(familyName) ||
+          familyName.includes(prev.familyName);
+
+        const baseTarget = isSameFamily
+          ? prev
+          : resolveDeterministicLineage({
+              firstName: form.firstName || 'حسن',
+              fatherName: form.fatherName || 'زهير',
+              grandfatherName: form.grandfatherName || 'حسن',
+              familyName: familyName || 'آل مقيت',
+              originCountry: 'السعودية',
+              originRegion:
+                familyName.includes('قاسم')
+                  ? 'نجران'
+                  : familyName.includes('خابور')
+                  ? 'نجد'
+                  : 'سراة عبيدة',
+              tribeName: motherTribeName || '',
+              branchName: subRootName || '',
+            });
+
+        const mergedSources = Array.from(
+          new Set([
+            ...(baseTarget.verified_sources || []),
+            ...(baseTarget.secondarySources || []),
+            ...addedVerifiedSources,
+          ])
+        );
+        const mergedSiblings = Array.from(
+          new Set([
+            ...(baseTarget.sibling_branches_in_record || []),
+            ...(baseTarget.siblingBranches || []),
+            ...addedSiblingBranches,
+          ])
+        );
+        const mergedNotables = Array.from(
+          new Set([...(baseTarget.notables_in_record || []), ...addedNotables])
+        );
+        const mergedLocations = Array.from(
+          new Set([...(baseTarget.enrichedLocations || []), ...addedLocations])
+        );
+
+        return {
+          ...baseTarget,
+          isAdamNodeEnrichedWithAlpha: true,
+          verified_sources: mergedSources,
+          secondarySources: mergedSources,
+          verifiedSourceCitation:
+            mergedSources.slice(0, 3).join(' | ') || baseTarget.verifiedSourceCitation,
+          sibling_branches_in_record: mergedSiblings,
+          siblingBranches: mergedSiblings,
+          siblingBranchesLabel:
+            mergedSiblings.length > 0
+              ? `الفروع الشقيقة المجمعة في السجل (${mergedSiblings.length} فروع): ${mergedSiblings.join('، ')}`
+              : baseTarget.siblingBranchesLabel,
+          notables_in_record: mergedNotables,
+          enrichedLocations: mergedLocations,
+          confidenceLabel: `تطابق محقق في شجرة آدم (${baseTarget.adamSpineNodes.length} عقدة) — تم إثراء العقدة بالمصادر الإضافية من مشاريع ألفا وإقفال التذكرة ✓`,
+        };
+      });
+      return;
+    }
+
     setIsAlphaMergedIntoAdam(true);
     setLineageResult((prev) => {
+      const applyExtraEnrichment = (res: LineageSearchResult): LineageSearchResult => {
+        const mergedSources = Array.from(
+          new Set([
+            ...(res.verified_sources || []),
+            ...(res.secondarySources || []),
+            ...addedVerifiedSources,
+          ])
+        );
+        const mergedSiblings = Array.from(
+          new Set([
+            ...(res.sibling_branches_in_record || []),
+            ...(res.siblingBranches || []),
+            ...addedSiblingBranches,
+          ])
+        );
+        const mergedNotables = Array.from(
+          new Set([...(res.notables_in_record || []), ...addedNotables])
+        );
+        const mergedLocations = Array.from(
+          new Set([...(res.enrichedLocations || []), ...addedLocations])
+        );
+
+        return {
+          ...res,
+          verified_sources: mergedSources,
+          secondarySources: mergedSources,
+          sibling_branches_in_record: mergedSiblings,
+          siblingBranches: mergedSiblings,
+          notables_in_record: mergedNotables,
+          enrichedLocations: mergedLocations,
+        };
+      };
+
       if (
         prev.isAlphaOnlyBeforeMerge ||
         prev.isAlphaMergedIntoAdam ||
         !prev.matched ||
         prev.familyName.includes('حليحل') ||
         prev.familyName.includes('معيط') ||
-        prev.familyName.includes('خابور')
+        prev.familyName.includes('خابور') ||
+        prev.familyName.includes('هباهب')
       ) {
-        return upgradeAlphaResultToMergedAdam({
-          ...prev,
-          rootBranchName: subRootName || prev.rootBranchName,
-          rootTribeName: motherTribeName || prev.rootTribeName,
-        });
+        return applyExtraEnrichment(
+          upgradeAlphaResultToMergedAdam({
+            ...prev,
+            rootBranchName: subRootName || prev.rootBranchName,
+            rootTribeName: motherTribeName || prev.rootTribeName,
+          })
+        );
       }
       const resolved = resolveDeterministicLineage({
         firstName: form.firstName || 'كريم',
@@ -502,7 +824,7 @@ export function App() {
         tribeName: motherTribeName || 'العقيدات',
         branchName: subRootName || 'خابور',
       });
-      return upgradeAlphaResultToMergedAdam(resolved);
+      return applyExtraEnrichment(upgradeAlphaResultToMergedAdam(resolved));
     });
   };
 
@@ -529,6 +851,24 @@ export function App() {
       accountType: order.accountType,
       email: order.email,
     }));
+
+    if (typeof window !== 'undefined' && isTeamRouteInWindow()) {
+      window.history.pushState({}, '', '/');
+    }
+
+    if (
+      lineageResult.familyName === order.familyName &&
+      (lineageResult.isAdamNodeEnrichedWithAlpha ||
+        lineageResult.isAlphaMergedIntoAdam)
+    ) {
+      setDashboardStateMode(order.stateMode);
+      setHasActiveSession(true);
+      setSearchStep(3);
+      setPreviousPlatformView('dashboard');
+      setActiveView('dashboard');
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      return;
+    }
 
     const baseRes = resolveDeterministicLineage({
       firstName: order.firstName,
@@ -575,6 +915,44 @@ export function App() {
     }));
   };
 
+  // Update full profile details from Profile & Settings drawer
+  const handleUpdateProfileDetails = (details: {
+    firstName: string;
+    fatherName: string;
+    grandfatherName: string;
+    familyName: string;
+    phone: string;
+    defaultCountry: string;
+    originCountry: string;
+    originRegion: string;
+    avatarUrl?: string;
+  }) => {
+    if (details.avatarUrl !== undefined) {
+      setUserAvatarUrl(details.avatarUrl);
+    }
+    setUserPhone(details.phone);
+    setUserDefaultCountry(details.defaultCountry);
+
+    setForm((prev) => ({
+      ...prev,
+      firstName: details.firstName,
+      fatherName: details.fatherName,
+      grandfatherName: details.grandfatherName,
+      familyName: details.familyName,
+      originCountry: details.originCountry,
+      originRegion: details.originRegion,
+    }));
+
+    setLineageResult((prev) => ({
+      ...prev,
+      clientName: details.firstName || prev.clientName,
+      fatherName: details.fatherName,
+      grandfatherName: details.grandfatherName,
+      familyName: details.familyName || prev.familyName,
+      originCountry: details.originCountry || prev.originCountry,
+    }));
+  };
+
   return (
     <>
       {activeView === 'staff_portal' ? (
@@ -595,7 +973,10 @@ export function App() {
             }
           }}
           onBackToPlatform={() => {
-            setActiveView(previousPlatformView);
+            if (typeof window !== 'undefined' && isTeamRouteInWindow()) {
+              window.history.pushState({}, '', '/');
+            }
+            setActiveView(hasActiveSession ? 'dashboard' : previousPlatformView);
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           }}
         />
@@ -612,11 +993,6 @@ export function App() {
           isSearching={isSearching}
           searchStep={searchStep}
           onOpenLogin={() => setLoginModalOpen(true)}
-          onOpenStaffPortal={() => {
-            setPreviousPlatformView('landing');
-            setActiveView('staff_portal');
-            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-          }}
           silentGeo={silentGeo}
         />
       ) : activeView === 'searching' ? (
@@ -651,6 +1027,11 @@ export function App() {
           result={lineageResult}
           silentGeo={silentGeo}
           userEmail={form.email || DEFAULT_DEMO_SEED.email}
+          userId={userId || auth.currentUser?.uid}
+          userAvatarUrl={userAvatarUrl}
+          userPhone={userPhone}
+          userDefaultCountry={userDefaultCountry || form.originCountry}
+          userOriginRegion={form.originRegion}
           onBackToLanding={() => {
             setSearchStep(1);
             setPreviousPlatformView('landing');
@@ -659,6 +1040,10 @@ export function App() {
           }}
           onLogout={handleLogoutCustomer}
           onUpdateImmediateParents={handleUpdateImmediateParents}
+          onUpdateProfileDetails={handleUpdateProfileDetails}
+          onDeleteAccount={async () => {
+            handleLogoutCustomer();
+          }}
         />
       )}
 

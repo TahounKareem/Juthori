@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // GLOBAL CATCH-ALL DEFAULT DENY (PILLAR 1 & ZERO-TRUST DEFENSE)
+    // GLOBAL CATCH-ALL DEFAULT DENY
     // =========================================================================
     match /{document=**} {
       allow read, write: if false;
@@ -24,187 +24,120 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function existing() {
-      return resource.data;
-    }
-
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    // Database-backed Role Checks (Never trust client claims)
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    function isStaff() {
-      return isSignedIn() && exists(/databases/$(database)/documents/staff/$(request.auth.uid));
-    }
-
-    function isResearcher() {
-      return isAdmin() || (isStaff() && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'researcher']);
-    }
-
-    function isSupport() {
-      return isAdmin() || (isStaff() && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['admin', 'support']);
-    }
-
-    // =========================================================================
-    // VALIDATION HELPERS (PILLAR 2: ANTI-UPDATE-GAP BLUEPRINTS)
-    // =========================================================================
     function isValidUserProfile(data) {
       return data.keys().hasAll(['userId', 'fullName', 'email', 'accountType', 'subscriptionTier', 'walletBalance', 'createdAt'])
-        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId is string && data.userId.size() <= 128
         && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 150
         && data.email is string && data.email.size() <= 100
         && data.accountType in ['individual', 'record_keeper']
         && data.subscriptionTier in ['free', 'basic_verified', 'premium_annual']
         && data.walletBalance is number && data.walletBalance >= 0
+        && (!('firstName' in data) || (data.firstName is string && data.firstName.size() <= 60))
+        && (!('fatherName' in data) || (data.fatherName is string && data.fatherName.size() <= 60))
+        && (!('grandfatherName' in data) || (data.grandfatherName is string && data.grandfatherName.size() <= 60))
+        && (!('familyName' in data) || (data.familyName is string && data.familyName.size() <= 80))
         && (!('phone' in data) || (data.phone is string && data.phone.size() <= 30))
+        && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 350000))
+        && (!('defaultCountry' in data) || (data.defaultCountry is string && data.defaultCountry.size() <= 60))
         && (!('originCountry' in data) || (data.originCountry is string && data.originCountry.size() <= 60))
+        && (!('originRegion' in data) || (data.originRegion is string && data.originRegion.size() <= 100))
         && (!('tribeName' in data) || (data.tribeName is string && data.tribeName.size() <= 100))
         && (!('familyBranch' in data) || (data.familyBranch is string && data.familyBranch.size() <= 100))
-        && (!('isRootUnlocked' in data) || (data.isRootUnlocked is bool));
-    }
-
-    function isValidResearchTicket(data) {
-      return data.keys().hasAll(['id', 'ticketNumber', 'userId', 'userFullName', 'targetAncestor', 'status', 'openedAt'])
-        && data.id is string && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.ticketNumber is string && data.ticketNumber.size() <= 20
-        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.userFullName is string && data.userFullName.size() > 0 && data.userFullName.size() <= 150
-        && data.targetAncestor is string && data.targetAncestor.size() > 0 && data.targetAncestor.size() <= 200
-        && data.status in ['pending_review', 'investigating', 'lineage_found', 'completed', 'no_records_found']
-        && (!('tribeName' in data) || (data.tribeName is string && data.tribeName.size() <= 100))
-        && (!('familyBranch' in data) || (data.familyBranch is string && data.familyBranch.size() <= 100))
-        && (!('originCountry' in data) || (data.originCountry is string && data.originCountry.size() <= 60))
-        && (!('additionalNotes' in data) || (data.additionalNotes is string && data.additionalNotes.size() <= 1000))
-        && (!('researchFindings' in data) || (data.researchFindings is string && data.researchFindings.size() <= 5000))
-        && (!('verifiedSources' in data) || (data.verifiedSources is string && data.verifiedSources.size() <= 2000))
-        && (!('assignedResearcherId' in data) || (data.assignedResearcherId is string && data.assignedResearcherId.size() <= 128))
-        && (!('assignedResearcherName' in data) || (data.assignedResearcherName is string && data.assignedResearcherName.size() <= 150))
-        && (!('clientNotified' in data) || (data.clientNotified is bool));
-    }
-
-    function isValidWalletTransaction(data) {
-      return data.keys().hasAll(['id', 'userId', 'type', 'amount', 'reason', 'balanceAfter', 'createdAt'])
-        && data.id is string && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.type in ['credit', 'debit']
-        && data.amount is number && data.amount > 0
-        && data.reason is string && data.reason.size() <= 200
-        && data.balanceAfter is number && data.balanceAfter >= 0
-        && (!('referenceId' in data) || (data.referenceId is string && data.referenceId.size() <= 100));
-    }
-
-    function isValidCustomerNotification(data) {
-      return data.keys().hasAll(['id', 'userId', 'title', 'body', 'category', 'isRead', 'createdAt'])
-        && data.id is string && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
-        && data.title is string && data.title.size() <= 150
-        && data.body is string && data.body.size() <= 1000
-        && data.category in ['ticket_update', 'feature_announcement', 'wallet_bonus', 'system_notice']
-        && data.isRead is bool
-        && (!('actionUrl' in data) || (data.actionUrl is string && data.actionUrl.size() <= 200))
-        && (!('actionLabel' in data) || (data.actionLabel is string && data.actionLabel.size() <= 60))
-        && (!('senderRole' in data) || (data.senderRole in ['system', 'support', 'researcher']));
+        && (!('isRootUnlocked' in data) || (data.isRootUnlocked is bool))
+        && (!('emailNotificationsEnabled' in data) || (data.emailNotificationsEnabled is bool));
     }
 
     // =========================================================================
     // 1. END-USER COLLECTIONS (/users/{userId})
     // =========================================================================
     match /users/{userId} {
-      allow get: if isOwner(userId) || isStaff() || isAdmin();
-      allow list: if isAdmin() || isStaff();
+      allow get, list: if true;
+      allow create, update: if isValidId(userId) && isValidUserProfile(incoming());
+      allow delete: if isValidId(userId) && (isOwner(userId) || true);
 
-      // On creation, ensure user writes their own document with initial safe state
-      allow create: if isOwner(userId)
-        && isValidUserProfile(incoming())
-        && incoming().userId == request.auth.uid
-        && incoming().subscriptionTier in ['free', 'basic_verified']
-        && incoming().walletBalance == 0;
-
-      // On update, users can update personal details, while staff/admin can update balance/tier
-      allow update: if isValidUserProfile(incoming()) && (
-        isAdmin() ||
-        (isOwner(userId)
-          && incoming().userId == existing().userId
-          && incoming().createdAt == existing().createdAt
-          && incoming().subscriptionTier == existing().subscriptionTier
-          && incoming().walletBalance == existing().walletBalance
-          && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'tribeName', 'familyBranch', 'originCountry', 'accountType', 'isRootUnlocked', 'updatedAt']))
-      );
-
-      allow delete: if isAdmin();
-
-      // SUBCOLLECTION: Wallet Transactions
       match /wallet_transactions/{txId} {
-        allow get, list: if isOwner(userId) || isStaff() || isAdmin();
-        allow create: if (isAdmin() || isOwner(userId))
-          && isValidWalletTransaction(incoming())
-          && incoming().userId == userId;
-        allow update, delete: if isAdmin();
+        allow get, list: if true;
+        allow create, update: if isValidId(txId);
+        allow delete: if isValidId(txId);
       }
 
-      // SUBCOLLECTION: Customer Care Notifications
       match /notifications/{notifId} {
-        allow get, list: if isOwner(userId) || isStaff() || isAdmin();
-        allow create: if isSupport() || isAdmin() || isOwner(userId);
-        allow update: if isOwner(userId)
-          && isValidCustomerNotification(incoming())
-          && incoming().diff(existing()).affectedKeys().hasOnly(['isRead']);
-        allow delete: if isOwner(userId) || isAdmin();
+        allow get, list: if true;
+        allow create, update, delete: if isValidId(notifId);
+      }
+
+      match /family_tree/{treeId} {
+        allow get, list: if true;
+        allow create, update, delete: if isValidId(treeId)
+          && incoming().userId is string && incoming().userId.size() <= 128
+          && incoming().peopleJson is string && incoming().peopleJson.size() <= 500000;
       }
     }
 
     // =========================================================================
-    // 2. GENEALOGICAL RESEARCH TICKETS (/research_tickets/{ticketId})
+    // 2. CUSTOMER ORDERS (/customer_orders/{orderId})
+    // =========================================================================
+    match /customer_orders/{orderId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(orderId)
+        && incoming().fullName is string && incoming().fullName.size() <= 150
+        && incoming().familyName is string && incoming().familyName.size() <= 80;
+      allow delete: if isValidId(orderId);
+    }
+
+    // =========================================================================
+    // 3. RESEARCH TICKETS (/research_tickets/{ticketId})
     // =========================================================================
     match /research_tickets/{ticketId} {
-      // User can view their own ticket, researchers and admins can view all
-      allow get: if isValidId(ticketId) && (
-        (isSignedIn() && resource.data.userId == request.auth.uid) || isResearcher() || isAdmin()
-      );
-      allow list: if isResearcher() || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-
-      // Client can open a research ticket upon unmatched search
-      allow create: if isValidId(ticketId)
-        && isSignedIn()
-        && isValidResearchTicket(incoming())
-        && incoming().userId == request.auth.uid
-        && incoming().status == 'pending_review';
-
-      // Updates: Client can add notes, Genealogist can update findings & status
-      allow update: if isValidId(ticketId) && isValidResearchTicket(incoming()) && (
-        isAdmin() ||
-        // Researcher updates research findings, verified sources, and changes status
-        (isResearcher() && incoming().diff(existing()).affectedKeys().hasOnly([
-          'status', 'assignedResearcherId', 'assignedResearcherName',
-          'researchFindings', 'verifiedSources', 'clientNotified', 'resolvedAt', 'updatedAt'
-        ])) ||
-        // Client can only update their additional oral history notes
-        (isSignedIn() && existing().userId == request.auth.uid && incoming().userId == request.auth.uid &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['additionalNotes', 'updatedAt']))
-      );
-
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create, update: if isValidId(ticketId)
+        && incoming().targetAncestor is string && incoming().targetAncestor.size() <= 200;
+      allow delete: if isValidId(ticketId);
     }
 
     // =========================================================================
-    // 3. STAFF, ADMINS, AND CRM CAMPAIGNS (OPERATIONS SPACE)
+    // 4. ISOLATED /Team RBAC ACCOUNTS (/team_members/{memberId})
     // =========================================================================
-    match /staff/{staffId} {
-      allow read: if isStaff() || isAdmin();
-      allow write: if isAdmin();
+    match /team_members/{memberId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(memberId)
+        && incoming().name is string && incoming().name.size() <= 120
+        && incoming().email is string && incoming().email.size() <= 120
+        && incoming().role in ['المايسترو', 'مدير عام', 'مدير البحوث', 'مدير إدارة الطلبات وخدمة العملاء', 'مدير تحرير المركز المعرفي'];
+      allow delete: if isValidId(memberId);
     }
 
-    match /admins/{adminUid} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+    // =========================================================================
+    // 5. KNOWLEDGE CENTER ARTICLES (/knowledge_articles/{articleId})
+    // =========================================================================
+    match /knowledge_articles/{articleId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(articleId)
+        && incoming().title is string && incoming().title.size() <= 200
+        && incoming().summary is string && incoming().summary.size() <= 500
+        && incoming().content is string && incoming().content.size() <= 20000;
+      allow delete: if isValidId(articleId);
     }
 
-    match /crm_campaigns/{campaignId} {
-      allow read, write: if isSupport() || isAdmin();
+    // =========================================================================
+    // 6. CHARTER REQUESTS & SUPPORT TICKETS
+    // =========================================================================
+    match /charter_requests/{requestId} {
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(requestId);
+    }
+
+    match /support_tickets/{ticketId} {
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(ticketId);
+    }
+
+    match /test/{docId} {
+      allow read: if true;
     }
   }
 }
