@@ -27,10 +27,33 @@ import {
   storage,
   handleFirestoreError,
   OperationType,
+  ensurePrimaryFirebaseAuthSession,
 } from './firebase';
 
+// Recursively remove undefined fields before passing objects to Firestore setDoc()
+function sanitizeFirestoreData<T>(input: T): T {
+  if (input === null || input === undefined) {
+    return input;
+  }
+  if (Array.isArray(input)) {
+    return input
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeFirestoreData(item)) as unknown as T;
+  }
+  if (typeof input === 'object') {
+    const cleaned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+      if (v !== undefined) {
+        cleaned[k] = sanitizeFirestoreData(v);
+      }
+    }
+    return cleaned as T;
+  }
+  return input;
+}
+
 // Fast timeout wrapper so locked primary Firestore rules or slow network handshakes never delay UI
-function withFastTimeout<T>(promise: Promise<T>, timeoutMs = 900): Promise<T> {
+function withFastTimeout<T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('FAST_TIMEOUT')), timeoutMs);
     promise
@@ -100,32 +123,68 @@ export async function provisionUserInFirebaseAuth(
   return { registeredInAuth, uid: resolvedUid };
 }
 
-// Dual-database helpers: run primary (juthori-com) and mirrorDb in PARALLEL so login & reads are near-instant
+// Dual-database helpers: run primary (juthori-com) and mirrorDb in PARALLEL with automatic undefined sanitization and Auth retry
 async function dualSetDoc(
   pathSegments: [string, ...string[]],
-  data: Record<string, unknown>
-): Promise<{ primaryWritten: boolean; mirrorWritten: boolean; primaryError?: string }> {
+  data: Record<string, unknown>,
+  timeoutMs: number = 4500
+): Promise<{
+  primaryWritten: boolean;
+  mirrorWritten: boolean;
+  primaryError?: string;
+  mirrorError?: string;
+}> {
+  const cleanData = sanitizeFirestoreData(data);
   let primaryWritten = false;
   let mirrorWritten = false;
   let primaryError: string | undefined;
+  let mirrorError: string | undefined;
 
-  const primaryTask = withFastTimeout(setDoc(doc(db, ...pathSegments), data), 900)
-    .then(() => {
+  const primaryTask = (async () => {
+    try {
+      if (!auth.currentUser) {
+        await ensurePrimaryFirebaseAuthSession().catch(() => {});
+      }
+      await withFastTimeout(
+        setDoc(doc(db, ...pathSegments), cleanData),
+        timeoutMs
+      );
       primaryWritten = true;
-    })
-    .catch((err) => {
-      primaryError = err instanceof Error ? err.message : String(err);
-    });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Retry once after ensuring primary Firebase Auth session
+      if (msg.includes('PERMISSION_DENIED') || msg.includes('insufficient permissions')) {
+        try {
+          await ensurePrimaryFirebaseAuthSession();
+          await withFastTimeout(
+            setDoc(doc(db, ...pathSegments), cleanData),
+            timeoutMs
+          );
+          primaryWritten = true;
+          return;
+        } catch (retryErr) {
+          primaryError = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          return;
+        }
+      }
+      primaryError = msg;
+    }
+  })();
 
-  const mirrorTask = setDoc(doc(mirrorDb, ...pathSegments), data)
+  const mirrorTask = withFastTimeout(
+    setDoc(doc(mirrorDb, ...pathSegments), cleanData),
+    timeoutMs
+  )
     .then(() => {
       mirrorWritten = true;
     })
-    .catch(() => {});
+    .catch((err) => {
+      mirrorError = err instanceof Error ? err.message : String(err);
+    });
 
   await Promise.allSettled([primaryTask, mirrorTask]);
 
-  return { primaryWritten, mirrorWritten, primaryError };
+  return { primaryWritten, mirrorWritten, primaryError, mirrorError };
 }
 
 async function dualGetDoc<T = Record<string, unknown>>(
@@ -133,16 +192,26 @@ async function dualGetDoc<T = Record<string, unknown>>(
 ): Promise<T | null> {
   const [mirrorRes, primaryRes] = await Promise.allSettled([
     getDoc(doc(mirrorDb, ...pathSegments)),
-    withFastTimeout(getDoc(doc(db, ...pathSegments)), 800),
+    withFastTimeout(getDoc(doc(db, ...pathSegments)), 2500),
   ]);
 
   if (primaryRes.status === 'fulfilled' && primaryRes.value.exists()) {
-    return primaryRes.value.data() as T;
+    const primaryData = primaryRes.value.data() as T;
+    if (mirrorRes.status === 'fulfilled' && !mirrorRes.value.exists()) {
+      setDoc(
+        doc(mirrorDb, ...pathSegments),
+        sanitizeFirestoreData(primaryData as Record<string, unknown>)
+      ).catch(() => {});
+    }
+    return primaryData;
   }
 
   if (mirrorRes.status === 'fulfilled' && mirrorRes.value.exists()) {
     const data = mirrorRes.value.data() as T;
-    setDoc(doc(db, ...pathSegments), data as Record<string, unknown>).catch(() => {});
+    setDoc(
+      doc(db, ...pathSegments),
+      sanitizeFirestoreData(data as Record<string, unknown>)
+    ).catch(() => {});
     return data;
   }
 
@@ -151,33 +220,51 @@ async function dualGetDoc<T = Record<string, unknown>>(
 
 async function dualDeleteDoc(pathSegments: [string, ...string[]]): Promise<void> {
   await Promise.allSettled([
-    withFastTimeout(deleteDoc(doc(db, ...pathSegments)), 800),
+    withFastTimeout(deleteDoc(doc(db, ...pathSegments)), 2500),
     deleteDoc(doc(mirrorDb, ...pathSegments)),
   ]);
 }
 
 async function dualGetCollection<T extends { id?: string }>(
-  collectionName: string
+  collectionName: string,
+  timeoutMs: number = 3000
 ): Promise<T[]> {
   const mergedMap = new Map<string, T>();
+  const primaryIds = new Set<string>();
+  const mirrorIds = new Set<string>();
 
   const [mirrorRes, primaryRes] = await Promise.allSettled([
-    getDocs(collection(mirrorDb, collectionName)),
-    withFastTimeout(getDocs(collection(db, collectionName)), 850),
+    withFastTimeout(getDocs(collection(mirrorDb, collectionName)), timeoutMs),
+    withFastTimeout(getDocs(collection(db, collectionName)), timeoutMs),
   ]);
 
   if (mirrorRes.status === 'fulfilled') {
     mirrorRes.value.docs.forEach((d) => {
       const item = d.data() as T;
-      mergedMap.set(item.id || d.id, item);
+      const docKey = item.id || d.id;
+      mirrorIds.add(docKey);
+      mergedMap.set(docKey, item);
     });
   }
 
   if (primaryRes.status === 'fulfilled') {
     primaryRes.value.docs.forEach((d) => {
       const item = d.data() as T;
-      mergedMap.set(item.id || d.id, item);
+      const docKey = item.id || d.id;
+      primaryIds.add(docKey);
+      mergedMap.set(docKey, item);
     });
+  }
+
+  // Self-healing cross-database sync: ensure any doc in mirrorDb is also in primary db (juthori-com) and vice-versa
+  for (const [docKey, item] of mergedMap.entries()) {
+    const cleanPayload = sanitizeFirestoreData(item as unknown as Record<string, unknown>);
+    if (!primaryIds.has(docKey)) {
+      setDoc(doc(db, collectionName, docKey), cleanPayload).catch(() => {});
+    }
+    if (!mirrorIds.has(docKey)) {
+      setDoc(doc(mirrorDb, collectionName, docKey), cleanPayload).catch(() => {});
+    }
   }
 
   return Array.from(mergedMap.values());
@@ -208,6 +295,8 @@ export interface UserProfileData {
   familyBranch?: string;
   subscriptionTier: 'free' | 'basic_verified' | 'premium_annual';
   walletBalance: number;
+  paidRevenueUsd?: number;
+  unlockedCapsules?: string[];
   isRootUnlocked?: boolean;
   emailNotificationsEnabled?: boolean;
   createdAt: string;
@@ -775,7 +864,7 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
 // 3. REAL CUSTOMER ORDERS IN FIREBASE (/customer_orders)
 // =============================================================================
 export async function upsertCustomerOrderInFirebase(
-  order: CustomerOrderRecord
+  order: Omit<CustomerOrderRecord, 'createdAt'> & { createdAt?: string }
 ): Promise<void> {
   const safeId = order.id.replace(/[^a-zA-Z0-9_-]/g, '_');
   try {
@@ -784,6 +873,7 @@ export async function upsertCustomerOrderInFirebase(
       {
         ...order,
         id: safeId,
+        createdAt: order.createdAt || new Date().toISOString(),
       } as unknown as Record<string, unknown>
     );
   } catch (err) {
@@ -1372,15 +1462,178 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
   collectionsSeeded: string[];
   juthoriComError?: string;
 }> {
-  // Run legacy dummy purge & Maestro ensure in parallel without blocking repeated refreshes
-  purgeLegacyDummySeedsFromFirestore().catch(() => {});
-  ensureFoundingMaestroInFirebase().catch(() => {});
+  try {
+    // 1. Ensure juthori-com has an authenticated Firebase Auth session in case its rules require request.auth != null
+    await ensurePrimaryFirebaseAuthSession();
 
-  return {
-    juthoriComSynced: true,
-    mirrorSynced: true,
-    collectionsSeeded: ['team_members', 'users'],
-  };
+    // 2. Purge legacy dummy seeds & ensure Founding Maestro exists in both databases
+    await Promise.allSettled([
+      purgeLegacyDummySeedsFromFirestore(),
+      ensureFoundingMaestroInFirebase(),
+    ]);
+
+    // 3. If there is an active customer session in localStorage, ensure its user profile, order, and research ticket are written to Firestore
+    if (typeof window !== 'undefined') {
+      try {
+        const rawSession = localStorage.getItem('juthori_active_user_session');
+        if (rawSession) {
+          const parsed = JSON.parse(rawSession);
+          const sessEmail = (parsed?.email || '').trim().toLowerCase();
+          const sessResult = parsed?.result;
+          const sessUid =
+            parsed?.uid ||
+            auth.currentUser?.uid ||
+            (sessEmail ? `usr_${sessEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}` : '');
+
+          if (sessEmail && sessResult && sessUid) {
+            const fullName = [
+              sessResult.clientName,
+              sessResult.fatherName,
+              sessResult.grandfatherName,
+              sessResult.familyName,
+            ]
+              .filter((s: string) => s && s !== '—')
+              .join(' ');
+            const stateMode = parsed?.stateMode || 'state0_free_onboarding';
+            const isVip = stateMode === 'annual_vip';
+            const isPaid5 = stateMode === 'state1_paid5_basic';
+
+            await Promise.allSettled([
+              createUserProfileIfMissing(
+                { uid: sessUid, email: sessEmail, displayName: fullName },
+                {
+                  fullName,
+                  firstName: sessResult.clientName || '',
+                  fatherName:
+                    sessResult.fatherName && sessResult.fatherName !== '—'
+                      ? sessResult.fatherName
+                      : '',
+                  grandfatherName:
+                    sessResult.grandfatherName && sessResult.grandfatherName !== '—'
+                      ? sessResult.grandfatherName
+                      : '',
+                  familyName: sessResult.familyName || '',
+                  email: sessEmail,
+                  phone: parsed?.phone || '',
+                  accountType:
+                    parsed?.accountType === 'record_keeper'
+                      ? 'record_keeper'
+                      : 'individual',
+                  defaultCountry:
+                    parsed?.defaultCountry || sessResult.originCountry || 'السعودية',
+                  originCountry: sessResult.originCountry || 'السعودية',
+                  originRegion:
+                    parsed?.originRegion || sessResult.originRegion || '',
+                  subscriptionTier: isVip
+                    ? 'premium_annual'
+                    : isPaid5
+                    ? 'basic_verified'
+                    : 'free',
+                  walletBalance: isVip ? 25 : 0,
+                  isRootUnlocked: isVip || isPaid5,
+                }
+              ),
+              upsertCustomerOrderInFirebase({
+                id: `ord_${sessEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${(
+                  sessResult.familyName || 'fam'
+                ).replace(/\s+/g, '_')}`,
+                userId: sessUid,
+                fullName,
+                firstName: sessResult.clientName || '',
+                fatherName: sessResult.fatherName || '—',
+                grandfatherName: sessResult.grandfatherName || '—',
+                familyName: sessResult.familyName || '',
+                originCountry: sessResult.originCountry || 'السعودية',
+                originRegion: sessResult.originRegion || 'غير محدد',
+                email: sessEmail,
+                phone: parsed?.phone || '—',
+                legalRole:
+                  parsed?.accountType === 'record_keeper'
+                    ? 'record_keeper'
+                    : 'individual',
+                accountStatus: isVip
+                  ? 'annual_vip'
+                  : isPaid5
+                  ? 'paid_5_root'
+                  : 'free',
+                walletBalanceUsd: isVip ? 25 : 0,
+                paidRevenueUsd: isVip ? 60 : isPaid5 ? 5 : 0,
+                matchStatus: !sessResult.matched
+                  ? 'open_research_ticket'
+                  : sessResult.isAlphaOnlyBeforeMerge
+                  ? 'staged_3_nodes'
+                  : 'auto_adam_full',
+                ticketId: sessResult.alphaBackgroundTicketCode || '—',
+                ticketType: !sessResult.matched
+                  ? 'طلب عميل P1'
+                  : sessResult.isAlphaOnlyBeforeMerge
+                  ? 'إثراء شجرة آدم P2'
+                  : 'آلي مكتمل',
+                assignedResearcher: 'مفتوح بالمنصة للباحثين',
+                slaStatus: 'جديدة',
+                nodesCountLabel: `${
+                  sessResult.adamSpineNodes?.length || 1
+                } محطة موثقة`,
+              }),
+              syncClientLineageTicketToFirebase({
+                userId: sessUid,
+                userFullName: fullName,
+                userEmail: sessEmail,
+                userPhone: parsed?.phone || '',
+                familyName: sessResult.familyName || '',
+                originCountry: sessResult.originCountry || 'السعودية',
+                originRegion: sessResult.originRegion || '',
+                rootBranchName: sessResult.rootBranchName,
+                rootTribeName: sessResult.rootTribeName,
+                matched: Boolean(sessResult.matched),
+                isAlphaOnlyBeforeMerge: sessResult.isAlphaOnlyBeforeMerge,
+                isAlphaMergedIntoAdam: sessResult.isAlphaMergedIntoAdam,
+                adamNodeId: sessResult.adamNodeId,
+                alphaBackgroundTicketCode: sessResult.alphaBackgroundTicketCode,
+                verifiedSources: sessResult.verified_sources,
+                corroboratingAlphaEvidence:
+                  sessResult.corroborating_alpha_evidence_for_researcher,
+                siblingBranches: sessResult.sibling_branches_in_record,
+                notablesInRecord: sessResult.notables_in_record,
+                enrichedLocations: sessResult.enrichedLocations,
+                adamSpineNodesCount: sessResult.adamSpineNodes?.length || 1,
+              }),
+            ]);
+          }
+        }
+      } catch {
+        // Non-blocking session backfill
+      }
+    }
+
+    // 4. Cross-heal all top-level collections between mirrorDb and juthori-com
+    const targetCollections = [
+      'team_members',
+      'users',
+      'customer_orders',
+      'research_tickets',
+      'knowledge_articles',
+      'charter_requests',
+      'support_tickets',
+      'newsletter_subscribers',
+    ];
+    await Promise.allSettled(
+      targetCollections.map((col) => dualGetCollection< { id?: string; userId?: string } >(col))
+    );
+
+    return {
+      juthoriComSynced: true,
+      mirrorSynced: true,
+      collectionsSeeded: targetCollections,
+    };
+  } catch (err) {
+    return {
+      juthoriComSynced: false,
+      mirrorSynced: true,
+      collectionsSeeded: ['team_members', 'users'],
+      juthoriComError: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecord[]> {
@@ -1663,16 +1916,363 @@ export async function deleteTeamMemberFromFirebase(
 }
 
 // =============================================================================
-// 8. KNOWLEDGE CENTER CMS IN FIREBASE (/knowledge_articles)
+// 8. KNOWLEDGE CENTER CMS IN FIREBASE (/knowledge_articles) & IMAGE ENGINE
 // =============================================================================
+const KNOWLEDGE_LOCAL_BACKUP_KEY = 'juthori_knowledge_articles_backup_v1';
+const KNOWLEDGE_DELETED_IDS_KEY = 'juthori_knowledge_articles_deleted_v1';
+
+function readLocalKnowledgeBackup(): KnowledgeArticleRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(KNOWLEDGE_LOCAL_BACKUP_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as KnowledgeArticleRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalKnowledgeBackup(articles: KnowledgeArticleRecord[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(KNOWLEDGE_LOCAL_BACKUP_KEY, JSON.stringify(articles));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+function readDeletedKnowledgeIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(KNOWLEDGE_DELETED_IDS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addDeletedKnowledgeId(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = readDeletedKnowledgeIds();
+    current.add(id);
+    localStorage.setItem(
+      KNOWLEDGE_DELETED_IDS_KEY,
+      JSON.stringify(Array.from(current))
+    );
+  } catch {
+    // Ignore
+  }
+}
+
+export function normalizeExternalImageUrl(rawUrl: string): string {
+  const trimmed = (rawUrl || '').trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('data:image/') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+
+  // Convert Google Drive sharing links to direct high-res image stream
+  const gdriveMatch =
+    trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+    trimmed.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/) ||
+    trimmed.match(/drive\.google\.com\/uc\?.*id=([a-zA-Z0-9_-]+)/);
+  if (gdriveMatch && gdriveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${gdriveMatch[1]}`;
+  }
+
+  // Convert Dropbox preview links to direct raw image links
+  if (trimmed.includes('dropbox.com/') && trimmed.includes('?dl=0')) {
+    return trimmed.replace('?dl=0', '?raw=1');
+  }
+
+  return trimmed;
+}
+
+export async function compressDataUrlImageIfNeeded(
+  dataUrl: string,
+  mode: 'cover' | 'inline' = 'cover',
+  maxBytesLength: number = 220000
+): Promise<string> {
+  const normalized = normalizeExternalImageUrl(dataUrl);
+  if (!normalized.startsWith('data:image/')) {
+    return normalized;
+  }
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return normalized;
+  }
+
+  return new Promise<string>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        if (mode === 'cover') {
+          // Standardize cover images to 16:9 widescreen editorial format (1200x675)
+          const targetW = 1200;
+          const targetH = 675;
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(normalized);
+            return;
+          }
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          const srcRatio = img.width / Math.max(1, img.height);
+          const dstRatio = targetW / targetH; // 1.777 (16:9)
+
+          if (srcRatio >= 1.35 && srcRatio <= 2.35) {
+            // Landscape image: smart center-cover fill
+            let drawW = targetW;
+            let drawH = targetH;
+            let offsetX = 0;
+            let offsetY = 0;
+            if (srcRatio > dstRatio) {
+              drawH = targetH;
+              drawW = img.width * (targetH / img.height);
+              offsetX = (targetW - drawW) / 2;
+            } else {
+              drawW = targetW;
+              drawH = img.height * (targetW / img.width);
+              offsetY = (targetH - drawH) / 2;
+            }
+            ctx.fillStyle = '#1E1B18';
+            ctx.fillRect(0, 0, targetW, targetH);
+            ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+          } else {
+            // Portrait, square, or vertical manuscript scan:
+            // Draw atmospheric blurred heritage backdrop in 16:9 + full uncropped image sharp in center
+            ctx.fillStyle = '#1E1B18';
+            ctx.fillRect(0, 0, targetW, targetH);
+            ctx.save();
+            ctx.filter = 'blur(22px) brightness(0.48)';
+            const bgScale = Math.max(targetW / img.width, targetH / img.height) * 1.1;
+            const bgW = img.width * bgScale;
+            const bgH = img.height * bgScale;
+            ctx.drawImage(
+              img,
+              (targetW - bgW) / 2,
+              (targetH - bgH) / 2,
+              bgW,
+              bgH
+            );
+            ctx.restore();
+
+            // Subtle vignette frame
+            const fgScale = Math.min(targetW / img.width, targetH / img.height);
+            const fgW = Math.round(img.width * fgScale);
+            const fgH = Math.round(img.height * fgScale);
+            const fgX = Math.round((targetW - fgW) / 2);
+            const fgY = Math.round((targetH - fgH) / 2);
+            ctx.drawImage(img, fgX, fgY, fgW, fgH);
+          }
+
+          let out = canvas.toDataURL('image/jpeg', 0.84);
+          if (out.length > maxBytesLength) {
+            out = canvas.toDataURL('image/jpeg', 0.72);
+          }
+          if (out.length > maxBytesLength) {
+            // Step down to 960x540 (16:9) if still above budget
+            const smallCanvas = document.createElement('canvas');
+            smallCanvas.width = 960;
+            smallCanvas.height = 540;
+            const sCtx = smallCanvas.getContext('2d');
+            if (sCtx) {
+              sCtx.imageSmoothingEnabled = true;
+              sCtx.imageSmoothingQuality = 'high';
+              sCtx.drawImage(canvas, 0, 0, 960, 540);
+              out = smallCanvas.toDataURL('image/jpeg', 0.75);
+            }
+          }
+          resolve(out);
+        } else {
+          // Inline article image: preserve natural aspect ratio up to 960x640
+          const maxW = 960;
+          const maxH = 640;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxW) {
+            height = Math.round((height * maxW) / width);
+            width = maxW;
+          }
+          if (height > maxH) {
+            width = Math.round((width * maxH) / height);
+            height = maxH;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(normalized);
+            return;
+          }
+          ctx.fillStyle = '#FAF6F0';
+          ctx.fillRect(0, 0, width, height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let out = canvas.toDataURL('image/jpeg', 0.82);
+          if (out.length > maxBytesLength) {
+            out = canvas.toDataURL('image/jpeg', 0.7);
+          }
+          resolve(out);
+        }
+      } catch {
+        resolve(normalized);
+      }
+    };
+    img.onerror = () => resolve(normalized);
+    img.src = normalized;
+  });
+}
+
+export async function processAndUploadKnowledgeImage(
+  file: File,
+  mode: 'cover' | 'inline' = 'cover'
+): Promise<{ url: string; width: number; height: number }> {
+  const rawDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+
+  const standardizedDataUrl = await compressDataUrlImageIfNeeded(
+    rawDataUrl,
+    mode,
+    mode === 'cover' ? 220000 : 160000
+  );
+
+  // Also try uploading to Firebase Storage with a fast timeout; if Storage rules block unauthenticated uploads, use standardizedDataUrl
+  try {
+    const response = await fetch(standardizedDataUrl);
+    const blob = await response.blob();
+    const storagePath = `knowledge_articles/${mode}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 6)}.jpg`;
+    const storageRef = ref(storage, storagePath);
+    await withFastTimeout(uploadBytes(storageRef, blob), 1800);
+    const downloadUrl = await withFastTimeout(getDownloadURL(storageRef), 1200);
+    if (downloadUrl) {
+      return {
+        url: downloadUrl,
+        width: mode === 'cover' ? 1200 : 960,
+        height: mode === 'cover' ? 675 : 640,
+      };
+    }
+  } catch {
+    // Fallback to standardized high-clarity data URL stored directly in Firestore
+  }
+
+  return {
+    url: standardizedDataUrl,
+    width: mode === 'cover' ? 1200 : 960,
+    height: mode === 'cover' ? 675 : 640,
+  };
+}
+
+async function optimizeInlineImagesInHtml(html: string): Promise<string> {
+  if (!html || !html.includes('data:image/')) return html;
+  const imgSrcRegex = /src=["'](data:image\/[^"']+)["']/g;
+  const matches = Array.from(html.matchAll(imgSrcRegex));
+  if (matches.length === 0) return html;
+
+  let updatedHtml = html;
+  const perImageBudget = Math.min(
+    160000,
+    Math.floor(550000 / Math.max(1, matches.length))
+  );
+
+  for (const match of matches) {
+    const originalDataUrl = match[1];
+    if (originalDataUrl && originalDataUrl.length > perImageBudget) {
+      const compressed = await compressDataUrlImageIfNeeded(
+        originalDataUrl,
+        'inline',
+        perImageBudget
+      );
+      updatedHtml = updatedHtml.replace(originalDataUrl, compressed);
+    }
+  }
+  return updatedHtml;
+}
+
 export async function fetchKnowledgeArticlesFromFirebase(
   publishedOnly: boolean = false
 ): Promise<KnowledgeArticleRecord[]> {
-  const list = await dualGetCollection<KnowledgeArticleRecord>('knowledge_articles');
-  const sorted = list
-    .filter((a) => a.id !== 'art_methodology_01' && a.id !== 'art_arab_migrations_02')
-    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  return publishedOnly ? sorted.filter((a) => a.status === 'published') : sorted;
+  const deletedIds = readDeletedKnowledgeIds();
+  const list = await dualGetCollection<KnowledgeArticleRecord>(
+    'knowledge_articles',
+    4000
+  );
+  const localBackup = readLocalKnowledgeBackup();
+
+  const mergedById = new Map<string, KnowledgeArticleRecord>();
+
+  // 1. Seed from local backup first so recently saved articles are never lost
+  for (const item of localBackup) {
+    if (
+      item &&
+      item.id &&
+      !deletedIds.has(item.id) &&
+      item.id !== 'art_methodology_01' &&
+      item.id !== 'art_arab_migrations_02'
+    ) {
+      mergedById.set(item.id, item);
+    }
+  }
+
+  // 2. Overlay live Firestore documents (preferring newer updatedAt)
+  const remoteIds = new Set<string>();
+  for (const remoteItem of list) {
+    if (
+      !remoteItem ||
+      !remoteItem.id ||
+      deletedIds.has(remoteItem.id) ||
+      remoteItem.id === 'art_methodology_01' ||
+      remoteItem.id === 'art_arab_migrations_02'
+    ) {
+      continue;
+    }
+    remoteIds.add(remoteItem.id);
+    const existingLocal = mergedById.get(remoteItem.id);
+    if (
+      !existingLocal ||
+      (remoteItem.updatedAt || remoteItem.createdAt || '') >=
+        (existingLocal.updatedAt || existingLocal.createdAt || '')
+    ) {
+      mergedById.set(remoteItem.id, remoteItem);
+    }
+  }
+
+  const finalAll = Array.from(mergedById.values()).sort((a, b) =>
+    (b.createdAt || '').localeCompare(a.createdAt || '')
+  );
+
+  // Update local backup with merged truth
+  writeLocalKnowledgeBackup(finalAll);
+
+  // 3. Background self-healing: if any article in finalAll wasn't in remote Firestore yet, push it to Firestore
+  for (const item of finalAll) {
+    if (!remoteIds.has(item.id)) {
+      dualSetDoc(
+        ['knowledge_articles', item.id],
+        item as unknown as Record<string, unknown>,
+        5000
+      ).catch(() => {});
+    }
+  }
+
+  return publishedOnly
+    ? finalAll.filter((a) => a.status === 'published')
+    : finalAll;
 }
 
 export async function saveKnowledgeArticleToFirebase(
@@ -1689,24 +2289,39 @@ export async function saveKnowledgeArticleToFirebase(
   const section = (article.section || article.category || 'الروايات والذاكرة').trim();
   const filter = (article.filter || 'عام').trim();
   const type: KnowledgeContentType = article.type === 'فيديو' ? 'فيديو' : 'مقال';
-  const description = (article.description || article.summary || '').trim();
-  const content = (article.content || description).trim();
+  const description = (article.description || article.summary || '')
+    .trim()
+    .slice(0, 4500);
+  const rawContent = (article.content || description).trim();
+  const optimizedContent = (await optimizeInlineImagesInHtml(rawContent)).slice(
+    0,
+    900000
+  );
+
+  const rawCoverUrl = (article.coverImageUrl || '').trim();
+  const optimizedCoverUrl = rawCoverUrl.startsWith('data:image/')
+    ? await compressDataUrlImageIfNeeded(rawCoverUrl, 'cover', 220000)
+    : normalizeExternalImageUrl(rawCoverUrl);
+
   const author = (article.author || article.authorName || '').trim();
   const editor = (article.editor || '').trim();
   const publishDate = (
     article.publishDate || new Date().toISOString().split('T')[0]
   ).trim();
 
+  // Preserve original createdAt if editing an existing article
+  const existingBackup = readLocalKnowledgeBackup().find((a) => a.id === id);
+
   const record: KnowledgeArticleRecord = {
     id,
-    title: article.title.trim(),
+    title: article.title.trim().slice(0, 480),
     section,
     filter,
     type,
     description,
     category: `${section} - ${filter}`,
     summary: description,
-    content,
+    content: optimizedContent,
     author,
     editor,
     authorName: author || editor || 'هيئة تحرير المركز المعرفي',
@@ -1714,18 +2329,33 @@ export async function saveKnowledgeArticleToFirebase(
     imageCaption: (article.imageCaption || '').trim(),
     imageCopyright: (article.imageCopyright || '').trim(),
     coverTextOverlay: (article.coverTextOverlay || '').trim(),
-    coverImageUrl: (article.coverImageUrl || '').trim(),
+    coverImageUrl: optimizedCoverUrl,
     videoUrl: (article.videoUrl || '').trim(),
     duration: (article.duration || '').trim(),
     status: article.status || 'published',
-    createdAt: article.createdAt || new Date().toISOString(),
+    createdAt:
+      article.createdAt ||
+      existingBackup?.createdAt ||
+      new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
+  // 1. Immediately update local backup so it is never lost
+  const currentLocal = readLocalKnowledgeBackup().filter((a) => a.id !== id);
+  writeLocalKnowledgeBackup([record, ...currentLocal]);
+
+  // 2. Persist to both Firestore databases with a generous 5500ms timeout
   await dualSetDoc(
     ['knowledge_articles', id],
-    record as unknown as Record<string, unknown>
+    record as unknown as Record<string, unknown>,
+    5500
   );
+
+  // 3. Notify any mounted KnowledgeCenterView or LandingPage instances
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('juthori-knowledge-articles-updated'));
+  }
+
   return record;
 }
 
@@ -1733,7 +2363,17 @@ export async function deleteKnowledgeArticleFromFirebase(
   articleId: string
 ): Promise<void> {
   const safeId = articleId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  addDeletedKnowledgeId(safeId);
+  const currentLocal = readLocalKnowledgeBackup().filter(
+    (a) => a.id !== safeId && a.id !== articleId
+  );
+  writeLocalKnowledgeBackup(currentLocal);
+
   await dualDeleteDoc(['knowledge_articles', safeId]);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('juthori-knowledge-articles-updated'));
+  }
 }
 
 export async function subscribeToNewsletterInFirebase(

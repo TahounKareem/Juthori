@@ -215,14 +215,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [supportError, setSupportError] = useState('');
 
   useEffect(() => {
-    fetchKnowledgeArticlesFromFirebase(true)
-      .then((articles) => {
-        if (articles.length > 0) {
+    const loadPublished = () => {
+      fetchKnowledgeArticlesFromFirebase(true)
+        .then((articles) => {
           setPublishedArticles(articles);
-        }
-      })
-      .catch(() => {});
-  }, []);
+        })
+        .catch(() => {});
+    };
+    loadPublished();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('juthori-knowledge-articles-updated', loadPublished);
+      return () => {
+        window.removeEventListener(
+          'juthori-knowledge-articles-updated',
+          loadPublished
+        );
+      };
+    }
+  }, [activePublicPage]);
 
   useEffect(() => {
     if (!languageMenuOpen) return;

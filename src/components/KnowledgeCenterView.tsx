@@ -102,24 +102,51 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
   };
 
   useEffect(() => {
-    if (externalArticles) {
-      setArticles(externalArticles);
-      setLoading(false);
-      return;
-    }
     let mounted = true;
-    fetchKnowledgeArticlesFromFirebase(true)
-      .then((list) => {
-        if (mounted) {
-          setArticles(list);
+
+    const loadArticles = () => {
+      if (externalArticles && externalArticles.length > 0) {
+        setArticles(externalArticles);
+        setLoading(false);
+      }
+      fetchKnowledgeArticlesFromFirebase(true)
+        .then((list) => {
+          if (!mounted) return;
+          if (externalArticles && externalArticles.length > 0) {
+            const byId = new Map<string, KnowledgeArticleRecord>();
+            externalArticles.forEach((a) => {
+              if (a.status !== 'draft') byId.set(a.id, a);
+            });
+            list.forEach((a) => {
+              if (a.status !== 'draft') byId.set(a.id, a);
+            });
+            setArticles(Array.from(byId.values()));
+          } else {
+            setArticles(list);
+          }
           setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (mounted) setLoading(false);
-      });
+        })
+        .catch(() => {
+          if (mounted) setLoading(false);
+        });
+    };
+
+    loadArticles();
+
+    const handleUpdated = () => {
+      loadArticles();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('juthori-knowledge-articles-updated', handleUpdated);
+    }
     return () => {
       mounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(
+          'juthori-knowledge-articles-updated',
+          handleUpdated
+        );
+      }
     };
   }, [externalArticles]);
 
@@ -243,10 +270,26 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
           </div>
         </div>
 
-        {/* Image Caption & Copyright */}
-        {(selectedArticle.imageCaption || selectedArticle.imageCopyright) && (
-          <div className="max-w-4xl mx-auto px-5 sm:px-8 pt-4">
-            <div className="flex flex-wrap justify-between items-center gap-2 text-xs text-[#252321]/70 bg-[#EDE6DA]/70 px-4 py-2.5 rounded-xl border border-[#B98A78]/35">
+        {/* Standardized 16:9 Editorial Cover Image Showcase */}
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 mt-6">
+          <div className="relative aspect-video w-full rounded-3xl overflow-hidden bg-[#252321] border border-[#B98A78]/45 shadow-md">
+            <ResilientImage
+              src={coverSrc}
+              alt={selectedArticle.title}
+              className="w-full h-full object-cover"
+            />
+            {selectedArticle.coverTextOverlay && (
+              <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/85 via-transparent to-transparent flex items-end p-5 sm:p-7">
+                <p className="text-white font-display font-bold text-base sm:text-xl drop-shadow-md">
+                  {selectedArticle.coverTextOverlay}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Image Caption & Copyright */}
+          {(selectedArticle.imageCaption || selectedArticle.imageCopyright) && (
+            <div className="mt-3 flex flex-wrap justify-between items-center gap-2 text-xs text-[#252321]/75 bg-[#EDE6DA]/70 px-4 py-2.5 rounded-xl border border-[#B98A78]/35">
               {selectedArticle.imageCaption && (
                 <span>{selectedArticle.imageCaption}</span>
               )}
@@ -256,11 +299,11 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                 </span>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Article / Video Content Container */}
-        <div className="max-w-4xl mx-auto px-5 sm:px-8 mt-8">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 mt-6">
           <div className="bg-[#FAF6F0] rounded-3xl p-6 sm:p-10 shadow-xs border border-[#B98A78]/35">
             {selectedArticle.type === 'فيديو' && selectedArticle.videoUrl && (
               <div className="mb-8 rounded-2xl overflow-hidden shadow-md aspect-video bg-[#252321] border border-[#B98A78]/40">
@@ -282,7 +325,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
 
             {isHtmlContent ? (
               <div
-                className="prose prose-lg max-w-none text-[#252321]/90 leading-loose space-y-4 font-sans"
+                className="prose prose-lg max-w-none text-[#252321]/90 leading-loose space-y-4 font-sans [&_img]:w-full [&_img]:max-h-[520px] [&_img]:object-contain [&_img]:bg-[#F7F2E9] [&_img]:rounded-2xl [&_img]:border [&_img]:border-[#B98A78]/40 [&_img]:my-5 [&_figure]:my-6"
                 dangerouslySetInnerHTML={{
                   __html: selectedArticle.content || '',
                 }}
@@ -518,14 +561,14 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                 onClick={() => setSelectedArticle(item)}
                 className="bg-[#FAF6F0] rounded-2xl overflow-hidden shadow-xs border border-[#B98A78]/40 hover:shadow-md hover:border-[#D8755B]/60 transition-all group cursor-pointer flex flex-col"
               >
-                {/* Card Cover Image */}
-                <div className="relative h-52 w-full bg-[#252321] overflow-hidden">
+                {/* Card Cover Image (Standardized 16:9 Widescreen Editorial Aspect Ratio) */}
+                <div className="relative aspect-video w-full bg-[#252321] overflow-hidden shrink-0">
                   <ResilientImage
                     src={coverSrc}
                     alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/85 via-[#252321]/25 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/80 via-[#252321]/20 to-transparent pointer-events-none" />
 
                   {/* Optional Text Overlay on Cover */}
                   {item.coverTextOverlay && (

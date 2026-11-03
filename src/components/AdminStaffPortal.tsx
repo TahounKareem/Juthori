@@ -56,12 +56,15 @@ import {
   fetchCharterRequestsFromFirebase,
   fetchKnowledgeArticlesFromFirebase,
   fetchSupportTicketsFromFirebase,
+  normalizeExternalImageUrl,
+  processAndUploadKnowledgeImage,
   resolveSupportTicketInFirebase,
   saveKnowledgeArticleToFirebase,
   updateCustomerOrderInFirebase,
   updateTeamMemberStatusInFirebase,
 } from '../services/firestoreService';
 import { JuthoriLogo } from './JuthoriLogo';
+import { ResilientImage } from './ResilientImage';
 import { ResearcherStudio } from './ResearcherStudio';
 import {
   KNOWLEDGE_BASE_SECTIONS,
@@ -284,6 +287,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [articleDuration, setArticleDuration] = useState('');
   const [articleStatus, setArticleStatus] = useState<'published' | 'draft'>('published');
   const [isSavingArticle, setIsSavingArticle] = useState(false);
+  const [isUploadingCoverImage, setIsUploadingCoverImage] = useState(false);
+  const [isUploadingInlineImage, setIsUploadingInlineImage] = useState(false);
 
   // Rich Text Editor refs & inline insertion helpers
   const richEditorRef = useRef<HTMLDivElement | null>(null);
@@ -335,21 +340,26 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     syncEditorContentToState();
   };
 
-  const handleInlineEditorImageUpload = (
+  const handleInlineEditorImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        insertHtmlAtCursor(
-          `<figure style="margin: 18px 0; text-align: center;"><img src="${reader.result}" alt="صورة مرفقة" style="max-width: 100%; border-radius: 14px; border: 1px solid #B98A78; margin: 0 auto;" /></figure><p><br/></p>`
-        );
-      }
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+    if (!file) return;
+    setIsUploadingInlineImage(true);
+    try {
+      const processed = await processAndUploadKnowledgeImage(file, 'inline');
+      if (processed?.url) {
+        insertHtmlAtCursor(
+          `<figure style="margin: 20px auto; text-align: center; max-width: 100%;"><img src="${processed.url}" alt="صورة مرفقة" style="width: 100%; max-height: 480px; object-fit: contain; background: #FAF6F0; border-radius: 16px; border: 1px solid rgba(185,138,120,0.45); margin: 0 auto; display: block;" /></figure><p><br/></p>`
+        );
+        triggerToast('تم تحسين أبعاد الصورة وإدراجها داخل المقال بنجاح ✓');
+      }
+    } catch {
+      triggerToast('تعذر معالجة الصورة المرفقة.');
+    } finally {
+      setIsUploadingInlineImage(false);
+    }
   };
 
   const applyQuickArticleTemplate = (
@@ -448,16 +458,29 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     }, 20);
   };
 
-  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setArticleCoverImageUrl(reader.result);
+    setIsUploadingCoverImage(true);
+    try {
+      const standardizedCover = await processAndUploadKnowledgeImage(
+        file,
+        'cover'
+      );
+      if (standardizedCover?.url) {
+        setArticleCoverImageUrl(standardizedCover.url);
+        triggerToast(
+          `تمت معايرة صورة الغلاف بالأبعاد القياسية (${standardizedCover.width}×${standardizedCover.height} · 16:9) بنجاح ✓`
+        );
       }
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      triggerToast('تعذر تحميل ومعالجة صورة الغلاف.');
+    } finally {
+      setIsUploadingCoverImage(false);
+    }
   };
 
   // Handle /Team Staff Login
@@ -652,10 +675,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           : [saved, ...prev];
       });
 
+      // Also refresh from Firebase to verify live persistence
+      fetchKnowledgeArticlesFromFirebase(false)
+        .then((freshList) => {
+          if (freshList.length > 0) {
+            setKnowledgeArticles(freshList);
+          }
+        })
+        .catch(() => {});
+
       setIsArticleModalOpen(false);
       setEditingArticleId(null);
       triggerToast(
-        `تم حفظ ونشر الموضوع "${saved.title}" في المركز المعرفي عبر Firebase ✓`
+        `تم حفظ ونشر الموضوع "${saved.title}" في قواعد بيانات Firebase والمركز المعرفي ✓`
       );
     } catch {
       triggerToast('تعذر حفظ الموضوع في قاعدة البيانات.');
@@ -1482,13 +1514,33 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           className="hover:bg-[#FCFBF8] transition-colors"
                         >
                           <td className="p-4 font-bold text-[#252321]">
-                            <div>{article.title}</div>
-                            {(article.author || article.authorName) && (
-                              <div className="text-[11px] font-normal text-[#6E6456] mt-0.5">
-                                {article.author || article.authorName}
-                                {article.editor ? ` · تحرير: ${article.editor}` : ''}
+                            <div className="flex items-center gap-3">
+                              <div className="w-20 aspect-video rounded-lg overflow-hidden bg-[#252321] border border-[#B98A78]/40 shrink-0">
+                                <ResilientImage
+                                  src={article.coverImageUrl || ''}
+                                  alt={article.title}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
-                            )}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span>{article.title}</span>
+                                  {article.status === 'draft' && (
+                                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                      مسودة
+                                    </span>
+                                  )}
+                                </div>
+                                {(article.author || article.authorName) && (
+                                  <div className="text-[11px] font-normal text-[#6E6456] mt-0.5">
+                                    {article.author || article.authorName}
+                                    {article.editor
+                                      ? ` · تحرير: ${article.editor}`
+                                      : ''}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           <td className="p-4">
                             <span
@@ -1913,14 +1965,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </div>
 
                   {articleCoverImageUrl && (
-                    <div className="relative h-56 rounded-2xl overflow-hidden bg-[#252321]">
-                      <img
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#252321] border border-[#B98A78]/40 shadow-sm">
+                      <ResilientImage
                         src={articleCoverImageUrl}
-                        alt={articleTitle}
-                        className="w-full h-full object-cover opacity-90"
+                        alt={articleTitle || 'معاينة صورة الغلاف'}
+                        className="w-full h-full object-cover"
                       />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/75 via-transparent to-transparent pointer-events-none" />
                       {articleCoverTextOverlay && (
-                        <div className="absolute bottom-3 right-3 left-3 text-white font-display font-bold text-base drop-shadow-md">
+                        <div className="absolute bottom-4 right-4 left-4 text-white font-display font-bold text-base sm:text-lg drop-shadow-md">
                           {articleCoverTextOverlay}
                         </div>
                       )}
@@ -2364,11 +2417,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       {/* Insert Image inside Article Body (Red/Terracotta Framed Button matching screenshot) */}
                       <button
                         type="button"
+                        disabled={isUploadingInlineImage}
                         onClick={() => inlineImageInputRef.current?.click()}
-                        className="px-2.5 py-1 rounded-lg border border-[#8D4925]/40 bg-white hover:bg-[#FAF6F0] text-[11px] font-bold text-[#8D4925] cursor-pointer"
-                        title="رفع وإدراج صورة من جهازك داخل نص المقال"
+                        className="px-2.5 py-1 rounded-lg border border-[#8D4925]/40 bg-white hover:bg-[#FAF6F0] text-[11px] font-bold text-[#8D4925] cursor-pointer disabled:opacity-50"
+                        title="رفع وإدراج صورة من جهازك داخل نص المقال بأبعاد قياسية"
                       >
-                        إدراج صورة
+                        {isUploadingInlineImage
+                          ? 'جاري معالجة الصورة...'
+                          : 'إدراج صورة'}
                       </button>
                       <button
                         type="button"
@@ -2444,8 +2500,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         type="button"
                         onClick={() => {
                           if (inlineImageUrl.trim()) {
+                            const normalizedUrl = normalizeExternalImageUrl(
+                              inlineImageUrl.trim()
+                            );
                             insertHtmlAtCursor(
-                              `<figure style="margin: 18px 0; text-align: center;"><img src="${inlineImageUrl.trim()}" alt="صورة داخل المقال" style="max-width: 100%; border-radius: 14px; border: 1px solid #B98A78; margin: 0 auto;" /></figure><p><br/></p>`
+                              `<figure style="margin: 20px auto; text-align: center; max-width: 100%;"><img src="${normalizedUrl}" alt="صورة داخل المقال" style="width: 100%; max-height: 480px; object-fit: contain; background: #FAF6F0; border-radius: 16px; border: 1px solid rgba(185,138,120,0.45); margin: 0 auto; display: block;" /></figure><p><br/></p>`
                             );
                             setInlineImageUrl('');
                             setShowInlineImageUrlInput(false);
@@ -2489,49 +2548,78 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </h4>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                      رابط صورة الغلاف (اختياري)
-                    </label>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                      <label className="block text-xs font-bold text-[#252321]">
+                        رابط صورة الغلاف (اختياري)
+                      </label>
+                      <span className="text-[11px] font-bold text-[#8D4925] bg-[#FAF6F0] px-2.5 py-0.5 rounded-full border border-[#E2DACB]">
+                        الأبعاد القياسية المعتمدة: 16:9 (1200×675 بكسل) — تتم المعايرة تلقائياً عند الإرفاق
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2.5">
                       <input
                         type="text"
                         dir="ltr"
                         value={articleCoverImageUrl}
-                        onChange={(e) => setArticleCoverImageUrl(e.target.value)}
+                        onChange={(e) =>
+                          setArticleCoverImageUrl(
+                            normalizeExternalImageUrl(e.target.value)
+                          )
+                        }
                         placeholder="https://example.com/image.jpg"
                         className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
                       />
-                      <label className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-xs font-bold cursor-pointer shrink-0 border border-[#D8D0C0] transition-colors">
-                        <span>إرفاق صورة</span>
+                      <label
+                        className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-xs font-bold cursor-pointer shrink-0 border border-[#D8D0C0] transition-colors ${
+                          isUploadingCoverImage ? 'opacity-60 pointer-events-none' : ''
+                        }`}
+                      >
+                        <span>
+                          {isUploadingCoverImage
+                            ? 'جاري معايرة الأبعاد...'
+                            : 'إرفاق صورة'}
+                        </span>
                         <input
                           type="file"
                           accept="image/*"
+                          disabled={isUploadingCoverImage}
                           onChange={handleCoverImageUpload}
                           className="hidden"
                         />
                       </label>
                     </div>
                     <p className="text-[11px] text-[#8D4925] font-semibold mt-1">
-                      أضف رابط مباشر للصور أو قم بتحميل ملف صورة.
+                      أضف رابط مباشر للصور أو قم بتحميل ملف صورة (يتم ضبط الأبعاد القياسية 16:9 تلقائياً).
                     </p>
 
                     {articleCoverImageUrl && (
-                      <div className="mt-2.5 inline-flex items-center gap-3 p-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB]">
-                        <img
-                          src={articleCoverImageUrl}
-                          alt="معاينة الغلاف"
-                          className="w-16 h-11 object-cover rounded-lg border border-[#B98A78]/40"
-                        />
-                        <span className="text-[11px] font-bold text-[#252321]">
-                          تم إرفاق صورة الغلاف ✓
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setArticleCoverImageUrl('')}
-                          className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer px-2"
-                        >
-                          إزالة
-                        </button>
+                      <div className="mt-3 p-3 rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-[#252321]">
+                            معاينة صورة الغلاف بالأبعاد القياسية (16:9) ✓
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setArticleCoverImageUrl('')}
+                            className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer px-2"
+                          >
+                            إزالة الصورة
+                          </button>
+                        </div>
+                        <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-[#252321] border border-[#B98A78]/45 shadow-xs">
+                          <ResilientImage
+                            src={articleCoverImageUrl}
+                            alt="معاينة الغلاف القياسية"
+                            className="w-full h-full object-cover"
+                          />
+                          {articleCoverTextOverlay && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/80 via-transparent to-transparent flex items-end p-3">
+                              <span className="text-white font-display font-bold text-xs sm:text-sm drop-shadow">
+                                {articleCoverTextOverlay}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

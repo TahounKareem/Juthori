@@ -17,26 +17,22 @@ import {
 } from 'lucide-react';
 import {
   AccountLegalType,
+  ConsensusClusterGroup,
   CorroboratingAlphaEvidence,
+  DashboardStateMode,
   LineageSearchResult,
-  UpperAncestorNode,
 } from '../types/juthori';
 import {
   AdamTreeInteractiveNode,
   ORIGIN_REGION_SUGGESTIONS,
+  computeCrossSourceConsensusClusters,
   formatAlphaEvidenceCitation,
   getInitialAdamTreeGraphNodes,
   inspectNameInAdamMasterTree,
   resolveDeterministicLineage,
-  resolveSpineConnectorLabel,
   searchJuthoriLineage,
 } from '../utils/lineageEngine';
-import {
-  HeritageNodeAvatar,
-  getHistoricalEraBadgeLabel,
-  resolveNodeHistoricalEra,
-} from './HeritageNodeAvatar';
-import { getCleanSpineNodeName } from './LineageSpineColumn';
+import { LineageSpineColumn } from './LineageSpineColumn';
 import {
   fetchAllResearchTicketsForStaff,
   sendCustomerNotification,
@@ -738,6 +734,226 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           ]
         : [],
     });
+  };
+
+  // =========================================================================
+  // RULE 4: CONSENSUS & COMPETING PATHS MATRIX FOR RESEARCHERS
+  // Displays "🌟 المسار المتوافق عليه في المصادر" & "📚 مسارات أخرى لنفس الاسم في المصادر للمقارنة"
+  // =========================================================================
+  const renderConsensusAndCompetingPathsMatrix = (
+    familyName: string,
+    evidenceList: CorroboratingAlphaEvidence[] | undefined,
+    contextMode: 'direct_search' | 'ticket_inbox'
+  ) => {
+    const safeEvidence = evidenceList || [];
+    if (safeEvidence.length === 0) return null;
+
+    const clusters: ConsensusClusterGroup[] = computeCrossSourceConsensusClusters(
+      familyName,
+      safeEvidence
+    );
+    if (clusters.length === 0) return null;
+
+    const consensusWinner =
+      clusters.find((c) => c.isConsensusWinner) || clusters[0];
+    const competingClusters = clusters.filter(
+      (c) => c.clusterId !== consensusWinner.clusterId
+    );
+
+    return (
+      <div
+        data-testid={`researcher-consensus-matrix-${contextMode}`}
+        className="space-y-4 rounded-2xl border border-stone-200 bg-[#FAF8F5] p-5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-3">
+          <div>
+            <h4 className="text-sm font-bold font-serif text-[#141414]">
+              خوارزمية التوافق والمقارنة بين المصادر المتعددة لاسم ({familyName})
+            </h4>
+            <p className="text-xs text-stone-500 mt-0.5">
+              تحليل آلي لتقاطع حقلَي «نسب الأجداد» و«الفروع الأبناء» عبر ({safeEvidence.length}) سجلات مرصودة
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold">
+            {clusters.length === 1
+              ? 'مسار موحد في المصادر ✓'
+              : `${clusters.length} مسارات مرصودة للمقارنة`}
+          </span>
+        </div>
+
+        {/* SECTION 1: 🌟 مسار التوافق المرجعي المرجّح (Consensus Cluster) */}
+        <div className="rounded-2xl border-2 border-emerald-600/80 bg-emerald-50/60 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-extrabold font-serif text-emerald-950">
+                🌟 مسار التوافق المرجعي المرجّح (Consensus Cluster)
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white text-[11px] font-bold">
+                مرجّح في عدة مصادر ({consensusWinner.sourcesCount} مراجع)
+              </span>
+            </div>
+
+            {contextMode === 'direct_search' &&
+              directSearchResult?.optionAResultOverride && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDirectSearchResult({
+                      ...directSearchResult,
+                      ...directSearchResult.optionAResultOverride,
+                    })
+                  }
+                  className="px-3 py-1 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                >
+                  عرض هذا المسار في العمود أعلاه
+                </button>
+              )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div className="bg-white rounded-xl p-2.5 border border-emerald-200">
+              <span className="text-[11px] text-stone-500 block">
+                الأصل / القبيلة الأم المرجّحة:
+              </span>
+              <span className="font-extrabold text-emerald-950">
+                {consensusWinner.originTribeLabel}
+              </span>
+            </div>
+            <div className="bg-white rounded-xl p-2.5 border border-emerald-200">
+              <span className="text-[11px] text-stone-500 block">
+                عقدتا الجذر ($5):
+              </span>
+              <span className="font-bold text-stone-900">
+                {consensusWinner.rootPreviewLabel}
+              </span>
+            </div>
+            <div className="bg-white rounded-xl p-2.5 border border-emerald-200">
+              <span className="text-[11px] text-stone-500 block">
+                النطاق الجغرافي المتوافق عليه:
+              </span>
+              <span className="font-bold text-stone-900">
+                {consensusWinner.geographicScope}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-3 border border-emerald-200 space-y-1.5">
+            <div className="text-[11px] font-bold text-emerald-900">
+              السلسلة الكاملة المتفق عليها والعُقد المشتركة ({consensusWinner.sharedNodes.join(' ، ')}):
+            </div>
+            <p className="text-xs font-bold text-stone-800 leading-relaxed">
+              {consensusWinner.fullChainNodes.join(' ⬅️ ')}
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {consensusWinner.records.slice(0, 6).map((ev: CorroboratingAlphaEvidence, i: number) => (
+                <span
+                  key={ev.alpha_id || i}
+                  className="px-2 py-0.5 rounded bg-emerald-100/80 border border-emerald-300 text-[10px] font-bold text-emerald-950"
+                >
+                  {ev.source_book}
+                  {ev.volume ? ` (ج${ev.volume}` : ''}
+                  {ev.page ? ` ص${ev.page})` : ev.volume ? ')' : ''}
+                </span>
+              ))}
+              {consensusWinner.records.length > 6 && (
+                <span className="px-2 py-0.5 rounded bg-emerald-200 text-[10px] font-bold text-emerald-950">
+                  +{consensusWinner.records.length - 6} مصادر أخرى متفقة
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 2: 📚 سجلات ومسارات أخرى متشابهة بالاسم في المصادر */}
+        <div className="rounded-2xl border border-amber-300 bg-amber-50/50 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-extrabold font-serif text-amber-950">
+              📚 سجلات ومسارات أخرى متشابهة بالاسم في المصادر
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-950 text-[11px] font-bold">
+              {competingClusters.length > 0
+                ? `${competingClusters.length} مسار منافس مرصود`
+                : 'لا توجد مسارات متعارضة أخرى'}
+            </span>
+          </div>
+
+          {competingClusters.length === 0 ? (
+            <p className="text-xs text-stone-600 bg-white rounded-xl p-3 border border-amber-200">
+              جميع المصادر المرصودة لاسم ({familyName}) تتفق على مسار نسبي واحد ولا توجد روايات متعارضة في القاعدة.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {competingClusters.map((comp) => {
+                const chainCount = comp.fullChainNodes.length;
+                return (
+                  <div
+                    key={comp.clusterId}
+                    className="bg-white rounded-xl p-3.5 border border-amber-300 space-y-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 border border-amber-300 text-amber-950 text-xs font-extrabold">
+                          الأصل / القبيلة: {comp.originTribeLabel}
+                        </span>
+                        <span className="text-xs font-bold text-stone-700">
+                          الجذر ($5): {comp.rootPreviewLabel}
+                        </span>
+                        {chainCount > 6 && (
+                          <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-[10px] font-bold">
+                            سلسلة طويلة ({chainCount} اسماً — يُطوى منها {Math.max(1, chainCount - 3)} جدّاً في كبسولة للعميل)
+                          </span>
+                        )}
+                      </div>
+
+                      {contextMode === 'direct_search' &&
+                        directSearchResult?.optionBResultOverride && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDirectSearchResult({
+                                ...directSearchResult,
+                                ...directSearchResult.optionBResultOverride,
+                              })
+                            }
+                            className="px-3 py-1 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white text-[11px] font-bold cursor-pointer transition-colors"
+                          >
+                            معاينة هذا المسار ({comp.originTribeLabel}) في العمود أعلاه
+                          </button>
+                        )}
+                    </div>
+
+                    <div className="text-[11px] text-stone-600">
+                      <span className="font-bold text-stone-800">النطاق الجغرافي:</span>{' '}
+                      {comp.geographicScope}
+                    </div>
+
+                    <div className="bg-[#FAF8F5] rounded-lg p-2.5 border border-stone-200 text-xs text-stone-800 leading-relaxed">
+                      <span className="font-bold text-[#B45309] block mb-1">
+                        كامل سلسلة نسب الأجداد في السجل ({chainCount} محطة):
+                      </span>
+                      {comp.fullChainNodes.join(' ⬅️ ')}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {comp.records.map((ev: CorroboratingAlphaEvidence, idx: number) => (
+                        <span
+                          key={ev.alpha_id || idx}
+                          className="px-2 py-0.5 rounded bg-stone-100 border border-stone-300 text-[10px] font-bold text-stone-800"
+                        >
+                          المصدر: {ev.source_book}
+                          {ev.volume ? ` (ج${ev.volume}` : ''}
+                          {ev.page ? ` ص${ev.page})` : ev.volume ? ')' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // =========================================================================
@@ -1487,211 +1703,37 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-5">
-                  <div className="bg-white rounded-2xl border border-stone-200/90 p-5 shadow-2xs">
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-stone-100">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#B45309] block">
-                          معاينة عمود النسب الكامل كما يظهر للعميل والباحث
-                        </span>
-                        <h4 className="text-base font-bold font-serif text-[#141414]">
-                          عمود نسب عائلة {directSearchResult.familyName} الموثق
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-3 py-1 rounded-lg bg-stone-100 text-stone-700 text-xs font-bold">
-                          إجمالي المحطات المعروضة:{' '}
-                          {2 + directSearchResult.upperAncestors.length} محطة
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTkt = buildTicketFromLineageResult(
-                              directSearchResult,
-                              `فحص باحث (${directSearchResult.familyName})`
-                            );
-                            setTickets((prev) => [newTkt, ...prev]);
-                            setSelectedTicketId(newTkt.id);
-                            setActiveSubTab('ticket_inbox');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold cursor-pointer transition-all"
-                        >
-                          📥 فتح كتذكرة في صندوق التذاكر للتحقيق والربط
-                        </button>
-                      </div>
-                    </div>
-
-                    {(() => {
-                      interface ResearcherPreviewRow {
-                        id: string;
-                        title: string;
-                        codeLabel: string;
-                        subtitle: string;
-                        isKeyStation: boolean;
-                      }
-                      const rawRows: ResearcherPreviewRow[] = [
-                        {
-                          id: 'res-fe0',
-                          title: getCleanSpineNodeName(
-                            `عائلة ${directSearchResult.familyName}`
-                          ),
-                          codeLabel: directSearchResult.familyCode || 'FE0',
-                          subtitle: 'اسم الشهرة / الأسرة المعاصرة',
-                          isKeyStation: true,
-                        },
-                      ];
-
-                      if (!directSearchResult.isAlphaOnlyBeforeMerge) {
-                        rawRows.push({
-                          id: 'res-b2',
-                          title: getCleanSpineNodeName(
-                            directSearchResult.rootBranchName
-                          ),
-                          codeLabel: directSearchResult.rootBranchCode || 'B2',
-                          subtitle: 'الفخذ / الفرع الجامع',
-                          isKeyStation: true,
-                        });
-                      }
-
-                      directSearchResult.upperAncestors.forEach(
-                        (anc: UpperAncestorNode, idx: number) => {
-                          const cLabel = anc.code || 'B1';
-                          rawRows.push({
-                            id: anc.id || `res-anc-${idx}`,
-                            title: getCleanSpineNodeName(anc.name),
-                            codeLabel: cLabel,
-                            subtitle: anc.rankLabel,
-                            isKeyStation: [
-                              'B0',
-                              'MT',
-                              'MF',
-                              'M',
-                              'AT',
-                              'A',
-                              'ADAM',
-                            ].includes(cLabel),
-                          });
-                        }
+                <div className="space-y-6">
+                  {/* UNIFIED CLIENT LINEAGE SPINE COLUMN (WITH ALL INTERMEDIATE NODES, ASCENDING ORDER, AND AGGREGATED SOURCES CARD) */}
+                  <LineageSpineColumn
+                    stateMode={DashboardStateMode.AnnualVip}
+                    accountType={AccountLegalType.RecordKeeper}
+                    result={directSearchResult}
+                    bridgedAncestors={[]}
+                    onAddBridgedAncestor={() => {}}
+                    onUnlockRoot5Usd={() => {}}
+                    onUpgradeAnnualVip={() => {}}
+                    unlockedCapsules={(directSearchResult.capsules || []).map(
+                      (c) => c.id
+                    )}
+                    onRequestUnlockCapsule={() => {}}
+                    walletBalance={25}
+                    isResearcherDirectPreview={true}
+                    onOpenAsResearcherTicket={() => {
+                      const newTkt = buildTicketFromLineageResult(
+                        directSearchResult,
+                        `فحص باحث (${directSearchResult.familyName})`
                       );
+                      setTickets((prev) => [newTkt, ...prev]);
+                      setSelectedTicketId(newTkt.id);
+                      setActiveSubTab('ticket_inbox');
+                    }}
+                  />
 
-                      const dedupedRows = rawRows.filter((row, idx, arr) => {
-                        if (!row.title) return false;
-                        if (idx === 0) return true;
-                        return row.title !== arr[idx - 1].title;
-                      });
-
-                      return (
-                        <div className="relative pr-6 sm:pr-8 space-y-2.5 max-h-[540px] overflow-y-auto pl-2">
-                          <div className="absolute right-2.5 sm:right-3.5 top-3 bottom-3 w-0.5 bg-gradient-to-b from-[#B45309] via-amber-600/40 to-emerald-700/50" />
-
-                          {dedupedRows.map((row, index) => {
-                            const nextRow = dedupedRows[index + 1];
-                            const connectorLabel = nextRow
-                              ? resolveSpineConnectorLabel(
-                                  {
-                                    name: row.title,
-                                    code: row.codeLabel,
-                                  },
-                                  {
-                                    name: nextRow.title,
-                                    code: nextRow.codeLabel,
-                                  }
-                                )
-                              : null;
-                            const era = resolveNodeHistoricalEra({
-                              name: row.title,
-                              code: row.codeLabel,
-                              orderNumber: index + 1,
-                            });
-                            const eraLabel = getHistoricalEraBadgeLabel(era);
-
-                            return (
-                              <React.Fragment key={row.id}>
-                                <div
-                                  className={`relative rounded-xl border p-3 transition-all flex items-center justify-between gap-3 ${
-                                    row.codeLabel === 'ADAM' ||
-                                    row.codeLabel === 'A'
-                                      ? 'bg-emerald-950/95 text-white border-emerald-700'
-                                      : row.isKeyStation
-                                      ? 'bg-[#FAF8F5] border-amber-300/80'
-                                      : 'bg-white border-stone-200/80'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <HeritageNodeAvatar
-                                      node={{
-                                        name: row.title,
-                                        code: row.codeLabel,
-                                        orderNumber: index + 1,
-                                      }}
-                                      size="sm"
-                                    />
-                                    <div>
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-xs sm:text-sm font-bold font-serif">
-                                          {row.title}
-                                        </span>
-                                        <span
-                                          className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold ${
-                                            row.codeLabel === 'ADAM' ||
-                                            row.codeLabel === 'A'
-                                              ? 'bg-emerald-800 text-emerald-200'
-                                              : 'bg-amber-500/15 text-[#B45309]'
-                                          }`}
-                                        >
-                                          {row.codeLabel}
-                                        </span>
-                                        <span
-                                          className={`text-[10px] px-2 py-0.5 rounded-md ${
-                                            row.codeLabel === 'ADAM' ||
-                                            row.codeLabel === 'A'
-                                              ? 'bg-white/10 text-stone-200'
-                                              : 'bg-stone-100 text-stone-600'
-                                          }`}
-                                        >
-                                          {eraLabel}
-                                        </span>
-                                      </div>
-                                      <p
-                                        className={`text-[11px] mt-0.5 ${
-                                          row.codeLabel === 'ADAM' ||
-                                          row.codeLabel === 'A'
-                                            ? 'text-emerald-200/90'
-                                            : 'text-stone-500'
-                                        }`}
-                                      >
-                                        {row.subtitle}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <span className="text-[10px] font-mono text-stone-400">
-                                    #{index + 1}
-                                  </span>
-                                </div>
-
-                                {connectorLabel && (
-                                  <div className="flex items-center pr-4 py-0.5">
-                                    <span
-                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
-                                        connectorLabel.startsWith('بن')
-                                          ? 'bg-amber-50/90 text-amber-900 border-amber-300/70'
-                                          : 'bg-stone-100 text-stone-700 border-stone-300/80'
-                                      }`}
-                                    >
-                                      {connectorLabel} ↑
-                                    </span>
-                                  </div>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-
-                    {/* STICKY NOTES SUMMARY BELOW LINEAGE COLUMN */}
+                  {/* STICKY NOTES SUMMARY BELOW LINEAGE COLUMN */}
+                  <div className="max-w-[420px] mx-auto">
                     {directSearchResult.isAlphaOnlyBeforeMerge ? (
-                      <div className="mt-6 relative rounded-none rounded-bl-2xl rounded-tr-2xl border border-amber-300/90 border-r-4 border-r-amber-500 bg-[#FEF9C3] p-5 shadow-md">
+                      <div className="relative rounded-none rounded-bl-2xl rounded-tr-2xl border border-amber-300/90 border-r-4 border-r-amber-500 bg-[#FEF9C3] p-5 shadow-md">
                         <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-amber-300/70">
                           <span className="text-xs sm:text-sm font-bold font-serif text-amber-950">
                             📌 ملاحظة: تم إصدار تذكرة بحث لإثراء هذه العقد في شجرة آدم
@@ -1710,7 +1752,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         </p>
                       </div>
                     ) : (
-                      <div className="mt-6 relative rounded-none rounded-bl-2xl rounded-tr-2xl border border-amber-300/90 border-r-4 border-r-emerald-600 bg-[#FEFCE8] p-5 shadow-md space-y-3">
+                      <div className="relative rounded-none rounded-bl-2xl rounded-tr-2xl border border-amber-300/90 border-r-4 border-r-emerald-600 bg-[#FEFCE8] p-5 shadow-md space-y-3">
                         <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-amber-300/70">
                           <span className="text-xs sm:text-sm font-bold font-serif text-stone-900">
                             📌 ملاحظة توثيقية مجمّعة: المصادر المعتمدة للوصول لهذا العمود النسبي
@@ -1735,6 +1777,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       </div>
                     )}
                   </div>
+
+                  {/* RULE 4: CONSENSUS WINNER & COMPETING PATHS COMPARISON IN DIRECT SEARCH */}
+                  {renderConsensusAndCompetingPathsMatrix(
+                    directSearchResult.familyName,
+                    directSearchResult.corroborating_alpha_evidence_for_researcher,
+                    'direct_search'
+                  )}
                 </div>
               )}
             </div>
@@ -1927,6 +1976,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     </div>
 
                     <div className="p-6 space-y-6">
+                      {/* RULE 4: CONSENSUS WINNER & COMPETING PATHS COMPARISON IN TICKET INBOX */}
+                      {renderConsensusAndCompetingPathsMatrix(
+                        selectedTicket.familyName,
+                        selectedTicket.corroboratingEvidence,
+                        'ticket_inbox'
+                      )}
+
                       {/* ANALYTICAL SOURCE CARDS (قائمة المصادر التحليلية للباحث) */}
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">

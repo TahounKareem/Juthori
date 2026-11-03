@@ -28,9 +28,13 @@ import { auth } from '../services/firebase';
 import {
   createCharterRequestInFirebase,
   deleteUserAccountFromFirebase,
+  executeWalletTransaction,
+  fetchUserProfile,
+  fetchUserProfileByEmail,
   syncClientLineageTicketToFirebase,
   updateUserProfile,
   uploadUserAvatarToFirebase,
+  upsertCustomerOrderInFirebase,
 } from '../services/firestoreService';
 import {
   AccountLegalType,
@@ -130,6 +134,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [unlockedCapsules, setUnlockedCapsules] = useState<string[]>([]);
   const [activeCheckoutOrder, setActiveCheckoutOrder] =
     useState<CheckoutOrderRequest | null>(null);
+  const [verifiedResultOverride, setVerifiedResultOverride] =
+    useState<LineageSearchResult | null>(null);
+
+  useEffect(() => {
+    setVerifiedResultOverride(null);
+  }, [result.familyName, result.familyCode]);
+
+  const activeResult = verifiedResultOverride || result;
 
   // User Avatar Dropdown Menu State
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -187,6 +199,41 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       setAvatarUrl(initialAvatarUrl);
     }
   }, [initialAvatarUrl]);
+
+  // Restore persisted walletBalance, unlockedCapsules, and subscription state from Firestore on mount
+  useEffect(() => {
+    let cancelled = false;
+    const activeUid =
+      userId ||
+      auth.currentUser?.uid ||
+      (userEmail ? `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}` : '');
+
+    async function hydrateFromFirestore() {
+      try {
+        const profile =
+          (activeUid ? await fetchUserProfile(activeUid) : null) ||
+          (userEmail ? await fetchUserProfileByEmail(userEmail) : null);
+        if (cancelled || !profile) return;
+
+        if (typeof profile.walletBalance === 'number') {
+          setWalletBalance(profile.walletBalance);
+        }
+        if (
+          Array.isArray(profile.unlockedCapsules) &&
+          profile.unlockedCapsules.length > 0
+        ) {
+          setUnlockedCapsules(profile.unlockedCapsules);
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    hydrateFromFirestore();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, userEmail]);
 
   useEffect(() => {
     setEditFirstName(result.clientName || '');
@@ -434,13 +481,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     }
   };
 
-  // Opens 3-Step Realistic Checkout Modal for $5 Root Unlock
+  // Opens 3-Step Realistic Checkout Modal for $5 Root Unlock (No pre-$5 spoilers!)
   const handleUnlockRoot5Usd = () => {
     setActiveCheckoutOrder({
       id: 'ord-root-5',
       type: 'unlock_root_5',
       title: 'فتح نقطة الربط (الجذر) — الباقة الأساسية',
-      subtitle: `يكشف الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName}) في السجل الموثق`,
+      subtitle:
+        'يكشف عقدتي الجذر الموثق (الفرع الجامع والقبيلة الأم) لعائلتك في السجل التاريخي',
       amountUsd: 5,
       allowWalletPayment: true,
     });
@@ -497,11 +545,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay',
     invoiceNumber: string
   ) => {
-    if (paymentMethod === 'wallet') {
-      setWalletBalance((prev) => Math.max(0, prev - order.amountUsd));
-    }
-
-    const activeUid = userId || auth.currentUser?.uid || `usr_${userEmail}`;
+    const activeUid =
+      userId ||
+      auth.currentUser?.uid ||
+      `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     const fullName = [
       result.clientName,
       result.fatherName,
@@ -510,17 +557,65 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     ]
       .filter((s) => s && s !== '—')
       .join(' ');
+    const orderDocId = `ord_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${result.familyName.replace(/\s+/g, '_')}`;
+
+    let nextWalletBalance = walletBalance;
+    if (paymentMethod === 'wallet') {
+      nextWalletBalance = Math.max(0, walletBalance - order.amountUsd);
+      setWalletBalance(nextWalletBalance);
+      executeWalletTransaction(
+        activeUid,
+        'debit',
+        order.amountUsd,
+        `${order.title} (${invoiceNumber})`,
+        invoiceNumber
+      ).catch(() => {});
+    }
 
     if (order.type === 'unlock_root_5') {
       onChangeStateMode(DashboardStateMode.State1Paid5Basic);
       updateUserProfile(activeUid, {
         subscriptionTier: 'basic_verified',
         isRootUnlocked: true,
+        walletBalance: nextWalletBalance,
+        paidRevenueUsd: 5,
+      }).catch(() => {});
+      upsertCustomerOrderInFirebase({
+        id: orderDocId,
+        userId: activeUid,
+        fullName,
+        firstName: result.clientName,
+        fatherName: result.fatherName || '—',
+        grandfatherName: result.grandfatherName || '—',
+        familyName: result.familyName,
+        originCountry: result.originCountry,
+        originRegion: result.originRegion || 'غير محدد',
+        email: userEmail,
+        phone: editPhone || '—',
+        legalRole: accountType,
+        accountStatus: 'paid_5_root',
+        walletBalanceUsd: nextWalletBalance,
+        paidRevenueUsd: 5,
+        matchStatus: !result.matched
+          ? 'open_research_ticket'
+          : result.isAlphaOnlyBeforeMerge
+          ? 'staged_3_nodes'
+          : 'auto_adam_full',
+        ticketId: result.alphaBackgroundTicketCode || '—',
+        ticketType: !result.matched
+          ? 'طلب عميل P1'
+          : result.isAlphaOnlyBeforeMerge
+          ? 'إثراء شجرة آدم P2'
+          : 'آلي مكتمل',
+        assignedResearcher: 'مفتوح بالمنصة للباحثين',
+        slaStatus: 'قيد العمل',
+        nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
       }).catch(() => {});
       syncClientLineageTicketToFirebase({
         userId: activeUid,
         userFullName: fullName,
         userEmail,
+        userPhone: editPhone,
         familyName: result.familyName,
         originCountry: result.originCountry,
         originRegion: result.originRegion,
@@ -544,17 +639,59 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         `تم الكشف عن الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName})`
       );
     } else if (order.type === 'upgrade_vip_60') {
+      const bonusUsd = order.bonusWalletUsd ?? 25;
+      nextWalletBalance = nextWalletBalance + bonusUsd;
       onChangeStateMode(DashboardStateMode.AnnualVip);
-      setWalletBalance((prev) => prev + (order.bonusWalletUsd ?? 25));
+      setWalletBalance(nextWalletBalance);
       updateUserProfile(activeUid, {
         subscriptionTier: 'premium_annual',
         isRootUnlocked: true,
-        walletBalance: walletBalance + (order.bonusWalletUsd ?? 25),
+        walletBalance: nextWalletBalance,
+        paidRevenueUsd: 60,
+      }).catch(() => {});
+      executeWalletTransaction(
+        activeUid,
+        'credit',
+        bonusUsd,
+        `رصيد محفظة ترحيبي مع الاشتراك السنوي بريميوم (${invoiceNumber})`,
+        invoiceNumber
+      ).catch(() => {});
+      upsertCustomerOrderInFirebase({
+        id: orderDocId,
+        userId: activeUid,
+        fullName,
+        firstName: result.clientName,
+        fatherName: result.fatherName || '—',
+        grandfatherName: result.grandfatherName || '—',
+        familyName: result.familyName,
+        originCountry: result.originCountry,
+        originRegion: result.originRegion || 'غير محدد',
+        email: userEmail,
+        phone: editPhone || '—',
+        legalRole: accountType,
+        accountStatus: 'annual_vip',
+        walletBalanceUsd: nextWalletBalance,
+        paidRevenueUsd: 60,
+        matchStatus: !result.matched
+          ? 'open_research_ticket'
+          : result.isAlphaOnlyBeforeMerge
+          ? 'staged_3_nodes'
+          : 'auto_adam_full',
+        ticketId: result.alphaBackgroundTicketCode || '—',
+        ticketType: !result.matched
+          ? 'طلب عميل P1'
+          : result.isAlphaOnlyBeforeMerge
+          ? 'إثراء شجرة آدم P2'
+          : 'آلي مكتمل',
+        assignedResearcher: 'مفتوح بالمنصة للباحثين',
+        slaStatus: 'قيد العمل',
+        nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
       }).catch(() => {});
       syncClientLineageTicketToFirebase({
         userId: activeUid,
         userFullName: fullName,
         userEmail,
+        userPhone: editPhone,
         familyName: result.familyName,
         originCountry: result.originCountry,
         originRegion: result.originRegion,
@@ -578,9 +715,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         'فتح المحطات الرئيسية في شجرة آدم والمصادر وتفعيل التبويبات الخمسة + إيداع $25 رصيد هدية في المحفظة'
       );
     } else if (order.type === 'unlock_capsule' && order.capsuleId) {
-      setUnlockedCapsules((prev) =>
-        prev.includes(order.capsuleId!) ? prev : [...prev, order.capsuleId!]
-      );
+      const nextCapsules = unlockedCapsules.includes(order.capsuleId)
+        ? unlockedCapsules
+        : [...unlockedCapsules, order.capsuleId];
+      setUnlockedCapsules(nextCapsules);
+      updateUserProfile(activeUid, {
+        walletBalance: nextWalletBalance,
+        unlockedCapsules: nextCapsules,
+      }).catch(() => {});
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — ${order.title}`,
         `تم فتح حلقة الأجداد الوسيطين بالخصم من ${paymentMethod === 'wallet' ? 'المحفظة الرقمية' : 'البطاقة البنكية'}`
@@ -590,6 +732,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         result.capsules?.length ? result.capsules : AL_MUQIT_8_CAPSULES
       ).map((c) => c.id);
       setUnlockedCapsules(allIds);
+      updateUserProfile(activeUid, {
+        walletBalance: nextWalletBalance,
+        unlockedCapsules: allIds,
+      }).catch(() => {});
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — فتح حلقات الأجداد الوسيطين كاملة ($12)`,
         'تم فتح جميع حلقات الأجداد الوسيطين في شجرة آدم وتحويل كافة الروابط إلى «بن (سليل مباشر)»'
@@ -618,9 +764,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   };
 
   const handleSignCharterAndOpenTree = () => {
+    const activeUid =
+      userId ||
+      auth.currentUser?.uid ||
+      `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     onUpgradeAccountToRecordKeeper();
+    updateUserProfile(activeUid, {
+      accountType: 'record_keeper',
+    }).catch(() => {});
     createCharterRequestInFirebase({
-      userId: userId || auth.currentUser?.uid,
+      userId: activeUid,
       clientName: `${result.clientName} ${result.familyName}`,
       familyName: result.familyName,
       email: userEmail,
@@ -635,12 +788,117 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     );
   };
 
+  const handleSelectVerificationPath = (
+    optionId: 'option_a' | 'option_b' | 'option_c'
+  ) => {
+    const chosenOverride =
+      optionId === 'option_b'
+        ? result.optionBResultOverride
+        : optionId === 'option_c'
+        ? result.optionCResultOverride
+        : result.optionAResultOverride;
+
+    const merged: LineageSearchResult = {
+      ...result,
+      ...(chosenOverride || {}),
+      requiresBlindDisambiguation: false,
+    };
+    setVerifiedResultOverride(merged);
+
+    const activeUid = userId || auth.currentUser?.uid || `usr_${userEmail}`;
+    const fullName = [
+      merged.clientName,
+      merged.fatherName,
+      merged.grandfatherName,
+      merged.familyName,
+    ]
+      .filter((s) => s && s !== '—')
+      .join(' ');
+
+    syncClientLineageTicketToFirebase({
+      userId: activeUid,
+      userFullName: fullName,
+      userEmail,
+      familyName: merged.familyName,
+      originCountry: merged.originCountry,
+      originRegion: merged.originRegion,
+      rootBranchName: merged.rootBranchName,
+      rootTribeName: merged.rootTribeName,
+      matched: merged.matched,
+      isAlphaOnlyBeforeMerge: merged.isAlphaOnlyBeforeMerge,
+      isAlphaMergedIntoAdam: merged.isAlphaMergedIntoAdam,
+      adamNodeId: merged.adamNodeId,
+      alphaBackgroundTicketCode: merged.alphaBackgroundTicketCode,
+      verifiedSources: merged.verified_sources,
+      corroboratingAlphaEvidence:
+        merged.corroborating_alpha_evidence_for_researcher,
+      siblingBranches: merged.sibling_branches_in_record,
+      notablesInRecord: merged.notables_in_record,
+      enrichedLocations: merged.enrichedLocations,
+      adamSpineNodesCount: merged.adamSpineNodes?.length || 1,
+    }).catch(() => {});
+
+    appendActivity(
+      'حسم سؤال التحقق المتدرج وفتح الجذر',
+      `تم اعتماد مسار (${merged.rootBranchName} ⬅️ ${merged.rootTribeName}) لعائلة ${merged.familyName}`
+    );
+  };
+
+  const handleEscalateVerificationToTicket = () => {
+    const escalated: LineageSearchResult = {
+      ...result,
+      matched: false,
+      requiresBlindDisambiguation: false,
+      recommendedInitialState: DashboardStateMode.State3Unmatched,
+    };
+    setVerifiedResultOverride(escalated);
+    onChangeStateMode(DashboardStateMode.State3Unmatched);
+
+    const activeUid = userId || auth.currentUser?.uid || `usr_${userEmail}`;
+    const fullName = [
+      result.clientName,
+      result.fatherName,
+      result.grandfatherName,
+      result.familyName,
+    ]
+      .filter((s) => s && s !== '—')
+      .join(' ');
+
+    syncClientLineageTicketToFirebase({
+      userId: activeUid,
+      userFullName: fullName,
+      userEmail,
+      familyName: result.familyName,
+      originCountry: result.originCountry,
+      originRegion: result.originRegion,
+      rootBranchName: 'قيد التحقيق الأرشيفي',
+      rootTribeName: 'تذكرة بحث للباحثين (تعدد مسارات)',
+      matched: false,
+      isAlphaOnlyBeforeMerge: false,
+      isAlphaMergedIntoAdam: false,
+      additionalNotes: result.disambiguationPathsSummaryForTicket,
+      verifiedSources: result.verified_sources,
+      corroboratingAlphaEvidence:
+        result.corroborating_alpha_evidence_for_researcher,
+      siblingBranches: result.sibling_branches_in_record,
+      notablesInRecord: result.notables_in_record,
+      enrichedLocations: result.enrichedLocations,
+      adamSpineNodesCount: 1,
+    }).catch(() => {});
+
+    appendActivity(
+      'تحويل آلي إلى تذكرة بحث مباشرة للباحثين',
+      `إحالة طلب عائلة (${result.familyName}) مع كافة المسارات المرصودة إلى صندوق تذاكر الباحثين`
+    );
+  };
+
   const availableCartItems: CartItem[] = [];
   if (!caps.isRootUnlocked && stateMode === DashboardStateMode.State2MatchedUnpaid) {
     availableCartItems.push({
       id: 'root_5_usd',
       title: 'فتح نقطة الربط بالجذر (دفعة لمرة واحدة)',
-      subtitle: `يكشف الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName}) لعائلتك`,
+      subtitle:
+        'يكشف عقدتي الجذر الموثق (الفرع الجامع والقبيلة الأم) لعائلتك في السجل التاريخي',
       priceUsd: 5,
       billingLabel: 'لمرة واحدة',
     });
@@ -1583,7 +1841,26 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     onUpgradeSuccess={handleUpgradeAnnualVip}
                     onLogActivity={appendActivity}
                     externalBalance={walletBalance}
-                    onBalanceChange={setWalletBalance}
+                    onBalanceChange={(nextBal) => {
+                      const activeUid =
+                        userId ||
+                        auth.currentUser?.uid ||
+                        `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+                      const diff = nextBal - walletBalance;
+                      setWalletBalance(nextBal);
+                      updateUserProfile(activeUid, {
+                        walletBalance: nextBal,
+                      }).catch(() => {});
+                      if (diff > 0) {
+                        executeWalletTransaction(
+                          activeUid,
+                          'credit',
+                          diff,
+                          'شحن رصيد المحفظة الرقمية',
+                          `topup_${Date.now()}`
+                        ).catch(() => {});
+                      }
+                    }}
                   />
                 </div>
               </div>
@@ -1677,7 +1954,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           <LineageSpineColumn
             stateMode={stateMode}
             accountType={accountType}
-            result={result}
+            result={activeResult}
             bridgedAncestors={bridgedAncestors}
             onAddBridgedAncestor={(name) => {
               setBridgedAncestors((prev) => [...prev, name]);
@@ -1694,6 +1971,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             walletBalance={walletBalance}
             onUpdateImmediateParents={onUpdateImmediateParents}
             userAvatarUrl={avatarUrl || undefined}
+            onSelectVerificationPath={handleSelectVerificationPath}
+            onEscalateVerificationToTicket={handleEscalateVerificationToTicket}
             onOpenMyTreeTab={() => {
               const treeTab = DASHBOARD_TABS.find(
                 (t) => t.id === DashboardTab.MyTree
@@ -1704,7 +1983,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         ) : (
           <PremiumTabViews
             activeTab={activeTab}
-            result={result}
+            result={activeResult}
             accountType={accountType}
             caps={caps}
             onNavigateTab={(t) => {
@@ -1873,7 +2152,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         onClose={() => setActiveCheckoutOrder(null)}
         onConfirmSuccess={handleConfirmCheckoutSuccess}
         onQuickTopUpWallet={(amountUsd) => {
-          setWalletBalance((prev) => prev + amountUsd);
+          const activeUid =
+            userId ||
+            auth.currentUser?.uid ||
+            `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+          const nextBal = walletBalance + amountUsd;
+          setWalletBalance(nextBal);
+          updateUserProfile(activeUid, {
+            walletBalance: nextBal,
+          }).catch(() => {});
+          executeWalletTransaction(
+            activeUid,
+            'credit',
+            amountUsd,
+            `إيداع فوري ($${amountUsd}) عبر بوابة الدفع السريع`,
+            `quick_topup_${Date.now()}`
+          ).catch(() => {});
           appendActivity(
             'شحن فوري للمحفظة الرقمية',
             `إيداع $${amountUsd} عبر بوابة الدفع السريع`

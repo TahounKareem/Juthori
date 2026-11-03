@@ -42,6 +42,10 @@ interface LineageSpineColumnProps {
   ) => void;
   onOpenMyTreeTab?: () => void;
   userAvatarUrl?: string;
+  isResearcherDirectPreview?: boolean;
+  onOpenAsResearcherTicket?: () => void;
+  onSelectVerificationPath?: (optionId: 'option_a' | 'option_b' | 'option_c') => void;
+  onEscalateVerificationToTicket?: () => void;
 }
 
 const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
@@ -120,25 +124,93 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   walletBalance,
   onOpenMyTreeTab,
   userAvatarUrl,
+  isResearcherDirectPreview = false,
+  onOpenAsResearcherTicket,
+  onSelectVerificationPath,
+  onEscalateVerificationToTicket,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
     useState<UpperAncestorNode | null>(null);
   const [showSourceDetails, setShowSourceDetails] = useState<boolean>(true);
 
-  const fatherName = cleanOptionalParentName(result.fatherName);
-  const grandfatherName = cleanOptionalParentName(result.grandfatherName);
+  // Progressive 2-Stage Verification State (Triggered ONLY AFTER paying $5)
+  const [verificationStage, setVerificationStage] = useState<1 | 2>(1);
+  const [stage1Choice, setStage1Choice] = useState<
+    'option_a' | 'option_b' | 'option_c' | 'not_sure_stage1'
+  >('option_a');
+  const [stage2Choice, setStage2Choice] = useState<
+    'option_a' | 'option_b' | 'option_c' | 'not_sure_escalate'
+  >('option_a');
+  const [localResolvedOption, setLocalResolvedOption] = useState<
+    'option_a' | 'option_b' | 'option_c' | 'escalated_ticket' | null
+  >(null);
+  const [researcherExpandedCapsules, setResearcherExpandedCapsules] = useState<
+    string[]
+  >([]);
 
-  // Case 3: Unmatched family (or user selected "لست متأكداً" in disambiguation)
+  React.useEffect(() => {
+    setVerificationStage(1);
+    setStage1Choice('option_a');
+    setStage2Choice('option_a');
+    setLocalResolvedOption(null);
+  }, [result.familyName, result.familyCode]);
+
+  // Effective result after local or parent verification path selection
+  const effectiveResult: LineageSearchResult = React.useMemo(() => {
+    if (localResolvedOption === 'escalated_ticket') {
+      return {
+        ...result,
+        matched: false,
+        requiresBlindDisambiguation: false,
+        recommendedInitialState: DashboardStateMode.State3Unmatched,
+      };
+    }
+    if (localResolvedOption === 'option_a' && result.optionAResultOverride) {
+      return {
+        ...result,
+        ...result.optionAResultOverride,
+        requiresBlindDisambiguation: false,
+      };
+    }
+    if (localResolvedOption === 'option_b' && result.optionBResultOverride) {
+      return {
+        ...result,
+        ...result.optionBResultOverride,
+        requiresBlindDisambiguation: false,
+      };
+    }
+    if (localResolvedOption === 'option_c' && result.optionCResultOverride) {
+      return {
+        ...result,
+        ...result.optionCResultOverride,
+        requiresBlindDisambiguation: false,
+      };
+    }
+    return result;
+  }, [result, localResolvedOption]);
+
+  const isVerificationPendingPost5Usd =
+    caps.isRootUnlocked &&
+    Boolean(effectiveResult.requiresBlindDisambiguation) &&
+    !isResearcherDirectPreview &&
+    localResolvedOption === null;
+
+  const fatherName = cleanOptionalParentName(effectiveResult.fatherName);
+  const grandfatherName = cleanOptionalParentName(effectiveResult.grandfatherName);
+
+  // Case 3: Unmatched family (or user selected "لا أعرف / موضع آخر" in Stage 2 verification)
   const isUnmatchedCase =
-    !result.matched || stateMode === DashboardStateMode.State3Unmatched;
+    !effectiveResult.matched ||
+    stateMode === DashboardStateMode.State3Unmatched ||
+    localResolvedOption === 'escalated_ticket';
 
   const spineNodes: UpperAncestorNode[] =
-    result.adamSpineNodes && result.adamSpineNodes.length > 0
-      ? result.adamSpineNodes
-      : result.upperAncestors;
+    effectiveResult.adamSpineNodes && effectiveResult.adamSpineNodes.length > 0
+      ? effectiveResult.adamSpineNodes
+      : effectiveResult.upperAncestors;
 
-  const capsulesList: AncestorCapsule[] = result.capsules || [];
+  const capsulesList: AncestorCapsule[] = effectiveResult.capsules || [];
 
   const totalFamilySpineNodesCount = spineNodes.length;
   const codedStationsCount = spineNodes.filter(
@@ -154,12 +226,12 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     .reduce((acc: number, c: AncestorCapsule) => acc + c.ancestors.length, 0);
 
   const visibleAdamNodesCount =
-    result.isAlphaMergedIntoAdam || result.isAlphaOnlyBeforeMerge
+    effectiveResult.isAlphaMergedIntoAdam
       ? totalFamilySpineNodesCount
       : codedStationsCount + unlockedIntermediateNodesCount;
 
   const remainingLockedCapsules =
-    result.isAlphaOnlyBeforeMerge || result.isAlphaMergedIntoAdam || isUnmatchedCase
+    effectiveResult.isAlphaMergedIntoAdam || isUnmatchedCase
       ? []
       : capsulesList.filter(
           (c: AncestorCapsule) => !unlockedCapsules.includes(c.id)
@@ -169,7 +241,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     0
   );
 
-  const unifiedVipMarketingCopy = result.isAlphaOnlyBeforeMerge
+  const unifiedVipMarketingCopy = effectiveResult.isAlphaOnlyBeforeMerge
     ? CASE_2_ALPHA_VIP_MARKETING_COPY
     : CASE_1_ADAM_VIP_MARKETING_COPY;
 
@@ -528,9 +600,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     const isSubRootNode =
       node.code === 'B2' ||
       node.code === 'B1' ||
-      (!node.code && node.orderNumber === 4);
+      (!node.code && node.orderNumber === 4 && node.dataLakeSource !== 'alpha_projects');
     const isMotherTribeNode =
-      node.code === 'B0' || (!node.code && node.orderNumber === 6);
+      node.code === 'B0' ||
+      (!node.code && node.orderNumber === 6 && node.dataLakeSource !== 'alpha_projects');
     const isRootNode = isSubRootNode || isMotherTribeNode;
     const isAdamNode =
       node.code === 'AD0' ||
@@ -646,11 +719,33 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // 7. COMPACT PILL BADGE FOR INTERMEDIATE ANCESTORS (🔒 +3 أجداد)
+  // 7. COMPACT PILL BADGE FOR INTERMEDIATE ANCESTORS (🔒 +1 في السلسلة / 🔒 +26 جدّاً في السلسلة)
   // ============================================================================
   const renderCompactIntermediatePillBadge = (ringGroup: AncestorCapsule) => {
     const count = ringGroup.ancestors.length;
-    const countLabel = count === 1 ? '+1 جد' : `+${count} أجداد`;
+    const countLabel =
+      count === 1
+        ? '+1 في السلسلة'
+        : count >= 11
+        ? `+${count} جدّاً في السلسلة`
+        : `+${count} في السلسلة`;
+
+    const handlePillClick = () => {
+      if (isResearcherDirectPreview) {
+        setResearcherExpandedCapsules((prev) =>
+          prev.includes(ringGroup.id)
+            ? prev.filter((id) => id !== ringGroup.id)
+            : [...prev, ringGroup.id]
+        );
+        return;
+      }
+      if (!caps.isVip) {
+        onUpgradeAnnualVip();
+        return;
+      }
+      onRequestUnlockCapsule(ringGroup);
+    };
+
     return (
       <div
         key={ringGroup.id}
@@ -658,13 +753,251 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       >
         <button
           type="button"
-          onClick={() => onRequestUnlockCapsule(ringGroup)}
-          title={`اضغط لفتح أسماء الأجداد الفرعيين من رصيد المحفظة (${ringGroup.betweenLabel})`}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#F7F2E9] hover:bg-[#EFE6D5] border border-[#E6DFD3] hover:border-[#D8755B] text-[#8D4925] text-xs font-display font-bold shadow-2xs transition-all cursor-pointer"
+          data-testid={`capsule-pill-${ringGroup.id}`}
+          onClick={handlePillClick}
+          title={
+            caps.isVip
+              ? `اضغط لفتح أسماء الأجداد الفرعيين من رصيد المحفظة (${ringGroup.betweenLabel})`
+              : `تُفتح بالباقة السنوية والمحفظة (${ringGroup.betweenLabel})`
+          }
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F7F2E9] hover:bg-[#EFE6D5] border border-[#D4AF37]/70 hover:border-[#D8755B] text-[#8D4925] text-xs font-display font-extrabold shadow-2xs transition-all cursor-pointer"
         >
           <span>🔒</span>
           <span>{countLabel}</span>
         </button>
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // 7B. POST-$5 TWO-STAGE PROGRESSIVE VERIFICATION CARD (سؤال التحقق المتدرج)
+  // Shown ONLY AFTER paying $5 when multiple candidate paths exist
+  // ============================================================================
+  const renderPost5UsdProgressiveVerificationCard = () => {
+    const candidateOptions = (effectiveResult.disambiguationOptions || []).slice(0, 3);
+
+    const handleConfirmStage1 = () => {
+      if (stage1Choice === 'not_sure_stage1') {
+        setVerificationStage(2);
+        return;
+      }
+      setLocalResolvedOption(stage1Choice);
+      if (onSelectVerificationPath) {
+        onSelectVerificationPath(stage1Choice);
+      }
+    };
+
+    const handleConfirmStage2 = () => {
+      if (stage2Choice === 'not_sure_escalate') {
+        setLocalResolvedOption('escalated_ticket');
+        if (onEscalateVerificationToTicket) {
+          onEscalateVerificationToTicket();
+        }
+        return;
+      }
+      setLocalResolvedOption(stage2Choice);
+      if (onSelectVerificationPath) {
+        onSelectVerificationPath(stage2Choice);
+      }
+    };
+
+    return (
+      <div
+        data-testid="post-5usd-progressive-verification-card"
+        className="max-w-[460px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] border-2 border-[#D97706] p-5 shadow-md relative z-20 text-right space-y-4"
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-[#B98A78]/30 pb-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D97706]/15 text-[#92400E] text-[11px] font-display font-extrabold">
+            <span>
+              {verificationStage === 1
+                ? 'سؤال التحقق المتدرج (المرحلة 1 من 2)'
+                : 'سؤال التحقق المتدرج (المرحلة 2 من 2)'}
+            </span>
+          </span>
+          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+            تم فتح الجذر ($5) ✓
+          </span>
+        </div>
+
+        {verificationStage === 1 ? (
+          <div className="space-y-3.5">
+            <div className="space-y-1">
+              <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] leading-snug">
+                لتثبيت الجذر الصحيح لعائلة ({effectiveResult.familyName})، أيٌّ من هذه الأصول أو القبائل يرتبط بأسرتكم؟
+              </h3>
+              <p className="text-xs text-[#78350F] font-medium">
+                اختر الأصل أو القبيلة الأم لفتح عقدتي الجذر الموثق مباشرة:
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {candidateOptions.map((opt) => {
+                const shortLabel = opt.originTribeLabel || opt.title;
+                const isSelected = stage1Choice === opt.id;
+                const badgeText =
+                  opt.consensusBadge ||
+                  (opt.isConsensusWinner ? 'مرجّح في عدة مصادر' : undefined);
+
+                return (
+                  <label
+                    key={opt.id}
+                    onClick={() => setStage1Choice(opt.id)}
+                    className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white border-[#D8755B] shadow-2xs'
+                        : 'bg-white/80 border-[#B98A78]/40 hover:border-[#8D4925]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="radio"
+                        name="post5_stage1_origin"
+                        checked={isSelected}
+                        onChange={() => setStage1Choice(opt.id)}
+                        className="w-4 h-4 accent-[#D8755B] cursor-pointer shrink-0"
+                      />
+                      <span className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                        {shortLabel}
+                      </span>
+                    </div>
+
+                    {badgeText && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-display font-extrabold shrink-0">
+                        {badgeText}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+
+              {/* Option: لا أعرف / لست متأكداً -> Triggers Stage 2 Geographic Verification */}
+              <label
+                onClick={() => setStage1Choice('not_sure_stage1')}
+                className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  stage1Choice === 'not_sure_stage1'
+                    ? 'bg-white border-[#D8755B] shadow-2xs'
+                    : 'bg-white/80 border-[#B98A78]/40 hover:border-[#8D4925]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="radio"
+                    name="post5_stage1_origin"
+                    checked={stage1Choice === 'not_sure_stage1'}
+                    onChange={() => setStage1Choice('not_sure_stage1')}
+                    className="w-4 h-4 accent-[#D8755B] cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm font-display font-bold text-[#252321]">
+                    لا أعرف / لست متأكداً
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-[#8D4925] bg-[#FAF6F0] px-2 py-0.5 rounded border border-[#B98A78]/35">
+                  ينقلك للتحقق بالمواضع
+                </span>
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleConfirmStage1}
+              className="w-full py-3 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold transition-colors cursor-pointer shadow-sm"
+            >
+              {stage1Choice === 'not_sure_stage1'
+                ? 'المتابعة إلى التحقق الجغرافي الآلي ←'
+                : 'تأكيد الاختيار وكشف الجذر الموثق ←'}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3.5">
+            <div className="space-y-1">
+              <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] leading-snug">
+                لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟
+              </h3>
+              <p className="text-xs text-[#78350F] font-medium">
+                اختر الموضع الجغرافي المرتبط بأسرتك ليقوم المحرك بحسم الجذر تلقائياً:
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {candidateOptions.map((opt) => {
+                const isSelected = stage2Choice === opt.id;
+                const shortOrigin = opt.originTribeLabel || opt.title;
+                return (
+                  <label
+                    key={opt.id}
+                    onClick={() => setStage2Choice(opt.id)}
+                    className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white border-[#D8755B] shadow-2xs'
+                        : 'bg-white/80 border-[#B98A78]/40 hover:border-[#8D4925]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="radio"
+                        name="post5_stage2_geo"
+                        checked={isSelected}
+                        onChange={() => setStage2Choice(opt.id)}
+                        className="w-4 h-4 accent-[#D8755B] cursor-pointer shrink-0"
+                      />
+                      <span className="text-sm font-display font-extrabold text-[#252321]">
+                        {opt.geographicScope}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#8D4925] bg-[#FAF6F0] px-2 py-0.5 rounded border border-[#B98A78]/35 shrink-0">
+                      يُحسم آلياً: {shortOrigin}
+                    </span>
+                  </label>
+                );
+              })}
+
+              {/* Option: لا أعرف / موضع آخر -> Converts automatically to a direct researcher ticket */}
+              <label
+                onClick={() => setStage2Choice('not_sure_escalate')}
+                className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                  stage2Choice === 'not_sure_escalate'
+                    ? 'bg-white border-[#D8755B] shadow-2xs'
+                    : 'bg-white/80 border-[#B98A78]/40 hover:border-[#8D4925]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="radio"
+                    name="post5_stage2_geo"
+                    checked={stage2Choice === 'not_sure_escalate'}
+                    onChange={() => setStage2Choice('not_sure_escalate')}
+                    className="w-4 h-4 accent-[#D8755B] cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm font-display font-bold text-[#252321]">
+                    لا أعرف / موضع آخر
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shrink-0">
+                  إحالة لتذكرة بحث متخصصة
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleConfirmStage2}
+                className="flex-1 py-3 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold transition-colors cursor-pointer shadow-sm"
+              >
+                {stage2Choice === 'not_sure_escalate'
+                  ? 'تحويل الطلب إلى تذكرة بحث مباشرة للباحثين ←'
+                  : 'تأكيد الموضع وكشف الجذر الموثق ←'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVerificationStage(1)}
+                className="py-3 px-3.5 rounded-xl bg-white border border-[#B98A78]/50 text-xs font-bold text-[#252321] hover:bg-[#EDE6DA] cursor-pointer"
+              >
+                رجوع
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -766,8 +1099,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // ============================================================================
   // 9. CASE 2 ALPHA-ONLY SPINE (Before Researcher Merge)
   // - Before $5: Only locked "الجذر" card
-  // - After $5 (Non-VIP): 4 locked upper layers + unlocked Alpha Root nodes
-  // - After Annual VIP (Before Researcher Merge): Reassuring Researcher Follow-up Card + unlocked Alpha Root nodes
+  // - Immediately After $5 (if multiple candidate paths): 2-Stage Progressive Verification Card
+  // - After $5 (Resolved): Unified 2-Node Root (B2 & B0) + Folded Intermediate Capsule (🔒 +1 في السلسلة / 🔒 +26 جدّاً في السلسلة)
   // ============================================================================
   const renderAlphaOnlyBeforeMergeSpine = () => {
     if (!caps.isRootUnlocked) {
@@ -779,7 +1112,48 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
-    const alphaUpperRootNodes = [...spineNodes.slice(1)].reverse();
+    if (isVerificationPendingPost5Usd) {
+      return (
+        <div className="space-y-2.5 relative z-20">
+          {renderPost5UsdProgressiveVerificationCard()}
+        </div>
+      );
+    }
+
+    type AlphaSpineRenderEntry =
+      | { kind: 'node'; node: UpperAncestorNode }
+      | { kind: 'ringGroup'; ringGroup: AncestorCapsule };
+
+    const ascendingEntries: AlphaSpineRenderEntry[] = [];
+    const handledRings = new Set<string>();
+
+    for (const node of spineNodes) {
+      if (node.orderNumber === 1) continue; // Family station rendered below
+
+      if (node.isCodedStation) {
+        ascendingEntries.push({ kind: 'node', node });
+      } else if (node.capsuleId) {
+        const ringObj = capsulesList.find(
+          (c: AncestorCapsule) => c.id === node.capsuleId
+        );
+        const isUnlockedForCustomer =
+          caps.isVip && unlockedCapsules.includes(node.capsuleId);
+        const isUnlockedForResearcher = isResearcherDirectPreview;
+
+        if (isUnlockedForCustomer || isUnlockedForResearcher) {
+          ascendingEntries.push({ kind: 'node', node });
+        } else if (!handledRings.has(node.capsuleId)) {
+          handledRings.add(node.capsuleId);
+          if (ringObj) {
+            ascendingEntries.push({ kind: 'ringGroup', ringGroup: ringObj });
+          }
+        }
+      } else {
+        ascendingEntries.push({ kind: 'node', node });
+      }
+    }
+
+    const topToBottomAlphaEntries = [...ascendingEntries].reverse();
 
     return (
       <div className="space-y-2.5 relative z-20">
@@ -806,15 +1180,27 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         )}
 
         <div className="space-y-2">
-          {alphaUpperRootNodes.map((node, idx) => {
-            const nextNodeBelow = alphaUpperRootNodes[idx + 1];
+          {topToBottomAlphaEntries.map((entry, idx) => {
+            const nextEntryBelow = topToBottomAlphaEntries[idx + 1];
+            const connectorLabel: SpineConnectorLabel =
+              !nextEntryBelow ||
+              entry.kind === 'ringGroup' ||
+              nextEntryBelow.kind === 'ringGroup'
+                ? 'من (سليل غير مباشر)'
+                : resolveSpineConnectorLabel(
+                    nextEntryBelow.node,
+                    entry.node,
+                    entry.node.orderNumber - nextEntryBelow.node.orderNumber > 1
+                  );
+
             return (
-              <React.Fragment key={node.id}>
-                {renderAdamNodeCard(node)}
-                {nextNodeBelow &&
-                  renderConnectorBadge(
-                    resolveSpineConnectorLabel(nextNodeBelow, node, false)
-                  )}
+              <React.Fragment
+                key={entry.kind === 'node' ? entry.node.id : entry.ringGroup.id}
+              >
+                {entry.kind === 'node'
+                  ? renderAdamNodeCard(entry.node)
+                  : renderCompactIntermediatePillBadge(entry.ringGroup)}
+                {nextEntryBelow && renderConnectorBadge(connectorLabel)}
               </React.Fragment>
             );
           })}
@@ -836,7 +1222,16 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
-    // Stage 2 ($5 Paid — Root Unlocked, Non-VIP): Show the 4 locked upper layers + Unlocked Root
+    // Immediately after $5 if multiple Adam/Alpha paths require verification:
+    if (isVerificationPendingPost5Usd) {
+      return (
+        <div className="space-y-2.5 relative z-20">
+          {renderPost5UsdProgressiveVerificationCard()}
+        </div>
+      );
+    }
+
+    // Stage 2 ($5 Paid — Root Unlocked, Non-VIP): Show the 4 locked upper layers + Unified 2 Root Nodes (B2 & B0) + folded intermediate capsules below B0
     const subRootStation =
       spineNodes.find(
         (n: UpperAncestorNode) => n.code === 'B2' || n.code === 'B1'
@@ -845,6 +1240,24 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       spineNodes.find((n: UpperAncestorNode) => n.code === 'B0') ||
       spineNodes[2] ||
       spineNodes[spineNodes.length - 1];
+
+    const capsuleBetweenB2AndB0 = capsulesList.find(
+      (c) =>
+        subRootStation &&
+        motherTribeStation &&
+        c.ancestors.some(
+          (a) =>
+            a.orderNumber > subRootStation.orderNumber &&
+            a.orderNumber < motherTribeStation.orderNumber
+        )
+    );
+    const capsuleBetweenFamilyAndB2 = capsulesList.find(
+      (c) =>
+        subRootStation &&
+        c.ancestors.some(
+          (a) => a.orderNumber > 1 && a.orderNumber < subRootStation.orderNumber
+        )
+    );
 
     return (
       <div className="space-y-2.5 relative z-20">
@@ -865,6 +1278,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         <div className="space-y-2 relative z-20">
           {motherTribeStation && renderAdamNodeCard(motherTribeStation)}
 
+          {capsuleBetweenB2AndB0 && (
+            <>
+              {renderConnectorBadge('من')}
+              {renderCompactIntermediatePillBadge(capsuleBetweenB2AndB0)}
+            </>
+          )}
+
           {motherTribeStation &&
             subRootStation &&
             subRootStation.id !== motherTribeStation.id &&
@@ -873,6 +1293,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           {subRootStation &&
             subRootStation.id !== motherTribeStation?.id &&
             renderAdamNodeCard(subRootStation)}
+
+          {capsuleBetweenFamilyAndB2 && (
+            <>
+              {renderConnectorBadge('من')}
+              {renderCompactIntermediatePillBadge(capsuleBetweenFamilyAndB2)}
+            </>
+          )}
         </div>
       </div>
     );
@@ -901,32 +1328,34 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321]">
-                عمود نسب عائلة {result.familyName} الموثق
+                عمود نسب عائلة {effectiveResult.familyName} الموثق
               </h2>
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#D8755B]/15 text-[#D8755B]">
                 {isUnmatchedCase
                   ? caps.isVip
                     ? '🔍 تذكرة بحث وتوثيق نشطة (P1)'
                     : 'قيد الفحص والتوثيق الخاص'
-                  : result.isAlphaOnlyBeforeMerge && caps.isVip
-                  ? `الجذر مفتوح (${totalFamilySpineNodesCount} عُقد) · جاري ربط الطبقات العليا`
+                  : isVerificationPendingPost5Usd
+                  ? 'بانتظار تحديد المسار لكشف الجذر ✓'
+                  : effectiveResult.isAlphaOnlyBeforeMerge && caps.isVip
+                  ? `الجذر مفتوح (${visibleAdamNodesCount} عُقد مفتوحة من أصل ${totalFamilySpineNodesCount}) · جاري ربط الطبقات العليا`
                   : caps.isVip
                   ? `${visibleAdamNodesCount} عقدة مفتوحة من أصل ${totalFamilySpineNodesCount}`
                   : caps.isRootUnlocked
-                  ? `الجذر مفتوح (${getCleanSpineNodeName(result.rootBranchName)} · ${getCleanSpineNodeName(result.rootTribeName)})`
+                  ? `الجذر مفتوح (${getCleanSpineNodeName(effectiveResult.rootBranchName)} · ${getCleanSpineNodeName(effectiveResult.rootTribeName)})`
                   : 'نتيجة الفحص: تطابق موثق ✓'}
               </span>
             </div>
             <p className="text-xs text-[#252321]/70 mt-1">
-              السلسلة التاريخية الموثقة لعائلة {result.familyName}
+              السلسلة التاريخية الموثقة لعائلة {effectiveResult.familyName}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {caps.isVip &&
               !isUnmatchedCase &&
-              !result.isAlphaOnlyBeforeMerge &&
-              !result.isAlphaMergedIntoAdam &&
+              !isVerificationPendingPost5Usd &&
+              !effectiveResult.isAlphaMergedIntoAdam &&
               remainingLockedCapsules.length > 0 &&
               onRequestUnlockAllCapsulesBundle && (
                 <button
@@ -941,10 +1370,19 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 </button>
               )}
 
-            {caps.isVip && (
+            {caps.isVip && !isResearcherDirectPreview && (
               <span className="text-xs font-bold text-[#252321] bg-white border border-[#B98A78]/45 px-3 py-1.5 rounded-xl">
                 💳 المحفظة: ${walletBalance.toFixed(2)}
               </span>
+            )}
+            {isResearcherDirectPreview && onOpenAsResearcherTicket && (
+              <button
+                type="button"
+                onClick={onOpenAsResearcherTicket}
+                className="px-3.5 py-1.5 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-display font-bold shadow-xs transition-all cursor-pointer"
+              >
+                📥 فتح كتذكرة في صندوق التذاكر للتحقيق والربط
+              </button>
             )}
           </div>
         </div>
@@ -960,9 +1398,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             {/* Upper Spine Section (Handled strictly for Case 1, Case 2, and Case 3) */}
             {isUnmatchedCase
               ? renderUnmatchedFamilyUpperSection()
-              : result.isAlphaOnlyBeforeMerge
+              : effectiveResult.isAlphaOnlyBeforeMerge
               ? renderAlphaOnlyBeforeMergeSpine()
-              : caps.isVip
+              : caps.isVip && !isVerificationPendingPost5Usd
               ? renderVipFullAdamSpine()
               : renderNonVipSpineAboveFamily()}
 
@@ -972,27 +1410,31 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             {/* Family Station Node (العائلة المباشرة - بيت النسب) */}
             {renderFamilyStationNode()}
 
-            {/* Connector between topmost Personal Card (Grandfather, Father, or Record Keeper) and Family Station ("↑ من") */}
-            {renderConnectorBadge('من')}
-
-            {/* Grandfather Node (ONLY rendered if grandfatherName is filled) */}
-            {grandfatherName && (
+            {!isResearcherDirectPreview && (
               <>
-                {renderGrandfatherNode()}
-                {renderConnectorBadge(fatherName ? 'بن' : 'من')}
+                {/* Connector between topmost Personal Card (Grandfather, Father, or Record Keeper) and Family Station ("↑ من") */}
+                {renderConnectorBadge('من')}
+
+                {/* Grandfather Node (ONLY rendered if grandfatherName is filled) */}
+                {grandfatherName && (
+                  <>
+                    {renderGrandfatherNode()}
+                    {renderConnectorBadge(fatherName ? 'بن' : 'من')}
+                  </>
+                )}
+
+                {/* Father Node (ONLY rendered if fatherName is filled) */}
+                {fatherName && (
+                  <>
+                    {renderFatherNode()}
+                    {renderConnectorBadge('بن')}
+                  </>
+                )}
+
+                {/* Client Node at Bottom ("أمين السجل") */}
+                {renderClientNode()}
               </>
             )}
-
-            {/* Father Node (ONLY rendered if fatherName is filled) */}
-            {fatherName && (
-              <>
-                {renderFatherNode()}
-                {renderConnectorBadge('بن')}
-              </>
-            )}
-
-            {/* Client Node at Bottom ("أمين السجل") */}
-            {renderClientNode()}
           </div>
         </div>
 
@@ -1000,7 +1442,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         {/* VERIFIED HISTORICAL SOURCES CARD                         */}
         {/* Shown in Case 1 & Case 2 only after $5 Root is unlocked  */}
         {/* ======================================================== */}
-        {!isUnmatchedCase && caps.isRootUnlocked && (
+        {!isUnmatchedCase && caps.isRootUnlocked && !isVerificationPendingPost5Usd && (
           <div className="mt-10 pt-6 border-t border-[#B98A78]/35 max-w-2xl mx-auto w-full relative z-20">
             {!caps.isVip ? (
               <div

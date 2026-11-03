@@ -4,6 +4,7 @@ import {
   AncestorCapsule,
   BackgroundResearcherTicketPayload,
   BlindDisambiguationOption,
+  ConsensusClusterGroup,
   CorroboratingAlphaEvidence,
   DashboardAccessCapabilities,
   DashboardStateMode,
@@ -1377,49 +1378,122 @@ const DEFAULT_BLIND_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
     id: 'option_a',
     badge: 'الخيار الأول',
     title: 'شبه الجزيرة العربية والخليج',
-    geographicScope: 'شبه الجزيرة العربية والخليج',
+    originTribeLabel: 'قبيلة بني بشر (قحطان)',
+    geographicScope: 'سراة عبيدة / عسير / جنوب الجزيرة العربية',
     nearBranchHint: '',
+    isConsensusWinner: true,
+    consensusBadge: 'مرجّح في عدة مصادر',
+    sourcesCount: 4,
   },
   {
     id: 'option_b',
     badge: 'الخيار الثاني',
-    title: 'بلاد الشام ووادي الفرات',
-    geographicScope: 'بلاد الشام ووادي الفرات',
+    title: 'الحجاز وتهامة',
+    originTribeLabel: 'الأشراف الحسنيون (قريش)',
+    geographicScope: 'مكة المكرمة / الطائف / الحجاز',
     nearBranchHint: '',
+    isConsensusWinner: false,
+    sourcesCount: 2,
+  },
+];
+
+const BAIT_JANDEEL_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
+  {
+    id: 'option_a',
+    choice_id: 'ALPHA_JANDEEL_BANILAM',
+    badge: 'المسار المتوافق عليه في المصادر',
+    title: 'بني لام',
+    originTribeLabel: 'بني لام',
+    geographicScope: 'العمارة / ميسان / واسط',
+    nearBranchHint: '',
+    isConsensusWinner: true,
+    consensusBadge: 'مرجّح في عدة مصادر',
+    sourcesCount: 11,
+  },
+  {
+    id: 'option_b',
+    choice_id: 'ALPHA_JANDEEL_BANUSAID',
+    badge: 'مسار موازٍ في المصادر',
+    title: 'بنو سعيد',
+    originTribeLabel: 'بنو سعيد',
+    geographicScope: 'سوق الشيوخ / المنتفق / ذي قار',
+    nearBranchHint: '',
+    isConsensusWinner: false,
+    sourcesCount: 1,
+  },
+];
+
+const AL_HUSSAN_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
+  {
+    id: 'option_a',
+    choice_id: 'ALPHA_HUSSAN_DAWASIR',
+    badge: 'المسار المتوافق عليه في المصادر',
+    title: 'قبيلة الدواسر',
+    originTribeLabel: 'قبيلة الدواسر',
+    geographicScope: 'بريدة / القصيم / نجد',
+    nearBranchHint: '',
+    isConsensusWinner: true,
+    consensusBadge: 'مرجّح في عدة مصادر',
+    sourcesCount: 2,
+  },
+  {
+    id: 'option_b',
+    choice_id: 'ALPHA_HUSSAN_TAMIM',
+    badge: 'مسار موازٍ في المصادر',
+    title: 'قبيلة تميم',
+    originTribeLabel: 'قبيلة تميم',
+    geographicScope: 'شقراء / الوشم / نجد',
+    nearBranchHint: '',
+    isConsensusWinner: false,
+    sourcesCount: 2,
   },
 ];
 
 const KHABOUR_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
   {
     id: 'option_a',
-    badge: 'الخيار الأول',
-    title: 'شبه الجزيرة العربية والخليج',
-    geographicScope: 'شبه الجزيرة العربية والخليج',
+    badge: 'المسار المتوافق عليه في المصادر',
+    title: 'قبائل عنزة',
+    originTribeLabel: 'قبائل عنزة',
+    geographicScope: 'نجد / القصيم / شبه الجزيرة العربية',
     nearBranchHint: '',
+    isConsensusWinner: true,
+    consensusBadge: 'مرجّح في عدة مصادر',
+    sourcesCount: 3,
   },
   {
     id: 'option_b',
-    badge: 'الخيار الثاني',
-    title: 'بلاد الشام ووادي الفرات',
-    geographicScope: 'بلاد الشام ووادي الفرات',
+    badge: 'مسار موازٍ في المصادر',
+    title: 'قبيلة العقيدات',
+    originTribeLabel: 'قبيلة العقيدات',
+    geographicScope: 'دير الزور / وادي الفرات / الشام',
     nearBranchHint: '',
+    isConsensusWinner: false,
+    sourcesCount: 3,
   },
 ];
 
 const AL_QASIM_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
   {
     id: 'option_a',
-    badge: 'الخيار الأول',
-    title: 'إقليم نجران وجنوب الجزيرة العربية',
-    geographicScope: 'نجران — بلاد يام وهمدان',
+    badge: 'المسار المتوافق عليه في المصادر',
+    title: 'قبيلة يام',
+    originTribeLabel: 'قبيلة يام',
+    geographicScope: 'نجران / جنوب الجزيرة العربية',
     nearBranchHint: '',
+    isConsensusWinner: true,
+    consensusBadge: 'مرجّح في عدة مصادر',
+    sourcesCount: 3,
   },
   {
     id: 'option_b',
-    badge: 'الخيار الثاني',
-    title: 'فرع المودحي — الحواضر العربية',
-    geographicScope: 'فرع المودحي (آل سلمان — آل امداثر)',
+    badge: 'مسار موازٍ في المصادر',
+    title: 'فرع المودحي',
+    originTribeLabel: 'فرع المودحي',
+    geographicScope: 'الحواضر العربية / نجد والحجاز',
     nearBranchHint: '',
+    isConsensusWinner: false,
+    sourcesCount: 2,
   },
 ];
 
@@ -1822,8 +1896,8 @@ export function buildAlphaOnly3NodesSpine(
   intermediateSubBranch?: string
 ): UpperAncestorNode[] {
   if (intermediateSubBranch) {
-    // 4-node Alpha chain (e.g., جرص -> أبي عمرو -> أبي خابور -> العقيدات)
-    return enrichSpineNodesWithNeo4jRelations([
+    // 4-node Alpha chain (e.g., جرص -> أبي عمرو [folded intermediate] -> أبي خابور [B2] -> العقيدات [B0])
+    const nodes: UpperAncestorNode[] = [
       {
         id: 'alpha-node-01',
         orderNumber: 1,
@@ -1841,7 +1915,7 @@ export function buildAlphaOnly3NodesSpine(
         name: intermediateSubBranch,
         code: 'FE1',
         rankLabel: `البطن الفرعي المباشر (فرع ${intermediateSubBranch})`,
-        isCodedStation: true,
+        isCodedStation: false,
         region: regionLabel,
         eraNote: `فرع ${intermediateSubBranch} المتفرع من ${subRootLabel}.`,
         dataLakeSource: 'alpha_projects',
@@ -1868,7 +1942,9 @@ export function buildAlphaOnly3NodesSpine(
         eraNote: `نسب أجداد السجل الموثق: ${motherTribeLabel} في ${regionLabel}.`,
         dataLakeSource: 'alpha_projects',
       },
-    ]);
+    ];
+    buildIntermediateRingsForSpine(nodes, 'alpha-cap');
+    return enrichSpineNodesWithNeo4jRelations(nodes);
   }
 
   return enrichSpineNodesWithNeo4jRelations([
@@ -1909,24 +1985,95 @@ export function buildAlphaOnly3NodesSpine(
 }
 
 /**
- * Alpha Projects Real Chain #2 (5 Nodes strictly):
- * الأوضاح أو فروعها (آل محجم، آل رويان، آل وكيع، المصارع، الخلوف) -> آل تومان -> الثابت -> سنجارة -> قبيلة شمر الطائية
+ * Alpha Projects Real Chain #2 (Rule 2 Unified Standard):
+ * - Case A (Child Branch match `F+1 / B+1` e.g. آل محجم):
+ *   FE0 = آل محجم | Root Node 1 (B2) = قبيلة الأوضاح (عقدة السجل نفسه) | Folded (+3) = آل تومان، الثابت، سنجارة | Root Node 2 (B0) = قبيلة شمر الطائية
+ * - Case B (Record match `F / B` e.g. الأوضاح):
+ *   FE0 = قبيلة الأوضاح | Folded (+2) = آل تومان، الثابت | Root Node 1 (B2) = سنجارة | Root Node 2 (B0) = قبيلة شمر الطائية
  */
 export function buildAlphaAwdahShammar5NodesSpine(
   searchedBranch?: string
 ): UpperAncestorNode[] {
-  const firstNodeName = searchedBranch
-    ? `${searchedBranch} (قبيلة الأوضاح)`
-    : 'قبيلة الأوضاح';
-  return enrichSpineNodesWithNeo4jRelations([
+  if (searchedBranch) {
+    const nodes: UpperAncestorNode[] = [
+      {
+        id: 'alpha-awdah-branch-01',
+        orderNumber: 1,
+        name: searchedBranch,
+        code: 'FE0',
+        rankLabel: 'الفرع والعشيرة المباشرة في سجل الأوضاح',
+        isCodedStation: true,
+        region: 'نجد وحائل والجزيرة الفراتية',
+        eraNote: `فرع ${searchedBranch} الموثق ضمن سجل قبيلة الأوضاح في مشاريع ألفا.`,
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-awdah-01',
+        orderNumber: 2,
+        name: 'قبيلة الأوضاح',
+        code: 'B2',
+        rankLabel: 'الجذر · عقدة السجل الجامع (قبيلة الأوضاح - يُفتح في باقة الـ $5)',
+        isCodedStation: true,
+        region: 'نجد وحائل والجزيرة الفراتية',
+        eraNote: 'عقدة السجل الجامع لبطون الأوضاح (آل محجم، آل رويان، آل وكيع، المصارع، الخلوف).',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-awdah-02',
+        orderNumber: 3,
+        name: 'آل تومان',
+        code: 'B3',
+        rankLabel: 'الفرع الوسيط الموثق (آل تومان)',
+        isCodedStation: false,
+        region: 'حائل ونجد والجزيرة',
+        eraNote: 'آل تومان من الثابت من سنجارة في قبائل شمر.',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-awdah-03',
+        orderNumber: 4,
+        name: 'الثابت',
+        code: 'B3_T',
+        rankLabel: 'البطن الوسيط الموثق (الثابت)',
+        isCodedStation: false,
+        region: 'حائل ونجد',
+        eraNote: 'بطن الثابت من سنجارة في مشجرات قبيلة شمر.',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-awdah-04',
+        orderNumber: 5,
+        name: 'سنجارة',
+        code: 'B1',
+        rankLabel: 'الجذم الشمري الوسيط (سنجارة)',
+        isCodedStation: false,
+        region: 'جبل شمر وحائل والجزيرة',
+        eraNote: 'بطن سنجارة — أحد الجذوم الثلاثة الكبرى لقبيلة شمر.',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-awdah-05',
+        orderNumber: 6,
+        name: 'قبيلة شمر الطائية',
+        code: 'B0',
+        rankLabel: 'القبيلة الأم الكبرى (قبيلة شمر الطائية - يُفتح في باقة الـ $5)',
+        isCodedStation: true,
+        region: 'حائل ونجد والجزيرة العربية',
+        eraNote: 'قبيلة شمر الطائية القحطانية في سجلات مشاريع ألفا (بانتظار ربطها بعمود طيء ⬅️ كهلان ⬅️ قحطان ⬅️ آدم).',
+        dataLakeSource: 'alpha_projects',
+      },
+    ];
+    buildIntermediateRingsForSpine(nodes, 'alpha-awdah-cap');
+    return enrichSpineNodesWithNeo4jRelations(nodes);
+  }
+
+  const nodes: UpperAncestorNode[] = [
     {
       id: 'alpha-awdah-01',
       orderNumber: 1,
-      name: firstNodeName,
+      name: 'قبيلة الأوضاح',
       code: 'FE0',
-      rankLabel: searchedBranch
-        ? 'الفرع والعشيرة المباشرة في سجل الأوضاح'
-        : 'عقدة العشيرة الموثقة (قبيلة الأوضاح)',
+      rankLabel: 'عقدة العشيرة الموثقة (قبيلة الأوضاح)',
       isCodedStation: true,
       region: 'نجد وحائل والجزيرة الفراتية',
       eraNote: 'من بطون الأوضاح (آل محجم، آل رويان، آل وكيع، المصارع، الخلوف) في سجل مشاريع ألفا.',
@@ -1937,8 +2084,8 @@ export function buildAlphaAwdahShammar5NodesSpine(
       orderNumber: 2,
       name: 'آل تومان',
       code: 'B3',
-      rankLabel: 'الجذر الفرعي المباشر (آل تومان)',
-      isCodedStation: true,
+      rankLabel: 'الفرع الوسيط الموثق (آل تومان)',
+      isCodedStation: false,
       region: 'حائل ونجد والجزيرة',
       eraNote: 'آل تومان من الثابت من سنجارة في قبائل شمر.',
       dataLakeSource: 'alpha_projects',
@@ -1947,9 +2094,9 @@ export function buildAlphaAwdahShammar5NodesSpine(
       id: 'alpha-awdah-03',
       orderNumber: 3,
       name: 'الثابت',
-      code: 'B2',
-      rankLabel: 'البطن الجامع (الثابت - يُفتح في باقة الـ $5)',
-      isCodedStation: true,
+      code: 'B3_T',
+      rankLabel: 'البطن الوسيط الموثق (الثابت)',
+      isCodedStation: false,
       region: 'حائل ونجد',
       eraNote: 'بطن الثابت من سنجارة في مشجرات قبيلة شمر.',
       dataLakeSource: 'alpha_projects',
@@ -1958,8 +2105,8 @@ export function buildAlphaAwdahShammar5NodesSpine(
       id: 'alpha-awdah-04',
       orderNumber: 4,
       name: 'سنجارة',
-      code: 'B1',
-      rankLabel: 'الجذم الشمري الكبير (سنجارة)',
+      code: 'B2',
+      rankLabel: 'الجذر الفرعي الجامع (سنجارة - يُفتح في باقة الـ $5)',
       isCodedStation: true,
       region: 'جبل شمر وحائل والجزيرة',
       eraNote: 'بطن سنجارة — أحد الجذوم الثلاثة الكبرى لقبيلة شمر.',
@@ -1976,28 +2123,90 @@ export function buildAlphaAwdahShammar5NodesSpine(
       eraNote: 'قبيلة شمر الطائية القحطانية في سجلات مشاريع ألفا (بانتظار ربطها بعمود طيء ⬅️ كهلان ⬅️ قحطان ⬅️ آدم).',
       dataLakeSource: 'alpha_projects',
     },
-  ]);
+  ];
+  buildIntermediateRingsForSpine(nodes, 'alpha-awdah-cap');
+  return enrichSpineNodesWithNeo4jRelations(nodes);
 }
 
 /**
- * Alpha Projects Real Chain #3 (4 Nodes strictly):
- * الأيدا أو فروعها (المشادقة، الحمامدة، الجويدة في شمالي الحجاز / تيماء / قرب المدينة) -> ولد علي / الوهب -> مسلم -> قبيلة عنزة
+ * Alpha Projects Real Chain #3 (Rule 2 Unified Standard):
+ * - Case A (Child Branch match `F+1 / B+1` e.g. المشادقة):
+ *   FE0 = المشادقة | Root Node 1 (B2) = قبيلة الأيدا (عقدة السجل نفسه) | Folded (+2) = ولد علي / الوهب، مسلم | Root Node 2 (B0) = قبيلة عنزة
+ * - Case B (Record match `F / B` e.g. الأيدا):
+ *   FE0 = قبيلة الأيدا | Folded (+1) = ولد علي / الوهب | Root Node 1 (B2) = مسلم | Root Node 2 (B0) = قبيلة عنزة
  */
 export function buildAlphaAydaAnazzah4NodesSpine(
   searchedBranch?: string
 ): UpperAncestorNode[] {
-  const firstNodeName = searchedBranch
-    ? `${searchedBranch} (قبيلة الأيدا)`
-    : 'قبيلة الأيدا';
-  return enrichSpineNodesWithNeo4jRelations([
+  if (searchedBranch) {
+    const nodes: UpperAncestorNode[] = [
+      {
+        id: 'alpha-ayda-branch-01',
+        orderNumber: 1,
+        name: searchedBranch,
+        code: 'FE0',
+        rankLabel: 'الفرع المباشر في سجل قبيلة الأيدا',
+        isCodedStation: true,
+        region: 'شمالي الحجاز — تيماء وقرب المدينة المنورة',
+        eraNote: `فرع ${searchedBranch} الموثق ضمن سجل قبيلة الأيدا في مشاريع ألفا.`,
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-ayda-01',
+        orderNumber: 2,
+        name: 'قبيلة الأيدا',
+        code: 'B2',
+        rankLabel: 'الجذر · عقدة السجل الجامع (قبيلة الأيدا - يُفتح في باقة الـ $5)',
+        isCodedStation: true,
+        region: 'شمالي الحجاز — تيماء وقرب المدينة المنورة',
+        eraNote: 'عقدة السجل الجامع لقبيلة الأيدا وفروعها (المشادقة، الحمامدة، الجويدة).',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-ayda-02',
+        orderNumber: 3,
+        name: 'ولد علي / الوهب',
+        code: 'B3',
+        rankLabel: 'الفرع الوسيط الموثق (ولد علي / الوهب)',
+        isCodedStation: false,
+        region: 'شمالي الحجاز وتيماء وخيبر',
+        eraNote: 'فرع الوهب من قبيلة ولد علي في شمالي الحجاز.',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-ayda-03',
+        orderNumber: 4,
+        name: 'مسلم',
+        code: 'B1',
+        rankLabel: 'الجذم العنزي الوسيط (ضنا مسلم)',
+        isCodedStation: false,
+        region: 'الحجاز ونجد والشام',
+        eraNote: 'ضنا مسلم — أحد الجذمين الرئيسيين لقبائل عنزة.',
+        dataLakeSource: 'alpha_projects',
+      },
+      {
+        id: 'alpha-ayda-04',
+        orderNumber: 5,
+        name: 'قبيلة عنزة',
+        code: 'B0',
+        rankLabel: 'القبيلة الأم الكبرى (قبيلة عنزة - يُفتح في باقة الـ $5)',
+        isCodedStation: true,
+        region: 'شمالي الحجاز وشبه الجزيرة العربية',
+        eraNote: 'قبيلة عنزة الوائلية في سجلات مشاريع ألفا (بانتظار اعتماد دمجها المباشر في شجرة آدم).',
+        dataLakeSource: 'alpha_projects',
+      },
+    ];
+    buildIntermediateRingsForSpine(nodes, 'alpha-ayda-cap');
+    return enrichSpineNodesWithNeo4jRelations(nodes);
+  }
+
+  const nodes: UpperAncestorNode[] = [
     {
       id: 'alpha-ayda-01',
       orderNumber: 1,
-      name: firstNodeName,
+      name: 'قبيلة الأيدا',
       code: 'FE0',
-      rankLabel: searchedBranch
-        ? 'الفرع المباشر في سجل قبيلة الأيدا'
-        : 'عقدة القبيلة / المشيخة الموثقة (الأيدا)',
+      rankLabel: 'عقدة القبيلة / المشيخة الموثقة (الأيدا)',
       isCodedStation: true,
       region: 'شمالي الحجاز — تيماء وقرب المدينة المنورة',
       eraNote: 'قبيلة الأيدا وفروعها (المشادقة، الحمامدة، الجويدة) في شمالي الحجاز وتيماء.',
@@ -2007,9 +2216,9 @@ export function buildAlphaAydaAnazzah4NodesSpine(
       id: 'alpha-ayda-02',
       orderNumber: 2,
       name: 'ولد علي / الوهب',
-      code: 'B2',
-      rankLabel: 'الجذر الفرعي الجامع (ولد علي / الوهب - يُفتح في باقة الـ $5)',
-      isCodedStation: true,
+      code: 'B3',
+      rankLabel: 'الفرع الوسيط الموثق (ولد علي / الوهب)',
+      isCodedStation: false,
       region: 'شمالي الحجاز وتيماء وخيبر',
       eraNote: 'فرع الوهب من قبيلة ولد علي في شمالي الحجاز.',
       dataLakeSource: 'alpha_projects',
@@ -2018,8 +2227,8 @@ export function buildAlphaAydaAnazzah4NodesSpine(
       id: 'alpha-ayda-03',
       orderNumber: 3,
       name: 'مسلم',
-      code: 'B1',
-      rankLabel: 'الجذم العنزي الكبير (ضنا مسلم)',
+      code: 'B2',
+      rankLabel: 'الجذر الفرعي الجامع (ضنا مسلم - يُفتح في باقة الـ $5)',
       isCodedStation: true,
       region: 'الحجاز ونجد والشام',
       eraNote: 'ضنا مسلم — أحد الجذمين الرئيسيين لقبائل عنزة.',
@@ -2036,7 +2245,9 @@ export function buildAlphaAydaAnazzah4NodesSpine(
       eraNote: 'قبيلة عنزة الوائلية في سجلات مشاريع ألفا (بانتظار اعتماد دمجها المباشر في شجرة آدم).',
       dataLakeSource: 'alpha_projects',
     },
-  ]);
+  ];
+  buildIntermediateRingsForSpine(nodes, 'alpha-ayda-cap');
+  return enrichSpineNodesWithNeo4jRelations(nodes);
 }
 
 /**
@@ -3028,6 +3239,10 @@ function createKhabourAlphaUqaidatResult(
         intermediateSubBranch
       );
 
+  const rings = isMergedIntoAdam
+    ? []
+    : buildIntermediateRingsForSpine([...spineNodes], 'alpha-cap');
+
   return {
     matched: true,
     engineSource,
@@ -3048,7 +3263,7 @@ function createKhabourAlphaUqaidatResult(
     rootSummaryLabel: `الجذر: ${subRoot} — ${motherTribe}`,
     upperAncestors: spineNodes.filter((n) => n.orderNumber > 3),
     adamSpineNodes: spineNodes,
-    capsules: [], // Strictly empty so no Al-Muqit rings ever leak into Alpha records
+    capsules: rings,
     requiresBlindDisambiguation: false,
     disambiguationOptions: KHABOUR_DISAMBIGUATION_OPTIONS,
     isAlphaOnlyBeforeMerge: !isMergedIntoAdam,
@@ -3089,6 +3304,8 @@ function createAlphaAwdahShammarResult(
     ? allBranches.filter((b) => b !== searchedBranch)
     : allBranches;
   const spineNodes = buildAlphaAwdahShammar5NodesSpine(searchedBranch);
+  const rings = buildIntermediateRingsForSpine([...spineNodes], 'alpha-awdah-cap');
+  const resolvedB2 = searchedBranch ? 'قبيلة الأوضاح' : 'سنجارة';
 
   return {
     matched: true,
@@ -3106,14 +3323,14 @@ function createAlphaAwdahShammarResult(
     siblingBranchesLabel: searchedBranch
       ? `الفروع الشقيقة في قبيلة الأوضاح: ${siblingList.join('، ')}`
       : `فروع قبيلة الأوضاح الموثقة: ${siblingList.join('، ')}`,
-    rootBranchName: 'آل تومان (الثابت — سنجارة)',
+    rootBranchName: resolvedB2,
     rootBranchCode: 'B2',
     rootTribeName: 'قبيلة شمر الطائية',
     rootTribeCode: 'B0',
-    rootSummaryLabel: 'الجذر: قبيلة الأوضاح ⬅️ آل تومان ⬅️ الثابت ⬅️ سنجارة ⬅️ قبيلة شمر الطائية',
+    rootSummaryLabel: `الجذر: ${resolvedB2} — قبيلة شمر الطائية`,
     upperAncestors: spineNodes.filter((n) => n.orderNumber > 3),
     adamSpineNodes: spineNodes,
-    capsules: [],
+    capsules: rings,
     requiresBlindDisambiguation: false,
     disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
     isAlphaOnlyBeforeMerge: true,
@@ -3128,7 +3345,7 @@ function createAlphaAwdahShammarResult(
       'قلب جزيرة العرب — فؤاد حمزة (أقسام سنجارة من شمر)',
     ],
     historicalRegion: 'إقليم الجبلين وحائل ونجد والجزيرة',
-    conflictingNarrativesNote: `توثيق سجل مشاريع ألفا (5 عُقد متوفرة فعلياً): ${spineNodes
+    conflictingNarrativesNote: `توثيق سجل مشاريع ألفا (${spineNodes.length} عُقد متوفرة فعلياً): ${spineNodes
       .map((n) => n.name)
       .join(' ⬅️ ')}.`,
     confidenceLabel:
@@ -3151,6 +3368,8 @@ function createAlphaAydaAnazzahResult(
     ? allBranches.filter((b) => b !== searchedBranch)
     : allBranches;
   const spineNodes = buildAlphaAydaAnazzah4NodesSpine(searchedBranch);
+  const rings = buildIntermediateRingsForSpine([...spineNodes], 'alpha-ayda-cap');
+  const resolvedB2 = searchedBranch ? 'قبيلة الأيدا' : 'مسلم';
 
   return {
     matched: true,
@@ -3168,14 +3387,14 @@ function createAlphaAydaAnazzahResult(
     siblingBranchesLabel: searchedBranch
       ? `الفروع الشقيقة في قبيلة الأيدا: ${siblingList.join('، ')}`
       : `فروع قبيلة الأيدا الموثقة: ${siblingList.join('، ')}`,
-    rootBranchName: 'ولد علي / الوهب (مسلم)',
+    rootBranchName: resolvedB2,
     rootBranchCode: 'B2',
     rootTribeName: 'قبيلة عنزة',
     rootTribeCode: 'B0',
-    rootSummaryLabel: 'الجذر: قبيلة الأيدا ⬅️ ولد علي / الوهب ⬅️ مسلم ⬅️ قبيلة عنزة',
+    rootSummaryLabel: `الجذر: ${resolvedB2} — قبيلة عنزة`,
     upperAncestors: spineNodes.filter((n) => n.orderNumber > 3),
     adamSpineNodes: spineNodes,
-    capsules: [],
+    capsules: rings,
     requiresBlindDisambiguation: false,
     disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
     isAlphaOnlyBeforeMerge: true,
@@ -3190,7 +3409,7 @@ function createAlphaAydaAnazzahResult(
       'أصدق الدلائل في أنساب بني وائل — ابن عبار العنزي',
     ],
     historicalRegion: 'شمالي الحجاز — تيماء وقرب المدينة المنورة',
-    conflictingNarrativesNote: `توثيق سجل مشاريع ألفا (4 عُقد متوفرة فعلياً): ${spineNodes
+    conflictingNarrativesNote: `توثيق سجل مشاريع ألفا (${spineNodes.length} عُقد متوفرة فعلياً): ${spineNodes
       .map((n) => n.name)
       .join(' ⬅️ ')}.`,
     confidenceLabel:
@@ -3759,6 +3978,19 @@ export const UNIVERSAL_ALPHA_EVIDENCE_CATALOG: CorroboratingAlphaEvidence[] = [
     notables: 'الشيخ جنديل بن بلاسم النصيري اللامي الطائي',
     priority_tier: 'PRIORITY_2_GENERAL_BOOK',
   },
+  {
+    alpha_id: 'ALP_JANDEEL_14_BANU_SAID',
+    record_name: 'بيت جنديل (رواية بنو سعيد — المنتفق)',
+    source_book: 'موسوعة عشائر العراق — ثامر العامري (قسم عشائر المنتفق وبنو سعيد)',
+    page: '302',
+    volume: '4',
+    lineage_ancestors:
+      'جنديل ؛ بلاسم ؛ محمد ؛ حسن ؛ علي ؛ ناصر ؛ منصور ؛ عبد الله ؛ راشد ؛ حمد ؛ عقيل ؛ عامر ؛ سعد ؛ مالك ؛ عوف ؛ ذهل ؛ شيبان ؛ ثعلبة ؛ بكر ؛ وائل ؛ قاسط ؛ هنب ؛ أفصى ؛ دعمي ؛ جديلة ؛ أسد ؛ منيع ؛ بنو سعيد',
+    child_branches: 'بيت جنديل (فرع بنو سعيد) | آل منيع | البو سعيد',
+    locations: 'سوق الشيوخ | المنتفق | ذي قار | العراق',
+    notables: 'الشيخ جنديل بن بلاسم السعيدي في سوق الشيوخ والمنتفق (سلسلة من 28 جدّاً تنتهي بـ منيع ⬅️ بنو سعيد)',
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+  },
 
   // --- آل الحصان (4 مصادر متقاطعة في مشاريع ألفا: رواية القصيم/الدواسر + رواية الوشم/تميم) ---
   {
@@ -3819,6 +4051,170 @@ export function formatAlphaEvidenceCitation(ev: CorroboratingAlphaEvidence): str
   const pagePart = ev.page ? `ص${ev.page}` : '';
   const locBracket = [volPart, pagePart].filter(Boolean).join(' ');
   return locBracket ? `${ev.source_book} (${locBracket})` : ev.source_book;
+}
+
+/**
+ * Cross-Source Consensus Clustering Algorithm (Rule 3 & Rule 4):
+ * Automatically compares `lineage_ancestors` and `child_branches` across all matched records
+ * for the same family name. Groups records sharing common lineage/branch nodes into clusters:
+ * - Marks the cluster agreed upon by 2+ sources as `isConsensusWinner: true` ("المسار المتوافق عليه في المصادر")
+ * - Places other competing records for the same name in secondary comparison clusters ("مسارات أخرى لنفس الاسم في المصادر للمقارنة")
+ */
+export function computeCrossSourceConsensusClusters(
+  familyName: string,
+  evidenceList: CorroboratingAlphaEvidence[]
+): ConsensusClusterGroup[] {
+  if (!evidenceList || evidenceList.length === 0) return [];
+
+  const normFamily = normalizeArabicToken(familyName, true);
+
+  interface RawCluster {
+    key: string;
+    originTribeLabel: string;
+    geographicScope: string;
+    tokenSet: Set<string>;
+    displayNodes: string[];
+    records: CorroboratingAlphaEvidence[];
+  }
+
+  const inferOriginTribeCategory = (ev: CorroboratingAlphaEvidence): {
+    key: string;
+    originTribeLabel: string;
+    defaultGeo: string;
+  } => {
+    const text = normalizeArabic(`${ev.lineage_ancestors || ''} ${ev.record_name || ''}`);
+    if (text.includes('بني لام') || text.includes('بنو لام') || text.includes('نصيري') || text.includes('بلاسم')) {
+      return { key: 'BANI_LAM', originTribeLabel: 'بني لام', defaultGeo: 'العمارة / ميسان / واسط' };
+    }
+    if (text.includes('بنو سعيد') || text.includes('بني سعيد') || text.includes('منيع')) {
+      return { key: 'BANU_SAID', originTribeLabel: 'بنو سعيد', defaultGeo: 'سوق الشيوخ / المنتفق / ذي قار' };
+    }
+    if (text.includes('دواسر') || text.includes('بدارين') || text.includes('سابق')) {
+      return { key: 'DAWASIR', originTribeLabel: 'قبيلة الدواسر', defaultGeo: 'بريدة / القصيم / نجد' };
+    }
+    if (text.includes('تميم') || text.includes('نواصر') || text.includes('بني عمرو')) {
+      return { key: 'TAMIM', originTribeLabel: 'قبيلة تميم', defaultGeo: 'شقراء / الوشم / نجد' };
+    }
+    if (text.includes('عقيدات') || text.includes('خابور')) {
+      return { key: 'UQAIDAT', originTribeLabel: 'قبيلة العقيدات', defaultGeo: 'دير الزور / وادي الفرات' };
+    }
+    if (text.includes('عنزه') || text.includes('سميحان') || text.includes('ولد علي')) {
+      return { key: 'ANAZZAH', originTribeLabel: 'قبائل عنزة', defaultGeo: 'نجد / القصيم / شمالي الحجاز' };
+    }
+    if (text.includes('بو سلطان') || text.includes('زبيد')) {
+      return { key: 'ZUBAID', originTribeLabel: 'البو سلطان — زبيد', defaultGeo: 'الحلة / بابل / الفرات الأوسط' };
+    }
+    if (text.includes('موالي')) {
+      return { key: 'MAWALI', originTribeLabel: 'الموالي / وادي الفرات', defaultGeo: 'البوكمال / القائم / وادي الفرات' };
+    }
+    if (text.includes('يام') || text.includes('همدان') || text.includes('قطعان')) {
+      return { key: 'YAM', originTribeLabel: 'قبيلة يام', defaultGeo: 'نجران / جنوب الجزيرة العربية' };
+    }
+    if (text.includes('مودحي') || text.includes('امداثر')) {
+      return { key: 'MAWDAHI', originTribeLabel: 'فرع المودحي', defaultGeo: 'الحواضر العربية / نجد والحجاز' };
+    }
+    if (text.includes('بني بشر') || text.includes('برمان')) {
+      return { key: 'BANI_BISHR', originTribeLabel: 'قبيلة بني بشر', defaultGeo: 'سراة عبيدة / عسير' };
+    }
+    if (text.includes('نعيمات')) {
+      return { key: 'NUAIMAT', originTribeLabel: 'النعيمات', defaultGeo: 'قضاء الشوبك / جبال الشراة' };
+    }
+    if (text.includes('دعجه') || text.includes('شبيكات')) {
+      return { key: 'DAAJAH', originTribeLabel: 'الشبيكات — الدعجة', defaultGeo: 'البلقاء / الشوبك / الأردن' };
+    }
+    if (text.includes('شمر') || text.includes('سنجاره')) {
+      return { key: 'SHAMMAR', originTribeLabel: 'قبيلة شمر الطائية', defaultGeo: 'حائل / نجد / الجزيرة' };
+    }
+
+    const tokens = (ev.lineage_ancestors || '')
+      .split(/[؛—⬅️>|]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const lastTok = tokens[tokens.length - 1] || ev.record_name;
+    const loc = (ev.locations || '')
+      .split(/[|،؛,]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(' / ');
+    return {
+      key: `CUSTOM_${normalizeArabicToken(lastTok, true)}`,
+      originTribeLabel: lastTok,
+      defaultGeo: loc || 'النطاق المرصود في السجل',
+    };
+  };
+
+  const clusterMap = new Map<string, RawCluster>();
+
+  for (const ev of evidenceList) {
+    const cat = inferOriginTribeCategory(ev);
+    const ancTokens = (ev.lineage_ancestors || '')
+      .split(/[؛—⬅️>|]+/)
+      .map((s) => s.trim())
+      .filter((t) => Boolean(t) && normalizeArabicToken(t, true) !== normFamily);
+
+    const existing = clusterMap.get(cat.key);
+    if (existing) {
+      existing.records.push(ev);
+      ancTokens.forEach((t) => {
+        existing.tokenSet.add(t);
+        if (!existing.displayNodes.some((d) => normalizeArabicToken(d, true) === normalizeArabicToken(t, true))) {
+          existing.displayNodes.push(t);
+        }
+      });
+    } else {
+      clusterMap.set(cat.key, {
+        key: cat.key,
+        originTribeLabel: cat.originTribeLabel,
+        geographicScope: cat.defaultGeo,
+        tokenSet: new Set(ancTokens),
+        displayNodes: [...ancTokens],
+        records: [ev],
+      });
+    }
+  }
+
+  const sortedClusters = Array.from(clusterMap.values()).sort(
+    (a, b) => b.records.length - a.records.length
+  );
+
+  const topCount = sortedClusters[0]?.records.length || 0;
+
+  return sortedClusters.map((c, idx) => {
+    const isWinner = idx === 0 && topCount >= 2;
+    const cleanedDisplayNodes = c.displayNodes
+      .map((t) => sanitizeLineageAncestorToken(t))
+      .filter((t) => Boolean(t) && !isGeographicOrDescriptiveNoiseToken(t));
+
+    const chainTokens =
+      c.key === 'BANI_LAM'
+        ? [familyName, 'البلاسم', 'آل نصيري', 'بني لام']
+        : [familyName, ...cleanedDisplayNodes];
+
+    const weightedRoots = selectWeightedConsensusTwoRootNodes(
+      familyName,
+      chainTokens.slice(1),
+      c.records
+    );
+    const rootPreview =
+      weightedRoots.rootB2Name &&
+      weightedRoots.rootB0Name &&
+      weightedRoots.rootB2Name !== weightedRoots.rootB0Name
+        ? `${weightedRoots.rootB2Name} ⬅️ ${weightedRoots.rootB0Name}`
+        : weightedRoots.rootB0Name || c.originTribeLabel;
+
+    return {
+      clusterId: `cluster-${c.key.toLowerCase()}-${idx + 1}`,
+      originTribeLabel: c.originTribeLabel,
+      geographicScope: c.geographicScope,
+      isConsensusWinner: isWinner,
+      sourcesCount: c.records.length,
+      sharedNodes: cleanedDisplayNodes.slice(0, 6),
+      records: c.records,
+      rootPreviewLabel: rootPreview,
+      fullChainNodes: chainTokens,
+    };
+  });
 }
 
 /**
@@ -3990,34 +4386,315 @@ export function aggregateAlphaEvidenceForFamily(
 }
 
 /**
- * Dynamically builds isolated Alpha spine nodes (`FE0 -> B2 -> B0...`) from a semicolon/dash-delimited
- * `lineage_ancestors` string so ANY family from Port 8090 or the Universal Alpha Catalog gets its own real nodes.
+ * Strips descriptive/geographic parenthetical remarks from a lineage token
+ * while detecting if the token itself is a geographic city or narrative noise
+ * (e.g., "معان (رواية)", "الشوبك", "سوق الشيوخ").
+ */
+const GEOGRAPHIC_NOISE_EXACT_TOKENS = new Set(
+  [
+    'معان',
+    'الشوبك',
+    'قضاء الشوبك',
+    'جبال الشراة',
+    'البلقاء',
+    'الكرك',
+    'الطفيلة',
+    'عمان',
+    'الأردن',
+    'العمارة',
+    'ميسان',
+    'واسط',
+    'الكوت',
+    'سوق الشيوخ',
+    'المنتفق',
+    'ذي قار',
+    'الناصرية',
+    'بغداد',
+    'البصرة',
+    'الموصل',
+    'العراق',
+    'دير الزور',
+    'البوكمال',
+    'الميادين',
+    'سوريا',
+    'جرجا',
+    'سوهاج',
+    'صعيد مصر',
+    'مصر',
+    'نجران',
+    'سراة عبيدة',
+    'بريدة',
+    'شقراء',
+    'القصيم',
+    'الوشم',
+    'سدير',
+    'المحمل',
+    'البير',
+    'حائل',
+    'نجد',
+    'الحجاز',
+    'السعودية',
+  ].map((s) => normalizeArabic(s))
+);
+
+export function sanitizeLineageAncestorToken(rawToken: string): string {
+  const trimmed = rawToken.trim();
+  if (!trimmed) return '';
+  // If explicitly marked as "(رواية)" or "رواية في ...", exclude it
+  if (trimmed.includes('رواية') || trimmed.includes('روايه')) {
+    return '';
+  }
+  // Strip location parentheticals like "(في جبال الشراة)" or "(في الشوبك)"
+  return trimmed
+    .replace(/\(\s*(في|بـ|من منطقة|من حواضر|سكنوا|مساكنهم)\s+[^)]+\)/g, '')
+    .trim();
+}
+
+export function isGeographicOrDescriptiveNoiseToken(rawToken: string): boolean {
+  const trimmed = rawToken.trim();
+  if (!trimmed) return true;
+  if (
+    trimmed.includes('(رواية)') ||
+    trimmed.includes('رواية') ||
+    trimmed.includes('مساكنهم') ||
+    trimmed.includes('منازلهم')
+  ) {
+    return true;
+  }
+  const cleaned = sanitizeLineageAncestorToken(trimmed);
+  if (!cleaned) return true;
+  const norm = normalizeArabic(cleaned);
+  return GEOGRAPHIC_NOISE_EXACT_TOKENS.has(norm);
+}
+
+/**
+ * Calculates the Weighted Consensus Node Score (`Node Weight Score`) for a candidate node in `lineage_ancestors`:
+ * 1) `Cross-Source Frequency`: How many corroborating records for the family mention this node.
+ * 2) `Structural Weight`: Tribal/Clan collective indicators (`بني`, `بنو`, `آل`, `قبيلة`, `بيت`, or plural clan patterns like `البلاسم`, `الحصانية`, `البدارين`, `النعيمات`) score significantly higher than bare individual given names (`زيد`, `مانع`, `شبيب`, `مشعل`, `عيسى`, `راشد`).
+ * 3) `Summit Bonus`: Topmost overarching tribe in the chain receives a summit anchor bonus.
+ */
+export function calculateAncestorNodeWeightScore(
+  nodeName: string,
+  indexInChain: number,
+  totalChainLength: number,
+  corroboratingRecords: CorroboratingAlphaEvidence[] = []
+): number {
+  if (isGeographicOrDescriptiveNoiseToken(nodeName)) {
+    return -1000;
+  }
+  const cleaned = sanitizeLineageAncestorToken(nodeName);
+  const normFull = normalizeArabic(cleaned);
+  const normCore = normalizeArabicToken(cleaned, true);
+
+  // 1. Cross-Source Frequency Score
+  let crossSourceHits = 0;
+  for (const rec of corroboratingRecords) {
+    const recText = normalizeArabic(
+      `${rec.record_name || ''} ${rec.lineage_ancestors || ''} ${rec.child_branches || ''}`
+    );
+    if (
+      (normFull.length >= 3 && recText.includes(normFull)) ||
+      (normCore.length >= 3 && recText.includes(normCore))
+    ) {
+      crossSourceHits += 1;
+    }
+  }
+  const frequencyScore = crossSourceHits * 18;
+
+  // 2. Structural / Collective Tribal Weight Score
+  let structuralScore = 1; // Base weight for a bare individual given name (زيد، مانع، شبيب...)
+  if (
+    /^(قبيلة|قبائل|عشيرة|عشائر|بني|بنو)\s+/u.test(cleaned)
+  ) {
+    structuralScore += 50;
+  } else if (
+    /^(آل|ال|بيت|ذوي|ذوو|أولاد|اولاد|البو|الابو|أبي|ابي)\s+/u.test(cleaned)
+  ) {
+    structuralScore += 36;
+  } else if (
+    cleaned.startsWith('ال') &&
+    (cleaned.endsWith('ات') ||
+      cleaned.endsWith('ين') ||
+      cleaned.endsWith('ان') ||
+      cleaned.endsWith('ية') ||
+      cleaned.endsWith('يه') ||
+      cleaned.endsWith('سم') ||
+      cleaned.endsWith('صر') ||
+      cleaned.endsWith('دج') ||
+      cleaned.endsWith('لف') ||
+      cleaned.endsWith('وضاح') ||
+      cleaned.endsWith('ربيعية') ||
+      cleaned.endsWith('مشادقة') ||
+      cleaned.endsWith('نعيمات') ||
+      cleaned.endsWith('دعجة') ||
+      cleaned.endsWith('عقيدات') ||
+      cleaned.endsWith('بلاسم'))
+  ) {
+    structuralScore += 32;
+  }
+
+  // Famous overarching mother tribes bonus
+  if (
+    /(شمر|عنزه|عنزة|تميم|طيء|طي|قحطان|همدان|يام|عتيبه|عتيبة|حرب|مطير|دواسر|بلحارث|قريش|هواره|هوارة|بني لام|بنو سعيد|بني سعيد|عقيدات|نعيمات|دعجه|دعجة)/u.test(
+      normFull
+    )
+  ) {
+    structuralScore += 35;
+  }
+
+  // 3. Summit Position Bonus (anchors the Mother Tribe at the top of the chain)
+  const isLastSummit = indexInChain === totalChainLength - 1;
+  const positionBonus = isLastSummit ? 28 : indexInChain === totalChainLength - 2 ? 8 : 0;
+
+  return frequencyScore + structuralScore + positionBonus;
+}
+
+/**
+ * Selects the 2 Root Nodes (`B2` and `B0`) from a list of ancestor tokens in ascending order
+ * using the Weighted Consensus 2-Node Selection algorithm:
+ * - Case A (`isChildBranchMatch` with `recordTitleNodeName`):
+ *   Root Node 1 (`B2`) = `recordTitleNodeName` (عقدة السجل الأم نفسه)
+ *   Root Node 2 (`B0`) = Highest-weighted node at the top of `lineage_ancestors` (القبيلة الأم)
+ * - Case B (Match with the Record itself or a node in `lineage_ancestors`):
+ *   Picks the 2 highest-weighted & most-repeated nodes across the sources while strictly preserving
+ *   their ascending chronological order (`selectedB2Index < selectedB0Index`).
+ */
+export function selectWeightedConsensusTwoRootNodes(
+  familyName: string,
+  validAncestors: string[],
+  corroboratingRecords: CorroboratingAlphaEvidence[] = [],
+  options?: {
+    isChildBranchMatch?: boolean;
+    recordTitleNodeName?: string;
+  }
+): {
+  selectedB2Index: number;
+  selectedB0Index: number;
+  rootB2Name: string;
+  rootB0Name: string;
+} {
+  if (validAncestors.length === 0) {
+    return {
+      selectedB2Index: -1,
+      selectedB0Index: -1,
+      rootB2Name: familyName,
+      rootB0Name: familyName,
+    };
+  }
+
+  if (validAncestors.length === 1) {
+    return {
+      selectedB2Index: 0,
+      selectedB0Index: 0,
+      rootB2Name: validAncestors[0],
+      rootB0Name: validAncestors[0],
+    };
+  }
+
+  if (options?.isChildBranchMatch && options?.recordTitleNodeName) {
+    // Score remaining ancestors to pick the highest-weighted Mother Tribe (B0)
+    let bestB0Idx = validAncestors.length - 1;
+    let bestB0Score = -Infinity;
+    validAncestors.forEach((tok, idx) => {
+      const sc = calculateAncestorNodeWeightScore(
+        tok,
+        idx,
+        validAncestors.length,
+        corroboratingRecords
+      );
+      if (sc >= bestB0Score) {
+        bestB0Score = sc;
+        bestB0Idx = idx;
+      }
+    });
+    return {
+      selectedB2Index: 0,
+      selectedB0Index: bestB0Idx,
+      rootB2Name: options.recordTitleNodeName,
+      rootB0Name: validAncestors[bestB0Idx],
+    };
+  }
+
+  // Score all valid ancestors and pick the top 2 by weight, then sort by ascending index
+  const scored = validAncestors.map((tok, idx) => ({
+    tok,
+    idx,
+    score: calculateAncestorNodeWeightScore(
+      tok,
+      idx,
+      validAncestors.length,
+      corroboratingRecords
+    ),
+  }));
+
+  const sortedByWeight = [...scored].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.idx - a.idx;
+  });
+
+  const topTwo = sortedByWeight.slice(0, 2).sort((a, b) => a.idx - b.idx);
+  const b2Item = topTwo[0];
+  const b0Item = topTwo[1] || topTwo[0];
+
+  return {
+    selectedB2Index: b2Item.idx,
+    selectedB0Index: b0Item.idx,
+    rootB2Name: b2Item.tok,
+    rootB0Name: b0Item.tok,
+  };
+}
+
+/**
+ * Dynamically builds isolated Alpha spine nodes from a semicolon/dash-delimited
+ * `lineage_ancestors` string while strictly enforcing Weighted Consensus 2-Node Root Selection:
+ * - Excludes geographic cities or narrative noise (e.g. `معان (رواية)`).
+ * - Case A (`options?.isChildBranchMatch && options?.recordTitleNodeName`):
+ *   Root Node 1 (B2) = `recordTitleNodeName` (عقدة السجل الأم نفسه)
+ *   Root Node 2 (B0) = Highest-weighted Mother Tribe in `lineage_ancestors`
+ * - Case B (Match with the Record itself or a node in `lineage_ancestors`):
+ *   Selects the 2 highest-weighted & most-repeated nodes (`B2` and `B0`) in ascending order,
+ *   and folds all other intermediate nodes into a single capsule (`🔒 +X جدّاً في السلسلة`).
  */
 export function buildDynamicAlphaSpineFromAncestors(
   familyName: string,
   lineageAncestorsRaw: string | null | undefined,
   subtribeB2Fallback: string | null | undefined,
   motherTribeB0Fallback: string | null | undefined,
-  regionLabel: string
+  regionLabel: string,
+  options?: {
+    isChildBranchMatch?: boolean;
+    recordTitleNodeName?: string;
+    corroboratingRecords?: CorroboratingAlphaEvidence[];
+  }
 ): UpperAncestorNode[] {
   const rawTokens = (lineageAncestorsRaw || '')
     .split(/[؛—⬅️>|]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+    .map((s) => sanitizeLineageAncestorToken(s))
+    .filter((s) => Boolean(s) && !isGeographicOrDescriptiveNoiseToken(s));
 
   const normFam = normalizeArabicToken(familyName, true);
-  const filteredTokens = rawTokens.filter(
-    (t) => normalizeArabicToken(t, true) !== normFam
-  );
+  const filteredTokens: string[] = [];
+  for (const tok of rawTokens) {
+    const normTok = normalizeArabicToken(tok, true);
+    if (normTok === normFam) continue;
+    if (!filteredTokens.some((existing) => normalizeArabicToken(existing, true) === normTok)) {
+      filteredTokens.push(tok);
+    }
+  }
 
   if (filteredTokens.length === 0) {
-    const b2 = (subtribeB2Fallback || '').trim();
-    const b0 = (motherTribeB0Fallback || '').trim();
-    if (b2 && normalizeArabicToken(b2, true) !== normFam) {
+    const b2 = sanitizeLineageAncestorToken(subtribeB2Fallback || '');
+    const b0 = sanitizeLineageAncestorToken(motherTribeB0Fallback || '');
+    if (
+      b2 &&
+      !isGeographicOrDescriptiveNoiseToken(b2) &&
+      normalizeArabicToken(b2, true) !== normFam
+    ) {
       filteredTokens.push(b2);
     }
     if (
       b0 &&
+      !isGeographicOrDescriptiveNoiseToken(b0) &&
       normalizeArabicToken(b0, true) !== normFam &&
       normalizeArabicToken(b0, true) !== normalizeArabicToken(b2, true)
     ) {
@@ -4039,27 +4716,89 @@ export function buildDynamicAlphaSpineFromAncestors(
     },
   ];
 
+  // Case A: Match with a Child Branch inside the record (F+1 / B+1)
+  if (options?.isChildBranchMatch && options?.recordTitleNodeName) {
+    const recordTitle = sanitizeLineageAncestorToken(options.recordTitleNodeName);
+    const remainingAncestors = filteredTokens.filter(
+      (t) => normalizeArabicToken(t, true) !== normalizeArabicToken(recordTitle, true)
+    );
+
+    const weightedRoots = selectWeightedConsensusTwoRootNodes(
+      familyName,
+      remainingAncestors,
+      options.corroboratingRecords || [],
+      { isChildBranchMatch: true, recordTitleNodeName: recordTitle }
+    );
+
+    nodes.push({
+      id: `alpha-dyn-02`,
+      orderNumber: 2,
+      name: recordTitle,
+      code: remainingAncestors.length > 0 ? 'B2' : 'B0',
+      rankLabel: 'الجذر · عقدة السجل الجامع (يُفتح في باقة الـ $5)',
+      isCodedStation: true,
+      region: regionLabel,
+      eraNote: `${recordTitle} — عقدة السجل الجامع لفرع ${familyName}.`,
+      dataLakeSource: 'alpha_projects',
+    });
+
+    remainingAncestors.forEach((ancestorName, idx) => {
+      const isSelectedB0 = idx === weightedRoots.selectedB0Index;
+      nodes.push({
+        id: `alpha-dyn-${String(idx + 3).padStart(2, '0')}`,
+        orderNumber: idx + 3,
+        name: ancestorName,
+        code: isSelectedB0 ? 'B0' : `B${idx + 3}`,
+        rankLabel: isSelectedB0
+          ? 'القبيلة الأم / الجذم الجامع في السجل (الجذر)'
+          : 'حلقة نسب وسيطة في السجل',
+        isCodedStation: isSelectedB0,
+        region: regionLabel,
+        eraNote: `${ancestorName} — محطة موثقة في سلسلة نسب ${familyName}.`,
+        dataLakeSource: 'alpha_projects',
+      });
+    });
+
+    buildIntermediateRingsForSpine(nodes, 'alpha-dyn-cap');
+    return enrichSpineNodesWithNeo4jRelations(nodes);
+  }
+
+  // Case B: Match with the Record itself (F / B) or an ancestor node
+  // Select the 2 highest-weighted & most-repeated nodes (B2 and B0) in ascending order;
+  // fold all other ancestor nodes into a capsule (`🔒 +X جدّاً في السلسلة`).
+  const weightedSelection = selectWeightedConsensusTwoRootNodes(
+    familyName,
+    filteredTokens,
+    options?.corroboratingRecords || []
+  );
+
   filteredTokens.forEach((ancestorName, idx) => {
-    const isLast = idx === filteredTokens.length - 1;
-    const isFirstUpper = idx === 0;
-    const code = isLast ? 'B0' : isFirstUpper ? 'B2' : `B${idx + 1}`;
+    const isB0 = idx === weightedSelection.selectedB0Index;
+    const isB2 =
+      filteredTokens.length >= 2 &&
+      idx === weightedSelection.selectedB2Index &&
+      weightedSelection.selectedB2Index !== weightedSelection.selectedB0Index;
+    const isRootStation = isB0 || isB2;
+    const code = isB0 ? 'B0' : isB2 ? 'B2' : `B${idx + 3}`;
+
     nodes.push({
       id: `alpha-dyn-${String(idx + 2).padStart(2, '0')}`,
       orderNumber: idx + 2,
       name: ancestorName,
       code,
-      rankLabel: isLast
+      rankLabel: isB0
         ? 'القبيلة الأم / الجذم الجامع في السجل (الجذر)'
-        : isFirstUpper
+        : isB2
         ? 'الفرع الجامع الموثق (الجذر)'
-        : 'حلقة نسب عليا موثقة في مشاريع ألفا',
-      isCodedStation: true,
+        : 'حلقة نسب وسيطة في السجل',
+      isCodedStation: isRootStation,
       region: regionLabel,
       eraNote: `${ancestorName} — محطة موثقة في سلسلة نسب ${familyName}.`,
       dataLakeSource: 'alpha_projects',
     });
   });
 
+  buildIntermediateRingsForSpine(nodes, 'alpha-dyn-cap');
   return enrichSpineNodesWithNeo4jRelations(nodes);
 }
 
@@ -4471,6 +5210,10 @@ function buildAdamEntrySearchResult(
     verified_sources: combinedVerifiedSources,
     secondarySources: combinedVerifiedSources,
     corroborating_alpha_evidence_for_researcher: parallelAlphaEvidence,
+    consensusClusterGroups: computeCrossSourceConsensusClusters(
+      displayFam,
+      parallelAlphaEvidence
+    ),
     background_researcher_ticket: agg.background_researcher_ticket,
     historicalRegion: entry.historicalRegion,
     conflictingNarrativesNote: entry.conflictingNarrativesNote,
@@ -4553,6 +5296,10 @@ function enrichResultWithMultiSourceAggregation(
     secondarySources: mergedSources,
     verifiedSourceCitation: res.verifiedSourceCitation || agg.primaryCitation,
     corroborating_alpha_evidence_for_researcher: finalEvidenceList,
+    consensusClusterGroups: computeCrossSourceConsensusClusters(
+      res.familyName,
+      finalEvidenceList
+    ),
     background_researcher_ticket: agg.background_researcher_ticket,
     alphaBackgroundTicketCode:
       agg.background_researcher_ticket.ticket_id || res.alphaBackgroundTicketCode,
@@ -4837,11 +5584,16 @@ export function resolveDeterministicLineage(
     );
     const spineNodes = buildDynamicAlphaSpineFromAncestors(
       'الهباهبة',
-      'الهباهبة ؛ النعيمات (في جبال الشراة)',
-      'النعيمات (في جبال الشراة)',
-      'النعيمات — الشبيكات — الدعجة',
-      'قضاء الشوبك وجبال الشراة — الأردن'
+      'الهباهبة ؛ زيد ؛ مانع ؛ معان (رواية) ؛ الحصانية ؛ النعيمات',
+      'الحصانية',
+      'النعيمات',
+      'قضاء الشوبك وجبال الشراة — الأردن',
+      { corroboratingRecords: habahbehEvidence }
     );
+    const habahbehB2 =
+      spineNodes.find((n) => n.code === 'B2')?.name || 'الحصانية';
+    const habahbehB0 =
+      spineNodes.find((n) => n.code === 'B0')?.name || 'النعيمات';
 
     return {
       matched: true,
@@ -4863,14 +5615,14 @@ export function resolveDeterministicLineage(
       siblingBranches: agg.sibling_branches_in_record,
       siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل (${agg.sibling_branches_in_record.length} فروع): ${agg.sibling_branches_in_record.join('، ')}`,
       notables_in_record: ['مسلم النعيمي', 'أحمد', 'جابر', 'علي'],
-      rootBranchName: 'النعيمات (في جبال الشراة)',
+      rootBranchName: habahbehB2,
       rootBranchCode: 'B2',
-      rootTribeName: 'النعيمات — الدعجة',
+      rootTribeName: habahbehB0,
       rootTribeCode: 'B0',
-      rootSummaryLabel: 'الجذر: الهباهبة ⬅️ من النعيمات (في جبال الشراة)',
-      upperAncestors: spineNodes.filter((n) => n.orderNumber > 2),
+      rootSummaryLabel: `الجذر: ${habahbehB2} ⬅️ ${habahbehB0}`,
+      upperAncestors: spineNodes.filter((n) => n.orderNumber > 1),
       adamSpineNodes: spineNodes,
-      capsules: [],
+      capsules: buildIntermediateRingsForSpine([...spineNodes], 'alpha-habahbeh-cap'),
       requiresBlindDisambiguation: false,
       disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
       isAlphaOnlyBeforeMerge: true,
@@ -4881,6 +5633,7 @@ export function resolveDeterministicLineage(
       verified_sources: agg.verified_sources,
       secondarySources: agg.verified_sources,
       corroborating_alpha_evidence_for_researcher: habahbehEvidence,
+      consensusClusterGroups: computeCrossSourceConsensusClusters('الهباهبة', habahbehEvidence),
       background_researcher_ticket: agg.background_researcher_ticket,
       historicalRegion: 'قضاء الشوبك وجبال الشراة والبلقاء (المملكة الأردنية الهاشمية)',
       conflictingNarrativesNote: `توثيق مجمع من (${habahbehEvidence.length}) مصادر في مشاريع ألفا لعائلة (الهباهبة) في الشوبك والبلقاء.`,
@@ -4905,7 +5658,8 @@ export function resolveDeterministicLineage(
       `${dispFam} ؛ أولاد يحيى ؛ قبائل هوارة بالصعيد`,
       'أولاد يحيى (جرجا)',
       'قبائل هوارة بالصعيد',
-      'جرجا وسوهاج — صعيد مصر'
+      'جرجا وسوهاج — صعيد مصر',
+      { corroboratingRecords: girgaEvidence }
     );
 
     return {
@@ -4926,14 +5680,14 @@ export function resolveDeterministicLineage(
       sibling_branches_in_record: agg.sibling_branches_in_record,
       siblingBranches: agg.sibling_branches_in_record,
       siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل: ${agg.sibling_branches_in_record.join('، ')}`,
-      rootBranchName: 'أولاد يحيى (حواضر جرجا)',
+      rootBranchName: 'أولاد يحيى',
       rootBranchCode: 'B2',
-      rootTribeName: 'قبائل هوارة — صعيد مصر',
+      rootTribeName: 'قبائل هوارة بالصعيد',
       rootTribeCode: 'B0',
-      rootSummaryLabel: `الجذر: ${dispFam} ⬅️ أولاد يحيى ⬅️ قبائل هوارة بالصعيد`,
-      upperAncestors: spineNodes.filter((n) => n.orderNumber > 2),
+      rootSummaryLabel: `الجذر: أولاد يحيى ⬅️ قبائل هوارة بالصعيد`,
+      upperAncestors: spineNodes.filter((n) => n.orderNumber > 1),
       adamSpineNodes: spineNodes,
-      capsules: [],
+      capsules: buildIntermediateRingsForSpine([...spineNodes], 'alpha-girga-cap'),
       requiresBlindDisambiguation: false,
       disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
       isAlphaOnlyBeforeMerge: true,
@@ -4944,6 +5698,7 @@ export function resolveDeterministicLineage(
       verified_sources: agg.verified_sources,
       secondarySources: agg.verified_sources,
       corroborating_alpha_evidence_for_researcher: girgaEvidence,
+      consensusClusterGroups: computeCrossSourceConsensusClusters(dispFam, girgaEvidence),
       background_researcher_ticket: agg.background_researcher_ticket,
       historicalRegion: 'جرجا وسوهاج — صعيد مصر (جمهورية مصر العربية)',
       conflictingNarrativesNote: `توثيق مجمع من (${girgaEvidence.length}) مصادر في كتب أنساب مصر لعائلة (${dispFam}) في جرجا.`,
@@ -5152,29 +5907,62 @@ export function resolveDeterministicLineage(
     );
   }
 
-  // 7) Iraq / Misan / Amara / Bani Lam: بيت جنديل -> البلاسم -> آل نصيري -> بني لام (13 مصدراً)
+  // 7) Iraq / Misan / Amara / Bani Lam & Banu Said (28-ancestor record):
+  //    بيت جنديل -> [المسار المتوافق عليه في 13 مصدراً: البلاسم (مقفلة في كبسولة) ⬅️ آل نصيري (B2) ⬅️ بني لام (B0)]
+  //    أو [مسار بنو سعيد (28 جدّاً): 26 جدّاً مقفلة في كبسولة واحدة (+26 جدّاً في السلسلة) ⬅️ منيع (B2) ⬅️ بنو سعيد (B0)]
   const isBaitJandeel =
     familyNorm.includes('جنديل') ||
     familyCore.includes('جنديل') ||
     familyNorm.includes('بلاسم');
-  if (isBaitJandeel) {
-    const jandeelEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
+  const isBanuSaidDirect =
+    familyNorm === 'بنو سعيد' ||
+    familyNorm === 'بني سعيد' ||
+    familyNorm === 'آل سعيد' ||
+    (familyCore === 'سعيد' &&
+      (regionNorm.includes('منتفق') ||
+        regionNorm.includes('سوق الشيوخ') ||
+        regionNorm.includes('ذي قار') ||
+        tribeNorm.includes('منيع')));
+
+  if (isBaitJandeel || isBanuSaidDirect) {
+    const jandeelAllEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
       e.alpha_id.startsWith('ALP_JANDEEL_')
     );
-    const agg = aggregateAlphaEvidenceForFamily(
-      'بيت جنديل',
-      form.originRegion || 'العمارة — ميسان (العراق)',
-      jandeelEvidence
+    const baniLamEvidence = jandeelAllEvidence.filter(
+      (e) => e.alpha_id !== 'ALP_JANDEEL_14_BANU_SAID'
     );
-    const spineNodes = buildDynamicAlphaSpineFromAncestors(
-      'بيت جنديل',
-      'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
-      'البلاسم — آل نصيري',
-      'قبيلة بني لام (طيء)',
-      'العمارة وميسان — العراق'
+    const banuSaidEvidence = jandeelAllEvidence.filter(
+      (e) => e.alpha_id === 'ALP_JANDEEL_14_BANU_SAID'
+    );
+    const consensusClusters = computeCrossSourceConsensusClusters(
+      isBanuSaidDirect ? 'بنو سعيد' : 'بيت جنديل',
+      jandeelAllEvidence
     );
 
-    return {
+    // Build Option A: Consensus Winner (13 sources) -> بيت جنديل ⬅️ [🔒 +1 في السلسلة: البلاسم] ⬅️ آل نصيري (B2) ⬅️ بني لام (B0)
+    const aggBaniLam = aggregateAlphaEvidenceForFamily(
+      'بيت جنديل',
+      form.originRegion || 'العمارة — ميسان (العراق)',
+      jandeelAllEvidence
+    );
+    const baniLamSpineNodes = buildDynamicAlphaSpineFromAncestors(
+      'بيت جنديل',
+      'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
+      'آل نصيري',
+      'بني لام',
+      'العمارة وميسان — العراق',
+      { corroboratingRecords: baniLamEvidence }
+    );
+    const baniLamCapsules = buildIntermediateRingsForSpine(
+      [...baniLamSpineNodes],
+      'alpha-jandeel-cap'
+    );
+    const jandeelB2 =
+      baniLamSpineNodes.find((n) => n.code === 'B2')?.name || 'آل نصيري';
+    const jandeelB0 =
+      baniLamSpineNodes.find((n) => n.code === 'B0')?.name || 'بني لام';
+
+    const optionA_BaniLamResult: LineageSearchResult = {
       matched: true,
       engineSource,
       primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
@@ -5190,34 +5978,146 @@ export function resolveDeterministicLineage(
       inferred_client_countries:
         inferredCountries.length > 0 ? inferredCountries : ['العراق'],
       matched_location: 'العمارة | ميسان | واسط | العراق',
-      enrichedLocations: agg.locations_in_record,
-      sibling_branches_in_record: agg.sibling_branches_in_record,
-      siblingBranches: agg.sibling_branches_in_record,
-      siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل (${agg.sibling_branches_in_record.length} فروع): ${agg.sibling_branches_in_record.join('، ')}`,
-      notables_in_record: agg.notables_in_record,
-      rootBranchName: 'البلاسم — آل نصيري',
+      enrichedLocations: aggBaniLam.locations_in_record,
+      sibling_branches_in_record: aggBaniLam.sibling_branches_in_record,
+      siblingBranches: aggBaniLam.sibling_branches_in_record,
+      siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل (${aggBaniLam.sibling_branches_in_record.length} فروع): ${aggBaniLam.sibling_branches_in_record.join('، ')}`,
+      notables_in_record: aggBaniLam.notables_in_record,
+      rootBranchName: jandeelB2,
       rootBranchCode: 'B2',
-      rootTribeName: 'بني لام',
+      rootTribeName: jandeelB0,
       rootTribeCode: 'B0',
-      rootSummaryLabel: 'الجذر: بيت جنديل ⬅️ البلاسم ⬅️ آل نصيري ⬅️ بني لام',
-      upperAncestors: spineNodes.filter((n) => n.orderNumber > 2),
-      adamSpineNodes: spineNodes,
-      capsules: [],
+      rootSummaryLabel: `الجذر: ${jandeelB2} ⬅️ ${jandeelB0}`,
+      upperAncestors: baniLamSpineNodes.filter((n) => n.orderNumber > 1),
+      adamSpineNodes: baniLamSpineNodes,
+      capsules: baniLamCapsules,
       requiresBlindDisambiguation: false,
-      disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
+      disambiguationOptions: BAIT_JANDEEL_DISAMBIGUATION_OPTIONS,
       isAlphaOnlyBeforeMerge: true,
       isAlphaMergedIntoAdam: false,
-      alphaParallelSource: agg.primaryCitation,
-      alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
-      verifiedSourceCitation: agg.primaryCitation,
-      verified_sources: agg.verified_sources,
-      secondarySources: agg.verified_sources,
-      corroborating_alpha_evidence_for_researcher: jandeelEvidence,
-      background_researcher_ticket: agg.background_researcher_ticket,
+      alphaParallelSource: aggBaniLam.primaryCitation,
+      alphaBackgroundTicketCode: aggBaniLam.background_researcher_ticket.ticket_id,
+      verifiedSourceCitation: aggBaniLam.primaryCitation,
+      verified_sources: aggBaniLam.verified_sources,
+      secondarySources: aggBaniLam.verified_sources,
+      corroborating_alpha_evidence_for_researcher: jandeelAllEvidence,
+      consensusClusterGroups: consensusClusters,
+      background_researcher_ticket: aggBaniLam.background_researcher_ticket,
       historicalRegion: 'العمارة وميسان وحوض دجلة — جمهورية العراق',
-      conflictingNarrativesNote: `توثيق مجمع من (${jandeelEvidence.length}) مصدراً في مشاريع ألفا لعائلة (بيت جنديل) عبر البلاسم وآل نصيري إلى قبيلة بني لام الطائية.`,
-      confidenceLabel: `تطابق مجمع من (${jandeelEvidence.length}) مصدراً في مشاريع ألفا (الأولوية 2: كتب الدولة + المعاجم العامة)`,
+      conflictingNarrativesNote: `المسار المتوافق عليه في (${baniLamEvidence.length}) مصدراً: بيت جنديل ⬅️ البلاسم ⬅️ آل نصيري ⬅️ بني لام (مقابل رواية أخرى في سوق الشيوخ تنسبهم إلى منيع ⬅️ بنو سعيد عبر 28 جدّاً).`,
+      confidenceLabel: `تطابق متوافق عليه في (${baniLamEvidence.length}) مصدراً من مشاريع ألفا (الأولوية 2: كتب الدولة + المعاجم العامة)`,
       recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
+    };
+
+    // Build Option B: Competing 28-Ancestor Record -> (بيت جنديل / بنو سعيد) ⬅️ [🔒 +26 جدّاً في السلسلة] ⬅️ منيع (B2) ⬅️ بنو سعيد (B0)
+    const banuSaidDisplayFam = isBanuSaidDirect ? 'بنو سعيد' : 'بيت جنديل';
+    const banuSaid28Lineage =
+      banuSaidEvidence[0]?.lineage_ancestors ||
+      'بيت جنديل ؛ عيسى ؛ راشد ؛ حمد ؛ شبيب ؛ صقر ؛ مانع ؛ سعدون ؛ حمود ؛ ثامر ؛ عبد الله ؛ محمد ؛ جنديل ؛ سلطان ؛ ناصر ؛ فيصل ؛ طلاسم ؛ بدر ؛ عقيل ؛ عامر ؛ حسان ؛ مالك ؛ عوف ؛ كعب ؛ ربيعة ؛ عامر ؛ عدنان ؛ منيع ؛ بنو سعيد';
+    const banuSaidSpineNodes = buildDynamicAlphaSpineFromAncestors(
+      banuSaidDisplayFam,
+      banuSaid28Lineage,
+      'منيع',
+      'بنو سعيد',
+      'سوق الشيوخ والمنتفق — ذي قار (العراق)',
+      { corroboratingRecords: banuSaidEvidence }
+    );
+    const banuSaidCapsules = buildIntermediateRingsForSpine(
+      [...banuSaidSpineNodes],
+      'alpha-banusaid-cap'
+    );
+    const aggBanuSaid = aggregateAlphaEvidenceForFamily(
+      banuSaidDisplayFam,
+      'سوق الشيوخ — المنتفق — ذي قار (العراق)',
+      jandeelAllEvidence
+    );
+    const banuSaidB2 =
+      banuSaidSpineNodes.find((n) => n.code === 'B2')?.name || 'منيع';
+    const banuSaidB0 =
+      banuSaidSpineNodes.find((n) => n.code === 'B0')?.name || 'بنو سعيد';
+
+    const optionB_BanuSaidResult: LineageSearchResult = {
+      matched: true,
+      engineSource,
+      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
+      priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
+      clientName,
+      fatherName,
+      grandfatherName,
+      familyName: banuSaidDisplayFam,
+      familyCode: 'ALPHA-BANUSAID-28',
+      originCountry: form.originCountry || 'العراق',
+      originRegion: form.originRegion || 'سوق الشيوخ — المنتفق (ذي قار)',
+      resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
+      inferred_client_countries: ['العراق'],
+      matched_location: 'سوق الشيوخ | المنتفق | ذي قار | العراق',
+      enrichedLocations: aggBanuSaid.locations_in_record,
+      sibling_branches_in_record: ['آل عيسى', 'آل راشد', 'آل معروف', 'البو شهاب'],
+      siblingBranches: ['آل عيسى', 'آل راشد', 'آل معروف', 'البو شهاب'],
+      siblingBranchesLabel: 'الفروع الشقيقة المرصودة في السجل: آل عيسى، آل راشد، آل معروف، البو شهاب',
+      notables_in_record: ['الشيخ عيسى السعيدي'],
+      rootBranchName: banuSaidB2,
+      rootBranchCode: 'B2',
+      rootTribeName: banuSaidB0,
+      rootTribeCode: 'B0',
+      rootSummaryLabel: `الجذر: ${banuSaidB2} ⬅️ ${banuSaidB0}`,
+      upperAncestors: banuSaidSpineNodes.filter((n) => n.orderNumber > 1),
+      adamSpineNodes: banuSaidSpineNodes,
+      capsules: banuSaidCapsules,
+      requiresBlindDisambiguation: false,
+      disambiguationOptions: BAIT_JANDEEL_DISAMBIGUATION_OPTIONS,
+      isAlphaOnlyBeforeMerge: true,
+      isAlphaMergedIntoAdam: false,
+      alphaParallelSource: 'موسوعة عشائر العراق — عباس العزاوي (ج4 ص 188)',
+      alphaBackgroundTicketCode: aggBanuSaid.background_researcher_ticket.ticket_id,
+      verifiedSourceCitation: 'موسوعة عشائر العراق — عباس العزاوي (ج4 ص 188)',
+      verified_sources: aggBanuSaid.verified_sources,
+      secondarySources: aggBanuSaid.verified_sources,
+      corroborating_alpha_evidence_for_researcher: jandeelAllEvidence,
+      consensusClusterGroups: consensusClusters,
+      background_researcher_ticket: aggBanuSaid.background_researcher_ticket,
+      historicalRegion: 'سوق الشيوخ والمنتفق — ذي قار (جمهورية العراق)',
+      conflictingNarrativesNote:
+        'سجل يضم (28) جدّاً في حقل نسب الأجداد ينتهي إلى (منيع ⬅️ بنو سعيد)، مع طيّ (26) جدّاً وسيطاً في كبسولة السلسلة.',
+      confidenceLabel: 'تطابق موثق في مشاريع ألفا (سجل 28 جدّاً ينتهي إلى منيع ⬅️ بنو سعيد)',
+      recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
+    };
+
+    const hasBanuSaidCue =
+      isBanuSaidDirect ||
+      tribeNorm.includes('سعيد') ||
+      tribeNorm.includes('منيع') ||
+      regionNorm.includes('سوق الشيوخ') ||
+      regionNorm.includes('منتفق') ||
+      regionNorm.includes('ذي قار') ||
+      regionNorm.includes('ناصريه');
+
+    const hasBaniLamCue =
+      tribeNorm.includes('بني لام') ||
+      tribeNorm.includes('لام') ||
+      tribeNorm.includes('نصيري') ||
+      tribeNorm.includes('بلاسم') ||
+      regionNorm.includes('عماره') ||
+      regionNorm.includes('ميسان') ||
+      regionNorm.includes('واسط') ||
+      regionNorm.includes('كوت');
+
+    if (hasBanuSaidCue && !hasBaniLamCue) {
+      return optionB_BanuSaidResult;
+    }
+    if (hasBaniLamCue && !hasBanuSaidCue) {
+      return optionA_BaniLamResult;
+    }
+
+    // Progressive Verification post-$5: show Stage 1 (بني لام [مرجّح في عدة مصادر] vs بنو سعيد) after $5 unlock
+    return {
+      ...optionA_BaniLamResult,
+      requiresBlindDisambiguation: true,
+      disambiguationOptions: BAIT_JANDEEL_DISAMBIGUATION_OPTIONS,
+      optionAResultOverride: optionA_BaniLamResult,
+      optionBResultOverride: optionB_BanuSaidResult,
+      disambiguationPathsSummaryForTicket:
+        'تعدد مسارات لاسم (بيت جنديل): [المسار المتوافق عليه في 13 مصدراً]: بيت جنديل ⬅️ البلاسم ⬅️ آل نصيري ⬅️ بني لام (العمارة/ميسان/واسط) | [المسار الثاني (28 جدّاً)]: بيت جنديل ⬅️ ... (26 جدّاً) ... ⬅️ منيع ⬅️ بنو سعيد (سوق الشيوخ/المنتفق/ذي قار).',
     };
   }
 
@@ -5228,27 +6128,43 @@ export function resolveDeterministicLineage(
     const hussanEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
       e.alpha_id.startsWith('ALP_HUSSAN_')
     );
-    const isTamimPreferred =
-      tribeNorm.includes('تميم') ||
-      tribeNorm.includes('نواصر') ||
-      regionNorm.includes('شقراء') ||
-      regionNorm.includes('وشم');
+    const consensusClusters = computeCrossSourceConsensusClusters(
+      'آل الحصان',
+      hussanEvidence
+    );
     const agg = aggregateAlphaEvidenceForFamily(
       'آل الحصان',
       form.originRegion || 'القصيم والوشم — نجد (السعودية)',
       hussanEvidence
     );
-    const spineNodes = buildDynamicAlphaSpineFromAncestors(
+
+    const dawasirSpineNodes = buildDynamicAlphaSpineFromAncestors(
       'آل الحصان',
-      isTamimPreferred
-        ? 'آل الحصان ؛ النواصر ؛ بني عمرو ؛ قبيلة تميم'
-        : 'آل الحصان ؛ آل سابق ؛ الحسن ؛ البدارين ؛ قبيلة الدواسر',
-      isTamimPreferred ? 'النواصر — بني عمرو' : 'آل سابق — الحسن (البدارين)',
-      isTamimPreferred ? 'قبيلة تميم' : 'قبيلة الدواسر',
-      'القصيم والوشم — نجد (المملكة العربية السعودية)'
+      'آل الحصان ؛ آل سابق ؛ الحسن ؛ البدارين ؛ قبيلة الدواسر',
+      'البدارين',
+      'قبيلة الدواسر',
+      'بريدة والقصيم والمحمل — نجد (السعودية)',
+      { corroboratingRecords: hussanEvidence }
+    );
+    const dawasirCapsules = buildIntermediateRingsForSpine(
+      [...dawasirSpineNodes],
+      'alpha-hussan-dawasir-cap'
     );
 
-    return {
+    const tamimSpineNodes = buildDynamicAlphaSpineFromAncestors(
+      'آل الحصان',
+      'آل الحصان ؛ النواصر ؛ بني عمرو ؛ قبيلة تميم',
+      'بني عمرو',
+      'قبيلة تميم',
+      'شقراء والوشم — نجد (السعودية)',
+      { corroboratingRecords: hussanEvidence }
+    );
+    const tamimCapsules = buildIntermediateRingsForSpine(
+      [...tamimSpineNodes],
+      'alpha-hussan-tamim-cap'
+    );
+
+    const optionA_DawasirResult: LineageSearchResult = {
       matched: true,
       engineSource,
       primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
@@ -5257,29 +6173,27 @@ export function resolveDeterministicLineage(
       fatherName,
       grandfatherName,
       familyName: 'آل الحصان',
-      familyCode: 'ALPHA-HUSSAN-04',
+      familyCode: 'ALPHA-HUSSAN-DAWASIR',
       originCountry: form.originCountry || 'السعودية',
-      originRegion: form.originRegion || 'بريدة / شقراء — نجد',
+      originRegion: form.originRegion || 'بريدة — القصيم — نجد',
       resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
       inferred_client_countries: ['السعودية'],
-      matched_location: 'بريدة | القصيم | شقراء | الوشم | نجد',
+      matched_location: 'بريدة | القصيم | البير | المحمل | نجد',
       enrichedLocations: agg.locations_in_record,
       sibling_branches_in_record: agg.sibling_branches_in_record,
       siblingBranches: agg.sibling_branches_in_record,
       siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل: ${agg.sibling_branches_in_record.join('، ')}`,
       notables_in_record: agg.notables_in_record,
-      rootBranchName: isTamimPreferred ? 'النواصر — بني عمرو' : 'آل سابق — الحسن',
+      rootBranchName: 'البدارين',
       rootBranchCode: 'B2',
-      rootTribeName: isTamimPreferred ? 'قبيلة تميم' : 'قبيلة الدواسر',
+      rootTribeName: 'قبيلة الدواسر',
       rootTribeCode: 'B0',
-      rootSummaryLabel: isTamimPreferred
-        ? 'الجذر: آل الحصان ⬅️ النواصر ⬅️ بني عمرو ⬅️ تميم'
-        : 'الجذر: آل الحصان ⬅️ آل سابق ⬅️ الحسن ⬅️ الدواسر',
-      upperAncestors: spineNodes.filter((n) => n.orderNumber > 2),
-      adamSpineNodes: spineNodes,
-      capsules: [],
+      rootSummaryLabel: 'الجذر: البدارين ⬅️ قبيلة الدواسر',
+      upperAncestors: dawasirSpineNodes.filter((n) => n.orderNumber > 1),
+      adamSpineNodes: dawasirSpineNodes,
+      capsules: dawasirCapsules,
       requiresBlindDisambiguation: false,
-      disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
+      disambiguationOptions: AL_HUSSAN_DISAMBIGUATION_OPTIONS,
       isAlphaOnlyBeforeMerge: true,
       isAlphaMergedIntoAdam: false,
       alphaParallelSource: agg.primaryCitation,
@@ -5288,11 +6202,61 @@ export function resolveDeterministicLineage(
       verified_sources: agg.verified_sources,
       secondarySources: agg.verified_sources,
       corroborating_alpha_evidence_for_researcher: hussanEvidence,
+      consensusClusterGroups: consensusClusters,
       background_researcher_ticket: agg.background_researcher_ticket,
-      historicalRegion: 'القصيم والوشم — إقليم نجد (المملكة العربية السعودية)',
+      historicalRegion: 'القصيم والمحمل — إقليم نجد (المملكة العربية السعودية)',
       conflictingNarrativesNote: `توثيق مجمع من (${hussanEvidence.length}) مصادر في مشاريع ألفا لأسرة (آل الحصان) في القصيم والوشم.`,
-      confidenceLabel: `تطابق مجمع من (${hussanEvidence.length}) مصادر في مشاريع ألفا (الأولوية 2: كتب أسر نجد والقصيم)`,
+      confidenceLabel: `تطابق متوافق عليه في مصادر أسر نجد والقصيم (البدارين ⬅️ الدواسر)`,
       recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
+    };
+
+    const optionB_TamimResult: LineageSearchResult = {
+      ...optionA_DawasirResult,
+      familyCode: 'ALPHA-HUSSAN-TAMIM',
+      originRegion: form.originRegion || 'شقراء — الوشم — نجد',
+      matched_location: 'شقراء | الوشم | مذنب | القصيم | نجد',
+      rootBranchName: 'بني عمرو',
+      rootBranchCode: 'B2',
+      rootTribeName: 'قبيلة تميم',
+      rootTribeCode: 'B0',
+      rootSummaryLabel: 'الجذر: بني عمرو ⬅️ قبيلة تميم',
+      upperAncestors: tamimSpineNodes.filter((n) => n.orderNumber > 1),
+      adamSpineNodes: tamimSpineNodes,
+      capsules: tamimCapsules,
+      historicalRegion: 'شقراء والوشم — إقليم نجد (المملكة العربية السعودية)',
+      confidenceLabel: 'تطابق موثق في مشاريع ألفا (النواصر ⬅️ بني عمرو ⬅️ قبيلة تميم)',
+    };
+
+    const hasTamimCue =
+      tribeNorm.includes('تميم') ||
+      tribeNorm.includes('نواصر') ||
+      tribeNorm.includes('عمرو') ||
+      regionNorm.includes('شقراء') ||
+      regionNorm.includes('وشم');
+
+    const hasDawasirCue =
+      tribeNorm.includes('دواسر') ||
+      tribeNorm.includes('بدارين') ||
+      tribeNorm.includes('سابق') ||
+      regionNorm.includes('بريده') ||
+      regionNorm.includes('بير') ||
+      regionNorm.includes('محمل');
+
+    if (hasTamimCue && !hasDawasirCue) {
+      return optionB_TamimResult;
+    }
+    if (hasDawasirCue && !hasTamimCue) {
+      return optionA_DawasirResult;
+    }
+
+    return {
+      ...optionA_DawasirResult,
+      requiresBlindDisambiguation: true,
+      disambiguationOptions: AL_HUSSAN_DISAMBIGUATION_OPTIONS,
+      optionAResultOverride: optionA_DawasirResult,
+      optionBResultOverride: optionB_TamimResult,
+      disambiguationPathsSummaryForTicket:
+        'تعدد مسارات لاسم (آل الحصان): [المسار المتوافق عليه]: آل الحصان ⬅️ آل سابق ⬅️ الحسن ⬅️ البدارين ⬅️ قبيلة الدواسر (بريدة/القصيم/البير) | [المسار الثاني]: آل الحصان ⬅️ النواصر ⬅️ بني عمرو ⬅️ قبيلة تميم (شقراء/الوشم).',
     };
   }
 
@@ -5658,6 +6622,8 @@ export function parsePort8090UniversalResponse(
             volume: item.volume ? String(item.volume) : null,
             lineage_ancestors: item.lineage_ancestors
               ? String(item.lineage_ancestors)
+              : item.full_lineage_text
+              ? String(item.full_lineage_text)
               : null,
             child_branches: item.child_branches ? String(item.child_branches) : null,
             locations: item.locations ? String(item.locations) : null,
@@ -5669,14 +6635,23 @@ export function parsePort8090UniversalResponse(
         )
       : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
-    const hasCountryBookMatch = rawEvidence.some(
+    // Merge local curated evidence if localFallback also matched this family so no sources are lost
+    const combinedEvidence =
+      localFallback.matched &&
+      localFallback.corroborating_alpha_evidence_for_researcher &&
+      localFallback.corroborating_alpha_evidence_for_researcher.length >
+        rawEvidence.length
+        ? localFallback.corroborating_alpha_evidence_for_researcher
+        : rawEvidence;
+
+    const hasCountryBookMatch = combinedEvidence.some(
       (e) => e.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
     );
 
     const agg = aggregateAlphaEvidenceForFamily(
       displayFamilyName,
       apiData.matched_location || form.originRegion || form.originCountry || '',
-      rawEvidence
+      combinedEvidence
     );
 
     const apiVerifiedSources: string[] = Array.isArray(apiData.verified_sources)
@@ -5685,13 +6660,17 @@ export function parsePort8090UniversalResponse(
         )
       : [];
     const finalVerifiedSources =
-      apiVerifiedSources.length > 0 ? apiVerifiedSources : agg.verified_sources;
+      apiVerifiedSources.length > agg.verified_sources.length
+        ? apiVerifiedSources
+        : agg.verified_sources;
 
     const apiSiblings: string[] = Array.isArray(apiData.sibling_branches_in_record)
       ? apiData.sibling_branches_in_record.map(String)
       : [];
     const finalSiblings =
-      apiSiblings.length > 0 ? apiSiblings : agg.sibling_branches_in_record;
+      apiSiblings.length > agg.sibling_branches_in_record.length
+        ? apiSiblings
+        : agg.sibling_branches_in_record;
 
     const apiInferredCountries: string[] = Array.isArray(
       apiData.inferred_client_countries
@@ -5705,21 +6684,48 @@ export function parsePort8090UniversalResponse(
 
     const matchedLocation =
       apiData.matched_location ||
-      rawEvidence.find((e) => e.locations)?.locations ||
+      combinedEvidence.find((e) => e.locations)?.locations ||
       form.originRegion ||
       form.originCountry ||
       geoOntology.canonicalCountry;
 
-    // If localFallback already has a curated multi-node Alpha spine for this exact family, use it; otherwise build dynamically from Port 8090 evidence!
-    const useCuratedLocalAlphaSpine =
-      localFallback.matched &&
-      localFallback.isAlphaOnlyBeforeMerge &&
-      localFallback.adamSpineNodes.length >= 2;
+    // Extract stations from apiData.chain_nodes or apiData.full_lineage_text if provided by Port 8090
+    const apiChainNodesText =
+      Array.isArray(apiData.chain_nodes) && apiData.chain_nodes.length > 0
+        ? apiData.chain_nodes
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((cn: any) => String(cn?.name || '').trim())
+            .filter(Boolean)
+            .join(' ؛ ')
+        : typeof apiData.full_lineage_text === 'string'
+        ? apiData.full_lineage_text
+        : '';
 
-    const primaryEvidenceWithLineage =
-      rawEvidence.find(
-        (e) => e.priority_tier === 'PRIORITY_1_COUNTRY_BOOK' && e.lineage_ancestors
-      ) || rawEvidence.find((e) => e.lineage_ancestors);
+    const countStations = (str?: string | null) =>
+      (str || '')
+        .split(/[؛—⬅️>|]+/)
+        .map((s) => s.trim())
+        .filter(Boolean).length;
+
+    // Pick the evidence item with the richest/longest lineage_ancestors chain (prioritizing Priority 1 books when tied)
+    const sortedByRichness = [...combinedEvidence]
+      .filter((e) => Boolean(e.lineage_ancestors))
+      .sort((a, b) => {
+        const diff =
+          countStations(b.lineage_ancestors) -
+          countStations(a.lineage_ancestors);
+        if (diff !== 0) return diff;
+        if (a.priority_tier === b.priority_tier) return 0;
+        return a.priority_tier === 'PRIORITY_1_COUNTRY_BOOK' ? -1 : 1;
+      });
+
+    const primaryEvidenceWithLineage = sortedByRichness[0];
+
+    const bestLineageChainText =
+      countStations(apiChainNodesText) >=
+      countStations(primaryEvidenceWithLineage?.lineage_ancestors)
+        ? apiChainNodesText
+        : primaryEvidenceWithLineage?.lineage_ancestors || '';
 
     const rawB2 =
       apiData.root_connection_5usd_tier?.subtribe_b2_name &&
@@ -5732,22 +6738,62 @@ export function parsePort8090UniversalResponse(
         ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
         : '';
 
+    const builtDynamicSpine = buildDynamicAlphaSpineFromAncestors(
+      displayFamilyName,
+      bestLineageChainText || rawB0 || rawB2,
+      rawB2 || primaryEvidenceWithLineage?.record_name || displayFamilyName,
+      rawB0 || bestLineageChainText || 'القبيلة الأم الموثقة',
+      String(matchedLocation),
+      { corroboratingRecords: combinedEvidence }
+    );
+
+    const useCuratedLocalAlphaSpine =
+      localFallback.matched &&
+      localFallback.isAlphaOnlyBeforeMerge &&
+      localFallback.adamSpineNodes.length >= builtDynamicSpine.length &&
+      localFallback.adamSpineNodes.length >= 2;
+
     const dynamicSpine = useCuratedLocalAlphaSpine
       ? localFallback.adamSpineNodes
-      : buildDynamicAlphaSpineFromAncestors(
-          displayFamilyName,
-          primaryEvidenceWithLineage?.lineage_ancestors || rawB0 || rawB2,
-          rawB2 || primaryEvidenceWithLineage?.record_name || displayFamilyName,
-          rawB0 || primaryEvidenceWithLineage?.lineage_ancestors || 'القبيلة الأم الموثقة',
-          String(matchedLocation)
-        );
+      : builtDynamicSpine;
 
     const rootB2Name = useCuratedLocalAlphaSpine
       ? localFallback.rootBranchName
-      : dynamicSpine[1]?.name || rawB2 || displayFamilyName;
+      : dynamicSpine.find((n) => n.code === 'B2')?.name ||
+        dynamicSpine[Math.max(1, dynamicSpine.length - 2)]?.name ||
+        rawB2 ||
+        displayFamilyName;
     const rootB0Name = useCuratedLocalAlphaSpine
       ? localFallback.rootTribeName
       : dynamicSpine[dynamicSpine.length - 1]?.name || rawB0 || rootB2Name;
+
+    const dynamicCapsules = useCuratedLocalAlphaSpine
+      ? localFallback.capsules
+      : buildIntermediateRingsForSpine([...dynamicSpine], 'alpha-live-cap');
+
+    const consensusClusters = computeCrossSourceConsensusClusters(
+      displayFamilyName,
+      combinedEvidence
+    );
+
+    // Rule 3: If 4+ completely different paths of equal weight exist with NO consensus winner uniting them,
+    // do NOT show 4 or 5+ options to the customer — convert automatically to a Researcher Ticket!
+    if (
+      consensusClusters.length >= 4 &&
+      !consensusClusters[0]?.isConsensusWinner
+    ) {
+      return {
+        ...localFallback,
+        matched: false,
+        engineSource: 'live_german_engine',
+        primary_source_of_truth: 'UNMATCHED_P1_TICKET',
+        priorityTierMatched: 'TIER_4_UNMATCHED',
+        corroborating_alpha_evidence_for_researcher: combinedEvidence,
+        consensusClusterGroups: consensusClusters,
+        autoEscalatedMultiPathReason: `تم رصد (${consensusClusters.length}) مسارات مختلفة متساوية الوزن لنفس الاسم دون توافق مرجّح؛ تم تحويل الطلب آلياً إلى تذكرة بحث للباحثين لاختيار المسار الصحيح بدلاً من إرباك العميل بـ (${consensusClusters.length}) خيارات.`,
+        recommendedInitialState: DashboardStateMode.State3Unmatched,
+      };
+    }
 
     const bgTicket: BackgroundResearcherTicketPayload =
       apiData.background_researcher_ticket &&
@@ -5808,16 +6854,16 @@ export function parsePort8090UniversalResponse(
       rootBranchCode: 'B2',
       rootTribeName: rootB0Name,
       rootTribeCode: 'B0',
-      rootSummaryLabel:
-        apiData.root_connection_5usd_tier?.summary_ar &&
-        !String(apiData.root_connection_5usd_tier.summary_ar).includes('مقفل')
-          ? String(apiData.root_connection_5usd_tier.summary_ar)
-          : `الجذر: ${rootB2Name} — ${rootB0Name}`,
-      upperAncestors: dynamicSpine.filter((n) => n.orderNumber > 3),
+      rootSummaryLabel: `الجذر: ${rootB2Name} ⬅️ ${rootB0Name}`,
+      upperAncestors: dynamicSpine.filter((n) => n.orderNumber > 1),
       adamSpineNodes: dynamicSpine,
-      capsules: [],
-      requiresBlindDisambiguation: false,
-      disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
+      capsules: dynamicCapsules,
+      requiresBlindDisambiguation: localFallback.requiresBlindDisambiguation,
+      disambiguationOptions: localFallback.disambiguationOptions,
+      optionAResultOverride: localFallback.optionAResultOverride,
+      optionBResultOverride: localFallback.optionBResultOverride,
+      disambiguationPathsSummaryForTicket:
+        localFallback.disambiguationPathsSummaryForTicket,
       isAlphaOnlyBeforeMerge: true,
       isAlphaMergedIntoAdam: false,
       alphaParallelSource: finalVerifiedSources.slice(0, 3).join(' | '),
@@ -5827,13 +6873,14 @@ export function parsePort8090UniversalResponse(
         'سجل مشاريع ألفا الموثق متعدد المصادر',
       verified_sources: finalVerifiedSources,
       secondarySources: finalVerifiedSources,
-      corroborating_alpha_evidence_for_researcher: rawEvidence,
+      corroborating_alpha_evidence_for_researcher: combinedEvidence,
+      consensusClusterGroups: consensusClusters,
       background_researcher_ticket: bgTicket,
       historicalRegion: String(matchedLocation),
       conflictingNarrativesNote: bgTicket.description_ar,
       confidenceLabel: hasCountryBookMatch
-        ? `تطابق مجمع من (${rawEvidence.length}) مصادر في مشاريع ألفا (الأولوية 2: كتب دولة العميل)`
-        : `تطابق مجمع من (${rawEvidence.length}) مصادر في مشاريع ألفا (الأولوية 3: المعاجم والموسوعات العامة)`,
+        ? `تطابق مجمع من (${combinedEvidence.length}) مصادر في مشاريع ألفا (الأولوية 2: كتب دولة العميل)`
+        : `تطابق مجمع من (${combinedEvidence.length}) مصادر في مشاريع ألفا (الأولوية 3: المعاجم والموسوعات العامة)`,
       recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
     };
   }

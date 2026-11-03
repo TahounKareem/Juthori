@@ -129,12 +129,28 @@ export interface BackgroundResearcherTicketPayload {
 }
 
 export interface BlindDisambiguationOption {
-  id: 'option_a' | 'option_b';
+  id: 'option_a' | 'option_b' | 'option_c';
   choice_id?: string;
   badge: string;
   title: string;
-  geographicScope: string;
+  originTribeLabel?: string; // Stage 1 short origin/tribe label without intermediate chain spoilers (e.g. "بني لام", "بنو سعيد")
+  geographicScope: string; // Stage 2 geographic localities (e.g. "العمارة / ميسان / واسط", "سوق الشيوخ / المنتفق / ذي قار")
   nearBranchHint: string;
+  isConsensusWinner?: boolean;
+  consensusBadge?: string; // e.g. "مرجّح في عدة مصادر"
+  sourcesCount?: number;
+}
+
+export interface ConsensusClusterGroup {
+  clusterId: string;
+  originTribeLabel: string;
+  geographicScope: string;
+  isConsensusWinner: boolean;
+  sourcesCount: number;
+  sharedNodes: string[];
+  records: CorroboratingAlphaEvidence[];
+  rootPreviewLabel: string;
+  fullChainNodes: string[];
 }
 
 export interface CheckoutOrderRequest {
@@ -189,6 +205,9 @@ export interface LineageSearchResult {
   disambiguationOptions: BlindDisambiguationOption[];
   optionAResultOverride?: Partial<LineageSearchResult>;
   optionBResultOverride?: Partial<LineageSearchResult>;
+  optionCResultOverride?: Partial<LineageSearchResult>;
+  consensusClusterGroups?: ConsensusClusterGroup[];
+  autoEscalatedMultiPathReason?: string;
   disambiguationPathsSummaryForTicket?: string;
   isAlphaOnlyBeforeMerge?: boolean;
   isAlphaMergedIntoAdam?: boolean;

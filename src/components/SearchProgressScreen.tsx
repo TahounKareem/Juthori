@@ -46,13 +46,12 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
   const [nodeCount, setNodeCount] = useState(0);
   const [isInspectionComplete, setIsInspectionComplete] = useState(false);
 
-  // Blind Binary Disambiguation State (shown when matched and tribeName was not provided)
-  const [disambiguationResolved, setDisambiguationResolved] = useState<boolean>(
-    !result.requiresBlindDisambiguation
-  );
+  // Rule 1.1: Never show verification/disambiguation questions before the $5 payment!
+  // Verification happens in the dashboard immediately AFTER unlocking the Root ($5).
+  const [disambiguationResolved, setDisambiguationResolved] = useState<boolean>(true);
   const [selectedDisambiguationOption, setSelectedDisambiguationOption] = useState<
-    'option_a' | 'option_b' | 'not_sure_ticket'
-  >('option_a');
+    'option_a' | 'option_b' | 'not_sure_ticket' | undefined
+  >(undefined);
 
   // Form State for Gateway ("تأكيد وحفظ الاكتشاف")
   const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');

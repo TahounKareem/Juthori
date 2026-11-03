@@ -48,7 +48,9 @@ service cloud.firestore {
         && (!('tribeName' in data) || (data.tribeName is string && data.tribeName.size() <= 100))
         && (!('familyBranch' in data) || (data.familyBranch is string && data.familyBranch.size() <= 100))
         && (!('isRootUnlocked' in data) || (data.isRootUnlocked is bool))
-        && (!('emailNotificationsEnabled' in data) || (data.emailNotificationsEnabled is bool));
+        && (!('emailNotificationsEnabled' in data) || (data.emailNotificationsEnabled is bool))
+        && (!('paidRevenueUsd' in data) || (data.paidRevenueUsd is number && data.paidRevenueUsd >= 0))
+        && (!('unlockedCapsules' in data) || (data.unlockedCapsules is list && data.unlockedCapsules.size() <= 50));
     }
 
     // =========================================================================
@@ -117,14 +119,23 @@ service cloud.firestore {
     match /knowledge_articles/{articleId} {
       allow get, list: if true;
       allow create, update: if isValidId(articleId)
-        && incoming().title is string && incoming().title.size() <= 200
-        && incoming().summary is string && incoming().summary.size() <= 500
-        && incoming().content is string && incoming().content.size() <= 20000;
+        && incoming().title is string && incoming().title.size() <= 500
+        && (!('summary' in incoming()) || (incoming().summary is string && incoming().summary.size() <= 5000))
+        && (!('content' in incoming()) || (incoming().content is string && incoming().content.size() <= 950000))
+        && (!('coverImageUrl' in incoming()) || (incoming().coverImageUrl is string && incoming().coverImageUrl.size() <= 700000));
       allow delete: if isValidId(articleId);
     }
 
     // =========================================================================
-    // 6. CHARTER REQUESTS & SUPPORT TICKETS
+    // 6. NEWSLETTER SUBSCRIBERS (/newsletter_subscribers/{subId})
+    // =========================================================================
+    match /newsletter_subscribers/{subId} {
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(subId);
+    }
+
+    // =========================================================================
+    // 7. CHARTER REQUESTS & SUPPORT TICKETS
     // =========================================================================
     match /charter_requests/{requestId} {
       allow get, list: if true;

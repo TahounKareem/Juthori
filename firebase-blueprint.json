@@ -98,6 +98,17 @@
           "type": "boolean",
           "description": "Whether email notifications for research tickets and family tree updates are enabled."
         },
+        "paidRevenueUsd": {
+          "type": "number",
+          "description": "Total revenue paid by the user in USD."
+        },
+        "unlockedCapsules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "IDs of unlocked intermediate ancestor capsules."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp of registration."
@@ -506,7 +517,7 @@
     },
     "KnowledgeArticle": {
       "title": "KnowledgeArticle",
-      "description": "Article or genealogical study published in the Juthori Knowledge Center (المركز المعرفي).",
+      "description": "Article or video published in the Juthori Knowledge Center (المركز المعرفي).",
       "type": "object",
       "properties": {
         "id": {
@@ -516,28 +527,93 @@
         },
         "title": {
           "type": "string",
-          "maxLength": 200,
-          "description": "Article title."
+          "maxLength": 500,
+          "description": "Article or video title."
+        },
+        "section": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Primary Knowledge Center section."
+        },
+        "filter": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Sub-filter inside the section."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["مقال", "فيديو"],
+          "description": "Content type."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "Card description or summary."
         },
         "category": {
           "type": "string",
-          "maxLength": 80,
-          "description": "Article category (e.g. تحقيق المصادر, ميثاق أمين السجل, دراسات الأنساب)."
+          "maxLength": 200,
+          "description": "Combined section and filter category."
         },
         "summary": {
           "type": "string",
-          "maxLength": 500,
+          "maxLength": 5000,
           "description": "Brief summary displayed on cards."
         },
         "content": {
           "type": "string",
-          "maxLength": 20000,
-          "description": "Full article content."
+          "maxLength": 900000,
+          "description": "Full rich HTML article content including inline images."
+        },
+        "author": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Author or producer name."
+        },
+        "editor": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Editor name."
         },
         "authorName": {
           "type": "string",
-          "maxLength": 120,
-          "description": "Author or editor name."
+          "maxLength": 200,
+          "description": "Author display name."
+        },
+        "publishDate": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Publication date."
+        },
+        "imageCaption": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Caption below cover image."
+        },
+        "imageCopyright": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Intellectual property or copyright attribution."
+        },
+        "coverTextOverlay": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Text overlay displayed on the cover image."
+        },
+        "coverImageUrl": {
+          "type": "string",
+          "maxLength": 600000,
+          "description": "Cover image URL or standardized 16:9 data URL."
+        },
+        "videoUrl": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Video URL if type is video."
+        },
+        "duration": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Video duration in minutes."
         },
         "status": {
           "type": "string",
