@@ -43,7 +43,7 @@ async function dispatchResendEmail(payload: {
   to: string;
   subject: string;
   html: string;
-}): Promise<{ dispatched: boolean; provider: string; error?: string }> {
+}): Promise<{ dispatched: boolean; provider: string; error?: string; senderUsed?: string }> {
   if (!RESEND_API_KEY) {
     return {
       dispatched: false,
@@ -52,7 +52,7 @@ async function dispatchResendEmail(payload: {
     };
   }
 
-  try {
+  const sendWithSender = async (fromAddress: string) => {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -60,23 +60,44 @@ async function dispatchResendEmail(payload: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: RESEND_FROM_EMAIL,
+        from: fromAddress,
         to: [payload.to],
         subject: payload.subject,
         html: payload.html,
       }),
     });
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, text };
+  };
 
-    if (!res.ok) {
-      const errText = await res.text();
+  try {
+    const primaryAttempt = await sendWithSender(RESEND_FROM_EMAIL);
+    if (primaryAttempt.ok) {
       return {
-        dispatched: false,
-        provider: 'resend_api_error',
-        error: errText,
+        dispatched: true,
+        provider: 'resend',
+        senderUsed: RESEND_FROM_EMAIL,
       };
     }
 
-    return { dispatched: true, provider: 'resend' };
+    // Automatic fallback to Resend's pre-verified onboarding@resend.dev if custom domain is not yet verified in DNS
+    const fallbackSender = 'منصة جذوري <onboarding@resend.dev>';
+    if (RESEND_FROM_EMAIL !== fallbackSender) {
+      const fallbackAttempt = await sendWithSender(fallbackSender);
+      if (fallbackAttempt.ok) {
+        return {
+          dispatched: true,
+          provider: 'resend_onboarding_fallback',
+          senderUsed: fallbackSender,
+        };
+      }
+    }
+
+    return {
+      dispatched: false,
+      provider: 'resend_api_error',
+      error: primaryAttempt.text,
+    };
   } catch (err) {
     return {
       dispatched: false,
@@ -94,17 +115,82 @@ async function startServer() {
   app.use(express.json({ limit: '5mb' }));
 
   // 1. Silent IP Geolocation Capture helper endpoint
-  app.get('/api/juthori/geo', (req, res) => {
+  app.get('/api/juthori/geo', async (req, res) => {
     const forwarded = req.headers['x-forwarded-for'];
     const clientIp =
       typeof forwarded === 'string'
         ? forwarded.split(',')[0].trim()
         : req.socket.remoteAddress || '127.0.0.1';
+
+    const headerCountryCode = String(
+      req.headers['cf-ipcountry'] ||
+        req.headers['x-appengine-country'] ||
+        req.headers['x-vercel-ip-country'] ||
+        req.headers['x-country-code'] ||
+        ''
+    )
+      .trim()
+      .toUpperCase();
+
+    const headerCity = String(
+      req.headers['x-appengine-city'] || req.headers['x-vercel-ip-city'] || ''
+    ).trim();
+
+    if (
+      headerCountryCode &&
+      headerCountryCode.length === 2 &&
+      headerCountryCode !== 'XX' &&
+      headerCountryCode !== 'ZZ'
+    ) {
+      res.json({
+        ip: clientIp,
+        ip_country: headerCountryCode,
+        ip_country_code: headerCountryCode,
+        ip_city: headerCity || '',
+        captured_at: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const isPrivateOrLocal =
+      !clientIp ||
+      clientIp === '127.0.0.1' ||
+      clientIp === '::1' ||
+      clientIp.startsWith('10.') ||
+      clientIp.startsWith('192.168.') ||
+      clientIp.startsWith('172.');
+
+    if (!isPrivateOrLocal) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2000);
+        const geoRes = await fetch(`https://ipwho.is/${encodeURIComponent(clientIp)}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData && geoData.success !== false && geoData.country_code) {
+            res.json({
+              ip: geoData.ip || clientIp,
+              ip_country: geoData.country || geoData.country_code,
+              ip_country_code: String(geoData.country_code).toUpperCase(),
+              ip_city: geoData.city || '',
+              captured_at: new Date().toISOString(),
+            });
+            return;
+          }
+        }
+      } catch {
+        // Fallback below
+      }
+    }
+
     res.json({
       ip: clientIp,
-      ip_country: 'السعودية',
-      ip_country_code: 'SA',
-      ip_city: 'الرياض',
+      ip_country: '',
+      ip_country_code: '',
+      ip_city: '',
       captured_at: new Date().toISOString(),
     });
   });
@@ -150,7 +236,7 @@ async function startServer() {
   });
 
   // 3. German Neo4j Lineage Engine (Port 8090) — Close Enrichment Ticket & Enrich Adam Node
-  app.post('/api/juthori/researcher/close-enrichment-ticket', async (req, res) => {
+  const handleCloseEnrichmentTicket = async (req: express.Request, res: express.Response) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6500);
 
@@ -188,7 +274,106 @@ async function startServer() {
         status: 'CLOSED_AND_ENRICHED',
       });
     }
-  });
+  };
+
+  app.post('/api/juthori/researcher/close-enrichment-ticket', handleCloseEnrichmentTicket);
+  app.post('/api/v1/juthori/researcher/close-enrichment-ticket', handleCloseEnrichmentTicket);
+
+  // 3B. German Neo4j Lineage Engine (Port 8090) — Adam Tree Explorer APIs
+  const handleAdamTreeSearch = async (req: express.Request, res: express.Response) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search${qs ? `?${qs}` : ''}`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({ source: 'live_german_engine', data });
+        return;
+      }
+      res.status(200).json({ source: 'local_neo4j_fallback', data: null });
+    } catch {
+      clearTimeout(timeout);
+      res.status(200).json({ source: 'local_neo4j_fallback', data: null });
+    }
+  };
+
+  app.get('/api/v1/juthori/adam-tree/search', handleAdamTreeSearch);
+  app.get('/api/juthori/adam-tree/search', handleAdamTreeSearch);
+
+  const handleAdamTreeGetNode = async (req: express.Request, res: express.Response) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const nodeId = encodeURIComponent(String(req.params.id || ''));
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/node/${nodeId}`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({ source: 'live_german_engine', data });
+        return;
+      }
+      res.status(200).json({ source: 'local_neo4j_fallback', data: null });
+    } catch {
+      clearTimeout(timeout);
+      res.status(200).json({ source: 'local_neo4j_fallback', data: null });
+    }
+  };
+
+  app.get('/api/v1/juthori/adam-tree/node/:id', handleAdamTreeGetNode);
+  app.get('/api/juthori/adam-tree/node/:id', handleAdamTreeGetNode);
+
+  const handleAdamTreeUpdateNode = async (req: express.Request, res: express.Response) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/update-node`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(req.body ?? {}),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({ source: 'live_german_engine', status: 'UPDATED', data });
+        return;
+      }
+      res.status(200).json({
+        source: 'local_neo4j_fallback',
+        status: 'UPDATED',
+        updatedNode: req.body,
+      });
+    } catch {
+      clearTimeout(timeout);
+      res.status(200).json({
+        source: 'local_neo4j_fallback',
+        status: 'UPDATED',
+        updatedNode: req.body,
+      });
+    }
+  };
+
+  app.post('/api/v1/juthori/adam-tree/update-node', handleAdamTreeUpdateNode);
+  app.post('/api/juthori/adam-tree/update-node', handleAdamTreeUpdateNode);
 
   // 4. Resend API — Send Real OTP Verification Email from info@Juthori.com
   app.post('/api/juthori/auth/send-otp', async (req, res) => {
@@ -233,7 +418,9 @@ async function startServer() {
       ok: true,
       dispatched: result.dispatched,
       provider: result.provider,
-      sender: 'منصة جذوري <info@Juthori.com>',
+      error: result.error,
+      sender: result.senderUsed || 'منصة جذوري <info@Juthori.com>',
+      fallbackOtpCode: result.dispatched ? undefined : code,
     });
   });
 
@@ -243,14 +430,21 @@ async function startServer() {
     const submittedCode = String(req.body?.code || '').trim();
 
     if (!rawEmail || !submittedCode) {
-      res.status(400).json({ valid: false, error: 'البريد الإلكتروني ورمز التحقق مطلوبان.' });
+      res.status(400).json({
+        ok: false,
+        valid: false,
+        message: 'البريد الإلكتروني ورمز التحقق مطلوبان.',
+        error: 'البريد الإلكتروني ورمز التحقق مطلوبان.',
+      });
       return;
     }
 
     const stored = activeOtpStore.get(rawEmail);
     if (!stored) {
       res.status(400).json({
+        ok: false,
         valid: false,
+        message: 'لم يتم العثور على رمز تحقق نشط لهذا البريد. يرجى طلب إرسال رمز جديد.',
         error: 'لم يتم العثور على رمز تحقق نشط لهذا البريد. يرجى طلب إرسال رمز جديد.',
       });
       return;
@@ -259,7 +453,9 @@ async function startServer() {
     if (Date.now() > stored.expiresAt) {
       activeOtpStore.delete(rawEmail);
       res.status(400).json({
+        ok: false,
         valid: false,
+        message: 'انتهت صلاحية رمز التحقق. يرجى طلب إرسال رمز جديد.',
         error: 'انتهت صلاحية رمز التحقق. يرجى طلب إرسال رمز جديد.',
       });
       return;
@@ -267,14 +463,16 @@ async function startServer() {
 
     if (stored.code !== submittedCode) {
       res.status(400).json({
+        ok: false,
         valid: false,
+        message: 'رمز التحقق غير مطابق. يرجى التأكد من الرمز المرسل إلى بريدك الإلكتروني.',
         error: 'رمز التحقق غير مطابق. يرجى التأكد من الرمز المرسل إلى بريدك الإلكتروني.',
       });
       return;
     }
 
     activeOtpStore.delete(rawEmail);
-    res.json({ valid: true });
+    res.json({ ok: true, valid: true });
   });
 
   // 6. Resend API — Send Official Team Invitation from info@Juthori.com

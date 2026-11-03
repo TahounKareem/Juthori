@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
@@ -6,6 +6,7 @@ import {
   Compass,
   Database,
   Globe,
+  Languages,
   Menu,
   ShieldCheck,
   Lock,
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResilientImage } from './ResilientImage';
+import { KnowledgeCenterView } from './KnowledgeCenterView';
 import { JUTHORI_MEDIA } from '../assets/media';
 import {
   ORIGIN_COUNTRY_OPTIONS,
@@ -67,6 +69,20 @@ const PUBLIC_NAV_ITEMS: Array<{ id: PublicPageId; label: string }> = [
   { id: 'about-us', label: 'من نحن' },
   { id: 'knowledge-center', label: 'المركز المعرفي' },
   { id: 'support-center', label: 'مركز التواصل والدعم' },
+];
+
+const SITE_LANGUAGE_OPTIONS: Array<{
+  code: string;
+  label: string;
+  enabled: boolean;
+}> = [
+  { code: 'ar', label: 'العربية', enabled: true },
+  { code: 'en', label: 'الانجليزية', enabled: false },
+  { code: 'fr', label: 'الفرنسية', enabled: false },
+  { code: 'es', label: 'الأسبانية', enabled: false },
+  { code: 'ur', label: 'الأردو', enabled: false },
+  { code: 'tr', label: 'التركية', enabled: false },
+  { code: 'fa', label: 'الفارسية', enabled: false },
 ];
 
 const HERO_BULLET_POINTS = [
@@ -187,6 +203,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     Partial<Record<keyof RegistrationFormState, string>>
   >({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+  const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const [publishedArticles, setPublishedArticles] = useState<KnowledgeArticleRecord[]>([]);
 
   // Support form state
@@ -206,18 +224,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!languageMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        languageMenuRef.current &&
+        !languageMenuRef.current.contains(e.target as Node)
+      ) {
+        setLanguageMenuOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLanguageMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [languageMenuOpen]);
+
   const countryInfo = getCountryInfoByName(selectedPortalCountry);
 
   const navigatePublicPage = (pageId: PublicPageId) => {
     setActivePublicPage(pageId);
     setMobileMenuOpen(false);
-    const targetId = pageId === 'home' ? 'hero-portal' : pageId;
-    const el = document.getElementById(targetId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (pageId === 'home') {
+    setLanguageMenuOpen(false);
+    if (pageId === 'knowledge-center' || pageId === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
+    setTimeout(() => {
+      const el = document.getElementById(pageId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 40);
   };
 
   const handleFieldChange = <K extends keyof RegistrationFormState>(
@@ -328,6 +371,75 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#252321]/70 pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
                 aria-hidden="true"
               />
+            </div>
+
+            {/* Language Switcher Dropdown (Between Country Switcher and Login Button) */}
+            <div className="relative" ref={languageMenuRef}>
+              <button
+                type="button"
+                onClick={() => setLanguageMenuOpen((v) => !v)}
+                aria-label="اختيار لغة الموقع"
+                aria-expanded={languageMenuOpen}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e3dacb] border border-[#B98A78]/50 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-display font-bold text-[#252321] transition-colors cursor-pointer shadow-2xs"
+              >
+                <Languages
+                  className="w-4 h-4 text-[#D8755B] shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="hidden sm:inline">العربية</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-[#252321]/70 transition-transform ${
+                    languageMenuOpen ? 'rotate-180' : ''
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+
+              <AnimatePresence>
+                {languageMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 mt-2 w-48 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/55 shadow-2xl py-2 z-50"
+                    role="menu"
+                    aria-label="قائمة لغات الموقع"
+                  >
+                    <div className="px-3.5 py-1.5 border-b border-[#B98A78]/25 text-[11px] font-display font-bold text-[#8D4925]">
+                      لغة الموقع
+                    </div>
+                    <div className="py-1">
+                      {SITE_LANGUAGE_OPTIONS.map((lang) => (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          disabled={!lang.enabled}
+                          onClick={() => {
+                            if (lang.enabled) {
+                              setLanguageMenuOpen(false);
+                            }
+                          }}
+                          className={`w-full px-3.5 py-2 text-right text-xs font-display flex items-center justify-between transition-colors ${
+                            lang.enabled
+                              ? 'bg-[#D8755B]/15 text-[#252321] font-extrabold cursor-pointer'
+                              : 'text-[#252321]/40 cursor-not-allowed'
+                          }`}
+                        >
+                          <span>{lang.label}</span>
+                          {lang.enabled ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EDE6DA] text-[#252321]/45 font-normal">
+                              قريباً
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <button
@@ -451,10 +563,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       <main className="flex-1">
-        <section
-          id="hero-portal"
-          className="scroll-mt-20 relative w-full overflow-hidden min-h-[680px] lg:min-h-[760px] flex items-center py-8 sm:py-12 lg:py-14"
-        >
+        {activePublicPage === 'knowledge-center' ? (
+          <section
+            id="knowledge-center"
+            className="py-10 sm:py-14 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8"
+          >
+            <KnowledgeCenterView
+              articles={publishedArticles}
+              onBackHome={() => navigatePublicPage('home')}
+            />
+          </section>
+        ) : (
+          <>
+            <section
+              id="hero-portal"
+              className="scroll-mt-20 relative w-full overflow-hidden min-h-[680px] lg:min-h-[760px] flex items-center py-8 sm:py-12 lg:py-14"
+            >
             {/* Dynamic Country Architectural Heritage Image Background */}
             <div className="absolute inset-0 z-0">
               <ResilientImage
@@ -772,7 +896,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         )}
                       </div>
 
-                      {/* Row 4: Compact Expandable Toggle "+ بيانات إضافية (القبيلة / الفرع)" */}
+                      {/* Row 4: Compact Expandable Toggle "+ بيانات إضافية" */}
                       <div className="rounded-xl border border-[#B98A78]/40 bg-[#EDE6DA]/50 overflow-hidden">
                         <button
                           type="button"
@@ -780,7 +904,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           onClick={() => setShowOptionalTribe((prev) => !prev)}
                           className="w-full px-3 py-2 flex items-center justify-between text-right text-xs font-display font-bold text-[#252321] hover:bg-[#EDE6DA]/90 transition-colors cursor-pointer"
                         >
-                          <span>+ بيانات إضافية (القبيلة / الفرع)</span>
+                          <span>+ بيانات إضافية</span>
                           {showOptionalTribe ? (
                             <ChevronUp className="w-3.5 h-3.5 text-[#D8755B]" aria-hidden="true" />
                           ) : (
@@ -922,9 +1046,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 ستة أعمدة رقمية لحفظ النسب وبناء الشجرة وصون ذاكرة العائلة
               </h2>
             </div>
-            <p className="text-sm text-[#252321]/75 max-w-md">
-              تبدأ رحلتك مجاناً باكتشاف نقطة الربط، وتتوسع نحو منظومة متكاملة لإدارة سجل العائلة وموقعها الخاص.
-            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 items-stretch">
@@ -994,7 +1115,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </section>
 
-        {/* E. Section 4: About Us & Knowledge Center */}
+        {/* E. Section 4: About Us */}
         <section
           id="about-us"
           className="scroll-mt-20 border-t border-[#B98A78]/25 bg-[#EDE6DA]/45 py-16 lg:py-20"
@@ -1038,21 +1159,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
 
-            <div
-              id="knowledge-center"
-              className="scroll-mt-24 lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5"
-            >
+            <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
                 <div className="aspect-[16/10] overflow-hidden">
                   <ResilientImage
                     src={JUTHORI_MEDIA.manuscriptScroll}
-                    alt="المركز المعرفي — تحقيق المخطوطات والمشجرات"
+                    alt="منهجية الفهرسة — تحقيق المخطوطات والمشجرات"
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="p-5">
                   <p className="text-xs text-[#D8755B] font-semibold mb-1">
-                    المركز المعرفي · تحقيق المصادر
+                    منهجية الفهرسة · تحقيق المصادر
                   </p>
                   <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
                     مراتب الطبقات والربط الثلاثي بالجذر
@@ -1073,7 +1191,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
                 <div className="p-5">
                   <p className="text-xs text-[#D8755B] font-semibold mb-1">
-                    المركز المعرفي · ميثاق أمين السجل
+                    الضوابط والتوثيق · ميثاق أمين السجل
                   </p>
                   <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
                     الفرق بين حساب الفرد وأمين السجل
@@ -1083,30 +1201,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </p>
                 </div>
               </div>
-
-              {publishedArticles.map((art) => (
-                <div
-                  key={art.id}
-                  className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col sm:col-span-2"
-                >
-                  <div className="p-5 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-[#D8755B] font-semibold">
-                        المركز المعرفي · {art.category}
-                      </p>
-                      <span className="text-[11px] text-[#252321]/60">
-                        {art.authorName}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-display font-bold text-[#252321]">
-                      {art.title}
-                    </h3>
-                    <p className="text-xs text-[#252321]/80 leading-relaxed">
-                      {art.summary || art.content}
-                    </p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </section>
@@ -1220,6 +1314,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
         </section>
+          </>
+        )}
       </main>
 
       {/* Quiet Editorial Footer */}

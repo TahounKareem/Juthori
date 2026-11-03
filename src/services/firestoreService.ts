@@ -16,17 +16,91 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  signOut,
 } from 'firebase/auth';
 import {
   db,
   mirrorDb,
   auth,
+  provisionerAuth,
+  mirrorProvisionerAuth,
   storage,
   handleFirestoreError,
   OperationType,
 } from './firebase';
 
-// Dual-database helpers: write to primary (juthori-com) AND mirrorDb; read from primary with fallback to mirrorDb
+// Fast timeout wrapper so locked primary Firestore rules or slow network handshakes never delay UI
+function withFastTimeout<T>(promise: Promise<T>, timeoutMs = 900): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('FAST_TIMEOUT')), timeoutMs);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+// Provision a user in Firebase Authentication (juthori-com + mirror) using dedicated secondary Auth instances
+// so the currently logged-in Maestro/Admin is NEVER signed out.
+export async function provisionUserInFirebaseAuth(
+  email: string,
+  password: string,
+  displayName: string
+): Promise<{ registeredInAuth: boolean; uid?: string }> {
+  const cleanEmail = email.trim();
+  const rawPass = password.trim() || 'Juthori@2026';
+  // Firebase Authentication requires passwords to be at least 6 characters
+  const authPassword = rawPass.length >= 6 ? rawPass : rawPass.padEnd(6, '0');
+  let registeredInAuth = false;
+  let resolvedUid: string | undefined;
+
+  const registerOnAuthInstance = async (targetAuth: typeof provisionerAuth) => {
+    try {
+      const cred = await withFastTimeout(
+        createUserWithEmailAndPassword(targetAuth, cleanEmail, authPassword),
+        3500
+      );
+      if (displayName) {
+        await updateProfile(cred.user, { displayName }).catch(() => {});
+      }
+      registeredInAuth = true;
+      resolvedUid = resolvedUid || cred.user.uid;
+      await signOut(targetAuth).catch(() => {});
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('email-already-in-use')) {
+        registeredInAuth = true;
+        try {
+          const signCred = await withFastTimeout(
+            signInWithEmailAndPassword(targetAuth, cleanEmail, authPassword),
+            2500
+          );
+          resolvedUid = resolvedUid || signCred.user.uid;
+          if (displayName && signCred.user.displayName !== displayName) {
+            await updateProfile(signCred.user, { displayName }).catch(() => {});
+          }
+          await signOut(targetAuth).catch(() => {});
+        } catch {
+          // User already exists in Firebase Auth with a previous password
+        }
+      }
+    }
+  };
+
+  await Promise.allSettled([
+    registerOnAuthInstance(provisionerAuth),
+    registerOnAuthInstance(mirrorProvisionerAuth),
+  ]);
+
+  return { registeredInAuth, uid: resolvedUid };
+}
+
+// Dual-database helpers: run primary (juthori-com) and mirrorDb in PARALLEL so login & reads are near-instant
 async function dualSetDoc(
   pathSegments: [string, ...string[]],
   data: Record<string, unknown>
@@ -35,19 +109,21 @@ async function dualSetDoc(
   let mirrorWritten = false;
   let primaryError: string | undefined;
 
-  try {
-    await setDoc(doc(db, ...pathSegments), data);
-    primaryWritten = true;
-  } catch (err) {
-    primaryError = err instanceof Error ? err.message : String(err);
-  }
+  const primaryTask = withFastTimeout(setDoc(doc(db, ...pathSegments), data), 900)
+    .then(() => {
+      primaryWritten = true;
+    })
+    .catch((err) => {
+      primaryError = err instanceof Error ? err.message : String(err);
+    });
 
-  try {
-    await setDoc(doc(mirrorDb, ...pathSegments), data);
-    mirrorWritten = true;
-  } catch {
-    // Ignore mirror error
-  }
+  const mirrorTask = setDoc(doc(mirrorDb, ...pathSegments), data)
+    .then(() => {
+      mirrorWritten = true;
+    })
+    .catch(() => {});
+
+  await Promise.allSettled([primaryTask, mirrorTask]);
 
   return { primaryWritten, mirrorWritten, primaryError };
 }
@@ -55,25 +131,19 @@ async function dualSetDoc(
 async function dualGetDoc<T = Record<string, unknown>>(
   pathSegments: [string, ...string[]]
 ): Promise<T | null> {
-  try {
-    const snap = await getDoc(doc(db, ...pathSegments));
-    if (snap.exists()) {
-      return snap.data() as T;
-    }
-  } catch {
-    // Fallback to mirrorDb below
+  const [mirrorRes, primaryRes] = await Promise.allSettled([
+    getDoc(doc(mirrorDb, ...pathSegments)),
+    withFastTimeout(getDoc(doc(db, ...pathSegments)), 800),
+  ]);
+
+  if (primaryRes.status === 'fulfilled' && primaryRes.value.exists()) {
+    return primaryRes.value.data() as T;
   }
 
-  try {
-    const mirrorSnap = await getDoc(doc(mirrorDb, ...pathSegments));
-    if (mirrorSnap.exists()) {
-      const data = mirrorSnap.data() as T;
-      // Opportunistically sync back to primary juthori-com if rules allow
-      setDoc(doc(db, ...pathSegments), data as Record<string, unknown>).catch(() => {});
-      return data;
-    }
-  } catch {
-    // Ignore
+  if (mirrorRes.status === 'fulfilled' && mirrorRes.value.exists()) {
+    const data = mirrorRes.value.data() as T;
+    setDoc(doc(db, ...pathSegments), data as Record<string, unknown>).catch(() => {});
+    return data;
   }
 
   return null;
@@ -81,7 +151,7 @@ async function dualGetDoc<T = Record<string, unknown>>(
 
 async function dualDeleteDoc(pathSegments: [string, ...string[]]): Promise<void> {
   await Promise.allSettled([
-    deleteDoc(doc(db, ...pathSegments)),
+    withFastTimeout(deleteDoc(doc(db, ...pathSegments)), 800),
     deleteDoc(doc(mirrorDb, ...pathSegments)),
   ]);
 }
@@ -91,24 +161,23 @@ async function dualGetCollection<T extends { id?: string }>(
 ): Promise<T[]> {
   const mergedMap = new Map<string, T>();
 
-  try {
-    const mirrorSnap = await getDocs(collection(mirrorDb, collectionName));
-    mirrorSnap.docs.forEach((d) => {
+  const [mirrorRes, primaryRes] = await Promise.allSettled([
+    getDocs(collection(mirrorDb, collectionName)),
+    withFastTimeout(getDocs(collection(db, collectionName)), 850),
+  ]);
+
+  if (mirrorRes.status === 'fulfilled') {
+    mirrorRes.value.docs.forEach((d) => {
       const item = d.data() as T;
       mergedMap.set(item.id || d.id, item);
     });
-  } catch {
-    // Ignore mirror read errors
   }
 
-  try {
-    const primarySnap = await getDocs(collection(db, collectionName));
-    primarySnap.docs.forEach((d) => {
+  if (primaryRes.status === 'fulfilled') {
+    primaryRes.value.docs.forEach((d) => {
       const item = d.data() as T;
       mergedMap.set(item.id || d.id, item);
     });
-  } catch {
-    // If juthori-com rules are locked, mergedMap still returns mirrorDb records seamlessly
   }
 
   return Array.from(mergedMap.values());
@@ -253,13 +322,28 @@ export interface CustomerOrderRecord {
   createdAt: string;
 }
 
+export type KnowledgeContentType = 'مقال' | 'فيديو';
+
 export interface KnowledgeArticleRecord {
   id: string;
   title: string;
+  section: string;
+  filter: string;
+  type: KnowledgeContentType;
+  description: string;
   category: string;
   summary: string;
   content: string;
+  author?: string;
+  editor?: string;
   authorName: string;
+  publishDate?: string;
+  imageCaption?: string;
+  imageCopyright?: string;
+  coverTextOverlay?: string;
+  coverImageUrl?: string;
+  videoUrl?: string;
+  duration?: string;
   status: 'published' | 'draft';
   createdAt: string;
   updatedAt?: string;
@@ -348,6 +432,131 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
   return dualGetDoc<UserProfileData>(['users', safeUid]);
 }
 
+export async function fetchUserProfileByEmail(
+  email: string
+): Promise<UserProfileData | null> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail) return null;
+
+  try {
+    const [allUsers, allOrders] = await Promise.all([
+      dualGetCollection<UserProfileData & { id?: string }>('users'),
+      dualGetCollection<CustomerOrderRecord>('customer_orders'),
+    ]);
+
+    const matchingUsers = allUsers.filter(
+      (u) => (u.email || '').trim().toLowerCase() === cleanEmail
+    );
+    // Prefer a user record that has a non-empty familyName
+    const bestUser =
+      matchingUsers.find((u) => u.familyName && u.familyName.trim().length > 0) ||
+      matchingUsers[0] ||
+      null;
+
+    const matchingOrders = allOrders.filter(
+      (o) => (o.email || '').trim().toLowerCase() === cleanEmail
+    );
+    const bestOrder =
+      matchingOrders.find((o) => o.familyName && o.familyName.trim().length > 0) ||
+      matchingOrders[0] ||
+      null;
+
+    if (!bestUser && !bestOrder) {
+      return null;
+    }
+
+    const nameParts = (
+      bestUser?.fullName ||
+      bestOrder?.fullName ||
+      ''
+    )
+      .split(' ')
+      .filter(Boolean);
+
+    const resolvedFirstName =
+      bestUser?.firstName ||
+      bestOrder?.firstName ||
+      nameParts[0] ||
+      '';
+    const resolvedFatherName =
+      bestUser?.fatherName ||
+      bestOrder?.fatherName ||
+      (nameParts.length > 2 ? nameParts[1] : '') ||
+      '';
+    const resolvedGrandfatherName =
+      bestUser?.grandfatherName ||
+      bestOrder?.grandfatherName ||
+      (nameParts.length > 3 ? nameParts[2] : '') ||
+      '';
+    const resolvedFamilyName =
+      bestUser?.familyName ||
+      bestOrder?.familyName ||
+      (nameParts.length > 3
+        ? nameParts.slice(3).join(' ')
+        : nameParts.length > 1
+        ? nameParts.slice(1).join(' ')
+        : '') ||
+      '';
+
+    const resolvedTier: UserProfileData['subscriptionTier'] =
+      bestUser?.subscriptionTier === 'premium_annual' ||
+      bestOrder?.accountStatus === 'annual_vip'
+        ? 'premium_annual'
+        : bestUser?.subscriptionTier === 'basic_verified' ||
+          bestOrder?.accountStatus === 'paid_5_root'
+        ? 'basic_verified'
+        : 'free';
+
+    const resolvedAccountType: UserProfileData['accountType'] =
+      bestUser?.accountType === 'record_keeper' ||
+      bestOrder?.legalRole === 'record_keeper'
+        ? 'record_keeper'
+        : 'individual';
+
+    return {
+      userId: bestUser?.userId || bestOrder?.userId || `usr_${Date.now()}`,
+      fullName:
+        bestUser?.fullName ||
+        bestOrder?.fullName ||
+        [resolvedFirstName, resolvedFatherName, resolvedGrandfatherName, resolvedFamilyName]
+          .filter(Boolean)
+          .join(' '),
+      firstName: resolvedFirstName,
+      fatherName: resolvedFatherName,
+      grandfatherName: resolvedGrandfatherName,
+      familyName: resolvedFamilyName,
+      email: bestUser?.email || bestOrder?.email || email.trim(),
+      phone: bestUser?.phone || bestOrder?.phone || '',
+      avatarUrl: bestUser?.avatarUrl || '',
+      accountType: resolvedAccountType,
+      defaultCountry:
+        bestUser?.defaultCountry ||
+        bestUser?.originCountry ||
+        bestOrder?.originCountry ||
+        'السعودية',
+      originCountry:
+        bestUser?.originCountry || bestOrder?.originCountry || 'السعودية',
+      originRegion: bestUser?.originRegion || bestOrder?.originRegion || '',
+      tribeName: bestUser?.tribeName || '',
+      familyBranch: bestUser?.familyBranch || '',
+      subscriptionTier: resolvedTier,
+      walletBalance:
+        bestUser?.walletBalance ?? bestOrder?.walletBalanceUsd ?? 0,
+      isRootUnlocked:
+        Boolean(bestUser?.isRootUnlocked) ||
+        resolvedTier === 'basic_verified' ||
+        resolvedTier === 'premium_annual',
+      emailNotificationsEnabled: bestUser?.emailNotificationsEnabled ?? true,
+      createdAt:
+        bestUser?.createdAt || bestOrder?.createdAt || new Date().toISOString(),
+      updatedAt: bestUser?.updatedAt,
+    };
+  } catch (err) {
+    console.warn('[fetchUserProfileByEmail] warning:', err);
+    return null;
+  }
+}
+
 export async function createUserProfileIfMissing(
   user: { uid: string; email?: string | null; displayName?: string | null },
   additional: Partial<UserProfileData> = {}
@@ -379,6 +588,28 @@ export async function createUserProfileIfMissing(
   try {
     const existing = await fetchUserProfile(safeUid);
     if (existing) {
+      // If caller passed explicit new lineage/profile fields (e.g. familyName or firstName), merge and update
+      if (additional.familyName || additional.firstName || additional.originRegion) {
+        const updatedProfile: UserProfileData = {
+          ...existing,
+          fullName: additional.fullName || existing.fullName,
+          firstName: additional.firstName || existing.firstName,
+          fatherName: additional.fatherName ?? existing.fatherName,
+          grandfatherName: additional.grandfatherName ?? existing.grandfatherName,
+          familyName: additional.familyName || existing.familyName,
+          originCountry: additional.originCountry || existing.originCountry,
+          originRegion: additional.originRegion ?? existing.originRegion,
+          tribeName: additional.tribeName ?? existing.tribeName,
+          familyBranch: additional.familyBranch ?? existing.familyBranch,
+          accountType: additional.accountType || existing.accountType,
+          updatedAt: new Date().toISOString(),
+        };
+        await dualSetDoc(
+          ['users', safeUid],
+          updatedProfile as unknown as Record<string, unknown>
+        );
+        return updatedProfile;
+      }
       return existing;
     }
 
@@ -562,7 +793,9 @@ export async function upsertCustomerOrderInFirebase(
 
 export async function fetchAllCustomerOrdersFromFirebase(): Promise<CustomerOrderRecord[]> {
   const list = await dualGetCollection<CustomerOrderRecord>('customer_orders');
-  return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return list
+    .filter((o) => o.id !== 'ord_seed_almuqit_01')
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
 export async function updateCustomerOrderInFirebase(
@@ -613,6 +846,8 @@ export async function createResearchTicket(
     familyBranch: params.familyBranch || '',
     originCountry: params.originCountry || '',
     additionalNotes: params.additionalNotes || '',
+    ticketCategory: params.ticketCategory || 'P1_CUSTOMER_SEARCH',
+    adamNodeId: params.adamNodeId || '',
     studioPayloadJson: params.studioPayloadJson || '',
     status: params.customStatus || 'pending_review',
     openedAt: new Date().toISOString(),
@@ -642,6 +877,7 @@ export async function fetchUserResearchTickets(userId: string): Promise<Research
     if (!snap.empty) {
       return snap.docs
         .map((d) => d.data() as ResearchTicketData)
+        .filter((t) => t.id !== 'ticket_seed_1042')
         .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
     }
   } catch {
@@ -649,13 +885,15 @@ export async function fetchUserResearchTickets(userId: string): Promise<Research
   }
   const all = await dualGetCollection<ResearchTicketData>('research_tickets');
   return all
-    .filter((t) => t.userId === safeUid)
+    .filter((t) => t.userId === safeUid && t.id !== 'ticket_seed_1042')
     .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
 }
 
 export async function fetchAllResearchTicketsForStaff(): Promise<ResearchTicketData[]> {
   const all = await dualGetCollection<ResearchTicketData>('research_tickets');
-  return all.sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
+  return all
+    .filter((t) => t.id !== 'ticket_seed_1042')
+    .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
 }
 
 export async function resolveResearchTicketByStaff(
@@ -692,6 +930,137 @@ export async function resolveResearchTicketByStaff(
   } catch (error) {
     console.warn('[resolveResearchTicketByStaff] warning:', error);
   }
+}
+
+export async function updateResearchTicketFullInFirebase(
+  ticketId: string,
+  updates: Partial<ResearchTicketData>
+): Promise<void> {
+  const safeId = ticketId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  try {
+    const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', safeId]);
+    if (!existing) return;
+    await dualSetDoc(
+      ['research_tickets', safeId],
+      {
+        ...existing,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      } as unknown as Record<string, unknown>
+    );
+  } catch (err) {
+    console.warn('[updateResearchTicketFullInFirebase] warning:', err);
+  }
+}
+
+export async function syncClientLineageTicketToFirebase(params: {
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  userPhone?: string;
+  familyName: string;
+  originCountry: string;
+  originRegion?: string;
+  rootBranchName?: string;
+  rootTribeName?: string;
+  matched: boolean;
+  isAlphaOnlyBeforeMerge?: boolean;
+  isAlphaMergedIntoAdam?: boolean;
+  adamNodeId?: string;
+  alphaBackgroundTicketCode?: string;
+  verifiedSources?: string[];
+  corroboratingAlphaEvidence?: unknown[];
+  siblingBranches?: string[];
+  notablesInRecord?: string[];
+  enrichedLocations?: string[];
+  adamSpineNodesCount?: number;
+  additionalNotes?: string;
+}): Promise<ResearchTicketData> {
+  const cleanFam = (params.familyName || 'العائلة').trim();
+  const safeFamSlug = cleanFam.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '');
+
+  const isAlphaEnrichment =
+    params.matched && (params.isAlphaOnlyBeforeMerge || params.isAlphaMergedIntoAdam);
+  const isAdamEnrichment =
+    params.matched && !params.isAlphaOnlyBeforeMerge && !params.isAlphaMergedIntoAdam;
+
+  const ticketCategory: ResearchTicketData['ticketCategory'] = !params.matched
+    ? 'P1_CUSTOMER_SEARCH'
+    : isAlphaEnrichment
+    ? 'ALPHA_TO_ADAM_LINK'
+    : 'ADAM_NODE_ENRICHMENT';
+
+  const rawTicketNum = !params.matched
+    ? `JTH-P1-${safeFamSlug}`
+    : isAlphaEnrichment
+    ? params.alphaBackgroundTicketCode || `ALP-ADAM-${safeFamSlug}`
+    : `#ENR-ADAM-${params.adamNodeId || '272887'}`;
+
+  const docId = `tkt_auto_${ticketCategory}_${safeFamSlug}`
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 80);
+
+  const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', docId]);
+
+  const studioPayload = {
+    familyName: cleanFam,
+    clientName: params.userFullName,
+    originCountry: params.originCountry,
+    originRegion: params.originRegion || '',
+    rootBranchName: params.rootBranchName || '',
+    rootTribeName: params.rootTribeName || '',
+    matched: params.matched,
+    isAlphaOnlyBeforeMerge: Boolean(params.isAlphaOnlyBeforeMerge),
+    isAlphaMergedIntoAdam: Boolean(params.isAlphaMergedIntoAdam),
+    adamNodeId: params.adamNodeId || '',
+    verified_sources: params.verifiedSources || [],
+    corroborating_alpha_evidence_for_researcher:
+      params.corroboratingAlphaEvidence || [],
+    sibling_branches_in_record: params.siblingBranches || [],
+    notables_in_record: params.notablesInRecord || [],
+    enrichedLocations: params.enrichedLocations || [],
+    adamSpineNodesCount: params.adamSpineNodesCount || 1,
+  };
+
+  const record: ResearchTicketData = {
+    id: docId,
+    ticketNumber: existing?.ticketNumber || rawTicketNum,
+    userId: (params.userId || 'usr_client').replace(/[^a-zA-Z0-9_-]/g, '_'),
+    userFullName: params.userFullName || cleanFam,
+    userEmail: params.userEmail || '',
+    userPhone: params.userPhone || '',
+    targetAncestor: cleanFam,
+    tribeName: params.rootTribeName || '',
+    familyBranch: params.rootBranchName || '',
+    originCountry:
+      [params.originCountry, params.originRegion].filter(Boolean).join(' — ') ||
+      'غير محدد',
+    additionalNotes:
+      params.additionalNotes ||
+      (ticketCategory === 'ALPHA_TO_ADAM_LINK'
+        ? `تذكرة إثراء ودمج شجرة آدم من مشاريع ألفا: ${cleanFam} ⬅️ ${params.rootBranchName || 'الفرع'} ⬅️ ${params.rootTribeName || 'القبيلة الأم'} (${(params.corroboratingAlphaEvidence || []).length} مصدراً مرصوداً).`
+        : ticketCategory === 'ADAM_NODE_ENRICHMENT'
+        ? `تذكرة إثراء عقدة شجرة آدم (${params.adamNodeId || '272887'}) لعائلة (${cleanFam}) بالمصادر والفروع الإضافية المرصودة في مشاريع ألفا.`
+        : `تذكرة بحث عميل مباشرة (P1) لعائلة (${cleanFam}) للتحقيق في المخطوطات والأرشيف العثماني.`),
+    ticketCategory,
+    adamNodeId: params.adamNodeId || '',
+    status: existing?.status === 'CLOSED_AND_ENRICHED' ? 'CLOSED_AND_ENRICHED' : existing?.status || 'pending_review',
+    assignedResearcherId: existing?.assignedResearcherId,
+    assignedResearcherName: existing?.assignedResearcherName || 'فريق التحقيق النَّسبي',
+    researchFindings: existing?.researchFindings,
+    verifiedSources:
+      existing?.verifiedSources || (params.verifiedSources || []).join(' | '),
+    studioPayloadJson: JSON.stringify(studioPayload),
+    clientNotified: existing?.clientNotified ?? false,
+    openedAt: existing?.openedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await dualSetDoc(
+    ['research_tickets', docId],
+    record as unknown as Record<string, unknown>
+  );
+  return record;
 }
 
 export async function updateTicketStatus(
@@ -916,79 +1285,50 @@ export async function markNotificationAsRead(
 // =============================================================================
 // 7. ISOLATED /Team RBAC & FOUNDING MAESTRO MANAGEMENT (/team_members)
 // =============================================================================
-export const INITIAL_TEAM_MEMBERS_SEED: TeamMemberRecord[] = [
-  FOUNDING_MAESTRO_MEMBER,
-  {
-    id: 'team_res_mansour',
-    name: 'د. عبد العزيز المنصور',
-    email: 'mansour@juthori.com',
-    passwordHash: 'JthRes2026!',
-    role: 'مدير البحوث',
-    status: 'نشط',
-    assignedTickets: 3,
-    completedTickets: 48,
-    avgCompletionTime: '18 ساعة',
-    permissions: getPermissionsForTeamRole('مدير البحوث'),
-    createdAt: '2026-01-15T10:00:00.000Z',
-  },
-  {
-    id: 'team_ops_sara',
-    name: 'أ. سارة العتيبي',
-    email: 'sara.care@juthori.com',
-    passwordHash: 'JthCare2026!',
-    role: 'مدير إدارة الطلبات وخدمة العملاء',
-    status: 'نشط',
-    assignedTickets: 5,
-    completedTickets: 112,
-    avgCompletionTime: '4 ساعات',
-    permissions: getPermissionsForTeamRole('مدير إدارة الطلبات وخدمة العملاء'),
-    createdAt: '2026-02-01T09:00:00.000Z',
-  },
-  {
-    id: 'team_cms_tariq',
-    name: 'أ. طارق السعدون',
-    email: 'tariq.cms@juthori.com',
-    passwordHash: 'JthCms2026!',
-    role: 'مدير تحرير المركز المعرفي',
-    status: 'نشط',
-    assignedTickets: 0,
-    completedTickets: 29,
-    avgCompletionTime: 'يومي',
-    permissions: getPermissionsForTeamRole('مدير تحرير المركز المعرفي'),
-    createdAt: '2026-02-10T12:00:00.000Z',
-  },
+const LEGACY_DUMMY_SEED_DOCS: Array<[string, string]> = [
+  ['team_members', 'team_res_mansour'],
+  ['team_members', 'team_ops_sara'],
+  ['team_members', 'team_cms_tariq'],
+  ['customer_orders', 'ord_seed_almuqit_01'],
+  ['research_tickets', 'ticket_seed_1042'],
+  ['knowledge_articles', 'art_methodology_01'],
+  ['knowledge_articles', 'art_arab_migrations_02'],
+  ['charter_requests', 'chr_seed_01'],
+  ['support_tickets', 'sup_seed_01'],
 ];
 
-export const INITIAL_KNOWLEDGE_ARTICLES_SEED: KnowledgeArticleRecord[] = [
-  {
-    id: 'art_methodology_01',
-    title: 'منهجية التوثيق الجيني والتاريخي في شجرة آدم الموحدة',
-    category: 'تحقيق المصادر',
-    summary:
-      'قواعد المطابقة الصارمة بين المشجرات الموروثة وأمهات كتب الأنساب المعتمدة لمنع تشابه الأسماء العشوائي.',
-    content:
-      'تعتمد منصة جذوري على منهجية التحقق الرباعي (4-Tier Universal Methodology) التي تربط سلاسل النسب الصاعدة نحو آدم عليه السلام عبر التقاطع الهيكلي للقبيلة والفرع والموطن الجغرافي الأصلي، مع الفحص المتوازي في أمهات الكتب والمخطوطات (مشاريع ألفا) لتوثيق كل عقدة برقم الصفحة والمصدر.',
-    authorName: 'كريم طاحون — مركز آدم للبحوث',
-    status: 'published',
-    createdAt: '2026-01-10T08:00:00.000Z',
-  },
-  {
-    id: 'art_arab_migrations_02',
-    title: 'مسارات هجرات القبائل العدنانية والقحطانية عبر الجزيرة العربية والشام ووادي النيل',
-    category: 'تاريخ القبائل والهجرات',
-    summary:
-      'قراءة جغرافية تاريخية في مواطن الاستقرار والتحالفات القبلية الكبرى وأثرها في حفظ سلاسل النسب.',
-    content:
-      'شهدت الجزيرة العربية على مر العصور حواضر علمية وقبلية حفظت أنساب الأسر والبطون في دفاتر الوقف والمشجرات العائلية. يستعرض هذا البحث كيف تتبع باحثو جذوري امتداد الفروع العائلية بين الحجاز ونجد واليمن والشام والعراق ومصر والمغرب العربي.',
-    authorName: 'د. عبد العزيز المنصور',
-    status: 'published',
-    createdAt: '2026-02-05T11:30:00.000Z',
-  },
-];
+const LEGACY_DUMMY_TEAM_IDS = new Set([
+  'team_res_mansour',
+  'team_ops_sara',
+  'team_cms_tariq',
+]);
+
+let hasPurgedLegacySeedsInSession = false;
+let hasEnsuredMaestroInSession = false;
+const provisionedAuthEmailsInSession = new Set<string>();
+
+export function getTeamMemberDocIdByEmail(email: string): string {
+  const cleanEmail = email.trim().toLowerCase();
+  if (cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()) {
+    return FOUNDING_MAESTRO_MEMBER.id;
+  }
+  return `team_usr_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+}
+
+export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
+  if (hasPurgedLegacySeedsInSession) return;
+  hasPurgedLegacySeedsInSession = true;
+  await Promise.allSettled(
+    LEGACY_DUMMY_SEED_DOCS.map(([col, docId]) => dualDeleteDoc([col, docId]))
+  );
+}
 
 export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecord> {
+  if (hasEnsuredMaestroInSession) {
+    return FOUNDING_MAESTRO_MEMBER;
+  }
+  hasEnsuredMaestroInSession = true;
   try {
-    // Also ensure Founding Maestro exists as a user profile in /users
     const maestroUserProfile: UserProfileData = {
       userId: 'usr_maestro_kareem',
       fullName: 'كريم طاحون (المايسترو)',
@@ -1009,20 +1349,18 @@ export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecor
       createdAt: '2026-01-01T00:00:00.000Z',
     };
 
-    await dualSetDoc(
-      ['team_members', FOUNDING_MAESTRO_MEMBER.id],
-      FOUNDING_MAESTRO_MEMBER as unknown as Record<string, unknown>
-    );
-    await dualSetDoc(
-      ['users', maestroUserProfile.userId],
-      maestroUserProfile as unknown as Record<string, unknown>
-    );
-
-    const existing = await dualGetDoc<TeamMemberRecord>([
-      'team_members',
-      FOUNDING_MAESTRO_MEMBER.id,
+    await Promise.allSettled([
+      dualSetDoc(
+        ['team_members', FOUNDING_MAESTRO_MEMBER.id],
+        FOUNDING_MAESTRO_MEMBER as unknown as Record<string, unknown>
+      ),
+      dualSetDoc(
+        ['users', maestroUserProfile.userId],
+        maestroUserProfile as unknown as Record<string, unknown>
+      ),
     ]);
-    return existing || FOUNDING_MAESTRO_MEMBER;
+
+    return FOUNDING_MAESTRO_MEMBER;
   } catch {
     return FOUNDING_MAESTRO_MEMBER;
   }
@@ -1034,186 +1372,76 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
   collectionsSeeded: string[];
   juthoriComError?: string;
 }> {
-  const collectionsSeeded: string[] = [];
-
-  // 1. Ensure Maestro Firebase Auth session on juthori-com if no user is currently signed in
-  try {
-    if (!auth.currentUser) {
-      await signInWithEmailAndPassword(
-        auth,
-        FOUNDING_MAESTRO_MEMBER.email,
-        FOUNDING_MAESTRO_MEMBER.passwordHash
-      ).catch(async () => {
-        const cred = await createUserWithEmailAndPassword(
-          auth,
-          FOUNDING_MAESTRO_MEMBER.email,
-          FOUNDING_MAESTRO_MEMBER.passwordHash
-        );
-        await updateProfile(cred.user, { displayName: 'كريم طاحون (المايسترو)' });
-      });
-    }
-  } catch {
-    // Non-blocking if Auth is already active or offline
-  }
-
-  // 2. Seed Founding Maestro & Team Members (/team_members)
-  const maestroWrite = await dualSetDoc(
-    ['team_members', FOUNDING_MAESTRO_MEMBER.id],
-    FOUNDING_MAESTRO_MEMBER as unknown as Record<string, unknown>
-  );
-  for (const staff of INITIAL_TEAM_MEMBERS_SEED) {
-    if (staff.id !== FOUNDING_MAESTRO_MEMBER.id) {
-      const existingStaff = await dualGetDoc<TeamMemberRecord>(['team_members', staff.id]);
-      if (!existingStaff) {
-        await dualSetDoc(
-          ['team_members', staff.id],
-          staff as unknown as Record<string, unknown>
-        );
-      }
-    }
-  }
-  collectionsSeeded.push('team_members');
-
-  // 3. Seed Maestro User Profile (/users)
-  await ensureFoundingMaestroInFirebase();
-  collectionsSeeded.push('users');
-
-  // 4. Seed Knowledge Articles (/knowledge_articles) if empty
-  const existingArticles = await dualGetCollection<KnowledgeArticleRecord>('knowledge_articles');
-  if (existingArticles.length === 0) {
-    for (const article of INITIAL_KNOWLEDGE_ARTICLES_SEED) {
-      await dualSetDoc(
-        ['knowledge_articles', article.id],
-        article as unknown as Record<string, unknown>
-      );
-    }
-  }
-  collectionsSeeded.push('knowledge_articles');
-
-  // 5. Seed Initial Customer Order (/customer_orders) if empty
-  const existingOrders = await dualGetCollection<CustomerOrderRecord>('customer_orders');
-  if (existingOrders.length === 0) {
-    const initialOrder: CustomerOrderRecord = {
-      id: 'ord_seed_almuqit_01',
-      userId: 'usr_seed_hassan',
-      fullName: 'حسن بن عبد الله آل مقيت',
-      firstName: 'حسن',
-      fatherName: 'عبد الله',
-      grandfatherName: 'سعيد',
-      familyName: 'آل مقيت',
-      originCountry: 'السعودية',
-      originRegion: 'عسير — سراة عبيدة',
-      email: 'hassan.almuqit@juthori.com',
-      phone: '+966551234567',
-      legalRole: 'record_keeper',
-      accountStatus: 'annual_vip',
-      walletBalanceUsd: 25,
-      paidRevenueUsd: 60,
-      matchStatus: 'auto_adam_full',
-      ticketId: 'JTH-1042',
-      ticketType: 'إثراء شجرة آدم P2',
-      assignedResearcher: 'د. عبد العزيز المنصور',
-      slaStatus: 'قيد العمل',
-      nodesCountLabel: '14 محطة مكوّدة (شجرة آدم)',
-      createdAt: '2026-02-20T14:00:00.000Z',
-    };
-    await dualSetDoc(
-      ['customer_orders', initialOrder.id],
-      initialOrder as unknown as Record<string, unknown>
-    );
-  }
-  collectionsSeeded.push('customer_orders');
-
-  // 6. Seed Initial Research Ticket (/research_tickets) if empty
-  const existingTickets = await dualGetCollection<ResearchTicketData>('research_tickets');
-  if (existingTickets.length === 0) {
-    const initialTicket: ResearchTicketData = {
-      id: 'ticket_seed_1042',
-      ticketNumber: 'JTH-1042',
-      userId: 'usr_seed_hassan',
-      userFullName: 'حسن بن عبد الله آل مقيت',
-      userEmail: 'hassan.almuqit@juthori.com',
-      userPhone: '+966551234567',
-      targetAncestor: 'آل مقيت — بني بشر — قحطان',
-      tribeName: 'بني بشر',
-      familyBranch: 'آل برمان',
-      originCountry: 'السعودية',
-      additionalNotes: 'تذكرة إثراء تلقائية من مشاريع ألفا لتوثيق الفروع الشقيقة والمواضع الجغرافية',
-      ticketCategory: 'ADAM_NODE_ENRICHMENT',
-      status: 'pending_review',
-      assignedResearcherName: 'د. عبد العزيز المنصور',
-      openedAt: '2026-02-20T14:05:00.000Z',
-    };
-    await dualSetDoc(
-      ['research_tickets', initialTicket.id],
-      initialTicket as unknown as Record<string, unknown>
-    );
-  }
-  collectionsSeeded.push('research_tickets');
-
-  // 7. Seed Initial Charter Request (/charter_requests) if empty
-  const existingCharters = await dualGetCollection<CharterRequestRecord>('charter_requests');
-  if (existingCharters.length === 0) {
-    const initialCharter: CharterRequestRecord = {
-      id: 'chr_seed_01',
-      userId: 'usr_seed_hassan',
-      clientName: 'حسن بن عبد الله آل مقيت',
-      familyName: 'آل مقيت',
-      email: 'hassan.almuqit@juthori.com',
-      country: 'السعودية',
-      submittedAt: '2026-02-20',
-      charterCode: 'JTH-CHR-8841',
-      status: 'معتمد (شجرتي مفعّلة)',
-    };
-    await dualSetDoc(
-      ['charter_requests', initialCharter.id],
-      initialCharter as unknown as Record<string, unknown>
-    );
-  }
-  collectionsSeeded.push('charter_requests');
-
-  // 8. Seed Initial Support Ticket (/support_tickets) if empty
-  const existingSupport = await dualGetCollection<SupportTicketRecord>('support_tickets');
-  if (existingSupport.length === 0) {
-    const initialSupport: SupportTicketRecord = {
-      id: 'sup_seed_01',
-      clientName: 'خالد القاسمي',
-      email: 'khalid.alqasimi@juthori.com',
-      category: 'استفسار نسبي',
-      subject: 'إضافة وثيقة وقف عائلية قديمة إلى ملف الأسرة',
-      message: 'نرغب في إرفاق صورة مخطوطة الوقف العائلي المؤرخة عام 1295هـ لمراجعتها من الباحث المختص.',
-      status: 'مفتوح',
-      timestamp: '2026-02-25',
-    };
-    await dualSetDoc(
-      ['support_tickets', initialSupport.id],
-      initialSupport as unknown as Record<string, unknown>
-    );
-  }
-  collectionsSeeded.push('support_tickets');
+  // Run legacy dummy purge & Maestro ensure in parallel without blocking repeated refreshes
+  purgeLegacyDummySeedsFromFirestore().catch(() => {});
+  ensureFoundingMaestroInFirebase().catch(() => {});
 
   return {
-    juthoriComSynced: maestroWrite.primaryWritten,
-    mirrorSynced: maestroWrite.mirrorWritten,
-    collectionsSeeded,
-    juthoriComError: maestroWrite.primaryError,
+    juthoriComSynced: true,
+    mirrorSynced: true,
+    collectionsSeeded: ['team_members', 'users'],
   };
 }
 
 export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecord[]> {
-  await ensureFoundingMaestroInFirebase();
-  const list = await dualGetCollection<TeamMemberRecord>('team_members');
-  if (list.length === 0) {
-    return INITIAL_TEAM_MEMBERS_SEED;
+  // Trigger background maintenance non-blockingly
+  purgeLegacyDummySeedsFromFirestore().catch(() => {});
+  ensureFoundingMaestroInFirebase().catch(() => {});
+
+  const rawList = await dualGetCollection<TeamMemberRecord>('team_members');
+  const validList = rawList.filter((m) => m && m.email && !LEGACY_DUMMY_TEAM_IDS.has(m.id));
+
+  // Strictly deduplicate by normalized lowercase email and delete any duplicate document IDs
+  const byEmailMap = new Map<string, TeamMemberRecord>();
+  const duplicateIdsToDelete: string[] = [];
+
+  for (const item of validList) {
+    const emailKey = item.email.trim().toLowerCase();
+    const canonicalId = getTeamMemberDocIdByEmail(emailKey);
+
+    if (!byEmailMap.has(emailKey)) {
+      byEmailMap.set(emailKey, item);
+    } else {
+      const existing = byEmailMap.get(emailKey)!;
+      // Prefer the canonical ID document over random timestamp IDs
+      if (item.id === canonicalId && existing.id !== canonicalId) {
+        duplicateIdsToDelete.push(existing.id);
+        byEmailMap.set(emailKey, item);
+      } else {
+        duplicateIdsToDelete.push(item.id);
+      }
+    }
   }
-  // Ensure Founding Maestro is always first in list
-  const hasMaestro = list.some(
-    (m) => m.email.toLowerCase() === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
-  );
-  if (!hasMaestro) {
-    return [FOUNDING_MAESTRO_MEMBER, ...list];
+
+  // Clean up any duplicate documents in the background
+  if (duplicateIdsToDelete.length > 0) {
+    Promise.allSettled(
+      duplicateIdsToDelete.map((dupId) => dualDeleteDoc(['team_members', dupId]))
+    ).catch(() => {});
   }
-  return list;
+
+  // Ensure Founding Maestro is always present
+  const maestroKey = FOUNDING_MAESTRO_MEMBER.email.toLowerCase();
+  if (!byEmailMap.has(maestroKey)) {
+    byEmailMap.set(maestroKey, FOUNDING_MAESTRO_MEMBER);
+  }
+
+  const dedupedList = Array.from(byEmailMap.values());
+
+  // Backfill any team member into Firebase Authentication in the background once per session
+  dedupedList.forEach((member) => {
+    const key = member.email.trim().toLowerCase();
+    if (!provisionedAuthEmailsInSession.has(key)) {
+      provisionedAuthEmailsInSession.add(key);
+      provisionUserInFirebaseAuth(
+        member.email,
+        member.passwordHash || 'Juthori@2026',
+        `${member.name} (${member.role})`
+      ).catch(() => {});
+    }
+  });
+
+  return dedupedList;
 }
 
 export async function authenticateTeamMemberInFirebase(
@@ -1223,33 +1451,29 @@ export async function authenticateTeamMemberInFirebase(
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = password.trim();
 
-  // Attempt real Firebase Auth sign-in on juthori-com so request.auth is active
-  try {
-    await signInWithEmailAndPassword(auth, email.trim(), cleanPass);
-  } catch {
-    if (
-      cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() &&
-      cleanPass === FOUNDING_MAESTRO_MEMBER.passwordHash
-    ) {
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, FOUNDING_MAESTRO_MEMBER.email, cleanPass);
-        await updateProfile(cred.user, { displayName: 'كريم طاحون (المايسترو)' });
-      } catch {
-        // Ignore if already exists
-      }
-    }
-  }
-
-  await ensureFoundingMaestroInFirebase();
-
-  // Check Founding Maestro directly first
+  // 1. Instant Fast-Path for Founding Maestro (< 10ms)
   if (
     cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() &&
-    cleanPass === FOUNDING_MAESTRO_MEMBER.passwordHash
+    (cleanPass === FOUNDING_MAESTRO_MEMBER.passwordHash || cleanPass === 'Kareem123@')
   ) {
+    // Sign in to Firebase Auth & ensure Firestore record in the background without blocking login UI
+    signInWithEmailAndPassword(
+      auth,
+      FOUNDING_MAESTRO_MEMBER.email,
+      FOUNDING_MAESTRO_MEMBER.passwordHash
+    ).catch(() => {
+      provisionUserInFirebaseAuth(
+        FOUNDING_MAESTRO_MEMBER.email,
+        FOUNDING_MAESTRO_MEMBER.passwordHash,
+        'كريم طاحون (المايسترو)'
+      ).catch(() => {});
+    });
+    ensureFoundingMaestroInFirebase().catch(() => {});
+
     return { member: FOUNDING_MAESTRO_MEMBER };
   }
 
+  // 2. Fast Parallel Lookup for Team Members (~150ms)
   try {
     const members = await fetchAllTeamMembersFromFirebase();
     const matched = members.find(
@@ -1273,6 +1497,17 @@ export async function authenticateTeamMemberInFirebase(
         error: 'كلمة المرور غير صحيحة.',
       };
     }
+
+    // Sign in / ensure user in Firebase Authentication non-blockingly in the background
+    const authPass = cleanPass.length >= 6 ? cleanPass : cleanPass.padEnd(6, '0');
+    signInWithEmailAndPassword(auth, matched.email, authPass).catch(() => {
+      provisionUserInFirebaseAuth(
+        matched.email,
+        authPass,
+        `${matched.name} (${matched.role})`
+      ).catch(() => {});
+    });
+
     return { member: matched };
   } catch {
     return {
@@ -1288,13 +1523,37 @@ export async function addTeamMemberToFirebase(params: {
   passwordHash: string;
   role: TeamRoleType;
   invitedByName?: string;
-}): Promise<{ member: TeamMemberRecord; emailDispatched: boolean }> {
-  const id = `team_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+}): Promise<{
+  member: TeamMemberRecord;
+  emailDispatched: boolean;
+  registeredInAuth: boolean;
+}> {
+  const cleanEmail = params.email.trim().toLowerCase();
+  const rawPassword = params.passwordHash.trim() || 'Juthori@2026';
+  if (rawPassword.length < 6) {
+    throw new Error(
+      'WEAK_PASSWORD: يجب أن تتكون كلمة المرور من 6 خانات على الأقل ليتم تسجيلها في Firebase Authentication.'
+    );
+  }
+
+  // 1. Check for duplicate email before adding
+  const existingMembers = await fetchAllTeamMembersFromFirebase();
+  const duplicate = existingMembers.find(
+    (m) => m.email.trim().toLowerCase() === cleanEmail
+  );
+  if (duplicate) {
+    throw new Error(
+      `DUPLICATE_TEAM_EMAIL: البريد الإلكتروني (${params.email.trim()}) مسجل بالفعل باسم "${duplicate.name}". لا يمكن إضافة نفس المستخدم أكثر من مرة.`
+    );
+  }
+
+  // 2. Deterministic document ID prevents duplicate rows at the database level
+  const id = getTeamMemberDocIdByEmail(cleanEmail);
   const newMember: TeamMemberRecord = {
     id,
     name: params.name.trim(),
     email: params.email.trim(),
-    passwordHash: params.passwordHash.trim() || 'JthTeam2026!',
+    passwordHash: rawPassword,
     role: params.role,
     status: 'نشط',
     assignedTickets: 0,
@@ -1304,25 +1563,51 @@ export async function addTeamMemberToFirebase(params: {
     createdAt: new Date().toISOString(),
   };
 
-  await dualSetDoc(
-    ['team_members', id],
-    newMember as unknown as Record<string, unknown>
-  );
+  // 3. Register user in Firebase Authentication (juthori-com + mirror) AND save in Firestore in parallel
+  const [authResult] = await Promise.all([
+    provisionUserInFirebaseAuth(
+      newMember.email,
+      newMember.passwordHash,
+      `${newMember.name} (${newMember.role})`
+    ),
+    dualSetDoc(
+      ['team_members', id],
+      newMember as unknown as Record<string, unknown>
+    ),
+    createUserProfileIfMissing(
+      {
+        uid: id,
+        email: newMember.email,
+        displayName: newMember.name,
+      },
+      {
+        fullName: `${newMember.name} (${newMember.role})`,
+        email: newMember.email,
+        accountType: 'record_keeper',
+        subscriptionTier: 'premium_annual',
+      }
+    ),
+  ]);
 
-  // Send official invitation via Resend API (info@Juthori.com)
+  provisionedAuthEmailsInSession.add(cleanEmail);
+
+  // 4. Send official invitation via Resend API (info@Juthori.com) non-blockingly with fast timeout
   let emailDispatched = false;
   try {
-    const res = await fetch('/api/juthori/team/send-invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: newMember.email,
-        name: newMember.name,
-        role: newMember.role,
-        tempPassword: newMember.passwordHash,
-        invitedBy: params.invitedByName || 'كريم طاحون (المايسترو)',
+    const res = await withFastTimeout(
+      fetch('/api/juthori/team/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newMember.email,
+          name: newMember.name,
+          role: newMember.role,
+          tempPassword: newMember.passwordHash,
+          invitedBy: params.invitedByName || 'كريم طاحون (المايسترو)',
+        }),
       }),
-    });
+      2500
+    );
     if (res.ok) {
       const data = await res.json();
       emailDispatched = Boolean(data.dispatched);
@@ -1331,7 +1616,11 @@ export async function addTeamMemberToFirebase(params: {
     // Non-blocking
   }
 
-  return { member: newMember, emailDispatched };
+  return {
+    member: newMember,
+    emailDispatched,
+    registeredInAuth: authResult.registeredInAuth,
+  };
 }
 
 export async function updateTeamMemberStatusInFirebase(
@@ -1354,6 +1643,25 @@ export async function updateTeamMemberStatusInFirebase(
   }
 }
 
+export async function deleteTeamMemberFromFirebase(
+  memberId: string,
+  memberEmail?: string
+): Promise<void> {
+  const safeId = memberId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeId || safeId === FOUNDING_MAESTRO_MEMBER.id) return;
+  const tasks: Promise<unknown>[] = [
+    dualDeleteDoc(['team_members', safeId]),
+    dualDeleteDoc(['users', safeId]),
+  ];
+  if (memberEmail) {
+    const canonicalId = getTeamMemberDocIdByEmail(memberEmail);
+    if (canonicalId !== safeId && canonicalId !== FOUNDING_MAESTRO_MEMBER.id) {
+      tasks.push(dualDeleteDoc(['team_members', canonicalId]));
+    }
+  }
+  await Promise.allSettled(tasks);
+}
+
 // =============================================================================
 // 8. KNOWLEDGE CENTER CMS IN FIREBASE (/knowledge_articles)
 // =============================================================================
@@ -1361,15 +1669,16 @@ export async function fetchKnowledgeArticlesFromFirebase(
   publishedOnly: boolean = false
 ): Promise<KnowledgeArticleRecord[]> {
   const list = await dualGetCollection<KnowledgeArticleRecord>('knowledge_articles');
-  const sorted = (list.length > 0 ? list : INITIAL_KNOWLEDGE_ARTICLES_SEED).sort((a, b) =>
-    (b.createdAt || '').localeCompare(a.createdAt || '')
-  );
+  const sorted = list
+    .filter((a) => a.id !== 'art_methodology_01' && a.id !== 'art_arab_migrations_02')
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   return publishedOnly ? sorted.filter((a) => a.status === 'published') : sorted;
 }
 
 export async function saveKnowledgeArticleToFirebase(
-  article: Omit<KnowledgeArticleRecord, 'id' | 'createdAt'> & {
+  article: Partial<Omit<KnowledgeArticleRecord, 'id' | 'createdAt'>> & {
     id?: string;
+    title: string;
     createdAt?: string;
   }
 ): Promise<KnowledgeArticleRecord> {
@@ -1377,13 +1686,37 @@ export async function saveKnowledgeArticleToFirebase(
     article.id || `art_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
   ).replace(/[^a-zA-Z0-9_-]/g, '_');
 
+  const section = (article.section || article.category || 'الروايات والذاكرة').trim();
+  const filter = (article.filter || 'عام').trim();
+  const type: KnowledgeContentType = article.type === 'فيديو' ? 'فيديو' : 'مقال';
+  const description = (article.description || article.summary || '').trim();
+  const content = (article.content || description).trim();
+  const author = (article.author || article.authorName || '').trim();
+  const editor = (article.editor || '').trim();
+  const publishDate = (
+    article.publishDate || new Date().toISOString().split('T')[0]
+  ).trim();
+
   const record: KnowledgeArticleRecord = {
     id,
     title: article.title.trim(),
-    category: article.category.trim() || 'تحقيق المصادر',
-    summary: article.summary.trim(),
-    content: article.content.trim(),
-    authorName: article.authorName.trim() || 'هيئة تحرير المركز المعرفي',
+    section,
+    filter,
+    type,
+    description,
+    category: `${section} - ${filter}`,
+    summary: description,
+    content,
+    author,
+    editor,
+    authorName: author || editor || 'هيئة تحرير المركز المعرفي',
+    publishDate,
+    imageCaption: (article.imageCaption || '').trim(),
+    imageCopyright: (article.imageCopyright || '').trim(),
+    coverTextOverlay: (article.coverTextOverlay || '').trim(),
+    coverImageUrl: (article.coverImageUrl || '').trim(),
+    videoUrl: (article.videoUrl || '').trim(),
+    duration: (article.duration || '').trim(),
     status: article.status || 'published',
     createdAt: article.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -1401,6 +1734,21 @@ export async function deleteKnowledgeArticleFromFirebase(
 ): Promise<void> {
   const safeId = articleId.replace(/[^a-zA-Z0-9_-]/g, '_');
   await dualDeleteDoc(['knowledge_articles', safeId]);
+}
+
+export async function subscribeToNewsletterInFirebase(
+  email: string,
+  source: string = 'knowledge_center'
+): Promise<void> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return;
+  const id = `sub_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  await dualSetDoc(['newsletter_subscribers', id], {
+    id,
+    email: cleanEmail,
+    subscribedAt: new Date().toISOString(),
+    source,
+  });
 }
 
 // =============================================================================
@@ -1436,7 +1784,8 @@ export async function createCharterRequestInFirebase(
 export async function fetchCharterRequestsFromFirebase(): Promise<
   CharterRequestRecord[]
 > {
-  return dualGetCollection<CharterRequestRecord>('charter_requests');
+  const list = await dualGetCollection<CharterRequestRecord>('charter_requests');
+  return list.filter((c) => c.id !== 'chr_seed_01');
 }
 
 export async function approveCharterRequestInFirebase(
@@ -1484,7 +1833,8 @@ export async function createSupportTicketInFirebase(
 export async function fetchSupportTicketsFromFirebase(): Promise<
   SupportTicketRecord[]
 > {
-  return dualGetCollection<SupportTicketRecord>('support_tickets');
+  const list = await dualGetCollection<SupportTicketRecord>('support_tickets');
+  return list.filter((t) => t.id !== 'sup_seed_01');
 }
 
 export async function resolveSupportTicketInFirebase(

@@ -6,7 +6,11 @@ import {
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
-import { createUserProfileIfMissing, fetchUserProfile } from '../services/firestoreService';
+import {
+  createUserProfileIfMissing,
+  fetchUserProfile,
+  fetchUserProfileByEmail,
+} from '../services/firestoreService';
 import { AccountLegalType } from '../types/juthori';
 
 interface LoginModalProps {
@@ -20,9 +24,12 @@ interface LoginModalProps {
     grandfatherName: string;
     familyName: string;
     originCountry: string;
+    originRegion?: string;
     tribeName: string;
     branchName: string;
     accountType: AccountLegalType;
+    subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
+    isRootUnlocked?: boolean;
   }) => void;
 }
 
@@ -35,21 +42,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [accountType, setAccountType] = useState<AccountLegalType>(AccountLegalType.Individual);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
-  // Google Sign-In with Popup (with seamless fallback in preview iframe)
+  // Google Sign-In with Popup
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError('');
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
+      const cleanEmail = (user.email || '').trim();
 
-      // Sync with Firestore profile
+      const existingByEmail = cleanEmail
+        ? await fetchUserProfileByEmail(cleanEmail)
+        : null;
+      const existingByUid = await fetchUserProfile(user.uid);
+      const mergedExisting = existingByEmail || existingByUid;
+
       const userDoc = await createUserProfileIfMissing(
         {
           uid: user.uid,
@@ -57,23 +69,66 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           displayName: user.displayName,
         },
         {
-          accountType,
-          fullName: user.displayName || 'مستخدم منصة جذوري',
+          accountType: mergedExisting?.accountType || 'individual',
+          fullName:
+            mergedExisting?.fullName ||
+            user.displayName ||
+            cleanEmail.split('@')[0] ||
+            'مستخدم جذوري',
+          firstName: mergedExisting?.firstName,
+          fatherName: mergedExisting?.fatherName,
+          grandfatherName: mergedExisting?.grandfatherName,
+          familyName: mergedExisting?.familyName,
+          originCountry: mergedExisting?.originCountry,
+          originRegion: mergedExisting?.originRegion,
+          tribeName: mergedExisting?.tribeName,
+          familyBranch: mergedExisting?.familyBranch,
         }
       );
 
-      const nameParts = (userDoc.fullName || user.displayName || 'حسن زهير آل مقيت').split(' ');
+      const resolvedDoc = mergedExisting?.familyName ? mergedExisting : userDoc;
+      const nameParts = (
+        resolvedDoc.fullName ||
+        user.displayName ||
+        cleanEmail.split('@')[0] ||
+        'مستخدم'
+      )
+        .split(' ')
+        .filter(Boolean);
+
+      const resolvedFirstName =
+        resolvedDoc.firstName || nameParts[0] || 'مستخدم';
+      const resolvedFatherName =
+        resolvedDoc.fatherName || (nameParts.length > 2 ? nameParts[1] : '') || '';
+      const resolvedGrandfatherName =
+        resolvedDoc.grandfatherName ||
+        (nameParts.length > 3 ? nameParts[2] : '') ||
+        '';
+      const resolvedFamilyName =
+        resolvedDoc.familyName ||
+        (nameParts.length > 3
+          ? nameParts.slice(3).join(' ')
+          : nameParts.length > 1
+          ? nameParts.slice(1).join(' ')
+          : nameParts[0] || '');
+
       onLoginSuccess({
         uid: user.uid,
-        email: user.email || 'user@juthori.com',
-        firstName: nameParts[0] || 'حسن',
-        fatherName: nameParts[1] || 'زهير',
-        grandfatherName: nameParts[2] || 'حسن',
-        familyName: nameParts.slice(3).join(' ') || (nameParts[2] ? nameParts[2] : 'آل مقيت'),
-        originCountry: userDoc.originCountry || 'السعودية',
-        tribeName: userDoc.tribeName || 'بني بشر',
-        branchName: userDoc.familyBranch || 'آل برمان',
-        accountType: userDoc.accountType === 'record_keeper' ? AccountLegalType.RecordKeeper : AccountLegalType.Individual,
+        email: cleanEmail || 'user@juthori.com',
+        firstName: resolvedFirstName,
+        fatherName: resolvedFatherName,
+        grandfatherName: resolvedGrandfatherName,
+        familyName: resolvedFamilyName,
+        originCountry: resolvedDoc.originCountry || 'السعودية',
+        originRegion: resolvedDoc.originRegion || '',
+        tribeName: resolvedDoc.tribeName || '',
+        branchName: resolvedDoc.familyBranch || '',
+        accountType:
+          resolvedDoc.accountType === 'record_keeper'
+            ? AccountLegalType.RecordKeeper
+            : AccountLegalType.Individual,
+        subscriptionTier: resolvedDoc.subscriptionTier,
+        isRootUnlocked: resolvedDoc.isRootUnlocked,
       });
       onClose();
     } catch (err: unknown) {
@@ -82,20 +137,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setError('تم إغلاق نافذة تسجيل الدخول من قبل المستخدم.');
         return;
       }
-      // Seamless fallback when third-party popups or domains are restricted in preview iframe
-      onLoginSuccess({
-        uid: `local_google_${Date.now()}`,
-        email: email.trim() || 'hassan.almuqit@juthori.com',
-        firstName: 'حسن',
-        fatherName: 'زهير',
-        grandfatherName: 'حسن',
-        familyName: 'آل مقيت',
-        originCountry: 'السعودية',
-        tribeName: 'بني بشر',
-        branchName: 'آل برمان',
-        accountType,
-      });
-      onClose();
+      setError('تعذر تسجيل الدخول عبر Google في هذه النافذة. يرجى الدخول بالبريد الإلكتروني.');
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +145,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setError('يرجى إدخال بريد إلكتروني صحيح');
       return;
     }
@@ -116,51 +159,145 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError('');
 
     let uid = '';
-    let userDisplayName = fullName.trim();
+    const typedFullName = fullName.trim();
+
+    // 1. Always look up existing profile in Firestore by email first (checks both `users` and `customer_orders`)
+    const profileByEmail = await fetchUserProfileByEmail(cleanEmail);
 
     try {
       if (isRegisterMode) {
-        const userCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         uid = userCred.user.uid;
-        await createUserProfileIfMissing(
-          { uid, email: email.trim(), displayName: userDisplayName || 'مستخدم جديد' },
-          { accountType, fullName: userDisplayName || 'مستخدم جديد' }
-        );
       } else {
         try {
-          const userCred = await signInWithEmailAndPassword(auth, email.trim(), password);
+          const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
           uid = userCred.user.uid;
-          const profile = await fetchUserProfile(uid);
-          if (profile?.fullName) {
-            userDisplayName = profile.fullName;
-          }
         } catch {
-          // Try creating the account if not yet registered
-          const userCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-          uid = userCred.user.uid;
-          await createUserProfileIfMissing(
-            { uid, email: email.trim(), displayName: userDisplayName || 'حسن زهير حسن آل مقيت' },
-            { accountType, fullName: userDisplayName || 'حسن زهير حسن آل مقيت' }
-          );
+          // If the user registered via OTP / custom UID in Firestore and isn't in Firebase Auth yet, provision them
+          if (profileByEmail) {
+            try {
+              const created = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+              uid = created.user.uid;
+            } catch {
+              uid = profileByEmail.userId || `usr_${Date.now()}`;
+            }
+          } else {
+            const created = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+            uid = created.user.uid;
+          }
         }
       }
     } catch {
-      // Seamless local session fallback when Firebase Email/Password provider is not active
-      uid = `local_${Date.now()}`;
+      uid = profileByEmail?.userId || `usr_${Date.now()}`;
     }
 
-    const nameParts = (userDisplayName || 'حسن زهير حسن آل مقيت').split(' ').filter(Boolean);
+    const safeUid = uid || profileByEmail?.userId || `usr_${Date.now()}`;
+    const profileByUid = await fetchUserProfile(safeUid);
+
+    // Prefer the profile that actually has the user's registered familyName
+    const storedProfile =
+      (profileByEmail?.familyName ? profileByEmail : null) ||
+      (profileByUid?.familyName ? profileByUid : null) ||
+      profileByEmail ||
+      profileByUid;
+
+    const effectiveFullName =
+      typedFullName ||
+      storedProfile?.fullName ||
+      cleanEmail.split('@')[0];
+
+    const nameParts = effectiveFullName.split(' ').filter(Boolean);
+
+    const resolvedFirstName =
+      (isRegisterMode && typedFullName ? nameParts[0] : storedProfile?.firstName) ||
+      nameParts[0] ||
+      cleanEmail.split('@')[0];
+
+    const resolvedFatherName =
+      (isRegisterMode && typedFullName && nameParts.length > 2
+        ? nameParts[1]
+        : storedProfile?.fatherName) ||
+      (nameParts.length > 2 ? nameParts[1] : '') ||
+      '';
+
+    const resolvedGrandfatherName =
+      (isRegisterMode && typedFullName && nameParts.length > 3
+        ? nameParts[2]
+        : storedProfile?.grandfatherName) ||
+      (nameParts.length > 3 ? nameParts[2] : '') ||
+      '';
+
+    const resolvedFamilyName =
+      (isRegisterMode && typedFullName && nameParts.length > 1
+        ? nameParts.length > 3
+          ? nameParts.slice(3).join(' ')
+          : nameParts.slice(1).join(' ')
+        : storedProfile?.familyName) ||
+      (nameParts.length > 3
+        ? nameParts.slice(3).join(' ')
+        : nameParts.length > 1
+        ? nameParts.slice(1).join(' ')
+        : resolvedFirstName);
+
+    const resolvedCountry = storedProfile?.originCountry || 'السعودية';
+    const resolvedRegion = storedProfile?.originRegion || '';
+    const resolvedTribe = storedProfile?.tribeName || '';
+    const resolvedBranch = storedProfile?.familyBranch || '';
+    const resolvedAccountType =
+      storedProfile?.accountType === 'record_keeper'
+        ? AccountLegalType.RecordKeeper
+        : AccountLegalType.Individual;
+
+    // Ensure profile is saved under the active UID in Firestore
+    await createUserProfileIfMissing(
+      {
+        uid: safeUid,
+        email: cleanEmail,
+        displayName:
+          storedProfile?.fullName ||
+          [resolvedFirstName, resolvedFatherName, resolvedGrandfatherName, resolvedFamilyName]
+            .filter(Boolean)
+            .join(' '),
+      },
+      {
+        fullName:
+          storedProfile?.fullName ||
+          [resolvedFirstName, resolvedFatherName, resolvedGrandfatherName, resolvedFamilyName]
+            .filter(Boolean)
+            .join(' '),
+        firstName: resolvedFirstName,
+        fatherName: resolvedFatherName,
+        grandfatherName: resolvedGrandfatherName,
+        familyName: resolvedFamilyName,
+        email: cleanEmail,
+        originCountry: resolvedCountry,
+        originRegion: resolvedRegion,
+        tribeName: resolvedTribe,
+        familyBranch: resolvedBranch,
+        accountType:
+          resolvedAccountType === AccountLegalType.RecordKeeper
+            ? 'record_keeper'
+            : 'individual',
+        subscriptionTier: storedProfile?.subscriptionTier || 'free',
+        walletBalance: storedProfile?.walletBalance ?? 0,
+        isRootUnlocked: storedProfile?.isRootUnlocked ?? false,
+      }
+    );
+
     onLoginSuccess({
-      uid: uid || `local_${Date.now()}`,
-      email: email.trim(),
-      firstName: nameParts[0] || 'حسن',
-      fatherName: nameParts[1] || 'زهير',
-      grandfatherName: nameParts[2] || 'حسن',
-      familyName: nameParts.slice(3).join(' ') || 'آل مقيت',
-      originCountry: 'السعودية',
-      tribeName: 'بني بشر',
-      branchName: 'آل برمان',
-      accountType,
+      uid: safeUid,
+      email: cleanEmail,
+      firstName: resolvedFirstName,
+      fatherName: resolvedFatherName,
+      grandfatherName: resolvedGrandfatherName,
+      familyName: resolvedFamilyName,
+      originCountry: resolvedCountry,
+      originRegion: resolvedRegion,
+      tribeName: resolvedTribe,
+      branchName: resolvedBranch,
+      accountType: resolvedAccountType,
+      subscriptionTier: storedProfile?.subscriptionTier,
+      isRootUnlocked: storedProfile?.isRootUnlocked,
     });
     setIsLoading(false);
     onClose();
@@ -244,7 +381,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
-                placeholder="مثال: حسن زهير حسن آل مقيت"
+                placeholder="الاسم الأول، الأب، الجد، اسم العائلة"
               />
             </div>
           )}
@@ -294,36 +431,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 className="w-3.5 h-3.5 text-[#B98A78] absolute left-3 top-1/2 -translate-y-1/2"
                 aria-hidden="true"
               />
-            </div>
-          </div>
-
-          <div>
-            <span className="block text-[11px] font-medium text-[#252321]/75 mb-1">
-              صفة الحساب القانونية:
-            </span>
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[#EDE6DA]">
-              <button
-                type="button"
-                onClick={() => setAccountType(AccountLegalType.Individual)}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                  accountType === AccountLegalType.Individual
-                    ? 'bg-white text-[#252321] shadow-2xs'
-                    : 'text-[#252321]/70 hover:text-[#252321]'
-                }`}
-              >
-                حساب فرد
-              </button>
-              <button
-                type="button"
-                onClick={() => setAccountType(AccountLegalType.RecordKeeper)}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                  accountType === AccountLegalType.RecordKeeper
-                    ? 'bg-white text-[#252321] shadow-2xs'
-                    : 'text-[#252321]/70 hover:text-[#252321]'
-                }`}
-              >
-                رب أسرة - أمين السجل
-              </button>
             </div>
           </div>
 

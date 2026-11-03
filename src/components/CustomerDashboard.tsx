@@ -28,6 +28,7 @@ import { auth } from '../services/firebase';
 import {
   createCharterRequestInFirebase,
   deleteUserAccountFromFirebase,
+  syncClientLineageTicketToFirebase,
   updateUserProfile,
   uploadUserAvatarToFirebase,
 } from '../services/firestoreService';
@@ -500,8 +501,44 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       setWalletBalance((prev) => Math.max(0, prev - order.amountUsd));
     }
 
+    const activeUid = userId || auth.currentUser?.uid || `usr_${userEmail}`;
+    const fullName = [
+      result.clientName,
+      result.fatherName,
+      result.grandfatherName,
+      result.familyName,
+    ]
+      .filter((s) => s && s !== '—')
+      .join(' ');
+
     if (order.type === 'unlock_root_5') {
       onChangeStateMode(DashboardStateMode.State1Paid5Basic);
+      updateUserProfile(activeUid, {
+        subscriptionTier: 'basic_verified',
+        isRootUnlocked: true,
+      }).catch(() => {});
+      syncClientLineageTicketToFirebase({
+        userId: activeUid,
+        userFullName: fullName,
+        userEmail,
+        familyName: result.familyName,
+        originCountry: result.originCountry,
+        originRegion: result.originRegion,
+        rootBranchName: result.rootBranchName,
+        rootTribeName: result.rootTribeName,
+        matched: result.matched,
+        isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
+        isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
+        adamNodeId: result.adamNodeId,
+        alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
+        verifiedSources: result.verified_sources,
+        corroboratingAlphaEvidence:
+          result.corroborating_alpha_evidence_for_researcher,
+        siblingBranches: result.sibling_branches_in_record,
+        notablesInRecord: result.notables_in_record,
+        enrichedLocations: result.enrichedLocations,
+        adamSpineNodesCount: result.adamSpineNodes?.length || 1,
+      }).catch(() => {});
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — فتح الجذر ($5)`,
         `تم الكشف عن الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName})`
@@ -509,6 +546,33 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     } else if (order.type === 'upgrade_vip_60') {
       onChangeStateMode(DashboardStateMode.AnnualVip);
       setWalletBalance((prev) => prev + (order.bonusWalletUsd ?? 25));
+      updateUserProfile(activeUid, {
+        subscriptionTier: 'premium_annual',
+        isRootUnlocked: true,
+        walletBalance: walletBalance + (order.bonusWalletUsd ?? 25),
+      }).catch(() => {});
+      syncClientLineageTicketToFirebase({
+        userId: activeUid,
+        userFullName: fullName,
+        userEmail,
+        familyName: result.familyName,
+        originCountry: result.originCountry,
+        originRegion: result.originRegion,
+        rootBranchName: result.rootBranchName,
+        rootTribeName: result.rootTribeName,
+        matched: result.matched,
+        isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
+        isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
+        adamNodeId: result.adamNodeId,
+        alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
+        verifiedSources: result.verified_sources,
+        corroboratingAlphaEvidence:
+          result.corroborating_alpha_evidence_for_researcher,
+        siblingBranches: result.sibling_branches_in_record,
+        notablesInRecord: result.notables_in_record,
+        enrichedLocations: result.enrichedLocations,
+        adamSpineNodesCount: result.adamSpineNodes?.length || 1,
+      }).catch(() => {});
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — عضوية بريميوم السنوية ($60)`,
         'فتح المحطات الرئيسية في شجرة آدم والمصادر وتفعيل التبويبات الخمسة + إيداع $25 رصيد هدية في المحفظة'

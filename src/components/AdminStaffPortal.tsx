@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -8,12 +8,13 @@ import {
   CheckCircle2,
   CreditCard,
   Crown,
+  Edit2,
   Eye,
   FileSignature,
   FileText,
   Filter,
-  Globe,
   HeadphonesIcon,
+  Image as ImageIcon,
   KeyRound,
   Lock,
   LogOut,
@@ -23,13 +24,11 @@ import {
   RefreshCw,
   Search,
   Send,
-  ShieldCheck,
-  Sparkles,
   Trash2,
-  TrendingUp,
-  UserCheck,
   UserPlus,
   Users,
+  Video,
+  X,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -41,6 +40,7 @@ import {
   CustomerOrderRecord,
   FOUNDING_MAESTRO_MEMBER,
   KnowledgeArticleRecord,
+  KnowledgeContentType,
   SupportTicketRecord,
   TeamMemberRecord,
   TeamRoleType,
@@ -49,13 +49,13 @@ import {
   authenticateTeamMemberInFirebase,
   bootstrapJuthoriFirestoreDatabase,
   deleteKnowledgeArticleFromFirebase,
+  deleteTeamMemberFromFirebase,
   fetchAllCustomerOrdersFromFirebase,
   fetchAllResearchTicketsForStaff,
   fetchAllTeamMembersFromFirebase,
   fetchCharterRequestsFromFirebase,
   fetchKnowledgeArticlesFromFirebase,
   fetchSupportTicketsFromFirebase,
-  getPermissionsForTeamRole,
   resolveSupportTicketInFirebase,
   saveKnowledgeArticleToFirebase,
   updateCustomerOrderInFirebase,
@@ -63,6 +63,10 @@ import {
 } from '../services/firestoreService';
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResearcherStudio } from './ResearcherStudio';
+import {
+  KNOWLEDGE_BASE_SECTIONS,
+  KnowledgeCenterView,
+} from './KnowledgeCenterView';
 
 export type AdminModuleTab =
   | 'users_rbac'
@@ -199,12 +203,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     setTimeout(() => setToastBanner(null), 5000);
   };
 
-  // Load real data from Firebase when authenticated
+  // Load real data from Firebase when authenticated (non-blocking bootstrap)
   const refreshAllFirebaseData = async () => {
     if (!loggedInMember) return;
     setIsLoadingData(true);
     try {
-      await bootstrapJuthoriFirestoreDatabase();
+      bootstrapJuthoriFirestoreDatabase().catch(() => {});
       const [
         fetchedStaff,
         fetchedOrders,
@@ -247,6 +251,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffRole, setNewStaffRole] = useState<TeamRoleType>('مدير البحوث');
   const [isAddingStaff, setIsAddingStaff] = useState(false);
+  const [addStaffError, setAddStaffError] = useState<string | null>(null);
 
   // 5. Orders & Support Filtering State
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -254,14 +259,206 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [selectedOrderForModal, setSelectedOrderForModal] =
     useState<CustomerOrderRecord | null>(null);
 
-  // 6. Knowledge Center CMS Form State
+  // 6. Knowledge Center CMS Modal & Form State
+  const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
+  const [articleModalTab, setArticleModalTab] = useState<'edit' | 'preview'>('edit');
+  const [previewKnowledgeCenter, setPreviewKnowledgeCenter] = useState(false);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [articleTitle, setArticleTitle] = useState('');
-  const [articleCategory, setArticleCategory] = useState('منهجية التحقيق النَّسبي');
-  const [articleSummary, setArticleSummary] = useState('');
+  const [articleType, setArticleType] = useState<KnowledgeContentType>('مقال');
+  const [articleSection, setArticleSection] = useState<string>('الروايات والذاكرة');
+  const [articleFilter, setArticleFilter] = useState<string>('عام');
+  const [customArticleFilter, setCustomArticleFilter] = useState<string>('');
+  const [articleDescription, setArticleDescription] = useState('');
   const [articleContent, setArticleContent] = useState('');
+  const [articleAuthor, setArticleAuthor] = useState('');
+  const [articleEditor, setArticleEditor] = useState('');
+  const [articlePublishDate, setArticlePublishDate] = useState(
+    () => new Date().toISOString().split('T')[0]
+  );
+  const [articleCoverImageUrl, setArticleCoverImageUrl] = useState('');
+  const [articleCoverTextOverlay, setArticleCoverTextOverlay] = useState('');
+  const [articleImageCaption, setArticleImageCaption] = useState('');
+  const [articleImageCopyright, setArticleImageCopyright] = useState('');
+  const [articleVideoUrl, setArticleVideoUrl] = useState('');
+  const [articleDuration, setArticleDuration] = useState('');
   const [articleStatus, setArticleStatus] = useState<'published' | 'draft'>('published');
   const [isSavingArticle, setIsSavingArticle] = useState(false);
+
+  // Rich Text Editor refs & inline insertion helpers
+  const richEditorRef = useRef<HTMLDivElement | null>(null);
+  const inlineImageInputRef = useRef<HTMLInputElement | null>(null);
+  const [showInlineLinkInput, setShowInlineLinkInput] = useState(false);
+  const [inlineLinkUrl, setInlineLinkUrl] = useState('');
+  const [inlineLinkText, setInlineLinkText] = useState('');
+  const [showInlineImageUrlInput, setShowInlineImageUrlInput] = useState(false);
+  const [inlineImageUrl, setInlineImageUrl] = useState('');
+
+  const syncEditorContentToState = () => {
+    if (richEditorRef.current) {
+      setArticleContent(richEditorRef.current.innerHTML);
+    }
+  };
+
+  const setEditorHtml = (html: string) => {
+    setArticleContent(html);
+    if (richEditorRef.current) {
+      richEditorRef.current.innerHTML = html;
+    }
+  };
+
+  const execEditorCommand = (command: string, value?: string) => {
+    if (!richEditorRef.current) return;
+    richEditorRef.current.focus();
+    try {
+      document.execCommand(command, false, value);
+    } catch {
+      // Ignore unsupported execCommand
+    }
+    syncEditorContentToState();
+  };
+
+  const insertHtmlAtCursor = (htmlSnippet: string) => {
+    if (!richEditorRef.current) {
+      setArticleContent((prev) => prev + htmlSnippet);
+      return;
+    }
+    richEditorRef.current.focus();
+    try {
+      const inserted = document.execCommand('insertHTML', false, htmlSnippet);
+      if (!inserted) {
+        richEditorRef.current.innerHTML += htmlSnippet;
+      }
+    } catch {
+      richEditorRef.current.innerHTML += htmlSnippet;
+    }
+    syncEditorContentToState();
+  };
+
+  const handleInlineEditorImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        insertHtmlAtCursor(
+          `<figure style="margin: 18px 0; text-align: center;"><img src="${reader.result}" alt="صورة مرفقة" style="max-width: 100%; border-radius: 14px; border: 1px solid #B98A78; margin: 0 auto;" /></figure><p><br/></p>`
+        );
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const applyQuickArticleTemplate = (
+    templateType: 'manuscript' | 'family_study' | 'dna_science' | 'event_news'
+  ) => {
+    const templates: Record<typeof templateType, string> = {
+      manuscript: `<h3><strong>أولاً: التعريف بالمخطوطة ومصدرها التاريخي</strong></h3><p>اذكر اسم المخطوطة أو الوثيقة ومؤلفها وتاريخ نسخها ومكان حفظها...</p><blockquote style="border-right: 4px solid #D8755B; background: #F7F2E9; padding: 12px 16px; margin: 14px 0; border-radius: 8px; font-style: italic;">«نص الاقتباس الموثق من المخطوطة مع الإشارة إلى رقم الجزء والصفحة»</blockquote><h3><strong>ثانياً: دلالات السلاسل النسبية الواردة</strong></h3><ul><li>العقد النسبية المحققة في الوثيقة:</li><li>المواطن التاريخية المذكورة:</li><li>تقاطع الرواية مع أمهات كتب الأنساب:</li></ul>`,
+      family_study: `<h3><strong>أولاً: الجذور التاريخية والموطن الأصلي</strong></h3><p>نبذة موثقة عن أصول الأسرة أو القبيلة ومنازلها التاريخية...</p><h3><strong>ثانياً: عمود النسب والفرع الجامع</strong></h3><p>بيان اتصال الفرع بالجذر القبلي الأعلى وفق المصادر المحققة...</p><h3><strong>ثالثاً: أبرز الأعلام والمراجع المعتمدة</strong></h3><ul><li>المصدر الأول: اسم الكتاب — المؤلف (ج/ص)</li><li>المصدر الثاني: الوثائق والمشجرات المحفوظة</li></ul>`,
+      dna_science: `<h3><strong>مقدمة علمية</strong></h3><p>استعراض منهجي لأدوات التوثيق الرقمي وتكاملها مع المشجرات التاريخية...</p><h3><strong>النتائج والضوابط المنهجية</strong></h3><ul><li>أهمية الوثيقة المكتوبة كأصل في إثبات النسب</li><li>دور قواعد البيانات العلائقية في فهرسة البطون والفروع</li></ul>`,
+      event_news: `<h3><strong>تفاصيل الحدث / المبادرة الثقافية</strong></h3><p>ملخص الخبر أو الندوة العلمية وتاريخ ومكان انعقادها...</p><h3><strong>أبرز التوصيات والمخرجات</strong></h3><ul><li>التوصية الأولى:</li><li>التوصية الثانية:</li></ul>`,
+    };
+    const nextHtml = templates[templateType];
+    setEditorHtml(
+      articleContent.trim() ? `${articleContent}<hr/>${nextHtml}` : nextHtml
+    );
+  };
+
+  const extractPlainTextFromHtml = (html: string): string => {
+    return html
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const editorWordCount = useMemo(() => {
+    const plain = extractPlainTextFromHtml(articleContent);
+    if (!plain) return 0;
+    return plain.split(/\s+/).filter(Boolean).length;
+  }, [articleContent]);
+
+  const openNewArticleModal = () => {
+    setEditingArticleId(null);
+    setArticleModalTab('edit');
+    setArticleTitle('');
+    setArticleType('مقال');
+    setArticleSection('الروايات والذاكرة');
+    setArticleFilter('عام');
+    setCustomArticleFilter('');
+    setArticleDescription('');
+    setArticleContent('');
+    setArticleAuthor(loggedInMember?.name || '');
+    setArticleEditor('');
+    setArticlePublishDate(new Date().toISOString().split('T')[0]);
+    setArticleCoverImageUrl('');
+    setArticleCoverTextOverlay('');
+    setArticleImageCaption('');
+    setArticleImageCopyright('');
+    setArticleVideoUrl('');
+    setArticleDuration('');
+    setArticleStatus('published');
+    setShowInlineLinkInput(false);
+    setShowInlineImageUrlInput(false);
+    setIsArticleModalOpen(true);
+    setTimeout(() => {
+      if (richEditorRef.current) {
+        richEditorRef.current.innerHTML = '';
+      }
+    }, 20);
+  };
+
+  const openEditArticleModal = (art: KnowledgeArticleRecord) => {
+    const sec = art.section || 'الروايات والذاكرة';
+    const baseFilters =
+      KNOWLEDGE_BASE_SECTIONS[sec]?.baseFilters || ['عام'];
+    const flt = art.filter || 'عام';
+    const isCustom = !baseFilters.includes(flt);
+
+    setEditingArticleId(art.id);
+    setArticleModalTab('edit');
+    setArticleTitle(art.title || '');
+    setArticleType(art.type === 'فيديو' ? 'فيديو' : 'مقال');
+    setArticleSection(sec);
+    setArticleFilter(isCustom ? '__custom__' : flt);
+    setCustomArticleFilter(isCustom ? flt : '');
+    setArticleDescription(art.description || art.summary || '');
+    setArticleContent(art.content || '');
+    setArticleAuthor(art.author || art.authorName || '');
+    setArticleEditor(art.editor || '');
+    setArticlePublishDate(
+      art.publishDate || new Date().toISOString().split('T')[0]
+    );
+    setArticleCoverImageUrl(art.coverImageUrl || '');
+    setArticleCoverTextOverlay(art.coverTextOverlay || '');
+    setArticleImageCaption(art.imageCaption || '');
+    setArticleImageCopyright(art.imageCopyright || '');
+    setArticleVideoUrl(art.videoUrl || '');
+    setArticleDuration(art.duration || '');
+    setArticleStatus(art.status || 'published');
+    setShowInlineLinkInput(false);
+    setShowInlineImageUrlInput(false);
+    setIsArticleModalOpen(true);
+    setTimeout(() => {
+      if (richEditorRef.current) {
+        richEditorRef.current.innerHTML = art.content || '';
+      }
+    }, 20);
+  };
+
+  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setArticleCoverImageUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Handle /Team Staff Login
   const handleTeamLogin = async (e: React.FormEvent) => {
@@ -305,33 +502,74 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     }
   };
 
-  // Add & Invite New Staff Member via Firebase + Resend API
+  // Add & Invite New Staff Member via Firebase Authentication + Firestore + Resend API
   const handleAddStaffMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStaffName.trim() || !newStaffEmail.trim()) return;
+    setAddStaffError(null);
+    const cleanName = newStaffName.trim();
+    const cleanEmail = newStaffEmail.trim().toLowerCase();
+    const cleanPass = newStaffPassword.trim() || 'Juthori@2026';
+
+    if (!cleanName || !cleanEmail) {
+      setAddStaffError('يرجى إدخال الاسم الكامل والبريد الإلكتروني للعضو.');
+      return;
+    }
+
+    if (cleanPass.length < 6) {
+      setAddStaffError(
+        'يجب أن تتكون كلمة المرور من 6 خانات على الأقل ليتم قبولها في Firebase Authentication.'
+      );
+      return;
+    }
+
+    // Immediate client-side duplicate check
+    const existingDuplicate = staffList.find(
+      (m) => m.email.trim().toLowerCase() === cleanEmail
+    );
+    if (existingDuplicate) {
+      setAddStaffError(
+        `هذا البريد الإلكتروني (${newStaffEmail.trim()}) مسجل بالفعل في منظومة الفريق باسم "${existingDuplicate.name}". لا يمكن إضافة نفس المستخدم مرتين.`
+      );
+      return;
+    }
 
     setIsAddingStaff(true);
     try {
-      const { member, emailDispatched } = await addTeamMemberToFirebase({
-        name: newStaffName.trim(),
+      const { member, emailDispatched, registeredInAuth } = await addTeamMemberToFirebase({
+        name: cleanName,
         email: newStaffEmail.trim(),
-        passwordHash: newStaffPassword.trim() || 'Juthori@2026',
+        passwordHash: cleanPass,
         role: newStaffRole,
         invitedByName: loggedInMember?.name || 'كريم طاحون (المايسترو)',
       });
 
-      setStaffList((prev) => [...prev, member]);
+      setStaffList((prev) => {
+        const filtered = prev.filter(
+          (m) => m.email.trim().toLowerCase() !== member.email.trim().toLowerCase()
+        );
+        return [...filtered, member];
+      });
       setNewStaffName('');
       setNewStaffEmail('');
       setNewStaffPassword('');
+      setAddStaffError(null);
       setShowAddStaffModal(false);
       triggerToast(
         emailDispatched
-          ? `تم إنشاء حساب "${member.name}" (${member.role}) في Firebase وإرسال دعوة رسمية عبر info@Juthori.com ✓`
+          ? `تم تسجيل "${member.name}" في Firebase Authentication + Firestore وإرسال دعوة عبر info@Juthori.com ✓`
+          : registeredInAuth
+          ? `تم تسجيل "${member.name}" (${member.role}) في Firebase Authentication وقاعدة بيانات Firestore بنجاح ✓`
           : `تم إنشاء حساب "${member.name}" (${member.role}) وحفظه في Firebase بنجاح ✓`
       );
-    } catch {
-      triggerToast('تعذر إضافة عضو الفريق في قاعدة البيانات.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('DUPLICATE_TEAM_EMAIL:')) {
+        setAddStaffError(msg.replace('DUPLICATE_TEAM_EMAIL:', '').trim());
+      } else if (msg.includes('WEAK_PASSWORD:')) {
+        setAddStaffError(msg.replace('WEAK_PASSWORD:', '').trim());
+      } else {
+        setAddStaffError('تعذر إضافة عضو الفريق. يرجى التحقق من البيانات والمحاولة مجدداً.');
+      }
     } finally {
       setIsAddingStaff(false);
     }
@@ -350,19 +588,60 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     triggerToast(`تم تحديث حالة حساب "${member.name}" إلى (${nextStatus}).`);
   };
 
+  const handleDeleteStaffMember = async (member: TeamMemberRecord) => {
+    if (member.id === FOUNDING_MAESTRO_MEMBER.id) {
+      triggerToast('لا يمكن حذف الحساب السيادي التأسيسي للمايسترو.');
+      return;
+    }
+    await deleteTeamMemberFromFirebase(member.id, member.email);
+    setStaffList((prev) =>
+      prev.filter(
+        (m) =>
+          m.id !== member.id &&
+          m.email.trim().toLowerCase() !== member.email.trim().toLowerCase()
+      )
+    );
+    triggerToast(`تم حذف حساب "${member.name}" من قاعدة بيانات Firestore نهائياً ✓`);
+  };
+
   // Save or Update Knowledge Center Article in Firebase
   const handleSaveKnowledgeArticle = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!articleTitle.trim() || !articleSummary.trim()) return;
+    if (!articleTitle.trim()) return;
+    const currentHtmlContent =
+      richEditorRef.current?.innerHTML || articleContent || '';
+    const autoSummary =
+      articleDescription.trim() ||
+      extractPlainTextFromHtml(currentHtmlContent).slice(0, 180) ||
+      articleTitle.trim();
+
+    const resolvedFilter =
+      articleFilter === '__custom__'
+        ? customArticleFilter.trim() || 'عام'
+        : articleFilter || 'عام';
+
     setIsSavingArticle(true);
     try {
       const saved = await saveKnowledgeArticleToFirebase({
         id: editingArticleId || undefined,
         title: articleTitle,
-        category: articleCategory,
-        summary: articleSummary,
-        content: articleContent || articleSummary,
-        authorName: loggedInMember?.name || 'هيئة تحرير المركز المعرفي',
+        type: articleType,
+        section: articleSection,
+        filter: resolvedFilter,
+        description: autoSummary,
+        summary: autoSummary,
+        content: currentHtmlContent || autoSummary,
+        author: articleAuthor || loggedInMember?.name || 'هيئة تحرير المركز المعرفي',
+        editor: articleEditor,
+        authorName:
+          articleAuthor || loggedInMember?.name || 'هيئة تحرير المركز المعرفي',
+        publishDate: articlePublishDate,
+        coverImageUrl: articleCoverImageUrl,
+        coverTextOverlay: articleCoverTextOverlay,
+        imageCaption: articleImageCaption,
+        imageCopyright: articleImageCopyright,
+        videoUrl: articleType === 'فيديو' ? articleVideoUrl : '',
+        duration: articleType === 'فيديو' ? articleDuration : '',
         status: articleStatus,
       });
 
@@ -373,13 +652,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           : [saved, ...prev];
       });
 
+      setIsArticleModalOpen(false);
       setEditingArticleId(null);
-      setArticleTitle('');
-      setArticleSummary('');
-      setArticleContent('');
-      triggerToast(`تم حفظ ونشر المقال "${saved.title}" في المركز المعرفي عبر Firebase ✓`);
+      triggerToast(
+        `تم حفظ ونشر الموضوع "${saved.title}" في المركز المعرفي عبر Firebase ✓`
+      );
     } catch {
-      triggerToast('تعذر حفظ المقال في قاعدة البيانات.');
+      triggerToast('تعذر حفظ الموضوع في قاعدة البيانات.');
     } finally {
       setIsSavingArticle(false);
     }
@@ -389,9 +668,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     try {
       await deleteKnowledgeArticleFromFirebase(articleId);
       setKnowledgeArticles((prev) => prev.filter((a) => a.id !== articleId));
-      triggerToast('تم حذف المقال من المركز المعرفي.');
+      triggerToast('تم حذف الموضوع من المركز المعرفي.');
     } catch {
-      triggerToast('تعذر حذف المقال.');
+      triggerToast('تعذر حذف الموضوع.');
     }
   };
 
@@ -573,31 +852,31 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   }> = [
     {
       id: 'users_rbac',
-      label: 'لوحة إدارة المستخدمين',
+      label: 'إدارة المستخدمين',
       icon: <Users className="w-4 h-4" />,
       badge: staffList.length,
     },
     {
       id: 'research_studio',
-      label: 'لوحة تحكم الباحثين (Researcher Studio)',
+      label: 'إدارة البحوث',
       icon: <BookOpen className="w-4 h-4" />,
       badge: researchTicketsCount,
     },
     {
       id: 'orders_support',
-      label: 'لوحة إدارة الطلبات وخدمة العملاء',
+      label: 'إدارة الطلبات وخدمة العملاء',
       icon: <HeadphonesIcon className="w-4 h-4" />,
       badge: orders.length,
     },
     {
       id: 'knowledge_cms',
-      label: 'لوحة تحرير المركز المعرفي',
+      label: 'إدارة تحرير المركز المعرفي',
       icon: <FileText className="w-4 h-4" />,
       badge: knowledgeArticles.length,
     },
     {
       id: 'executive_reports',
-      label: 'لوحة التقارير',
+      label: 'التقارير',
       icon: <BarChart3 className="w-4 h-4" />,
     },
   ];
@@ -712,11 +991,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-lg font-bold text-[#14110D]">
-                    لوحة إدارة المستخدمين وصلاحيات الفريق (/Team)
+                    إدارة المستخدمين وصلاحيات الفريق
                   </h2>
-                  <p className="text-xs text-[#6E6456] mt-0.5">
-                    إدارة أعضاء فريق العمل المرتبطين بقاعدة بيانات Firebase وإرسال دعوات الانضمام الرسمية عبر Resend API (info@Juthori.com).
-                  </p>
                 </div>
 
                 <button
@@ -725,7 +1001,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#14110D] hover:bg-[#2A231B] text-[#C5A059] text-xs font-bold cursor-pointer transition shadow-sm"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>+ إضافة عضو فريق جديد وإرسال دعوة</span>
+                  <span>إضافة عضو فريق جديد</span>
                 </button>
               </div>
 
@@ -735,9 +1011,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     <tr className="bg-[#F9F6F0] border-b border-[#E2DACB] text-[11px] font-bold text-[#6E6456]">
                       <th className="py-3 px-4">اسم العضو</th>
                       <th className="py-3 px-4">البريد الإلكتروني</th>
-                      <th className="py-3 px-4">الدور الإداري (RBAC)</th>
+                      <th className="py-3 px-4">الصلاحية</th>
                       <th className="py-3 px-4">الحالة</th>
-                      <th className="py-3 px-4">الصلاحيات الممنوحة</th>
                       <th className="py-3 px-4">إجراءات</th>
                     </tr>
                   </thead>
@@ -761,7 +1036,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           {st.email}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-full bg-[#14110D] text-[#C5A059] font-bold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-full bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/50 font-bold text-[11px]">
                             {st.role}
                           </span>
                         </td>
@@ -777,28 +1052,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            {(st.permissions || getPermissionsForTeamRole(st.role)).map(
-                              (perm) => (
-                                <span
-                                  key={perm}
-                                  className="px-2 py-0.5 rounded bg-[#F4F1EA] text-[#5C5346] text-[10px]"
-                                >
-                                  {perm}
-                                </span>
-                              )
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
                           {st.id !== FOUNDING_MAESTRO_MEMBER.id ? (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStaffStatus(st)}
-                              className="px-2.5 py-1 rounded-lg border border-[#D8D0C0] hover:bg-[#F4F1EA] text-[11px] font-bold text-[#14110D] cursor-pointer"
-                            >
-                              {st.status === 'نشط' ? 'إيقاف مؤقت' : 'إعادة تفعيل'}
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStaffStatus(st)}
+                                className="px-2.5 py-1 rounded-lg border border-[#D8D0C0] hover:bg-[#F4F1EA] text-[11px] font-bold text-[#14110D] cursor-pointer"
+                              >
+                                {st.status === 'نشط' ? 'إيقاف مؤقت' : 'إعادة تفعيل'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStaffMember(st)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-[11px] font-bold text-red-700 cursor-pointer"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>حذف</span>
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-[11px] text-[#8C8272] font-bold">
                               حساب سيادي دائم
@@ -902,7 +1173,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             <div className="bg-white rounded-2xl border border-[#E2DACB] overflow-hidden shadow-sm">
               <div className="px-5 py-4 border-b border-[#E2DACB] flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[#14110D]">
-                  سجل طلبات العملاء الفعلي في Firebase ({filteredOrders.length})
+                  سجل طلبات العملاء
                 </h3>
               </div>
 
@@ -1156,198 +1427,141 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         )}
 
         {/* =====================================================================
-            PANEL 4: لوحة تحرير المركز المعرفي (Knowledge Center CMS)
+            PANEL 4: إدارة تحرير المركز المعرفي (Knowledge Center CMS)
            ===================================================================== */}
         {activeTab === 'knowledge_cms' && allowedTabs.includes('knowledge_cms') && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Editor Form */}
-            <div className="lg:col-span-5 bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
-              <h2 className="text-base font-bold text-[#14110D] mb-1">
-                {editingArticleId
-                  ? 'تعديل مقال أو دراسة في المركز المعرفي'
-                  : 'إضافة مقال أو دراسة جديدة للمركز المعرفي'}
-              </h2>
-              <p className="text-xs text-[#6E6456] mb-4">
-                يتم حفظ المقالات في Firebase (`knowledge_articles`) وتنعكس مباشرة في قسم المركز المعرفي بالصفحة الرئيسية.
-              </p>
-
-              <form onSubmit={handleSaveKnowledgeArticle} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                    عنوان المقال أو الدراسة العلمية
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={articleTitle}
-                    onChange={(e) => setArticleTitle(e.target.value)}
-                    placeholder="مثال: منهجية تحقيق سلاسل النسب في أمهات الكتب..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-bold text-[#14110D]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                      التصنيف المعرفي
-                    </label>
-                    <input
-                      type="text"
-                      value={articleCategory}
-                      onChange={(e) => setArticleCategory(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs text-[#14110D]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                      حالة النشر
-                    </label>
-                    <select
-                      value={articleStatus}
-                      onChange={(e) =>
-                        setArticleStatus(e.target.value as 'published' | 'draft')
-                      }
-                      className="w-full px-3 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-bold text-[#14110D]"
-                    >
-                      <option value="published">منشور للجمهور</option>
-                      <option value="draft">مسودة تحريرية</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                    ملخص المقال (يظهر في بطاقة المركز المعرفي)
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={articleSummary}
-                    onChange={(e) => setArticleSummary(e.target.value)}
-                    placeholder="اكتب خلاصة مركزة للمقال أو الدراسة..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs text-[#14110D]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                    النص الكامل للمقال / المراجع المحققة
-                  </label>
-                  <textarea
-                    rows={5}
-                    value={articleContent}
-                    onChange={(e) => setArticleContent(e.target.value)}
-                    placeholder="النص التفصيلي للمقال والمصادر التاريخية المعتمدة..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs text-[#14110D]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <button
-                    type="submit"
-                    disabled={isSavingArticle}
-                    className="flex-1 py-2.5 rounded-xl bg-[#14110D] hover:bg-[#2A231B] text-[#C5A059] text-xs font-bold transition cursor-pointer"
-                  >
-                    {isSavingArticle
-                      ? 'جاري الحفظ...'
-                      : editingArticleId
-                      ? 'تحديث المقال في Firebase'
-                      : 'نشر المقال في المركز المعرفي'}
-                  </button>
-                  {editingArticleId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingArticleId(null);
-                        setArticleTitle('');
-                        setArticleSummary('');
-                        setArticleContent('');
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-[#F4F1EA] text-xs font-bold text-[#5C5346]"
-                    >
-                      إلغاء
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            {/* Articles List */}
-            <div className="lg:col-span-7 bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-[#14110D]">
-                  سجل مقالات ودراسات المركز المعرفي ({knowledgeArticles.length})
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E2DACB] overflow-hidden">
+              <div className="p-5 sm:p-6 border-b border-[#E2DACB] flex flex-wrap justify-between items-center gap-3">
+                <h3 className="text-lg font-bold text-[#252321]">
+                  إدارة المقالات والمركز المعرفي
                 </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewKnowledgeCenter((v) => !v)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] border border-[#B98A78]/50 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-[#8D4925]" />
+                    <span>
+                      {previewKnowledgeCenter
+                        ? 'إخفاء معاينة المركز المعرفي'
+                        : 'معاينة المركز المعرفي للزوار'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openNewArticleModal}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl transition-colors text-xs sm:text-sm font-bold cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>إضافة موضوع</span>
+                  </button>
+                </div>
               </div>
 
-              {knowledgeArticles.length === 0 ? (
-                <div className="p-12 rounded-xl bg-[#F9F6F0] border border-[#EFEAE0] text-center">
-                  <p className="text-sm font-bold text-[#6E6456]">
-                    لا توجد سجلات حالياً
-                  </p>
-                  <p className="text-xs text-[#8C8272] mt-1">
-                    استخدم محرر المركز المعرفي على اليمين لإضافة ونشر المقالات والدراسات العلمية.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {knowledgeArticles.map((art) => (
-                    <div
-                      key={art.id}
-                      className="p-4 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-[#C5A059]/20 text-[#7A5B20] text-[10px] font-bold">
-                            {art.category}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              art.status === 'published'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-stone-200 text-stone-700'
-                            }`}
-                          >
-                            {art.status === 'published' ? 'منشور' : 'مسودة'}
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-bold text-[#14110D] mt-1">
-                          {art.title}
-                        </h4>
-                        <p className="text-xs text-[#5C5346] mt-1 line-clamp-2">
-                          {art.summary}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingArticleId(art.id);
-                            setArticleTitle(art.title);
-                            setArticleCategory(art.category);
-                            setArticleSummary(art.summary);
-                            setArticleContent(art.content);
-                            setArticleStatus(art.status);
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-[11px] font-bold text-[#14110D] cursor-pointer"
+              <div className="overflow-x-auto">
+                <table className="w-full text-right border-collapse">
+                  <thead className="bg-[#FAF6F0] border-b border-[#E2DACB] text-[#6E6456] text-xs font-bold">
+                    <tr>
+                      <th className="p-4">العنوان</th>
+                      <th className="p-4">النوع</th>
+                      <th className="p-4">القسم/التصفية</th>
+                      <th className="p-4">تاريخ النشر</th>
+                      <th className="p-4">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#EFEAE0] text-xs sm:text-sm">
+                    {knowledgeArticles.map((article) => {
+                      const artType = article.type || 'مقال';
+                      const artSection = article.section || 'الروايات والذاكرة';
+                      const artFilter = article.filter || 'عام';
+                      return (
+                        <tr
+                          key={article.id}
+                          className="hover:bg-[#FCFBF8] transition-colors"
                         >
-                          تحرير
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteKnowledgeArticle(art.id)}
-                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 cursor-pointer"
-                          title="حذف المقال"
+                          <td className="p-4 font-bold text-[#252321]">
+                            <div>{article.title}</div>
+                            {(article.author || article.authorName) && (
+                              <div className="text-[11px] font-normal text-[#6E6456] mt-0.5">
+                                {article.author || article.authorName}
+                                {article.editor ? ` · تحرير: ${article.editor}` : ''}
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
+                                artType === 'مقال'
+                                  ? 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/50'
+                                  : 'bg-[#D8755B]/15 text-[#D8755B] border border-[#D8755B]/30'
+                              }`}
+                            >
+                              {artType === 'فيديو' ? (
+                                <Video className="w-3 h-3" />
+                              ) : (
+                                <FileText className="w-3 h-3" />
+                              )}
+                              <span>{artType}</span>
+                            </span>
+                          </td>
+                          <td className="p-4 text-[#5C5346]">
+                            <div className="font-bold text-[#252321]">
+                              {artSection}
+                            </div>
+                            <div className="text-xs text-[#8C8272]">{artFilter}</div>
+                          </td>
+                          <td className="p-4 text-[#5C5346] font-mono text-xs">
+                            {article.publishDate || 'غير محدد'}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditArticleModal(article)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[#8D4925] hover:bg-[#FAF6F0] border border-[#B98A78]/40 rounded-lg transition-colors text-xs font-bold cursor-pointer"
+                                title="تعديل"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                <span>تعديل</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteKnowledgeArticle(article.id)
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors text-xs font-bold cursor-pointer"
+                                title="حذف"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>حذف</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {knowledgeArticles.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="p-8 text-center text-[#6E6456] font-bold"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                          لا توجد مقالات مضافة بعد
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {previewKnowledgeCenter && (
+              <div className="bg-[#F7F2E9] rounded-3xl border border-[#B98A78]/45 p-5 sm:p-8 shadow-sm">
+                <KnowledgeCenterView articles={knowledgeArticles} />
+              </div>
+            )}
           </div>
         )}
 
@@ -1421,12 +1635,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               إضافة عضو جديد في فريق العمل (/Team)
             </h3>
             <p className="text-xs text-[#6E6456] mb-4">
-              سيتم حفظ الحساب بصلاحياته في Firebase وإرسال دعوة رسمية فورية من{' '}
+              سيتم تسجيل الحساب مباشرة في{' '}
+              <span className="font-bold text-[#14110D]">
+                Firebase Authentication
+              </span>{' '}
+              وقاعدة بيانات{' '}
+              <span className="font-bold text-[#14110D]">Firestore</span>، وإرسال دعوة
+              رسمية من{' '}
               <span dir="ltr" className="font-mono font-bold">
                 info@Juthori.com
               </span>{' '}
               عبر Resend API.
             </p>
+
+            {addStaffError && (
+              <div className="mb-3.5 p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 leading-relaxed">
+                {addStaffError}
+              </div>
+            )}
 
             <form onSubmit={handleAddStaffMember} className="space-y-3.5">
               <div>
@@ -1437,22 +1663,28 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   type="text"
                   required
                   value={newStaffName}
-                  onChange={(e) => setNewStaffName(e.target.value)}
-                  placeholder="مثال: د. أحمد المنصور"
+                  onChange={(e) => {
+                    setNewStaffName(e.target.value);
+                    if (addStaffError) setAddStaffError(null);
+                  }}
+                  placeholder="مثال: الباحث كريم"
                   className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-bold text-[#14110D]"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                  البريد الإلكتروني الرسمي
+                  البريد الإلكتروني الرسمي (غير قابل للتكرار)
                 </label>
                 <input
                   type="email"
                   dir="ltr"
                   required
                   value={newStaffEmail}
-                  onChange={(e) => setNewStaffEmail(e.target.value)}
+                  onChange={(e) => {
+                    setNewStaffEmail(e.target.value);
+                    if (addStaffError) setAddStaffError(null);
+                  }}
                   placeholder="member@juthori.com"
                   className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs text-[#14110D]"
                 />
@@ -1460,14 +1692,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-[#5C5346] mb-1">
-                  كلمة المرور المبدئية للدخول إلى /Team
+                  كلمة المرور المبدئية (6 خانات على الأقل للتسجيل في Firebase Auth)
                 </label>
                 <input
                   type="text"
                   dir="ltr"
                   required
+                  minLength={6}
                   value={newStaffPassword}
-                  onChange={(e) => setNewStaffPassword(e.target.value)}
+                  onChange={(e) => {
+                    setNewStaffPassword(e.target.value);
+                    if (addStaffError) setAddStaffError(null);
+                  }}
                   placeholder="Juthori@2026"
                   className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-mono text-[#14110D]"
                 />
@@ -1493,7 +1729,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="flex items-center justify-end gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => setShowAddStaffModal(false)}
+                  onClick={() => {
+                    setAddStaffError(null);
+                    setShowAddStaffModal(false);
+                  }}
                   className="px-4 py-2 rounded-xl bg-[#F4F1EA] text-xs font-bold text-[#5C5346] cursor-pointer"
                 >
                   إلغاء
@@ -1505,7 +1744,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>
-                    {isAddingStaff ? 'جاري الإرسال...' : 'اعتماد العضو وإرسال الدعوة'}
+                    {isAddingStaff ? 'جاري التسجيل والإرسال...' : 'اعتماد العضو وإرسال الدعوة'}
                   </span>
                 </button>
               </div>
@@ -1596,6 +1835,821 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================================
+          MODAL 3: Add / Edit Knowledge Center Topic (مقال / فيديو)
+         ======================================================================= */}
+      {isArticleModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-[#B98A78]/50 max-w-4xl w-full p-6 sm:p-8 shadow-2xl my-8 max-h-[92vh] overflow-y-auto">
+            {/* Modal Top Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-4 mb-5">
+              <div>
+                <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+                  {editingArticleId
+                    ? 'تعديل موضوع (مقال/فيديو)'
+                    : 'إضافة موضوع جديد (مقال/فيديو)'}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Switch between Editor and Live Visitor Preview */}
+                <div className="inline-flex rounded-xl bg-[#FAF6F0] p-1 border border-[#E2DACB]">
+                  <button
+                    type="button"
+                    onClick={() => setArticleModalTab('edit')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      articleModalTab === 'edit'
+                        ? 'bg-[#252321] text-white'
+                        : 'text-[#5C5346] hover:text-[#252321]'
+                    }`}
+                  >
+                    تحرير الموضوع
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      syncEditorContentToState();
+                      setArticleModalTab('preview');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      articleModalTab === 'preview'
+                        ? 'bg-[#D8755B] text-white'
+                        : 'text-[#5C5346] hover:text-[#252321]'
+                    }`}
+                  >
+                    معاينة العرض
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsArticleModalOpen(false)}
+                  className="p-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] cursor-pointer border border-[#E2DACB]"
+                  aria-label="إغلاق"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {articleModalTab === 'preview' ? (
+              <div className="space-y-6">
+                <div className="p-5 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#8D4925]">
+                      معاينة حية لشكل الموضوع في المركز المعرفي:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setArticleModalTab('edit')}
+                      className="text-xs font-bold text-[#D8755B] underline cursor-pointer"
+                    >
+                      العودة للتحرير
+                    </button>
+                  </div>
+
+                  {articleCoverImageUrl && (
+                    <div className="relative h-56 rounded-2xl overflow-hidden bg-[#252321]">
+                      <img
+                        src={articleCoverImageUrl}
+                        alt={articleTitle}
+                        className="w-full h-full object-cover opacity-90"
+                      />
+                      {articleCoverTextOverlay && (
+                        <div className="absolute bottom-3 right-3 left-3 text-white font-display font-bold text-base drop-shadow-md">
+                          {articleCoverTextOverlay}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(articleImageCaption || articleImageCopyright) && (
+                    <div className="flex justify-between text-[11px] text-[#5C5346] bg-[#EDE6DA]/70 px-3.5 py-2 rounded-xl">
+                      <span>{articleImageCaption}</span>
+                      {articleImageCopyright && (
+                        <span>© {articleImageCopyright}</span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#D8755B]">
+                    <span>
+                      {articleType} / {articleSection} -{' '}
+                      {articleFilter === '__custom__'
+                        ? customArticleFilter || 'عام'
+                        : articleFilter}
+                    </span>
+                    {articlePublishDate && (
+                      <span className="text-[#8C8272]">
+                        · {articlePublishDate}
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
+                    {articleTitle || 'عنوان الموضوع التجريبي'}
+                  </h2>
+
+                  {articleDescription && (
+                    <div className="p-4 rounded-xl bg-white border-r-4 border-[#D8755B] text-sm font-bold text-[#252321]">
+                      {articleDescription}
+                    </div>
+                  )}
+
+                  <div
+                    className="prose max-w-none text-sm text-[#252321]/90 leading-loose bg-white p-5 rounded-2xl border border-[#E2DACB]"
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        articleContent ||
+                        '<p class="text-stone-400">لم يتم إدخال نص المقال بعد...</p>',
+                    }}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setArticleModalTab('edit')}
+                    className="px-5 py-2.5 rounded-xl bg-[#EDE6DA] text-xs font-bold text-[#252321] cursor-pointer"
+                  >
+                    متابعة التحرير
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveKnowledgeArticle} className="space-y-5">
+                {/* Row 1: Title & Content Type */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      عنوان الموضوع *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={articleTitle}
+                      onChange={(e) => setArticleTitle(e.target.value)}
+                      placeholder="أدخل عنوان المقال أو الفيديو..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] focus:bg-white focus:border-[#8D4925] focus:outline-none text-xs sm:text-sm font-bold text-[#252321]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      نوع الموضوع *
+                    </label>
+                    <select
+                      value={articleType}
+                      onChange={(e) =>
+                        setArticleType(e.target.value as KnowledgeContentType)
+                      }
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] focus:bg-white focus:border-[#8D4925] focus:outline-none text-xs sm:text-sm font-bold text-[#252321]"
+                    >
+                      <option value="مقال">مقال</option>
+                      <option value="فيديو">فيديو</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 2: Section, Sub-Filter & Status */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      القسم الرئيسي *
+                    </label>
+                    <select
+                      value={articleSection}
+                      onChange={(e) => {
+                        const nextSec = e.target.value;
+                        setArticleSection(nextSec);
+                        const defaultFlt =
+                          KNOWLEDGE_BASE_SECTIONS[nextSec]?.baseFilters?.[0] ||
+                          'عام';
+                        setArticleFilter(defaultFlt);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-bold text-[#252321]"
+                    >
+                      {Object.keys(KNOWLEDGE_BASE_SECTIONS).map((sec) => (
+                        <option key={sec} value={sec}>
+                          {sec}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      التصفية / الفلتر الفرعي *
+                    </label>
+                    <select
+                      value={articleFilter}
+                      onChange={(e) => setArticleFilter(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-bold text-[#252321]"
+                    >
+                      {(
+                        KNOWLEDGE_BASE_SECTIONS[articleSection]?.baseFilters || [
+                          'عام',
+                        ]
+                      ).map((flt) => (
+                        <option key={flt} value={flt}>
+                          {flt}
+                        </option>
+                      ))}
+                      <option value="__custom__">+ إضافة فلتر فرعي جديد...</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      حالة النشر
+                    </label>
+                    <select
+                      value={articleStatus}
+                      onChange={(e) =>
+                        setArticleStatus(e.target.value as 'published' | 'draft')
+                      }
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-bold text-[#252321]"
+                    >
+                      <option value="published">منشور للجمهور</option>
+                      <option value="draft">مسودة تحريرية</option>
+                    </select>
+                  </div>
+                </div>
+
+                {articleFilter === '__custom__' && (
+                  <div>
+                    <label className="block text-xs font-bold text-[#8D4925] mb-1">
+                      اسم الفلتر الفرعي الجديد *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customArticleFilter}
+                      onChange={(e) => setCustomArticleFilter(e.target.value)}
+                      placeholder="اكتب اسم التصنيف الفرعي ليظهر كزر تصفية مستقل في هذا القسم..."
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D8755B] text-xs font-bold text-[#252321]"
+                    />
+                  </div>
+                )}
+
+                {/* Row 3: Author, Editor & Publish Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      الكاتب / المنتج (اختياري)
+                    </label>
+                    <input
+                      type="text"
+                      value={articleAuthor}
+                      onChange={(e) => setArticleAuthor(e.target.value)}
+                      placeholder="مثال: هيئة التحقيق والأنساب"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs text-[#252321]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      تحرير (اختياري)
+                    </label>
+                    <input
+                      type="text"
+                      value={articleEditor}
+                      onChange={(e) => setArticleEditor(e.target.value)}
+                      placeholder="اسم المحرر..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs text-[#252321]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      تاريخ النشر (اختياري)
+                    </label>
+                    <input
+                      type="date"
+                      dir="ltr"
+                      value={articlePublishDate}
+                      onChange={(e) => setArticlePublishDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-mono text-[#252321]"
+                    />
+                  </div>
+                </div>
+
+                {/* Short Card Summary with 1-Click Auto-Extract */}
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                    <label className="block text-xs font-bold text-[#252321]">
+                      الوصف المختصر للبطاقة (اختياري — يُستخرج تلقائياً من النص إن تُرك فارغاً)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentHtml =
+                          richEditorRef.current?.innerHTML || articleContent;
+                        const plain = extractPlainTextFromHtml(currentHtml);
+                        if (plain) {
+                          setArticleDescription(plain.slice(0, 170));
+                        }
+                      }}
+                      className="text-[11px] font-bold text-[#8D4925] hover:text-[#D8755B] cursor-pointer"
+                    >
+                      ✨ استخراج الملخص تلقائياً من نص المقال
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={articleDescription}
+                    onChange={(e) => setArticleDescription(e.target.value)}
+                    placeholder="نبذة موجزة تظهر تحت عنوان الموضوع في بطاقة المركز المعرفي..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs text-[#252321]"
+                  />
+                </div>
+
+                {/* =============================================================
+                    FULL RICH TEXT WYSIWYG EDITOR (Matching Screenshot + Power Tools)
+                   ============================================================= */}
+                <div className="space-y-2">
+                  {/* Quick Starter Templates Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-[#FAF6F0] px-3 py-2 rounded-xl border border-[#E2DACB]">
+                    <span className="text-[11px] font-bold text-[#6E6456]">
+                      إدراج هيكل جاهز بنقرة واحدة:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => applyQuickArticleTemplate('manuscript')}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                      >
+                        📜 تحقيق مخطوطة
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyQuickArticleTemplate('family_study')}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                      >
+                        🌳 دراسة نسبية
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyQuickArticleTemplate('dna_science')}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                      >
+                        🧬 مقال علمي
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyQuickArticleTemplate('event_news')}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                      >
+                        📅 تغطية فعالية/خبر
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Toolbar + Label Row (Matches User Screenshot) */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-[#252321]">
+                      نص المقال/وصف الفيديو (اختياري - محرر نصي يدعم جميع المزايا)
+                    </label>
+
+                    {/* Formatting Toolbar */}
+                    <div className="flex flex-wrap items-center gap-1 bg-[#FAF6F0] border border-[#D8D0C0] rounded-xl px-2 py-1.5 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('bold')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-xs font-extrabold text-[#252321] cursor-pointer"
+                        title="نص عريض (Bold)"
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('italic')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-xs italic font-serif text-[#252321] cursor-pointer"
+                        title="نص مائل (Italic)"
+                      >
+                        I
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('underline')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-xs underline text-[#252321] cursor-pointer"
+                        title="تسطير (Underline)"
+                      >
+                        U
+                      </button>
+
+                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('fontSize', '5')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="تكبير حجم النص"
+                      >
+                        تكبير
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('fontSize', '3')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="تصغير حجم النص"
+                      >
+                        تصغير
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('formatBlock', 'H3')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#8D4925] cursor-pointer"
+                        title="عنوان فرعي"
+                      >
+                        عنوان
+                      </button>
+
+                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('insertUnorderedList')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="قائمة نقطية"
+                      >
+                        • نقاط
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('insertOrderedList')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="قائمة رقمية"
+                      >
+                        1. ترقيم
+                      </button>
+
+                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('justifyRight')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="محاذاة لليمين"
+                      >
+                        يمين
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('justifyCenter')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="توسيط"
+                      >
+                        وسط
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('justifyLeft')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="محاذاة لليسار"
+                      >
+                        يسار
+                      </button>
+
+                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          insertHtmlAtCursor(
+                            `<blockquote style="border-right: 4px solid #D8755B; background: #FAF6F0; padding: 12px 16px; margin: 12px 0; border-radius: 8px; font-weight: bold;">«اكتب نص الاقتباس أو المصدر هنا...»</blockquote><p><br/></p>`
+                          )
+                        }
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#8D4925] cursor-pointer"
+                        title="إدراج صندوق اقتباس تراثي"
+                      >
+                        ❝ اقتباس
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          execEditorCommand('hiliteColor', '#F3D299')
+                        }
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="تمييز النص بلون ذهبي"
+                      >
+                        تمييز
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowInlineLinkInput((prev) => !prev)
+                        }
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        title="إدراج رابط"
+                      >
+                        🔗 رابط
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => execEditorCommand('removeFormat')}
+                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] text-[#6E6456] cursor-pointer"
+                        title="مسح التنسيق"
+                      >
+                        مسح التنسيق
+                      </button>
+
+                      {/* Insert Image inside Article Body (Red/Terracotta Framed Button matching screenshot) */}
+                      <button
+                        type="button"
+                        onClick={() => inlineImageInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg border border-[#8D4925]/40 bg-white hover:bg-[#FAF6F0] text-[11px] font-bold text-[#8D4925] cursor-pointer"
+                        title="رفع وإدراج صورة من جهازك داخل نص المقال"
+                      >
+                        إدراج صورة
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowInlineImageUrlInput((prev) => !prev)
+                        }
+                        className="px-2 py-1 rounded-lg bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-[10px] font-bold text-[#5C5346] cursor-pointer"
+                        title="إدراج صورة عبر رابط مباشر"
+                      >
+                        رابط صورة
+                      </button>
+                      <input
+                        ref={inlineImageInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleInlineEditorImageUpload}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Optional Inline Link Popover */}
+                  {showInlineLinkInput && (
+                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/50">
+                      <input
+                        type="text"
+                        value={inlineLinkText}
+                        onChange={(e) => setInlineLinkText(e.target.value)}
+                        placeholder="عنوان الرابط المعروض..."
+                        className="px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-xs"
+                      />
+                      <input
+                        type="url"
+                        dir="ltr"
+                        value={inlineLinkUrl}
+                        onChange={(e) => setInlineLinkUrl(e.target.value)}
+                        placeholder="https://example.com"
+                        className="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inlineLinkUrl.trim()) {
+                            const label =
+                              inlineLinkText.trim() || inlineLinkUrl.trim();
+                            insertHtmlAtCursor(
+                              `<a href="${inlineLinkUrl.trim()}" target="_blank" rel="noopener noreferrer" style="color: #8D4925; text-decoration: underline; font-weight: bold;">${label}</a>&nbsp;`
+                            );
+                            setInlineLinkUrl('');
+                            setInlineLinkText('');
+                            setShowInlineLinkInput(false);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-[#8D4925] text-white text-xs font-bold cursor-pointer"
+                      >
+                        إدراج الرابط
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Optional Inline Image URL Popover */}
+                  {showInlineImageUrlInput && (
+                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/50">
+                      <input
+                        type="url"
+                        dir="ltr"
+                        value={inlineImageUrl}
+                        onChange={(e) => setInlineImageUrl(e.target.value)}
+                        placeholder="https://example.com/photo.jpg"
+                        className="flex-1 min-w-[220px] px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inlineImageUrl.trim()) {
+                            insertHtmlAtCursor(
+                              `<figure style="margin: 18px 0; text-align: center;"><img src="${inlineImageUrl.trim()}" alt="صورة داخل المقال" style="max-width: 100%; border-radius: 14px; border: 1px solid #B98A78; margin: 0 auto;" /></figure><p><br/></p>`
+                            );
+                            setInlineImageUrl('');
+                            setShowInlineImageUrlInput(false);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-[#8D4925] text-white text-xs font-bold cursor-pointer"
+                      >
+                        إدراج الصورة
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Rich Text ContentEditable Box (Framed with Heritage Terracotta/Crimson Border as in Screenshot) */}
+                  <div
+                    ref={richEditorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={syncEditorContentToState}
+                    onBlur={syncEditorContentToState}
+                    data-placeholder="اكتب نص المقال أو الصق المحتوى المنسق هنا..."
+                    className="min-h-[210px] max-h-[380px] overflow-y-auto w-full p-4 rounded-xl bg-white border-2 border-[#8D4925] focus:border-[#D8755B] focus:outline-none text-sm text-[#252321] leading-relaxed prose max-w-none"
+                  />
+
+                  <div className="flex items-center justify-between text-[11px] text-[#6E6456] px-1">
+                    <span>
+                      يمكنك تنسيق النصوص، وإدراج الصور والاقتباسات والروابط مباشرة داخل المحرر.
+                    </span>
+                    <span className="font-mono">
+                      عدد الكلمات: {editorWordCount} · وقت القراءة:{' '}
+                      {Math.max(1, Math.ceil(editorWordCount / 180))} دقيقة
+                    </span>
+                  </div>
+                </div>
+
+                {/* =============================================================
+                    SECTION: الروابط والصور (Matches Screenshot Layout)
+                   ============================================================= */}
+                <div className="pt-4 border-t border-[#EFEAE0] space-y-3.5">
+                  <h4 className="text-sm font-display font-extrabold text-[#252321] border-r-4 border-[#8D4925] pr-2.5">
+                    الروابط والصور
+                  </h4>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      رابط صورة الغلاف (اختياري)
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="text"
+                        dir="ltr"
+                        value={articleCoverImageUrl}
+                        onChange={(e) => setArticleCoverImageUrl(e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                      />
+                      <label className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-xs font-bold cursor-pointer shrink-0 border border-[#D8D0C0] transition-colors">
+                        <span>إرفاق صورة</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCoverImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[11px] text-[#8D4925] font-semibold mt-1">
+                      أضف رابط مباشر للصور أو قم بتحميل ملف صورة.
+                    </p>
+
+                    {articleCoverImageUrl && (
+                      <div className="mt-2.5 inline-flex items-center gap-3 p-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB]">
+                        <img
+                          src={articleCoverImageUrl}
+                          alt="معاينة الغلاف"
+                          className="w-16 h-11 object-cover rounded-lg border border-[#B98A78]/40"
+                        />
+                        <span className="text-[11px] font-bold text-[#252321]">
+                          تم إرفاق صورة الغلاف ✓
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setArticleCoverImageUrl('')}
+                          className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer px-2"
+                        >
+                          إزالة
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {articleType === 'فيديو' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                          رابط الفيديو (YouTube أو رابط مباشر)
+                        </label>
+                        <input
+                          type="url"
+                          dir="ltr"
+                          value={articleVideoUrl}
+                          onChange={(e) => setArticleVideoUrl(e.target.value)}
+                          placeholder="https://www.youtube.com/watch?v=..."
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] text-xs text-[#252321]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                          مدة الفيديو (بالدقائق - اختياري)
+                        </label>
+                        <input
+                          type="text"
+                          value={articleDuration}
+                          onChange={(e) => setArticleDuration(e.target.value)}
+                          placeholder="مثال: 12"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] text-xs text-[#252321]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* =============================================================
+                    SECTION: النصوص المصاحبة للصورة/الفيديو (Matches Screenshot Layout)
+                   ============================================================= */}
+                <div className="pt-4 border-t border-[#EFEAE0] space-y-3.5">
+                  <h4 className="text-sm font-display font-extrabold text-[#252321] border-r-4 border-[#8D4925] pr-2.5">
+                    النصوص المصاحبة للصورة/الفيديو
+                  </h4>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      إلصق عنوان (الصورة/الفيديو) وهو نص يعرض فوق الصورة (اختياري)
+                    </label>
+                    <input
+                      type="text"
+                      value={articleCoverTextOverlay}
+                      onChange={(e) => setArticleCoverTextOverlay(e.target.value)}
+                      placeholder="مثال: رحلة البحث في التراث..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        وصف الصورة/الفيديو المصغر (أسفل الصورة) (اختياري)
+                      </label>
+                      <input
+                        type="text"
+                        value={articleImageCaption}
+                        onChange={(e) => setArticleImageCaption(e.target.value)}
+                        placeholder="توضيح للصورة أو الوثيقة المعروضة..."
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        الملكية الفكرية (اختياري)
+                      </label>
+                      <input
+                        type="text"
+                        value={articleImageCopyright}
+                        onChange={(e) => setArticleImageCopyright(e.target.value)}
+                        placeholder="مثال: أرشيف مركز آدم للبحوث"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Optional Fields Aesthetic Notice Banner (Matches Screenshot) */}
+                <div className="p-3.5 rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center gap-2.5 text-xs font-bold text-[#8D4925]">
+                  <span className="w-5 h-5 rounded-full border border-[#8D4925] flex items-center justify-center text-[11px] shrink-0">
+                    !
+                  </span>
+                  <span>
+                    الحقول الاختيارية التي لا يتم تعبئتها لن تظهر للمستخدم للحفاظ على جمالية العرض.
+                  </span>
+                </div>
+
+                {/* Submit / Cancel Footer */}
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2DACB]">
+                  <button
+                    type="button"
+                    onClick={() => setIsArticleModalOpen(false)}
+                    className="px-5 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-xs font-bold text-[#252321] cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingArticle}
+                    className="px-6 py-2.5 rounded-xl bg-[#8D4925] hover:bg-[#753b1d] text-white text-xs sm:text-sm font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                  >
+                    {isSavingArticle
+                      ? 'جاري الحفظ...'
+                      : editingArticleId
+                      ? 'حفظ التعديلات'
+                      : 'نشر الموضوع'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

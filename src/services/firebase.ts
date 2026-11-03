@@ -4,6 +4,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   browserLocalPersistence,
+  inMemoryPersistence,
   setPersistence,
 } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer, Firestore } from 'firebase/firestore';
@@ -30,6 +31,15 @@ const mirrorApp: FirebaseApp =
   getApps().find((a) => a.name === 'aistudio-mirror') ||
   initializeApp(appletFirebaseConfig, 'aistudio-mirror');
 
+// Dedicated secondary apps for provisioning new users in Firebase Authentication without signing out the active admin
+const provisionerApp: FirebaseApp =
+  getApps().find((a) => a.name === 'juthori-user-provisioner') ||
+  initializeApp(JUTHORI_FIREBASE_CONFIG, 'juthori-user-provisioner');
+
+const mirrorProvisionerApp: FirebaseApp =
+  getApps().find((a) => a.name === 'mirror-user-provisioner') ||
+  initializeApp(appletFirebaseConfig, 'mirror-user-provisioner');
+
 // Initialize Firebase Analytics safely in browser environments
 export let analytics: Analytics | null = null;
 if (typeof window !== 'undefined') {
@@ -44,10 +54,14 @@ if (typeof window !== 'undefined') {
 
 export const auth = getAuth(app);
 export const mirrorAuth = getAuth(mirrorApp);
+export const provisionerAuth = getAuth(provisionerApp);
+export const mirrorProvisionerAuth = getAuth(mirrorProvisionerApp);
 
-// Enforce local persistence for smooth UX across refreshes
+// Enforce local persistence for main auth and in-memory persistence for provisioner auth
 try {
   setPersistence(auth, browserLocalPersistence).catch(() => {});
+  setPersistence(provisionerAuth, inMemoryPersistence).catch(() => {});
+  setPersistence(mirrorProvisionerAuth, inMemoryPersistence).catch(() => {});
 } catch {
   // Ignore in SSR / build environments
 }

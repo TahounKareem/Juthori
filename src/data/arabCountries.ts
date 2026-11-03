@@ -2,9 +2,9 @@ import { ArabCountryInfo } from '../types/juthori';
 
 export const GENERAL_DIASPORA_COUNTRY_INFO: ArabCountryInfo = {
   code: 'GLOBAL',
-  name: 'عام (المهجر / جميع الدول الأخرى)',
+  name: 'باقي الدول',
   capital: 'المهجر',
-  regionLabel: 'المهجر والعالم العربي',
+  regionLabel: 'باقي الدول والمهجر',
   slogan: 'جذورك العربية وأصالة نسبك.. إرثٌ حيّ يجمع العائلة أينما كنت',
   heritageNote: 'بوابتك الموثوقة لاكتشاف عمود النسب وبناء وحفظ شجرة عائلتك عبر الأجيال.',
   heroImageUrl:
@@ -241,12 +241,13 @@ export const PORTAL_COUNTRY_SWITCHER_OPTIONS: ArabCountryInfo[] = [
 
 export const ORIGIN_COUNTRY_OPTIONS: string[] = [
   ...ARAB_COUNTRIES_22.map((c) => c.name),
-  'عام (المهجر / جميع الدول الأخرى)',
+  'باقي الدول',
 ];
 
 export function getCountryInfoByName(countryName: string): ArabCountryInfo {
   if (
     !countryName ||
+    countryName.includes('باقي الدول') ||
     countryName.includes('المهجر') ||
     countryName.includes('عام') ||
     countryName === 'GLOBAL'
@@ -259,23 +260,57 @@ export function getCountryInfoByName(countryName: string): ArabCountryInfo {
   return found ?? GENERAL_DIASPORA_COUNTRY_INFO;
 }
 
+const ENGLISH_COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  'saudi arabia': 'SA',
+  'united arab emirates': 'AE',
+  uae: 'AE',
+  kuwait: 'KW',
+  qatar: 'QA',
+  bahrain: 'BH',
+  oman: 'OM',
+  yemen: 'YE',
+  egypt: 'EG',
+  jordan: 'JO',
+  palestine: 'PS',
+  lebanon: 'LB',
+  syria: 'SY',
+  iraq: 'IQ',
+  morocco: 'MA',
+  algeria: 'DZ',
+  tunisia: 'TN',
+  libya: 'LY',
+  sudan: 'SD',
+  mauritania: 'MR',
+  somalia: 'SO',
+  djibouti: 'DJ',
+  comoros: 'KM',
+};
+
 export function resolveVisitorCountryName(
   ipCountryCode?: string,
   ipCountryName?: string
 ): string {
   if (ipCountryCode) {
-    const byCode = ARAB_COUNTRIES_22.find(
-      (c) => c.code.toUpperCase() === ipCountryCode.trim().toUpperCase()
-    );
+    const cleanCode = ipCountryCode.trim().toUpperCase();
+    const byCode = ARAB_COUNTRIES_22.find((c) => c.code.toUpperCase() === cleanCode);
     if (byCode) return byCode.name;
+    if (/^[A-Z]{2}$/.test(cleanCode) && cleanCode !== 'XX' && cleanCode !== 'ZZ') {
+      return 'باقي الدول';
+    }
   }
   if (ipCountryName) {
-    const byName = ARAB_COUNTRIES_22.find((c) =>
-      ipCountryName.includes(c.name) || c.name.includes(ipCountryName)
+    const cleanName = ipCountryName.trim();
+    const byName = ARAB_COUNTRIES_22.find(
+      (c) => cleanName.includes(c.name) || c.name.includes(cleanName)
     );
     if (byName) return byName.name;
+    const mappedCode = ENGLISH_COUNTRY_NAME_TO_CODE[cleanName.toLowerCase()];
+    if (mappedCode) {
+      const byMapped = ARAB_COUNTRIES_22.find((c) => c.code === mappedCode);
+      if (byMapped) return byMapped.name;
+    }
   }
-  // Browser timezone fallback if IP is localhost/unspecified
+  // Browser timezone fallback if IP is not yet resolved
   if (typeof Intl !== 'undefined') {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -300,6 +335,10 @@ export function resolveVisitorCountryName(
         'Africa/Tunis': 'تونس',
         'Africa/Tripoli': 'ليبيا',
         'Africa/Khartoum': 'السودان',
+        'Africa/Nouakchott': 'موريتانيا',
+        'Africa/Mogadishu': 'الصومال',
+        'Africa/Djibouti': 'جيبوتي',
+        'Indian/Comoro': 'جزر القمر',
       };
       if (tzMap[tz]) return tzMap[tz];
     } catch {

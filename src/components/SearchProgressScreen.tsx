@@ -129,21 +129,33 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
         body: JSON.stringify({
           email: cleanEmail,
           clientName: `${form.firstName} ${form.familyName}`.trim(),
+          familyName: form.familyName,
         }),
       });
       const data = await resp.json().catch(() => null);
       if (resp.ok && data?.ok) {
-        setOtpSentNotice(
-          `تم إرسال رمز التحقق (OTP) من منصة جذوري (info@Juthori.com) إلى بريدك (${cleanEmail}) ✓`
-        );
+        if (data.dispatched) {
+          setOtpSentNotice(
+            `تم إرسال رمز التحقق (OTP) عبر Resend إلى بريدك (${cleanEmail}) ✓`
+          );
+        } else if (data.fallbackOtpCode) {
+          setOtpCode(String(data.fallbackOtpCode));
+          setOtpSentNotice(
+            `رمز التحقق الفوري لتفعيل حسابك هو: [ ${data.fallbackOtpCode} ] — تمت تعبئته تلقائياً (ملاحظة: لإرسال البريد خارجياً عبر Resend يرجى التأكد من إضافة RESEND_API_KEY وتوثيق نطاق Juthori.com في Resend).`
+          );
+        } else {
+          setOtpSentNotice(
+            `تم إصدار رمز التحقق للبريد (${cleanEmail}) عبر info@Juthori.com`
+          );
+        }
       } else {
         setOtpSentNotice(
-          `تم إصدار رمز التحقق للبريد (${cleanEmail}) عبر info@Juthori.com`
+          data?.error || `تعذر إرسال رمز التحقق للبريد (${cleanEmail}).`
         );
       }
     } catch {
       setOtpSentNotice(
-        `تم إرسال طلب رمز التحقق للبريد (${cleanEmail}) عبر info@Juthori.com`
+        `تعذر الاتصال بخادم البريد لإرسال رمز التحقق إلى (${cleanEmail}).`
       );
     } finally {
       setIsSendingOtp(false);

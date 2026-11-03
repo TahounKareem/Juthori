@@ -8,8 +8,11 @@ import {
 import { auth, googleProvider } from './services/firebase';
 import {
   fetchUserProfile,
+  fetchUserProfileByEmail,
+  updateUserProfile,
   createUserProfileIfMissing,
   createResearchTicket,
+  syncClientLineageTicketToFirebase,
   upsertCustomerOrderInFirebase,
   bootstrapJuthoriFirestoreDatabase,
 } from './services/firestoreService';
@@ -124,11 +127,14 @@ export function App() {
     () => initialSession?.userDefaultCountry || initialSession?.form?.originCountry || ''
   );
 
-  const [form, setForm] = useState<RegistrationFormState>(
-    () => initialSession?.form || DEFAULT_FORM_STATE
-  );
   const [selectedPortalCountry, setSelectedPortalCountry] = useState<string>(() =>
     resolveVisitorCountryName()
+  );
+  const [form, setForm] = useState<RegistrationFormState>(() =>
+    initialSession?.form || {
+      ...DEFAULT_FORM_STATE,
+      originCountry: resolveVisitorCountryName(),
+    }
   );
   const [userManuallySelectedCountry, setUserManuallySelectedCountry] = useState(false);
   const [silentGeo, setSilentGeo] = useState<SilentGeoMetadata>({
@@ -228,26 +234,90 @@ export function App() {
     isAlphaMergedIntoAdam,
   ]);
 
-  // Silent IP Geolocation Capture in background + Auto-Detect Country for Hero
+  // Silent IP Geolocation Capture in background + Auto-Detect Country for Hero & Search Form
   useEffect(() => {
     let active = true;
-    fetch('/api/juthori/geo')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (active && data && (data.ip_country || data.ip_country_code)) {
-          setSilentGeo(data);
-          const detectedCountry = resolveVisitorCountryName(
-            data.ip_country_code,
-            data.ip_country
-          );
-          if (!userManuallySelectedCountry && detectedCountry) {
-            setSelectedPortalCountry(detectedCountry);
+
+    const applyDetectedIpGeo = (payload: {
+      ip?: string;
+      ip_country?: string;
+      ip_country_code?: string;
+      ip_city?: string;
+    }) => {
+      if (!active) return;
+      const code = (payload.ip_country_code || '').trim().toUpperCase();
+      const countryName = (payload.ip_country || '').trim();
+      if (!code && !countryName) return;
+
+      const detectedCountry = resolveVisitorCountryName(code, countryName);
+      setSilentGeo({
+        ip: payload.ip || '127.0.0.1',
+        ip_country: detectedCountry,
+        ip_country_code: code || 'SA',
+        ip_city: payload.ip_city || '',
+        captured_at: new Date().toISOString(),
+      });
+
+      if (!userManuallySelectedCountry && detectedCountry) {
+        setSelectedPortalCountry(detectedCountry);
+        setForm((prev) =>
+          prev.originCountry && userManuallySelectedCountry
+            ? prev
+            : { ...prev, originCountry: detectedCountry }
+        );
+      }
+    };
+
+    (async () => {
+      // 1. Direct browser IP lookup (captures visitor's true public IP even behind cloud proxies)
+      try {
+        const res = await fetch('https://ipwho.is/');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success !== false && data.country_code) {
+            applyDetectedIpGeo({
+              ip: data.ip,
+              ip_country: data.country,
+              ip_country_code: data.country_code,
+              ip_city: data.city,
+            });
+            return;
           }
         }
-      })
-      .catch(() => {
-        // Silent fallback already initialized in state
-      });
+      } catch {
+        // Proceed to secondary IP lookup
+      }
+
+      // 2. Secondary lightweight IP country lookup
+      try {
+        const res2 = await fetch('https://api.country.is/');
+        if (res2.ok) {
+          const data2 = await res2.json();
+          if (data2 && data2.country) {
+            applyDetectedIpGeo({
+              ip: data2.ip,
+              ip_country_code: data2.country,
+            });
+            return;
+          }
+        }
+      } catch {
+        // Proceed to backend geo endpoint
+      }
+
+      // 3. Server-side geo endpoint fallback
+      try {
+        const res3 = await fetch('/api/juthori/geo');
+        if (res3.ok) {
+          const data3 = await res3.json();
+          if (data3 && (data3.ip_country_code || data3.ip_country)) {
+            applyDetectedIpGeo(data3);
+          }
+        }
+      } catch {
+        // Silent timezone fallback already applied in initial state
+      }
+    })();
 
     return () => {
       active = false;
@@ -260,14 +330,34 @@ export function App() {
       if (user) {
         setUserId(user.uid);
         try {
-          const profile = await fetchUserProfile(user.uid);
+          const [profileByUid, profileByEmail] = await Promise.all([
+            fetchUserProfile(user.uid),
+            user.email ? fetchUserProfileByEmail(user.email) : Promise.resolve(null),
+          ]);
+          const profile =
+            (profileByEmail?.familyName ? profileByEmail : null) ||
+            (profileByUid?.familyName ? profileByUid : null) ||
+            profileByEmail ||
+            profileByUid;
+
           if (profile) {
-            const nameParts = (profile.fullName || user.displayName || '').split(' ');
+            const nameParts = (profile.fullName || user.displayName || '')
+              .split(' ')
+              .filter(Boolean);
             const resolvedFirst = profile.firstName || nameParts[0] || '';
-            const resolvedFather = profile.fatherName || nameParts[1] || '';
-            const resolvedGrand = profile.grandfatherName || nameParts[2] || '';
+            const resolvedFather =
+              profile.fatherName || (nameParts.length > 2 ? nameParts[1] : '') || '';
+            const resolvedGrand =
+              profile.grandfatherName ||
+              (nameParts.length > 3 ? nameParts[2] : '') ||
+              '';
             const resolvedFamily =
-              profile.familyName || nameParts.slice(3).join(' ') || '';
+              profile.familyName ||
+              (nameParts.length > 3
+                ? nameParts.slice(3).join(' ')
+                : nameParts.length > 1
+                ? nameParts.slice(1).join(' ')
+                : '');
 
             if (profile.avatarUrl) {
               setUserAvatarUrl(profile.avatarUrl);
@@ -279,6 +369,15 @@ export function App() {
               setUserDefaultCountry(profile.defaultCountry);
             }
 
+            const resolvedCountry = profile.originCountry || 'السعودية';
+            const resolvedRegion = profile.originRegion || '';
+            const resolvedTribe = profile.tribeName || '';
+            const resolvedBranch = profile.familyBranch || '';
+            const resolvedAccountType =
+              profile.accountType === 'record_keeper'
+                ? AccountLegalType.RecordKeeper
+                : AccountLegalType.Individual;
+
             setForm((prev) => ({
               ...prev,
               email: profile.email || user.email || prev.email,
@@ -286,15 +385,37 @@ export function App() {
               fatherName: resolvedFather || prev.fatherName,
               grandfatherName: resolvedGrand || prev.grandfatherName,
               familyName: resolvedFamily || prev.familyName,
-              tribeName: profile.tribeName || prev.tribeName,
-              branchName: profile.familyBranch || prev.branchName,
-              originCountry: profile.originCountry || prev.originCountry,
-              originRegion: profile.originRegion || prev.originRegion,
-              accountType:
-                profile.accountType === 'record_keeper'
-                  ? AccountLegalType.RecordKeeper
-                  : AccountLegalType.Individual,
+              tribeName: resolvedTribe || prev.tribeName,
+              branchName: resolvedBranch || prev.branchName,
+              originCountry: resolvedCountry || prev.originCountry,
+              originRegion: resolvedRegion || prev.originRegion,
+              accountType: resolvedAccountType,
             }));
+
+            if (resolvedFamily) {
+              const nextLineage = resolveDeterministicLineage({
+                firstName: resolvedFirst || 'مستخدم',
+                fatherName: resolvedFather,
+                grandfatherName: resolvedGrand,
+                familyName: resolvedFamily,
+                originCountry: resolvedCountry,
+                originRegion: resolvedRegion,
+                tribeName: resolvedTribe,
+                branchName: resolvedBranch,
+              });
+              setLineageResult(nextLineage);
+
+              if (profile.subscriptionTier === 'premium_annual') {
+                setDashboardStateMode(DashboardStateMode.AnnualVip);
+              } else if (
+                profile.subscriptionTier === 'basic_verified' ||
+                profile.isRootUnlocked
+              ) {
+                setDashboardStateMode(DashboardStateMode.State1Paid5Basic);
+              } else {
+                setDashboardStateMode(nextLineage.recommendedInitialState);
+              }
+            }
 
             // If user is authenticated in Firebase and not on /Team, ensure they go directly to CustomerDashboard
             if (!isTeamRouteInWindow()) {
@@ -400,68 +521,104 @@ export function App() {
 
     let effectiveMode = dashboardStateMode;
     let effectiveMatched = lineageResult.matched;
+    let resolvedActiveResult = lineageResult;
 
     if (selectedDisambiguation === 'option_a' && lineageResult.optionAResultOverride) {
-      setLineageResult((prev) => ({
-        ...prev,
-        ...prev.optionAResultOverride,
+      resolvedActiveResult = {
+        ...lineageResult,
+        ...lineageResult.optionAResultOverride,
         requiresBlindDisambiguation: false,
-      }));
+      };
+      setLineageResult(resolvedActiveResult);
       effectiveMode = DashboardStateMode.State2MatchedUnpaid;
       effectiveMatched = true;
       setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
     } else if (selectedDisambiguation === 'option_b' && lineageResult.optionBResultOverride) {
-      setLineageResult((prev) => {
-        const nextBase = {
-          ...prev,
-          ...prev.optionBResultOverride,
-          requiresBlindDisambiguation: false,
-        };
-        return isAlphaMergedIntoAdam
-          ? upgradeAlphaResultToMergedAdam(nextBase)
-          : nextBase;
-      });
+      const nextBase = {
+        ...lineageResult,
+        ...lineageResult.optionBResultOverride,
+        requiresBlindDisambiguation: false,
+      };
+      resolvedActiveResult = isAlphaMergedIntoAdam
+        ? upgradeAlphaResultToMergedAdam(nextBase)
+        : nextBase;
+      setLineageResult(resolvedActiveResult);
       effectiveMode = DashboardStateMode.State2MatchedUnpaid;
       effectiveMatched = true;
       setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
     } else if (selectedDisambiguation === 'not_sure_ticket') {
-      setLineageResult((prev) => ({
-        ...prev,
+      resolvedActiveResult = {
+        ...lineageResult,
         matched: false,
         isAlphaOnlyBeforeMerge: false,
         isAlphaMergedIntoAdam: false,
         requiresBlindDisambiguation: false,
-        adamSpineNodes: prev.adamSpineNodes?.slice(0, 1) || [],
+        adamSpineNodes: lineageResult.adamSpineNodes?.slice(0, 1) || [],
         upperAncestors: [],
         capsules: [],
-      }));
+      };
+      setLineageResult(resolvedActiveResult);
       effectiveMode = DashboardStateMode.State3Unmatched;
       effectiveMatched = false;
       setDashboardStateMode(DashboardStateMode.State3Unmatched);
     }
 
-    let createdTicketNumber = 'AUTO-ADAM';
-    if (!effectiveMatched || selectedDisambiguation === 'not_sure_ticket') {
-      try {
-        const t = await createResearchTicket({
-          userId: safeUid,
-          userFullName: fullName,
-          userEmail: email,
-          targetAncestor: fullName,
-          tribeName: form.tribeName,
-          familyBranch: form.branchName,
-          originCountry:
-            [form.originCountry, form.originRegion].filter(Boolean).join(' - ') ||
-            'غير محدد',
-          additionalNotes:
-            selectedDisambiguation === 'not_sure_ticket'
-              ? lineageResult.disambiguationPathsSummaryForTicket ||
-                'طلب تحرٍّ أرشيفي أولي (P1) مفتوح من آلية حسم الشك الثنائية.'
-              : 'طلب فحص أرشيفي مفتوح تلقائياً من رحلة الاستكشاف عند عدم وجود تطابق فوري.',
-        });
-        createdTicketNumber = t.ticketNumber;
-      } catch (ticketErr) {
-        console.warn('Could not auto-open research ticket:', ticketErr);
+    let createdTicketNumber =
+      resolvedActiveResult.alphaBackgroundTicketCode || 'AUTO-ADAM';
+    try {
+      const syncedTicket = await syncClientLineageTicketToFirebase({
+        userId: safeUid,
+        userFullName: fullName || form.familyName,
+        userEmail: email,
+        userPhone: userPhone,
+        familyName: resolvedActiveResult.familyName || form.familyName,
+        originCountry:
+          resolvedActiveResult.originCountry ||
+          form.originCountry ||
+          selectedPortalCountry,
+        originRegion: resolvedActiveResult.originRegion || form.originRegion,
+        rootBranchName: resolvedActiveResult.rootBranchName || form.branchName,
+        rootTribeName: resolvedActiveResult.rootTribeName || form.tribeName,
+        matched: effectiveMatched,
+        isAlphaOnlyBeforeMerge: resolvedActiveResult.isAlphaOnlyBeforeMerge,
+        isAlphaMergedIntoAdam: resolvedActiveResult.isAlphaMergedIntoAdam,
+        adamNodeId: resolvedActiveResult.adamNodeId,
+        alphaBackgroundTicketCode: resolvedActiveResult.alphaBackgroundTicketCode,
+        verifiedSources: resolvedActiveResult.verified_sources,
+        corroboratingAlphaEvidence:
+          resolvedActiveResult.corroborating_alpha_evidence_for_researcher,
+        siblingBranches: resolvedActiveResult.sibling_branches_in_record,
+        notablesInRecord: resolvedActiveResult.notables_in_record,
+        enrichedLocations: resolvedActiveResult.enrichedLocations,
+        adamSpineNodesCount: resolvedActiveResult.adamSpineNodes?.length || 1,
+        additionalNotes:
+          selectedDisambiguation === 'not_sure_ticket'
+            ? lineageResult.disambiguationPathsSummaryForTicket ||
+              'طلب تحرٍّ أرشيفي أولي (P1) مفتوح من آلية حسم الشك الثنائية.'
+            : undefined,
+      });
+      createdTicketNumber = syncedTicket.ticketNumber;
+    } catch (ticketErr) {
+      console.warn('Could not auto-sync research ticket:', ticketErr);
+      if (!effectiveMatched || selectedDisambiguation === 'not_sure_ticket') {
+        try {
+          const t = await createResearchTicket({
+            userId: safeUid,
+            userFullName: fullName,
+            userEmail: email,
+            targetAncestor: fullName,
+            tribeName: form.tribeName,
+            familyBranch: form.branchName,
+            originCountry:
+              [form.originCountry, form.originRegion].filter(Boolean).join(' - ') ||
+              'غير محدد',
+            additionalNotes:
+              'طلب فحص أرشيفي مفتوح تلقائياً من رحلة الاستكشاف عند عدم وجود تطابق فوري.',
+          });
+          createdTicketNumber = t.ticketNumber;
+        } catch {
+          // Ignore
+        }
       }
     }
 
@@ -495,22 +652,26 @@ export function App() {
           : 0,
       matchStatus: !effectiveMatched
         ? 'open_research_ticket'
-        : lineageResult.isAlphaOnlyBeforeMerge
+        : resolvedActiveResult.isAlphaOnlyBeforeMerge
         ? 'staged_3_nodes'
         : 'auto_adam_full',
       ticketId: createdTicketNumber,
       ticketType: !effectiveMatched
         ? 'طلب عميل P1'
-        : lineageResult.isAlphaOnlyBeforeMerge
+        : resolvedActiveResult.isAlphaOnlyBeforeMerge
         ? 'إثراء شجرة آدم P2'
         : 'آلي مكتمل',
       assignedResearcher: 'فريق التحقيق النَّسبي',
-      slaStatus: !effectiveMatched ? 'جديدة' : 'مكتملة وتمت تغذية شجرة آدم',
+      slaStatus: !effectiveMatched
+        ? 'جديدة'
+        : resolvedActiveResult.isAlphaOnlyBeforeMerge
+        ? 'قيد العمل'
+        : 'مكتملة وتمت تغذية شجرة آدم',
       nodesCountLabel: !effectiveMatched
         ? 'تذكرة بحث مفتوحة'
-        : lineageResult.isAlphaOnlyBeforeMerge
-        ? '3 عُقد (مشاريع ألفا)'
-        : `${lineageResult.adamSpineNodes.length} عقدة (شجرة آدم)`,
+        : resolvedActiveResult.isAlphaOnlyBeforeMerge
+        ? `${resolvedActiveResult.adamSpineNodes.length} عُقد (مشاريع ألفا)`
+        : `${resolvedActiveResult.adamSpineNodes.length} عقدة (شجرة آدم)`,
       createdAt: new Date().toISOString(),
     });
 
@@ -568,24 +729,35 @@ export function App() {
         }
       );
 
-      let ticketNum = 'AUTO-GOOGLE';
-      if (!lineageResult.matched) {
-        try {
-          const t = await createResearchTicket({
-            userId: user.uid,
-            userFullName: fullName,
-            userEmail: user.email || '',
-            targetAncestor: fullName,
-            tribeName: form.tribeName,
-            familyBranch: form.branchName,
-            originCountry: form.originCountry,
-            additionalNotes:
-              'طلب فحص أرشيفي مفتوح تلقائياً عبر تسجيل الدخول السريع بحساب Google.',
-          });
-          ticketNum = t.ticketNumber;
-        } catch (ticketErr) {
-          console.warn('Ticket error:', ticketErr);
-        }
+      let ticketNum = lineageResult.alphaBackgroundTicketCode || 'AUTO-GOOGLE';
+      try {
+        const syncedTicket = await syncClientLineageTicketToFirebase({
+          userId: user.uid,
+          userFullName: fullName,
+          userEmail: user.email || '',
+          userPhone: userPhone,
+          familyName: lineageResult.familyName || form.familyName,
+          originCountry:
+            lineageResult.originCountry || form.originCountry || selectedPortalCountry,
+          originRegion: lineageResult.originRegion || form.originRegion,
+          rootBranchName: lineageResult.rootBranchName || form.branchName,
+          rootTribeName: lineageResult.rootTribeName || form.tribeName,
+          matched: lineageResult.matched,
+          isAlphaOnlyBeforeMerge: lineageResult.isAlphaOnlyBeforeMerge,
+          isAlphaMergedIntoAdam: lineageResult.isAlphaMergedIntoAdam,
+          adamNodeId: lineageResult.adamNodeId,
+          alphaBackgroundTicketCode: lineageResult.alphaBackgroundTicketCode,
+          verifiedSources: lineageResult.verified_sources,
+          corroboratingAlphaEvidence:
+            lineageResult.corroborating_alpha_evidence_for_researcher,
+          siblingBranches: lineageResult.sibling_branches_in_record,
+          notablesInRecord: lineageResult.notables_in_record,
+          enrichedLocations: lineageResult.enrichedLocations,
+          adamSpineNodesCount: lineageResult.adamSpineNodes?.length || 1,
+        });
+        ticketNum = syncedTicket.ticketNumber;
+      } catch (ticketErr) {
+        console.warn('Ticket sync error:', ticketErr);
       }
 
       await upsertCustomerOrderInFirebase({
@@ -604,11 +776,23 @@ export function App() {
         accountStatus: 'free',
         walletBalanceUsd: 0,
         paidRevenueUsd: 0,
-        matchStatus: lineageResult.matched ? 'auto_adam_full' : 'open_research_ticket',
+        matchStatus: !lineageResult.matched
+          ? 'open_research_ticket'
+          : lineageResult.isAlphaOnlyBeforeMerge
+          ? 'staged_3_nodes'
+          : 'auto_adam_full',
         ticketId: ticketNum,
-        ticketType: lineageResult.matched ? 'آلي مكتمل' : 'طلب عميل P1',
+        ticketType: !lineageResult.matched
+          ? 'طلب عميل P1'
+          : lineageResult.isAlphaOnlyBeforeMerge
+          ? 'إثراء شجرة آدم P2'
+          : 'آلي مكتمل',
         assignedResearcher: 'فريق التحقيق النَّسبي',
-        slaStatus: lineageResult.matched ? 'مكتملة وتمت تغذية شجرة آدم' : 'جديدة',
+        slaStatus: !lineageResult.matched
+          ? 'جديدة'
+          : lineageResult.isAlphaOnlyBeforeMerge
+          ? 'قيد العمل'
+          : 'مكتملة وتمت تغذية شجرة آدم',
         nodesCountLabel: lineageResult.matched
           ? `${lineageResult.adamSpineNodes.length} عقدة`
           : 'تذكرة بحث مفتوحة',
@@ -632,30 +816,76 @@ export function App() {
   };
 
   const handleLoginSuccess = async (payload: {
+    uid?: string;
     email: string;
     firstName: string;
     fatherName: string;
     grandfatherName: string;
     familyName: string;
     originCountry: string;
+    originRegion?: string;
     tribeName: string;
     branchName: string;
     accountType: AccountLegalType;
+    subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
+    isRootUnlocked?: boolean;
   }) => {
-    setForm((prev) => ({
-      ...prev,
-      ...payload,
+    if (payload.uid) {
+      setUserId(payload.uid);
+    }
+
+    const updatedForm: RegistrationFormState = {
+      ...form,
+      email: payload.email,
+      firstName: payload.firstName,
+      fatherName: payload.fatherName,
+      grandfatherName: payload.grandfatherName,
+      familyName: payload.familyName,
+      originCountry: payload.originCountry,
+      originRegion: payload.originRegion || '',
+      tribeName: payload.tribeName,
+      branchName: payload.branchName,
+      accountType: payload.accountType,
       agreedToTerms: true,
-    }));
-    const result = resolveDeterministicLineage(payload);
-    setLineageResult(result);
-    setDashboardStateMode(result.recommendedInitialState);
+    };
+    setForm(updatedForm);
+
+    const immediateResult = resolveDeterministicLineage({
+      firstName: payload.firstName,
+      fatherName: payload.fatherName,
+      grandfatherName: payload.grandfatherName,
+      familyName: payload.familyName,
+      originCountry: payload.originCountry,
+      originRegion: payload.originRegion || '',
+      tribeName: payload.tribeName,
+      branchName: payload.branchName,
+    });
+    setLineageResult(immediateResult);
+
+    const targetMode =
+      payload.subscriptionTier === 'premium_annual'
+        ? DashboardStateMode.AnnualVip
+        : payload.subscriptionTier === 'basic_verified' || payload.isRootUnlocked
+        ? DashboardStateMode.State1Paid5Basic
+        : immediateResult.recommendedInitialState;
+
+    setDashboardStateMode(targetMode);
     setHasActiveSession(true);
     setSearchStep(3);
     setLoginModalOpen(false);
     setPreviousPlatformView('dashboard');
     setActiveView('dashboard');
     window.scrollTo({ top: 0, behavior: 'auto' });
+
+    // Also run full engine search in background to enrich if live Port 8090 responds
+    searchJuthoriLineage(updatedForm, {
+      ip_country: silentGeo.ip_country,
+      ip_city: silentGeo.ip_city,
+    })
+      .then((liveRes) => {
+        setLineageResult(liveRes);
+      })
+      .catch(() => {});
   };
 
   const handleLogoutCustomer = () => {
@@ -684,6 +914,9 @@ export function App() {
     addedSiblingBranches = [],
     addedNotables = [],
     addedLocations = [],
+    customUpperTribe,
+    customExtractedNodes,
+    customJunctionNodeName,
   }: {
     familyName: string;
     subRootName: string;
@@ -694,6 +927,14 @@ export function App() {
     addedSiblingBranches?: string[];
     addedNotables?: string[];
     addedLocations?: string[];
+    customUpperTribe?: 'بني لام' | 'تميم' | 'مذحج' | 'عنزة';
+    customExtractedNodes?: {
+      name: string;
+      nodeCode: string;
+      relationType: 'bin' | 'aan';
+      region?: string;
+    }[];
+    customJunctionNodeName?: string;
   }) => {
     if (isAdamEnrichmentOnly) {
       setLineageResult((prev) => {
@@ -705,17 +946,17 @@ export function App() {
         const baseTarget = isSameFamily
           ? prev
           : resolveDeterministicLineage({
-              firstName: form.firstName || 'حسن',
-              fatherName: form.fatherName || 'زهير',
-              grandfatherName: form.grandfatherName || 'حسن',
-              familyName: familyName || 'آل مقيت',
-              originCountry: 'السعودية',
+              firstName: form.firstName || 'عميل',
+              fatherName: form.fatherName || '',
+              grandfatherName: form.grandfatherName || '',
+              familyName: familyName || prev.familyName,
+              originCountry: prev.originCountry || 'السعودية',
               originRegion:
                 familyName.includes('قاسم')
                   ? 'نجران'
                   : familyName.includes('خابور')
                   ? 'نجد'
-                  : 'سراة عبيدة',
+                  : prev.originRegion || '',
               tribeName: motherTribeName || '',
               branchName: subRootName || '',
             });
@@ -797,34 +1038,44 @@ export function App() {
         };
       };
 
-      if (
-        prev.isAlphaOnlyBeforeMerge ||
-        prev.isAlphaMergedIntoAdam ||
-        !prev.matched ||
-        prev.familyName.includes('حليحل') ||
-        prev.familyName.includes('معيط') ||
-        prev.familyName.includes('خابور') ||
-        prev.familyName.includes('هباهب')
-      ) {
+      const isTargetSameAsCurrent =
+        !familyName ||
+        prev.familyName === familyName ||
+        prev.familyName.includes(familyName) ||
+        familyName.includes(prev.familyName);
+
+      if (isTargetSameAsCurrent) {
         return applyExtraEnrichment(
-          upgradeAlphaResultToMergedAdam({
-            ...prev,
-            rootBranchName: subRootName || prev.rootBranchName,
-            rootTribeName: motherTribeName || prev.rootTribeName,
-          })
+          upgradeAlphaResultToMergedAdam(
+            {
+              ...prev,
+              rootBranchName: subRootName || prev.rootBranchName,
+              rootTribeName: motherTribeName || prev.rootTribeName,
+            },
+            {
+              customExtractedNodes,
+              junctionNodeName: customJunctionNodeName,
+            }
+          )
         );
       }
+
       const resolved = resolveDeterministicLineage({
-        firstName: form.firstName || 'كريم',
+        firstName: form.firstName || 'عميل',
         fatherName: form.fatherName || '',
         grandfatherName: form.grandfatherName || '',
-        familyName: familyName || 'الابو معيط',
-        originCountry: 'سوريا',
-        originRegion: 'دير الزور',
-        tribeName: motherTribeName || 'العقيدات',
-        branchName: subRootName || 'خابور',
+        familyName: familyName || prev.familyName,
+        originCountry: prev.originCountry || 'العراق',
+        originRegion: prev.originRegion || '',
+        tribeName: motherTribeName || '',
+        branchName: subRootName || '',
       });
-      return applyExtraEnrichment(upgradeAlphaResultToMergedAdam(resolved));
+      return applyExtraEnrichment(
+        upgradeAlphaResultToMergedAdam(resolved, {
+          customExtractedNodes,
+          junctionNodeName: customJunctionNodeName,
+        })
+      );
     });
   };
 
@@ -1012,12 +1263,18 @@ export function App() {
           stateMode={dashboardStateMode}
           onChangeStateMode={setDashboardStateMode}
           accountType={form.accountType}
-          onUpgradeAccountToRecordKeeper={() =>
+          onUpgradeAccountToRecordKeeper={() => {
             setForm((prev) => ({
               ...prev,
               accountType: AccountLegalType.RecordKeeper,
-            }))
-          }
+            }));
+            const activeUid = userId || auth.currentUser?.uid;
+            if (activeUid) {
+              updateUserProfile(activeUid, {
+                accountType: 'record_keeper',
+              }).catch(() => {});
+            }
+          }}
           onToggleAccountTypeForTest={(nextRole) =>
             setForm((prev) => ({
               ...prev,

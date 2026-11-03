@@ -400,6 +400,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // Canvas Zoom level
   const [zoomPercent, setZoomPercent] = useState(100);
   const [exportedBanner, setExportedBanner] = useState(false);
+  const [agreedToLegalCharter, setAgreedToLegalCharter] = useState(true);
 
   // ============================================================================
   // NATURAL LINEAGE SPINE NODES & DEPTH RESOLUTION
@@ -1955,76 +1956,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       locked: !caps.isVip && !caps.areUpperAncestorsUnlocked,
     },
   ];
-
-  const [agreedToLegalCharter, setAgreedToLegalCharter] = useState(true);
-
-  if (accountType !== AccountLegalType.RecordKeeper) {
-    return (
-      <div className="max-w-2xl mx-auto py-4 sm:py-8 text-right">
-        <div className="rounded-3xl bg-white border-2 border-[#D8755B]/65 p-5 sm:p-8 shadow-xl space-y-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-2.5 h-full bg-[#D8755B]" />
-
-          <div className="flex items-start gap-4 pr-2">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#D8755B]/15 border border-[#D8755B]/35 text-[#D8755B] flex items-center justify-center shrink-0">
-              <FileSignature className="w-6 h-6 sm:w-7 sm:h-7" aria-hidden="true" />
-            </div>
-            <div className="space-y-1.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF3EA] border border-[#D8755B]/35 text-[#8D4925] text-xs font-display font-bold">
-                <span>🏛️ الترقية القانونية المجانية لبناء المشجرة</span>
-              </span>
-              <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321] leading-snug">
-                وثيقة الإقرار والمواثيق القانونية لأمين السجل (رب الأسرة)
-              </h2>
-              <p className="text-xs sm:text-sm text-[#252321]/75 leading-relaxed">
-                حسابك مسجّل حالياً كـ <strong>«حساب فرد»</strong>. للبدء ببناء وتفرع شجرة عائلة{' '}
-                <strong>({result.familyName})</strong> التفاعلية، يرجى الموافقة والتوقيع إلكترونياً على ميثاق أمين السجل لتحويل حسابك فوراً إلى <strong>«أمين السجل»</strong>.
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-4 sm:p-5 text-xs sm:text-sm text-[#252321]/90 space-y-2.5 leading-relaxed mr-2">
-            <div className="font-display font-extrabold text-[#252321] flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#D8755B] shrink-0" />
-              <span>بنود ميثاق أمين السجل المعتمدة في منصة جذوري:</span>
-            </div>
-            <p>
-              1. <strong>صحة البيانات النسبية:</strong> أقرّ بصحة ودقة بيانات الأفراد والآباء والأبناء والفروع الذين أقوم بإضافتهم في مشجرة الأسرة المباشرة على مسؤوليتي الأدبية والقانونية.
-            </p>
-            <p>
-              2. <strong>حماية الخصوصية العائلية:</strong> ألتزم باحترام خصوصية الأحياء وتطبيق خيارات حجب الأسماء أو البيانات الخاصة وفق رغبة الأسرة وأعرافها.
-            </p>
-            <p>
-              3. <strong>التدقيق والتوثيق الأعلى:</strong> تخضع طلبات وصل الفروع العليا بعمود النسب التاريخي لمراجعة واعتماد فريق الباحثين والنسابين في منصة جذوري.
-            </p>
-          </div>
-
-          <label className="flex items-start gap-3 pr-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={agreedToLegalCharter}
-              onChange={(e) => setAgreedToLegalCharter(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-[#B98A78] text-[#D8755B] focus:ring-[#D8755B] cursor-pointer"
-            />
-            <span className="text-xs sm:text-sm font-display font-bold text-[#252321]">
-              أقرّ بأنني قرأت بنود وثيقة الإقرار والمواثيق القانونية وأوافق عليها بصفتي أمين سجل العائلة.
-            </span>
-          </label>
-
-          <div className="pt-1 pr-2">
-            <button
-              type="button"
-              disabled={!agreedToLegalCharter}
-              onClick={onSignCharterAndEnableTree}
-              className="w-full min-h-[46px] py-3.5 px-6 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] disabled:opacity-50 text-white font-display font-extrabold text-sm sm:text-base inline-flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-md"
-            >
-              <CheckCircle2 className="w-5 h-5 shrink-0" aria-hidden="true" />
-              <span>الموافقة والتوقيع الإلكتروني — التحول إلى «أمين السجل» وبدء بناء المشجرة</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 text-right">
