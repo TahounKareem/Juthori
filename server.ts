@@ -8,7 +8,8 @@ import { createServer as createViteServer } from 'vite';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_GERMAN_ENGINE_BASE = 'http://2.28.111.169:8090';
+const DEFAULT_GERMAN_ENGINE_BASE =
+  'https://yes-poems-tennessee-condo.trycloudflare.com';
 
 function resolveGermanEngineBaseUrl(rawUrl?: string): string {
   const trimmed = (rawUrl || '').trim();
@@ -20,7 +21,9 @@ function resolveGermanEngineBaseUrl(rawUrl?: string): string {
   return base || DEFAULT_GERMAN_ENGINE_BASE;
 }
 
-const JUTHORI_ENGINE_BASE_URL = resolveGermanEngineBaseUrl(process.env.JUTHORI_ENGINE_URL);
+const JUTHORI_ENGINE_BASE_URL = resolveGermanEngineBaseUrl(
+  process.env.JUTHORI_ENGINE_URL
+);
 const JUTHORI_ENGINE_URL = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/lineage-search`;
 const JUTHORI_CLOSE_TICKET_URL = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`;
 

@@ -19,7 +19,9 @@ import {
   UpperAncestorNode,
 } from '../types/juthori';
 
-const DIRECT_ENGINE_URL = 'http://2.28.111.169:8090/api/v1/juthori/lineage-search';
+export const GERMAN_ENGINE_BASE_URL =
+  'https://yes-poems-tennessee-condo.trycloudflare.com';
+const DIRECT_ENGINE_URL = `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/lineage-search`;
 const PROXY_ENGINE_URL = '/api/juthori/lineage-search';
 
 export interface FormValidationResult {
@@ -57,9 +59,32 @@ export function normalizeArabicToken(input: string, stripFamilyPrefix = false): 
 }
 
 /**
+ * Unified Arabic search normalizer for Adam Tree local search and filtering:
+ * Strips all forms of ("آل ", "ال ", "ال", "بنو ", "بني ") and unifies
+ * (أ، إ، آ -> ا), (ة -> ه), (ى -> ي) on both search query and node name
+ * so "ال قحيم", "آل قحيم", "قحيم", and "القحيم" all normalize to "قحيم" and match 100%.
+ */
+export function normalizeArabicForSearch(input: string): string {
+  if (!input) return '';
+  return input
+    .trim()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(
+      /(^|[\s\-_،,/()+]+)(الابو|البو|ال بو|ابو|ابي|ابا|بني|بنو|ال)\s+/g,
+      '$1'
+    )
+    .replace(/(^|[\s\-_،,/()+]+)ال(?=\S{2,})/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Flexible Arabic matcher for Adam Tree search:
- * Unifies hamzas, taa-marbuta, alef-maqsura, spaces, and "آل" / "ال" prefixes
- * so that "آل قحيم" = "ال قحيم" = "القحيم" = "قحيم".
+ * Uses normalizeArabicForSearch on both targetText and queryText
+ * so that "آل قحيم" = "ال قحيم" = "القحيم" = "قحيم" match 100%.
  */
 export function matchesFlexibleArabicSearch(targetText: string, queryText: string): boolean {
   const rawTarget = (targetText || '').trim();
@@ -67,27 +92,24 @@ export function matchesFlexibleArabicSearch(targetText: string, queryText: strin
   if (!rawQuery) return true;
   if (!rawTarget) return false;
 
-  const normTarget = normalizeArabic(rawTarget);
-  const normQuery = normalizeArabic(rawQuery);
+  const normTarget = normalizeArabicForSearch(rawTarget);
+  const normQuery = normalizeArabicForSearch(rawQuery);
   if (!normQuery) return true;
 
-  // 1. Direct normalized substring match
+  // 1. Direct normalized match
   if (normTarget.includes(normQuery)) return true;
 
-  // 2. Space-collapsed match (so "ال قحيم" matches "القحيم" and vice-versa)
-  const noSpaceTarget = normTarget.replace(/\s+/g, '');
-  const noSpaceQuery = normQuery.replace(/\s+/g, '');
-  if (noSpaceQuery.length >= 2 && noSpaceTarget.includes(noSpaceQuery)) {
+  // 2. Space/punctuation-collapsed match
+  const compactTarget = normTarget.replace(/[\s\-_]+/g, '');
+  const compactQuery = normQuery.replace(/[\s\-_]+/g, '');
+  if (compactQuery.length >= 2 && compactTarget.includes(compactQuery)) {
     return true;
   }
 
-  // 3. Stripped prefix core match (so "آل قحيم" / "ال قحيم" / "القحيم" / "قحيم" all match each other)
-  const coreTarget = normalizeArabicToken(rawTarget, true).replace(/\s+/g, '');
-  const coreQuery = normalizeArabicToken(rawQuery, true).replace(/\s+/g, '');
-  if (
-    coreQuery.length >= 2 &&
-    (coreTarget.includes(coreQuery) || (coreTarget.length >= 3 && coreQuery.includes(coreTarget)))
-  ) {
+  // 3. Fallback raw normalized match (for queries that intentionally search a prefix word)
+  const rawNormTarget = normalizeArabic(rawTarget).replace(/\s+/g, '');
+  const rawNormQuery = normalizeArabic(rawQuery).replace(/\s+/g, '');
+  if (rawNormQuery.length >= 2 && rawNormTarget.includes(rawNormQuery)) {
     return true;
   }
 
@@ -7672,9 +7694,8 @@ export function parsePort8090UniversalResponse(
 }
 
 /**
- * Connects to POST http://2.28.111.169:8090/api/v1/juthori/lineage-search (via backend proxy)
- * using the Universal Methodology v9.0 payload (`origin_locality`, `optional_tribe`, `optional_subtribe`, `subscription_tier: "annual_vip"`)
- * and parses the multi-source response or seamlessly falls back to the Universal 4-Tier Engine.
+ * Connects directly to POST https://yes-poems-tennessee-condo.trycloudflare.com/api/v1/juthori/lineage-search
+ * (with automatic fallback to server proxy /api/juthori/lineage-search and Universal 4-Tier Engine).
  */
 export async function searchJuthoriLineage(
   form: RegistrationFormState,
@@ -7706,7 +7727,33 @@ export async function searchJuthoriLineage(
     ip_city: geo?.ip_city || 'الرياض',
   };
 
-  // Attempt 1: Server-side proxy to Port 8090
+  // Attempt 1: Direct HTTPS call to German Engine Tunnel (https://yes-poems-tennessee-condo.trycloudflare.com/api/v1/juthori/lineage-search)
+  try {
+    const directController = new AbortController();
+    const directTimer = setTimeout(() => directController.abort(), 6000);
+    const directRes = await fetch(DIRECT_ENGINE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(requestPayload),
+      signal: directController.signal,
+    });
+    clearTimeout(directTimer);
+
+    if (directRes.ok) {
+      const directJson = await directRes.json();
+      const rawPayload = directJson?.data || directJson;
+      if (rawPayload && typeof rawPayload === 'object') {
+        return parsePort8090UniversalResponse(rawPayload, form);
+      }
+    }
+  } catch {
+    // Proceed to Attempt 2 (server-side proxy)
+  }
+
+  // Attempt 2: Server-side proxy to German Engine
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5500);
@@ -7721,7 +7768,6 @@ export async function searchJuthoriLineage(
     if (proxyRes.ok) {
       const json = await proxyRes.json();
       if (json && json.source === 'live_german_engine' && json.data) {
-        // For families with rich local dual-path disambiguation (e.g. آل قاسم or خابور without locality), preserve optionAResultOverride & optionBResultOverride if disambiguation is triggered
         const parsed = parsePort8090UniversalResponse(json.data, form);
         return parsed;
       }
@@ -7828,6 +7874,7 @@ export interface AdamTreeInteractiveNode {
   representation: NodeRepresentation;
   relation_nature: 'DIRECT' | 'DIRECT_DESCENDANT';
   parent_id: string | null;
+  parent_name?: string;
   geo_footprint: string[];
   enriched_sources: string[];
   enriched_branches: string[];
@@ -7838,6 +7885,7 @@ export const VALID_STRUCTURAL_ARC_CODES = new Set<string>([
   'MT',
   'MF',
   'M',
+  'MM',
   'B0',
   'B1',
   'B2',
@@ -7852,8 +7900,7 @@ export const VALID_STRUCTURAL_ARC_CODES = new Set<string>([
 ]);
 
 /**
- * Generates a canonical normalized key for deduplicating shared patriarchs, stocks, and tribes
- * across local chains and live German server responses (preventing duplicates like قضاعة or حمير بن سبأ).
+ * Generates a canonical normalized key for deduplicating shared patriarchs, stocks, and tribes.
  */
 export function getCanonicalAdamNodeDedupKey(rawName: string): string {
   const cleaned = (rawName || '')
@@ -7873,7 +7920,7 @@ export function getCanonicalAdamNodeDedupKey(rawName: string): string {
   if (norm === 'ابراهيم' || norm.startsWith('ابراهيم الخليل')) return 'ابراهيم';
   if (norm === 'اسماعيل' || norm.startsWith('اسماعيل الذبيح')) return 'اسماعيل';
   if (norm === 'سبا' || norm.startsWith('سبا ')) return 'سبا';
-  if (norm === 'حمير' || norm.startsWith('حمير بن سبا')) return 'حمير بن سبا';
+  if (norm === 'حمير' || norm.startsWith('حمير بن سبا')) return 'حمير';
   if (norm === 'قضاعه' || norm === 'قضاعة') return 'قضاعه';
   if (norm === 'اياد وانمار' || norm.startsWith('اياد وانمار')) return 'اياد وانمار';
   if (norm === 'طيء' || norm === 'طي' || norm.startsWith('طيء ')) return 'طيء';
@@ -7886,135 +7933,9 @@ export function getCanonicalAdamNodeDedupKey(rawName: string): string {
   return norm;
 }
 
-// 1. Prophets & Upper Patriarchs (الأنبياء والآباء الأعلى من آدم إلى عابر وإسماعيل): بدون شارة كود عشوائي
-const UPPER_PATRIARCH_DEDUP_KEYS = new Set<string>([
-  'ادم',
-  'شيث',
-  'انوش',
-  'قينان',
-  'مهللئيل',
-  'يارد',
-  'ادريس',
-  'متوشالح',
-  'لامك',
-  'نوح',
-  'سام',
-  'ارفكشاد',
-  'شالح',
-  'فالغ',
-  'رعو',
-  'سروج',
-  'ناحور',
-  'تارح',
-  'ابراهيم',
-  'اسماعيل',
-  'قيدار',
-  'حمل',
-  'عوام',
-  'قموال',
-  'بوز',
-  'عوص',
-  'سلامان',
-  'هميسع',
-  'الهميسع',
-  'نبت',
-  'تيم',
-  'عابر',
-  'يعرب',
-  'يشجب',
-  'ادد',
-  'جلد',
-  'حرب بن عله',
-  'يزيد بن حرب',
-]);
-
-// 2. Major Historical Stocks & Peoples (الجذوم والشعوب الكبرى -> M / MF + TRIBE)
-const MAJOR_STOCK_M_DEDUP_KEYS = new Set<string>([
-  normalizeArabic('قحطان'),
-  normalizeArabic('عدنان'),
-  normalizeArabic('كهلان'),
-  normalizeArabic('سبأ'),
-  normalizeArabic('حمير'),
-  normalizeArabic('حمير بن سبأ'),
-  normalizeArabic('معد'),
-  normalizeArabic('نزار'),
-  normalizeArabic('مضر'),
-  normalizeArabic('ربيعة'),
-  normalizeArabic('إياد'),
-  normalizeArabic('أنمار'),
-  normalizeArabic('إياد وأنمار'),
-  normalizeArabic('إياد وأنمار بن نزار'),
-  normalizeArabic('قضاعة'),
-  normalizeArabic('علة'),
-  normalizeArabic('خندف'),
-  normalizeArabic('قيس عيلان'),
-  normalizeArabic('إلياس'),
-  normalizeArabic('مدركة'),
-  normalizeArabic('خزيمة'),
-  normalizeArabic('أسد'),
-]);
-
-const MAJOR_CONFEDERATION_MF_DEDUP_KEYS = new Set<string>([
-  normalizeArabic('حاشد'),
-  normalizeArabic('بكيل'),
-  normalizeArabic('قبائل جنب'),
-  normalizeArabic('جنب'),
-  normalizeArabic('تنوخ'),
-  normalizeArabic('عامر'),
-]);
-
-// 3. Overarching Mother Tribes (القبائل الأم الجامعة -> MT / B0 + TRIBE)
-const MOTHER_TRIBE_MT_DEDUP_KEYS = new Set<string>([
-  normalizeArabic('طيء'),
-  normalizeArabic('همدان'),
-  normalizeArabic('مذحج'),
-  normalizeArabic('الأزد'),
-  normalizeArabic('كندة'),
-  normalizeArabic('يام'),
-  normalizeArabic('عنزة'),
-  normalizeArabic('تميم'),
-  normalizeArabic('هوازن'),
-  normalizeArabic('غطفان'),
-  normalizeArabic('بكر'),
-  normalizeArabic('بكر بن وائل'),
-  normalizeArabic('تغلب'),
-  normalizeArabic('تغلب بن وائل'),
-  normalizeArabic('قريش'),
-  normalizeArabic('كنانة'),
-  normalizeArabic('هذيل'),
-  normalizeArabic('شمر'),
-  normalizeArabic('قبيلة شمر الطائية'),
-  normalizeArabic('عتيبة'),
-  normalizeArabic('مطير'),
-  normalizeArabic('جهينة'),
-  normalizeArabic('بلي'),
-  normalizeArabic('كلب'),
-  normalizeArabic('مهرة'),
-  normalizeArabic('نهد'),
-  normalizeArabic('خثعم'),
-  normalizeArabic('بجيلة'),
-  normalizeArabic('ثقيف'),
-]);
-
-const BRANCH_MOTHER_TRIBE_B0_DEDUP_KEYS = new Set<string>([
-  normalizeArabic('بني لام'),
-  normalizeArabic('بني بشر'),
-  normalizeArabic('الدواسر'),
-  normalizeArabic('قبيلة الدواسر'),
-  normalizeArabic('الأشراف الحسنيون'),
-  normalizeArabic('قبيلة الجعليين'),
-  normalizeArabic('الجعليين'),
-  normalizeArabic('العباسيين'),
-  normalizeArabic('العباس بن عبد المطلب'),
-  normalizeArabic('جعفر الطيار بن أبي طالب'),
-  normalizeArabic('عبده'),
-  normalizeArabic('المودحي'),
-  normalizeArabic('منبه'),
-]);
-
 /**
  * Checks whether an Arc Code and Representation contradict each other
- * (e.g., `MT` or `M` or `B0` paired with `INDIVIDUAL - فرد`).
+ * in the Node Coding Editor.
  */
 export function checkArcCodeRepresentationConflict(
   arcCodeRaw: string,
@@ -8025,7 +7946,7 @@ export function checkArcCodeRepresentationConflict(
   if (code === 'FE0' && representation !== 'FAMILY') {
     return {
       hasConflict: true,
-      message: 'الكود (FE0) مخصص للأسر والعائلات المعاصرة، لذا يجب أن يكون التصنيف (FAMILY — أسرة).',
+      message: 'الكود (FE0) مخصص للأسر والعائلات المعاصرة، لذا يفضل أن يكون التصنيف (FAMILY — عائلة).',
       suggestedRepresentation: 'FAMILY',
     };
   }
@@ -8034,28 +7955,14 @@ export function checkArcCodeRepresentationConflict(
     return {
       hasConflict: true,
       message: 'الكود (MF) مخصص للأحلاف والتكتلات القبلية الكبرى، ولا يجوز تصنيفه كـ (INDIVIDUAL — فرد).',
-      suggestedRepresentation: 'ALLIANCE',
+      suggestedRepresentation: 'TRIBE',
     };
   }
 
-  if (
-    (code === 'MT' ||
-      code === 'M' ||
-      code === 'B0' ||
-      code === 'B1' ||
-      code === 'B2' ||
-      code === 'B3' ||
-      code === 'B4' ||
-      code === 'B5' ||
-      code === 'B6' ||
-      code === 'B7' ||
-      code === 'B8' ||
-      code === 'B9') &&
-    representation === 'INDIVIDUAL'
-  ) {
+  if ((code === 'MT' || code === 'M') && representation === 'INDIVIDUAL') {
     return {
       hasConflict: true,
-      message: `الكود (${code}) يمثل كياناً قبلياً أو جذماً جامعاً أو بطناً متفرعاً، ولا يجوز أن يكون تصنيفه (INDIVIDUAL — فرد)!`,
+      message: `الكود (${code}) يمثل جذماً تاريخياً أو قبيلة أم جامعة، ولا يجوز أن يكون تصنيفه (INDIVIDUAL — فرد)!`,
       suggestedRepresentation: 'TRIBE',
     };
   }
@@ -8067,705 +7974,1182 @@ export function checkArcCodeRepresentationConflict(
   };
 }
 
-const CANONICAL_NUMERIC_ADAM_IDS_BY_DEDUP: Record<string, string> = {
-  [normalizeArabic('آدم')]: '1',
-  [normalizeArabic('شيث')]: '2',
-  [normalizeArabic('أنوش')]: '3',
-  [normalizeArabic('قينان')]: '4',
-  [normalizeArabic('مهلائيل')]: '5',
-  [normalizeArabic('يرد')]: '6',
-  [normalizeArabic('إدريس')]: '7',
-  [normalizeArabic('متوشلخ')]: '8',
-  [normalizeArabic('لامك')]: '9',
-  [normalizeArabic('نوح')]: '10',
-  [normalizeArabic('سام')]: '11',
-  [normalizeArabic('أرفخشذ')]: '12',
-  [normalizeArabic('شالخ')]: '13',
-  [normalizeArabic('عابر')]: '14',
-  [normalizeArabic('فالغ')]: '15',
-  [normalizeArabic('أرغو')]: '16',
-  [normalizeArabic('ساروغ')]: '17',
-  [normalizeArabic('ناحور')]: '18',
-  [normalizeArabic('تارح')]: '19',
-  [normalizeArabic('إبراهيم')]: '20',
-  [normalizeArabic('إسماعيل')]: '21',
-  [normalizeArabic('قيدار')]: '22',
-  [normalizeArabic('عدنان')]: '30',
-  [normalizeArabic('معد')]: '31',
-  [normalizeArabic('نزار')]: '32',
-  [normalizeArabic('مضر')]: '33',
-  [normalizeArabic('ربيعة')]: '34',
-  [normalizeArabic('إياد وأنمار بن نزار')]: '35',
-  [normalizeArabic('إلياس')]: '36',
-  [normalizeArabic('مدركة')]: '37',
-  [normalizeArabic('خزيمة')]: '38',
-  [normalizeArabic('كنانة')]: '39',
-  [normalizeArabic('النضر')]: '40',
-  [normalizeArabic('قريش')]: '40',
-  [normalizeArabic('فهر')]: '41',
-  [normalizeArabic('قصي')]: '44',
-  [normalizeArabic('عبد مناف')]: '45',
-  [normalizeArabic('هاشم')]: '46',
-  [normalizeArabic('عبد المطلب')]: '47',
-  [normalizeArabic('علي بن أبي طالب')]: '49',
-  [normalizeArabic('قحطان')]: '25',
-  [normalizeArabic('يعرب')]: '26',
-  [normalizeArabic('يشجب')]: '27',
-  [normalizeArabic('سبأ')]: '28',
-  [normalizeArabic('كهلان')]: '29',
-  [normalizeArabic('حمير بن سبأ')]: '50',
-  [normalizeArabic('قضاعة')]: '51',
-  [normalizeArabic('زيد')]: '52',
-  [normalizeArabic('مالك')]: '53',
-  [normalizeArabic('نبت')]: '54',
-  [normalizeArabic('الغوث')]: '55',
-  [normalizeArabic('الأزد')]: '56',
-  [normalizeArabic('عريب')]: '57',
-  [normalizeArabic('عمرو')]: '58',
-  [normalizeArabic('همدان')]: '59',
-  [normalizeArabic('أدد')]: '60',
-  [normalizeArabic('مذحج')]: '61',
-  [normalizeArabic('طيء')]: '62',
-  [normalizeArabic('كندة')]: '63',
-  [normalizeArabic('جلهمة')]: '64',
-  [normalizeArabic('حرب')]: '65',
-  [normalizeArabic('بني بشر')]: '10240',
-  [normalizeArabic('الجبرة')]: '10241',
-  [normalizeArabic('آل برمان')]: '10242',
-  [normalizeArabic('آل مقيت')]: '272887',
-  [normalizeArabic('آل قحيم')]: '272895',
-  [normalizeArabic('بني لام')]: '8911',
-  [normalizeArabic('آل نصيري')]: '8914',
-  [normalizeArabic('البلاسم')]: '8915',
-  [normalizeArabic('بيت جنديل')]: '8916',
-  [normalizeArabic('تميم بن مر')]: '4010',
-  [normalizeArabic('تميم')]: '4010',
-  [normalizeArabic('هذيل')]: '4020',
-  [normalizeArabic('هوازن')]: '4030',
-  [normalizeArabic('غطفان')]: '4040',
-  [normalizeArabic('بكر بن وائل')]: '4050',
-  [normalizeArabic('تغلب بن وائل')]: '4060',
-  [normalizeArabic('وائل')]: '4049',
-  [normalizeArabic('عنزة')]: '4070',
-  [normalizeArabic('يام')]: '10510',
-};
+/**
+ * MASTER_ADAM_NODES_MAP:
+ * Single-Source-of-Truth dictionary of canonical Adam Tree nodes indexed uniquely by numeric node_id.
+ * Connected top-down:
+ *   Adam (#1) -> Seth (#2) -> ... -> Noah (#10) -> Shem (#11) -> Arphaxad (#12) -> Salah (#13) -> Eber (#14)
+ *   ├─ 1. Qahtan (#300 - M) -> Ya'rub (#301) -> Saba (#302 - MF)
+ *   │     ├─ Himyar (#304 - MT) -> Malik (#354) -> Quda'ah (#355 - MM)
+ *   │     └─ Kahlan (#306 - MT) -> Tayyi (#62) -> Bani Lam (#8911), Hamdan (#59) -> Hashid & Bakil & Yam -> Al Qasim,
+ *   │                              Madhhij (#61), Al-Azd (#56), Kindah (#63),
+ *   │                              Banu Ranyah (#216500) -> Al Quhaym (#216567 - B2) & Salim (#216700) -> Al Quhaym (#216725 - B3)
+ *   └─ 2. Adnan (#12600 - M via Ishmael #21) -> Ma'add (#12610) -> Nizar (#12620 - MF)
+ *         ├─ Mudar (#12662 - MT) -> Quraysh (#40), Kinanah (#39), Tamim (#4010), Qays Aylan (#4025), Hawazin (#4030)
+ *         ├─ Rabi'ah (#12660 - MT) -> Anazzah (#4070) -> Al-Dahamishah (#521900) -> Al Quhaym (#521957 - FE0), Bakr (#4050), Taghlib (#4060)
+ *         ├─ Iyad (#12661 - MT)
+ *         └─ Anmar (#12659 - MT)
+ */
+const MASTER_ADAM_NODES_LIST: AdamTreeInteractiveNode[] = [
+  // =========================================================================
+  // 1. UPPER PATRIARCHS: ADAM (#1) TO EBER (#14)
+  // =========================================================================
+  {
+    node_id: '1',
+    name: 'آدم عليه السلام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: null,
+    parent_name: 'الجذر الأعلى للخليقة',
+    geo_footprint: ['مكة المكرمة', 'الأرض المباركة'],
+    enriched_sources: ['البداية والنهاية لابن كثير (ج1 ص70)', 'تاريخ الطبري (ج1 ص120)'],
+    enriched_branches: ['شيث عليه السلام'],
+    era_note: 'أبو البشر آدم عليه السلام (#1).',
+  },
+  {
+    node_id: '2',
+    name: 'شيث عليه السلام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '1',
+    parent_name: 'آدم عليه السلام',
+    geo_footprint: ['مكة المكرمة'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص152)'],
+    enriched_branches: ['أنوش'],
+    era_note: 'نبي الله شيث بن آدم عليهما السلام (#2).',
+  },
+  {
+    node_id: '3',
+    name: 'أنوش',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '2',
+    parent_name: 'شيث عليه السلام',
+    geo_footprint: ['الجزيرة العربية'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص164)'],
+    enriched_branches: ['قينان'],
+  },
+  {
+    node_id: '4',
+    name: 'قينان',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '3',
+    parent_name: 'أنوش',
+    geo_footprint: ['الجزيرة العربية'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص165)'],
+    enriched_branches: ['مهلائيل'],
+  },
+  {
+    node_id: '5',
+    name: 'مهلائيل',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '4',
+    parent_name: 'قينان',
+    geo_footprint: ['بلاد الرافدين والجزيرة'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص166)'],
+    enriched_branches: ['يرد'],
+  },
+  {
+    node_id: '6',
+    name: 'يرد',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '5',
+    parent_name: 'مهلائيل',
+    geo_footprint: ['بلاد الرافدين والجزيرة'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص168)'],
+    enriched_branches: ['إدريس (أخنوخ) عليه السلام'],
+  },
+  {
+    node_id: '7',
+    name: 'إدريس (أخنوخ) عليه السلام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '6',
+    parent_name: 'يرد',
+    geo_footprint: ['بابل', 'مصر'],
+    enriched_sources: ['البداية والنهاية لابن كثير (ج1 ص99)'],
+    enriched_branches: ['متوشلخ'],
+  },
+  {
+    node_id: '8',
+    name: 'متوشلخ',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '7',
+    parent_name: 'إدريس (أخنوخ) عليه السلام',
+    geo_footprint: ['بلاد الرافدين'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص174)'],
+    enriched_branches: ['لامك'],
+  },
+  {
+    node_id: '9',
+    name: 'لامك',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '8',
+    parent_name: 'متوشلخ',
+    geo_footprint: ['بلاد الرافدين'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص176)'],
+    enriched_branches: ['نوح عليه السلام'],
+  },
+  {
+    node_id: '10',
+    name: 'نوح عليه السلام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '9',
+    parent_name: 'لامك',
+    geo_footprint: ['بلاد الرافدين', 'الجودي'],
+    enriched_sources: ['البداية والنهاية لابن كثير (ج1 ص112)'],
+    enriched_branches: ['سام'],
+    era_note: 'شيخ المرسلين والأب الثاني للبشرية نوح عليه السلام (#10).',
+  },
+  {
+    node_id: '11',
+    name: 'سام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '10',
+    parent_name: 'نوح عليه السلام',
+    geo_footprint: ['الجزيرة العربية', 'بلاد الرافدين', 'الشام'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص6)'],
+    enriched_branches: ['أرفكشاد'],
+    era_note: 'أبو الشعوب السامية والعرب (#11).',
+  },
+  {
+    node_id: '12',
+    name: 'أرفكشاد',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '11',
+    parent_name: 'سام',
+    geo_footprint: ['بلاد الرافدين والجزيرة'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص214)'],
+    enriched_branches: ['شالح'],
+  },
+  {
+    node_id: '13',
+    name: 'شالح',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '12',
+    parent_name: 'أرفكشاد',
+    geo_footprint: ['بلاد الرافدين والجزيرة'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص215)'],
+    enriched_branches: ['عابر'],
+  },
+  {
+    node_id: '14',
+    name: 'عابر',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '13',
+    parent_name: 'شالح',
+    geo_footprint: ['الجزيرة العربية'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص34)', 'البداية والنهاية (ج1 ص140)'],
+    enriched_branches: ['قحطان', 'فالغ'],
+    era_note: 'عابر بن شالح — ملتقى فرعي العرب القحطانيين والعدنانيين (#14).',
+  },
 
-export function toCanonicalNumericAdamNodeId(
-  rawId: string,
-  nodeName: string
-): string {
-  const dedupKey = getCanonicalAdamNodeDedupKey(nodeName);
-  if (CANONICAL_NUMERIC_ADAM_IDS_BY_DEDUP[dedupKey]) {
-    return CANONICAL_NUMERIC_ADAM_IDS_BY_DEDUP[dedupKey];
-  }
-  const trimmed = (rawId || '').trim();
-  if (/^\d+$/.test(trimmed)) {
-    return trimmed;
-  }
-  // Convert legacy synthetic IDs (adam-muqit-26, dhawoo-muqit-20, 249230-02, ADAM_..., MT_...) into deterministic numeric IDs
-  const seed = `${dedupKey}__${trimmed}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) % 390000;
-  }
-  return String(100000 + Math.abs(hash));
-}
+  // =========================================================================
+  // 2. BRANCH 1 FROM EBER (#14): QAHTAN (#300) -> YA'RUB (#301) -> SABA (#302)
+  // =========================================================================
+  {
+    node_id: '300',
+    name: 'قحطان',
+    arc_code: 'M',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '14',
+    parent_name: 'عابر',
+    geo_footprint: ['اليمن', 'سراة قحطان', 'الجزيرة العربية'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص37)', 'جمهرة أنساب العرب — ابن حزم (ج1 ص328)'],
+    enriched_branches: ['يعرب', 'سبأ', 'كهلان', 'حمير'],
+    era_note: 'الجذم العربي التاريخي الأكبر للعرب العاربة القحطانية (#300).',
+  },
+  {
+    node_id: '301',
+    name: 'يعرب',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '300',
+    parent_name: 'قحطان',
+    geo_footprint: ['اليمن', 'الجزيرة العربية'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص39)'],
+    enriched_branches: ['سبأ'],
+    era_note: 'يعرب بن قحطان (#301).',
+  },
+  {
+    node_id: '302',
+    name: 'سبأ',
+    arc_code: 'MF',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '301',
+    parent_name: 'يعرب',
+    geo_footprint: ['مأرب', 'اليمن', 'الجزيرة العربية'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص45)', 'سبائك الذهب — السويدي (ج1 ص18)'],
+    enriched_branches: ['حمير', 'كهلان'],
+    era_note: 'سبأ بن يشجب بن يعرب بن قحطان — الجذم الجامع لحمير وكهلان (#302).',
+  },
+
+  // =========================================================================
+  // 2.A. MT ROOT 1: HIMYAR (#304 - MT) -> MALIK (#354) -> QUDA'AH (#355 - MM)
+  // =========================================================================
+  {
+    node_id: '304',
+    name: 'حمير',
+    arc_code: 'MT',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '302',
+    parent_name: 'سبأ',
+    geo_footprint: ['اليمن', 'ظفار', 'الشام', 'الجزيرة العربية'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص112)', 'جمهرة أنساب العرب — ابن حزم (ج1 ص432)'],
+    enriched_branches: ['مالك بن حمير', 'قضاعة', 'ذو رعين', 'ذو يزن', 'كلاع', 'يافع'],
+    era_note: 'القبيلة الأم الجامعة لحمير بن سبأ (#304 - MT).',
+  },
+  {
+    node_id: '354',
+    name: 'مالك بن حمير',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '304',
+    parent_name: 'حمير',
+    geo_footprint: ['اليمن', 'الحجاز'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص128)'],
+    enriched_branches: ['قضاعة'],
+  },
+  {
+    node_id: '355',
+    name: 'قضاعة',
+    arc_code: 'MM',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '354',
+    parent_name: 'مالك بن حمير',
+    geo_footprint: ['الحجاز', 'الشام', 'شمال الجزيرة', 'مصر'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص440)', 'سبائك الذهب — السويدي (ج1 ص28)'],
+    enriched_branches: ['جهينة', 'بلي', 'كلب', 'مهرة', 'نهد'],
+    era_note: 'قضاعة بن مالك بن حمير (#355 - MM).',
+  },
+  {
+    node_id: '356',
+    name: 'جهينة',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '355',
+    parent_name: 'قضاعة',
+    geo_footprint: ['ينبع', 'الحجاز', 'المدينة المنورة', 'مصر'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص444)'],
+    enriched_branches: ['بني مالك', 'بني موسى'],
+  },
+  {
+    node_id: '357',
+    name: 'بلي',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '355',
+    parent_name: 'قضاعة',
+    geo_footprint: ['العلا', 'الوجه', 'شمال الحجاز', 'الأردن', 'مصر'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص442)'],
+    enriched_branches: ['مخلد', 'خزام'],
+  },
+
+  // =========================================================================
+  // 2.B. MT ROOT 2: KAHLAN (#306 - MT) & ALL ITS CANONICAL BRANCHES
+  // =========================================================================
+  {
+    node_id: '306',
+    name: 'كهلان',
+    arc_code: 'MT',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '302',
+    parent_name: 'سبأ',
+    geo_footprint: ['اليمن', 'سراة قحطان', 'نجد', 'العراق', 'الشام'],
+    enriched_sources: ['الإكليل للهمداني (ج2 ص4)', 'جمهرة أنساب العرب — ابن حزم (ج1 ص329)'],
+    enriched_branches: ['طيء', 'همدان', 'مذحج', 'الأزد', 'كندة', 'بنو رنيه'],
+    era_note: 'القبيلة الأم الجامعة لكهلان بن سبأ (#306 - MT).',
+  },
+
+  // --- Banu Ranyah (#216500) -> Al Quhaym (#216567 - B2) & Salim (#216700) -> Al Quhaym (#216725 - B3) ---
+  {
+    node_id: '216500',
+    name: 'بنو رنيه',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '306',
+    parent_name: 'كهلان',
+    geo_footprint: ['السعودية - رنية وبيشة', 'عسير'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية — حمد الجاسر'],
+    enriched_branches: ['آل قحيم', 'سالم'],
+    era_note: 'بنو رنيه (#216500) في كهلان القحطانية.',
+  },
+  {
+    node_id: '216567',
+    name: 'آل قحيم',
+    arc_code: 'B2',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '216500',
+    parent_name: 'بنو رنيه',
+    geo_footprint: ['السعودية - رنية وبيشة'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية'],
+    enriched_branches: ['عبدالله', 'آل محمد', 'آل سعيد'],
+    era_note: 'فخذ آل قحيم (#216567 - B2) من بنو رنيه.',
+  },
+  {
+    node_id: '216700',
+    name: 'سالم',
+    arc_code: 'B2',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '216500',
+    parent_name: 'بنو رنيه',
+    geo_footprint: ['الجزيرة العربية'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية'],
+    enriched_branches: ['آل قحيم'],
+  },
+  {
+    node_id: '216725',
+    name: 'آل قحيم',
+    arc_code: 'B3',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '216700',
+    parent_name: 'سالم',
+    geo_footprint: ['الجزيرة العربية'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية'],
+    enriched_branches: [],
+    era_note: 'عشيرة آل قحيم (#216725 - B3) من سالم.',
+  },
+  {
+    node_id: '425600',
+    name: 'عبدالله',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '216567',
+    parent_name: 'آل قحيم',
+    geo_footprint: ['السعودية'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية'],
+    enriched_branches: ['القحيمي'],
+  },
+  {
+    node_id: '425637',
+    name: 'القحيمي',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '425600',
+    parent_name: 'عبدالله',
+    geo_footprint: ['السعودية'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية'],
+    enriched_branches: [],
+  },
+
+  // --- Tayyi (#62) -> Bani Lam (#8911) -> Al Nusairi (#8914) -> Al Balasim (#8915) -> Bayt Jandil (#8916) ---
+  {
+    node_id: '62',
+    name: 'طيء',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '306',
+    parent_name: 'كهلان',
+    geo_footprint: ['نجد', 'حائل', 'العراق', 'الشام'],
+    enriched_sources: [
+      'جمهرة أنساب العرب — ابن حزم الأندلسي (ج1 ص398)',
+      'سبائك الذهب في معرفة قبائل العرب — السويدي (ج1 ص68)',
+    ],
+    enriched_branches: ['بني لام', 'قبيلة شمر', 'زوبع', 'الأسلم', 'سنجارة'],
+    era_note: 'قبيلة طيء (جلهمة بن أدد) الكهلانية القحطانية.',
+  },
+  {
+    node_id: '8909',
+    name: 'مالك بن جدعاء الطائي',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '62',
+    parent_name: 'طيء',
+    geo_footprint: ['جبلا طيء', 'حائل', 'نجد'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص399)'],
+    enriched_branches: ['طريف بن عمرو بن ثمامة الطائي'],
+  },
+  {
+    node_id: '8913',
+    name: 'طريف بن عمرو بن ثمامة الطائي',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '8909',
+    parent_name: 'مالك بن جدعاء الطائي',
+    geo_footprint: ['جبلا طيء', 'حائل', 'الجزيرة العربية'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص399)'],
+    enriched_branches: ['عمرو بن طريف الطائي'],
+  },
+  {
+    node_id: '8912',
+    name: 'عمرو بن طريف الطائي',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '8913',
+    parent_name: 'طريف بن عمرو بن ثمامة الطائي',
+    geo_footprint: ['جبلا طيء', 'نجد', 'العراق'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص399)'],
+    enriched_branches: ['بني لام'],
+  },
+  {
+    node_id: '8911',
+    name: 'بني لام',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '8912',
+    parent_name: 'عمرو بن طريف الطائي',
+    geo_footprint: ['العراق', 'العمارة', 'ميسان', 'واسط', 'نجد'],
+    enriched_sources: [
+      'الدرر المفاخر في أخبار العرب الأواخر — البسام (ج1 ص95)',
+      'عشائر العراق — عباس العزاوي (ج4 ص219)',
+      'سبائك الذهب — السويدي (ج1 ص68)',
+    ],
+    enriched_branches: ['آل نصيري', 'البلاسم', 'بيت جنديل', 'آل مغامس', 'آل فضل', 'الظفير'],
+    era_note: 'قبيلة بني لام بن عمرو بن طريف الطائية القحطانية (#8911).',
+  },
+  {
+    node_id: '8914',
+    name: 'آل نصيري',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '8911',
+    parent_name: 'بني لام',
+    geo_footprint: ['العمارة', 'ميسان', 'حوض دجلة', 'العراق'],
+    enriched_sources: [
+      'موسوعة العشائر العراقية — العامري (ج3 ص184)',
+      'عشائر العراق — عباس العزاوي (ج4 ص219)',
+    ],
+    enriched_branches: ['البلاسم', 'بيت جنديل', 'الرويشد'],
+  },
+  {
+    node_id: '8915',
+    name: 'البلاسم',
+    arc_code: 'B2',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '8914',
+    parent_name: 'آل نصيري',
+    geo_footprint: ['العمارة', 'ميسان', 'العراق'],
+    enriched_sources: [
+      'موسوعة العشائر العراقية — العامري (ج3 ص184)',
+      'تاريخ العمارة وعشائرها — الندواني (ج1 ص76)',
+    ],
+    enriched_branches: ['بيت جنديل', 'بيت مذكور', 'بيت عبد السيد'],
+  },
+  {
+    node_id: '8916',
+    name: 'بيت جنديل',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '8915',
+    parent_name: 'البلاسم',
+    geo_footprint: ['العمارة', 'ميسان', 'العراق'],
+    enriched_sources: ['موسوعة العشائر العراقية — العامري (ج3 ص185)'],
+    enriched_branches: [],
+  },
+
+  // --- Hamdan (#59) -> Hashid (#591), Bakil (#592), Yam (#10510) -> Al Qasim (#10515), Uthman (#446300) -> Ahmad - Bani Al Quhaym (#446349) ---
+  {
+    node_id: '59',
+    name: 'همدان',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '306',
+    parent_name: 'كهلان',
+    geo_footprint: ['اليمن', 'نجران', 'الجوف'],
+    enriched_sources: ['الإكليل للهمداني (ج10 ص3)'],
+    enriched_branches: ['حاشد', 'بكيل', 'يام', 'عثمان'],
+  },
+  {
+    node_id: '591',
+    name: 'حاشد',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '59',
+    parent_name: 'همدان',
+    geo_footprint: ['اليمن', 'نجران'],
+    enriched_sources: ['الإكليل للهمداني (ج10 ص22)'],
+    enriched_branches: ['يام'],
+  },
+  {
+    node_id: '592',
+    name: 'بكيل',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '59',
+    parent_name: 'همدان',
+    geo_footprint: ['اليمن', 'الجوف'],
+    enriched_sources: ['الإكليل للهمداني (ج10 ص88)'],
+    enriched_branches: ['أرحب', 'نهم', 'مرهبة'],
+  },
+  {
+    node_id: '10510',
+    name: 'يام',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '591',
+    parent_name: 'حاشد',
+    geo_footprint: ['نجران', 'السعودية'],
+    enriched_sources: ['الإكليل للهمداني (ج10 ص64)', 'معجم قبائل المملكة — حمد الجاسر (ج2 ص812)'],
+    enriched_branches: ['آل قاسم', 'مذكر', 'جشم'],
+  },
+  {
+    node_id: '10515',
+    name: 'آل قاسم',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '10510',
+    parent_name: 'يام',
+    geo_footprint: ['نجران', 'السعودية'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج2 ص812)'],
+    enriched_branches: [],
+  },
+  {
+    node_id: '446300',
+    name: 'عثمان',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '59',
+    parent_name: 'همدان',
+    geo_footprint: ['اليمن'],
+    enriched_sources: ['الإكليل للهمداني'],
+    enriched_branches: ['احمد - بني القحيم'],
+  },
+  {
+    node_id: '446349',
+    name: 'احمد - بني القحيم',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '446300',
+    parent_name: 'عثمان',
+    geo_footprint: ['اليمن'],
+    enriched_sources: ['الإكليل للهمداني'],
+    enriched_branches: [],
+  },
+
+  // --- Madhhij (#61), Al-Azd (#56), Kindah (#63) ---
+  {
+    node_id: '61',
+    name: 'مذحج',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '306',
+    parent_name: 'كهلان',
+    geo_footprint: ['سراة عبيدة', 'عسير', 'اليمن', 'العراق'],
+    enriched_sources: ['الإكليل للهمداني (ج2 ص164)'],
+    enriched_branches: ['بني بشر', 'عبيدة', 'شريف', 'سنحان'],
+  },
+  {
+    node_id: '10240',
+    name: 'بني بشر',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '61',
+    parent_name: 'مذحج',
+    geo_footprint: ['سراة عبيدة', 'عسير', 'السعودية'],
+    enriched_sources: ['توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (ج1 ص14)'],
+    enriched_branches: ['الجبرة', 'آل برمان', 'آل مقيت'],
+  },
+  {
+    node_id: '10241',
+    name: 'الجبرة',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '10240',
+    parent_name: 'بني بشر',
+    geo_footprint: ['سراة عبيدة', 'عسير', 'السعودية'],
+    enriched_sources: ['توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (ج1 ص14)'],
+    enriched_branches: ['آل برمان'],
+  },
+  {
+    node_id: '10242',
+    name: 'آل برمان',
+    arc_code: 'B2',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '10241',
+    parent_name: 'الجبرة',
+    geo_footprint: ['سراة عبيدة', 'عسير', 'السعودية'],
+    enriched_sources: ['توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (ج1 ص14)'],
+    enriched_branches: ['آل مقيت'],
+  },
+  {
+    node_id: '272887',
+    name: 'آل مقيت',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '10242',
+    parent_name: 'آل برمان',
+    geo_footprint: ['السعودية — سراة عبيدة'],
+    enriched_sources: ['توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (ج1 ص14)'],
+    enriched_branches: [],
+  },
+  {
+    node_id: '56',
+    name: 'الأزد',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '306',
+    parent_name: 'كهلان',
+    geo_footprint: ['السراة', 'عُمان', 'اليمن', 'الحجاز', 'الخليج العربي'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص330)', 'الإكليل للهمداني (ج2 ص90)'],
+    enriched_branches: ['قبيلة الدواسر', 'غسان', 'الأوس', 'الخزرج', 'غامد', 'زهران'],
+  },
+  {
+    node_id: '5010',
+    name: 'قبيلة الدواسر',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '56',
+    parent_name: 'الأزد',
+    geo_footprint: ['وادي الدواسر', 'القصيم', 'نجد', 'السعودية'],
+    enriched_sources: ['معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج1 ص242)'],
+    enriched_branches: ['البدارين', 'آل زايد', 'تغلب'],
+  },
+  {
+    node_id: '63',
+    name: 'كندة',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '306',
+    parent_name: 'كهلان',
+    geo_footprint: ['حضرموت', 'نجد', 'قرية الفاو', 'اليمن'],
+    enriched_sources: ['الإكليل للهمداني (ج1 ص195)', 'جمهرة أنساب العرب — ابن حزم (ج1 ص425)'],
+    enriched_branches: ['السكون', 'السكاسك', 'الصيعر'],
+  },
+
+  // =========================================================================
+  // 3. BRANCH 2 FROM EBER (#14): ADNAN (#12600) -> MA'ADD (#12610) -> NIZAR (#12620)
+  // =========================================================================
+  {
+    node_id: '15',
+    name: 'فالغ',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '14',
+    parent_name: 'عابر',
+    geo_footprint: ['بلاد الرافدين'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص216)'],
+    enriched_branches: ['أرغو'],
+  },
+  {
+    node_id: '16',
+    name: 'أرغو',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '15',
+    parent_name: 'فالغ',
+    geo_footprint: ['بلاد الرافدين'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص217)'],
+    enriched_branches: ['ساروغ'],
+  },
+  {
+    node_id: '17',
+    name: 'ساروغ',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '16',
+    parent_name: 'أرغو',
+    geo_footprint: ['بلاد الرافدين'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص218)'],
+    enriched_branches: ['ناحور'],
+  },
+  {
+    node_id: '18',
+    name: 'ناحور',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '17',
+    parent_name: 'ساروغ',
+    geo_footprint: ['أور الكلدانيين'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص219)'],
+    enriched_branches: ['تارح'],
+  },
+  {
+    node_id: '19',
+    name: 'تارح',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '18',
+    parent_name: 'ناحور',
+    geo_footprint: ['بابل', 'حران'],
+    enriched_sources: ['تاريخ الطبري (ج1 ص220)'],
+    enriched_branches: ['إبراهيم عليه السلام'],
+  },
+  {
+    node_id: '20',
+    name: 'إبراهيم عليه السلام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '19',
+    parent_name: 'تارح',
+    geo_footprint: ['مكة المكرمة', 'الخليل', 'بابل'],
+    enriched_sources: ['البداية والنهاية لابن كثير (ج1 ص140)'],
+    enriched_branches: ['إسماعيل عليه السلام'],
+    era_note: 'خليل الرحمن إبراهيم عليه السلام (#20).',
+  },
+  {
+    node_id: '21',
+    name: 'إسماعيل عليه السلام',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '20',
+    parent_name: 'إبراهيم عليه السلام',
+    geo_footprint: ['مكة المكرمة', 'الحجاز'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص7)'],
+    enriched_branches: ['قيدار', 'عدنان'],
+    era_note: 'نبي الله إسماعيل الذبيح عليه السلام — أبو العرب المستعربة (#21).',
+  },
+  {
+    node_id: '22',
+    name: 'قيدار',
+    arc_code: 'UNASSIGNED',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '21',
+    parent_name: 'إسماعيل عليه السلام',
+    geo_footprint: ['مكة المكرمة', 'الحجاز'],
+    enriched_sources: ['السيرة النبوية لابن هشام (ج1 ص3)'],
+    enriched_branches: ['عدنان'],
+  },
+  {
+    node_id: '12600',
+    name: 'عدنان',
+    arc_code: 'M',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '22',
+    parent_name: 'قيدار',
+    geo_footprint: ['الحجاز', 'تامة', 'نجد', 'الجزيرة العربية'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص7)', 'السيرة النبوية لابن هشام (ج1 ص1)'],
+    enriched_branches: ['معد'],
+    era_note: 'الجذم العدناني الأكبر للعرب المستعربة عبر إسماعيل عليه السلام (#12600 - M).',
+  },
+  {
+    node_id: '12610',
+    name: 'معد',
+    arc_code: 'M',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12600',
+    parent_name: 'عدنان',
+    geo_footprint: ['الحجاز', 'نجد'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص8)'],
+    enriched_branches: ['نزار'],
+  },
+  {
+    node_id: '12620',
+    name: 'نزار',
+    arc_code: 'MF',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12610',
+    parent_name: 'معد',
+    geo_footprint: ['الحجاز', 'نجد', 'العراق'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص9)'],
+    enriched_branches: ['مضر', 'ربيعة', 'إياد', 'أنمار'],
+    era_note: 'نزار بن معد بن عدنان — تتفرع منه ذروات MT الأربعة (مضر، ربيعة، إياد، أنمار) (#12620 - MF).',
+  },
+
+  // =========================================================================
+  // 3.A. MT ROOT 3: MUDAR (#12662 - MT)
+  // =========================================================================
+  {
+    node_id: '12662',
+    name: 'مضر',
+    arc_code: 'MT',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12620',
+    parent_name: 'نزار',
+    geo_footprint: ['الحجاز', 'مكة المكرمة', 'نجد', 'الجزيرة العربية'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص10)'],
+    enriched_branches: ['قريش', 'كنانة', 'تميم', 'قيس عيلان', 'هوازن', 'هذيل'],
+    era_note: 'القبيلة الأم الجامعة لمضر الحمراء بن نزار (#12662 - MT).',
+  },
+  {
+    node_id: '39',
+    name: 'كنانة',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '12662',
+    parent_name: 'مضر',
+    geo_footprint: ['مكة المكرمة', 'تهامة', 'الحجاز'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص11)'],
+    enriched_branches: ['قريش'],
+  },
+  {
+    node_id: '40',
+    name: 'قريش',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '39',
+    parent_name: 'كنانة',
+    geo_footprint: ['مكة المكرمة', 'الحجاز', 'العالم الإسلامي'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص12)', 'نسب قريش للمصعب الزبيري'],
+    enriched_branches: ['هاشم', 'عبد المطلب', 'جعفر الطيار بن أبي طالب (#9420)'],
+  },
+  {
+    node_id: '46',
+    name: 'هاشم',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '40',
+    parent_name: 'قريش',
+    geo_footprint: ['مكة المكرمة', 'المدينة المنورة', 'الحجاز'],
+    enriched_sources: ['عمدة الطالب في أنساب آل أبي طالب — ابن عنبة (ج1 ص22)'],
+    enriched_branches: ['عبد المطلب', 'جعفر الطيار بن أبي طالب (#9420)'],
+  },
+  {
+    node_id: '9420',
+    name: 'جعفر الطيار بن أبي طالب (#9420)',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '46',
+    parent_name: 'هاشم',
+    geo_footprint: ['الحجاز', 'الشام', 'حمص', 'حماة', 'العراق'],
+    enriched_sources: ['عمدة الطالب في أنساب آل أبي طالب — ابن عنبة (ج1 ص54)'],
+    enriched_branches: ['الطيار', 'الحصانية', 'الحصان'],
+  },
+  {
+    node_id: '4010',
+    name: 'تميم',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '12662',
+    parent_name: 'مضر',
+    geo_footprint: ['نجد', 'الوشم', 'القصيم', 'سدير', 'الخليج العربي'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص206)'],
+    enriched_branches: ['النواصر', 'آل الحصان', 'بني عمرو', 'بني حنظلة', 'بني سعد'],
+  },
+  {
+    node_id: '4012',
+    name: 'آل الحصان',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '4010',
+    parent_name: 'تميم',
+    geo_footprint: ['القصيم', 'بريدة', 'نجد', 'السعودية'],
+    enriched_sources: ['جمهرة أنساب الأسر المتحضرة في نجد — حمد الجاسر (ج1 ص154)'],
+    enriched_branches: [],
+  },
+  {
+    node_id: '4025',
+    name: 'قيس عيلان',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12662',
+    parent_name: 'مضر',
+    geo_footprint: ['الحجاز', 'نجد'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص244)'],
+    enriched_branches: ['هوازن', 'غطفان'],
+  },
+  {
+    node_id: '4030',
+    name: 'هوازن',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '4025',
+    parent_name: 'قيس عيلان',
+    geo_footprint: ['الحجاز', 'الطائف', 'نجد'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص265)'],
+    enriched_branches: ['بني سعد', 'ثقيف', 'بني عامر بن صعصعة', 'عتيبة'],
+  },
+  {
+    node_id: '4040',
+    name: 'غطفان',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '4025',
+    parent_name: 'قيس عيلان',
+    geo_footprint: ['نجد', 'الحجاز', 'القصيم'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص248)'],
+    enriched_branches: ['عبس', 'ذبيان', 'فزارة', 'مطير'],
+  },
+  {
+    node_id: '4020',
+    name: 'هذيل',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '12662',
+    parent_name: 'مضر',
+    geo_footprint: ['مكة المكرمة', 'الحجاز', 'الطائف'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص196)'],
+    enriched_branches: ['لحيان', 'سعد بن هذيل'],
+  },
+
+  // =========================================================================
+  // 3.B. MT ROOT 4: RABI'AH (#12660 - MT) -> ANAZZAH (#4070) -> AL-DAHAMISHAH (#521900) -> AL QUHAYM (#521957 - FE0)
+  // =========================================================================
+  {
+    node_id: '12660',
+    name: 'ربيعة',
+    arc_code: 'MT',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12620',
+    parent_name: 'نزار',
+    geo_footprint: ['نجد', 'اليمامة', 'الشمال', 'العراق', 'الشام'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص292)'],
+    enriched_branches: ['عنزة', 'بكر', 'تغلب', 'الدهامشه'],
+    era_note: 'القبيلة الأم الجامعة لربيعة الفرس بن نزار (#12660 - MT).',
+  },
+  {
+    node_id: '4070',
+    name: 'عنزة',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '12660',
+    parent_name: 'ربيعة',
+    geo_footprint: ['نجد', 'القصيم', 'شمال الجزيرة', 'العراق', 'الشام'],
+    enriched_sources: ['أصدق الدلائل في أنساب بني وائل — قبائل عنزة (ج1 ص490)'],
+    enriched_branches: ['الدهامشه', 'بشر', 'مسلم'],
+  },
+  {
+    node_id: '521900',
+    name: 'الدهامشه',
+    arc_code: 'B1',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '4070',
+    parent_name: 'عنزة',
+    geo_footprint: ['السعودية والعراق'],
+    enriched_sources: ['أصدق الدلائل في أنساب بني وائل — قبائل عنزة'],
+    enriched_branches: ['آل قحيم'],
+  },
+  {
+    node_id: '521957',
+    name: 'آل قحيم',
+    arc_code: 'FE0',
+    representation: 'FAMILY',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '521900',
+    parent_name: 'الدهامشه',
+    geo_footprint: ['السعودية والعراق'],
+    enriched_sources: ['أصدق الدلائل في أنساب بني وائل — قبائل عنزة'],
+    enriched_branches: [],
+    era_note: 'أسرة آل قحيم (#521957 - FE0) من الدهامشه من عنزة.',
+  },
+  {
+    node_id: '4050',
+    name: 'بكر',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '12660',
+    parent_name: 'ربيعة',
+    geo_footprint: ['اليمامة', 'نجد', 'العراق', 'الجزيرة الفراتية'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص306)'],
+    enriched_branches: ['شيبان', 'حنيفة', 'عجل'],
+  },
+  {
+    node_id: '4060',
+    name: 'تغلب',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '12660',
+    parent_name: 'ربيعة',
+    geo_footprint: ['الجزيرة الفراتية', 'نجد', 'العراق', 'الشام'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص302)'],
+    enriched_branches: ['الأراقم', 'عتاب'],
+  },
+
+  // =========================================================================
+  // 3.C. MT ROOT 5 & 6: IYAD (#12661 - MT) & ANMAR (#12659 - MT)
+  // =========================================================================
+  {
+    node_id: '12661',
+    name: 'إياد',
+    arc_code: 'MT',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12620',
+    parent_name: 'نزار',
+    geo_footprint: ['تهامة', 'العراق', 'الجزيرة'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص326)'],
+    enriched_branches: ['زهر بن إياد', 'دعمي بن إياد'],
+    era_note: 'القبيلة الأم الجامعة لإياد بن نزار (#12661 - MT).',
+  },
+  {
+    node_id: '12659',
+    name: 'أنمار',
+    arc_code: 'MT',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '12620',
+    parent_name: 'نزار',
+    geo_footprint: ['السراة', 'تهامة', 'الجزيرة العربية'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص386)'],
+    enriched_branches: ['بجيلة', 'خثعم'],
+    era_note: 'القبيلة الأم الجامعة لأنمار بن نزار (#12659 - MT).',
+  },
+];
+
+export const MASTER_ADAM_NODES_MAP: Record<string, AdamTreeInteractiveNode> =
+  Object.freeze(
+    MASTER_ADAM_NODES_LIST.reduce<Record<string, AdamTreeInteractiveNode>>(
+      (acc, item) => {
+        acc[item.node_id] = item;
+        return acc;
+      },
+      {}
+    )
+  );
 
 /**
- * Enforces the scientific genealogical coding taxonomy on any local or remote Adam Tree node:
- * - Strips invalid/non-standard codes (A4, A5, A6, AT, AD0, NH0, SM0, P, MM, etc.)
- * - Assigns Prophets & Upper Patriarchs (Adam -> Eber/Ishmael) to UNASSIGNED + INDIVIDUAL
- * - Assigns Major Stocks (قحطان، عدنان، كهلان، حمير، سبأ، معد، نزار، مضر، ربيعة، إياد، أنمار، قضاعة، علة) to M / MF + TRIBE
- * - Assigns Mother Tribes (طيء، همدان، مذحج، الأزد، كندة، يام، عنزة، تميم، قريش، كنانة...) to MT / B0 + TRIBE
- * - Resolves any contradiction between Arc Code and Representation.
+ * Sanitizes an incoming node without mutating its unique node_id or forcibly overwriting
+ * its representation (e.g., preserving INDIVIDUAL / FAMILY / TRIBE on B2 or other structural codes).
  */
 export function sanitizeAndNormalizeAdamNode(
   node: AdamTreeInteractiveNode
 ): AdamTreeInteractiveNode {
-  const dedupKey = getCanonicalAdamNodeDedupKey(node.name);
+  const rawId = String(node.node_id || '').trim();
+  const cleanId = rawId || '1';
   const rawCode = (node.arc_code || '').trim().toUpperCase();
-
-  let finalCode = VALID_STRUCTURAL_ARC_CODES.has(rawCode) ? rawCode : 'UNASSIGNED';
-  let finalRep: NodeRepresentation = node.representation || 'INDIVIDUAL';
-
-  // Rule 5.2.a: Prophets & Upper Patriarchs (من آدم إلى عابر وإسماعيل)
-  if (UPPER_PATRIARCH_DEDUP_KEYS.has(dedupKey) && !node.name.includes('قضاعة العباسي')) {
-    finalCode = 'UNASSIGNED';
-    finalRep = 'INDIVIDUAL';
-  }
-  // Rule 5.2.b: Major Historical Stocks & Peoples (الجذوم الكبرى)
-  else if (MAJOR_STOCK_M_DEDUP_KEYS.has(dedupKey)) {
-    finalCode = 'M';
-    finalRep = 'TRIBE';
-  } else if (MAJOR_CONFEDERATION_MF_DEDUP_KEYS.has(dedupKey)) {
-    finalCode = 'MF';
-    finalRep = node.name.includes('قبائل ') || node.name.includes('حلف ') ? 'ALLIANCE' : 'TRIBE';
-  }
-  // Rule 5.2.c: Overarching Mother Tribes (القبائل الأم الجامعة)
-  else if (MOTHER_TRIBE_MT_DEDUP_KEYS.has(dedupKey)) {
-    finalCode = 'MT';
-    finalRep = 'TRIBE';
-  } else if (BRANCH_MOTHER_TRIBE_B0_DEDUP_KEYS.has(dedupKey)) {
-    finalCode = 'B0';
-    finalRep = 'TRIBE';
-  }
-
-  // Ensure B0..B9, MT, M structural codes always carry TRIBE representation (even when name starts with آل like آل قحيم B2)
-  if (
-    [
-      'M',
-      'MT',
-      'B0',
-      'B1',
-      'B2',
-      'B3',
-      'B4',
-      'B5',
-      'B6',
-      'B7',
-      'B8',
-      'B9',
-    ].includes(finalCode)
-  ) {
-    finalRep = 'TRIBE';
-  }
-
-  // Rule 5.3: Eliminate any contradiction between Arc Code and Representation
-  const conflictCheck = checkArcCodeRepresentationConflict(finalCode, finalRep);
-  if (conflictCheck.hasConflict) {
-    finalRep = conflictCheck.suggestedRepresentation;
-  }
-
-  const cleanNodeId = toCanonicalNumericAdamNodeId(node.node_id, node.name);
+  const finalCode = VALID_STRUCTURAL_ARC_CODES.has(rawCode) ? rawCode : 'UNASSIGNED';
+  const finalRep: NodeRepresentation = node.representation || 'INDIVIDUAL';
 
   return {
     ...node,
-    node_id: cleanNodeId,
+    node_id: cleanId,
     arc_code: finalCode,
     representation: finalRep,
+    geo_footprint: Array.isArray(node.geo_footprint)
+      ? node.geo_footprint
+      : node.geo_footprint
+      ? [String(node.geo_footprint)]
+      : [],
+    enriched_sources: Array.isArray(node.enriched_sources)
+      ? node.enriched_sources
+      : node.enriched_sources
+      ? [String(node.enriched_sources)]
+      : [],
+    enriched_branches: Array.isArray(node.enriched_branches)
+      ? node.enriched_branches
+      : node.enriched_branches
+      ? [String(node.enriched_branches)]
+      : [],
   };
 }
 
-// Shared canonical nodes that unify the upper Adam Tree across all registered family spines
-const SHARED_UPPER_TREE_DEDUP_KEYS = new Set<string>([
-  ...Array.from(UPPER_PATRIARCH_DEDUP_KEYS),
-  ...Array.from(MAJOR_STOCK_M_DEDUP_KEYS),
-  ...Array.from(MAJOR_CONFEDERATION_MF_DEDUP_KEYS),
-  ...Array.from(MOTHER_TRIBE_MT_DEDUP_KEYS),
-  ...Array.from(BRANCH_MOTHER_TRIBE_B0_DEDUP_KEYS),
-  normalizeArabic('قصي'),
-  normalizeArabic('عبد مناف'),
-  normalizeArabic('هاشم'),
-  normalizeArabic('عبد المطلب'),
-  normalizeArabic('علي بن أبي طالب'),
-  normalizeArabic('الحسن السبط'),
-  normalizeArabic('الحسن المثنى'),
-  normalizeArabic('عبد الله المحض'),
-  normalizeArabic('وائل'),
-  normalizeArabic('تغلب الوائلي'),
-  normalizeArabic('ضنا بشر'),
-  normalizeArabic('ضنا عبيد'),
-  normalizeArabic('السبعة'),
-  normalizeArabic('جشم'),
-  normalizeArabic('البطون'),
-  normalizeArabic('القطعان'),
-]);
+export function getInitialAdamTreeNodesById(): Record<string, AdamTreeInteractiveNode> {
+  const map: Record<string, AdamTreeInteractiveNode> = {};
+  for (const [id, node] of Object.entries(MASTER_ADAM_NODES_MAP)) {
+    map[id] = {
+      ...node,
+      geo_footprint: [...node.geo_footprint],
+      enriched_sources: [...node.enriched_sources],
+      enriched_branches: [...node.enriched_branches],
+    };
+  }
+  return map;
+}
 
 export function getInitialAdamTreeGraphNodes(): AdamTreeInteractiveNode[] {
-  const nodesMap = new Map<string, AdamTreeInteractiveNode>();
-
-  const getNodeMapKey = (curr: UpperAncestorNode): string => {
-    const dedupKey = getCanonicalAdamNodeDedupKey(curr.name);
-    if (
-      SHARED_UPPER_TREE_DEDUP_KEYS.has(dedupKey) &&
-      !curr.name.includes('قضاعة العباسي')
-    ) {
-      return `CANON_${dedupKey}`;
-    }
-    return `NODE_${toCanonicalNumericAdamNodeId(curr.id, curr.name)}`;
-  };
-
-  const registerChain = (
-    chain: UpperAncestorNode[],
-    defaultCountry: string,
-    defaultSources: string[]
-  ) => {
-    // Chain is ordered from FE0 (index 0) up to Adam (last index)
-    for (let i = chain.length - 1; i >= 0; i--) {
-      const curr = chain[i];
-      // Skip noise filler nodes like هبة الله / الجيل الأول لبني آدم so شيث connects cleanly to آدم
-      const currNorm = normalizeArabic(curr.name);
-      if (currNorm === 'هبه الله' || currNorm === 'الجيل الاول لبني ادم') {
-        continue;
-      }
-
-      let parentIndex = i + 1;
-      while (
-        parentIndex < chain.length &&
-        (normalizeArabic(chain[parentIndex].name) === 'هبه الله' ||
-          normalizeArabic(chain[parentIndex].name) === 'الجيل الاول لبني ادم')
-      ) {
-        parentIndex++;
-      }
-      const parentNode = parentIndex < chain.length ? chain[parentIndex] : null;
-
-      const sharedCanonicalKey = getNodeMapKey(curr);
-      const existing = nodesMap.get(sharedCanonicalKey);
-      const parentKey = parentNode
-        ? (() => {
-            const pShared = getNodeMapKey(parentNode);
-            return (
-              nodesMap.get(pShared)?.node_id ||
-              toCanonicalNumericAdamNodeId(parentNode.id, parentNode.name)
-            );
-          })()
-        : null;
-
-      if (existing) {
-        if (defaultCountry && !existing.geo_footprint.includes(defaultCountry)) {
-          existing.geo_footprint.push(defaultCountry);
-        }
-        defaultSources.forEach((s) => {
-          if (s && !existing.enriched_sources.includes(s)) {
-            existing.enriched_sources.push(s);
-          }
-        });
-      } else {
-        const rep = inferNodeRepresentation(curr);
-        const isDirect =
-          rep === 'INDIVIDUAL' &&
-          (!parentNode || inferNodeRepresentation(parentNode) === 'INDIVIDUAL') &&
-          !hasCollectivePrefix(curr.name);
-
-        const codeStr = (curr.code || '').trim().toUpperCase();
-        const initialArcCode: string = curr.isCodedStation
-          ? VALID_STRUCTURAL_ARC_CODES.has(codeStr)
-            ? codeStr
-            : curr.orderNumber === 1
-            ? 'FE0'
-            : 'B1'
-          : 'UNASSIGNED';
-
-        // Clean display name for prophets/stocks so they are consistent across chains
-        let cleanDisplayName = curr.name;
-        const dedupKey = getCanonicalAdamNodeDedupKey(curr.name);
-        if (dedupKey === 'نوح') cleanDisplayName = 'نوح عليه السلام';
-        if (dedupKey === 'ادريس') cleanDisplayName = 'إدريس (أخنوخ) عليه السلام';
-        if (dedupKey === 'شيث') cleanDisplayName = 'شيث عليه السلام';
-        if (dedupKey === 'ادم') cleanDisplayName = 'آدم عليه السلام';
-
-        const sanitized = sanitizeAndNormalizeAdamNode({
-          node_id: toCanonicalNumericAdamNodeId(String(curr.id), cleanDisplayName),
-          name: cleanDisplayName,
-          arc_code: initialArcCode,
-          representation: rep,
-          relation_nature: isDirect ? 'DIRECT' : 'DIRECT_DESCENDANT',
-          parent_id: parentKey,
-          geo_footprint: [
-            curr.region || defaultCountry,
-            defaultCountry,
-          ].filter(Boolean),
-          enriched_sources: [...defaultSources],
-          enriched_branches: [],
-          era_note: curr.eraNote,
-        });
-
-        nodesMap.set(sharedCanonicalKey, sanitized);
-      }
-    }
-  };
-
-  // Register core verified Adam chains
-  registerChain(ADAM_SPINE_40_NODES, 'السعودية — سراة عبيدة', [
-    'توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (ج1 ص14)',
-    'الإكليل للهمداني (ج2 ص164)',
-  ]);
-  registerChain(buildAlQasimNajran47NodesSpine(), 'السعودية — نجران', [
-    'الإكليل للهمداني — أنساب همدان ويام (ج10 ص64)',
-    'معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج2 ص812)',
-  ]);
-  registerChain(buildAlQasimMawdahi36NodesSpine(), 'السعودية — الحواضر العربية', [
-    'سجل مشجرات فرع المودحي وآل امداثر (ID: 189691)',
-  ]);
-  registerChain(buildKhabourAnazzah43NodesSpine(), 'السعودية — نجد والقصيم', [
-    'أصدق الدلائل في أنساب بني وائل — قبائل عنزة (ج1 ص490)',
-  ]);
-  registerChain(buildDhawooMuqit36NodesSpine(), 'السعودية — الحجاز ومكة والطائف', [
-    'عمدة الطالب في أنساب آل أبي طالب — ابن عنبة (ج1 ص142)',
-  ]);
-  registerChain(buildAlMaqaytah71NodesSpine(), 'السودان والحجاز', [
-    'موسوعة أنساب القبائل العربية والجعليين العباسيين (ج1 ص94)',
-  ]);
-
-  const findNodeIdByDedup = (targetName: string): string | null => {
-    const key = getCanonicalAdamNodeDedupKey(targetName);
-    const direct = nodesMap.get(`CANON_${key}`);
-    if (direct) return direct.node_id;
-    const found = Array.from(nodesMap.values()).find(
-      (n) => getCanonicalAdamNodeDedupKey(n.name) === key
-    );
-    return found?.node_id || null;
-  };
-
-  // Add key canonical tribal junctions & major Arabian mother tribes (طيء، الأزد، كندة، تميم، هوازن، غطفان، بكر، تغلب، هذيل، حمير، قضاعة، إياد وأنمار، آل قحيم)
-  const extraCanonicalNodes: AdamTreeInteractiveNode[] = [
-    {
-      node_id: '272895',
-      name: 'آل قحيم',
-      arc_code: 'B2',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('الجبرة') || findNodeIdByDedup('بني بشر') || '10241',
-      geo_footprint: ['سراة عبيدة', 'عسير', 'نجران', 'السعودية'],
-      enriched_sources: [
-        'معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج2 ص648)',
-        'الإكليل للهمداني — أنساب قحطان ومذحج (ج2 ص164)',
-      ],
-      enriched_branches: ['آل محمد', 'آل سعيد', 'آل مانع', 'آل عوض'],
-      era_note: 'فخذ آل قحيم من الجبرة من بني بشر من قحطان (B2).',
-    },
-    {
-      node_id: '272896',
-      name: 'آل حسان (بني بشر)',
-      arc_code: 'B2',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('الجبرة') || findNodeIdByDedup('بني بشر') || '10241',
-      geo_footprint: ['سراة عبيدة', 'عسير', 'السعودية'],
-      enriched_sources: [
-        'معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج1 ص198)',
-      ],
-      enriched_branches: ['آل علي', 'آل مسفر'],
-      era_note: 'فخذ آل حسان من الجبرة من بني بشر من قحطان (B2).',
-    },
-    {
-      node_id: '62',
-      name: 'طيء (جلهمة بن أدد)',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: findNodeIdByDedup('أدد') || findNodeIdByDedup('كهلان'),
-      geo_footprint: ['نجد', 'حائل', 'العراق', 'الشام'],
-      enriched_sources: [
-        'جمهرة أنساب العرب — ابن حزم الأندلسي (ج1 ص398)',
-        'سبائك الذهب في معرفة قبائل العرب — السويدي (ج1 ص68)',
-      ],
-      enriched_branches: ['بني لام', 'قبيلة شمر', 'زوبع', 'الأسلم', 'سنجارة'],
-      era_note: 'القبيلة الأم الجامعة لقبائل طيء الكهلانية القحطانية.',
-    },
-    {
-      node_id: '8909',
-      name: 'مالك بن جدعاء الطائي',
-      arc_code: 'UNASSIGNED',
-      representation: 'INDIVIDUAL',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: '62',
-      geo_footprint: ['جبلا طيء', 'حائل', 'نجد'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص399)'],
-      enriched_branches: ['ثمامة', 'طريف', 'عمرو', 'بني لام'],
-      era_note: 'مالك بن جدعاء بن ذهل بن رومان بن جندب بن خارجة بن سعد بن فطرة بن طيء.',
-    },
-    {
-      node_id: '8913',
-      name: 'طريف بن عمرو بن ثمامة الطائي',
-      arc_code: 'UNASSIGNED',
-      representation: 'INDIVIDUAL',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: '8909',
-      geo_footprint: ['جبلا طيء', 'حائل', 'الجزيرة العربية'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص399)'],
-      enriched_branches: ['عمرو بن طريف', 'بني لام'],
-      era_note: 'طريف ⬅️ عمرو ⬅️ ثمامة ⬅️ مالك بن جدعاء ⬅️ ذهل ⬅️ طيء.',
-    },
-    {
-      node_id: '8912',
-      name: 'عمرو بن طريف الطائي',
-      arc_code: 'UNASSIGNED',
-      representation: 'INDIVIDUAL',
-      relation_nature: 'DIRECT',
-      parent_id: '8913',
-      geo_footprint: ['جبلا طيء', 'نجد', 'العراق'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص399)'],
-      enriched_branches: ['بني لام (#8911)'],
-      era_note: 'عمرو بن طريف بن عمرو بن ثمامة بن مالك بن جدعاء الطائي.',
-    },
-    {
-      node_id: '8911',
-      name: 'بني لام (لام بن عمرو الطائي — #8911)',
-      arc_code: 'B0',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: '8912',
-      geo_footprint: ['العراق', 'العمارة', 'ميسان', 'واسط', 'نجد'],
-      enriched_sources: [
-        'الدرر المفاخر في أخبار العرب الأواخر — البسام (ج1 ص95)',
-        'عشائر العراق — عباس العزاوي (ج4 ص219)',
-        'سبائك الذهب — السويدي (ج1 ص68)',
-      ],
-      enriched_branches: ['آل نصيري', 'البلاسم', 'بيت جنديل', 'آل مغامس', 'آل فضل', 'الظفير'],
-      era_note: 'قبيلة بني لام بن عمرو بن طريف الطائية القحطانية (#8911).',
-    },
-    {
-      node_id: '8914',
-      name: 'آل نصيري (بني لام)',
-      arc_code: 'B1',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: '8911',
-      geo_footprint: ['العمارة', 'ميسان', 'حوض دجلة', 'العراق'],
-      enriched_sources: [
-        'موسوعة العشائر العراقية — العامري (ج3 ص184)',
-        'عشائر العراق — عباس العزاوي (ج4 ص219)',
-      ],
-      enriched_branches: ['البلاسم', 'بيت جنديل', 'الرويشد'],
-      era_note: 'بطن آل نصيري من قبيلة بني لام الطائية.',
-    },
-    {
-      node_id: '8915',
-      name: 'البلاسم (آل نصيري — بني لام)',
-      arc_code: 'B2',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: '8914',
-      geo_footprint: ['العمارة', 'ميسان', 'العراق'],
-      enriched_sources: [
-        'موسوعة العشائر العراقية — العامري (ج3 ص184)',
-        'تاريخ العمارة وعشائرها — الندواني (ج1 ص76)',
-      ],
-      enriched_branches: ['بيت جنديل', 'بيت مذكور', 'بيت عبد السيد'],
-      era_note: 'فخذ البلاسم الرئاسي في آل نصيري من بني لام.',
-    },
-    {
-      node_id: '56',
-      name: 'الأزد',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('كهلان'),
-      geo_footprint: ['السراة', 'عُمان', 'اليمن', 'الحجاز', 'الخليج العربي'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص330)', 'الإكليل للهمداني (ج2 ص90)'],
-      enriched_branches: ['غسان', 'الأوس', 'الخزرج', 'غامد', 'زهران', 'بارق'],
-      era_note: 'القبيلة الأم الجامعة للأزد بن الغوث بن نبت بن مالك بن زيد بن كهلان.',
-    },
-    {
-      node_id: '63',
-      name: 'كندة',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('كهلان'),
-      geo_footprint: ['حضرموت', 'نجد', 'قرية الفاو', 'اليمن'],
-      enriched_sources: ['الإكليل للهمداني (ج1 ص195)', 'جمهرة أنساب العرب — ابن حزم (ج1 ص425)'],
-      enriched_branches: ['السكون', 'السكاسك', 'بنو معاوية الأكرمين', 'الصيعر'],
-      era_note: 'قبيلة كندة (ثور بن عفير) الكهلانية القحطانية.',
-    },
-    {
-      node_id: '4010',
-      name: 'تميم بن مر',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('إلياس') || findNodeIdByDedup('مضر'),
-      geo_footprint: ['نجد', 'الوشم', 'القصيم', 'سدير', 'الخليج العربي'],
-      enriched_sources: [
-        'جمهرة أنساب العرب — ابن حزم (ج1 ص206)',
-        'جمهرة أنساب الأسر المتحضرة في نجد — حمد الجاسر (ج1 ص154)',
-      ],
-      enriched_branches: ['بني عمرو', 'بني حنظلة', 'بني سعد', 'النواصر'],
-      era_note: 'القبيلة الأم الجامعة لبني تميم بن مر بن أد بن طابخة بن إلياس بن مضر.',
-    },
-    {
-      node_id: '4020',
-      name: 'هذيل',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: findNodeIdByDedup('مدركة') || findNodeIdByDedup('مضر'),
-      geo_footprint: ['مكة المكرمة', 'الحجاز', 'الطائف'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص196)'],
-      enriched_branches: ['لحيان', 'سعد بن هذيل', 'عمرو بن هذيل'],
-      era_note: 'قبيلة هذيل بن مدركة بن إلياس بن مضر.',
-    },
-    {
-      node_id: '4030',
-      name: 'هوازن',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('مضر'),
-      geo_footprint: ['الحجاز', 'الطائف', 'نجد'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص265)'],
-      enriched_branches: ['بني سعد', 'ثقيف', 'بني عامر بن صعصعة', 'عتيبة'],
-      era_note: 'قبيلة هوازن بن منصور بن عكرمة بن خصفة بن قيس عيلان بن مضر.',
-    },
-    {
-      node_id: '4040',
-      name: 'غطفان',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('مضر'),
-      geo_footprint: ['نجد', 'الحجاز', 'القصيم'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص248)'],
-      enriched_branches: ['عبس', 'ذبيان', 'فزارة', 'أشجع', 'مطير'],
-      era_note: 'قبيلة غطفان بن سعد بن قيس عيلان بن مضر.',
-    },
-    {
-      node_id: '4050',
-      name: 'بكر بن وائل',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: findNodeIdByDedup('وائل') || findNodeIdByDedup('ربيعة'),
-      geo_footprint: ['اليمامة', 'نجد', 'العراق', 'الجزيرة الفراتية'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص306)'],
-      enriched_branches: ['شيبان', 'حنيفة', 'عجل', 'قيس بن ثعلبة', 'يشكر'],
-      era_note: 'القبيلة الأم الجامعة لبكر بن وائل في ربيعة.',
-    },
-    {
-      node_id: '4060',
-      name: 'تغلب بن وائل',
-      arc_code: 'MT',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: findNodeIdByDedup('وائل') || findNodeIdByDedup('ربيعة'),
-      geo_footprint: ['الجزيرة الفراتية', 'نجد', 'العراق', 'الشام'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص302)'],
-      enriched_branches: ['الأراقم', 'عتاب', 'عمرو بن تغلب'],
-      era_note: 'القبيلة الأم الجامعة لتغلب بن وائل في ربيعة.',
-    },
-    {
-      node_id: '5010',
-      name: 'قبيلة الدواسر (آل زايد وتغلب)',
-      arc_code: 'B0',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('الأزد') || findNodeIdByDedup('كهلان'),
-      geo_footprint: ['وادي الدواسر', 'القصيم', 'نجد', 'السعودية'],
-      enriched_sources: [
-        'معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج1 ص242)',
-        'معجم أسر بريدة — العبودي (ج4 ص412)',
-      ],
-      enriched_branches: ['البدارين', 'آل سابق', 'آل الحصان', 'آل حسن'],
-      era_note: 'قبيلة الدواسر العريقة وفروعها في وادي الدواسر ونجد والقصيم.',
-    },
-    {
-      node_id: '9420',
-      name: 'جعفر الطيار بن أبي طالب (#9420)',
-      arc_code: 'B0',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: findNodeIdByDedup('هاشم') || findNodeIdByDedup('قريش'),
-      geo_footprint: ['الحجاز', 'الشام', 'حمص', 'حماة', 'العراق'],
-      enriched_sources: [
-        'عمدة الطالب في أنساب آل أبي طالب — ابن عنبة (ج1 ص54)',
-        'موسوعة أنساب آل جعفر الطيار (ج2 ص184)',
-      ],
-      enriched_branches: ['الطيار', 'الحصانية', 'الحصان', 'آل محمود'],
-      era_note: 'الدوحة الجعفرية الطالبية الهاشمية القرشية (#9420).',
-    },
-    {
-      node_id: '50',
-      name: 'حمير بن سبأ',
-      arc_code: 'M',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: findNodeIdByDedup('سبأ'),
-      geo_footprint: ['اليمن', 'ظفار', 'الشام', 'الجزيرة العربية'],
-      enriched_sources: ['الإكليل للهمداني (ج1 ص112)', 'جمهرة أنساب العرب — ابن حزم (ج1 ص432)'],
-      enriched_branches: ['قضاعة', 'ذو رعين', 'ذو يزن', 'كلاع', 'يافع'],
-      era_note: 'الجذم الحميري السبئي الكبير (M — جذم تاريخي).',
-    },
-    {
-      node_id: '51',
-      name: 'قضاعة',
-      arc_code: 'M',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT_DESCENDANT',
-      parent_id: '50',
-      geo_footprint: ['الحجاز', 'الشام', 'شمال الجزيرة', 'مصر'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص440)', 'سبائك الذهب — السويدي (ج1 ص28)'],
-      enriched_branches: ['بلي', 'جهينة', 'كلب', 'بهراء', 'مهرة', 'نهد'],
-      era_note: 'الجذم القضاعي العريق في الحجاز والشام والجزيرة (M — جذم تاريخي).',
-    },
-    {
-      node_id: '35',
-      name: 'إياد وأنمار بن نزار',
-      arc_code: 'M',
-      representation: 'TRIBE',
-      relation_nature: 'DIRECT',
-      parent_id: findNodeIdByDedup('نزار') || findNodeIdByDedup('معد'),
-      geo_footprint: ['تهامة', 'السراة', 'العراق', 'الجزيرة'],
-      enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص386)'],
-      enriched_branches: ['بجيلة', 'خثعم', 'ثقيف الإيادية'],
-      era_note: 'جذم إياد وأنمار بن نزار العدناني (M — جذم تاريخي).',
-    },
-  ];
-
-  for (const extra of extraCanonicalNodes) {
-    const dedupKey = getCanonicalAdamNodeDedupKey(extra.name);
-    const mapKey = SHARED_UPPER_TREE_DEDUP_KEYS.has(dedupKey)
-      ? `CANON_${dedupKey}`
-      : `NODE_${extra.node_id}`;
-    if (!nodesMap.has(mapKey)) {
-      nodesMap.set(mapKey, sanitizeAndNormalizeAdamNode(extra));
-    }
-  }
-
-  // Final pass: sanitize every node and deduplicate siblings sharing the same parent_id & canonical name
-  const finalList: AdamTreeInteractiveNode[] = [];
-  const seenById = new Set<string>();
-  const seenParentAndName = new Set<string>();
-
-  for (const rawNode of nodesMap.values()) {
-    const node = sanitizeAndNormalizeAdamNode(rawNode);
-    if (seenById.has(node.node_id)) continue;
-
-    const dedupKey = getCanonicalAdamNodeDedupKey(node.name);
-    const levelKey = `${node.parent_id || 'ROOT'}__${dedupKey}`;
-    if (seenParentAndName.has(levelKey)) continue;
-
-    seenById.add(node.node_id);
-    seenParentAndName.add(levelKey);
-    finalList.push(node);
-  }
-
-  return finalList;
+  return Object.values(getInitialAdamTreeNodesById());
 }
 
 export function isAdamNodeStructurallyCoded(node: AdamTreeInteractiveNode): boolean {
-  const sanitized = sanitizeAndNormalizeAdamNode(node);
-  const code = (sanitized.arc_code || '').trim().toUpperCase();
+  const code = (node.arc_code || '').trim().toUpperCase();
   return VALID_STRUCTURAL_ARC_CODES.has(code);
 }
 
 export function resolveAdamTreeChildren(
   parentId: string,
-  allNodes: AdamTreeInteractiveNode[],
+  allNodesOrMap: AdamTreeInteractiveNode[] | Record<string, AdamTreeInteractiveNode>,
   codedOnly: boolean
 ): Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> {
-  const deduplicateEntries = (
+  const allNodes: AdamTreeInteractiveNode[] = Array.isArray(allNodesOrMap)
+    ? allNodesOrMap
+    : Object.values(allNodesOrMap);
+
+  const deduplicateById = (
     items: Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }>
   ): Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> => {
     const out: Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> = [];
     const seenIds = new Set<string>();
-    const seenDedupNames = new Set<string>();
     for (const item of items) {
-      const sanitized = sanitizeAndNormalizeAdamNode(item.node);
-      const dedupName = getCanonicalAdamNodeDedupKey(sanitized.name);
-      if (seenIds.has(sanitized.node_id) || seenDedupNames.has(dedupName)) {
+      if (!item.node?.node_id || seenIds.has(item.node.node_id)) {
         continue;
       }
-      seenIds.add(sanitized.node_id);
-      seenDedupNames.add(dedupName);
-      out.push({ node: sanitized, skippedGenerations: item.skippedGenerations });
+      seenIds.add(item.node.node_id);
+      out.push(item);
     }
     return out;
   };
 
   const direct = allNodes.filter((n) => n.parent_id === parentId);
   if (!codedOnly) {
-    return deduplicateEntries(
+    return deduplicateById(
       direct.map((node) => ({ node, skippedGenerations: 0 }))
     );
   }
@@ -8779,34 +9163,37 @@ export function resolveAdamTreeChildren(
       if (visited.has(child.node_id)) continue;
       visited.add(child.node_id);
 
-      const sanitizedChild = sanitizeAndNormalizeAdamNode(child);
-      if (isAdamNodeStructurallyCoded(sanitizedChild)) {
-        results.push({ node: sanitizedChild, skippedGenerations: skippedCount });
+      if (isAdamNodeStructurallyCoded(child)) {
+        results.push({ node: child, skippedGenerations: skippedCount });
       } else {
-        traverseDown(sanitizedChild.node_id, skippedCount + 1);
+        traverseDown(child.node_id, skippedCount + 1);
       }
     }
   };
 
   traverseDown(parentId, 0);
-  return deduplicateEntries(results);
+  return deduplicateById(results);
 }
 
 export function inspectNameInAdamMasterTree(
   rawQuery: string,
-  graphNodes?: AdamTreeInteractiveNode[]
+  graphNodesOrMap?: AdamTreeInteractiveNode[] | Record<string, AdamTreeInteractiveNode>
 ): {
   found: boolean;
   matchedNode: AdamTreeInteractiveNode | null;
   ancestorsUpToAdam: AdamTreeInteractiveNode[];
   directChildren: AdamTreeInteractiveNode[];
 } {
-  const allNodes = graphNodes || getInitialAdamTreeGraphNodes();
-  const cleanQuery = (rawQuery || '').trim();
-  const normQuery = normalizeArabic(cleanQuery);
-  const coreQuery = normalizeArabicToken(cleanQuery, true);
+  const allNodes: AdamTreeInteractiveNode[] = !graphNodesOrMap
+    ? getInitialAdamTreeGraphNodes()
+    : Array.isArray(graphNodesOrMap)
+    ? graphNodesOrMap
+    : Object.values(graphNodesOrMap);
 
-  if (!normQuery) {
+  const cleanQuery = (rawQuery || '').trim();
+  const normQuery = normalizeArabicForSearch(cleanQuery);
+
+  if (!normQuery && !cleanQuery) {
     return {
       found: false,
       matchedNode: null,
@@ -8816,17 +9203,14 @@ export function inspectNameInAdamMasterTree(
   }
 
   const byId = allNodes.find((n) => n.node_id === cleanQuery);
-  const byExactName = allNodes.find((n) => normalizeArabic(n.name) === normQuery);
-  const byCoreName = allNodes.find((n) => {
-    const nNorm = normalizeArabic(n.name);
-    const nCore = normalizeArabicToken(n.name, true);
-    return (
-      nCore === coreQuery ||
-      (coreQuery.length >= 3 && (nNorm.includes(coreQuery) || coreQuery.includes(nCore)))
-    );
-  });
+  const byExactNorm = allNodes.find(
+    (n) => normalizeArabicForSearch(n.name) === normQuery
+  );
+  const byFlexible = allNodes.find((n) =>
+    matchesFlexibleArabicSearch(n.name, cleanQuery)
+  );
 
-  const matchedNode = byId || byExactName || byCoreName || null;
+  const matchedNode = byId || byExactNorm || byFlexible || null;
   if (!matchedNode) {
     return {
       found: false,

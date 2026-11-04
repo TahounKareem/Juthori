@@ -29,6 +29,8 @@ import {
 } from '../types/juthori';
 import {
   AdamTreeInteractiveNode,
+  GERMAN_ENGINE_BASE_URL,
+  MASTER_ADAM_NODES_MAP,
   ORIGIN_REGION_SUGGESTIONS,
   VALID_STRUCTURAL_ARC_CODES,
   buildAIResearchHypothesesForFamily,
@@ -39,11 +41,12 @@ import {
   computeCrossSourceConsensusClusters,
   formatAlphaEvidenceCitation,
   getCanonicalAdamNodeDedupKey,
-  getInitialAdamTreeGraphNodes,
+  getInitialAdamTreeNodesById,
   inspectNameInAdamMasterTree,
   isAdamNodeStructurallyCoded,
   matchesFlexibleArabicSearch,
   normalizeArabic,
+  normalizeArabicForSearch,
   resolveAdamTreeChildren,
   resolveDeterministicLineage,
   sanitizeAndNormalizeAdamNode,
@@ -1241,10 +1244,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   // =========================================================================
   // TAB 3: ADAM TREE STANDALONE INTERACTIVE EXPLORER & CODING EDITOR STATE
+  // Single Source of Truth Dictionary (nodesById) + Independent Set Expansion (expandedNodeIds)
   // =========================================================================
-  const [adamGraphNodes, setAdamGraphNodes] = useState<
-    AdamTreeInteractiveNode[]
-  >(() => getInitialAdamTreeGraphNodes());
+  const [nodesById, setNodesById] = useState<
+    Record<string, AdamTreeInteractiveNode>
+  >(() => getInitialAdamTreeNodesById());
+
+  const adamGraphNodes = useMemo(
+    () => Object.values(nodesById),
+    [nodesById]
+  );
+
   const [adamTreeStats, setAdamTreeStats] = useState<{
     totalNodes: number;
     totalCodedNodes: number;
@@ -1252,7 +1262,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   }>({
     totalNodes: 474949,
     totalCodedNodes: 35560,
-    mtRootIds: [],
+    mtRootIds: ['304', '306', '12662', '12660', '12661', '12659'],
   });
   const [isAdamSearchPanelOpen, setIsAdamSearchPanelOpen] =
     useState<boolean>(true);
@@ -1260,15 +1270,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     'ADAM_ROOT'
   );
   const [codedOnlyTreeToggle, setCodedOnlyTreeToggle] = useState<boolean>(false);
-  const [expandedTreeNodeIds, setExpandedTreeNodeIds] = useState<
-    Record<string, boolean>
-  >({});
-  const [remoteChildrenByKey, setRemoteChildrenByKey] = useState<
-    Record<
-      string,
-      Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }>
-    >
-  >({});
+
+  // Independent Set<string> for expanded nodes — never cleared or reset by search/selection effects!
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () =>
+      new Set([
+        '1',
+        '2',
+        '10',
+        '14',
+        '300',
+        '301',
+        '302',
+        '304',
+        '306',
+        '62',
+        '216500',
+        '12600',
+        '12610',
+        '12620',
+        '12662',
+        '12660',
+      ])
+  );
+
   const [isNodeEditorUnlocked, setIsNodeEditorUnlocked] =
     useState<boolean>(false);
   const [showAdamSaveConfirmModal, setShowAdamSaveConfirmModal] =
@@ -1276,10 +1301,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [newGeoTagInput, setNewGeoTagInput] = useState<string>('');
 
   // 5 Integrated Search & Filter Controls for "🔍 البحث التفاعلي في شجرة آدم"
+  // Strictly decoupled: adamArcFilter and adamRepFilter never mutate each other!
   const [adamSearchQuery, setAdamSearchQuery] = useState('');
   const [adamFatherQuery, setAdamFatherQuery] = useState('');
-  const [adamSubtreeScopeNodeId, setAdamSubtreeScopeNodeId] =
-    useState<string>('');
+  const [searchUnderSelectedNodeOnly, setSearchUnderSelectedNodeOnly] =
+    useState<boolean>(false);
   const [adamArcFilter, setAdamArcFilter] = useState<string>('');
   const [adamRepFilter, setAdamRepFilter] = useState<string>('');
 
@@ -1287,11 +1313,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   const adamNodeByIdMap = useMemo(() => {
     const map = new Map<string, AdamTreeInteractiveNode>();
-    for (const n of adamGraphNodes) {
-      map.set(n.node_id, n);
+    for (const [id, n] of Object.entries(nodesById)) {
+      map.set(id, n);
     }
     return map;
-  }, [adamGraphNodes]);
+  }, [nodesById]);
 
   const getAncestorsChainForNode = useMemo(() => {
     return (node: AdamTreeInteractiveNode): AdamTreeInteractiveNode[] => {
@@ -1301,7 +1327,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       let safety = 0;
       while (currParentId && !visited.has(currParentId) && safety < 80) {
         visited.add(currParentId);
-        const parentNode = adamNodeByIdMap.get(currParentId);
+        const parentNode =
+          nodesById[currParentId] || MASTER_ADAM_NODES_MAP[currParentId];
         if (!parentNode) break;
         chain.unshift(parentNode); // Highest ancestor first, direct parent last
         currParentId = parentNode.parent_id;
@@ -1309,53 +1336,45 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       }
       return chain;
     };
-  }, [adamNodeByIdMap]);
+  }, [nodesById]);
 
   const selectedAdamNode = useMemo(
     () =>
-      adamGraphNodes.find((n) => n.node_id === selectedAdamNodeId) ||
+      nodesById[selectedAdamNodeId] ||
+      MASTER_ADAM_NODES_MAP[selectedAdamNodeId] ||
+      nodesById['1'] ||
       adamGraphNodes[0],
-    [adamGraphNodes, selectedAdamNodeId]
+    [nodesById, selectedAdamNodeId, adamGraphNodes]
   );
 
-  // Identify the top Adam (AS) root node and the 6 canonical tribal peaks
+  // Identify the top Adam (AS) root node (#1) and the 6 canonical MT tribal peaks
   const adamTopRootNode = useMemo(() => {
     return (
-      adamGraphNodes.find(
-        (n) => !n.parent_id && n.name.includes('آدم')
-      ) ||
+      nodesById['1'] ||
+      adamGraphNodes.find((n) => !n.parent_id && n.name.includes('آدم')) ||
       adamGraphNodes.find((n) => !n.parent_id) ||
       adamGraphNodes[0]
     );
-  }, [adamGraphNodes]);
+  }, [nodesById, adamGraphNodes]);
 
   const mtSixPeakRoots = useMemo(() => {
-    const targetDedupKeys = [
-      getCanonicalAdamNodeDedupKey('سبأ'),
-      getCanonicalAdamNodeDedupKey('مضر'),
-      getCanonicalAdamNodeDedupKey('ربيعة'),
-      getCanonicalAdamNodeDedupKey('حمير بن سبأ'),
-      getCanonicalAdamNodeDedupKey('قضاعة'),
-      getCanonicalAdamNodeDedupKey('إياد وأنمار بن نزار'),
-    ];
+    const canonicalMtIds = ['304', '306', '12662', '12660', '12661', '12659'];
     const peaks: AdamTreeInteractiveNode[] = [];
     const seen = new Set<string>();
-    for (const key of targetDedupKeys) {
-      const found = adamGraphNodes.find(
-        (n) => getCanonicalAdamNodeDedupKey(n.name) === key
-      );
+    for (const id of canonicalMtIds) {
+      const found = nodesById[id] || MASTER_ADAM_NODES_MAP[id];
       if (found && !seen.has(found.node_id)) {
         seen.add(found.node_id);
         peaks.push(found);
       }
     }
     return peaks;
-  }, [adamGraphNodes]);
+  }, [nodesById]);
 
-  // Fetch real Adam Tree stats (474,949 nodes + 35,560 coded nodes) from /api/v1/juthori/adam-tree/stats
+  // Fetch real Adam Tree stats (474,949 nodes + 35,560 coded nodes) directly from GERMAN_ENGINE_BASE_URL/api/v1/juthori/adam-tree/stats
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/v1/juthori/adam-tree/stats')
+    fetch(`${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/stats`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
@@ -1375,9 +1394,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         setAdamTreeStats({
           totalNodes: total > 1000 ? total : 474949,
           totalCodedNodes: coded,
-          mtRootIds: incomingMtRoots
-            .map((r: any) => String(r.node_id || r.id || ''))
-            .filter(Boolean),
+          mtRootIds:
+            incomingMtRoots.length > 0
+              ? incomingMtRoots
+                  .map((r: any) => String(r.node_id || r.id || ''))
+                  .filter(Boolean)
+              : ['304', '306', '12662', '12660', '12661', '12659'],
         });
       })
       .catch(() => {
@@ -1428,30 +1450,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     setShowAdamSaveConfirmModal(false);
   }, [selectedAdamNode]);
 
-  // Auto-expand ancestor path down to selectedAdamNode so the hierarchical tree always shows the connected lineage path
-  useEffect(() => {
-    if (!selectedAdamNode) return;
-    const toExpand: Record<string, boolean> = {
-      [selectedAdamNode.node_id]: true,
-    };
-    if (adamTopRootNode) {
-      toExpand[adamTopRootNode.node_id] = true;
-    }
-    const ancestors = getAncestorsChainForNode(selectedAdamNode);
-    for (const anc of ancestors) {
-      toExpand[anc.node_id] = true;
-    }
-    setExpandedTreeNodeIds((prev) => ({ ...prev, ...toExpand }));
-  }, [selectedAdamNode, adamTopRootNode, getAncestorsChainForNode]);
-
   const fetchNodeChildrenFromEngine = async (
     nodeId: string,
     codedOnly: boolean
   ) => {
-    const cacheKey = `${nodeId}__${codedOnly ? 'coded' : 'all'}`;
     try {
       const resp = await fetch(
-        `/api/v1/juthori/adam-tree/children/${encodeURIComponent(
+        `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/children/${encodeURIComponent(
           nodeId
         )}?coded_only=${codedOnly}`
       );
@@ -1461,132 +1466,94 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         ? data.children
         : Array.isArray(data?.data?.children)
         ? data.data.children
+        : Array.isArray(data)
+        ? data
         : null;
       if (!rawChildren || rawChildren.length === 0) return;
 
-      const mapped: Array<{
-        node: AdamTreeInteractiveNode;
-        skippedGenerations: number;
-      }> = rawChildren.map((item: any) => ({
-        node: sanitizeAndNormalizeAdamNode({
-          node_id: String(item.node_id || item.id || ''),
-          name: String(item.name || item.title || ''),
-          parent_id: String(item.parent_id || nodeId),
-          arc_code: String(item.arc_code || item.code || 'UNASSIGNED'),
-          representation: (item.representation ||
-            'INDIVIDUAL') as AdamTreeInteractiveNode['representation'],
-          relation_nature: (item.relation_nature ||
-            'DIRECT') as AdamTreeInteractiveNode['relation_nature'],
-          geo_footprint: Array.isArray(item.geo_footprint)
-            ? item.geo_footprint
-            : [],
-          enriched_sources: Array.isArray(item.enriched_sources)
-            ? item.enriched_sources
-            : [],
-          enriched_branches: Array.isArray(item.enriched_branches)
-            ? item.enriched_branches
-            : [],
-        }),
-        skippedGenerations: Number(
-          item.skipped_generations || item.skippedGenerations || 0
-        ),
-      }));
-
-      setRemoteChildrenByKey((prev) => ({
-        ...prev,
-        [cacheKey]: mapped,
-      }));
+      // Merge children directly into the Single Source of Truth dictionary (nodesById) keyed by node_id
+      setNodesById((prev) => {
+        const next = { ...prev };
+        for (const item of rawChildren) {
+          const child = sanitizeAndNormalizeAdamNode({
+            node_id: String(item.node_id || item.id || ''),
+            name: String(item.name || item.title || ''),
+            parent_id: String(item.parent_id || nodeId),
+            parent_name: item.parent_name
+              ? String(item.parent_name)
+              : prev[nodeId]?.name,
+            arc_code: String(item.arc_code || item.code || 'UNASSIGNED'),
+            representation: (item.representation ||
+              'INDIVIDUAL') as AdamTreeInteractiveNode['representation'],
+            relation_nature: (item.relation_nature ||
+              'DIRECT') as AdamTreeInteractiveNode['relation_nature'],
+            geo_footprint: Array.isArray(item.geo_footprint)
+              ? item.geo_footprint
+              : [],
+            enriched_sources: Array.isArray(item.enriched_sources)
+              ? item.enriched_sources
+              : [],
+            enriched_branches: Array.isArray(item.enriched_branches)
+              ? item.enriched_branches
+              : [],
+          });
+          if (child.node_id && child.name && child.node_id !== nodeId) {
+            const existing = next[child.node_id];
+            next[child.node_id] = {
+              ...existing,
+              ...child,
+              parent_id: child.parent_id || existing?.parent_id || nodeId,
+              parent_name:
+                child.parent_name ||
+                existing?.parent_name ||
+                prev[nodeId]?.name,
+            };
+          }
+        }
+        return next;
+      });
     } catch {
-      // Local graph fallback remains active
+      // Never generate fake children on error — rely strictly on MASTER_ADAM_NODES_MAP / nodesById
     }
   };
 
+  // Toggle expand/collapse ONLY for the clicked arrow's node_id in expandedNodeIds (Set<string>)
   const handleToggleExpandTreeNode = (nodeId: string) => {
-    const nextExpanded = !expandedTreeNodeIds[nodeId];
-    setExpandedTreeNodeIds((prev) => ({
-      ...prev,
-      [nodeId]: nextExpanded,
-    }));
-    if (nextExpanded) {
-      fetchNodeChildrenFromEngine(nodeId, codedOnlyTreeToggle);
-    }
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+        fetchNodeChildrenFromEngine(nodeId, codedOnlyTreeToggle);
+      }
+      return next;
+    });
   };
 
-  // Rule 5.1: Strict deduplication by node_id AND normalized canonical name within the same level & across local/remote merge
+  // Clicking a node name in the tree: select it and ADD its ancestor path + itself to expandedNodeIds without clearing existing open branches
+  const handleSelectTreeNodeInNavigator = (node: AdamTreeInteractiveNode) => {
+    setSelectedAdamNodeId(node.node_id);
+    const ancestors = getAncestorsChainForNode(node);
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev);
+      if (adamTopRootNode) {
+        next.add(adamTopRootNode.node_id);
+      }
+      for (const anc of ancestors) {
+        next.add(anc.node_id);
+      }
+      next.add(node.node_id);
+      return next;
+    });
+    fetchNodeChildrenFromEngine(node.node_id, codedOnlyTreeToggle);
+  };
+
+  // Resolve children from Single Source of Truth (nodesById) with strict deduplication by node_id
   const getResolvedChildrenForTreeNode = (
     nodeId: string
   ): Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> => {
-    const cacheKey = `${nodeId}__${codedOnlyTreeToggle ? 'coded' : 'all'}`;
-    const remote = remoteChildrenByKey[cacheKey] || [];
-    const local = resolveAdamTreeChildren(
-      nodeId,
-      adamGraphNodes,
-      codedOnlyTreeToggle
-    );
-
-    const parentNode = adamNodeByIdMap.get(nodeId);
-    const parentDedupKey = parentNode
-      ? getCanonicalAdamNodeDedupKey(parentNode.name)
-      : '';
-
-    const out: Array<{
-      node: AdamTreeInteractiveNode;
-      skippedGenerations: number;
-    }> = [];
-    const seenIds = new Set<string>();
-    const seenDedupNames = new Set<string>();
-
-    const addIfUnique = (entry: {
-      node: AdamTreeInteractiveNode;
-      skippedGenerations: number;
-    }) => {
-      const sanitized = sanitizeAndNormalizeAdamNode(entry.node);
-      if (!sanitized.node_id || !sanitized.name) return;
-      const dedupKey = getCanonicalAdamNodeDedupKey(sanitized.name);
-
-      // Never allow a node to be its own child or duplicate an existing sibling by ID or canonical name
-      if (
-        dedupKey === parentDedupKey ||
-        seenIds.has(sanitized.node_id) ||
-        seenDedupNames.has(dedupKey)
-      ) {
-        return;
-      }
-
-      // Prevent "قضاعة" from appearing under non-Himyar parents when Himyar exists in the tree
-      if (
-        dedupKey === 'قضاعه' &&
-        parentDedupKey &&
-        parentDedupKey !== 'حمير بن سبا'
-      ) {
-        return;
-      }
-
-      // Prevent "حمير بن سبأ" from appearing under non-Saba parents
-      if (
-        dedupKey === 'حمير بن سبا' &&
-        parentDedupKey &&
-        parentDedupKey !== 'سبا'
-      ) {
-        return;
-      }
-
-      seenIds.add(sanitized.node_id);
-      seenDedupNames.add(dedupKey);
-      out.push({
-        node: sanitized,
-        skippedGenerations: entry.skippedGenerations,
-      });
-    };
-
-    for (const item of local) {
-      addIfUnique(item);
-    }
-    for (const item of remote) {
-      addIfUnique(item);
-    }
-
-    return out;
+    return resolveAdamTreeChildren(nodeId, nodesById, codedOnlyTreeToggle);
   };
 
   // Visual badge helper for Rule 4 & Rule 5.2 (Zero UNASSIGNED or non-standard codes like A4, A5, A6, AT)
@@ -1647,12 +1614,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     };
   };
 
-  // Live query to Port 8090 / Neo4j Adam Tree search endpoint when researcher types in Tab 3
+  // Live query to GERMAN_ENGINE_BASE_URL/api/v1/juthori/adam-tree/search when researcher searches or filters in Tab 3
   useEffect(() => {
     const q = adamSearchQuery.trim();
-    if (!q || q.length < 2) return;
+    const father = adamFatherQuery.trim();
+    const code = adamArcFilter.trim();
+    const rep = adamRepFilter.trim();
+    if (!q && !father && !code && !rep) return;
+
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (father) params.set('father', father);
+    if (code && code !== 'ALL') params.set('arc_code', code);
+    if (rep && rep !== 'ALL') params.set('representation', rep);
+    if (searchUnderSelectedNodeOnly && selectedAdamNode?.node_id) {
+      params.set('subtree_id', selectedAdamNode.node_id);
+    }
+
     let cancelled = false;
-    fetch(`/api/v1/juthori/adam-tree/search?q=${encodeURIComponent(q)}`)
+    fetch(
+      `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search?${params.toString()}`
+    )
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
@@ -1660,6 +1642,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           ? data.results
           : Array.isArray(data.data?.results)
           ? data.data.results
+          : Array.isArray(data.nodes)
+          ? data.nodes
+          : Array.isArray(data.data?.nodes)
+          ? data.data.nodes
+          : Array.isArray(data)
+          ? data
           : [];
         if (rawList.length === 0) return;
         const incoming: AdamTreeInteractiveNode[] = rawList.map((item: any) =>
@@ -1667,6 +1655,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             node_id: String(item.node_id || item.id || ''),
             name: String(item.name || item.title || ''),
             parent_id: item.parent_id ? String(item.parent_id) : null,
+            parent_name: item.parent_name
+              ? String(item.parent_name)
+              : item.father_name
+              ? String(item.father_name)
+              : undefined,
             arc_code: String(item.arc_code || item.code || 'UNASSIGNED'),
             representation: (item.representation ||
               'INDIVIDUAL') as AdamTreeInteractiveNode['representation'],
@@ -1684,57 +1677,76 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           })
         );
         if (incoming.length > 0) {
-          setAdamGraphNodes((prev) => {
-            const byId = new Map(prev.map((n) => [n.node_id, n]));
-            const seenDedupAtParent = new Set(
-              prev.map(
-                (n) =>
-                  `${n.parent_id || 'ROOT'}__${getCanonicalAdamNodeDedupKey(
-                    n.name
-                  )}`
-              )
-            );
+          setNodesById((prev) => {
+            const next = { ...prev };
             for (const node of incoming) {
-              const key = `${
-                node.parent_id || 'ROOT'
-              }__${getCanonicalAdamNodeDedupKey(node.name)}`;
-              if (
-                node.node_id &&
-                !byId.has(node.node_id) &&
-                !seenDedupAtParent.has(key)
-              ) {
-                byId.set(node.node_id, node);
-                seenDedupAtParent.add(key);
+              if (node.node_id && node.name) {
+                const existing = next[node.node_id];
+                next[node.node_id] = {
+                  ...existing,
+                  ...node,
+                  parent_id: node.parent_id || existing?.parent_id || null,
+                  parent_name: node.parent_name || existing?.parent_name,
+                  geo_footprint:
+                    node.geo_footprint && node.geo_footprint.length > 0
+                      ? node.geo_footprint
+                      : existing?.geo_footprint || [],
+                  enriched_sources:
+                    node.enriched_sources && node.enriched_sources.length > 0
+                      ? node.enriched_sources
+                      : existing?.enriched_sources || [],
+                  enriched_branches:
+                    node.enriched_branches && node.enriched_branches.length > 0
+                      ? node.enriched_branches
+                      : existing?.enriched_branches || [],
+                };
               }
             }
-            return Array.from(byId.values());
+            return next;
           });
         }
       })
       .catch(() => {
-        // Local graph fallback remains active
+        // Local MASTER_ADAM_NODES_MAP remains active
       });
     return () => {
       cancelled = true;
     };
-  }, [adamSearchQuery]);
+  }, [
+    adamSearchQuery,
+    adamFatherQuery,
+    adamArcFilter,
+    adamRepFilter,
+    searchUnderSelectedNodeOnly,
+    selectedAdamNode?.node_id,
+  ]);
 
-  // Live query to `/api/v1/juthori/adam-tree/node/{id}` when researcher selects a node in Tab 3
+  // Live query to `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/node/{id}` when researcher selects a node in Tab 3
   useEffect(() => {
     if (!selectedAdamNodeId) return;
     let cancelled = false;
     fetch(
-      `/api/v1/juthori/adam-tree/node/${encodeURIComponent(selectedAdamNodeId)}`
+      `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/node/${encodeURIComponent(
+        selectedAdamNodeId
+      )}`
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        const n = data.node || data.data?.node;
+        const n =
+          data.node ||
+          data.data?.node ||
+          (data.node_id || data.name ? data : null);
         if (!n) return;
         const mappedNode = sanitizeAndNormalizeAdamNode({
           node_id: String(n.node_id || n.id || selectedAdamNodeId),
           name: String(n.name || ''),
           parent_id: n.parent_id ? String(n.parent_id) : null,
+          parent_name: n.parent_name
+            ? String(n.parent_name)
+            : n.father_name
+            ? String(n.father_name)
+            : undefined,
           arc_code: String(n.arc_code || 'UNASSIGNED'),
           representation: (n.representation ||
             'INDIVIDUAL') as AdamTreeInteractiveNode['representation'],
@@ -1748,21 +1760,37 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             ? n.enriched_branches
             : [],
         });
-        if (mappedNode.name) {
-          setAdamGraphNodes((prev) => {
-            const exists = prev.some(
-              (item) => item.node_id === mappedNode.node_id
-            );
-            return exists
-              ? prev.map((item) =>
-                  item.node_id === mappedNode.node_id ? mappedNode : item
-                )
-              : [...prev, mappedNode];
+        if (mappedNode.name && mappedNode.node_id) {
+          setNodesById((prev) => {
+            const existing = prev[mappedNode.node_id];
+            return {
+              ...prev,
+              [mappedNode.node_id]: {
+                ...existing,
+                ...mappedNode,
+                parent_id:
+                  mappedNode.parent_id || existing?.parent_id || null,
+                parent_name:
+                  mappedNode.parent_name || existing?.parent_name,
+                geo_footprint:
+                  mappedNode.geo_footprint.length > 0
+                    ? mappedNode.geo_footprint
+                    : existing?.geo_footprint || [],
+                enriched_sources:
+                  mappedNode.enriched_sources.length > 0
+                    ? mappedNode.enriched_sources
+                    : existing?.enriched_sources || [],
+                enriched_branches:
+                  mappedNode.enriched_branches.length > 0
+                    ? mappedNode.enriched_branches
+                    : existing?.enriched_branches || [],
+              },
+            };
           });
         }
       })
       .catch(() => {
-        // Local graph fallback remains active
+        // Local MASTER_ADAM_NODES_MAP remains active
       });
     return () => {
       cancelled = true;
@@ -1774,37 +1802,39 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     return (
       adamSearchQuery.trim() !== '' ||
       adamFatherQuery.trim() !== '' ||
-      (adamSubtreeScopeNodeId !== '' && adamSubtreeScopeNodeId !== 'ALL') ||
+      searchUnderSelectedNodeOnly ||
       (adamArcFilter !== '' && adamArcFilter !== 'ALL') ||
       (adamRepFilter !== '' && adamRepFilter !== 'ALL')
     );
   }, [
     adamSearchQuery,
     adamFatherQuery,
-    adamSubtreeScopeNodeId,
+    searchUnderSelectedNodeOnly,
     adamArcFilter,
     adamRepFilter,
   ]);
 
-  // 5 Integrated Filters (Name/ID with flexible Arabic normalization, Father/Ancestor, Subtree Scope, Structural Code, Classification)
+  // 5 Integrated Filters (Name/ID with normalizeArabicForSearch, Father/Ancestor, Subtree Scope, Structural Code, Classification)
+  // Strictly decoupled: adamArcFilter and adamRepFilter operate independently without forcing each other!
   const filteredAdamNodes = useMemo(() => {
-    const isSubtreeActive =
-      adamSubtreeScopeNodeId !== '' && adamSubtreeScopeNodeId !== 'ALL';
-    const scopeTargetNode = isSubtreeActive
-      ? adamNodeByIdMap.get(adamSubtreeScopeNodeId) || null
-      : null;
+    const scopeTargetNode =
+      searchUnderSelectedNodeOnly && selectedAdamNode
+        ? selectedAdamNode
+        : null;
     const scopeTargetDedupKey = scopeTargetNode
       ? getCanonicalAdamNodeDedupKey(scopeTargetNode.name)
       : '';
 
     const trimmedSearch = adamSearchQuery.trim();
     const rawSearchLower = trimmedSearch.toLowerCase();
+    const normSearchQuery = normalizeArabicForSearch(trimmedSearch);
     const trimmedFather = adamFatherQuery.trim();
+    const normFatherQuery = normalizeArabicForSearch(trimmedFather);
 
     return adamGraphNodes.filter((rawNode) => {
       const n = sanitizeAndNormalizeAdamNode(rawNode);
 
-      // 4. Structural Code Filter (الكود الهيكلي)
+      // 4. Structural Code Filter (الكود الهيكلي — completely independent of representation!)
       if (
         adamArcFilter !== '' &&
         adamArcFilter !== 'ALL' &&
@@ -1824,11 +1854,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
       const ancestors = getAncestorsChainForNode(n);
 
-      // 3. Subtree Scope Filter (📍 البحث أسفل العقدة المحددة حالياً في الشجرة)
-      if (isSubtreeActive) {
+      // 3. Subtree Scope Filter (📍 البحث أسفل العقدة المحددة حالياً في الشجرة — disabled by default: false)
+      if (searchUnderSelectedNodeOnly && scopeTargetNode) {
         const isInSubtree = ancestors.some(
           (anc) =>
-            anc.node_id === adamSubtreeScopeNodeId ||
+            anc.node_id === scopeTargetNode.node_id ||
             (scopeTargetDedupKey &&
               getCanonicalAdamNodeDedupKey(anc.name) === scopeTargetDedupKey)
         );
@@ -1837,19 +1867,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         }
       }
 
-      // 2. Father or Upper Ancestor Filter (اسم الأب أو الجد الأعلى — matches direct father or any upper ancestor)
+      // 2. Father or Upper Ancestor Filter (اسم الأب أو الجد الأعلى — matches parent_name, direct father, or any upper ancestor)
       if (trimmedFather) {
-        const matchesAnyAncestor = ancestors.some((anc) =>
-          matchesFlexibleArabicSearch(anc.name, trimmedFather)
+        const matchesParentNameProp = n.parent_name
+          ? normalizeArabicForSearch(n.parent_name).includes(normFatherQuery) ||
+            matchesFlexibleArabicSearch(n.parent_name, trimmedFather)
+          : false;
+        const matchesAnyAncestor = ancestors.some(
+          (anc) =>
+            normalizeArabicForSearch(anc.name).includes(normFatherQuery) ||
+            matchesFlexibleArabicSearch(anc.name, trimmedFather)
         );
-        if (!matchesAnyAncestor) {
+        if (!matchesParentNameProp && !matchesAnyAncestor) {
           return false;
         }
       }
 
-      // 1. Name / Node ID / Geography Search Query (flexible Arabic normalization: آل قحيم = ال قحيم = القحيم = قحيم)
+      // 1. Name / Node ID / Geography Search Query (normalizeArabicForSearch: ال قحيم = آل قحيم = قحيم = القحيم)
       if (trimmedSearch) {
-        const nameMatch = matchesFlexibleArabicSearch(n.name, trimmedSearch);
+        const normNodeName = normalizeArabicForSearch(n.name);
+        const nameMatch =
+          (Boolean(normSearchQuery) &&
+            (normNodeName.includes(normSearchQuery) ||
+              normSearchQuery.includes(normNodeName))) ||
+          matchesFlexibleArabicSearch(n.name, trimmedSearch);
         const idMatch = n.node_id.toLowerCase().includes(rawSearchLower);
         const geoMatch = (n.geo_footprint || []).some((g) =>
           matchesFlexibleArabicSearch(g, trimmedSearch)
@@ -1865,10 +1906,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     adamGraphNodes,
     adamArcFilter,
     adamRepFilter,
-    adamSubtreeScopeNodeId,
+    searchUnderSelectedNodeOnly,
+    selectedAdamNode,
     adamFatherQuery,
     adamSearchQuery,
-    adamNodeByIdMap,
     getAncestorsChainForNode,
   ]);
 
@@ -1877,23 +1918,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       .length;
   }, [filteredAdamNodes]);
 
-  // Rule 4: Select node from search results -> expand path in tree, auto-scroll to it, and load into Node Coding Editor
+  // Select node from search results -> add ancestor chain to expandedNodeIds (without clearing other open branches), auto-scroll to it, and load into Node Coding Editor
   const handleSelectNodeFromSearchResults = (
     targetNode: AdamTreeInteractiveNode
   ) => {
     setSelectedAdamNodeId(targetNode.node_id);
 
     const ancestors = getAncestorsChainForNode(targetNode);
-    const toExpand: Record<string, boolean> = {
-      [targetNode.node_id]: true,
-    };
-    if (adamTopRootNode) {
-      toExpand[adamTopRootNode.node_id] = true;
-    }
-    for (const anc of ancestors) {
-      toExpand[anc.node_id] = true;
-    }
-    setExpandedTreeNodeIds((prev) => ({ ...prev, ...toExpand }));
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev);
+      if (adamTopRootNode) {
+        next.add(adamTopRootNode.node_id);
+      }
+      for (const anc of ancestors) {
+        next.add(anc.node_id);
+      }
+      next.add(targetNode.node_id);
+      return next;
+    });
 
     // Ensure the node is visible if treeStartMode was MT_PEAKS and the node is above the 6 peaks
     if (treeStartMode === 'MT_PEAKS') {
@@ -1929,8 +1971,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   const selectedParentNodeObj = useMemo(() => {
     if (!selectedAdamNode?.parent_id) return null;
-    return adamNodeByIdMap.get(selectedAdamNode.parent_id) || null;
-  }, [adamNodeByIdMap, selectedAdamNode]);
+    return (
+      nodesById[selectedAdamNode.parent_id] ||
+      MASTER_ADAM_NODES_MAP[selectedAdamNode.parent_id] ||
+      null
+    );
+  }, [nodesById, selectedAdamNode]);
 
   // Rule 5.3: Check if current editor values have an Arc Code vs Representation conflict
   const editorCodingConflict = useMemo(() => {
@@ -2076,20 +2122,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     };
 
     try {
-      await fetch('/api/v1/juthori/adam-tree/update-node', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedNode),
-      });
+      await fetch(
+        `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/update-node`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedNode),
+        }
+      );
     } catch {
       // Proceed with local state update if offline
     }
 
-    setAdamGraphNodes((prev) =>
-      prev.map((n) =>
-        n.node_id === selectedAdamNode.node_id ? updatedNode : n
-      )
-    );
+    setNodesById((prev) => ({
+      ...prev,
+      [selectedAdamNode.node_id]: updatedNode,
+    }));
     setSelectedAdamNodeId(updatedNode.node_id);
     setShowAdamSaveConfirmModal(false);
     setIsNodeEditorUnlocked(false);
@@ -2109,6 +2157,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       node_id: newId,
       name: newChildName.trim(),
       parent_id: selectedAdamNode.node_id,
+      parent_name: selectedAdamNode.name,
       arc_code: newChildArcCode,
       representation: childConflict.hasConflict
         ? childConflict.suggestedRepresentation
@@ -2123,16 +2172,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     };
 
     try {
-      await fetch('/api/v1/juthori/adam-tree/update-node', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(childNode),
-      });
+      await fetch(
+        `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/update-node`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(childNode),
+        }
+      );
     } catch {
       // Proceed with local state update
     }
 
-    setAdamGraphNodes((prev) => [...prev, childNode]);
+    setNodesById((prev) => ({
+      ...prev,
+      [newId]: childNode,
+    }));
+    setExpandedNodeIds((prev) => new Set([...prev, selectedAdamNode.node_id, newId]));
     setSelectedAdamNodeId(newId);
     setNewChildName('');
     setShowAddChildForm(false);
@@ -2254,30 +2310,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       enriched_branches: [resolvedSubRoot],
     };
 
-    setAdamGraphNodes((prev) => {
-      const exists = prev.some((n) => n.node_id === newAdamNodeId);
-      if (exists) {
-        return prev.map((n) =>
-          n.node_id === newAdamNodeId ? newlyLinkedAdamNode : n
-        );
-      }
-      return [...prev, newlyLinkedAdamNode];
-    });
+    setNodesById((prev) => ({
+      ...prev,
+      [newAdamNodeId]: newlyLinkedAdamNode,
+    }));
 
-    // 2. Call backend endpoint
+    // 2. Call German Engine HTTPS endpoint
     try {
-      await fetch('/api/v1/juthori/researcher/close-enrichment-ticket', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adamNodeId: newAdamNodeId,
-          familyName: ticket.familyName,
-          addedVerifiedSources: selectedCitations,
-          addedSiblingBranches: [resolvedSubRoot],
-          addedLocations: ticket.inferredCountries || [ticket.locationLabel],
-          mergedNodes: liveNodes,
-        }),
-      });
+      await fetch(
+        `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adamNodeId: newAdamNodeId,
+            familyName: ticket.familyName,
+            addedVerifiedSources: selectedCitations,
+            addedSiblingBranches: [resolvedSubRoot],
+            addedLocations: ticket.inferredCountries || [ticket.locationLabel],
+            mergedNodes: liveNodes,
+          }),
+        }
+      );
     } catch {
       // Offline fallback
     }
@@ -2363,18 +2417,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       .filter(Boolean);
 
     try {
-      await fetch('/api/v1/juthori/researcher/close-enrichment-ticket', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adamNodeId: ticket.adamNodeId || '272887',
-          familyName: ticket.familyName,
-          addedVerifiedSources: selectedCitations,
-          addedSiblingBranches: parsedBranches,
-          addedNotables: parsedNotables,
-          addedLocations: parsedLocations,
-        }),
-      });
+      await fetch(
+        `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adamNodeId: ticket.adamNodeId || '272887',
+            familyName: ticket.familyName,
+            addedVerifiedSources: selectedCitations,
+            addedSiblingBranches: parsedBranches,
+            addedNotables: parsedNotables,
+            addedLocations: parsedLocations,
+          }),
+        }
+      );
     } catch {
       // Offline fallback
     }
@@ -4275,24 +4332,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       </select>
                     </div>
 
-                    {/* Field 5: Single Clean Toggle Button: 📍 البحث أسفل العقدة المحددة حالياً في الشجرة */}
+                    {/* Field 5: Single Clean Toggle Button: 📍 البحث أسفل العقدة المحددة حالياً في الشجرة (Default: false) */}
                     <div className="lg:col-span-2">
                       <label className="block text-[11px] font-bold text-stone-700 mb-1.5">
                         النطاق الشجري
                       </label>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!selectedAdamNode) return;
-                          setAdamSubtreeScopeNodeId((prev) =>
-                            prev === selectedAdamNode.node_id
-                              ? ''
-                              : selectedAdamNode.node_id
-                          );
-                        }}
+                        aria-pressed={searchUnderSelectedNodeOnly}
+                        onClick={() =>
+                          setSearchUnderSelectedNodeOnly((prev) => !prev)
+                        }
                         className={`w-full px-3 py-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                          adamSubtreeScopeNodeId !== '' &&
-                          adamSubtreeScopeNodeId !== 'ALL'
+                          searchUnderSelectedNodeOnly
                             ? 'bg-[#B45309] text-white border-[#B45309] shadow-2xs'
                             : 'bg-[#FAF6EE] hover:bg-amber-100/70 text-[#8A6408] border-[#D4AF37]/60'
                         }`}
@@ -4316,22 +4368,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <span className="text-xs font-bold text-stone-600">
                           انقر على أي نتيجة أدناه لتحديدها تلقائياً في الشجرة التفاعلية وفتح بياناتها في لوحة التكويد:
                         </span>
-                        {adamSubtreeScopeNodeId !== '' &&
-                          adamSubtreeScopeNodeId !== 'ALL' && (
-                            <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold">
-                              النطاق النشط: أسفل (
-                              {adamNodeByIdMap.get(adamSubtreeScopeNodeId)
-                                ?.name || selectedAdamNode?.name}
-                              )
-                            </span>
-                          )}
+                        {searchUnderSelectedNodeOnly && (
+                          <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-950 border border-amber-300 text-[11px] font-bold">
+                            النطاق النشط: أسفل ({selectedAdamNode?.name})
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
                         onClick={() => {
                           setAdamSearchQuery('');
                           setAdamFatherQuery('');
-                          setAdamSubtreeScopeNodeId('');
+                          setSearchUnderSelectedNodeOnly(false);
                           setAdamArcFilter('');
                           setAdamRepFilter('');
                         }}
@@ -4416,7 +4464,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     </strong>{' '}
                                     {directFather
                                       ? directFather.name
-                                      : 'الجذر الأعلى'}{' '}
+                                      : node.parent_name || 'الجذر الأعلى'}{' '}
                                     {shortLineageNames.length > 1 && (
                                       <span className="text-stone-400">
                                         ({' '}
@@ -4695,9 +4743,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         node.node_id
                       );
                       const hasChildren = resolvedChildren.length > 0;
-                      const isExpanded = Boolean(
-                        expandedTreeNodeIds[node.node_id]
-                      );
+                      const isExpanded = expandedNodeIds.has(node.node_id);
                       const isSelected =
                         selectedAdamNode?.node_id === node.node_id;
                       const isOnSelectedPath = ancestorSet.has(node.node_id);
@@ -4714,7 +4760,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               </span>
                             )}
 
-                            {/* Expand / Collapse Arrow Button (▸ / ▾) */}
+                            {/* Expand / Collapse Arrow Button (▸ / ▾) — ONLY toggles node_id in expandedNodeIds */}
                             <button
                               type="button"
                               onClick={() =>
@@ -4738,19 +4784,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               {hasChildren ? (isExpanded ? '▾' : '▸') : '•'}
                             </button>
 
-                            {/* Selectable Node Pill (Rule 3 & Rule 4: Warm Gold Highlight, Zero UNASSIGNED) */}
+                            {/* Selectable Node Pill — selects node and adds its ancestor path to expandedNodeIds without closing other open branches */}
                             <button
                               id={`adam-tree-node-btn-${node.node_id}`}
                               type="button"
-                              onClick={() => {
-                                setSelectedAdamNodeId(node.node_id);
-                                if (
-                                  hasChildren &&
-                                  !expandedTreeNodeIds[node.node_id]
-                                ) {
-                                  handleToggleExpandTreeNode(node.node_id);
-                                }
-                              }}
+                              onClick={() =>
+                                handleSelectTreeNodeInNavigator(node)
+                              }
                               title={visualMeta.tierTitle}
                               className={`group flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl text-right transition-all cursor-pointer border ${
                                 isSelected
@@ -4912,7 +4952,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         {selectedAdamNode.relation_nature === 'DIRECT'
                           ? 'بن (DIRECT — اتصال مباشر)'
                           : 'من (FROM — انحدار فرعي)'}{' '}
-                        <strong>{selectedParentNodeObj?.name || 'الجذر الأعلى'}</strong>
+                        <strong>
+                          {selectedParentNodeObj?.name ||
+                            selectedAdamNode.parent_name ||
+                            'الجذر الأعلى'}
+                        </strong>
                       </span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
