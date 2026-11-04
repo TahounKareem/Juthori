@@ -4,6 +4,7 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import { auth, googleProvider } from './services/firebase';
 import {
@@ -324,10 +325,50 @@ export function App() {
     };
   }, [userManuallySelectedCountry]);
 
+  // Verify cached customer session in localStorage against Firestore `users`:
+  // If the admin deleted the customer from Firebase `users`, immediately clear the stale localStorage session!
+  useEffect(() => {
+    if (typeof window === 'undefined' || !initialSession?.isLoggedIn) return;
+    let cancelled = false;
+    const cachedUid = initialSession.userId || '';
+    const cachedEmail = (initialSession.form?.email || '').trim();
+    if (!cachedUid && !cachedEmail) return;
+
+    (async () => {
+      try {
+        const [byUid, byEmail] = await Promise.all([
+          cachedUid ? fetchUserProfile(cachedUid) : Promise.resolve(null),
+          cachedEmail ? fetchUserProfileByEmail(cachedEmail) : Promise.resolve(null),
+        ]);
+        if (cancelled) return;
+        if (!byUid && !byEmail) {
+          // User was deleted from Firestore `users` — purge cached session and sign out
+          localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+          localStorage.removeItem('juthori_active_customer_session_v1');
+          signOut(auth).catch(() => {});
+          setHasActiveSession(false);
+          setUserId('');
+          setUserAvatarUrl('');
+          setSearchStep(1);
+          setPreviousPlatformView('landing');
+          setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
+        }
+      } catch {
+        // Ignore transient offline errors
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Firebase Auth Observer to synchronize logged-in user profile and keep customer session active
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Ignore anonymous sessions or team portal sessions
+        if (user.isAnonymous) return;
         setUserId(user.uid);
         try {
           const [profileByUid, profileByEmail] = await Promise.all([
@@ -339,6 +380,21 @@ export function App() {
             (profileByUid?.familyName ? profileByUid : null) ||
             profileByEmail ||
             profileByUid;
+
+          if (!profile) {
+            // If this authenticated user has no customer profile in `users` (e.g. deleted from Firebase by admin)
+            // and we are not on `/Team`, clear any stale customer session in localStorage
+            if (!isTeamRouteInWindow()) {
+              localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+              localStorage.removeItem('juthori_active_customer_session_v1');
+              setHasActiveSession(false);
+              setUserId('');
+              setSearchStep(1);
+              setPreviousPlatformView('landing');
+              setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
+            }
+            return;
+          }
 
           if (profile) {
             const nameParts = (profile.fullName || user.displayName || '')

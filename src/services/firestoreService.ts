@@ -494,9 +494,10 @@ export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
       ];
     case 'مدير البحوث':
       return [
-        'لوحة تحكم الباحثين (Researcher Studio) حصراً',
-        'تحقيق المخطوطات ومشاريع ألفا',
-        'ربط وإثراء عُقد شجرة آدم',
+        'لوحة تحكم إدارة البحوث (Researcher Studio)',
+        'لوحة إدارة شجرة آدم (ADAM ANCESTRAL TREE™)',
+        'لوحة البحث والفحص (تحقيق المخطوطات ومشاريع ألفا)',
+        'ربط وإثراء وتكويد عُقد شجرة آدم',
       ];
     case 'مدير إدارة الطلبات وخدمة العملاء':
       return [
@@ -512,13 +513,42 @@ export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
   }
 }
 
+function isTeamAccountDocInUsers(
+  docId?: string,
+  email?: string,
+  fullName?: string
+): boolean {
+  const id = (docId || '').trim();
+  const em = (email || '').trim().toLowerCase();
+  const fn = (fullName || '').trim();
+  if (
+    id.startsWith('team_usr_') ||
+    id.startsWith('team_maestro_') ||
+    id === 'usr_maestro_kareem'
+  ) {
+    return true;
+  }
+  if (em === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()) {
+    return true;
+  }
+  if (fn.includes('(المايسترو)') || fn.includes('(مدير البحوث)') || fn.includes('(مدير عام)')) {
+    return true;
+  }
+  return false;
+}
+
 // =============================================================================
 // 1. USER PROFILE & AVATAR MANAGEMENT (Firebase Firestore + Storage)
 // =============================================================================
 export async function fetchUserProfile(userId: string): Promise<UserProfileData | null> {
   if (!userId) return null;
   const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return dualGetDoc<UserProfileData>(['users', safeUid]);
+  if (isTeamAccountDocInUsers(safeUid)) return null;
+  const doc = await dualGetDoc<UserProfileData>(['users', safeUid]);
+  if (doc && isTeamAccountDocInUsers(doc.userId || safeUid, doc.email, doc.fullName)) {
+    return null;
+  }
+  return doc;
 }
 
 export async function fetchUserProfileByEmail(
@@ -534,7 +564,9 @@ export async function fetchUserProfileByEmail(
     ]);
 
     const matchingUsers = allUsers.filter(
-      (u) => (u.email || '').trim().toLowerCase() === cleanEmail
+      (u) =>
+        !isTeamAccountDocInUsers(u.id || u.userId, u.email, u.fullName) &&
+        (u.email || '').trim().toLowerCase() === cleanEmail
     );
     // Prefer a user record that has a non-empty familyName
     const bestUser =
@@ -550,7 +582,8 @@ export async function fetchUserProfileByEmail(
       matchingOrders[0] ||
       null;
 
-    if (!bestUser && !bestOrder) {
+    // Crucial: If the customer document was deleted from `users` by the admin, do NOT resurrect them from a stale order alone
+    if (!bestUser) {
       return null;
     }
 
@@ -1408,43 +1441,53 @@ export function getTeamMemberDocIdByEmail(email: string): string {
 export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
   if (hasPurgedLegacySeedsInSession) return;
   hasPurgedLegacySeedsInSession = true;
-  await Promise.allSettled(
-    LEGACY_DUMMY_SEED_DOCS.map(([col, docId]) => dualDeleteDoc([col, docId]))
-  );
+  await Promise.allSettled([
+    ...LEGACY_DUMMY_SEED_DOCS.map(([col, docId]) => dualDeleteDoc([col, docId])),
+    dualDeleteDoc(['users', 'usr_maestro_kareem']),
+    dualDeleteDoc(['users', 'team_maestro_kareem']),
+  ]);
+
+  // Architectural separation cleanup: remove any team_usr_* or team member accounts from `users` collection
+  try {
+    const [allUsers, allTeam] = await Promise.all([
+      dualGetCollection<UserProfileData & { id?: string }>('users'),
+      dualGetCollection<TeamMemberRecord>('team_members'),
+    ]);
+    const teamEmails = new Set(
+      allTeam.map((t) => (t.email || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const docsToDeleteFromUsers: string[] = [];
+    for (const u of allUsers) {
+      const docId = u.id || u.userId || '';
+      const uEmail = (u.email || '').trim().toLowerCase();
+      if (
+        docId &&
+        (isTeamAccountDocInUsers(docId, u.email, u.fullName) ||
+          (uEmail && teamEmails.has(uEmail) && docId.startsWith('team_')))
+      ) {
+        docsToDeleteFromUsers.push(docId);
+      }
+    }
+    if (docsToDeleteFromUsers.length > 0) {
+      await Promise.allSettled(
+        docsToDeleteFromUsers.map((id) => dualDeleteDoc(['users', id]))
+      );
+    }
+  } catch {
+    // Non-blocking cleanup
+  }
 }
 
 export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecord> {
   hasEnsuredMaestroInSession = true;
   try {
-    const maestroUserProfile: UserProfileData = {
-      userId: 'usr_maestro_kareem',
-      fullName: 'كريم طاحون (المايسترو)',
-      firstName: 'كريم',
-      fatherName: 'طاحون',
-      grandfatherName: '',
-      familyName: 'طاحون',
-      email: 'Kareem.Tahoun@adamresearchcenter.net',
-      phone: '+966500000000',
-      accountType: 'record_keeper',
-      defaultCountry: 'السعودية',
-      originCountry: 'مصر',
-      originRegion: 'القاهرة',
-      subscriptionTier: 'premium_annual',
-      walletBalance: 250,
-      isRootUnlocked: true,
-      emailNotificationsEnabled: true,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    };
-
+    // Architectural Separation Rule: Founding Maestro belongs strictly to `team_members`, NEVER to `users` (which is strictly for Customers)
     await Promise.allSettled([
       dualSetDoc(
         ['team_members', FOUNDING_MAESTRO_MEMBER.id],
         FOUNDING_MAESTRO_MEMBER as unknown as Record<string, unknown>
       ),
-      dualSetDoc(
-        ['users', maestroUserProfile.userId],
-        maestroUserProfile as unknown as Record<string, unknown>
-      ),
+      dualDeleteDoc(['users', 'usr_maestro_kareem']),
     ]);
 
     return FOUNDING_MAESTRO_MEMBER;
@@ -1463,166 +1506,16 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
     // 1. Ensure juthori-com has an authenticated Firebase Auth session in case its rules require request.auth != null
     await ensurePrimaryFirebaseAuthSession();
 
-    // 2. Purge legacy dummy seeds & ensure Founding Maestro exists in both databases
+    // 2. Purge legacy dummy seeds, clean any team accounts out of `users`, & ensure Founding Maestro exists in `team_members`
     await Promise.allSettled([
       purgeLegacyDummySeedsFromFirestore(),
       ensureFoundingMaestroInFirebase(),
     ]);
 
-    // 3. If there is an active customer session in localStorage, ensure its user profile, order, and research ticket are written to Firestore
-    if (typeof window !== 'undefined') {
-      try {
-        const rawSession =
-          localStorage.getItem('juthori_active_customer_session_v1') ||
-          localStorage.getItem('juthori_active_user_session');
-        if (rawSession) {
-          const parsed = JSON.parse(rawSession);
-          const sessEmail = (
-            parsed?.form?.email ||
-            parsed?.email ||
-            ''
-          )
-            .trim()
-            .toLowerCase();
-          const sessResult = parsed?.lineageResult || parsed?.result;
-          const sessUid =
-            parsed?.userId ||
-            parsed?.uid ||
-            auth.currentUser?.uid ||
-            (sessEmail ? `usr_${sessEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}` : '');
+    // NOTE: Never re-seed deleted customer profiles from localStorage on bootstrap!
+    // Customer documents in `users` are only created upon explicit registration/login.
 
-          if (sessEmail && sessResult && sessUid) {
-            const fullName = [
-              sessResult.clientName,
-              sessResult.fatherName,
-              sessResult.grandfatherName,
-              sessResult.familyName,
-            ]
-              .filter((s: string) => s && s !== '—')
-              .join(' ');
-            const stateMode =
-              parsed?.dashboardStateMode ||
-              parsed?.stateMode ||
-              'state0_free_onboarding';
-            const isVip = stateMode === 'annual_vip';
-            const isPaid5 = stateMode === 'state1_paid5_basic';
-            const legalType =
-              parsed?.form?.accountType === 'record_keeper' ||
-              parsed?.accountType === 'record_keeper'
-                ? 'record_keeper'
-                : 'individual';
-            const phoneVal = parsed?.userPhone || parsed?.phone || '';
-            const defaultCountryVal =
-              parsed?.userDefaultCountry ||
-              parsed?.defaultCountry ||
-              sessResult.originCountry ||
-              'السعودية';
-
-            await Promise.allSettled([
-              createUserProfileIfMissing(
-                { uid: sessUid, email: sessEmail, displayName: fullName },
-                {
-                  fullName,
-                  firstName: sessResult.clientName || '',
-                  fatherName:
-                    sessResult.fatherName && sessResult.fatherName !== '—'
-                      ? sessResult.fatherName
-                      : '',
-                  grandfatherName:
-                    sessResult.grandfatherName && sessResult.grandfatherName !== '—'
-                      ? sessResult.grandfatherName
-                      : '',
-                  familyName: sessResult.familyName || '',
-                  email: sessEmail,
-                  phone: phoneVal,
-                  accountType: legalType,
-                  defaultCountry: defaultCountryVal,
-                  originCountry: sessResult.originCountry || 'السعودية',
-                  originRegion:
-                    parsed?.form?.originRegion ||
-                    parsed?.originRegion ||
-                    sessResult.originRegion ||
-                    '',
-                  subscriptionTier: isVip
-                    ? 'premium_annual'
-                    : isPaid5
-                    ? 'basic_verified'
-                    : 'free',
-                  walletBalance: isVip ? 25 : 0,
-                  isRootUnlocked: isVip || isPaid5,
-                }
-              ),
-              upsertCustomerOrderInFirebase({
-                id: `ord_${sessEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${(
-                  sessResult.familyName || 'fam'
-                ).replace(/\s+/g, '_')}`,
-                userId: sessUid,
-                fullName,
-                firstName: sessResult.clientName || '',
-                fatherName: sessResult.fatherName || '—',
-                grandfatherName: sessResult.grandfatherName || '—',
-                familyName: sessResult.familyName || '',
-                originCountry: sessResult.originCountry || 'السعودية',
-                originRegion: sessResult.originRegion || 'غير محدد',
-                email: sessEmail,
-                phone: phoneVal || '—',
-                legalRole: legalType,
-                accountStatus: isVip
-                  ? 'annual_vip'
-                  : isPaid5
-                  ? 'paid_5_root'
-                  : 'free',
-                walletBalanceUsd: isVip ? 25 : 0,
-                paidRevenueUsd: isVip ? 60 : isPaid5 ? 5 : 0,
-                matchStatus: !sessResult.matched
-                  ? 'open_research_ticket'
-                  : sessResult.isAlphaOnlyBeforeMerge
-                  ? 'staged_3_nodes'
-                  : 'auto_adam_full',
-                ticketId: sessResult.alphaBackgroundTicketCode || '—',
-                ticketType: !sessResult.matched
-                  ? 'طلب عميل P1'
-                  : sessResult.isAlphaOnlyBeforeMerge
-                  ? 'إثراء شجرة آدم P2'
-                  : 'آلي مكتمل',
-                assignedResearcher: 'مفتوح بالمنصة للباحثين',
-                slaStatus: 'جديدة',
-                nodesCountLabel: `${
-                  sessResult.adamSpineNodes?.length || 1
-                } محطة موثقة`,
-              }),
-              syncClientLineageTicketToFirebase({
-                userId: sessUid,
-                userFullName: fullName,
-                userEmail: sessEmail,
-                userPhone: phoneVal,
-                familyName: sessResult.familyName || '',
-                originCountry: sessResult.originCountry || 'السعودية',
-                originRegion: sessResult.originRegion || '',
-                rootBranchName: sessResult.rootBranchName,
-                rootTribeName: sessResult.rootTribeName,
-                matched: Boolean(sessResult.matched),
-                isAlphaOnlyBeforeMerge: sessResult.isAlphaOnlyBeforeMerge,
-                isAlphaMergedIntoAdam: sessResult.isAlphaMergedIntoAdam,
-                adamNodeId: sessResult.adamNodeId,
-                alphaBackgroundTicketCode: sessResult.alphaBackgroundTicketCode,
-                verifiedSources: sessResult.verified_sources,
-                corroboratingAlphaEvidence:
-                  sessResult.corroborating_alpha_evidence_for_researcher,
-                siblingBranches: sessResult.sibling_branches_in_record,
-                notablesInRecord: sessResult.notables_in_record,
-                enrichedLocations: sessResult.enrichedLocations,
-                adamSpineNodesCount: sessResult.adamSpineNodes?.length || 1,
-              }),
-            ]);
-          }
-        }
-      } catch {
-        // Non-blocking session backfill
-      }
-    }
-
-    // 4. Cross-heal all top-level collections between mirrorDb and juthori-com
+    // 3. Cross-heal all top-level collections between mirrorDb and juthori-com
     const targetCollections = [
       'team_members',
       'users',
@@ -1832,7 +1725,7 @@ export async function addTeamMemberToFirebase(params: {
     createdAt: new Date().toISOString(),
   };
 
-  // 3. Register user in Firebase Authentication (juthori-com + mirror) AND save in Firestore in parallel
+  // 3. Register user in Firebase Authentication (juthori-com + mirror) AND save strictly in `team_members` (NEVER in `users`)
   const [authResult] = await Promise.all([
     provisionUserInFirebaseAuth(
       newMember.email,
@@ -1843,19 +1736,7 @@ export async function addTeamMemberToFirebase(params: {
       ['team_members', id],
       newMember as unknown as Record<string, unknown>
     ),
-    createUserProfileIfMissing(
-      {
-        uid: id,
-        email: newMember.email,
-        displayName: newMember.name,
-      },
-      {
-        fullName: `${newMember.name} (${newMember.role})`,
-        email: newMember.email,
-        accountType: 'record_keeper',
-        subscriptionTier: 'premium_annual',
-      }
-    ),
+    dualDeleteDoc(['users', id]),
   ]);
 
   provisionedAuthEmailsInSession.add(cleanEmail);

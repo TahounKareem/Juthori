@@ -74,6 +74,8 @@ import {
 export type AdminModuleTab =
   | 'users_rbac'
   | 'research_studio'
+  | 'adam_tree_management'
+  | 'direct_search_inspection'
   | 'orders_support'
   | 'knowledge_cms'
   | 'executive_reports';
@@ -130,12 +132,18 @@ function getAllowedTabsForRole(role: TeamRoleType): AdminModuleTab[] {
       return [
         'users_rbac',
         'research_studio',
+        'adam_tree_management',
+        'direct_search_inspection',
         'orders_support',
         'knowledge_cms',
         'executive_reports',
       ];
     case 'مدير البحوث':
-      return ['research_studio'];
+      return [
+        'research_studio',
+        'adam_tree_management',
+        'direct_search_inspection',
+      ];
     case 'مدير إدارة الطلبات وخدمة العملاء':
       return ['orders_support'];
     case 'مدير تحرير المركز المعرفي':
@@ -895,6 +903,23 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       badge: researchTicketsCount,
     },
     {
+      id: 'adam_tree_management',
+      label: 'إدارة شجرة آدم',
+      icon: (
+        <img
+          src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
+          alt="شجرة آدم"
+          className="w-5 h-5 rounded-full object-contain bg-white/90 p-0.5 shrink-0"
+        />
+      ),
+      badge: '474,949',
+    },
+    {
+      id: 'direct_search_inspection',
+      label: 'البحث والفحص',
+      icon: <Search className="w-4 h-4" />,
+    },
+    {
       id: 'orders_support',
       label: 'إدارة الطلبات وخدمة العملاء',
       icon: <HeadphonesIcon className="w-4 h-4" />,
@@ -1118,12 +1143,20 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         )}
 
         {/* =====================================================================
-            PANEL 2: لوحة تحكم الباحثين (Researcher Studio)
+            PANEL 2: أقسام البحوث الثلاثة (إدارة البحوث / إدارة شجرة آدم / البحث والفحص)
            ===================================================================== */}
-        {activeTab === 'research_studio' &&
-          allowedTabs.includes('research_studio') && (
+        {(activeTab === 'research_studio' ||
+          activeTab === 'adam_tree_management' ||
+          activeTab === 'direct_search_inspection') &&
+          allowedTabs.includes(activeTab) && (
             <div className="bg-white rounded-3xl border border-[#E2DACB] p-4 sm:p-6 shadow-sm">
               <ResearcherStudio
+                activePortalSection={activeTab}
+                onSelectPortalSection={(sec) => {
+                  if (allowedTabs.includes(sec)) {
+                    setActiveTab(sec);
+                  }
+                }}
                 currentFamilyName={currentClientResult.familyName}
                 currentClientResult={currentClientResult}
                 isAlphaAlreadyMerged={isAlphaAlreadyMerged}

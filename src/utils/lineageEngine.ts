@@ -3773,6 +3773,55 @@ export const UNIVERSAL_ALPHA_EVIDENCE_CATALOG: CorroboratingAlphaEvidence[] = [
     locations: 'إقليم الجبلين وحائل | نجد والجزيرة',
     priority_tier: 'PRIORITY_2_GENERAL_BOOK',
   },
+
+  // --- بلاد حجة / اليمن: قدم & قدم بن قادم (اختبار المحاذاة الموضعية بالمرساة وتفكيك الاسم المركب) ---
+  {
+    alpha_id: 'ALP_YEM_QADAM_1',
+    record_name: 'قدم',
+    source_book: 'مجموع بلدان اليمن وقبائلها للقاضي الحجري',
+    page: '654',
+    volume: '2',
+    lineage_ancestors: 'قدم ؛ قادم ؛ أسلم ؛ عليان ؛ زيد ؛ عريب ؛ جشم ؛ حاشد ؛ همدان',
+    child_branches: 'بني شومي | بني عرجلة',
+    locations: 'بلاد حجة | اليمن',
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+  },
+  {
+    alpha_id: 'ALP_YEM_QADAM_2',
+    record_name: 'قدم بن قادم',
+    source_book: 'معجم القبائل اليمنية وإكليل الهمداني',
+    page: '318',
+    volume: '1',
+    lineage_ancestors: 'حجور ؛ اسلم ؛ عليان ؛ زيد ؛ عريب ؛ جشم ؛ حاشد ؛ همدان ؛ قحطان',
+    child_branches: 'بني شومي | بني عرجلة',
+    locations: 'بلاد حجة | شهارة | اليمن',
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+  },
+
+  // --- بلاد حجة / اليمن: الشاهل (اختبار منع الدمج العابر للعائلات وفلتر البادئة التلخيصية المكررة) ---
+  {
+    alpha_id: 'ALP_YEM_SHAHIL_HAMZI',
+    record_name: 'آل الحمزي',
+    source_book: 'مجموع بلدان اليمن وقبائلها للقاضي الحجري',
+    page: '295',
+    volume: '1',
+    lineage_ancestors: 'حمزة ؛ النفس الزكية ؛ الحسن ؛ علي ؛ أبي طالب',
+    child_branches: 'الشاهل | بيت الحمزي',
+    locations: 'الشاهل | بلاد حجة | اليمن',
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+  },
+  {
+    alpha_id: 'ALP_YEM_SHAHIL_RISHANI',
+    record_name: 'آل الريشاني',
+    source_book: 'تاريخ اليمن وأنساب الأشراف في حجة',
+    page: '412',
+    volume: '1',
+    lineage_ancestors:
+      'أبي الفضل العباس ؛ علي ؛ أبي طالب ؛ الحسين ؛ المؤيد ؛ يحيى ؛ أبي الفضل العباسي ؛ علي ؛ أبي طالب',
+    child_branches: 'الشاهل | بيت الريشاني',
+    locations: 'الشاهل | بلاد حجة | اليمن',
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+  },
   {
     alpha_id: 'ALP_SA_AWDAH_3',
     record_name: 'آل تومان (الأوضاح)',
@@ -4173,11 +4222,292 @@ export function formatAlphaEvidenceCitation(ev: CorroboratingAlphaEvidence): str
 }
 
 /**
- * Cross-Source Consensus Clustering Algorithm (Rule 3 & Rule 4):
- * Automatically compares `lineage_ancestors` and `child_branches` across all matched records
- * for the same family name. Groups records sharing common lineage/branch nodes into clusters:
- * - Marks the cluster agreed upon by 2+ sources as `isConsensusWinner: true` ("المسار المتوافق عليه في المصادر")
- * - Places other competing records for the same name in secondary comparison clusters ("مسارات أخرى لنفس الاسم في المصادر للمقارنة")
+ * ============================================================================
+ * 5 UNIVERSAL ALGORITHMIC LINEAGE ENGINE RULES (Stitching, Clustering & Unrolling)
+ * ============================================================================
+ */
+
+/**
+ * Rule 3: High Apex Stop-List (`HIGH_APEX_STOP_LIST`)
+ * Universal tribal/Hashemite apexes that are shared by thousands of distinct families.
+ * Sharing ONLY nodes from this list is NEVER sufficient to merge two different families/records into one cluster.
+ */
+export const HIGH_APEX_STOP_LIST: string[] = [
+  'علي',
+  'ابي طالب',
+  'ابو طالب',
+  'الحسن',
+  'الحسين',
+  'هاشم',
+  'قريش',
+  'عدنان',
+  'قحطان',
+  'همدان',
+  'كهلان',
+  'حمير',
+  'مضر',
+  'ربيعه',
+];
+
+/**
+ * Normalizes an Arabic lineage name to its morphological stem (`normalizeArabicStem`)
+ * so variants like "أبي الفضل العباس" and "أبي الفضل العباسي", or "أسلم" and "اسلم",
+ * or "أبو طالب" and "أبي طالب" match deterministically.
+ */
+export function normalizeArabicStem(raw: string): string {
+  if (!raw) return '';
+  let s = normalizeArabic(raw)
+    .replace(/^(ال|ال\s+|بيت\s+|عشيره\s+|قبيله\s+|بني\s+|بنو\s+|اولاد\s+|ذوي\s+)/g, '')
+    .replace(/\b(ابو|ابي|ابا)\b/g, 'ابي')
+    .trim();
+
+  // Strip definite article "ال" from individual words and normalize trailing nisba "ي" on words >= 4 chars
+  s = s
+    .split(/\s+/)
+    .map((word) => {
+      let w = word.replace(/^ال/, '');
+      if (w.length >= 4 && w.endsWith('ي') && w !== 'علي') {
+        w = w.slice(0, -1);
+      }
+      return w;
+    })
+    .filter(Boolean)
+    .join(' ');
+
+  return s.trim();
+}
+
+export function isHighApexStopNode(name: string): boolean {
+  const norm = normalizeArabicToken(name, true);
+  const stem = normalizeArabicStem(name);
+  if (!norm && !stem) return false;
+  return HIGH_APEX_STOP_LIST.some((apex) => {
+    const apexNorm = normalizeArabicToken(apex, true);
+    const apexStem = normalizeArabicStem(apex);
+    return norm === apexNorm || stem === apexStem;
+  });
+}
+
+/**
+ * Rule 2: Decompose Compound Names (`A بن B`) into atomic stations `['A', 'B']`.
+ * For example, "قدم بن قادم" -> ['قدم', 'قادم'].
+ */
+export function decomposeCompoundLineageName(rawName: string): string[] {
+  const cleaned = sanitizeLineageAncestorToken(rawName || '');
+  if (!cleaned) return [];
+  const parts = cleaned
+    .split(/\s+(?:بن|ابن)\s+/)
+    .map((p) => sanitizeLineageAncestorToken(p))
+    .filter(Boolean);
+  return parts.length > 1 ? parts : [cleaned];
+}
+
+/**
+ * Rule 4: In-Record Cycle & Summary-Prefix Trimmer (`cleanAndUnrollLineageChain`)
+ * - Removes any leading station that duplicates the family/record name itself (e.g. `قدم ⬅️ قدم` -> `قدم`).
+ * - Decomposes any compound `A بن B` node if its sub-roots `A` and `B` are already present or expands it in-place.
+ * - Detects if a 1..4 node summary prefix at the beginning of `lineage_ancestors`
+ *   (e.g. `أبي الفضل العباس ⬅️ علي ⬅️ أبي طالب`) repeats by stem in the upper half of the chain
+ *   (`... ⬅️ الحسين ⬅️ المؤيد ⬅️ يحيى ⬅️ أبي الفضل العباسي ⬅️ علي ⬅️ أبي طالب`), and strips the repeated summary prefix.
+ * - Deduplicates any ancestor appearing twice in the same spine by stem while preserving the highest (topmost) position.
+ */
+export function cleanAndUnrollLineageChain(
+  rawTokens: string[],
+  familyOrRecordName?: string
+): string[] {
+  // 1. Sanitize and decompose compound `A بن B` nodes in-place
+  const expanded: string[] = [];
+  for (const raw of rawTokens) {
+    const clean = sanitizeLineageAncestorToken(raw);
+    if (!clean || isGeographicOrDescriptiveNoiseToken(clean)) continue;
+    const subParts = decomposeCompoundLineageName(clean);
+    for (const part of subParts) {
+      if (part && !isGeographicOrDescriptiveNoiseToken(part)) {
+        expanded.push(part);
+      }
+    }
+  }
+
+  if (expanded.length === 0) return [];
+
+  // 2. Detect and strip a 1..4 station summary prefix at index 0 that repeats later in the chain
+  let working = [...expanded];
+  const maxPrefixLen = Math.min(4, Math.floor(working.length / 2));
+  for (let k = maxPrefixLen; k >= 1; k--) {
+    const prefixStems = working.slice(0, k).map((t) => normalizeArabicStem(t));
+    let foundMatchLater = false;
+    for (let startIdx = k; startIdx <= working.length - k; startIdx++) {
+      let allMatch = true;
+      for (let offset = 0; offset < k; offset++) {
+        if (normalizeArabicStem(working[startIdx + offset]) !== prefixStems[offset]) {
+          allMatch = false;
+          break;
+        }
+      }
+      if (allMatch) {
+        foundMatchLater = true;
+        break;
+      }
+    }
+    if (foundMatchLater) {
+      working = working.slice(k);
+      break;
+    }
+  }
+
+  // 3. Remove any station that duplicates `familyOrRecordName` (Rule 2: prevent `قدم ⬅️ قدم` or `قدم بن قادم` duplication)
+  if (familyOrRecordName) {
+    const famStem = normalizeArabicStem(familyOrRecordName);
+    const famSubStems = decomposeCompoundLineageName(familyOrRecordName).map((p) =>
+      normalizeArabicStem(p)
+    );
+    // If the very first ancestor token is identical to the family/record name itself, strip it
+    while (
+      working.length > 0 &&
+      normalizeArabicStem(working[0]) === famStem &&
+      famSubStems.length === 1
+    ) {
+      working.shift();
+    }
+  }
+
+  // 4. Deduplicate any repeated stem within the chain while preserving its LAST (highest/topmost) occurrence
+  const lastIndexByStem = new Map<string, number>();
+  working.forEach((tok, idx) => {
+    const stem = normalizeArabicStem(tok);
+    if (stem) {
+      lastIndexByStem.set(stem, idx);
+    }
+  });
+
+  const deduplicated: string[] = [];
+  working.forEach((tok, idx) => {
+    const stem = normalizeArabicStem(tok);
+    if (!stem) return;
+    if (lastIndexByStem.get(stem) === idx) {
+      deduplicated.push(tok);
+    }
+  });
+
+  return deduplicated;
+}
+
+/**
+ * Rule 1: Anchor-Based Topological Alignment (`stitchLineageChains`)
+ * Stitches `incomingChain` into `baseChain` using shared anchor nodes instead of blindly appending at the end:
+ * - For each unseen node `X` in `incomingChain`:
+ *   1. Look ahead in `incomingChain` for the nearest subsequent node (`nextAnchor`) that exists in `result`.
+ *      If found, insert `X` IMMEDIATELY BEFORE `nextAnchor` (preserving true genealogical order, e.g., inserting `حجور` before `أسلم`).
+ *   2. If no subsequent node exists in `result` (because `X` is above the top of `baseChain`, e.g., `قحطان` after `همدان`),
+ *      look backward in `incomingChain` for the nearest preceding node (`prevAnchor`) that exists in `result`,
+ *      and insert `X` IMMEDIATELY AFTER `prevAnchor`.
+ */
+export function stitchLineageChains(
+  baseChain: string[],
+  incomingChain: string[],
+  familyNameContext?: string
+): string[] {
+  const cleanBase = cleanAndUnrollLineageChain(baseChain, familyNameContext);
+  const cleanIncoming = cleanAndUnrollLineageChain(incomingChain, familyNameContext);
+
+  if (cleanBase.length === 0) return cleanIncoming;
+  if (cleanIncoming.length === 0) return cleanBase;
+
+  const result = [...cleanBase];
+
+  const findIndexInResult = (token: string): number => {
+    const targetStem = normalizeArabicStem(token);
+    if (!targetStem) return -1;
+    return result.findIndex((r) => normalizeArabicStem(r) === targetStem);
+  };
+
+  for (let i = 0; i < cleanIncoming.length; i++) {
+    const nodeX = cleanIncoming[i];
+    if (findIndexInResult(nodeX) !== -1) {
+      continue;
+    }
+
+    // Rule 2 Guard: If nodeX is a compound name `A بن B` and both A and B are already in `result`, skip it
+    const subParts = decomposeCompoundLineageName(nodeX);
+    if (
+      subParts.length > 1 &&
+      subParts.every((part) => findIndexInResult(part) !== -1)
+    ) {
+      continue;
+    }
+
+    // 1. Search forward in cleanIncoming for the nearest subsequent shared anchor (`nextAnchor`)
+    let inserted = false;
+    for (let nextIdx = i + 1; nextIdx < cleanIncoming.length; nextIdx++) {
+      const anchorPosInResult = findIndexInResult(cleanIncoming[nextIdx]);
+      if (anchorPosInResult !== -1) {
+        result.splice(anchorPosInResult, 0, nodeX);
+        inserted = true;
+        break;
+      }
+    }
+
+    if (inserted) continue;
+
+    // 2. If no subsequent anchor exists (nodeX is at the upper apex of cleanIncoming, e.g. `قحطان` after `همدان`),
+    // search backward in cleanIncoming for the nearest preceding shared anchor (`prevAnchor`)
+    for (let prevIdx = i - 1; prevIdx >= 0; prevIdx--) {
+      const prevPosInResult = findIndexInResult(cleanIncoming[prevIdx]);
+      if (prevPosInResult !== -1) {
+        result.splice(prevPosInResult + 1, 0, nodeX);
+        inserted = true;
+        break;
+      }
+    }
+
+    if (!inserted) {
+      result.push(nodeX);
+    }
+  }
+
+  return cleanAndUnrollLineageChain(result, familyNameContext);
+}
+
+/**
+ * Helper to determine if a matched record matched the searched `familyName` as a `child_branch`
+ * rather than as the record's own primary title (`record_name`).
+ */
+function isRecordChildBranchMatchForQuery(
+  familyName: string,
+  ev: CorroboratingAlphaEvidence
+): boolean {
+  const queryStem = normalizeArabicStem(familyName);
+  const recordParts = decomposeCompoundLineageName(ev.record_name || '');
+  const recordStems = recordParts.map((p) => normalizeArabicStem(p));
+  const fullRecordStem = normalizeArabicStem(ev.record_name || '');
+
+  // If the searched family name matches the record's own name (or one of its compound parts, e.g. "قدم" in "قدم بن قادم"),
+  // it is a direct record match, NOT a child-branch-only match.
+  if (
+    fullRecordStem === queryStem ||
+    recordStems.includes(queryStem) ||
+    fullRecordStem.includes(queryStem)
+  ) {
+    return false;
+  }
+
+  const branches = (ev.child_branches || '')
+    .split(/[|،؛,]/)
+    .map((b) => normalizeArabicStem(b))
+    .filter(Boolean);
+
+  return branches.some((b) => b === queryStem || b.includes(queryStem));
+}
+
+/**
+ * Cross-Source Consensus Clustering Algorithm (Upgraded with the 5 Universal Algorithmic Rules):
+ * - Rule 1: Uses `stitchLineageChains` (Anchor-Based Topological Alignment) to stitch chains within each cluster.
+ * - Rule 2: Decomposes compound `A بن B` names (`قدم بن قادم` -> `قدم ⬅️ قادم`) and prevents duplicate record name nodes.
+ * - Rule 3: Enforces `HIGH_APEX_STOP_LIST` and the `Different Parent Record Guard` so child-branch matches with different parent records
+ *           (like `الشاهل` in `آل الحمزي` vs `آل الريشاني`) are NEVER merged into one cluster.
+ * - Rule 4: Runs `cleanAndUnrollLineageChain` on every record's ancestors before clustering and stitching.
+ * - Rule 5: Removes the wrong `همدان -> قبيلة يام / نجران` fallback and derives `originTribeLabel` dynamically from the top node
+ *           of the cluster's stitched chain and `geographicScope` from the cluster records' actual `locations`.
  */
 export function computeCrossSourceConsensusClusters(
   familyName: string,
@@ -4185,23 +4515,27 @@ export function computeCrossSourceConsensusClusters(
 ): ConsensusClusterGroup[] {
   if (!evidenceList || evidenceList.length === 0) return [];
 
-  const normFamily = normalizeArabicToken(familyName, true);
-
   interface RawCluster {
     key: string;
     originTribeLabel: string;
     geographicScope: string;
-    tokenSet: Set<string>;
-    displayNodes: string[];
+    isChildBranchCluster: boolean;
+    parentRecordTitle: string;
+    nonApexStemSet: Set<string>;
+    stitchedAncestors: string[];
+    locationTokens: string[];
     records: CorroboratingAlphaEvidence[];
   }
 
-  const inferOriginTribeCategory = (ev: CorroboratingAlphaEvidence): {
+  const inferNamedTribePreset = (
+    ev: CorroboratingAlphaEvidence,
+    cleanedAncestors: string[]
+  ): {
     key: string;
     originTribeLabel: string;
     defaultGeo: string;
-  } => {
-    const text = normalizeArabic(`${ev.lineage_ancestors || ''} ${ev.record_name || ''}`);
+  } | null => {
+    const text = normalizeArabic(`${cleanedAncestors.join(' ')} ${ev.record_name || ''}`);
     if (text.includes('بني لام') || text.includes('بنو لام') || text.includes('نصيري') || text.includes('بلاسم')) {
       return { key: 'BANI_LAM', originTribeLabel: 'بني لام', defaultGeo: 'العمارة / ميسان / واسط' };
     }
@@ -4226,7 +4560,12 @@ export function computeCrossSourceConsensusClusters(
     if (text.includes('موالي')) {
       return { key: 'MAWALI', originTribeLabel: 'الموالي / وادي الفرات', defaultGeo: 'البوكمال / القائم / وادي الفرات' };
     }
-    if (text.includes('يام') || text.includes('همدان') || text.includes('قطعان')) {
+    // Rule 5 Fix: NEVER map general 'همدان' records to 'قبيلة يام' / 'نجران'! Only match explicit 'يام' or 'آل قطعان'
+    if (
+      /\bيام\b/.test(text) ||
+      text.includes('ال فاطمه') ||
+      text.includes('قطعان')
+    ) {
       return { key: 'YAM', originTribeLabel: 'قبيلة يام', defaultGeo: 'نجران / جنوب الجزيرة العربية' };
     }
     if (text.includes('مودحي') || text.includes('امداثر')) {
@@ -4244,56 +4583,141 @@ export function computeCrossSourceConsensusClusters(
     if (text.includes('شمر') || text.includes('سنجاره')) {
       return { key: 'SHAMMAR', originTribeLabel: 'قبيلة شمر الطائية', defaultGeo: 'حائل / نجد / الجزيرة' };
     }
+    return null;
+  };
 
-    const tokens = (ev.lineage_ancestors || '')
+  const clusters: RawCluster[] = [];
+
+  for (const ev of evidenceList) {
+    const isChildMatch = isRecordChildBranchMatchForQuery(familyName, ev);
+    const parentRecordTitle = sanitizeLineageAncestorToken(ev.record_name || familyName);
+
+    const rawAncTokens = (ev.lineage_ancestors || '')
       .split(/[؛—⬅️>|]+/)
       .map((s) => s.trim())
       .filter(Boolean);
-    const lastTok = tokens[tokens.length - 1] || ev.record_name;
-    const loc = (ev.locations || '')
+
+    // Prepend parentRecordTitle if this is a child_branch match (e.g. الشاهل -> آل الحمزي -> حمزة -> ...)
+    // or prepend decomposed record parts if record_name is compound `A بن B` (e.g. قدم بن قادم -> قدم ⬅️ قادم)
+    const recordParts = decomposeCompoundLineageName(parentRecordTitle);
+    const seedTokens = isChildMatch
+      ? [parentRecordTitle, ...rawAncTokens]
+      : recordParts.length > 1
+      ? [...recordParts, ...rawAncTokens]
+      : rawAncTokens;
+
+    const cleanedAncestors = cleanAndUnrollLineageChain(seedTokens, familyName);
+
+    // Collect non-apex stems for Rule 3 similarity check
+    const nonApexStems = new Set<string>();
+    cleanedAncestors.forEach((tok) => {
+      if (!isHighApexStopNode(tok)) {
+        const st = normalizeArabicStem(tok);
+        if (st) nonApexStems.add(st);
+      }
+    });
+    // Also add non-apex stems from decomposed record_name if it matches the family name directly
+    if (!isChildMatch) {
+      recordParts.forEach((part) => {
+        if (!isHighApexStopNode(part)) {
+          const st = normalizeArabicStem(part);
+          if (st) nonApexStems.add(st);
+        }
+      });
+    }
+
+    const evLocations = (ev.locations || '')
       .split(/[|،؛,]/)
       .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 3)
-      .join(' / ');
-    return {
-      key: `CUSTOM_${normalizeArabicToken(lastTok, true)}`,
-      originTribeLabel: lastTok,
-      defaultGeo: loc || 'النطاق المرصود في السجل',
-    };
-  };
+      .filter(Boolean);
 
-  const clusterMap = new Map<string, RawCluster>();
+    const preset = inferNamedTribePreset(ev, cleanedAncestors);
 
-  for (const ev of evidenceList) {
-    const cat = inferOriginTribeCategory(ev);
-    const ancTokens = (ev.lineage_ancestors || '')
-      .split(/[؛—⬅️>|]+/)
-      .map((s) => s.trim())
-      .filter((t) => Boolean(t) && normalizeArabicToken(t, true) !== normFamily);
+    // Try to find a compatible existing cluster obeying Rule 3 (Different Parent Record Guard + HIGH_APEX_STOP_LIST)
+    let matchedCluster: RawCluster | undefined;
 
-    const existing = clusterMap.get(cat.key);
-    if (existing) {
-      existing.records.push(ev);
-      ancTokens.forEach((t) => {
-        existing.tokenSet.add(t);
-        if (!existing.displayNodes.some((d) => normalizeArabicToken(d, true) === normalizeArabicToken(t, true))) {
-          existing.displayNodes.push(t);
+    for (const candidate of clusters) {
+      // Rule 3A — Different Parent Record Guard:
+      // If either record is a child_branch match (like الشاهل inside آل الحمزي vs الشاهل inside آل الريشاني),
+      // and their parent `record_name`s are fundamentally different (and neither is in the other's ancestors),
+      // strictly FORBID merging them!
+      if (isChildMatch || candidate.isChildBranchCluster) {
+        const candParentStem = normalizeArabicStem(candidate.parentRecordTitle);
+        const currParentStem = normalizeArabicStem(parentRecordTitle);
+        const parentInCandAncestors = candidate.stitchedAncestors.some(
+          (a) => normalizeArabicStem(a) === currParentStem
+        );
+        const candParentInCurrAncestors = cleanedAncestors.some(
+          (a) => normalizeArabicStem(a) === candParentStem
+        );
+        if (
+          candParentStem !== currParentStem &&
+          !parentInCandAncestors &&
+          !candParentInCurrAncestors
+        ) {
+          continue;
+        }
+      }
+
+      // If both match the same named tribe preset (and passed the parent record guard)
+      if (preset && candidate.key === preset.key) {
+        matchedCluster = candidate;
+        break;
+      }
+
+      // Rule 3B — Must share at least one specific NON-APEX ancestor stem (outside HIGH_APEX_STOP_LIST)
+      let sharedNonApexCount = 0;
+      for (const st of nonApexStems) {
+        if (candidate.nonApexStemSet.has(st)) {
+          sharedNonApexCount++;
+        }
+      }
+      if (sharedNonApexCount >= 1) {
+        matchedCluster = candidate;
+        break;
+      }
+    }
+
+    if (matchedCluster) {
+      matchedCluster.records.push(ev);
+      nonApexStems.forEach((st) => matchedCluster!.nonApexStemSet.add(st));
+      // Rule 1: Stitch using Anchor-Based Topological Alignment!
+      matchedCluster.stitchedAncestors = stitchLineageChains(
+        matchedCluster.stitchedAncestors,
+        cleanedAncestors,
+        familyName
+      );
+      evLocations.forEach((loc) => {
+        if (!matchedCluster!.locationTokens.includes(loc)) {
+          matchedCluster!.locationTokens.push(loc);
         }
       });
     } else {
-      clusterMap.set(cat.key, {
-        key: cat.key,
-        originTribeLabel: cat.originTribeLabel,
-        geographicScope: cat.defaultGeo,
-        tokenSet: new Set(ancTokens),
-        displayNodes: [...ancTokens],
+      const topNode =
+        cleanedAncestors[cleanedAncestors.length - 1] ||
+        parentRecordTitle ||
+        familyName;
+      const clusterKey = preset
+        ? preset.key
+        : `CLUSTER_${normalizeArabicStem(isChildMatch ? parentRecordTitle : topNode)}_${clusters.length + 1}`;
+      clusters.push({
+        key: clusterKey,
+        originTribeLabel: preset?.originTribeLabel || topNode,
+        geographicScope:
+          evLocations.slice(0, 3).join(' / ') ||
+          preset?.defaultGeo ||
+          'النطاق المرصود في السجل',
+        isChildBranchCluster: isChildMatch,
+        parentRecordTitle,
+        nonApexStemSet: nonApexStems,
+        stitchedAncestors: cleanedAncestors,
+        locationTokens: [...evLocations],
         records: [ev],
       });
     }
   }
 
-  const sortedClusters = Array.from(clusterMap.values()).sort(
+  const sortedClusters = [...clusters].sort(
     (a, b) => b.records.length - a.records.length
   );
 
@@ -4301,31 +4725,50 @@ export function computeCrossSourceConsensusClusters(
 
   return sortedClusters.map((c, idx) => {
     const isWinner = idx === 0 && topCount >= 2;
-    const cleanedDisplayNodes = c.displayNodes
-      .map((t) => sanitizeLineageAncestorToken(t))
-      .filter((t) => Boolean(t) && !isGeographicOrDescriptiveNoiseToken(t));
+    const cleanedDisplayNodes = cleanAndUnrollLineageChain(
+      c.stitchedAncestors,
+      familyName
+    );
 
     const chainTokens =
       c.key === 'BANI_LAM'
         ? [familyName, 'البلاسم', 'آل نصيري', 'بني لام']
         : [familyName, ...cleanedDisplayNodes];
 
+    // Rule 5: Dynamically derive `originTribeLabel` from the actual top node of the stitched chain
+    // and `geographicScope` from the cluster's actual record locations
+    const dynamicTopOrigin =
+      cleanedDisplayNodes[cleanedDisplayNodes.length - 1] ||
+      c.originTribeLabel ||
+      familyName;
+    const finalOriginTribeLabel =
+      c.key.startsWith('CLUSTER_')
+        ? dynamicTopOrigin
+        : c.originTribeLabel || dynamicTopOrigin;
+    const finalGeoScope =
+      c.locationTokens.length > 0
+        ? c.locationTokens.slice(0, 3).join(' / ')
+        : c.geographicScope;
+
     const weightedRoots = selectWeightedConsensusTwoRootNodes(
       familyName,
       chainTokens.slice(1),
-      c.records
+      c.records,
+      c.isChildBranchCluster
+        ? { isChildBranchMatch: true, recordTitleNodeName: c.parentRecordTitle }
+        : undefined
     );
     const rootPreview =
       weightedRoots.rootB2Name &&
       weightedRoots.rootB0Name &&
       weightedRoots.rootB2Name !== weightedRoots.rootB0Name
         ? `${weightedRoots.rootB2Name} ⬅️ ${weightedRoots.rootB0Name}`
-        : weightedRoots.rootB0Name || c.originTribeLabel;
+        : weightedRoots.rootB0Name || finalOriginTribeLabel;
 
     return {
       clusterId: `cluster-${c.key.toLowerCase()}-${idx + 1}`,
-      originTribeLabel: c.originTribeLabel,
-      geographicScope: c.geographicScope,
+      originTribeLabel: finalOriginTribeLabel,
+      geographicScope: finalGeoScope,
       isConsensusWinner: isWinner,
       sourcesCount: c.records.length,
       sharedNodes: cleanedDisplayNodes.slice(0, 6),
@@ -4792,14 +5235,8 @@ export function buildDynamicAlphaSpineFromAncestors(
     .filter((s) => Boolean(s) && !isGeographicOrDescriptiveNoiseToken(s));
 
   const normFam = normalizeArabicToken(familyName, true);
-  const filteredTokens: string[] = [];
-  for (const tok of rawTokens) {
-    const normTok = normalizeArabicToken(tok, true);
-    if (normTok === normFam) continue;
-    if (!filteredTokens.some((existing) => normalizeArabicToken(existing, true) === normTok)) {
-      filteredTokens.push(tok);
-    }
-  }
+  // Apply Rule 2 & Rule 4 (Summary-Prefix Trimmer, Compound Name Decomposition & Stem Deduplication)
+  const filteredTokens = cleanAndUnrollLineageChain(rawTokens, familyName);
 
   if (filteredTokens.length === 0) {
     const b2 = sanitizeLineageAncestorToken(subtribeB2Fallback || '');
@@ -6918,6 +7355,162 @@ export function resolveDeterministicLineage(
   }
 
   // ===========================================================================
+  // UNIVERSAL CATALOG DYNAMIC MATCH (Applies the 5 Algorithmic Rules to any matched catalog family such as "قدم", "الشاهل", etc.)
+  // ===========================================================================
+  const queryStemForCatalog = normalizeArabicStem(displayFamilyName);
+  if (queryStemForCatalog && !isExplicitUnmatched) {
+    const matchedCatalogRecords = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((ev) => {
+      const recParts = decomposeCompoundLineageName(ev.record_name || '');
+      const recMatch =
+        normalizeArabicStem(ev.record_name || '') === queryStemForCatalog ||
+        recParts.some((p) => normalizeArabicStem(p) === queryStemForCatalog);
+      const branchMatch = isRecordChildBranchMatchForQuery(displayFamilyName, ev);
+      return recMatch || branchMatch;
+    });
+
+    if (matchedCatalogRecords.length > 0) {
+      const clusters = computeCrossSourceConsensusClusters(
+        displayFamilyName,
+        matchedCatalogRecords
+      );
+      const primaryCluster = clusters[0];
+      const winningChainAncestors = primaryCluster
+        ? primaryCluster.fullChainNodes.slice(1)
+        : cleanAndUnrollLineageChain(
+            (matchedCatalogRecords[0].lineage_ancestors || '').split(/[؛—⬅️>|]+/),
+            displayFamilyName
+          );
+      const matchedLoc =
+        primaryCluster?.geographicScope ||
+        matchedCatalogRecords[0].locations ||
+        form.originRegion ||
+        form.originCountry ||
+        geoOntology.canonicalCountry;
+
+      const isChildBranchOnly = matchedCatalogRecords.every((ev) =>
+        isRecordChildBranchMatchForQuery(displayFamilyName, ev)
+      );
+
+      const spineNodes = buildDynamicAlphaSpineFromAncestors(
+        displayFamilyName,
+        winningChainAncestors.join(' ؛ '),
+        winningChainAncestors[0] || displayFamilyName,
+        winningChainAncestors[winningChainAncestors.length - 1] || displayFamilyName,
+        matchedLoc,
+        {
+          isChildBranchMatch: isChildBranchOnly,
+          recordTitleNodeName: isChildBranchOnly
+            ? matchedCatalogRecords[0].record_name
+            : undefined,
+          corroboratingRecords: primaryCluster?.records || matchedCatalogRecords,
+        }
+      );
+
+      const b2Name =
+        spineNodes.find((n) => n.code === 'B2')?.name ||
+        spineNodes[Math.min(1, spineNodes.length - 1)]?.name ||
+        displayFamilyName;
+      const b0Name =
+        spineNodes[spineNodes.length - 1]?.name ||
+        primaryCluster?.originTribeLabel ||
+        b2Name;
+
+      const agg = aggregateAlphaEvidenceForFamily(
+        displayFamilyName,
+        matchedLoc,
+        matchedCatalogRecords
+      );
+      const taggedEv = tagConsensusWinnersOnEvidence(
+        displayFamilyName,
+        matchedCatalogRecords
+      );
+      const fullStitchedNodes: UpperAncestorNode[] = enrichSpineNodesWithNeo4jRelations(
+        (primaryCluster?.fullChainNodes || [displayFamilyName, ...winningChainAncestors]).map(
+          (nodeName, idx, arr) => ({
+            id: `stitched-cat-${idx + 1}`,
+            orderNumber: idx + 1,
+            name: nodeName,
+            code: idx === 0 ? 'FE0' : idx === arr.length - 1 ? 'B0' : 'B2',
+            rankLabel:
+              idx === 0
+                ? 'عقدة العائلة الموثقة'
+                : idx === arr.length - 1
+                ? 'القبيلة الأم / الجذم الجامع في السجل'
+                : 'محطة موثقة في سلسلة النسب',
+            isCodedStation: true,
+            region: matchedLoc,
+            eraNote: `محطة موثقة في السلسلة المدمجة لعائلة ${displayFamilyName}.`,
+            dataLakeSource: 'alpha_projects',
+          })
+        )
+      );
+
+      return {
+        matched: true,
+        engineSource,
+        primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
+        priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
+        clientName,
+        fatherName,
+        grandfatherName,
+        familyName: displayFamilyName,
+        familyCode: `ALPHA-CAT-${matchedCatalogRecords.length}`,
+        originCountry:
+          form.originCountry ||
+          (matchedLoc.includes('اليمن') ? 'اليمن' : geoOntology.canonicalCountry),
+        originRegion: form.originRegion || matchedLoc,
+        resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
+        inferred_client_countries: matchedLoc.includes('اليمن')
+          ? ['اليمن']
+          : inferredCountries,
+        matched_location: matchedLoc,
+        sibling_branches_in_record: agg.sibling_branches_in_record,
+        siblingBranches: agg.sibling_branches_in_record,
+        rootBranchName: b2Name,
+        rootBranchCode: 'B2',
+        rootTribeName: b0Name,
+        rootTribeCode: 'B0',
+        rootSummaryLabel: `الجذر: ${b2Name} ⬅️ ${b0Name}`,
+        upperAncestors: spineNodes.filter((n) => n.orderNumber > 1),
+        adamSpineNodes: spineNodes,
+        full_stitched_lineage_for_researcher: fullStitchedNodes,
+        suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
+          displayFamilyName,
+          b2Name,
+          b0Name
+        ),
+        lake3_unlinked_projects_for_researcher: buildLake3UnlinkedProjectsForResearcher(
+          displayFamilyName,
+          b0Name,
+          matchedLoc
+        ),
+        ai_research_hypotheses: buildAIResearchHypothesesForFamily(
+          displayFamilyName,
+          taggedEv,
+          buildSuggestedAdamBridgeForResearcher(displayFamilyName, b2Name, b0Name)
+        ),
+        capsules: buildIntermediateRingsForSpine([...spineNodes], 'alpha-cat-cap'),
+        requiresBlindDisambiguation: clusters.length > 1 && !clusters[0].isConsensusWinner,
+        disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
+        isAlphaOnlyBeforeMerge: true,
+        isAlphaMergedIntoAdam: false,
+        alphaParallelSource: agg.primaryCitation,
+        alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
+        verifiedSourceCitation: agg.primaryCitation,
+        verified_sources: agg.verified_sources,
+        secondarySources: agg.verified_sources,
+        corroborating_alpha_evidence_for_researcher: taggedEv,
+        consensusClusterGroups: clusters,
+        background_researcher_ticket: agg.background_researcher_ticket,
+        historicalRegion: matchedLoc,
+        conflictingNarrativesNote: agg.background_researcher_ticket.description_ar,
+        confidenceLabel: `تطابق مجمع من (${matchedCatalogRecords.length}) مصادر في مشاريع ألفا`,
+        recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
+      };
+    }
+  }
+
+  // ===========================================================================
   // TIER 4: UNMATCHED FAMILY -> State 3 (P1 Researcher Ticket Queue)
   // ===========================================================================
   const unmatchedSingleNode: UpperAncestorNode[] = [
@@ -7403,11 +7996,33 @@ export function parsePort8090UniversalResponse(
 
     const primaryEvidenceWithLineage = sortedByRichness[0];
 
+    // Compute Cross-Source Consensus Clusters FIRST using the 5 Universal Algorithmic Rules
+    // (Anchor-Based Topological Alignment, Compound Name Decomposition, Anti-Cross-Family Merge, and Summary-Prefix Trimming)
+    const consensusClusters = computeCrossSourceConsensusClusters(
+      displayFamilyName,
+      combinedEvidence
+    );
+
+    const primaryWinningCluster = consensusClusters[0];
+    const clusterStitchedAncestorsText =
+      primaryWinningCluster && primaryWinningCluster.fullChainNodes.length > 1
+        ? primaryWinningCluster.fullChainNodes.slice(1).join(' ؛ ')
+        : '';
+
+    const rawCleanedApiChain = cleanAndUnrollLineageChain(
+      String(apiChainNodesText || '')
+        .split(/[؛—⬅️>|]+/)
+        .map((s: string) => s.trim())
+        .filter(Boolean),
+      displayFamilyName
+    ).join(' ؛ ');
+
     const bestLineageChainText =
-      countStations(apiChainNodesText) >=
+      clusterStitchedAncestorsText ||
+      (countStations(rawCleanedApiChain) >=
       countStations(primaryEvidenceWithLineage?.lineage_ancestors)
-        ? apiChainNodesText
-        : primaryEvidenceWithLineage?.lineage_ancestors || '';
+        ? rawCleanedApiChain
+        : primaryEvidenceWithLineage?.lineage_ancestors || '');
 
     const rawB2 =
       apiData.root_connection_5usd_tier?.subtribe_b2_name &&
@@ -7426,7 +8041,7 @@ export function parsePort8090UniversalResponse(
       rawB2 || primaryEvidenceWithLineage?.record_name || displayFamilyName,
       rawB0 || bestLineageChainText || 'القبيلة الأم الموثقة',
       String(matchedLocation),
-      { corroboratingRecords: combinedEvidence }
+      { corroboratingRecords: primaryWinningCluster?.records || combinedEvidence }
     );
 
     const useCuratedLocalAlphaSpine =
@@ -7452,11 +8067,6 @@ export function parsePort8090UniversalResponse(
     const dynamicCapsules = useCuratedLocalAlphaSpine
       ? localFallback.capsules
       : buildIntermediateRingsForSpine([...dynamicSpine], 'alpha-live-cap');
-
-    const consensusClusters = computeCrossSourceConsensusClusters(
-      displayFamilyName,
-      combinedEvidence
-    );
 
     // Rule 3: If 4+ completely different paths of equal weight exist with NO consensus winner uniting them,
     // do NOT show 4 or 5+ options to the customer — convert automatically to a Researcher Ticket!
@@ -7508,35 +8118,47 @@ export function parsePort8090UniversalResponse(
       combinedEvidence
     );
 
-    // Parse full_stitched_lineage_for_researcher if returned by Port 8090 v11.0, or build from all open stations
-    const apiFullStitched: UpperAncestorNode[] | undefined = Array.isArray(
-      apiData.full_stitched_lineage_for_researcher
-    )
-      ? enrichSpineNodesWithNeo4jRelations(
-          apiData.full_stitched_lineage_for_researcher.map(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (sn: any, idx: number): UpperAncestorNode => ({
-              id: String(sn.node_id || sn.id || `stitched-live-${idx + 1}`),
-              orderNumber: idx + 1,
-              name: String(sn.name || ''),
-              code:
-                sn.arc_code ||
-                (idx === 0
-                  ? 'FE0'
-                  : idx === apiData.full_stitched_lineage_for_researcher.length - 1
-                  ? 'B0'
-                  : 'B2'),
-              rankLabel: String(
-                sn.rank_label ||
-                  (idx === 0
-                    ? 'عقدة العائلة الموثقة'
-                    : idx === apiData.full_stitched_lineage_for_researcher.length - 1
-                    ? 'القبيلة الأم / الجذم الجامع في السجل'
-                    : 'محطة موثقة في سلسلة النسب')
+    // Build full_stitched_lineage_for_researcher using the topologically aligned `primaryWinningCluster.fullChainNodes`
+    // (Rules 1, 2, 3, 4) so even if the remote backend sent an unaligned chain, it is deterministically aligned!
+    const alignedStitchedChainNames =
+      primaryWinningCluster && primaryWinningCluster.fullChainNodes.length > 1
+        ? primaryWinningCluster.fullChainNodes
+        : Array.isArray(apiData.full_stitched_lineage_for_researcher) &&
+          apiData.full_stitched_lineage_for_researcher.length > 0
+        ? [
+            displayFamilyName,
+            ...cleanAndUnrollLineageChain(
+              apiData.full_stitched_lineage_for_researcher.map(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (sn: any) => String(sn?.name || '')
               ),
+              displayFamilyName
+            ),
+          ]
+        : null;
+
+    const apiFullStitched: UpperAncestorNode[] | undefined = alignedStitchedChainNames
+      ? enrichSpineNodesWithNeo4jRelations(
+          alignedStitchedChainNames.map(
+            (stationName: string, idx: number): UpperAncestorNode => ({
+              id: `stitched-live-${idx + 1}`,
+              orderNumber: idx + 1,
+              name: stationName,
+              code:
+                idx === 0
+                  ? 'FE0'
+                  : idx === alignedStitchedChainNames.length - 1
+                  ? 'B0'
+                  : 'B2',
+              rankLabel:
+                idx === 0
+                  ? 'عقدة العائلة الموثقة'
+                  : idx === alignedStitchedChainNames.length - 1
+                  ? 'القبيلة الأم / الجذم الجامع في السجل'
+                  : 'محطة موثقة في سلسلة النسب',
               isCodedStation: true,
               region: String(matchedLocation),
-              eraNote: `محطة موثقة في السلسلة الكاملة للباحث (${sn.name || ''}).`,
+              eraNote: `محطة موثقة في السلسلة الكاملة للباحث (${stationName}).`,
               dataLakeSource: 'alpha_projects',
             })
           )

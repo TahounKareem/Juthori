@@ -38,6 +38,7 @@ import {
   buildLake3UnlinkedProjectsForResearcher,
   buildSuggestedAdamBridgeForResearcher,
   checkArcCodeRepresentationConflict,
+  cleanAndUnrollLineageChain,
   computeCrossSourceConsensusClusters,
   formatAlphaEvidenceCitation,
   getCanonicalAdamNodeDedupKey,
@@ -47,10 +48,12 @@ import {
   matchesFlexibleArabicSearch,
   normalizeArabic,
   normalizeArabicForSearch,
+  normalizeArabicStem,
   resolveAdamTreeChildren,
   resolveDeterministicLineage,
   sanitizeAndNormalizeAdamNode,
   searchJuthoriLineage,
+  stitchLineageChains,
   tagConsensusWinnersOnEvidence,
 } from '../utils/lineageEngine';
 import { LineageSpineColumn } from './LineageSpineColumn';
@@ -132,6 +135,16 @@ export interface AdamPrimeCompletedBundle {
 }
 
 interface ResearcherStudioProps {
+  activePortalSection?:
+    | 'research_studio'
+    | 'adam_tree_management'
+    | 'direct_search_inspection';
+  onSelectPortalSection?: (
+    section:
+      | 'research_studio'
+      | 'adam_tree_management'
+      | 'direct_search_inspection'
+  ) => void;
   currentFamilyName: string;
   currentClientResult?: LineageSearchResult;
   isAlphaAlreadyMerged: boolean;
@@ -218,6 +231,8 @@ function splitAncestorsChain(raw?: string | null): string[] {
 }
 
 export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
+  activePortalSection,
+  onSelectPortalSection,
   currentFamilyName,
   currentClientResult,
   isAlphaAlreadyMerged,
@@ -225,10 +240,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   onSwitchToClientPreview,
 }) => {
   // =========================================================================
-  // 5 HORIZONTAL SUB-TABS STATE
+  // 5 HORIZONTAL SUB-TABS STATE (Synchronized with Top /Team Portal Section)
   // =========================================================================
-  const [activeSubTab, setActiveSubTab] =
-    useState<ResearcherStudioSubTab>('ticket_inbox');
+  const [activeSubTab, setActiveSubTab] = useState<ResearcherStudioSubTab>(() => {
+    if (activePortalSection === 'adam_tree_management') return 'adam_tree_explorer';
+    if (activePortalSection === 'direct_search_inspection') return 'direct_search';
+    return 'ticket_inbox';
+  });
+
+  useEffect(() => {
+    if (activePortalSection === 'adam_tree_management') {
+      setActiveSubTab('adam_tree_explorer');
+    } else if (activePortalSection === 'direct_search_inspection') {
+      setActiveSubTab('direct_search');
+    } else if (activePortalSection === 'research_studio') {
+      setActiveSubTab((curr) =>
+        curr === 'adam_tree_explorer' || curr === 'direct_search'
+          ? 'ticket_inbox'
+          : curr
+      );
+    }
+  }, [activePortalSection]);
 
   const [toastBanner, setToastBanner] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -877,39 +909,70 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     ev: CorroboratingAlphaEvidence
   ) => {
     const currentNodes = getLivePreviewNodesForTicket(ticket);
-    const secondaryChain = splitAncestorsChain(ev.lineage_ancestors);
-    const existingNamesNorm = new Set(
-      currentNodes.map((n) =>
-        n.name.replace(/^(آل|بيت|عشيرة|قبيلة|بني|بنو)\s+/, '').trim()
-      )
+    const secondaryChain = cleanAndUnrollLineageChain(
+      splitAncestorsChain(ev.lineage_ancestors),
+      ticket.familyName
     );
-    const nodesToAppend: ExtractableLineageNode[] = [];
-    secondaryChain.forEach((station, sIdx) => {
-      const norm = station
-        .replace(/^(آل|بيت|عشيرة|قبيلة|بني|بنو)\s+/, '')
-        .trim();
-      if (!existingNamesNorm.has(norm)) {
-        existingNamesNorm.add(norm);
-        nodesToAppend.push({
-          id: `node-splice-${ticket.id}-${idx}-${sIdx}-${Date.now()}`,
-          name: station,
-          nodeCode: sIdx === secondaryChain.length - 1 ? 'B0' : 'B1',
-          relationType: 'aan',
-          region: ev.locations || ticket.locationLabel,
-        });
-      }
-    });
+    const baseAncestors = currentNodes.slice(1).map((n) => n.name);
+    const existingStems = new Set(
+      currentNodes.map((n) => normalizeArabicStem(n.name))
+    );
 
-    if (nodesToAppend.length === 0) {
+    // Rule 1: Use Anchor-Based Topological Alignment (`stitchLineageChains`) instead of appending at the end!
+    const alignedAncestors = stitchLineageChains(
+      baseAncestors,
+      secondaryChain,
+      ticket.familyName
+    );
+
+    const newlyInsertedNames = alignedAncestors.filter(
+      (name) => !existingStems.has(normalizeArabicStem(name))
+    );
+
+    if (newlyInsertedNames.length === 0) {
       showToast('جميع أجداد هذه الرواية مدمجة بالفعل في معاينة العمود النهائي.');
       return;
     }
 
-    // Demote any previous B0 in currentNodes to B1/B2 so the newly spliced top ancestor becomes B0
-    const updatedCurrent = currentNodes.map((n, i) =>
-      i > 0 && n.nodeCode === 'B0' ? { ...n, nodeCode: 'B1' } : n
+    const existingNodeByStem = new Map<string, ExtractableLineageNode>();
+    currentNodes.slice(1).forEach((n) => {
+      existingNodeByStem.set(normalizeArabicStem(n.name), n);
+    });
+
+    const familyRootNode: ExtractableLineageNode = currentNodes[0] || {
+      id: `node-fam-${ticket.id}`,
+      name: ticket.familyName,
+      nodeCode: 'FE0',
+      relationType: 'aan',
+      region: ticket.locationLabel,
+    };
+
+    const rebuiltAncestors: ExtractableLineageNode[] = alignedAncestors.map(
+      (stationName, sIdx) => {
+        const stem = normalizeArabicStem(stationName);
+        const prevNode = existingNodeByStem.get(stem);
+        const isTopApex = sIdx === alignedAncestors.length - 1;
+        if (prevNode) {
+          return {
+            ...prevNode,
+            nodeCode: isTopApex
+              ? 'B0'
+              : prevNode.nodeCode === 'B0'
+              ? 'B1'
+              : prevNode.nodeCode,
+          };
+        }
+        return {
+          id: `node-splice-${ticket.id}-${idx}-${sIdx}-${Date.now()}`,
+          name: stationName,
+          nodeCode: isTopApex ? 'B0' : sIdx === 0 ? 'B2' : 'B1',
+          relationType: 'aan',
+          region: ev.locations || ticket.locationLabel,
+        };
+      }
     );
-    const mergedList = [...updatedCurrent, ...nodesToAppend];
+
+    const mergedList = [familyRootNode, ...rebuiltAncestors];
 
     setLivePreviewNodesByTicket((prev) => ({
       ...prev,
@@ -926,9 +989,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
 
     showToast(
-      `🔗 تم لحم وإلحاق (${nodesToAppend
-        .map((n) => n.name)
-        .join(' ⬅️ ')}) أعلى الرواية الأساسية في معاينة العمود النهائي!`
+      `🔗 تم خياطة ومحاذاة (${newlyInsertedNames.join(
+        ' ⬅️ '
+      )}) في موضعها النسبي الصحيح بالمرساة داخل معاينة العمود النهائي!`
     );
   };
 
@@ -2550,7 +2613,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveSubTab('direct_search')}
+              onClick={() => {
+                setActiveSubTab('direct_search');
+                onSelectPortalSection?.('direct_search_inspection');
+              }}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 activeSubTab === 'direct_search'
                   ? 'bg-[#B45309] text-white shadow-sm'
@@ -2563,7 +2629,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveSubTab('ticket_inbox')}
+              onClick={() => {
+                setActiveSubTab('ticket_inbox');
+                onSelectPortalSection?.('research_studio');
+              }}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 activeSubTab === 'ticket_inbox'
                   ? 'bg-[#B45309] text-white shadow-sm'
@@ -2591,15 +2660,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveSubTab('adam_tree_explorer')}
+              onClick={() => {
+                setActiveSubTab('adam_tree_explorer');
+                onSelectPortalSection?.('adam_tree_management');
+              }}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 activeSubTab === 'adam_tree_explorer'
-                  ? 'bg-[#B45309] text-white shadow-sm'
+                  ? 'bg-[#1D4E6C] text-white shadow-sm'
                   : 'bg-[#FAF8F5] text-stone-700 hover:bg-stone-100 border border-stone-200/80'
               }`}
             >
-              <TreePine className="w-4 h-4" />
-              <span>🌳 شجرة آدم</span>
+              <img
+                src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
+                alt="شجرة آدم"
+                className="w-5 h-5 rounded-full object-contain bg-white p-0.5 shrink-0"
+              />
+              <span>إدارة شجرة آدم</span>
             </button>
 
             <button
@@ -4160,15 +4236,49 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         )}
 
         {/* ===================================================================
-            SUB-TAB 3: 🌳 شجرة آدم (SPLIT-VIEW INTERACTIVE EXPLORER & CODING EDITOR)
+            SUB-TAB 3: إدارة شجرة آدم (ADAM ANCESTRAL TREE™ — SPLIT-VIEW INTERACTIVE EXPLORER & CODING EDITOR)
         =================================================================== */}
         {activeSubTab === 'adam_tree_explorer' && (
           <div className="space-y-6">
+            {/* Official ADAM ANCESTRAL TREE™ Identity Banner */}
+            <div className="bg-gradient-to-l from-[#102A3F] via-[#173D5A] to-[#1E4E72] text-white rounded-3xl p-5 border border-[#C5A059]/40 shadow-md flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 p-1.5 shadow-lg border-2 border-[#C5A059] shrink-0 flex items-center justify-center">
+                  <img
+                    src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
+                    alt="ADAM ANCESTRAL TREE™"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/50 text-[#F4D799] text-[10px] font-mono font-extrabold tracking-wider">
+                      ADAM ANCESTRAL TREE™
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[10px] font-bold">
+                      صلاحية مدير البحوث والمايسترو المعتمدة
+                    </span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-bold font-serif mt-1 text-white">
+                    إدارة شجرة آدم — المستكشف الهيكلي ومحرر التكويد السيادي
+                  </h2>
+                  <p className="text-xs text-sky-100/85 mt-0.5">
+                    قاعدة البيانات المركزية للأجذام والقبائل والعائلات والأفراد ({adamTreeStats.totalNodes.toLocaleString('en-US')} عقدة موثقة)
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* 1. COLLAPSIBLE TOP SEARCH & FILTER PANEL: 🔍 البحث التفاعلي في شجرة آدم */}
             <div className="bg-white rounded-3xl border border-stone-200/90 p-5 shadow-xs space-y-4">
               {/* Collapsible Header with Title, Core Stats & Dynamic Filter Counter */}
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-3">
+                  <img
+                    src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
+                    alt="شجرة آدم"
+                    className="w-10 h-10 rounded-full object-contain border border-stone-200 bg-[#FAF8F5] p-0.5 shrink-0"
+                  />
                   <div>
                     <h2 className="text-base font-bold font-serif text-[#141414]">
                       🔍 البحث التفاعلي في شجرة آدم
