@@ -13,6 +13,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception - Server Kept Alive]:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection - Server Kept Alive]:', reason);
+});
+
 const DEFAULT_GERMAN_ENGINE_BASE =
   'https://yes-poems-tennessee-condo.trycloudflare.com';
 
@@ -818,7 +826,7 @@ ${knowledgeContext}`;
   } else {
     const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
+    app.get(/.*/, (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
