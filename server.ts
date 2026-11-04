@@ -4,6 +4,11 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
+import { GoogleGenAI } from '@google/genai';
+import {
+  HELP_CENTER_SECTIONS,
+  resolveLocalSmartGuideAnswer,
+} from './src/data/helpCenterData';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -688,6 +693,95 @@ async function startServer() {
       ok: true,
       dispatched: result.dispatched,
       provider: result.provider,
+    });
+  });
+
+  // 7. Smart Guide Assistant (المرشد الذكي) — Grounded in Official Juthori Help Center & Operational Guide
+  app.post('/api/juthori/smart-guide', async (req, res) => {
+    const userMessage = String(req.body?.message || '').trim();
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+
+    if (!userMessage) {
+      res.status(400).json({ error: 'يرجى كتابة سؤالك أو استفسارك للمرشد الذكي.' });
+      return;
+    }
+
+    const localMatch = resolveLocalSmartGuideAnswer(userMessage);
+
+    if (!process.env.GEMINI_API_KEY) {
+      res.json({
+        source: 'knowledge_base_core',
+        ...localMatch,
+      });
+      return;
+    }
+
+    try {
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+
+      const knowledgeContext = HELP_CENTER_SECTIONS.map((sec) => {
+        const faqsText = sec.faqs
+          .map((f) => `س: ${f.q}\nج: ${f.a}`)
+          .join('\n\n');
+        return `### قسم: ${sec.title}\n${sec.content ? sec.content + '\n' : ''}${faqsText}`;
+      }).join('\n\n---\n\n');
+
+      const recentHistoryText = history
+        .slice(-6)
+        .map((m: { role?: string; text?: string }) =>
+          `${m.role === 'user' ? 'المستخدم' : 'المرشد الذكي'}: ${String(m.text || '')}`
+        )
+        .join('\n');
+
+      const systemInstruction = `أنت "المرشد الذكي" الرسمي في منصة "جذوري — سجل تراث العائلة والأنساب العربية الموثقة".
+مهمتك هي إرشاد العملاء وأمناء السجل والإجابة عن استفساراتهم بدقة، وبأسلوب عربي فصيح، رصين، واضح، ومختصر، بالاعتماد الحصري على "الدليل الإرشادي" والسياسات المعتمدة أدناه.
+قواعد صارمة:
+1. اعتمد في إجابتك على نصوص الدليل الإرشادي الرسمي المرفق أدناه (مثل مراحل قبل وبعد تفعيل الخدمة، السجل الأساسي، نقطة العرض الأساسية، نافذة الإدراج العائلي، صلاحية أمين السجل، منهجية عمود النسب والطبقات النسبية والروايات، خدمة فتح الأبواب المغلقة، الخصوصية، والعقود والسياسات).
+2. لا تقم بتأليف أو اختلاق أنساب عائلات غير موثقة في الدليل، بل وجّه المستخدم لإجراء الفحص الأولي المجاني في الصفحة الرئيسية أو رفع تذكرة لفريق البحث المختص.
+3. ذكّر المستخدم عند الحاجة بأن "المرشد الذكي أداة إرشادية ولا يُعد بديلاً عن العقود أو السياسات أو فريق البحث المختص".
+
+الدليل الإرشادي الرسمي لمنصة جذوري:
+${knowledgeContext}`;
+
+      const prompt = recentHistoryText
+        ? `سياق المحادثة السابقة:\n${recentHistoryText}\n\nسؤال المستخدم الحالي: ${userMessage}`
+        : `سؤال المستخدم: ${userMessage}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.25,
+        },
+      });
+
+      const aiText = (response.text || '').trim();
+      if (aiText) {
+        res.json({
+          source: 'gemini_smart_guide',
+          answer: aiText,
+          matchedSectionTitle: localMatch.matchedSectionTitle,
+          matchedSectionId: localMatch.matchedSectionId,
+          matchedQuestion: localMatch.matchedQuestion,
+          relatedQuestions: localMatch.relatedQuestions,
+        });
+        return;
+      }
+    } catch {
+      // Fallback to deterministic knowledge base below
+    }
+
+    res.json({
+      source: 'knowledge_base_core',
+      ...localMatch,
     });
   });
 

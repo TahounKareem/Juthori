@@ -1,4 +1,5 @@
 import { ArabCountryInfo } from '../types/juthori';
+import { JUTHORI_MEDIA } from '../assets/media';
 
 export const GENERAL_DIASPORA_COUNTRY_INFO: ArabCountryInfo = {
   code: 'GLOBAL',
@@ -89,8 +90,7 @@ export const ARAB_COUNTRIES_22: ArabCountryInfo[] = [
     regionLabel: 'وادي النيل والصعيد والدلتا',
     slogan: 'أصلك الطيب وعيلتك الكبيرة.. تاريخ متوثّق من الجدود للأحفاد',
     heritageNote: 'من بحري للصعيد والواحات.. بنجمع فروع العيلة ونحفظ أصولها في مكان واحد.',
-    heroImageUrl:
-      'https://images.unsplash.com/photo-1572252821143-035a024857ac?auto=format&fit=crop&w=1920&q=85',
+    heroImageUrl: JUTHORI_MEDIA.egyptHeritageCourtyard,
   },
   {
     code: 'JO',

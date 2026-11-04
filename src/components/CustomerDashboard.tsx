@@ -60,6 +60,7 @@ import { PremiumTabViews } from './PremiumTabViews';
 import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
 import { CheckoutModal } from './CheckoutModal';
+import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
 
 interface CustomerDashboardProps {
   stateMode: DashboardStateMode;
@@ -2084,32 +2085,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             )}
 
             {activeUtilityDrawer === 'help' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm text-[#252321]/85 leading-relaxed">
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 space-y-1.5">
-                  <div className="font-display font-bold text-[#D8755B]">
-                    ✨ الباقة الأساسية ($5)
-                  </div>
-                  <p>
-                    تتيح لك معرفة نقطة الربط المباشرة لعائلتك بالفرع القبلي الموثق (B2) والقبيلة الأم (B0) دون التزام باشتراك سنوي.
-                  </p>
-                </div>
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 space-y-1.5">
-                  <div className="font-display font-bold text-[#D8755B]">
-                    👑 عضوية بريميوم السنوية
-                  </div>
-                  <p>
-                    تفتح عمود النسب الكامل فوق الجذر مع المصادر والروايات، وتفعّل صفحات (شجرتي، خزانتي، كشافي، موقعي، مجتمعي).
-                  </p>
-                </div>
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 space-y-1.5">
-                  <div className="font-display font-bold text-[#D8755B]">
-                    🏛️ ميثاق أمين السجل
-                  </div>
-                  <p>
-                    بناء شجرة العائلة التفصيلية متاح لرب الأسرة الموقع إلكترونياً على ميثاق دقة البيانات العائلية.
-                  </p>
-                </div>
-              </div>
+              <SupportAndHelpCenterView
+                compactMode
+                defaultUserName={[
+                  result.clientName,
+                  result.fatherName,
+                  result.familyName,
+                ]
+                  .filter((s) => s && s !== '—')
+                  .join(' ')}
+                defaultUserEmail={userEmail}
+              />
             )}
           </div>
         ) : activeTab === DashboardTab.Lineage ? (

@@ -25,6 +25,7 @@ import {
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResilientImage } from './ResilientImage';
 import { KnowledgeCenterView } from './KnowledgeCenterView';
+import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
 import { JUTHORI_MEDIA } from '../assets/media';
 import {
   ORIGIN_COUNTRY_OPTIONS,
@@ -261,7 +262,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     setActivePublicPage(pageId);
     setMobileMenuOpen(false);
     setLanguageMenuOpen(false);
-    if (pageId === 'knowledge-center' || pageId === 'home') {
+    if (
+      pageId === 'knowledge-center' ||
+      pageId === 'support-center' ||
+      pageId === 'home'
+    ) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -581,6 +586,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <KnowledgeCenterView
               articles={publishedArticles}
               onBackHome={() => navigatePublicPage('home')}
+            />
+          </section>
+        ) : activePublicPage === 'support-center' ? (
+          <section
+            id="support-center-page"
+            className="py-8 sm:py-12 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8"
+          >
+            <SupportAndHelpCenterView
+              onBackHome={() => navigatePublicPage('home')}
+              onOpenKnowledgeCenter={() => navigatePublicPage('knowledge-center')}
             />
           </section>
         ) : (
@@ -1234,6 +1249,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="pt-2 text-xs text-[#252321]/75 space-y-1">
                 <p>البريد الرسمي: support@juthori.com</p>
                 <p>ساعات عمل لجنة التحقيق: الأحد – الخميس (9:00 ص – 6:00 م بتوقيت مكة المكرمة)</p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigatePublicPage('support-center')}
+                  className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <span>فتح الدليل الإرشادي والمرشد الذكي الشامل ←</span>
+                </button>
               </div>
             </div>
 
