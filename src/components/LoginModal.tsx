@@ -62,17 +62,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const existingByUid = await fetchUserProfile(user.uid);
       const mergedExisting = existingByEmail || existingByUid;
 
+      if (!mergedExisting && !isRegisterMode) {
+        setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني. يرجى التسجيل أولاً من نموذج الفحص الفوري أو إنشاء حساب جديد.');
+        setIsLoading(false);
+        return;
+      }
+
+      const rawDisplayName = (user.displayName || '').trim();
+      const sanitizedDisplayName =
+        rawDisplayName.includes('طاحون') ? '' : rawDisplayName;
+
       const userDoc = await createUserProfileIfMissing(
         {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName,
+          displayName: mergedExisting?.fullName || sanitizedDisplayName,
         },
         {
           accountType: mergedExisting?.accountType || 'individual',
           fullName:
             mergedExisting?.fullName ||
-            user.displayName ||
+            sanitizedDisplayName ||
             cleanEmail.split('@')[0] ||
             'مستخدم جذوري',
           firstName: mergedExisting?.firstName,
@@ -89,7 +99,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const resolvedDoc = mergedExisting?.familyName ? mergedExisting : userDoc;
       const nameParts = (
         resolvedDoc.fullName ||
-        user.displayName ||
+        sanitizedDisplayName ||
         cleanEmail.split('@')[0] ||
         'مستخدم'
       )
@@ -164,6 +174,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     // 1. Always look up existing profile in Firestore by email first (checks both `users` and `customer_orders`)
     const profileByEmail = await fetchUserProfileByEmail(cleanEmail);
 
+    if (!isRegisterMode && !profileByEmail) {
+      setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني في قاعدة البيانات.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (isRegisterMode) {
         const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
@@ -200,6 +216,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       (profileByUid?.familyName ? profileByUid : null) ||
       profileByEmail ||
       profileByUid;
+
+    if (!isRegisterMode && !storedProfile) {
+      setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني في قاعدة البيانات.');
+      setIsLoading(false);
+      return;
+    }
 
     const effectiveFullName =
       typedFullName ||

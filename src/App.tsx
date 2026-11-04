@@ -84,6 +84,17 @@ function loadSavedCustomerSession(): SavedCustomerSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SavedCustomerSession;
     if (parsed && parsed.isLoggedIn && parsed.lineageResult) {
+      const em = (parsed.form?.email || '').trim().toLowerCase();
+      const fam = (parsed.lineageResult?.familyName || parsed.form?.familyName || '').trim();
+      if (
+        em === 'hassan.almuqit@juthori.com' ||
+        em === 'kareem.tahoun@adamresearchcenter.net' ||
+        em === 'client@juthori.com' ||
+        fam === 'طاحون'
+      ) {
+        localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+        return null;
+      }
       return parsed;
     }
     return null;
@@ -381,14 +392,16 @@ export function App() {
             profileByEmail ||
             profileByUid;
 
-          if (!profile) {
+          if (!profile || profile.familyName === 'طاحون') {
             // If this authenticated user has no customer profile in `users` (e.g. deleted from Firebase by admin)
-            // and we are not on `/Team`, clear any stale customer session in localStorage
+            // and we are not on `/Team`, sign out Firebase Auth and clear any stale customer session in localStorage
             if (!isTeamRouteInWindow()) {
               localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
               localStorage.removeItem('juthori_active_customer_session_v1');
+              signOut(auth).catch(() => {});
               setHasActiveSession(false);
               setUserId('');
+              setUserAvatarUrl('');
               setSearchStep(1);
               setPreviousPlatformView('landing');
               setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
@@ -415,6 +428,10 @@ export function App() {
                 ? nameParts.slice(1).join(' ')
                 : '');
 
+            if (resolvedFamily === 'طاحون') {
+              return;
+            }
+
             if (profile.avatarUrl) {
               setUserAvatarUrl(profile.avatarUrl);
             }
@@ -434,18 +451,24 @@ export function App() {
                 ? AccountLegalType.RecordKeeper
                 : AccountLegalType.Individual;
 
+            const nextForm: RegistrationFormState = {
+              ...DEFAULT_FORM_STATE,
+              email: profile.email || user.email || '',
+              firstName: resolvedFirst || 'مستخدم',
+              fatherName: resolvedFather,
+              grandfatherName: resolvedGrand,
+              familyName: resolvedFamily,
+              tribeName: resolvedTribe,
+              branchName: resolvedBranch,
+              originCountry: resolvedCountry,
+              originRegion: resolvedRegion,
+              accountType: resolvedAccountType,
+              agreedToTerms: true,
+            };
+
             setForm((prev) => ({
               ...prev,
-              email: profile.email || user.email || prev.email,
-              firstName: resolvedFirst || prev.firstName,
-              fatherName: resolvedFather || prev.fatherName,
-              grandfatherName: resolvedGrand || prev.grandfatherName,
-              familyName: resolvedFamily || prev.familyName,
-              tribeName: resolvedTribe || prev.tribeName,
-              branchName: resolvedBranch || prev.branchName,
-              originCountry: resolvedCountry || prev.originCountry,
-              originRegion: resolvedRegion || prev.originRegion,
-              accountType: resolvedAccountType,
+              ...nextForm,
             }));
 
             if (resolvedFamily) {
@@ -460,6 +483,22 @@ export function App() {
                 branchName: resolvedBranch,
               });
               setLineageResult(nextLineage);
+
+              // Also fetch from Live German Engine in background while honoring saved verification answer
+              searchJuthoriLineage(nextForm, {
+                ip_country: silentGeo.ip_country,
+                ip_city: silentGeo.ip_city,
+              })
+                .then((liveRes) => {
+                  if (liveRes && liveRes.matched) {
+                    setLineageResult(
+                      resolvedTribe || resolvedBranch
+                        ? { ...liveRes, requiresBlindDisambiguation: false }
+                        : liveRes
+                    );
+                  }
+                })
+                .catch(() => {});
 
               if (profile.subscriptionTier === 'premium_annual') {
                 setDashboardStateMode(DashboardStateMode.AnnualVip);
@@ -1227,7 +1266,7 @@ export function App() {
     }));
   };
 
-  // Update full profile details from Profile & Settings drawer
+  // Update full profile details from Profile & Settings drawer or Verification choice
   const handleUpdateProfileDetails = (details: {
     firstName: string;
     fatherName: string;
@@ -1237,6 +1276,8 @@ export function App() {
     defaultCountry: string;
     originCountry: string;
     originRegion: string;
+    tribeName?: string;
+    branchName?: string;
     avatarUrl?: string;
   }) => {
     if (details.avatarUrl !== undefined) {
@@ -1253,6 +1294,8 @@ export function App() {
       familyName: details.familyName,
       originCountry: details.originCountry,
       originRegion: details.originRegion,
+      tribeName: details.tribeName !== undefined ? details.tribeName : prev.tribeName,
+      branchName: details.branchName !== undefined ? details.branchName : prev.branchName,
     }));
 
     setLineageResult((prev) => ({
@@ -1262,6 +1305,9 @@ export function App() {
       grandfatherName: details.grandfatherName,
       familyName: details.familyName || prev.familyName,
       originCountry: details.originCountry || prev.originCountry,
+      originRegion: details.originRegion || prev.originRegion,
+      rootTribeName: details.tribeName || prev.rootTribeName,
+      rootBranchName: details.branchName || prev.rootBranchName,
     }));
   };
 
@@ -1272,7 +1318,7 @@ export function App() {
           currentClientResult={lineageResult}
           currentClientStateMode={dashboardStateMode}
           currentClientAccountType={form.accountType}
-          currentClientEmail={form.email || DEFAULT_DEMO_SEED.email}
+          currentClientEmail={form.email || ''}
           isAlphaAlreadyMerged={
             isAlphaMergedIntoAdam || !!lineageResult.isAlphaMergedIntoAdam
           }
@@ -1344,7 +1390,7 @@ export function App() {
           }
           result={lineageResult}
           silentGeo={silentGeo}
-          userEmail={form.email || DEFAULT_DEMO_SEED.email}
+          userEmail={form.email || auth.currentUser?.email || 'user@juthori.com'}
           userId={userId || auth.currentUser?.uid}
           userAvatarUrl={userAvatarUrl}
           userPhone={userPhone}
@@ -1359,6 +1405,7 @@ export function App() {
           onLogout={handleLogoutCustomer}
           onUpdateImmediateParents={handleUpdateImmediateParents}
           onUpdateProfileDetails={handleUpdateProfileDetails}
+          onUpdateLineageResult={(nextRes) => setLineageResult(nextRes)}
           onDeleteAccount={async () => {
             handleLogoutCustomer();
           }}

@@ -14,6 +14,7 @@ import {
   UpperAncestorNode,
 } from '../types/juthori';
 import {
+  buildResolvedLineageFromDisambiguationOption,
   getDashboardCapabilities,
   resolveSpineConnectorLabel,
 } from '../utils/lineageEngine';
@@ -154,7 +155,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     setStage1Choice('option_a');
     setStage2Choice('option_a');
     setLocalResolvedOption(null);
-  }, [result.familyName, result.familyCode]);
+  }, [result.familyName]);
 
   // Effective result after local or parent verification path selection
   const effectiveResult: LineageSearchResult = React.useMemo(() => {
@@ -166,26 +167,53 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         recommendedInitialState: DashboardStateMode.State3Unmatched,
       };
     }
-    if (localResolvedOption === 'option_a' && result.optionAResultOverride) {
-      return {
-        ...result,
-        ...result.optionAResultOverride,
-        requiresBlindDisambiguation: false,
-      };
-    }
-    if (localResolvedOption === 'option_b' && result.optionBResultOverride) {
-      return {
-        ...result,
-        ...result.optionBResultOverride,
-        requiresBlindDisambiguation: false,
-      };
-    }
-    if (localResolvedOption === 'option_c' && result.optionCResultOverride) {
-      return {
-        ...result,
-        ...result.optionCResultOverride,
-        requiresBlindDisambiguation: false,
-      };
+    if (
+      localResolvedOption === 'option_a' ||
+      localResolvedOption === 'option_b' ||
+      localResolvedOption === 'option_c'
+    ) {
+      const explicitOverride =
+        localResolvedOption === 'option_b'
+          ? result.optionBResultOverride
+          : localResolvedOption === 'option_c'
+          ? result.optionCResultOverride
+          : result.optionAResultOverride;
+
+      if (
+        explicitOverride &&
+        Array.isArray(explicitOverride.adamSpineNodes) &&
+        explicitOverride.adamSpineNodes.length >= 2
+      ) {
+        return {
+          ...result,
+          ...explicitOverride,
+          matched: true,
+          requiresBlindDisambiguation: false,
+        };
+      }
+
+      const optIndex =
+        localResolvedOption === 'option_b'
+          ? 1
+          : localResolvedOption === 'option_c'
+          ? 2
+          : 0;
+      const chosenOpt =
+        result.disambiguationOptions?.find((o) => o.id === localResolvedOption) ||
+        result.disambiguationOptions?.[optIndex] || {
+          id: localResolvedOption,
+          badge: 'المسار المعتمد',
+          title: result.rootTribeName || result.familyName,
+          originTribeLabel: result.rootTribeName || result.familyName,
+          geographicScope: result.originRegion || result.originCountry,
+          nearBranchHint: result.rootBranchName || '',
+        };
+      const chosenCluster = result.consensusClusterGroups?.[optIndex];
+      return buildResolvedLineageFromDisambiguationOption(
+        result,
+        chosenOpt,
+        chosenCluster
+      );
     }
     return result;
   }, [result, localResolvedOption]);
@@ -205,14 +233,76 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     stateMode === DashboardStateMode.State3Unmatched ||
     localResolvedOption === 'escalated_ticket';
 
-  const spineNodes: UpperAncestorNode[] =
-    isResearcherDirectPreview &&
-    effectiveResult.full_stitched_lineage_for_researcher &&
-    effectiveResult.full_stitched_lineage_for_researcher.length > 0
-      ? effectiveResult.full_stitched_lineage_for_researcher
-      : effectiveResult.adamSpineNodes && effectiveResult.adamSpineNodes.length > 0
-      ? effectiveResult.adamSpineNodes
-      : effectiveResult.upperAncestors;
+  const spineNodes: UpperAncestorNode[] = React.useMemo(() => {
+    const rawNodes =
+      isResearcherDirectPreview &&
+      effectiveResult.full_stitched_lineage_for_researcher &&
+      effectiveResult.full_stitched_lineage_for_researcher.length > 0
+        ? effectiveResult.full_stitched_lineage_for_researcher
+        : effectiveResult.adamSpineNodes && effectiveResult.adamSpineNodes.length > 0
+        ? effectiveResult.adamSpineNodes
+        : effectiveResult.upperAncestors || [];
+
+    if (isUnmatchedCase) {
+      return rawNodes;
+    }
+
+    // Guarantee at least Family (order 1) + Sub-Root B2 + Mother Tribe B0 when matched & verified
+    if (rawNodes.filter((n) => n.orderNumber > 1).length === 0) {
+      const famStation: UpperAncestorNode = rawNodes[0] || {
+        id: 'synth-fe0-1',
+        orderNumber: 1,
+        name: effectiveResult.familyName,
+        code: 'FE0',
+        rankLabel: 'عقدة العائلة المباشرة — بيت النسب',
+        isCodedStation: true,
+        region: effectiveResult.originRegion || effectiveResult.originCountry,
+        eraNote: `عقدة عائلة ${effectiveResult.familyName}.`,
+        dataLakeSource: 'alpha_projects',
+      };
+      const b2Name =
+        effectiveResult.rootBranchName &&
+        !effectiveResult.rootBranchName.includes('غير مفهرس')
+          ? effectiveResult.rootBranchName
+          : `فرع ${effectiveResult.familyName}`;
+      const b0Name =
+        effectiveResult.rootTribeName &&
+        !effectiveResult.rootTribeName.includes('قيد التحقيق')
+          ? effectiveResult.rootTribeName
+          : b2Name;
+
+      const synthesized: UpperAncestorNode[] = [
+        famStation,
+        {
+          id: 'synth-b2-2',
+          orderNumber: 2,
+          name: b2Name,
+          code: 'B2',
+          rankLabel: 'الجذر · الفرع الجامع (B2)',
+          isCodedStation: true,
+          region: effectiveResult.originRegion || effectiveResult.originCountry,
+          eraNote: `الفرع الجامع الموثق لعائلة ${effectiveResult.familyName}.`,
+          dataLakeSource: 'alpha_projects',
+        },
+      ];
+      if (b0Name !== b2Name) {
+        synthesized.push({
+          id: 'synth-b0-3',
+          orderNumber: 3,
+          name: b0Name,
+          code: 'B0',
+          rankLabel: 'الجذر · القبيلة الأم (B0)',
+          isCodedStation: true,
+          region: effectiveResult.originRegion || effectiveResult.originCountry,
+          eraNote: `القبيلة الأم والجذم الجامع (${b0Name}).`,
+          dataLakeSource: 'alpha_projects',
+        });
+      }
+      return synthesized;
+    }
+
+    return rawNodes;
+  }, [effectiveResult, isResearcherDirectPreview, isUnmatchedCase]);
 
   const capsulesList: AncestorCapsule[] = effectiveResult.capsules || [];
 
@@ -375,7 +465,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 العائلة المباشرة
               </div>
               <div className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
-                {getCleanSpineNodeName(result.familyName)}
+                {getCleanSpineNodeName(effectiveResult.familyName)}
               </div>
             </div>
           </div>
@@ -1467,7 +1557,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   </div>
                   <div className="min-w-0 space-y-1">
                     <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors truncate">
-                      المصادر والمراجع التاريخية الموثقة لعائلة {result.familyName}
+                      المصادر والمراجع التاريخية الموثقة لعائلة {effectiveResult.familyName}
                     </h3>
                     <p className="text-xs font-semibold text-[#8D4925] leading-snug">
                       {unifiedVipMarketingCopy}
@@ -1495,19 +1585,19 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
-                          بطاقة المصادر والمراجع التاريخية المجمعة ({(result.verified_sources?.length || result.secondarySources?.length || 1)} مراجع)
+                          بطاقة المصادر والمراجع التاريخية المجمعة ({(effectiveResult.verified_sources?.length || effectiveResult.secondarySources?.length || 1)} مراجع)
                         </h3>
                         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925]">
                           ✓ تجميع متعدد المصادر (Multi-Source Aggregation)
                         </span>
-                        {result.isAdamNodeEnrichedWithAlpha && (
+                        {effectiveResult.isAdamNodeEnrichedWithAlpha && (
                           <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
                             ✓ تم إثراء شجرة آدم بالمصادر الإضافية المعتمدة من مشاريع ألفا
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-[#8D4925] font-semibold mt-0.5">
-                        «{result.verifiedSourceCitation}»
+                        «{effectiveResult.verifiedSourceCitation}»
                       </p>
                     </div>
                   </div>
@@ -1520,7 +1610,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
                     <div>
                       <div className="text-xs font-display font-bold text-[#252321] mb-1.5">
-                        المحطات الرئيسية الموثقة لعائلة {result.familyName}:
+                        المحطات الرئيسية الموثقة لعائلة {effectiveResult.familyName}:
                       </div>
                       <p className="text-xs sm:text-sm text-[#252321]/85 leading-relaxed bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#B98A78]/25 font-serif">
                         {spineNodes
@@ -1534,11 +1624,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     {/* Aggregated Verified Sources List (Books, Volumes & Pages) */}
                     {(() => {
                       const aggregatedSources =
-                        result.verified_sources && result.verified_sources.length > 0
-                          ? result.verified_sources
-                          : result.secondarySources && result.secondarySources.length > 0
-                          ? result.secondarySources
-                          : [result.verifiedSourceCitation];
+                        effectiveResult.verified_sources && effectiveResult.verified_sources.length > 0
+                          ? effectiveResult.verified_sources
+                          : effectiveResult.secondarySources && effectiveResult.secondarySources.length > 0
+                          ? effectiveResult.secondarySources
+                          : [effectiveResult.verifiedSourceCitation];
 
                       return (
                         <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-2">
@@ -1570,10 +1660,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     {/* Aggregated Sibling Branches List */}
                     {(() => {
                       const aggregatedSiblings =
-                        result.sibling_branches_in_record &&
-                        result.sibling_branches_in_record.length > 0
-                          ? result.sibling_branches_in_record
-                          : result.siblingBranches || [];
+                        effectiveResult.sibling_branches_in_record &&
+                        effectiveResult.sibling_branches_in_record.length > 0
+                          ? effectiveResult.sibling_branches_in_record
+                          : effectiveResult.siblingBranches || [];
 
                       if (aggregatedSiblings.length === 0) return null;
 
@@ -1601,13 +1691,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       );
                     })()}
 
-                    {result.notables_in_record && result.notables_in_record.length > 0 && (
+                    {effectiveResult.notables_in_record && effectiveResult.notables_in_record.length > 0 && (
                       <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
                         <div className="text-xs font-display font-bold text-[#8D4925]">
                           الأعلام والشخصيات المرصودة في السجل:
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {result.notables_in_record.map((notable: string, idx: number) => (
+                          {effectiveResult.notables_in_record.map((notable: string, idx: number) => (
                             <span
                               key={idx}
                               className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"
@@ -1619,13 +1709,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       </div>
                     )}
 
-                    {result.enrichedLocations && result.enrichedLocations.length > 0 && (
+                    {effectiveResult.enrichedLocations && effectiveResult.enrichedLocations.length > 0 && (
                       <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
                         <div className="text-xs font-display font-bold text-[#8D4925]">
                           المواضع الجغرافية الموثقة في المراجع الموازية:
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {result.enrichedLocations.map((loc: string, idx: number) => (
+                          {effectiveResult.enrichedLocations.map((loc: string, idx: number) => (
                             <span
                               key={idx}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"

@@ -51,7 +51,9 @@ import {
 import { ORIGIN_COUNTRY_OPTIONS } from '../data/arabCountries';
 import {
   AL_MUQIT_8_CAPSULES,
+  buildResolvedLineageFromDisambiguationOption,
   getDashboardCapabilities,
+  searchJuthoriLineage,
 } from '../utils/lineageEngine';
 import { LineageSpineColumn } from './LineageSpineColumn';
 import { PremiumTabViews } from './PremiumTabViews';
@@ -85,8 +87,11 @@ interface CustomerDashboardProps {
     defaultCountry: string;
     originCountry: string;
     originRegion: string;
+    tribeName?: string;
+    branchName?: string;
     avatarUrl?: string;
   }) => void;
+  onUpdateLineageResult?: (nextResult: LineageSearchResult) => void;
   onDeleteAccount?: () => Promise<void>;
 }
 
@@ -121,6 +126,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   onLogout,
   onUpdateImmediateParents,
   onUpdateProfileDetails,
+  onUpdateLineageResult,
   onDeleteAccount,
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Lineage);
@@ -139,7 +145,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   useEffect(() => {
     setVerifiedResultOverride(null);
-  }, [result.familyName, result.familyCode]);
+  }, [result.familyName]);
 
   const activeResult = verifiedResultOverride || result;
 
@@ -791,21 +797,62 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const handleSelectVerificationPath = (
     optionId: 'option_a' | 'option_b' | 'option_c'
   ) => {
-    const chosenOverride =
+    const optIndex =
+      optionId === 'option_b' ? 1 : optionId === 'option_c' ? 2 : 0;
+    const chosenOpt =
+      result.disambiguationOptions?.find((o) => o.id === optionId) ||
+      result.disambiguationOptions?.[optIndex];
+    const chosenCluster = result.consensusClusterGroups?.[optIndex];
+
+    const explicitOverride =
       optionId === 'option_b'
         ? result.optionBResultOverride
         : optionId === 'option_c'
         ? result.optionCResultOverride
         : result.optionAResultOverride;
 
-    const merged: LineageSearchResult = {
-      ...result,
-      ...(chosenOverride || {}),
-      requiresBlindDisambiguation: false,
-    };
-    setVerifiedResultOverride(merged);
+    const fallbackResolved = chosenOpt
+      ? buildResolvedLineageFromDisambiguationOption(
+          result,
+          chosenOpt,
+          chosenCluster
+        )
+      : null;
 
-    const activeUid = userId || auth.currentUser?.uid || `usr_${userEmail}`;
+    const merged: LineageSearchResult =
+      explicitOverride &&
+      Array.isArray(explicitOverride.adamSpineNodes) &&
+      explicitOverride.adamSpineNodes.length >= 2
+        ? {
+            ...result,
+            ...explicitOverride,
+            matched: true,
+            requiresBlindDisambiguation: false,
+          }
+        : fallbackResolved
+        ? {
+            ...fallbackResolved,
+            matched: true,
+            requiresBlindDisambiguation: false,
+          }
+        : {
+            ...result,
+            matched: true,
+            requiresBlindDisambiguation: false,
+          };
+
+    setVerifiedResultOverride(merged);
+    if (onUpdateLineageResult) {
+      onUpdateLineageResult(merged);
+    }
+    if (stateMode === DashboardStateMode.State2MatchedUnpaid) {
+      onChangeStateMode(DashboardStateMode.State1Paid5Basic);
+    }
+
+    const activeUid =
+      userId ||
+      auth.currentUser?.uid ||
+      `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     const fullName = [
       merged.clientName,
       merged.fatherName,
@@ -814,11 +861,42 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     ]
       .filter((s) => s && s !== '—')
       .join(' ');
+    const choiceLabel = `${merged.rootBranchName} ⬅️ ${merged.rootTribeName}`;
 
+    // 1. Update parent profile & Firebase `users` with the customer's chosen tribe, branch, and region
+    if (onUpdateProfileDetails) {
+      onUpdateProfileDetails({
+        firstName: merged.clientName || editFirstName,
+        fatherName: merged.fatherName && merged.fatherName !== '—' ? merged.fatherName : editFatherName,
+        grandfatherName:
+          merged.grandfatherName && merged.grandfatherName !== '—'
+            ? merged.grandfatherName
+            : editGrandfatherName,
+        familyName: merged.familyName,
+        phone: editPhone,
+        defaultCountry: editDefaultCountry,
+        originCountry: merged.originCountry,
+        originRegion: merged.originRegion || editOriginRegion,
+        tribeName: merged.rootTribeName,
+        branchName: merged.rootBranchName,
+        avatarUrl,
+      });
+    }
+
+    updateUserProfile(activeUid, {
+      tribeName: merged.rootTribeName,
+      familyBranch: merged.rootBranchName,
+      originCountry: merged.originCountry,
+      originRegion: merged.originRegion || editOriginRegion,
+      isRootUnlocked: true,
+    }).catch(() => {});
+
+    // 2. Sync customer's verified lineage ticket to Firebase `research_tickets` (`إدارة البحوث`)
     syncClientLineageTicketToFirebase({
       userId: activeUid,
       userFullName: fullName,
       userEmail,
+      userPhone: editPhone,
       familyName: merged.familyName,
       originCountry: merged.originCountry,
       originRegion: merged.originRegion,
@@ -835,8 +913,82 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       siblingBranches: merged.sibling_branches_in_record,
       notablesInRecord: merged.notables_in_record,
       enrichedLocations: merged.enrichedLocations,
-      adamSpineNodesCount: merged.adamSpineNodes?.length || 1,
+      adamSpineNodesCount: merged.adamSpineNodes?.length || 3,
+      adamSpineNodes: merged.adamSpineNodes,
+      fullStitchedLineage: merged.full_stitched_lineage_for_researcher,
+      verificationChoiceLabel: choiceLabel,
+      additionalNotes: `تم حسم سؤال التحقق المتدرج بواسطة العميل باختيار المسار القطعي: (${merged.familyName} ⬅️ ${merged.rootBranchName} ⬅️ ${merged.rootTribeName}) — النطاق الجغرافي: (${merged.originRegion || merged.originCountry}).`,
     }).catch(() => {});
+
+    // 3. Update customer order in Firebase `customer_orders`
+    const orderDocId = `ORD-${activeUid.slice(-6).toUpperCase()}`;
+    upsertCustomerOrderInFirebase({
+      id: orderDocId,
+      userId: activeUid,
+      fullName,
+      firstName: merged.clientName,
+      fatherName: merged.fatherName || '—',
+      grandfatherName: merged.grandfatherName || '—',
+      familyName: merged.familyName,
+      originCountry: merged.originCountry,
+      originRegion: merged.originRegion || editOriginRegion || 'غير محدد',
+      email: userEmail,
+      phone: editPhone || '—',
+      legalRole: accountType,
+      accountStatus:
+        stateMode === DashboardStateMode.AnnualVip ? 'annual_vip' : 'paid_5_root',
+      walletBalanceUsd: walletBalance,
+      paidRevenueUsd: stateMode === DashboardStateMode.AnnualVip ? 60 : 5,
+      matchStatus: merged.isAlphaOnlyBeforeMerge ? 'staged_3_nodes' : 'auto_adam_full',
+      ticketId: merged.alphaBackgroundTicketCode || `ALP-ADAM-${merged.familyName}`,
+      ticketType: merged.isAlphaOnlyBeforeMerge ? 'إثراء شجرة آدم P2' : 'آلي مكتمل',
+      assignedResearcher: 'فريق التحقيق النَّسبي',
+      slaStatus: 'قيد العمل',
+      nodesCountLabel: `${merged.adamSpineNodes?.length || 3} محطة (${merged.rootBranchName} ⬅️ ${merged.rootTribeName})`,
+    }).catch(() => {});
+
+    // 4. If Port 8090 choice_id is present, also fetch deep server chain in background
+    if (chosenOpt?.choice_id) {
+      searchJuthoriLineage(
+        {
+          firstName: merged.clientName,
+          fatherName: merged.fatherName || '',
+          grandfatherName: merged.grandfatherName || '',
+          familyName: merged.familyName,
+          originCountry: merged.originCountry,
+          originRegion: merged.originRegion || '',
+          tribeName: merged.rootTribeName,
+          branchName: merged.rootBranchName,
+          accountType,
+          email: userEmail,
+          password: '',
+          agreedToTerms: true,
+        },
+        {
+          ip_country: silentGeo.ip_country,
+          ip_city: silentGeo.ip_city,
+        },
+        chosenOpt.choice_id
+      )
+        .then((liveResolved) => {
+          if (
+            liveResolved &&
+            liveResolved.matched &&
+            Array.isArray(liveResolved.adamSpineNodes) &&
+            liveResolved.adamSpineNodes.length > (merged.adamSpineNodes?.length || 0)
+          ) {
+            const finalLive: LineageSearchResult = {
+              ...liveResolved,
+              requiresBlindDisambiguation: false,
+            };
+            setVerifiedResultOverride(finalLive);
+            if (onUpdateLineageResult) {
+              onUpdateLineageResult(finalLive);
+            }
+          }
+        })
+        .catch(() => {});
+    }
 
     appendActivity(
       'حسم سؤال التحقق المتدرج وفتح الجذر',
@@ -852,9 +1004,15 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       recommendedInitialState: DashboardStateMode.State3Unmatched,
     };
     setVerifiedResultOverride(escalated);
+    if (onUpdateLineageResult) {
+      onUpdateLineageResult(escalated);
+    }
     onChangeStateMode(DashboardStateMode.State3Unmatched);
 
-    const activeUid = userId || auth.currentUser?.uid || `usr_${userEmail}`;
+    const activeUid =
+      userId ||
+      auth.currentUser?.uid ||
+      `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     const fullName = [
       result.clientName,
       result.fatherName,
@@ -868,6 +1026,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       userId: activeUid,
       userFullName: fullName,
       userEmail,
+      userPhone: editPhone,
       familyName: result.familyName,
       originCountry: result.originCountry,
       originRegion: result.originRegion,
@@ -876,7 +1035,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       matched: false,
       isAlphaOnlyBeforeMerge: false,
       isAlphaMergedIntoAdam: false,
-      additionalNotes: result.disambiguationPathsSummaryForTicket,
+      verificationChoiceLabel: 'إحالة لتذكرة بحث متخصصة (لا أعرف / موضع آخر)',
+      additionalNotes:
+        result.disambiguationPathsSummaryForTicket ||
+        `طلب تحقيق أرشيفي محال من العميل بعد سؤال التحقق لعائلة (${result.familyName}).`,
       verifiedSources: result.verified_sources,
       corroboratingAlphaEvidence:
         result.corroborating_alpha_evidence_for_researcher,

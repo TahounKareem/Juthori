@@ -425,29 +425,58 @@ async function startServer() {
 
   const handleAdamTreeSearch = async (req: express.Request, res: express.Response) => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4500);
-    const qs = new URLSearchParams(req.query as Record<string, string>).toString();
-    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search${qs ? `?${qs}` : ''}`;
+    const timeout = setTimeout(() => controller.abort(), 6500);
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search`;
+
+    const bodySource =
+      req.method === 'POST' && req.body && typeof req.body === 'object'
+        ? req.body
+        : req.query || {};
+
+    const searchPayload = {
+      query: String(bodySource.query ?? bodySource.q ?? '').trim(),
+      arc_code_filter:
+        bodySource.arc_code_filter ?? bodySource.arc_code ?? null,
+      representation_filter:
+        bodySource.representation_filter ?? bodySource.representation ?? null,
+      parent_name_filter:
+        bodySource.parent_name_filter ?? bodySource.father ?? null,
+      parent_scope: String(bodySource.parent_scope ?? 'ANY'),
+      under_node_id:
+        bodySource.under_node_id ?? bodySource.subtree_id ?? null,
+      under_node_name: bodySource.under_node_name ?? null,
+      limit: Number(bodySource.limit) > 0 ? Number(bodySource.limit) : 200,
+    };
 
     try {
       const upstream = await fetch(targetUrl, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(searchPayload),
         signal: controller.signal,
       });
       clearTimeout(timeout);
       if (upstream.ok) {
         const data = await upstream.json();
-        res.json({ source: 'live_german_engine', data });
+        res.json({
+          source: 'live_german_engine',
+          ...data,
+          data,
+        });
         return;
       }
-      res.status(200).json({ source: 'local_neo4j_fallback', data: null });
+      res.status(200).json({ source: 'local_neo4j_fallback', nodes: [], data: null });
     } catch {
       clearTimeout(timeout);
-      res.status(200).json({ source: 'local_neo4j_fallback', data: null });
+      res.status(200).json({ source: 'local_neo4j_fallback', nodes: [], data: null });
     }
   };
 
+  app.post('/api/v1/juthori/adam-tree/search', handleAdamTreeSearch);
+  app.post('/api/juthori/adam-tree/search', handleAdamTreeSearch);
   app.get('/api/v1/juthori/adam-tree/search', handleAdamTreeSearch);
   app.get('/api/juthori/adam-tree/search', handleAdamTreeSearch);
 

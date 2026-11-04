@@ -7445,7 +7445,7 @@ export function resolveDeterministicLineage(
         )
       );
 
-      return {
+      const baseCatalogResult: LineageSearchResult = {
         matched: true,
         engineSource,
         primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
@@ -7507,6 +7507,8 @@ export function resolveDeterministicLineage(
         confidenceLabel: `تطابق مجمع من (${matchedCatalogRecords.length}) مصادر في مشاريع ألفا`,
         recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
       };
+
+      return applyDynamicClusterDisambiguation(baseCatalogResult, clusters, form);
     }
   }
 
@@ -7663,6 +7665,37 @@ export function parsePort8090UniversalResponse(
         ? 'STAGE_2_GEOGRAPHY'
         : 'STAGE_1_TRIBE_ROOT';
 
+    const rawDisambigEvidence: CorroboratingAlphaEvidence[] = Array.isArray(
+      apiData.corroborating_alpha_evidence_for_researcher
+    )
+      ? apiData.corroborating_alpha_evidence_for_researcher.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (item: any, idx: number) => ({
+            alpha_id: String(item.alpha_id || `ALP_DISAMBIG_${idx + 1}`),
+            record_name: String(item.record_name || displayFamilyName),
+            source_book: String(item.source_book || 'مرجع أنساب موثق'),
+            page: item.page ? String(item.page) : null,
+            volume: item.volume ? String(item.volume) : null,
+            lineage_ancestors: item.lineage_ancestors
+              ? String(item.lineage_ancestors)
+              : item.full_lineage_text
+              ? String(item.full_lineage_text)
+              : null,
+            child_branches: item.child_branches ? String(item.child_branches) : null,
+            locations: item.locations ? String(item.locations) : null,
+            priority_tier:
+              item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+                ? 'PRIORITY_1_COUNTRY_BOOK'
+                : 'PRIORITY_2_GENERAL_BOOK',
+          })
+        )
+      : localFallback.corroborating_alpha_evidence_for_researcher || [];
+
+    const disambigClusters =
+      rawDisambigEvidence.length > 0
+        ? computeCrossSourceConsensusClusters(displayFamilyName, rawDisambigEvidence)
+        : localFallback.consensusClusterGroups || [];
+
     const optionIds: Array<'option_a' | 'option_b' | 'option_c'> = [
       'option_a',
       'option_b',
@@ -7687,7 +7720,8 @@ export function parsePort8090UniversalResponse(
               geographicScope: String(
                 opt.geographic_scope ||
                   opt.locations ||
-                  localFallback.disambiguationOptions[idx]?.geographicScope ||
+                  disambigClusters[idx]?.geographicScope ||
+                  localFallback.disambiguationOptions?.[idx]?.geographicScope ||
                   opt.title ||
                   'النطاق الجغرافي المرصود'
               ),
@@ -7703,14 +7737,64 @@ export function parsePort8090UniversalResponse(
           )
         : localFallback.disambiguationOptions;
 
-    return {
+    const baseDisambigResult: LineageSearchResult = {
       ...localFallback,
       matched: true,
       engineSource: 'live_german_engine',
-      primary_source_of_truth: 'DISAMBIGUATION_REQUIRED',
+      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
+      isAlphaOnlyBeforeMerge: true,
+      isAlphaMergedIntoAdam: false,
       requiresBlindDisambiguation: true,
       disambiguation_stage: disambigStage,
       disambiguationOptions: mappedOptions,
+      corroborating_alpha_evidence_for_researcher:
+        rawDisambigEvidence.length > 0
+          ? rawDisambigEvidence
+          : localFallback.corroborating_alpha_evidence_for_researcher,
+      consensusClusterGroups: disambigClusters,
+    };
+
+    const optA =
+      localFallback.matched && localFallback.optionAResultOverride
+        ? localFallback.optionAResultOverride
+        : mappedOptions[0]
+        ? buildResolvedLineageFromDisambiguationOption(
+            baseDisambigResult,
+            mappedOptions[0],
+            disambigClusters[0]
+          )
+        : undefined;
+    const optB =
+      localFallback.matched && localFallback.optionBResultOverride
+        ? localFallback.optionBResultOverride
+        : mappedOptions[1]
+        ? buildResolvedLineageFromDisambiguationOption(
+            baseDisambigResult,
+            mappedOptions[1],
+            disambigClusters[1]
+          )
+        : undefined;
+    const optC =
+      localFallback.matched && localFallback.optionCResultOverride
+        ? localFallback.optionCResultOverride
+        : mappedOptions[2]
+        ? buildResolvedLineageFromDisambiguationOption(
+            baseDisambigResult,
+            mappedOptions[2],
+            disambigClusters[2]
+          )
+        : undefined;
+
+    return {
+      ...baseDisambigResult,
+      ...(optA || {}),
+      engineSource: 'live_german_engine',
+      requiresBlindDisambiguation: true,
+      disambiguation_stage: disambigStage,
+      disambiguationOptions: mappedOptions,
+      optionAResultOverride: optA,
+      optionBResultOverride: optB,
+      optionCResultOverride: optC,
     };
   }
 
@@ -8242,7 +8326,7 @@ export function parsePort8090UniversalResponse(
           apiSuggestedBridge
         );
 
-    return {
+    const baseLiveAlphaResult: LineageSearchResult = {
       matched: true,
       engineSource: 'live_german_engine',
       primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
@@ -8310,9 +8394,285 @@ export function parsePort8090UniversalResponse(
         : `تطابق مجمع من (${taggedCombinedEvidence.length}) مصادر في مشاريع ألفا (الأولوية 3: المعاجم والموسوعات العامة)`,
       recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
     };
+
+    if (localFallback.matched && localFallback.optionAResultOverride) {
+      return baseLiveAlphaResult;
+    }
+
+    return applyDynamicClusterDisambiguation(baseLiveAlphaResult, consensusClusters, form);
   }
 
   return localFallback;
+}
+
+/**
+ * Builds a complete, resolved `LineageSearchResult` (with a full `adamSpineNodes` spine,
+ * `B2` sub-root, `B0` mother tribe, intermediate `capsules`, and `requiresBlindDisambiguation: false`)
+ * from any disambiguation option or consensus cluster group.
+ */
+export function buildResolvedLineageFromDisambiguationOption(
+  baseResult: LineageSearchResult,
+  option: BlindDisambiguationOption,
+  cluster?: ConsensusClusterGroup
+): LineageSearchResult {
+  const familyName = baseResult.familyName || 'العائلة';
+  const rawLabel = (option.originTribeLabel || option.title || '').trim();
+  const decomposedOptionParts = decomposeCompoundLineageName(rawLabel);
+
+  const chainStations =
+    cluster && cluster.fullChainNodes.length > 1
+      ? cluster.fullChainNodes.slice(1)
+      : decomposedOptionParts.length > 0
+      ? decomposedOptionParts
+      : [rawLabel || baseResult.rootTribeName || familyName];
+
+  const resolvedB0 =
+    cluster?.originTribeLabel ||
+    chainStations[chainStations.length - 1] ||
+    rawLabel ||
+    baseResult.rootTribeName ||
+    familyName;
+
+  const resolvedB2 =
+    chainStations.length >= 2
+      ? chainStations[0]
+      : baseResult.rootBranchName &&
+        !baseResult.rootBranchName.includes('غير مفهرس') &&
+        baseResult.rootBranchName !== resolvedB0
+      ? baseResult.rootBranchName
+      : `فرع ${familyName}`;
+
+  const regionText =
+    option.geographicScope && option.geographicScope !== 'النطاق الجغرافي المرصود'
+      ? option.geographicScope
+      : cluster?.geographicScope || baseResult.originRegion || baseResult.originCountry;
+
+  const spineNodes = buildDynamicAlphaSpineFromAncestors(
+    familyName,
+    chainStations.join(' ؛ '),
+    resolvedB2,
+    resolvedB0,
+    regionText,
+    {
+      corroboratingRecords:
+        cluster?.records || baseResult.corroborating_alpha_evidence_for_researcher,
+    }
+  );
+
+  // Guarantee at least 3 stations (Family FE0 + Sub-Root B2 + Mother Tribe B0) so spine is never empty
+  const finalSpineNodes: UpperAncestorNode[] =
+    spineNodes.length >= 2
+      ? spineNodes
+      : enrichSpineNodesWithNeo4jRelations([
+          {
+            id: `resolved-fe0-${option.id}`,
+            orderNumber: 1,
+            name: familyName,
+            code: 'FE0',
+            rankLabel: 'عقدة العائلة الموثقة — بيت النسب',
+            isCodedStation: true,
+            region: regionText,
+            eraNote: `عقدة عائلة ${familyName} الموثقة.`,
+            dataLakeSource: 'alpha_projects',
+          },
+          {
+            id: `resolved-b2-${option.id}`,
+            orderNumber: 2,
+            name: resolvedB2,
+            code: 'B2',
+            rankLabel: 'الفرع الجامع الموثق (الجذر — B2)',
+            isCodedStation: true,
+            region: regionText,
+            eraNote: `الفرع الجامع (${resolvedB2}) المتصل بقبيلة (${resolvedB0}).`,
+            dataLakeSource: 'alpha_projects',
+          },
+          {
+            id: `resolved-b0-${option.id}`,
+            orderNumber: 3,
+            name: resolvedB0,
+            code: 'B0',
+            rankLabel: 'القبيلة الأم الموثقة (الجذر — B0)',
+            isCodedStation: true,
+            region: regionText,
+            eraNote: `الجذم الجامع والقبيلة الأم (${resolvedB0}).`,
+            dataLakeSource: 'alpha_projects',
+          },
+        ]);
+
+  const capsules = buildIntermediateRingsForSpine(
+    [...finalSpineNodes],
+    `alpha-resolved-${option.id}-cap`
+  );
+
+  const clusterRecords =
+    cluster?.records && cluster.records.length > 0
+      ? cluster.records
+      : baseResult.corroborating_alpha_evidence_for_researcher || [];
+
+  const agg =
+    clusterRecords.length > 0
+      ? aggregateAlphaEvidenceForFamily(familyName, regionText, clusterRecords)
+      : null;
+
+  const verifiedSources =
+    agg && agg.verified_sources.length > 0
+      ? agg.verified_sources
+      : baseResult.verified_sources || [];
+
+  return {
+    ...baseResult,
+    matched: true,
+    isAlphaOnlyBeforeMerge: baseResult.primary_source_of_truth !== 'ADAM_MASTER_TREE',
+    isAlphaMergedIntoAdam: Boolean(baseResult.isAlphaMergedIntoAdam),
+    requiresBlindDisambiguation: false,
+    originRegion: regionText || baseResult.originRegion,
+    matched_location: regionText || baseResult.matched_location,
+    historicalRegion: regionText || baseResult.historicalRegion,
+    rootBranchName:
+      finalSpineNodes.find((n) => n.code === 'B2')?.name || resolvedB2,
+    rootBranchCode: 'B2',
+    rootTribeName:
+      finalSpineNodes.find((n) => n.code === 'B0')?.name || resolvedB0,
+    rootTribeCode: 'B0',
+    rootSummaryLabel: `الجذر: ${resolvedB2} ⬅️ ${resolvedB0}`,
+    upperAncestors: finalSpineNodes.filter((n) => n.orderNumber > 1),
+    adamSpineNodes: finalSpineNodes,
+    full_stitched_lineage_for_researcher:
+      buildFullStitchedLineageForResearcher(finalSpineNodes),
+    suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
+      familyName,
+      resolvedB2,
+      resolvedB0
+    ),
+    capsules,
+    verifiedSourceCitation:
+      agg?.primaryCitation ||
+      verifiedSources[0] ||
+      baseResult.verifiedSourceCitation,
+    verified_sources: verifiedSources,
+    secondarySources: verifiedSources,
+    sibling_branches_in_record:
+      agg?.sibling_branches_in_record?.length
+        ? agg.sibling_branches_in_record
+        : baseResult.sibling_branches_in_record,
+    siblingBranches:
+      agg?.sibling_branches_in_record?.length
+        ? agg.sibling_branches_in_record
+        : baseResult.siblingBranches,
+    confidenceLabel: `تطابق موثق ومعتمد (${resolvedB2} ⬅️ ${resolvedB0})`,
+    recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
+  };
+}
+
+/**
+ * Dynamically populates `disambiguationOptions`, `optionAResultOverride`, `optionBResultOverride`,
+ * and `optionCResultOverride` from `ConsensusClusterGroup[]` whenever 2+ candidate paths exist,
+ * and auto-resolves if the user already specified `tribeName` or `branchName` in `form`.
+ */
+function applyDynamicClusterDisambiguation(
+  baseResult: LineageSearchResult,
+  clusters: ConsensusClusterGroup[],
+  form: Partial<RegistrationFormState>
+): LineageSearchResult {
+  if (!clusters || clusters.length < 2) {
+    return {
+      ...baseResult,
+      requiresBlindDisambiguation: false,
+    };
+  }
+
+  const optionIds: Array<'option_a' | 'option_b' | 'option_c'> = [
+    'option_a',
+    'option_b',
+    'option_c',
+  ];
+
+  const dynamicOptions: BlindDisambiguationOption[] = clusters
+    .slice(0, 3)
+    .map((c, idx) => ({
+      id: optionIds[idx] || 'option_a',
+      choice_id: c.clusterId,
+      badge: c.isConsensusWinner
+        ? `توافق (${c.sourcesCount}) مصادر`
+        : idx === 0
+        ? 'المسار الأول المرصود في المصادر'
+        : `المسار الموازي (${idx + 1}) في المصادر`,
+      title: `${baseResult.familyName} — (${c.originTribeLabel})`,
+      originTribeLabel: c.originTribeLabel,
+      geographicScope: c.geographicScope || baseResult.originRegion || 'النطاق الجغرافي المرصود',
+      nearBranchHint: c.fullChainNodes.slice(0, 3).join(' ⬅️ '),
+      isConsensusWinner: c.isConsensusWinner,
+      consensusBadge: c.isConsensusWinner ? `توافق (${c.sourcesCount}) مصادر` : undefined,
+      sourcesCount: c.sourcesCount,
+    }));
+
+  const optA = buildResolvedLineageFromDisambiguationOption(
+    baseResult,
+    dynamicOptions[0],
+    clusters[0]
+  );
+  const optB = dynamicOptions[1]
+    ? buildResolvedLineageFromDisambiguationOption(
+        baseResult,
+        dynamicOptions[1],
+        clusters[1]
+      )
+    : undefined;
+  const optC = dynamicOptions[2]
+    ? buildResolvedLineageFromDisambiguationOption(
+        baseResult,
+        dynamicOptions[2],
+        clusters[2]
+      )
+    : undefined;
+
+  // Check if the customer already answered the verification question (saved in form.tribeName or form.branchName)
+  const userTribeStem = normalizeArabicStem(form.tribeName || '');
+  const userBranchStem = normalizeArabicStem(form.branchName || '');
+  if (userTribeStem || userBranchStem) {
+    const candidates = [optA, optB, optC].filter(Boolean) as LineageSearchResult[];
+    const matchedCandidate = candidates.find((cand) => {
+      const candTribe = normalizeArabicStem(cand.rootTribeName || '');
+      const candBranch = normalizeArabicStem(cand.rootBranchName || '');
+      return (
+        (userTribeStem &&
+          (candTribe === userTribeStem ||
+            candTribe.includes(userTribeStem) ||
+            userTribeStem.includes(candTribe))) ||
+        (userBranchStem &&
+          (candBranch === userBranchStem ||
+            candBranch.includes(userBranchStem) ||
+            userBranchStem.includes(candBranch)))
+      );
+    });
+    if (matchedCandidate) {
+      return {
+        ...matchedCandidate,
+        requiresBlindDisambiguation: false,
+        disambiguationOptions: dynamicOptions,
+        optionAResultOverride: optA,
+        optionBResultOverride: optB,
+        optionCResultOverride: optC,
+      };
+    }
+  }
+
+  return {
+    ...optA,
+    requiresBlindDisambiguation: true,
+    disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
+    disambiguationOptions: dynamicOptions,
+    optionAResultOverride: optA,
+    optionBResultOverride: optB,
+    optionCResultOverride: optC,
+    disambiguationPathsSummaryForTicket: clusters
+      .slice(0, 3)
+      .map(
+        (c, i) =>
+          `[المسار ${i + 1} (${c.sourcesCount} مصادر)]: ${c.fullChainNodes.join(' ⬅️ ')} (${c.geographicScope})`
+      )
+      .join(' | '),
+  };
 }
 
 /**
@@ -8504,6 +8864,10 @@ export interface AdamTreeInteractiveNode {
 }
 
 export const VALID_STRUCTURAL_ARC_CODES = new Set<string>([
+  'A',
+  'A1',
+  'A2',
+  'P',
   'MT',
   'MF',
   'M',
@@ -9757,13 +10121,25 @@ export function resolveAdamTreeChildren(
   const deduplicateById = (
     items: Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }>
   ): Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> => {
+    // Prefer higher numeric node_ids from the live German Neo4j engine over legacy low local seed IDs when two sibling nodes share the same canonical name
+    const sorted = [...items].sort((a, b) => {
+      const idA = Number(a.node?.node_id) || 0;
+      const idB = Number(b.node?.node_id) || 0;
+      return idB - idA;
+    });
     const out: Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> = [];
     const seenIds = new Set<string>();
-    for (const item of items) {
+    const seenNames = new Set<string>();
+    for (const item of sorted) {
       if (!item.node?.node_id || seenIds.has(item.node.node_id)) {
         continue;
       }
+      const nameKey = getCanonicalAdamNodeDedupKey(item.node.name);
+      if (nameKey && seenNames.has(nameKey)) {
+        continue;
+      }
       seenIds.add(item.node.node_id);
+      if (nameKey) seenNames.add(nameKey);
       out.push(item);
     }
     return out;
