@@ -1593,14 +1593,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                         <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
                           بطاقة المصادر والمراجع التاريخية المجمعة ({(effectiveResult.verified_sources?.length || effectiveResult.secondarySources?.length || 1)} مراجع)
                         </h3>
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925]">
-                          ✓ تجميع متعدد المصادر (Multi-Source Aggregation)
-                        </span>
-                        {effectiveResult.isAdamNodeEnrichedWithAlpha && (
-                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                            ✓ تم إثراء شجرة آدم بالمصادر الإضافية المعتمدة من مشاريع ألفا
-                          </span>
-                        )}
                       </div>
                       <p className="text-xs text-[#8D4925] font-semibold mt-0.5">
                         «{effectiveResult.verifiedSourceCitation}»
@@ -1614,19 +1606,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
                 {showSourceDetails && (
                   <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
-                    <div>
-                      <div className="text-xs font-display font-bold text-[#252321] mb-1.5">
-                        المحطات الرئيسية الموثقة لعائلة {effectiveResult.familyName}:
-                      </div>
-                      <p className="text-xs sm:text-sm text-[#252321]/85 leading-relaxed bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#B98A78]/25 font-serif">
-                        {spineNodes
-                          .filter((n: UpperAncestorNode) => n.isCodedStation)
-                          .map((n: UpperAncestorNode) => n.name)
-                          .join(' ➔ ')}
-                        .
-                      </p>
-                    </div>
-
                     {/* Aggregated Verified Sources List (Books, Volumes & Pages) */}
                     {(() => {
                       const aggregatedSources =

@@ -120,6 +120,7 @@ export interface CorroboratingAlphaEvidence {
   priority_tier: AlphaPriorityTier;
   is_consensus_winner?: boolean;
   consensus_badge?: string;
+  source_lake?: string | null;
 }
 
 export interface SuggestedAdamBridgeForResearcher {

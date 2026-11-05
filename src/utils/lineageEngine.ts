@@ -4416,8 +4416,59 @@ export const HIGH_APEX_STOP_LIST: string[] = [
 ];
 
 /**
- * توحيد الهاء والتاء المربوطة والسوابق في دالة التطبيع (`stemTribeToken`):
- * يوحد "شمر طوقة" مع "شمر طوقه"، و"الصلتة" مع "الصلته"، و"داور" مع "الدوار".
+ * Extracts the Researcher-Only Data Lake Badge (`[مشاريع]`, `[ألفا]`, or `[آدم]`)
+ * from `record.source_lake` (defaulting to `[مشاريع]`).
+ * Strictly for Researcher Studio / Diagnostic Tracker — never shown in Customer UI.
+ */
+export function resolveResearcherDataLakeBadge(
+  ev?: Partial<CorroboratingAlphaEvidence> & {
+    source_lake?: string | null;
+    data_lake?: string | null;
+    lake?: string | null;
+  }
+): {
+  tag: '[مشاريع]' | '[ألفا]' | '[آدم]';
+  colorClass: string;
+} {
+  const raw = String(
+    ev?.source_lake || ev?.data_lake || ev?.lake || ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    raw.includes('adam') ||
+    raw.includes('آدم') ||
+    raw.includes('ادم') ||
+    String(ev?.alpha_id || '').startsWith('ADAM_')
+  ) {
+    return {
+      tag: '[آدم]',
+      colorClass:
+        'bg-emerald-100 text-emerald-900 border-emerald-300',
+    };
+  }
+  if (
+    raw.includes('alpha') ||
+    raw.includes('ألفا') ||
+    raw.includes('الفا')
+  ) {
+    return {
+      tag: '[ألفا]',
+      colorClass:
+        'bg-amber-100 text-amber-900 border-amber-300',
+    };
+  }
+  return {
+    tag: '[مشاريع]',
+    colorClass:
+      'bg-purple-100 text-purple-900 border-purple-300',
+  };
+}
+
+/**
+ * توحيد الهاء والتاء المربوطة والسوابق والتصحيفات المطبعية الشائعة في دالة التطبيع (`stemTribeToken`):
+ * يوحد "شمر طوقة" مع "شمر طوقه" و"شعر طوقة"، و"الصلتة" مع "الصلته"، و"داور" مع "الدوار".
  */
 export const stemTribeToken = (str: string): string => {
   if (!str) return '';
@@ -4433,6 +4484,8 @@ export const stemTribeToken = (str: string): string => {
     .replace(/ى/g, 'ي')
     // توحيد الهاء في نهاية الكلمة إلى تاء مربوطة للعنقدة الصحيحة
     .replace(/ه(\s|$)/g, 'ة$1')
+    // معالجة التصحيف المطبعي الشائع: شعر طوقة -> شمر طوقة
+    .replace(/شعر\s+طوقة/g, 'شمر طوقة')
     .replace(/^(ال|آل|بنو|بني|بيت|ابو|أبو|ابي|أبي|البو|الابو|بو|عشيرة|عشيره|قبيلة|قبيله|اولاد|ذوي)\s+/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -4451,7 +4504,10 @@ export const stemTribeToken = (str: string): string => {
     .filter(Boolean)
     .join(' ');
 
-  return s.replace(/ه(\s|$)/g, 'ة$1').trim();
+  return s
+    .replace(/شعر\s+طوقة/g, 'شمر طوقة')
+    .replace(/ه(\s|$)/g, 'ة$1')
+    .trim();
 };
 
 /**
@@ -7920,6 +7976,7 @@ export function parsePort8090UniversalResponse(
                   item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
                     ? 'PRIORITY_1_COUNTRY_BOOK'
                     : 'PRIORITY_2_GENERAL_BOOK',
+                source_lake: item.source_lake || item.data_lake || item.lake || null,
               };
             }
           )
@@ -7930,10 +7987,9 @@ export function parsePort8090UniversalResponse(
         ? computeCrossSourceConsensusClusters(displayFamilyName, rawDisambigEvidence)
         : localFallback.consensusClusterGroups || [];
 
-    const optionIds: Array<'option_a' | 'option_b' | 'option_c'> = [
+    const optionIds: Array<'option_a' | 'option_b'> = [
       'option_a',
       'option_b',
-      'option_c',
     ];
 
     // Match each API disambiguation option to its corresponding cluster in `disambigClusters`
@@ -7959,16 +8015,22 @@ export function parsePort8090UniversalResponse(
       return disambigClusters[fallbackIdx];
     };
 
-    // Sort rawOptions so options with a consensus_badge or matching a multi-source cluster come first
+    // Sort rawOptions by source weight descending so the 2 strongest paths come first
     const sortedRawOptions = [...rawOptions].sort((a, b) => {
+      const aCluster = findMatchingClusterForOption(a, 0);
+      const bCluster = findMatchingClusterForOption(b, 1);
+      const aWeight = Number(a?.sources_count || aCluster?.sourcesCount || (a?.consensus_badge ? 2 : 1));
+      const bWeight = Number(b?.sources_count || bCluster?.sourcesCount || (b?.consensus_badge ? 2 : 1));
+      if (bWeight !== aWeight) return bWeight - aWeight;
       const aHasBadge = Boolean(a?.consensus_badge || a?.is_consensus_winner) ? 1 : 0;
       const bHasBadge = Boolean(b?.consensus_badge || b?.is_consensus_winner) ? 1 : 0;
       return bHasBadge - aHasBadge;
     });
 
+    // Strictly limit customer disambiguation options to the top 2 strongest paths (`slice(0, 2)`)
     const mappedOptions: BlindDisambiguationOption[] =
       sortedRawOptions.length >= 2
-        ? sortedRawOptions.slice(0, 3).map(
+        ? sortedRawOptions.slice(0, 2).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (opt: any, idx: number): BlindDisambiguationOption => {
               const matchedCluster = findMatchingClusterForOption(opt, idx);
@@ -7993,6 +8055,7 @@ export function parsePort8090UniversalResponse(
                         ? String(s.lineage_ancestors)
                         : null,
                       priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+                      source_lake: s?.source_lake || s?.data_lake || null,
                     };
                   })
                 : matchedCluster?.records || [];
@@ -8308,6 +8371,7 @@ export function parsePort8090UniversalResponse(
                 item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
                   ? 'PRIORITY_1_COUNTRY_BOOK'
                   : 'PRIORITY_2_GENERAL_BOOK',
+              source_lake: item.source_lake || item.data_lake || item.lake || null,
             };
           }
         )
@@ -8902,14 +8966,14 @@ function applyDynamicClusterDisambiguation(
     };
   }
 
-  const optionIds: Array<'option_a' | 'option_b' | 'option_c'> = [
+  const optionIds: Array<'option_a' | 'option_b'> = [
     'option_a',
     'option_b',
-    'option_c',
   ];
 
+  // Strictly limit customer disambiguation options to the top 2 strongest clusters by source weight (`slice(0, 2)`)
   const dynamicOptions: BlindDisambiguationOption[] = clusters
-    .slice(0, 3)
+    .slice(0, 2)
     .map((c, idx) => ({
       id: optionIds[idx] || 'option_a',
       choice_id: c.clusterId,

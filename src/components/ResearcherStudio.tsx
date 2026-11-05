@@ -36,6 +36,7 @@ import {
   buildAIResearchHypothesesForFamily,
   buildFullStitchedLineageForResearcher,
   buildLake3UnlinkedProjectsForResearcher,
+  buildResolvedLineageFromDisambiguationOption,
   buildSuggestedAdamBridgeForResearcher,
   checkArcCodeRepresentationConflict,
   cleanAndUnrollLineageChain,
@@ -55,6 +56,7 @@ import {
   normalizeArabicStem,
   resolveAdamTreeChildren,
   resolveDeterministicLineage,
+  resolveResearcherDataLakeBadge,
   sanitizeAndNormalizeAdamNode,
   searchJuthoriLineage,
   stemTribeToken,
@@ -1297,28 +1299,44 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               <span className="text-[11px] font-bold text-slate-700">
                 توافق {consensusWinner.records.length} مصادر:
               </span>
-              {consensusWinner.records.map((ev: CorroboratingAlphaEvidence, i: number) => (
-                <span
-                  key={ev.alpha_id || i}
-                  className="px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-[11px] font-sans font-bold text-slate-700 shadow-2xs"
-                >
-                  {formatCompactSourceBracket(ev)}
-                </span>
-              ))}
+              {consensusWinner.records.map((ev: CorroboratingAlphaEvidence, i: number) => {
+                const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                return (
+                  <span
+                    key={ev.alpha_id || i}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-[11px] font-sans font-bold text-slate-700 shadow-2xs"
+                  >
+                    <span>{formatCompactSourceBracket(ev)}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                    >
+                      {lakeBadge.tag}
+                    </span>
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* SECTION 2: 📚 سجلات ومسارات أخرى متشابهة بالاسم في المصادر */}
-        <div className="rounded-2xl border border-amber-300 bg-amber-50/50 p-4 space-y-3">
+        {/* SECTION 2: 📚 القائمة الكاملة لكافة المسارات والعناقيد المكتشفة للباحث (حتى المستبعدة من واجهة العميل) */}
+        <div
+          data-testid="researcher-all-discovered-clusters-list"
+          className="rounded-2xl border border-amber-300 bg-amber-50/50 p-4 space-y-3"
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-extrabold font-serif text-amber-950">
-              📚 سجلات ومسارات أخرى متشابهة بالاسم في المصادر
-            </span>
+            <div>
+              <span className="text-sm font-extrabold font-serif text-amber-950 block">
+                📚 القائمة الكاملة لكافة المسارات والعناقيد المكتشفة في البيانات ({clusters.length} مسارات)
+              </span>
+              <span className="text-[11px] text-stone-600">
+                تُعرض جميع المسارات هنا للباحث لأغراض التدقيق الشامل، بينما يقتصر سؤال العميل في المحاكي أدناه على أقوى مسارين فقط (إضافة لخيار لا أعرف)
+              </span>
+            </div>
             <span className="px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-950 text-[11px] font-bold">
               {competingClusters.length > 0
-                ? `${competingClusters.length} مسار منافس مرصود`
-                : 'لا توجد مسارات متعارضة أخرى'}
+                ? `${clusters.length} عناقيد إجمالية (منها ${competingClusters.length} مسارات موازية)`
+                : 'مسار موحد بدون مسارات متعارضة'}
             </span>
           </div>
 
@@ -1328,43 +1346,80 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             </p>
           ) : (
             <div className="space-y-3">
-              {competingClusters.map((comp) => {
+              {clusters.map((comp, clusterIdx) => {
                 const chainCount = comp.fullChainNodes.length;
+                const isShownToCustomer = clusterIdx < 2;
                 return (
                   <div
                     key={comp.clusterId}
-                    className="bg-white rounded-xl p-3.5 border border-amber-300 space-y-2"
+                    className={`bg-white rounded-xl p-3.5 border space-y-2 ${
+                      clusterIdx === 0
+                        ? 'border-emerald-400 bg-emerald-50/20'
+                        : 'border-amber-300'
+                    }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-stone-900 text-amber-300 font-mono text-[10px] font-bold">
+                          عنقود #{clusterIdx + 1}
+                        </span>
                         <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 border border-amber-300 text-amber-950 text-xs font-extrabold">
-                          الأصل / القبيلة: {comp.originTribeLabel}
+                          مسار: {comp.originTribeLabel}
                         </span>
                         <span className="text-xs font-bold text-stone-700">
                           الجذر ($5): {comp.rootPreviewLabel}
                         </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isShownToCustomer
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                              : 'bg-slate-100 text-slate-700 border-slate-300'
+                          }`}
+                        >
+                          {isShownToCustomer
+                            ? `✓ يُعرض للعميل في سؤال التحقق (الخيار #${clusterIdx + 1})`
+                            : '👁️ مرصود للباحث فقط (لا يُعرض للعميل لمنع التشتيت)'}
+                        </span>
                         {chainCount > 6 && (
                           <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-[10px] font-bold">
-                            سلسلة طويلة ({chainCount} اسماً — يُطوى منها {Math.max(1, chainCount - 3)} جدّاً في كبسولة للعميل)
+                            سلسلة طويلة ({chainCount} اسماً)
                           </span>
                         )}
                       </div>
 
-                      {contextMode === 'direct_search' &&
-                        directSearchResult?.optionBResultOverride && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDirectSearchResult({
-                                ...directSearchResult,
-                                ...directSearchResult.optionBResultOverride,
-                              })
-                            }
-                            className="px-3 py-1 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white text-[11px] font-bold cursor-pointer transition-colors"
-                          >
-                            معاينة هذا المسار ({comp.originTribeLabel}) في العمود أعلاه
-                          </button>
-                        )}
+                      {contextMode === 'direct_search' && directSearchResult && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const syntheticOpt = {
+                              id: (clusterIdx === 0
+                                ? 'option_a'
+                                : 'option_b') as 'option_a' | 'option_b',
+                              choice_id: comp.clusterId,
+                              badge: `توافق (${comp.sourcesCount}) مصادر`,
+                              title: comp.originTribeLabel,
+                              originTribeLabel: comp.originTribeLabel,
+                              geographicScope: comp.geographicScope,
+                              nearBranchHint: comp.rootPreviewLabel,
+                              sourcesCount: comp.sourcesCount,
+                              contributingSources: comp.records,
+                            };
+                            const resolved =
+                              buildResolvedLineageFromDisambiguationOption(
+                                directSearchResult,
+                                syntheticOpt,
+                                comp
+                              );
+                            setDirectSearchResult({
+                              ...directSearchResult,
+                              ...resolved,
+                            });
+                          }}
+                          className="px-3 py-1 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          معاينة مسار ({comp.originTribeLabel}) في العمود
+                        </button>
+                      )}
                     </div>
 
                     <div className="text-[11px] text-stone-600">
@@ -1381,16 +1436,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       <span className="text-[11px] font-bold text-slate-700">
-                        توافق {comp.records.length} {comp.records.length === 1 ? 'مصدر' : 'مصادر'}:
+                        توافق ({comp.records.length}) {comp.records.length === 1 ? 'مصدر' : 'مصادر'}:
                       </span>
-                      {comp.records.map((ev: CorroboratingAlphaEvidence, idx: number) => (
-                        <span
-                          key={ev.alpha_id || idx}
-                          className="px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-[11px] font-sans font-bold text-slate-700 shadow-2xs"
-                        >
-                          {formatCompactSourceBracket(ev)}
-                        </span>
-                      ))}
+                      {comp.records.map((ev: CorroboratingAlphaEvidence, idx: number) => {
+                        const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                        return (
+                          <span
+                            key={ev.alpha_id || idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-[11px] font-sans font-bold text-slate-700 shadow-2xs"
+                          >
+                            <span>{formatCompactSourceBracket(ev)}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                            >
+                              {lakeBadge.tag}
+                            </span>
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -3396,7 +3459,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       ? directSearchResult.adamSpineNodes
                       : directSearchResult.upperAncestors || [];
 
-                  const candidateDisambigOptions =
+                  const allCandidateDisambigOptions =
                     directSearchResult.disambiguationOptions &&
                     directSearchResult.disambiguationOptions.length > 0
                       ? directSearchResult.disambiguationOptions
@@ -3422,6 +3485,43 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           contributingSources: c.records,
                         }));
 
+                  // Requirement 2: Strictly limit the Customer Simulator to AT MOST 2 options (the 2 strongest paths by source weight)
+                  const candidateDisambigOptions = [...allCandidateDisambigOptions]
+                    .sort(
+                      (a, b) =>
+                        (b.sourcesCount || b.contributingSources?.length || 0) -
+                        (a.sourcesCount || a.contributingSources?.length || 0)
+                    )
+                    .slice(0, 2);
+
+                  // Detect orthographic/typographical variant merges across raw sources for Step 2 bullet note
+                  const variantsByStem = new Map<string, Set<string>>();
+                  rawEvidenceList.forEach((ev) => {
+                    extractRawRecordAncestors(ev).forEach((tok) => {
+                      const st = stemTribeToken(tok);
+                      if (!st) return;
+                      if (!variantsByStem.has(st)) {
+                        variantsByStem.set(st, new Set());
+                      }
+                      variantsByStem.get(st)!.add(tok.trim());
+                    });
+                  });
+                  const mergedVariantPairs: string[] = [];
+                  variantsByStem.forEach((surfaceSet) => {
+                    const arr = Array.from(surfaceSet);
+                    if (arr.length >= 2) {
+                      mergedVariantPairs.push(`(${arr[0]}) مع (${arr[1]})`);
+                    }
+                  });
+                  const hasShammarTouqaInChain =
+                    rawEvidenceList.some((ev) =>
+                      (ev.lineage_ancestors || '').includes('طوقة') ||
+                      (ev.lineage_ancestors || '').includes('طوقه')
+                    ) ||
+                    diagnosticClusters.some((c) =>
+                      c.originTribeLabel.includes('طوقة')
+                    );
+
                   return (
                     <div className="space-y-6">
                       {/* =========================================================
@@ -3441,7 +3541,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 القسم الأول: المصادر الخام المستخرجة من المعاجم (Raw Sources)
                               </h3>
                               <p className="text-xs text-stone-500 mt-0.5">
-                                عرض نص وسلسلة كل مصدر خام كما وردت في المعجم أو المخطوطة بشكل منفصل مع التوثيق المرجعي الدقيق قبل الدمج
+                                عرض نص وسلسلة كل مصدر خام كما وردت في المعجم أو المخطوطة بشكل منفصل مع التوثيق المرجعي الدقيق وشارة بحيرة البيانات للباحث
                               </p>
                             </div>
                           </div>
@@ -3454,6 +3554,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           {rawEvidenceList.map((ev, idx) => {
                             const rawTokens = extractRawRecordAncestors(ev);
                             const refBadgeText = formatAlphaReferenceBadge(ev);
+                            const lakeBadge = resolveResearcherDataLakeBadge(ev);
                             return (
                               <div
                                 key={ev.alpha_id || idx}
@@ -3461,9 +3562,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               >
                                 <div className="space-y-2.5">
                                   <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[11px] font-bold">
-                                      المصدر الخام #{idx + 1}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[11px] font-bold">
+                                        المصدر الخام #{idx + 1}
+                                      </span>
+                                      {/* Requirement 4: Researcher-Only Data Lake Badge */}
+                                      <span
+                                        data-testid={`raw-source-lake-badge-${idx}`}
+                                        className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${lakeBadge.colorClass}`}
+                                      >
+                                        {lakeBadge.tag}
+                                      </span>
+                                    </div>
                                     <span
                                       className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                                         ev.is_consensus_winner !== false
@@ -3478,19 +3588,26 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   </div>
 
                                   <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-[11px] text-stone-500">
-                                      اسم السجل في المعجم:{' '}
+                                    <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
+                                      <span>اسم السجل في المعجم:</span>
                                       <strong className="text-stone-900">
                                         {ev.record_name || directSearchResult.familyName}
                                       </strong>
                                     </div>
-                                    {/* Prominent Slate-Blue Bibliographic Badge */}
-                                    <span
-                                      data-testid={`raw-source-ref-badge-${idx}`}
-                                      className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
-                                    >
-                                      {refBadgeText}
-                                    </span>
+                                    {/* Prominent Slate-Blue Bibliographic Badge + Data Lake Badge */}
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span
+                                        data-testid={`raw-source-ref-badge-${idx}`}
+                                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                                      >
+                                        {refBadgeText}
+                                      </span>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                      >
+                                        {lakeBadge.tag}
+                                      </span>
+                                    </div>
                                   </div>
 
                                   <div className="rounded-xl bg-[#FAF8F5] border border-stone-200/90 p-3 space-y-2">
@@ -3507,9 +3624,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           ? rawTokens.join(' ⬅️ ')
                                           : ev.lineage_ancestors || directSearchResult.familyName}
                                       </p>
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-sans font-bold shrink-0">
-                                        {refBadgeText}
-                                      </span>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-sans font-bold">
+                                          {refBadgeText}
+                                        </span>
+                                        <span
+                                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                        >
+                                          {lakeBadge.tag}
+                                        </span>
+                                      </div>
                                     </div>
 
                                     {rawTokens.length > 0 && (
@@ -3557,6 +3681,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                       {/* =========================================================
                           STEP 2 CARD: القسم الثاني — محرك العنقدة والخياطة (Stitching Engine Logic)
+                          Requirement 1: Concise Bullet Points instead of long narrative paragraphs
                       ========================================================= */}
                       <div
                         data-testid="diagnostic-step2-stitching-logic"
@@ -3572,7 +3697,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 القسم الثاني: محرك العنقدة والخياطة (Stitching Engine Logic)
                               </h3>
                               <p className="text-xs text-stone-600 mt-0.5">
-                                التفسير الخوارزمي لسبب وكيفية عنقدة المصادر وخياطة سلاسلها معاً دون تكرار أو لصق عشوائي في الذيل
+                                خلاصة القرارات الخوارزمية لعنقدة المصادر وخياطة سلاسلها في نقاط محددة وموجزة
                               </p>
                             </div>
                           </div>
@@ -3581,69 +3706,49 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                          {/* Box 2A: Anchor-Based Alignment Explanation */}
-                          <div className="rounded-2xl bg-white border border-amber-300 p-4 space-y-2 shadow-2xs">
-                            <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
-                              <span>⚓</span>
-                              <span>1. المحاذاة الموضعية بالمرساة (Anchor Alignment)</span>
-                            </div>
-                            <p className="text-xs text-stone-700 leading-relaxed">
-                              {sharedAnchorNames.length > 0
-                                ? `تم الدمج بناءً على الاحتواء الجزئي للسلسلة ومحاذاة نقاط الارتكاز المشتركة (${sharedAnchorNames.join(
-                                    '، '
-                                  )}) بين المصادر، حيث تم إدراج المحطات الوسيطة في موضعها الطبقي الصحيح قبل المرساة وبعدها بدلاً من اللصق في نهاية السلسلة.`
-                                : `تم تفكيك المركبات النسبية وتنظيف السلسلة مع الحفاظ على الترتيب الطبقي التصاعدي من محطة العائلة (${directSearchResult.familyName}) حتى الجذر الأعلى.`}
-                            </p>
-                          </div>
-
-                          {/* Box 2B: Child Branches & Stem Intersection */}
-                          <div className="rounded-2xl bg-white border border-amber-300 p-4 space-y-2 shadow-2xs">
-                            <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
-                              <span>🧬</span>
-                              <span>2. قرينة تقاطع الفروع والأجداد (Clustering Proof)</span>
-                            </div>
-                            <p className="text-xs text-stone-700 leading-relaxed">
-                              {sharedChildBranches.length > 0
-                                ? `تم الدمج بفضل تقاطع فروع الأبناء المشتركة (${sharedChildBranches.join(
-                                    '، '
-                                  )}) وتطابق الجذور الصرفية المجرّدة (Arabic Stem Normalization)، مما أثبت أن السجلين يعودان لنفس المسمى القبلي.`
-                                : primaryCluster
-                                ? `تم تجميع (${primaryCluster.sourcesCount}) مراجع في عنقود توافق رئيسي يشترك في الجذر (${primaryCluster.originTribeLabel}) والنطاق الجغرافي (${primaryCluster.geographicScope}).`
-                                : 'سلسلة موثقة مباشرة بدون تعارض بين المراجع.'}
-                            </p>
-                          </div>
-
-                          {/* Box 2C: Chain Unrolling & Sanitization */}
-                          <div className="rounded-2xl bg-white border border-amber-300 p-4 space-y-2 shadow-2xs">
-                            <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
-                              <span>🧹</span>
-                              <span>3. تفكيك المركبات ومنع التكرار (Chain Sanitization)</span>
-                            </div>
-                            <p className="text-xs text-stone-700 leading-relaxed">
-                              تم تفكيك أي عقدة مركبة تحتوي على «بن» أو «آل» إلى محطات مستقلة، وحذف اسم العائلة الأساسي ({directSearchResult.familyName}) من قائمة الأجداد الأعلى لمنع تكرار عقدة البحث، مع توحيد الهمزات (`أ/إ/آ ⬅️ ا`).
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Detailed AI Hypotheses & Step-by-Step Logs */}
-                        {directSearchResult.ai_research_hypotheses &&
-                          directSearchResult.ai_research_hypotheses.length > 0 && (
-                            <div className="rounded-2xl bg-white/90 border border-amber-300/90 p-4 space-y-2">
-                              <div className="text-xs font-bold text-[#B45309]">
-                                سجل القرارات الاستدلالية للمحرك على هذا الاسم:
+                        <div className="rounded-2xl bg-white border border-amber-300 p-4 sm:p-5 shadow-2xs">
+                          <ul className="space-y-3 text-xs sm:text-sm text-stone-800">
+                            <li className="flex items-start gap-2.5 leading-relaxed">
+                              <span className="shrink-0">⚓</span>
+                              <div>
+                                <strong className="text-amber-950">المحاذاة:</strong>{' '}
+                                تم إدراج المحطات الوسيطة في موضعها الطبقي
+                                {sharedAnchorNames.length > 0
+                                  ? ` بالارتكاز على العُقد المشتركة (${sharedAnchorNames.join('، ')})`
+                                  : ` التصاعدي من (${directSearchResult.familyName}) حتى (${directSearchResult.rootTribeName})`}
+                                .
                               </div>
-                              <ul className="space-y-1.5 text-xs text-stone-800 list-disc list-inside">
-                                {directSearchResult.ai_research_hypotheses.map(
-                                  (hyp, hIdx) => (
-                                    <li key={hIdx} className="leading-relaxed">
-                                      {hyp}
-                                    </li>
-                                  )
-                                )}
-                              </ul>
-                            </div>
-                          )}
+                            </li>
+                            <li className="flex items-start gap-2.5 leading-relaxed">
+                              <span className="shrink-0">🧬</span>
+                              <div>
+                                <strong className="text-amber-950">قرينة الدمج:</strong>{' '}
+                                تطابق الأجداد وتوافق النطاق الجغرافي
+                                {sharedChildBranches.length > 0
+                                  ? ` وتقاطع الفروع الأبناء (${sharedChildBranches.join('، ')})`
+                                  : primaryCluster
+                                  ? ` (${primaryCluster.originTribeLabel} — ${primaryCluster.geographicScope})`
+                                  : ''}
+                                .
+                              </div>
+                            </li>
+                            <li className="flex items-start gap-2.5 leading-relaxed">
+                              <span className="shrink-0">⚠️</span>
+                              <div>
+                                <strong className="text-amber-950">ملاحظة محرك التطابق:</strong>{' '}
+                                {hasShammarTouqaInChain
+                                  ? `تم دمج مسار (شعر طوقة) مع (شمر طوقة) لاحتمالية تصحيف مطبعي${
+                                      mergedVariantPairs.length > 0
+                                        ? `، وتوحيد (${mergedVariantPairs.join(' ، ')})`
+                                        : ''
+                                    }.`
+                                  : mergedVariantPairs.length > 0
+                                  ? `تم دمج مسار ${mergedVariantPairs.join(' و')} بعد توحيد الرسم الإملائي والتاء المربوطة/الهاء لاحتمالية تصحيف مطبعي.`
+                                  : `تم توحيد الهاء والتاء المربوطة وتجريد السوابق (آل/بيت/البو) لضمان عدم انشطار المسار الواحد بسبب اختلاف الرسم الإملائي أو التصحيف المطبعي.`}
+                              </div>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
 
                       {/* =========================================================
@@ -3744,14 +3849,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                             <div className="flex flex-wrap items-center gap-2">
                               {contributingReferencesForStitchedPath.map(
-                                (refEv, rIdx) => (
-                                  <span
-                                    key={refEv.alpha_id || rIdx}
-                                    className="inline-flex items-center px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
-                                  >
-                                    {formatAlphaReferenceBadge(refEv)}
-                                  </span>
-                                )
+                                (refEv, rIdx) => {
+                                  const lakeBadge = resolveResearcherDataLakeBadge(refEv);
+                                  return (
+                                    <span
+                                      key={refEv.alpha_id || rIdx}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                                    >
+                                      <span>{formatAlphaReferenceBadge(refEv)}</span>
+                                      <span
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                      >
+                                        {lakeBadge.tag}
+                                      </span>
+                                    </span>
+                                  );
+                                }
                               )}
                             </div>
                           </div>
@@ -3775,7 +3888,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 القسم الرابع: محاكي أسئلة التحقق للعميل (Disambiguation Simulator)
                               </h3>
                               <p className="text-xs text-stone-600 mt-0.5">
-                                معاينة المسارات المتنافسة ومحاكاة الأسئلة المتدرجة (المرحلة 1 والمرحلة 2) التي تظهر للعميل مجاناً قبل بوابة الدفع ($5)
+                                عرض شامل لكافة العناقيد المرصودة للباحث ({diagnosticClusters.length} مسارات)، مع تقليص سؤال العميل إلى أقوى خيارين فقط + خيار «لا أعرف»
                               </p>
                             </div>
                           </div>
@@ -3790,24 +3903,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           >
                             {directSearchResult.requiresBlindDisambiguation ||
                             diagnosticClusters.length > 1
-                              ? `يتطلب سؤال تحقق مجاني قبل الدفع (${candidateDisambigOptions.length} مسارات متنافسة)`
+                              ? `يُعرض للعميل خياران فقط (أقوى مسارين من أصل ${diagnosticClusters.length} مسارات مرصودة للباحث)`
                               : 'تطابق وحيد مباشر (تظهر للعميل بطاقة الجذر المقفلة $5 مباشرة)'}
                           </span>
                         </div>
 
-                        {/* Competing Paths Comparison Matrix */}
+                        {/* Competing Paths Comparison Matrix (Shows ALL clusters for the Researcher outside the simulator) */}
                         {renderConsensusAndCompetingPathsMatrix(
                           directSearchResult.familyName,
-                          directSearchResult.corroborating_alpha_evidence_for_researcher,
+                          rawEvidenceList,
                           'direct_search'
                         )}
 
-                        {/* Interactive Customer Verification Simulator (Stage 1 & Stage 2) */}
+                        {/* Interactive Customer Verification Simulator (Stage 1 & Stage 2 — Max 2 Strongest Options + Not Sure) */}
                         <div className="rounded-2xl border-2 border-[#D97706]/80 bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] p-5 space-y-4">
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#B98A78]/30 pb-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="px-3 py-1 rounded-full bg-[#D97706]/20 text-[#92400E] text-xs font-extrabold">
-                                🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (قبل الدفع $5)
+                                🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (أقوى مسارين فقط + خيار لا أعرف)
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -3839,10 +3952,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           {diagnosticSimStage === 1 ? (
                             <div className="space-y-3">
                               <div className="text-sm font-extrabold text-[#252321]">
-                                نص سؤال المرحلة 1 للعميل: «لتثبيت الجذر الصحيح لعائلة ({directSearchResult.familyName})، أيٌّ من هذه الأصول أو القبائل يرتبط بأسرتكم؟»
+                                نص سؤال المرحلة 1 للعميل: «لتثبيت الجذر الصحيح لعائلة ({directSearchResult.familyName})، أيٌّ من هذين الأصلين يرتبط بأسرتكم؟»
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {candidateDisambigOptions.map((opt, oIdx) => {
+                                {candidateDisambigOptions.slice(0, 2).map((opt, oIdx) => {
                                   const isSelected = diagnosticSimChoice === opt.id;
                                   const overrideObj =
                                     oIdx === 1
@@ -3990,7 +4103,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 نص سؤال المرحلة 2 للعميل: «لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟»
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {candidateDisambigOptions.map((opt, oIdx) => {
+                                {candidateDisambigOptions.slice(0, 2).map((opt, oIdx) => {
                                   const isSelected = diagnosticSimChoice === opt.id;
                                   const overrideObj =
                                     oIdx === 1
