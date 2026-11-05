@@ -123,10 +123,26 @@ async function dispatchResendEmail(payload: {
   }
 }
 
+function resolveServerPort(): number {
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const cliPort = Number(process.argv[portArgIdx + 1]);
+    if (cliPort > 0) return cliPort;
+  }
+  if (
+    process.env.DEFAULT_APP_PORT &&
+    process.env.PORT &&
+    process.env.PORT === process.env.NGINX_PORT
+  ) {
+    return Number(process.env.DEFAULT_APP_PORT) || 3000;
+  }
+  return Number(process.env.PORT) || 3000;
+}
+
 async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = resolveServerPort();
 
   app.use(express.json({ limit: '5mb' }));
 

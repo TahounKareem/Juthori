@@ -846,9 +846,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     if (onUpdateLineageResult) {
       onUpdateLineageResult(merged);
     }
-    if (stateMode === DashboardStateMode.State2MatchedUnpaid) {
-      onChangeStateMode(DashboardStateMode.State1Paid5Basic);
-    }
+    // IMPORTANT: Resolving the free verification question does NOT unlock the $5 root for free!
+    // If the user is unpaid (State2MatchedUnpaid), they stay in State2MatchedUnpaid so the locked $5 Root card ("الجذر · افتح الآن $5") is now displayed.
 
     const activeUid =
       userId ||
@@ -889,7 +888,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       familyBranch: merged.rootBranchName,
       originCountry: merged.originCountry,
       originRegion: merged.originRegion || editOriginRegion,
-      isRootUnlocked: true,
     }).catch(() => {});
 
     // 2. Sync customer's verified lineage ticket to Firebase `research_tickets` (`إدارة البحوث`)
@@ -937,9 +935,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       phone: editPhone || '—',
       legalRole: accountType,
       accountStatus:
-        stateMode === DashboardStateMode.AnnualVip ? 'annual_vip' : 'paid_5_root',
+        stateMode === DashboardStateMode.AnnualVip
+          ? 'annual_vip'
+          : caps.isRootUnlocked
+          ? 'paid_5_root'
+          : 'free',
       walletBalanceUsd: walletBalance,
-      paidRevenueUsd: stateMode === DashboardStateMode.AnnualVip ? 60 : 5,
+      paidRevenueUsd:
+        stateMode === DashboardStateMode.AnnualVip
+          ? 60
+          : caps.isRootUnlocked
+          ? 5
+          : 0,
       matchStatus: merged.isAlphaOnlyBeforeMerge ? 'staged_3_nodes' : 'auto_adam_full',
       ticketId: merged.alphaBackgroundTicketCode || `ALP-ADAM-${merged.familyName}`,
       ticketType: merged.isAlphaOnlyBeforeMerge ? 'إثراء شجرة آدم P2' : 'آلي مكتمل',
@@ -1056,7 +1063,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   };
 
   const availableCartItems: CartItem[] = [];
-  if (!caps.isRootUnlocked && stateMode === DashboardStateMode.State2MatchedUnpaid) {
+  if (
+    !caps.isRootUnlocked &&
+    stateMode === DashboardStateMode.State2MatchedUnpaid &&
+    !result.requiresBlindDisambiguation
+  ) {
     availableCartItems.push({
       id: 'root_5_usd',
       title: 'فتح نقطة الربط بالجذر (دفعة لمرة واحدة)',

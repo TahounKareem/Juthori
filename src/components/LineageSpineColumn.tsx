@@ -218,8 +218,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     return result;
   }, [result, localResolvedOption]);
 
-  const isVerificationPendingPost5Usd =
-    caps.isRootUnlocked &&
+  const isVerificationPending =
     Boolean(effectiveResult.requiresBlindDisambiguation) &&
     !isResearcherDirectPreview &&
     localResolvedOption === null;
@@ -909,7 +908,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             </span>
           </span>
           <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
-            تم فتح الجذر ($5) ✓
+            {caps.isRootUnlocked ? 'تم فتح الجذر ($5) ✓' : 'تحقق مجاني قبل فتح الجذر ✓'}
           </span>
         </div>
 
@@ -920,7 +919,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 لتثبيت الجذر الصحيح لعائلة ({effectiveResult.familyName})، أيٌّ من هذه الأصول أو القبائل يرتبط بأسرتكم؟
               </h3>
               <p className="text-xs text-[#78350F] font-medium">
-                اختر الأصل أو القبيلة الأم لفتح عقدتي الجذر الموثق مباشرة:
+                {caps.isRootUnlocked
+                  ? 'اختر الأصل أو القبيلة الأم لفتح عقدتي الجذر الموثق مباشرة:'
+                  : 'اختر الأصل أو القبيلة الأم لتحديد مسار عائلتك الصحيح مجاناً قبل فتح الجذر:'}
               </p>
             </div>
 
@@ -998,7 +999,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             >
               {stage1Choice === 'not_sure_stage1'
                 ? 'المتابعة إلى التحقق الجغرافي الآلي ←'
-                : 'تأكيد الاختيار وكشف الجذر الموثق ←'}
+                : caps.isRootUnlocked
+                ? 'تأكيد الاختيار وكشف الجذر الموثق ←'
+                : 'تأكيد الاختيار وتحديد الجذر المطابق ←'}
             </button>
           </div>
         ) : (
@@ -1079,8 +1082,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 className="flex-1 py-3 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold transition-colors cursor-pointer shadow-sm"
               >
                 {stage2Choice === 'not_sure_escalate'
-                  ? 'تحويل الطلب إلى تذكرة بحث مباشرة للباحثين ←'
-                  : 'تأكيد الموضع وكشف الجذر الموثق ←'}
+                  ? 'المتابعة إلى البحث المعمق (الباقة السنوية) ←'
+                  : caps.isRootUnlocked
+                  ? 'تأكيد الموضع وكشف الجذر الموثق ←'
+                  : 'تأكيد الموضع وتحديد الجذر المطابق ←'}
               </button>
               <button
                 type="button"
@@ -1197,19 +1202,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // - After $5 (Resolved): Unified 2-Node Root (B2 & B0) + Folded Intermediate Capsule (🔒 +1 في السلسلة / 🔒 +26 جدّاً في السلسلة)
   // ============================================================================
   const renderAlphaOnlyBeforeMergeSpine = () => {
-    if (!caps.isRootUnlocked) {
-      // Stage 1 (Free): ONLY the locked "الجذر" card is rendered at the summit!
+    // 1. Case A: If disambiguation is required, show the 2-Stage Progressive Verification Card FIRST for FREE (NEVER show the $5 paywall before verification!)
+    if (isVerificationPending) {
       return (
         <div className="space-y-2.5 relative z-20">
-          {renderLockedRoot5UsdCard()}
+          {renderPost5UsdProgressiveVerificationCard()}
         </div>
       );
     }
 
-    if (isVerificationPendingPost5Usd) {
+    // 2. Outcome A (Resolved Match) or Case B (Single Direct Match): Now show the locked $5 Root card ("الجذر · افتح الآن $5")
+    if (!caps.isRootUnlocked) {
       return (
         <div className="space-y-2.5 relative z-20">
-          {renderPost5UsdProgressiveVerificationCard()}
+          {renderLockedRoot5UsdCard()}
         </div>
       );
     }
@@ -1307,20 +1313,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // 10. CASE 1 NON-VIP SPINE FOR FULL ADAM CHAINS (Free Stage 1 vs $5 Basic Stage 2)
   // ============================================================================
   const renderNonVipSpineAboveFamily = () => {
-    // Stage 1 (Unpaid Free User): Strictly hide the 4 upper layers; "الجذر" is the summit
-    if (!caps.isRootUnlocked) {
+    // 1. Case A: If disambiguation is required, show the 2-Stage Progressive Verification Card FIRST for FREE (NEVER show the $5 paywall before verification!)
+    if (isVerificationPending) {
       return (
         <div className="space-y-2.5 relative z-20">
-          {renderLockedRoot5UsdCard()}
+          {renderPost5UsdProgressiveVerificationCard()}
         </div>
       );
     }
 
-    // Immediately after $5 if multiple Adam/Alpha paths require verification:
-    if (isVerificationPendingPost5Usd) {
+    // 2. Outcome A (Resolved Match) or Case B (Single Direct Match): Show the locked $5 Root card ("الجذر · افتح الآن $5")
+    if (!caps.isRootUnlocked) {
       return (
         <div className="space-y-2.5 relative z-20">
-          {renderPost5UsdProgressiveVerificationCard()}
+          {renderLockedRoot5UsdCard()}
         </div>
       );
     }
@@ -1429,8 +1435,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   ? caps.isVip
                     ? '🔍 تذكرة بحث وتوثيق نشطة (P1)'
                     : 'قيد الفحص والتوثيق الخاص'
-                  : isVerificationPendingPost5Usd
-                  ? 'بانتظار تحديد المسار لكشف الجذر ✓'
+                  : isVerificationPending
+                  ? 'بانتظار تحديد المسار لتأكيد التطابق ✓'
                   : effectiveResult.isAlphaOnlyBeforeMerge && caps.isVip
                   ? `الجذر مفتوح (${visibleAdamNodesCount} عُقد مفتوحة من أصل ${totalFamilySpineNodesCount}) · جاري ربط الطبقات العليا`
                   : caps.isVip
@@ -1448,7 +1454,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {caps.isVip &&
               !isUnmatchedCase &&
-              !isVerificationPendingPost5Usd &&
+              !isVerificationPending &&
               !effectiveResult.isAlphaMergedIntoAdam &&
               remainingLockedCapsules.length > 0 &&
               onRequestUnlockAllCapsulesBundle && (
@@ -1494,7 +1500,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               ? renderUnmatchedFamilyUpperSection()
               : effectiveResult.isAlphaOnlyBeforeMerge
               ? renderAlphaOnlyBeforeMergeSpine()
-              : caps.isVip && !isVerificationPendingPost5Usd
+              : caps.isVip && !isVerificationPending
               ? renderVipFullAdamSpine()
               : renderNonVipSpineAboveFamily()}
 
@@ -1536,7 +1542,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         {/* VERIFIED HISTORICAL SOURCES CARD                         */}
         {/* Shown in Case 1 & Case 2 only after $5 Root is unlocked  */}
         {/* ======================================================== */}
-        {!isUnmatchedCase && caps.isRootUnlocked && !isVerificationPendingPost5Usd && (
+        {!isUnmatchedCase && caps.isRootUnlocked && !isVerificationPending && (
           <div className="mt-10 pt-6 border-t border-[#B98A78]/35 max-w-2xl mx-auto w-full relative z-20">
             {!caps.isVip ? (
               <div

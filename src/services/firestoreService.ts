@@ -27,7 +27,6 @@ import {
   storage,
   handleFirestoreError,
   OperationType,
-  ensurePrimaryFirebaseAuthSession,
 } from './firebase';
 
 // Recursively remove undefined fields before passing objects to Firestore setDoc()
@@ -142,32 +141,13 @@ async function dualSetDoc(
 
   const primaryTask = (async () => {
     try {
-      if (!auth.currentUser) {
-        await ensurePrimaryFirebaseAuthSession().catch(() => {});
-      }
       await withFastTimeout(
         setDoc(doc(db, ...pathSegments), cleanData),
         timeoutMs
       );
       primaryWritten = true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // Retry once after ensuring primary Firebase Auth session
-      if (msg.includes('PERMISSION_DENIED') || msg.includes('insufficient permissions')) {
-        try {
-          await ensurePrimaryFirebaseAuthSession();
-          await withFastTimeout(
-            setDoc(doc(db, ...pathSegments), cleanData),
-            timeoutMs
-          );
-          primaryWritten = true;
-          return;
-        } catch (retryErr) {
-          primaryError = retryErr instanceof Error ? retryErr.message : String(retryErr);
-          return;
-        }
-      }
-      primaryError = msg;
+      primaryError = err instanceof Error ? err.message : String(err);
     }
   })();
 
@@ -1617,10 +1597,7 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
   juthoriComError?: string;
 }> {
   try {
-    // 1. Ensure juthori-com has an authenticated Firebase Auth session in case its rules require request.auth != null
-    await ensurePrimaryFirebaseAuthSession();
-
-    // 2. Purge legacy dummy seeds, clean any team accounts out of `users`, & ensure Founding Maestro exists in `team_members`
+    // 1. Purge legacy dummy seeds, clean any team accounts out of `users`, & ensure Founding Maestro exists in `team_members`
     await Promise.allSettled([
       purgeLegacyDummySeedsFromFirestore(),
       ensureFoundingMaestroInFirebase(),

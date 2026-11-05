@@ -51,16 +51,16 @@ const DEFAULT_FORM_STATE: RegistrationFormState = {
   agreedToTerms: false,
 };
 
-const DEFAULT_DEMO_SEED = {
+const DEFAULT_UNAUTHENTICATED_SEED = {
   accountType: AccountLegalType.Individual,
-  firstName: 'حسن',
+  firstName: '',
   fatherName: '',
   grandfatherName: '',
-  familyName: 'آل مقيت',
+  familyName: '',
   originCountry: 'السعودية',
-  tribeName: 'بني بشر',
-  branchName: 'آل برمان',
-  email: 'hassan.almuqit@juthori.com',
+  tribeName: '',
+  branchName: '',
+  email: '',
 };
 
 const ACTIVE_SESSION_STORAGE_KEY = 'juthori_active_user_session';
@@ -190,7 +190,7 @@ export function App() {
   );
 
   const [lineageResult, setLineageResult] = useState<LineageSearchResult>(
-    () => initialSession?.lineageResult || resolveDeterministicLineage(DEFAULT_DEMO_SEED)
+    () => initialSession?.lineageResult || resolveDeterministicLineage(DEFAULT_UNAUTHENTICATED_SEED)
   );
   const [dashboardStateMode, setDashboardStateMode] = useState<DashboardStateMode>(
     () => initialSession?.dashboardStateMode || DashboardStateMode.State2MatchedUnpaid
@@ -378,8 +378,26 @@ export function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Ignore anonymous sessions or team portal sessions
-        if (user.isAnonymous) return;
+        // Ignore anonymous sessions or team/admin service accounts on customer frontend
+        const cleanUserEmail = (user.email || '').trim().toLowerCase();
+        if (
+          user.isAnonymous ||
+          cleanUserEmail === 'kareem.tahoun@adamresearchcenter.net'
+        ) {
+          if (!isTeamRouteInWindow()) {
+            localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+            localStorage.removeItem('juthori_active_customer_session_v1');
+            signOut(auth).catch(() => {});
+            setHasActiveSession(false);
+            setUserId('');
+            setUserAvatarUrl('');
+            setSearchStep(1);
+            setPreviousPlatformView('landing');
+            setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
+          }
+          return;
+        }
+
         setUserId(user.uid);
         try {
           const [profileByUid, profileByEmail] = await Promise.all([
@@ -522,6 +540,18 @@ export function App() {
           }
         } catch (err) {
           console.warn('Profile fetch note:', err);
+        }
+      } else {
+        // user === null: No active Firebase Auth session
+        if (!isTeamRouteInWindow()) {
+          localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+          localStorage.removeItem('juthori_active_customer_session_v1');
+          setHasActiveSession(false);
+          setUserId('');
+          setUserAvatarUrl('');
+          setSearchStep((curr) => (curr === 3 ? 1 : curr));
+          setPreviousPlatformView('landing');
+          setActiveView((curr) => (curr === 'dashboard' ? 'landing' : curr));
         }
       }
     });

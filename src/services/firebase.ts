@@ -6,9 +6,6 @@ import {
   browserLocalPersistence,
   inMemoryPersistence,
   setPersistence,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInAnonymously,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -114,38 +111,6 @@ export const mirrorDb: Firestore = initResilientFirestore(
 
 export const storage = getStorage(app);
 
-// Ensure juthori-com primary Auth has an active authenticated session so rules requiring `request.auth != null` succeed
-let authEnsurePromise: Promise<boolean> | null = null;
-export async function ensurePrimaryFirebaseAuthSession(): Promise<boolean> {
-  if (auth.currentUser) return true;
-  if (authEnsurePromise) return authEnsurePromise;
-
-  authEnsurePromise = (async () => {
-    const serviceEmail = 'Kareem.Tahoun@adamresearchcenter.net';
-    const servicePass = 'ks6kae';
-    try {
-      await signInWithEmailAndPassword(auth, serviceEmail, servicePass);
-      return true;
-    } catch {
-      try {
-        await createUserWithEmailAndPassword(auth, serviceEmail, servicePass);
-        return true;
-      } catch {
-        try {
-          await signInAnonymously(auth);
-          return true;
-        } catch {
-          return false;
-        }
-      }
-    } finally {
-      authEnsurePromise = null;
-    }
-  })();
-
-  return authEnsurePromise;
-}
-
 // Operational Error Handling as defined in Firebase integration guidelines
 export enum OperationType {
   CREATE = 'create',
@@ -199,7 +164,7 @@ export function handleFirestoreError(
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Runtime connection verification using getDocFromServer as required
+// Runtime connection verification using getDocFromServer as required (without auto-login)
 export async function verifyFirestoreConnection(): Promise<{
   juthoriComConnected: boolean;
   juthoriComRulesOpen: boolean;
@@ -211,7 +176,6 @@ export async function verifyFirestoreConnection(): Promise<{
   let errorMessage: string | undefined;
 
   try {
-    await ensurePrimaryFirebaseAuthSession();
     await getDocFromServer(doc(db, 'team_members', 'team_maestro_kareem'));
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -243,8 +207,7 @@ export async function verifyFirestoreConnection(): Promise<{
   };
 }
 
-verifyFirestoreConnection().catch(() => {});
-
 export default app;
+
 
 

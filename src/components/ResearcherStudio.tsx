@@ -280,6 +280,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [directSearchLocality, setDirectSearchLocality] = useState('');
   const [directSearchResult, setDirectSearchResult] =
     useState<LineageSearchResult | null>(null);
+  const [diagnosticSimStage, setDiagnosticSimStage] = useState<1 | 2>(1);
+  const [diagnosticSimChoice, setDiagnosticSimChoice] =
+    useState<string>('option_a');
 
   const runDirectInspectionSearch = (params?: {
     familyName?: string;
@@ -353,6 +356,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
     const res = runDirectInspectionSearch();
     setDirectSearchResult(res);
+    setDiagnosticSimStage(1);
+    setDiagnosticSimChoice('option_a');
     triggerLiveEngineInspection({
       familyName: directSearchFamilyName,
       tribeName: directSearchTribeName,
@@ -3107,13 +3112,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base font-bold font-serif text-[#141414]">
-                    🔍 البحث والفحص الهيكلي المباشر
+                    🔍 البحث والفحص — محاكي مسار الدمج والخياطة (Diagnostic Tracker)
                   </h2>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    عرض جميع محطات السلسلة المخيطة كاملة للباحث (full_stitched_lineage_for_researcher) دون طيّ، مع مخرجات البحيرات الثلاث
+                    تتبع خطوة بخطوة لكيفية قراءة المحرك للمصادر الخام، ومنطق العنقدة والخياطة، والسلسلة النهائية المخيطة، ومحاكي أسئلة التحقق للعميل
                   </p>
                 </div>
               </div>
+              <span className="px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-mono font-bold">
+                4-Step Diagnostic Tracker
+              </span>
             </div>
 
             <div className="p-6 space-y-6">
@@ -3129,7 +3137,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     type="text"
                     value={directSearchFamilyName}
                     onChange={(e) => setDirectSearchFamilyName(e.target.value)}
-                    placeholder="مثال: بيت جنديل، آل مقيت..."
+                    placeholder="مثال: قدم، ال قحيم، بيت جنديل، آل مقيت..."
                     className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-bold focus:outline-none focus:border-[#B45309]"
                   />
                 </div>
@@ -3142,7 +3150,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     type="text"
                     value={directSearchTribeName}
                     onChange={(e) => setDirectSearchTribeName(e.target.value)}
-                    placeholder="مثال: قحطان، بني لام، تميم..."
+                    placeholder="مثال: قحطان، همدان، بني لام..."
                     className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-bold focus:outline-none focus:border-[#B45309]"
                   />
                 </div>
@@ -3155,7 +3163,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     type="text"
                     value={directSearchBranchName}
                     onChange={(e) => setDirectSearchBranchName(e.target.value)}
-                    placeholder="مثال: البلاسم، آل برمان..."
+                    placeholder="مثال: حاشد، البلاسم، آل برمان..."
                     className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-bold focus:outline-none focus:border-[#B45309]"
                   />
                 </div>
@@ -3205,7 +3213,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     className="w-full py-2.5 px-4 bg-[#B45309] hover:bg-[#92400E] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Search className="w-4 h-4" />
-                    <span>فحص وتحليل السلسلة</span>
+                    <span>فحص وتشخيص المسار</span>
                   </button>
                 </div>
               </form>
@@ -3214,92 +3222,708 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <div className="rounded-2xl border border-dashed border-stone-300 bg-[#FAF8F5] p-8 text-center">
                   <Search className="w-8 h-8 text-stone-400 mx-auto mb-2" />
                   <p className="text-sm font-bold text-stone-700">
-                    أدخل اسم العائلة أو القبيلة واضغط على «فحص وتحليل السلسلة» لعرض عمود النسب والمصادر المجمعة
+                    أدخل اسم العائلة أو القبيلة واضغط على «فحص وتشخيص المسار» لعرض المحاكي التشخيصي المكون من 4 مراحل
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* UNIFIED CLIENT LINEAGE SPINE COLUMN (WITH ALL INTERMEDIATE NODES, ASCENDING ORDER, AND AGGREGATED SOURCES CARD) */}
-                  <LineageSpineColumn
-                    stateMode={DashboardStateMode.AnnualVip}
-                    accountType={AccountLegalType.RecordKeeper}
-                    result={directSearchResult}
-                    bridgedAncestors={[]}
-                    onAddBridgedAncestor={() => {}}
-                    onUnlockRoot5Usd={() => {}}
-                    onUpgradeAnnualVip={() => {}}
-                    unlockedCapsules={(directSearchResult.capsules || []).map(
-                      (c) => c.id
-                    )}
-                    onRequestUnlockCapsule={() => {}}
-                    walletBalance={25}
-                    isResearcherDirectPreview={true}
-                    onOpenAsResearcherTicket={() => {
-                      const newTkt = buildTicketFromLineageResult(
-                        directSearchResult,
-                        `فحص باحث (${directSearchResult.familyName})`
-                      );
-                      setTickets((prev) => [newTkt, ...prev]);
-                      setSelectedTicketId(newTkt.id);
-                      setActiveSubTab('ticket_inbox');
-                    }}
-                  />
+                (() => {
+                  const rawEvidenceList: CorroboratingAlphaEvidence[] =
+                    directSearchResult.corroborating_alpha_evidence_for_researcher &&
+                    directSearchResult.corroborating_alpha_evidence_for_researcher.length > 0
+                      ? tagConsensusWinnersOnEvidence(
+                          directSearchResult.familyName,
+                          directSearchResult.corroborating_alpha_evidence_for_researcher
+                        )
+                      : (
+                          directSearchResult.verified_sources || [
+                            directSearchResult.verifiedSourceCitation,
+                          ]
+                        )
+                          .filter(Boolean)
+                          .map((src, idx) => ({
+                            alpha_id: `raw-src-${idx + 1}`,
+                            record_name: directSearchResult.familyName,
+                            source_book: src,
+                            volume: `${idx + 1}`,
+                            page: '—',
+                            lineage_ancestors: (
+                              directSearchResult.full_stitched_lineage_for_researcher ||
+                              directSearchResult.adamSpineNodes ||
+                              []
+                            )
+                              .map((n) => n.name)
+                              .join(' ⬅️ '),
+                            child_branches: (
+                              directSearchResult.sibling_branches_in_record || []
+                            ).join('، '),
+                            locations:
+                              directSearchResult.originRegion ||
+                              directSearchResult.originCountry,
+                            priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+                            is_consensus_winner: true,
+                          }));
 
-                  {/* STICKY NOTES SUMMARY BELOW LINEAGE COLUMN */}
-                  <div className="max-w-[420px] mx-auto">
-                    {directSearchResult.isAlphaOnlyBeforeMerge ? (
-                      <div className="relative rounded-none rounded-bl-2xl rounded-tr-2xl border border-amber-300/90 border-r-4 border-r-amber-500 bg-[#FEF9C3] p-5 shadow-md">
-                        <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-amber-300/70">
-                          <span className="text-xs sm:text-sm font-bold font-serif text-amber-950">
-                            📌 ملاحظة: تم إصدار تذكرة بحث لإثراء هذه العقد في شجرة آدم
-                          </span>
-                          {directSearchResult.alphaBackgroundTicketCode && (
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-300/60 text-amber-950">
-                              {directSearchResult.alphaBackgroundTicketCode}
+                  const diagnosticClusters: ConsensusClusterGroup[] =
+                    directSearchResult.consensusClusterGroups &&
+                    directSearchResult.consensusClusterGroups.length > 0
+                      ? directSearchResult.consensusClusterGroups
+                      : computeCrossSourceConsensusClusters(
+                          directSearchResult.familyName,
+                          rawEvidenceList
+                        );
+
+                  const primaryCluster =
+                    diagnosticClusters.find((c) => c.isConsensusWinner) ||
+                    diagnosticClusters[0];
+
+                  // Compute shared anchors andshared child branches across raw sources for Step 2
+                  const stemFreq = new Map<string, { display: string; count: number }>();
+                  const childBranchFreq = new Map<string, number>();
+
+                  rawEvidenceList.forEach((ev) => {
+                    const tokens = splitAncestorsChain(ev.lineage_ancestors);
+                    const uniqueStemsInSource = new Set<string>();
+                    tokens.forEach((tok) => {
+                      const st = normalizeArabicStem(tok);
+                      if (!st || st === normalizeArabicStem(directSearchResult.familyName)) {
+                        return;
+                      }
+                      if (!uniqueStemsInSource.has(st)) {
+                        uniqueStemsInSource.add(st);
+                        const prev = stemFreq.get(st);
+                        stemFreq.set(st, {
+                          display: prev ? prev.display : tok,
+                          count: (prev ? prev.count : 0) + 1,
+                        });
+                      }
+                    });
+
+                    const branches = (ev.child_branches || '')
+                      .split(/[|،,؛]/)
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    new Set(branches).forEach((b) => {
+                      childBranchFreq.set(b, (childBranchFreq.get(b) || 0) + 1);
+                    });
+                  });
+
+                  const sharedAnchorNames = Array.from(stemFreq.values())
+                    .filter((item) => item.count >= 2)
+                    .map((item) => item.display);
+
+                  const sharedChildBranches = Array.from(childBranchFreq.entries())
+                    .filter(([, count]) => count >= 2)
+                    .map(([name]) => name);
+
+                  const finalStitchedStations: UpperAncestorNode[] =
+                    directSearchResult.full_stitched_lineage_for_researcher &&
+                    directSearchResult.full_stitched_lineage_for_researcher.length > 0
+                      ? directSearchResult.full_stitched_lineage_for_researcher
+                      : directSearchResult.adamSpineNodes &&
+                        directSearchResult.adamSpineNodes.length > 0
+                      ? directSearchResult.adamSpineNodes
+                      : directSearchResult.upperAncestors || [];
+
+                  const candidateDisambigOptions =
+                    directSearchResult.disambiguationOptions &&
+                    directSearchResult.disambiguationOptions.length > 0
+                      ? directSearchResult.disambiguationOptions
+                      : diagnosticClusters.map((c, idx) => ({
+                          id: (idx === 0
+                            ? 'option_a'
+                            : idx === 1
+                            ? 'option_b'
+                            : 'option_c') as 'option_a' | 'option_b' | 'option_c',
+                          badge: c.isConsensusWinner
+                            ? `مسار مرجّح (${c.sourcesCount} مصادر)`
+                            : `مسار بديل (${c.sourcesCount} مصدر)`,
+                          title: c.originTribeLabel,
+                          originTribeLabel: c.originTribeLabel,
+                          geographicScope: c.geographicScope,
+                          nearBranchHint: c.rootPreviewLabel,
+                          isConsensusWinner: c.isConsensusWinner,
+                          consensusBadge: c.isConsensusWinner
+                            ? `مرجّح في عدة مصادر (${c.sourcesCount} مراجع)`
+                            : undefined,
+                        }));
+
+                  return (
+                    <div className="space-y-6">
+                      {/* =========================================================
+                          STEP 1 CARD: القسم الأول — المصادر الخام (Raw Sources)
+                      ========================================================= */}
+                      <div
+                        data-testid="diagnostic-step1-raw-sources"
+                        className="rounded-3xl border-2 border-stone-300 bg-[#FAF8F5] p-5 sm:p-6 shadow-xs space-y-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3.5">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-xl bg-[#141414] text-amber-300 font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
+                              1
                             </span>
+                            <div>
+                              <h3 className="text-sm sm:text-base font-extrabold font-serif text-[#141414]">
+                                القسم الأول: المصادر الخام المستخرجة من المعاجم (Raw Sources)
+                              </h3>
+                              <p className="text-xs text-stone-500 mt-0.5">
+                                عرض نص وسلسلة كل مصدر خام كما وردت في المعجم أو المخطوطة بشكل منفصل قبل تدخل محرك الدمج والخياطة
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-xl bg-white border border-stone-300 text-stone-800 text-xs font-bold">
+                            إجمالي المصادر الخام المرصودة: {rawEvidenceList.length}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {rawEvidenceList.map((ev, idx) => {
+                            const rawTokens = splitAncestorsChain(ev.lineage_ancestors);
+                            return (
+                              <div
+                                key={ev.alpha_id || idx}
+                                className="rounded-2xl bg-white border border-stone-200 p-4 shadow-2xs space-y-3 flex flex-col justify-between"
+                              >
+                                <div className="space-y-2.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[11px] font-bold">
+                                      المصدر الخام #{idx + 1}
+                                    </span>
+                                    <span
+                                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                        ev.is_consensus_winner !== false
+                                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                          : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                      }`}
+                                    >
+                                      {ev.is_consensus_winner !== false
+                                        ? 'ضمن عنقود التوافق الأساسي'
+                                        : 'مسار منافس مستقل'}
+                                    </span>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-xs font-extrabold text-[#B45309]">
+                                      📖 {formatAlphaEvidenceCitation(ev)}
+                                    </div>
+                                    <div className="text-[11px] text-stone-500 mt-0.5">
+                                      اسم السجل في المعجم:{' '}
+                                      <strong className="text-stone-900">
+                                        {ev.record_name || directSearchResult.familyName}
+                                      </strong>
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-xl bg-[#FAF8F5] border border-stone-200/90 p-3 space-y-1.5">
+                                    <div className="text-[11px] font-bold text-stone-600">
+                                      النص / السلسلة الخام كما وردت في المصدر:
+                                    </div>
+                                    <p className="text-xs font-mono font-bold text-stone-900 leading-relaxed">
+                                      {ev.lineage_ancestors || directSearchResult.familyName}
+                                    </p>
+                                    {rawTokens.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1 pt-1">
+                                        {rawTokens.map((tok, tIdx) => (
+                                          <React.Fragment key={tIdx}>
+                                            <span className="px-2 py-0.5 rounded bg-white border border-stone-300 text-[11px] font-bold text-stone-800">
+                                              {tok}
+                                            </span>
+                                            {tIdx < rawTokens.length - 1 && (
+                                              <span className="text-stone-400 text-[10px]">
+                                                ⬅️
+                                              </span>
+                                            )}
+                                          </React.Fragment>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100 text-[11px]">
+                                  <div>
+                                    <span className="text-stone-500 block">
+                                      الفروع الأبناء في المصدر:
+                                    </span>
+                                    <span className="font-bold text-stone-800">
+                                      {ev.child_branches || '—'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-stone-500 block">
+                                      النطاق الجغرافي في المصدر:
+                                    </span>
+                                    <span className="font-bold text-stone-800">
+                                      {ev.locations || directSearchResult.originCountry || '—'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* =========================================================
+                          STEP 2 CARD: القسم الثاني — محرك العنقدة والخياطة (Stitching Engine Logic)
+                      ========================================================= */}
+                      <div
+                        data-testid="diagnostic-step2-stitching-logic"
+                        className="rounded-3xl border-2 border-amber-500/80 bg-gradient-to-l from-amber-50/90 via-[#FAF8F5] to-amber-50/70 p-5 sm:p-6 shadow-xs space-y-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-300/70 pb-3.5">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-xl bg-[#B45309] text-white font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
+                              2
+                            </span>
+                            <div>
+                              <h3 className="text-sm sm:text-base font-extrabold font-serif text-[#141414]">
+                                القسم الثاني: محرك العنقدة والخياطة (Stitching Engine Logic)
+                              </h3>
+                              <p className="text-xs text-stone-600 mt-0.5">
+                                التفسير الخوارزمي لسبب وكيفية عنقدة المصادر وخياطة سلاسلها معاً دون تكرار أو لصق عشوائي في الذيل
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-xl bg-amber-900 text-amber-100 font-mono text-xs font-bold">
+                            Anchor-Based Topological Alignment
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                          {/* Box 2A: Anchor-Based Alignment Explanation */}
+                          <div className="rounded-2xl bg-white border border-amber-300 p-4 space-y-2 shadow-2xs">
+                            <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                              <span>⚓</span>
+                              <span>1. المحاذاة الموضعية بالمرساة (Anchor Alignment)</span>
+                            </div>
+                            <p className="text-xs text-stone-700 leading-relaxed">
+                              {sharedAnchorNames.length > 0
+                                ? `تم الدمج بناءً على الاحتواء الجزئي للسلسلة ومحاذاة نقاط الارتكاز المشتركة (${sharedAnchorNames.join(
+                                    '، '
+                                  )}) بين المصادر، حيث تم إدراج المحطات الوسيطة في موضعها الطبقي الصحيح قبل المرساة وبعدها بدلاً من اللصق في نهاية السلسلة.`
+                                : `تم تفكيك المركبات النسبية وتنظيف السلسلة مع الحفاظ على الترتيب الطبقي التصاعدي من محطة العائلة (${directSearchResult.familyName}) حتى الجذر الأعلى.`}
+                            </p>
+                          </div>
+
+                          {/* Box 2B: Child Branches & Stem Intersection */}
+                          <div className="rounded-2xl bg-white border border-amber-300 p-4 space-y-2 shadow-2xs">
+                            <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                              <span>🧬</span>
+                              <span>2. قرينة تقاطع الفروع والأجداد (Clustering Proof)</span>
+                            </div>
+                            <p className="text-xs text-stone-700 leading-relaxed">
+                              {sharedChildBranches.length > 0
+                                ? `تم الدمج بفضل تقاطع فروع الأبناء المشتركة (${sharedChildBranches.join(
+                                    '، '
+                                  )}) وتطابق الجذور الصرفية المجرّدة (Arabic Stem Normalization)، مما أثبت أن السجلين يعودان لنفس المسمى القبلي.`
+                                : primaryCluster
+                                ? `تم تجميع (${primaryCluster.sourcesCount}) مراجع في عنقود توافق رئيسي يشترك في الجذر (${primaryCluster.originTribeLabel}) والنطاق الجغرافي (${primaryCluster.geographicScope}).`
+                                : 'سلسلة موثقة مباشرة بدون تعارض بين المراجع.'}
+                            </p>
+                          </div>
+
+                          {/* Box 2C: Chain Unrolling & Sanitization */}
+                          <div className="rounded-2xl bg-white border border-amber-300 p-4 space-y-2 shadow-2xs">
+                            <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                              <span>🧹</span>
+                              <span>3. تفكيك المركبات ومنع التكرار (Chain Sanitization)</span>
+                            </div>
+                            <p className="text-xs text-stone-700 leading-relaxed">
+                              تم تفكيك أي عقدة مركبة تحتوي على «بن» أو «آل» إلى محطات مستقلة، وحذف اسم العائلة الأساسي ({directSearchResult.familyName}) من قائمة الأجداد الأعلى لمنع تكرار عقدة البحث، مع توحيد الهمزات (`أ/إ/آ ⬅️ ا`).
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Detailed AI Hypotheses & Step-by-Step Logs */}
+                        {directSearchResult.ai_research_hypotheses &&
+                          directSearchResult.ai_research_hypotheses.length > 0 && (
+                            <div className="rounded-2xl bg-white/90 border border-amber-300/90 p-4 space-y-2">
+                              <div className="text-xs font-bold text-[#B45309]">
+                                سجل القرارات الاستدلالية للمحرك على هذا الاسم:
+                              </div>
+                              <ul className="space-y-1.5 text-xs text-stone-800 list-disc list-inside">
+                                {directSearchResult.ai_research_hypotheses.map(
+                                  (hyp, hIdx) => (
+                                    <li key={hIdx} className="leading-relaxed">
+                                      {hyp}
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                          )}
+                      </div>
+
+                      {/* =========================================================
+                          STEP 3 CARD: القسم الثالث — النتيجة المجمعة والخياطة النهائية (Final Stitched Chain)
+                      ========================================================= */}
+                      <div
+                        data-testid="diagnostic-step3-final-stitched-chain"
+                        className="rounded-3xl border-2 border-emerald-600/80 bg-emerald-50/40 p-5 sm:p-6 shadow-xs space-y-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3.5">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-xl bg-emerald-800 text-white font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
+                              3
+                            </span>
+                            <div>
+                              <h3 className="text-sm sm:text-base font-extrabold font-serif text-emerald-950">
+                                القسم الثالث: النتيجة المجمعة والخياطة النهائية (Final Stitched Chain)
+                              </h3>
+                              <p className="text-xs text-emerald-900/80 mt-0.5">
+                                عمود النسب النهائي المخيّط بعد دمج كافة المصادر المتوافقة ومحاذاة الأجداد من الأسفل إلى الأعلى
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 rounded-xl bg-emerald-800 text-white text-xs font-bold">
+                              {finalStitchedStations.length} محطة مخيطة وموثقة ✓
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Horizontal / Flow Chain View of Final Stitched Stations */}
+                        <div className="rounded-2xl bg-white border border-emerald-200 p-4 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="font-bold text-stone-700">
+                              تسلسل المحطات المخيطة (من العائلة FE0 صعوداً إلى الجذر الأعلى):
+                            </span>
+                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                              الفرع الجامع (B2): {directSearchResult.rootBranchName} · القبيلة الأم (B0): {directSearchResult.rootTribeName}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {finalStitchedStations.map((node, nIdx) => {
+                              const isFamily = node.orderNumber === 1 || node.code === 'FE0';
+                              const isRoot =
+                                node.code === 'B2' ||
+                                node.code === 'B1' ||
+                                node.code === 'B0' ||
+                                node.code === 'MT';
+                              return (
+                                <React.Fragment key={node.id || nIdx}>
+                                  <div
+                                    className={`px-3 py-2 rounded-xl border text-xs flex items-center gap-2 shadow-2xs ${
+                                      isFamily
+                                        ? 'bg-purple-50 border-purple-300 text-purple-950 font-extrabold'
+                                        : isRoot
+                                        ? 'bg-amber-50 border-amber-400 text-amber-950 font-extrabold'
+                                        : 'bg-[#FAF8F5] border-stone-300 text-stone-800 font-bold'
+                                    }`}
+                                  >
+                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/10">
+                                      #{nIdx + 1}
+                                    </span>
+                                    <span>{node.name}</span>
+                                    {node.code && (
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-stone-300 text-stone-700">
+                                        {node.code}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {nIdx < finalStitchedStations.length - 1 && (
+                                    <span className="text-emerald-700 font-bold text-xs">
+                                      ⬅️
+                                    </span>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* =========================================================
+                          STEP 4 CARD: القسم الرابع — محاكي أسئلة التحقق للعميل (Disambiguation Simulator)
+                      ========================================================= */}
+                      <div
+                        data-testid="diagnostic-step4-disambiguation-simulator"
+                        className="rounded-3xl border-2 border-[#7C3AED]/60 bg-gradient-to-l from-purple-50/70 via-white to-amber-50/40 p-5 sm:p-6 shadow-xs space-y-5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-purple-200 pb-3.5">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-xl bg-[#7C3AED] text-white font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
+                              4
+                            </span>
+                            <div>
+                              <h3 className="text-sm sm:text-base font-extrabold font-serif text-[#141414]">
+                                القسم الرابع: محاكي أسئلة التحقق للعميل (Disambiguation Simulator)
+                              </h3>
+                              <p className="text-xs text-stone-600 mt-0.5">
+                                معاينة المسارات المتنافسة ومحاكاة الأسئلة المتدرجة (المرحلة 1 والمرحلة 2) التي تظهر للعميل مجاناً قبل بوابة الدفع ($5)
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`px-3 py-1 rounded-xl text-xs font-bold border ${
+                              directSearchResult.requiresBlindDisambiguation ||
+                              diagnosticClusters.length > 1
+                                ? 'bg-amber-100 border-amber-300 text-amber-950'
+                                : 'bg-emerald-100 border-emerald-300 text-emerald-950'
+                            }`}
+                          >
+                            {directSearchResult.requiresBlindDisambiguation ||
+                            diagnosticClusters.length > 1
+                              ? `يتطلب سؤال تحقق مجاني قبل الدفع (${candidateDisambigOptions.length} مسارات متنافسة)`
+                              : 'تطابق وحيد مباشر (تظهر للعميل بطاقة الجذر المقفلة $5 مباشرة)'}
+                          </span>
+                        </div>
+
+                        {/* Competing Paths Comparison Matrix */}
+                        {renderConsensusAndCompetingPathsMatrix(
+                          directSearchResult.familyName,
+                          directSearchResult.corroborating_alpha_evidence_for_researcher,
+                          'direct_search'
+                        )}
+
+                        {/* Interactive Customer Verification Simulator (Stage 1 & Stage 2) */}
+                        <div className="rounded-2xl border-2 border-[#D97706]/80 bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] p-5 space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#B98A78]/30 pb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 rounded-full bg-[#D97706]/20 text-[#92400E] text-xs font-extrabold">
+                                🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (قبل الدفع $5)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setDiagnosticSimStage(1)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                                  diagnosticSimStage === 1
+                                    ? 'bg-[#252321] text-[#FEF3C7]'
+                                    : 'bg-white text-stone-700 border border-stone-300'
+                                }`}
+                              >
+                                المرحلة 1: سؤال الأصل والقبيلة
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDiagnosticSimStage(2)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                                  diagnosticSimStage === 2
+                                    ? 'bg-[#252321] text-[#FEF3C7]'
+                                    : 'bg-white text-stone-700 border border-stone-300'
+                                }`}
+                              >
+                                المرحلة 2: سؤال الجغرافيا والمواضع
+                              </button>
+                            </div>
+                          </div>
+
+                          {diagnosticSimStage === 1 ? (
+                            <div className="space-y-3">
+                              <div className="text-sm font-extrabold text-[#252321]">
+                                نص سؤال المرحلة 1 للعميل: «لتثبيت الجذر الصحيح لعائلة ({directSearchResult.familyName})، أيٌّ من هذه الأصول أو القبائل يرتبط بأسرتكم؟»
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {candidateDisambigOptions.map((opt, oIdx) => {
+                                  const isSelected = diagnosticSimChoice === opt.id;
+                                  const overrideObj =
+                                    oIdx === 1
+                                      ? directSearchResult.optionBResultOverride
+                                      : oIdx === 2
+                                      ? directSearchResult.optionCResultOverride
+                                      : directSearchResult.optionAResultOverride;
+                                  const resultingBranch =
+                                    overrideObj?.rootBranchName ||
+                                    opt.nearBranchHint ||
+                                    directSearchResult.rootBranchName;
+                                  const resultingTribe =
+                                    overrideObj?.rootTribeName ||
+                                    opt.originTribeLabel ||
+                                    opt.title;
+
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => {
+                                        setDiagnosticSimChoice(opt.id);
+                                        if (overrideObj) {
+                                          setDirectSearchResult({
+                                            ...directSearchResult,
+                                            ...overrideObj,
+                                          });
+                                        }
+                                      }}
+                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2 ${
+                                        isSelected
+                                          ? 'bg-white border-[#D8755B] shadow-xs'
+                                          : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
+                                          🔘 الخيار #{oIdx + 1}: {opt.originTribeLabel || opt.title}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                                          {opt.badge}
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
+                                        <div>
+                                          <strong>المسار الناتج:</strong>{' '}
+                                          {directSearchResult.familyName} ⬅️ {resultingBranch} ⬅️ {resultingTribe}
+                                        </div>
+                                        <div className="text-amber-900 font-bold">
+                                          <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
+                                          تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Stage 1 "لا أعرف" Option */}
+                                <div
+                                  onClick={() => {
+                                    setDiagnosticSimChoice('not_sure_stage1');
+                                    setDiagnosticSimStage(2);
+                                  }}
+                                  className="p-3.5 rounded-xl border-2 border-dashed border-amber-500 bg-amber-50/70 hover:bg-amber-50 transition-all cursor-pointer space-y-2"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs sm:text-sm font-extrabold text-amber-950">
+                                      🔘 خيار: لا أعرف / لست متأكداً (الاحتكام للمواضع الجغرافية)
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-white border border-amber-300 text-[10px] font-mono font-bold text-amber-900">
+                                      NEED_LOCATION_STEP
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-amber-900 bg-white/80 p-2 rounded-lg border border-amber-200">
+                                    <strong>الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong>المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2 ←)
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="text-sm font-extrabold text-[#252321]">
+                                نص سؤال المرحلة 2 للعميل: «لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟»
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {candidateDisambigOptions.map((opt, oIdx) => {
+                                  const isSelected = diagnosticSimChoice === opt.id;
+                                  const overrideObj =
+                                    oIdx === 1
+                                      ? directSearchResult.optionBResultOverride
+                                      : oIdx === 2
+                                      ? directSearchResult.optionCResultOverride
+                                      : directSearchResult.optionAResultOverride;
+                                  const resultingBranch =
+                                    overrideObj?.rootBranchName ||
+                                    opt.nearBranchHint ||
+                                    directSearchResult.rootBranchName;
+                                  const resultingTribe =
+                                    overrideObj?.rootTribeName ||
+                                    opt.originTribeLabel ||
+                                    opt.title;
+
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => {
+                                        setDiagnosticSimChoice(opt.id);
+                                        if (overrideObj) {
+                                          setDirectSearchResult({
+                                            ...directSearchResult,
+                                            ...overrideObj,
+                                          });
+                                        }
+                                      }}
+                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2 ${
+                                        isSelected
+                                          ? 'bg-white border-[#D8755B] shadow-xs'
+                                          : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
+                                          📍 الموضع الجغرافي #{oIdx + 1}: {opt.geographicScope}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                                          يحسم لصالح: {resultingTribe}
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
+                                        <div>
+                                          <strong>المسار الناتج:</strong>{' '}
+                                          {directSearchResult.familyName} ⬅️ {resultingBranch} ⬅️ {resultingTribe}
+                                        </div>
+                                        <div className="text-amber-900 font-bold">
+                                          <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
+                                          تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Stage 2 "لا أعرف / موضع آخر" Option -> Outcome B */}
+                                <div
+                                  onClick={() =>
+                                    setDiagnosticSimChoice('not_sure_escalate')
+                                  }
+                                  className={`p-3.5 rounded-xl border-2 border-dashed transition-all cursor-pointer space-y-2 ${
+                                    diagnosticSimChoice === 'not_sure_escalate'
+                                      ? 'border-red-500 bg-red-50/80'
+                                      : 'border-amber-600 bg-amber-50/70 hover:bg-amber-50'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs sm:text-sm font-extrabold text-amber-950">
+                                      🔘 خيار: لا أعرف / موضع آخر (فشل التحقق في المرحلتين)
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 text-[10px] font-bold">
+                                      المخرج (ب) · البحث المعمق
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-stone-800 bg-white/90 p-2 rounded-lg border border-amber-300 space-y-1">
+                                    <div>
+                                      <strong>الخطوة التالية للعميل (المخرج ب):</strong>{' '}
+                                      يتم نقل العميل فوراً إلى شاشة <strong>«البحث المعمق» (Deep Research)</strong> ليُطلب منه الاشتراك السنوي لفتح تذكرة بحث خاصة لدى الباحثين، دون مطالبته بدفع الـ $5 الخاصة بالجذر الآلي!
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs text-amber-900/95 leading-relaxed">
-                          يتم حالياً عرض ما هو متاح فقط من عُقد موثقة لعائلة (
-                          {directSearchResult.familyName}) في مشاريع ألفا، وقد تم
-                          إصدار تذكرة بحث لإثراء هذه العقد وربطها بعمودها التاريخي
-                          الأعلى في شجرة آدم.
-                        </p>
                       </div>
-                    ) : (
-                      <div className="relative rounded-none rounded-bl-2xl rounded-tr-2xl border border-amber-300/90 border-r-4 border-r-emerald-600 bg-[#FEFCE8] p-5 shadow-md space-y-3">
-                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-amber-300/70">
-                          <span className="text-xs sm:text-sm font-bold font-serif text-stone-900">
-                            📌 ملاحظة توثيقية مجمّعة: المصادر المعتمدة للوصول لهذا العمود النسبي
-                          </span>
-                          <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
-                            مربوط بشجرة آدم ✓
-                          </span>
-                        </div>
-                        <ul className="space-y-1.5 text-xs text-stone-800 list-disc list-inside">
-                          {(
-                            directSearchResult.verified_sources || [
-                              directSearchResult.verifiedSourceCitation,
-                            ]
-                          )
-                            .filter(Boolean)
-                            .map((src: string, idx: number) => (
-                              <li key={idx} className="leading-relaxed">
-                                {src}
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* RULE 4: CONSENSUS WINNER & COMPETING PATHS COMPARISON IN DIRECT SEARCH */}
-                  {renderConsensusAndCompetingPathsMatrix(
-                    directSearchResult.familyName,
-                    directSearchResult.corroborating_alpha_evidence_for_researcher,
-                    'direct_search'
-                  )}
-                </div>
+                      {/* =========================================================
+                          VISUAL COLUMN PREVIEW FOR RESEARCHER
+                      ========================================================= */}
+                      <div className="pt-2">
+                        <LineageSpineColumn
+                          stateMode={DashboardStateMode.AnnualVip}
+                          accountType={AccountLegalType.RecordKeeper}
+                          result={directSearchResult}
+                          bridgedAncestors={[]}
+                          onAddBridgedAncestor={() => {}}
+                          onUnlockRoot5Usd={() => {}}
+                          onUpgradeAnnualVip={() => {}}
+                          unlockedCapsules={(directSearchResult.capsules || []).map(
+                            (c) => c.id
+                          )}
+                          onRequestUnlockCapsule={() => {}}
+                          walletBalance={25}
+                          isResearcherDirectPreview={true}
+                          onOpenAsResearcherTicket={() => {
+                            const newTkt = buildTicketFromLineageResult(
+                              directSearchResult,
+                              `فحص باحث (${directSearchResult.familyName})`
+                            );
+                            setTickets((prev) => [newTkt, ...prev]);
+                            setSelectedTicketId(newTkt.id);
+                            setActiveSubTab('ticket_inbox');
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()
               )}
             </div>
           </div>

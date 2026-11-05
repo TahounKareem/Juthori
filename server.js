@@ -869,8 +869,24 @@ app.get(/.*/, (_req, res) => {
   }
 });
 
-// 3. Mandatory Dynamic Hostinger PORT Binding
-const PORT = Number(process.env.PORT) || 3000;
+// 3. Mandatory Dynamic Hostinger & AI Studio PORT Binding
+function resolveServerPort() {
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const cliPort = Number(process.argv[portArgIdx + 1]);
+    if (cliPort > 0) return cliPort;
+  }
+  if (
+    process.env.DEFAULT_APP_PORT &&
+    process.env.PORT &&
+    process.env.PORT === process.env.NGINX_PORT
+  ) {
+    return Number(process.env.DEFAULT_APP_PORT) || 3000;
+  }
+  return Number(process.env.PORT) || 3000;
+}
+
+const PORT = resolveServerPort();
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });
