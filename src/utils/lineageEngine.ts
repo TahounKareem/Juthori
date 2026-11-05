@@ -4416,8 +4416,11 @@ export const HIGH_APEX_STOP_LIST: string[] = [
 ];
 
 /**
- * Extracts the Researcher-Only Data Lake Badge (`[مشاريع]`, `[ألفا]`, or `[آدم]`)
- * from `record.source_lake` (defaulting to `[مشاريع]`).
+ * Extracts the Researcher-Only Data Lake Badge (`[آدم]`, `[ألفا]`, or `[مشاريع]`)
+ * from `record.source_lake`:
+ * - Data Lake 1 (البحيرة 1): `[آدم]`
+ * - Data Lake 2 (البحيرة 2 — Default for Alpha lexicon sources): `[ألفا]`
+ * - Data Lake 3 (البحيرة 3 — Unlinked / extra projects): `[مشاريع]`
  * Strictly for Researcher Studio / Diagnostic Tracker — never shown in Customer UI.
  */
 export function resolveResearcherDataLakeBadge(
@@ -4435,12 +4438,19 @@ export function resolveResearcherDataLakeBadge(
   )
     .trim()
     .toLowerCase();
+  const alphaId = String(ev?.alpha_id || '').toUpperCase();
 
+  // Data Lake 1 -> [آدم]
   if (
+    raw === '1' ||
+    raw.includes('lake 1') ||
+    raw.includes('lake_1') ||
+    raw.includes('lake1') ||
+    raw.includes('البحيرة 1') ||
     raw.includes('adam') ||
     raw.includes('آدم') ||
     raw.includes('ادم') ||
-    String(ev?.alpha_id || '').startsWith('ADAM_')
+    alphaId.startsWith('ADAM_')
   ) {
     return {
       tag: '[آدم]',
@@ -4448,21 +4458,33 @@ export function resolveResearcherDataLakeBadge(
         'bg-emerald-100 text-emerald-900 border-emerald-300',
     };
   }
+
+  // Data Lake 3 -> [مشاريع]
   if (
-    raw.includes('alpha') ||
-    raw.includes('ألفا') ||
-    raw.includes('الفا')
+    raw === '3' ||
+    raw.includes('lake 3') ||
+    raw.includes('lake_3') ||
+    raw.includes('lake3') ||
+    raw.includes('البحيرة 3') ||
+    raw.includes('project') ||
+    raw.includes('مشاريع') ||
+    raw.includes('مشروع') ||
+    raw.includes('unlinked') ||
+    alphaId.startsWith('PRJ_') ||
+    alphaId.startsWith('LAKE3_')
   ) {
     return {
-      tag: '[ألفا]',
+      tag: '[مشاريع]',
       colorClass:
-        'bg-amber-100 text-amber-900 border-amber-300',
+        'bg-purple-100 text-purple-900 border-purple-300',
     };
   }
+
+  // Data Lake 2 (or default Alpha lexicon records) -> [ألفا]
   return {
-    tag: '[مشاريع]',
+    tag: '[ألفا]',
     colorClass:
-      'bg-purple-100 text-purple-900 border-purple-300',
+      'bg-amber-100 text-amber-900 border-amber-300',
   };
 }
 

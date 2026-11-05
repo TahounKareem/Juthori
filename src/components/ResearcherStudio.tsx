@@ -4776,6 +4776,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     <span className="text-xs font-bold text-[#141414]">
                                       {idx + 1}. كتاب: {ev.source_book}
                                     </span>
+                                    {(() => {
+                                      const lakeBadge =
+                                        resolveResearcherDataLakeBadge(ev);
+                                      return (
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                        >
+                                          {lakeBadge.tag}
+                                        </span>
+                                      );
+                                    })()}
                                     {(ev.volume || ev.page) && (
                                       <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono text-[11px] font-bold">
                                         {[
@@ -5197,6 +5208,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                         <div className="flex flex-wrap items-center gap-2">
                                           <span className="text-xs font-bold text-[#141414]">
                                             {rec.project_source}
+                                          </span>
+                                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold border bg-purple-100 text-purple-900 border-purple-300">
+                                            [مشاريع]
                                           </span>
                                           <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700">
                                             {rec.family_or_tribe_name}
