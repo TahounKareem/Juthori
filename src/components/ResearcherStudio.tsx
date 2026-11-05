@@ -40,7 +40,10 @@ import {
   checkArcCodeRepresentationConflict,
   cleanAndUnrollLineageChain,
   computeCrossSourceConsensusClusters,
+  extractBookVolPageFromEvidence,
   formatAlphaEvidenceCitation,
+  formatAlphaReferenceBadge,
+  formatCompactSourceBracket,
   getCanonicalAdamNodeDedupKey,
   getInitialAdamTreeNodesById,
   inspectNameInAdamMasterTree,
@@ -1211,22 +1214,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             <p className="text-xs font-bold text-stone-800 leading-relaxed">
               {consensusWinner.fullChainNodes.join(' ⬅️ ')}
             </p>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {consensusWinner.records.slice(0, 6).map((ev: CorroboratingAlphaEvidence, i: number) => (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] font-bold text-slate-700">
+                توافق {consensusWinner.records.length} مصادر:
+              </span>
+              {consensusWinner.records.map((ev: CorroboratingAlphaEvidence, i: number) => (
                 <span
                   key={ev.alpha_id || i}
-                  className="px-2 py-0.5 rounded bg-emerald-100/80 border border-emerald-300 text-[10px] font-bold text-emerald-950"
+                  className="px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-[11px] font-sans font-bold text-slate-700 shadow-2xs"
                 >
-                  {ev.source_book}
-                  {ev.volume ? ` (ج${ev.volume}` : ''}
-                  {ev.page ? ` ص${ev.page})` : ev.volume ? ')' : ''}
+                  {formatCompactSourceBracket(ev)}
                 </span>
               ))}
-              {consensusWinner.records.length > 6 && (
-                <span className="px-2 py-0.5 rounded bg-emerald-200 text-[10px] font-bold text-emerald-950">
-                  +{consensusWinner.records.length - 6} مصادر أخرى متفقة
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -1301,15 +1300,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       {comp.fullChainNodes.join(' ⬅️ ')}
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[11px] font-bold text-slate-700">
+                        توافق {comp.records.length} {comp.records.length === 1 ? 'مصدر' : 'مصادر'}:
+                      </span>
                       {comp.records.map((ev: CorroboratingAlphaEvidence, idx: number) => (
                         <span
                           key={ev.alpha_id || idx}
-                          className="px-2 py-0.5 rounded bg-stone-100 border border-stone-300 text-[10px] font-bold text-stone-800"
+                          className="px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-[11px] font-sans font-bold text-slate-700 shadow-2xs"
                         >
-                          المصدر: {ev.source_book}
-                          {ev.volume ? ` (ج${ev.volume}` : ''}
-                          {ev.page ? ` ص${ev.page})` : ev.volume ? ')' : ''}
+                          {formatCompactSourceBracket(ev)}
                         </span>
                       ))}
                     </div>
@@ -3232,7 +3232,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     directSearchResult.corroborating_alpha_evidence_for_researcher.length > 0
                       ? tagConsensusWinnersOnEvidence(
                           directSearchResult.familyName,
-                          directSearchResult.corroborating_alpha_evidence_for_researcher
+                          directSearchResult.corroborating_alpha_evidence_for_researcher.map(
+                            (ev) => {
+                              const parsed = extractBookVolPageFromEvidence(ev);
+                              return {
+                                ...ev,
+                                source_book: parsed.book,
+                                volume: parsed.volume,
+                                page: parsed.page,
+                              };
+                            }
+                          )
                         )
                       : (
                           directSearchResult.verified_sources || [
@@ -3240,28 +3250,31 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           ]
                         )
                           .filter(Boolean)
-                          .map((src, idx) => ({
-                            alpha_id: `raw-src-${idx + 1}`,
-                            record_name: directSearchResult.familyName,
-                            source_book: src,
-                            volume: `${idx + 1}`,
-                            page: '—',
-                            lineage_ancestors: (
-                              directSearchResult.full_stitched_lineage_for_researcher ||
-                              directSearchResult.adamSpineNodes ||
-                              []
-                            )
-                              .map((n) => n.name)
-                              .join(' ⬅️ '),
-                            child_branches: (
-                              directSearchResult.sibling_branches_in_record || []
-                            ).join('، '),
-                            locations:
-                              directSearchResult.originRegion ||
-                              directSearchResult.originCountry,
-                            priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-                            is_consensus_winner: true,
-                          }));
+                          .map((src, idx) => {
+                            const parsed = extractBookVolPageFromEvidence(src);
+                            return {
+                              alpha_id: `raw-src-${idx + 1}`,
+                              record_name: directSearchResult.familyName,
+                              source_book: parsed.book,
+                              volume: parsed.volume || `${idx + 1}`,
+                              page: parsed.page || '—',
+                              lineage_ancestors: (
+                                directSearchResult.full_stitched_lineage_for_researcher ||
+                                directSearchResult.adamSpineNodes ||
+                                []
+                              )
+                                .map((n) => n.name)
+                                .join(' ⬅️ '),
+                              child_branches: (
+                                directSearchResult.sibling_branches_in_record || []
+                              ).join('، '),
+                              locations:
+                                directSearchResult.originRegion ||
+                                directSearchResult.originCountry,
+                              priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+                              is_consensus_winner: true,
+                            };
+                          });
 
                   const diagnosticClusters: ConsensusClusterGroup[] =
                     directSearchResult.consensusClusterGroups &&
@@ -3276,7 +3289,29 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     diagnosticClusters.find((c) => c.isConsensusWinner) ||
                     diagnosticClusters[0];
 
-                  // Compute shared anchors andshared child branches across raw sources for Step 2
+                  // Contributing references for the active merged path (Step 2 & Step 3)
+                  const activeOptionIndex =
+                    diagnosticSimChoice === 'option_b'
+                      ? 1
+                      : diagnosticSimChoice === 'option_c'
+                      ? 2
+                      : 0;
+                  const activeClusterForStitchedChain =
+                    diagnosticClusters[activeOptionIndex] || primaryCluster;
+
+                  const contributingReferencesForStitchedPath: CorroboratingAlphaEvidence[] =
+                    activeClusterForStitchedChain &&
+                    activeClusterForStitchedChain.records.length > 0
+                      ? activeClusterForStitchedChain.records
+                      : rawEvidenceList.filter(
+                          (e) => e.is_consensus_winner !== false
+                        ).length > 0
+                      ? rawEvidenceList.filter(
+                          (e) => e.is_consensus_winner !== false
+                        )
+                      : rawEvidenceList;
+
+                  // Compute shared anchors and shared child branches across raw sources for Step 2
                   const stemFreq = new Map<string, { display: string; count: number }>();
                   const childBranchFreq = new Map<string, number>();
 
@@ -3345,6 +3380,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           consensusBadge: c.isConsensusWinner
                             ? `مرجّح في عدة مصادر (${c.sourcesCount} مراجع)`
                             : undefined,
+                          sourcesCount: c.sourcesCount,
+                          contributingSources: c.records,
                         }));
 
                   return (
@@ -3366,7 +3403,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 القسم الأول: المصادر الخام المستخرجة من المعاجم (Raw Sources)
                               </h3>
                               <p className="text-xs text-stone-500 mt-0.5">
-                                عرض نص وسلسلة كل مصدر خام كما وردت في المعجم أو المخطوطة بشكل منفصل قبل تدخل محرك الدمج والخياطة
+                                عرض نص وسلسلة كل مصدر خام كما وردت في المعجم أو المخطوطة بشكل منفصل مع التوثيق المرجعي الدقيق قبل الدمج
                               </p>
                             </div>
                           </div>
@@ -3378,6 +3415,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {rawEvidenceList.map((ev, idx) => {
                             const rawTokens = splitAncestorsChain(ev.lineage_ancestors);
+                            const refBadgeText = formatAlphaReferenceBadge(ev);
                             return (
                               <div
                                 key={ev.alpha_id || idx}
@@ -3401,27 +3439,41 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     </span>
                                   </div>
 
-                                  <div>
-                                    <div className="text-xs font-extrabold text-[#B45309]">
-                                      📖 {formatAlphaEvidenceCitation(ev)}
-                                    </div>
-                                    <div className="text-[11px] text-stone-500 mt-0.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="text-[11px] text-stone-500">
                                       اسم السجل في المعجم:{' '}
                                       <strong className="text-stone-900">
                                         {ev.record_name || directSearchResult.familyName}
                                       </strong>
                                     </div>
+                                    {/* Prominent Slate-Blue Bibliographic Badge */}
+                                    <span
+                                      data-testid={`raw-source-ref-badge-${idx}`}
+                                      className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                                    >
+                                      {refBadgeText}
+                                    </span>
                                   </div>
 
-                                  <div className="rounded-xl bg-[#FAF8F5] border border-stone-200/90 p-3 space-y-1.5">
-                                    <div className="text-[11px] font-bold text-stone-600">
-                                      النص / السلسلة الخام كما وردت في المصدر:
+                                  <div className="rounded-xl bg-[#FAF8F5] border border-stone-200/90 p-3 space-y-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span className="text-[11px] font-bold text-stone-600">
+                                        النص / السلسلة الخام كما وردت في المصدر:
+                                      </span>
                                     </div>
-                                    <p className="text-xs font-mono font-bold text-stone-900 leading-relaxed">
-                                      {ev.lineage_ancestors || directSearchResult.familyName}
-                                    </p>
+
+                                    {/* Raw lineage line paired directly with its bibliographic badge */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg p-2.5 border border-stone-200/80">
+                                      <p className="text-xs font-mono font-bold text-stone-900 leading-relaxed">
+                                        {ev.lineage_ancestors || directSearchResult.familyName}
+                                      </p>
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-sans font-bold shrink-0">
+                                        {refBadgeText}
+                                      </span>
+                                    </div>
+
                                     {rawTokens.length > 0 && (
-                                      <div className="flex flex-wrap items-center gap-1 pt-1">
+                                      <div className="flex flex-wrap items-center gap-1 pt-0.5">
                                         {rawTokens.map((tok, tIdx) => (
                                           <React.Fragment key={tIdx}>
                                             <span className="px-2 py-0.5 rounded bg-white border border-stone-300 text-[11px] font-bold text-stone-800">
@@ -3583,7 +3635,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         </div>
 
                         {/* Horizontal / Flow Chain View of Final Stitched Stations */}
-                        <div className="rounded-2xl bg-white border border-emerald-200 p-4 space-y-3">
+                        <div className="rounded-2xl bg-white border border-emerald-200 p-4 space-y-4">
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                             <span className="font-bold text-stone-700">
                               تسلسل المحطات المخيطة (من العائلة FE0 صعوداً إلى الجذر الأعلى):
@@ -3630,6 +3682,38 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 </React.Fragment>
                               );
                             })}
+                          </div>
+
+                          {/* SUB-SECTION BELOW FINAL STITCHED CHAIN: المراجع المساهمة في هذا المسار */}
+                          <div
+                            data-testid="contributing-references-subsection"
+                            className="pt-3.5 border-t border-emerald-200/80 space-y-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                <span>📚</span>
+                                <span>المراجع المساهمة في هذا المسار</span>
+                              </h4>
+                              <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                                {contributingReferencesForStitchedPath.length}{' '}
+                                {contributingReferencesForStitchedPath.length === 1
+                                  ? 'مرجع معتمد في الخياطة'
+                                  : 'مراجع معتمدة في الخياطة'}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              {contributingReferencesForStitchedPath.map(
+                                (refEv, rIdx) => (
+                                  <span
+                                    key={refEv.alpha_id || rIdx}
+                                    className="inline-flex items-center px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                                  >
+                                    {formatAlphaReferenceBadge(refEv)}
+                                  </span>
+                                )
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -3735,6 +3819,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     opt.originTribeLabel ||
                                     opt.title;
 
+                                  const optSources: CorroboratingAlphaEvidence[] =
+                                    opt.contributingSources &&
+                                    opt.contributingSources.length > 0
+                                      ? opt.contributingSources
+                                      : diagnosticClusters[oIdx]?.records &&
+                                        diagnosticClusters[oIdx].records.length > 0
+                                      ? diagnosticClusters[oIdx].records
+                                      : overrideObj
+                                          ?.corroborating_alpha_evidence_for_researcher &&
+                                        overrideObj
+                                          .corroborating_alpha_evidence_for_researcher
+                                          .length > 0
+                                      ? overrideObj.corroborating_alpha_evidence_for_researcher
+                                      : rawEvidenceList.slice(oIdx, oIdx + 1);
+
                                   return (
                                     <div
                                       key={opt.id}
@@ -3747,7 +3846,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           });
                                         }
                                       }}
-                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2 ${
+                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
                                         isSelected
                                           ? 'bg-white border-[#D8755B] shadow-xs'
                                           : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
@@ -3761,6 +3860,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           {opt.badge}
                                         </span>
                                       </div>
+
+                                      {/* Explicit Sources & Pages under the competing option */}
+                                      <div
+                                        data-testid={`sim-stage1-option-sources-${oIdx}`}
+                                        className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5"
+                                      >
+                                        <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
+                                          <span>
+                                            توافق {optSources.length}{' '}
+                                            {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
+                                          </span>
+                                          {optSources.map((srcEv, sIdx) => (
+                                            <React.Fragment key={srcEv.alpha_id || sIdx}>
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
+                                                {formatCompactSourceBracket(srcEv)}
+                                              </span>
+                                              {sIdx < optSources.length - 1 && (
+                                                <span className="text-slate-400 font-bold">،</span>
+                                              )}
+                                            </React.Fragment>
+                                          ))}
+                                        </div>
+                                      </div>
+
                                       <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
                                         <div>
                                           <strong>المسار الناتج:</strong>{' '}
@@ -3820,6 +3943,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     opt.originTribeLabel ||
                                     opt.title;
 
+                                  const optSources: CorroboratingAlphaEvidence[] =
+                                    opt.contributingSources &&
+                                    opt.contributingSources.length > 0
+                                      ? opt.contributingSources
+                                      : diagnosticClusters[oIdx]?.records &&
+                                        diagnosticClusters[oIdx].records.length > 0
+                                      ? diagnosticClusters[oIdx].records
+                                      : overrideObj
+                                          ?.corroborating_alpha_evidence_for_researcher &&
+                                        overrideObj
+                                          .corroborating_alpha_evidence_for_researcher
+                                          .length > 0
+                                      ? overrideObj.corroborating_alpha_evidence_for_researcher
+                                      : rawEvidenceList.slice(oIdx, oIdx + 1);
+
                                   return (
                                     <div
                                       key={opt.id}
@@ -3832,7 +3970,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           });
                                         }
                                       }}
-                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2 ${
+                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
                                         isSelected
                                           ? 'bg-white border-[#D8755B] shadow-xs'
                                           : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
@@ -3846,6 +3984,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           يحسم لصالح: {resultingTribe}
                                         </span>
                                       </div>
+
+                                      {/* Explicit Sources & Pages under the competing geographic option */}
+                                      <div
+                                        data-testid={`sim-stage2-option-sources-${oIdx}`}
+                                        className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5"
+                                      >
+                                        <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
+                                          <span>
+                                            توافق {optSources.length}{' '}
+                                            {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
+                                          </span>
+                                          {optSources.map((srcEv, sIdx) => (
+                                            <React.Fragment key={srcEv.alpha_id || sIdx}>
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
+                                                {formatCompactSourceBracket(srcEv)}
+                                              </span>
+                                              {sIdx < optSources.length - 1 && (
+                                                <span className="text-slate-400 font-bold">،</span>
+                                              )}
+                                            </React.Fragment>
+                                          ))}
+                                        </div>
+                                      </div>
+
                                       <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
                                         <div>
                                           <strong>المسار الناتج:</strong>{' '}

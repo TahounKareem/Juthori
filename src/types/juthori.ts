@@ -158,6 +158,7 @@ export interface BlindDisambiguationOption {
   isConsensusWinner?: boolean;
   consensusBadge?: string; // e.g. "توافق (3) مصادر"
   sourcesCount?: number;
+  contributingSources?: CorroboratingAlphaEvidence[];
 }
 
 export interface ConsensusClusterGroup {

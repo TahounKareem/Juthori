@@ -4212,13 +4212,109 @@ export const UNIVERSAL_ALPHA_EVIDENCE_CATALOG: CorroboratingAlphaEvidence[] = [
 ];
 
 /**
+ * Extracts clean `{ book, volume, page }` from a `CorroboratingAlphaEvidence` object or citation string,
+ * handling both explicit `volume`/`page` fields from the Alpha API and embedded `(ج1 ص372)` patterns.
+ */
+export function extractBookVolPageFromEvidence(
+  ev:
+    | Partial<CorroboratingAlphaEvidence>
+    | {
+        source_book?: string;
+        book_name?: string;
+        book?: string;
+        volume?: string | number | null;
+        vol?: string | number | null;
+        page?: string | number | null;
+        page_number?: string | number | null;
+      }
+    | string
+): { book: string; volume: string; page: string } {
+  if (typeof ev === 'string') {
+    const rawStr = ev.trim();
+    const volMatch = rawStr.match(/(?:ج|جزء)\s*[:：]?\s*([0-9٠-٩]+)/);
+    const pageMatch = rawStr.match(/(?:ص|صفحة)\s*[:：]?\s*([0-9٠-٩]+(?:-[0-9٠-٩]+)?)/);
+    const cleanedBook = rawStr
+      .replace(/\(\s*(?:ج|جزء)[^)]*\)/g, '')
+      .replace(/\[[^\]]*\]/g, '')
+      .replace(/[-–—،,]\s*(?:ج|جزء)\s*[:：]?\s*[0-9٠-٩]+.*$/g, '')
+      .trim();
+    return {
+      book: cleanedBook || rawStr || 'مرجع أنساب موثق',
+      volume: volMatch?.[1] || '1',
+      page: pageMatch?.[1] || '—',
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyEv = ev as Record<string, any>;
+  const rawBook = String(
+    anyEv?.source_book || anyEv?.book_name || anyEv?.book || 'مرجع أنساب موثق'
+  ).trim();
+  const explicitVol =
+    anyEv?.volume !== undefined && anyEv?.volume !== null && String(anyEv.volume).trim() !== ''
+      ? String(anyEv.volume).trim()
+      : anyEv?.vol !== undefined && anyEv?.vol !== null && String(anyEv.vol).trim() !== ''
+      ? String(anyEv.vol).trim()
+      : '';
+  const explicitPage =
+    anyEv?.page !== undefined && anyEv?.page !== null && String(anyEv.page).trim() !== ''
+      ? String(anyEv.page).trim()
+      : anyEv?.page_number !== undefined &&
+        anyEv?.page_number !== null &&
+        String(anyEv.page_number).trim() !== ''
+      ? String(anyEv.page_number).trim()
+      : '';
+
+  const embeddedVolMatch = rawBook.match(/(?:ج|جزء)\s*[:：]?\s*([0-9٠-٩]+)/);
+  const embeddedPageMatch = rawBook.match(
+    /(?:ص|صفحة)\s*[:：]?\s*([0-9٠-٩]+(?:-[0-9٠-٩]+)?)/
+  );
+
+  const cleanedBook = rawBook
+    .replace(/\(\s*(?:ج|جزء)[^)]*\)/g, '')
+    .replace(/[-–—،,]\s*(?:ج|جزء)\s*[:：]?\s*[0-9٠-٩]+.*$/g, '')
+    .trim();
+
+  return {
+    book: cleanedBook || rawBook,
+    volume: explicitVol || embeddedVolMatch?.[1] || '1',
+    page: explicitPage || embeddedPageMatch?.[1] || '—',
+  };
+}
+
+/**
  * Formats a `CorroboratingAlphaEvidence` item into a clean Arabic bibliographic citation
  */
 export function formatAlphaEvidenceCitation(ev: CorroboratingAlphaEvidence): string {
-  const volPart = ev.volume ? `ج${ev.volume}` : '';
-  const pagePart = ev.page ? `ص${ev.page}` : '';
+  const { book, volume, page } = extractBookVolPageFromEvidence(ev);
+  const volPart = volume && volume !== '—' ? `ج${volume}` : '';
+  const pagePart = page && page !== '—' ? `ص${page}` : '';
   const locBracket = [volPart, pagePart].filter(Boolean).join(' ');
-  return locBracket ? `${ev.source_book} (${locBracket})` : ev.source_book;
+  return locBracket ? `${book} (${locBracket})` : book;
+}
+
+/**
+ * Formats a reference badge in the exact Researcher Diagnostic Tracker Step 1 format:
+ * `[📚 اسم الكتاب - ج: X - ص: Y]`
+ */
+export function formatAlphaReferenceBadge(
+  ev: Partial<CorroboratingAlphaEvidence> | string
+): string {
+  const { book, volume, page } = extractBookVolPageFromEvidence(ev);
+  return `[📚 ${book} - ج: ${volume || '1'} - ص: ${page || '—'}]`;
+}
+
+/**
+ * Formats a compact reference tag in the exact Researcher Diagnostic Tracker Step 4 format:
+ * `[اسم الكتاب جX صY]` (e.g. `[معجم قبائل العرب ج1 ص372]`)
+ */
+export function formatCompactSourceBracket(
+  ev: Partial<CorroboratingAlphaEvidence> | string
+): string {
+  const { book, volume, page } = extractBookVolPageFromEvidence(ev);
+  const volStr = volume && volume !== '—' ? ` ج${volume}` : '';
+  const pageStr = page && page !== '—' ? ` ص${page}` : '';
+  return `[${book}${volStr}${pageStr}]`;
 }
 
 /**
@@ -7670,24 +7766,27 @@ export function parsePort8090UniversalResponse(
     )
       ? apiData.corroborating_alpha_evidence_for_researcher.map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any, idx: number) => ({
-            alpha_id: String(item.alpha_id || `ALP_DISAMBIG_${idx + 1}`),
-            record_name: String(item.record_name || displayFamilyName),
-            source_book: String(item.source_book || 'مرجع أنساب موثق'),
-            page: item.page ? String(item.page) : null,
-            volume: item.volume ? String(item.volume) : null,
-            lineage_ancestors: item.lineage_ancestors
-              ? String(item.lineage_ancestors)
-              : item.full_lineage_text
-              ? String(item.full_lineage_text)
-              : null,
-            child_branches: item.child_branches ? String(item.child_branches) : null,
-            locations: item.locations ? String(item.locations) : null,
-            priority_tier:
-              item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                ? 'PRIORITY_1_COUNTRY_BOOK'
-                : 'PRIORITY_2_GENERAL_BOOK',
-          })
+          (item: any, idx: number) => {
+            const parsedRef = extractBookVolPageFromEvidence(item);
+            return {
+              alpha_id: String(item.alpha_id || `ALP_DISAMBIG_${idx + 1}`),
+              record_name: String(item.record_name || displayFamilyName),
+              source_book: parsedRef.book,
+              page: parsedRef.page,
+              volume: parsedRef.volume,
+              lineage_ancestors: item.lineage_ancestors
+                ? String(item.lineage_ancestors)
+                : item.full_lineage_text
+                ? String(item.full_lineage_text)
+                : null,
+              child_branches: item.child_branches ? String(item.child_branches) : null,
+              locations: item.locations ? String(item.locations) : null,
+              priority_tier:
+                item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+                  ? 'PRIORITY_1_COUNTRY_BOOK'
+                  : 'PRIORITY_2_GENERAL_BOOK',
+            };
+          }
         )
       : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
@@ -7705,35 +7804,65 @@ export function parsePort8090UniversalResponse(
       rawOptions.length >= 2
         ? rawOptions.slice(0, 3).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (opt: any, idx: number): BlindDisambiguationOption => ({
-              id: optionIds[idx] || 'option_a',
-              choice_id: opt.choice_id ? String(opt.choice_id) : undefined,
-              badge:
-                opt.consensus_badge ||
-                (idx === 0
-                  ? 'المسار المتوافق عليه في المصادر'
-                  : 'مسار موازٍ في المصادر'),
-              title: String(opt.title || opt.origin_tribe_label || `المسار ${idx + 1}`),
-              originTribeLabel: String(
-                opt.origin_tribe_label || opt.title || `المسار ${idx + 1}`
-              ),
-              geographicScope: String(
-                opt.geographic_scope ||
-                  opt.locations ||
-                  disambigClusters[idx]?.geographicScope ||
-                  localFallback.disambiguationOptions?.[idx]?.geographicScope ||
-                  opt.title ||
-                  'النطاق الجغرافي المرصود'
-              ),
-              nearBranchHint: opt.choice_id ? `معرّف المسار: ${opt.choice_id}` : '',
-              isConsensusWinner: Boolean(
-                opt.is_consensus_winner ?? (idx === 0 && Boolean(opt.consensus_badge))
-              ),
-              consensusBadge: opt.consensus_badge
-                ? String(opt.consensus_badge)
-                : undefined,
-              sourcesCount: opt.sources_count ? Number(opt.sources_count) : undefined,
-            })
+            (opt: any, idx: number): BlindDisambiguationOption => {
+              const rawOptSources = Array.isArray(opt.sources)
+                ? opt.sources
+                : Array.isArray(opt.contributing_sources)
+                ? opt.contributing_sources
+                : Array.isArray(opt.records)
+                ? opt.records
+                : null;
+              const mappedOptSources: CorroboratingAlphaEvidence[] = rawOptSources
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  rawOptSources.map((s: any, sIdx: number) => {
+                    const ref = extractBookVolPageFromEvidence(s);
+                    return {
+                      alpha_id: String(s?.alpha_id || `OPT_${idx}_SRC_${sIdx + 1}`),
+                      record_name: String(s?.record_name || displayFamilyName),
+                      source_book: ref.book,
+                      volume: ref.volume,
+                      page: ref.page,
+                      lineage_ancestors: s?.lineage_ancestors
+                        ? String(s.lineage_ancestors)
+                        : null,
+                      priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+                    };
+                  })
+                : disambigClusters[idx]?.records || [];
+
+              return {
+                id: optionIds[idx] || 'option_a',
+                choice_id: opt.choice_id ? String(opt.choice_id) : undefined,
+                badge:
+                  opt.consensus_badge ||
+                  (idx === 0
+                    ? 'المسار المتوافق عليه في المصادر'
+                    : 'مسار موازٍ في المصادر'),
+                title: String(opt.title || opt.origin_tribe_label || `المسار ${idx + 1}`),
+                originTribeLabel: String(
+                  opt.origin_tribe_label || opt.title || `المسار ${idx + 1}`
+                ),
+                geographicScope: String(
+                  opt.geographic_scope ||
+                    opt.locations ||
+                    disambigClusters[idx]?.geographicScope ||
+                    localFallback.disambiguationOptions?.[idx]?.geographicScope ||
+                    opt.title ||
+                    'النطاق الجغرافي المرصود'
+                ),
+                nearBranchHint: opt.choice_id ? `معرّف المسار: ${opt.choice_id}` : '',
+                isConsensusWinner: Boolean(
+                  opt.is_consensus_winner ?? (idx === 0 && Boolean(opt.consensus_badge))
+                ),
+                consensusBadge: opt.consensus_badge
+                  ? String(opt.consensus_badge)
+                  : undefined,
+                sourcesCount: opt.sources_count
+                  ? Number(opt.sources_count)
+                  : mappedOptSources.length || disambigClusters[idx]?.sourcesCount,
+                contributingSources: mappedOptSources,
+              };
+            }
           )
         : localFallback.disambiguationOptions;
 
@@ -7973,24 +8102,27 @@ export function parsePort8090UniversalResponse(
     )
       ? apiData.corroborating_alpha_evidence_for_researcher.map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any, idx: number) => ({
-            alpha_id: String(item.alpha_id || `ALP_LIVE_${idx + 1}`),
-            record_name: String(item.record_name || displayFamilyName),
-            source_book: String(item.source_book || 'مرجع أنساب موثق'),
-            page: item.page ? String(item.page) : null,
-            volume: item.volume ? String(item.volume) : null,
-            lineage_ancestors: item.lineage_ancestors
-              ? String(item.lineage_ancestors)
-              : item.full_lineage_text
-              ? String(item.full_lineage_text)
-              : null,
-            child_branches: item.child_branches ? String(item.child_branches) : null,
-            locations: item.locations ? String(item.locations) : null,
-            priority_tier:
-              item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                ? 'PRIORITY_1_COUNTRY_BOOK'
-                : 'PRIORITY_2_GENERAL_BOOK',
-          })
+          (item: any, idx: number) => {
+            const parsedRef = extractBookVolPageFromEvidence(item);
+            return {
+              alpha_id: String(item.alpha_id || `ALP_LIVE_${idx + 1}`),
+              record_name: String(item.record_name || displayFamilyName),
+              source_book: parsedRef.book,
+              page: parsedRef.page,
+              volume: parsedRef.volume,
+              lineage_ancestors: item.lineage_ancestors
+                ? String(item.lineage_ancestors)
+                : item.full_lineage_text
+                ? String(item.full_lineage_text)
+                : null,
+              child_branches: item.child_branches ? String(item.child_branches) : null,
+              locations: item.locations ? String(item.locations) : null,
+              priority_tier:
+                item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+                  ? 'PRIORITY_1_COUNTRY_BOOK'
+                  : 'PRIORITY_2_GENERAL_BOOK',
+            };
+          }
         )
       : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
@@ -8604,6 +8736,7 @@ function applyDynamicClusterDisambiguation(
       isConsensusWinner: c.isConsensusWinner,
       consensusBadge: c.isConsensusWinner ? `توافق (${c.sourcesCount}) مصادر` : undefined,
       sourcesCount: c.sourcesCount,
+      contributingSources: c.records,
     }));
 
   const optA = buildResolvedLineageFromDisambiguationOption(
