@@ -4209,6 +4209,76 @@ export const UNIVERSAL_ALPHA_EVIDENCE_CATALOG: CorroboratingAlphaEvidence[] = [
     priority_tier: 'PRIORITY_2_GENERAL_BOOK',
     is_consensus_winner: false,
   },
+  // ===========================================================================
+  // BAYT DABASH / DAWAR (بيت دبش — داور ⬅️ الصلتة ⬅️ شمر طوقة)
+  // ===========================================================================
+  {
+    alpha_id: 'ALP_B_0d2a1e526e3b',
+    record_name: 'داور',
+    source_book: 'معجم قبائل العرب القديمة والحديثة — عمر رضا كحالة',
+    page: '372',
+    volume: '1',
+    lineage_ancestors: 'الصلتة ؛ شمر طوقة',
+    child_branches: 'بيت دبش | البو دبش',
+    locations: 'العراق | ديالى | بغداد | واسط',
+    notables: 'شيوخ ووجهاء عشيرة الداور وبيت دبش من الصلتة من شمر طوقة',
+    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
+    is_consensus_winner: true,
+    consensus_badge: 'توافق (2) مصادر',
+  },
+  {
+    alpha_id: 'ALP_5b7de8941e09f1',
+    record_name: 'بيت دبش',
+    source_book: 'موسوعة العشائر العراقية — ثامر عبد الحسن العامري',
+    page: '211',
+    volume: '3',
+    lineage_ancestors: 'بيت دبش ؛ الدوار',
+    child_branches: 'بيت دبش',
+    locations: 'العراق | ديالى | المدائن',
+    notables: 'وجهاء بيت دبش من عشيرة الداور (شمر طوقة)',
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+    is_consensus_winner: true,
+    consensus_badge: 'توافق (2) مصادر',
+  },
+  {
+    alpha_id: 'ALP_B_4e08cdd719e6',
+    record_name: 'البو دبش',
+    source_book: 'معجم قبائل العرب القديمة والحديثة — عمر رضا كحالة',
+    page: '547',
+    volume: '3',
+    lineage_ancestors: 'على المضعد',
+    child_branches: null,
+    locations: 'العراق',
+    notables: null,
+    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
+    is_consensus_winner: false,
+  },
+  {
+    alpha_id: 'ALP_544217cf421ce6',
+    record_name: 'البو دبش',
+    source_book: 'موسوعة عشائر العراق — عباس العزاوي',
+    page: '198',
+    volume: '4',
+    lineage_ancestors: 'البو دبش ؛ البو عاصي ؛ البو جمع ؛ البو كمال ؛ العقيدات',
+    child_branches: null,
+    locations: 'دير الزور | البوكمال | وادي الفرات',
+    notables: null,
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+    is_consensus_winner: false,
+  },
+  {
+    alpha_id: 'ALP_63075077556343',
+    record_name: 'دبش (بيت دبش)',
+    source_book: 'عشائر العراق — عباس العزاوي',
+    page: '142',
+    volume: '4',
+    lineage_ancestors: 'دبش (بيت دبش) ؛ حمام ؛ السليمان ؛ الجري ؛ سعيد (بني)',
+    child_branches: null,
+    locations: 'المنتفق | ذي قار | العراق',
+    notables: null,
+    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+    is_consensus_winner: false,
+  },
 ];
 
 /**
@@ -4346,31 +4416,77 @@ export const HIGH_APEX_STOP_LIST: string[] = [
 ];
 
 /**
- * Normalizes an Arabic lineage name to its morphological stem (`normalizeArabicStem`)
- * so variants like "أبي الفضل العباس" and "أبي الفضل العباسي", or "أسلم" and "اسلم",
- * or "أبو طالب" and "أبي طالب" match deterministically.
+ * توحيد الهاء والتاء المربوطة والسوابق في دالة التطبيع (`stemTribeToken`):
+ * يوحد "شمر طوقة" مع "شمر طوقه"، و"الصلتة" مع "الصلته"، و"داور" مع "الدوار".
  */
-export function normalizeArabicStem(raw: string): string {
-  if (!raw) return '';
-  let s = normalizeArabic(raw)
-    .replace(/^(ال|ال\s+|بيت\s+|عشيره\s+|قبيله\s+|بني\s+|بنو\s+|اولاد\s+|ذوي\s+)/g, '')
-    .replace(/\b(ابو|ابي|ابا)\b/g, 'ابي')
+export const stemTribeToken = (str: string): string => {
+  if (!str) return '';
+  let base = String(str).trim();
+  const withoutParens = base.replace(/\([^)]*\)/g, ' ').trim();
+  if (withoutParens.length >= 2) {
+    base = withoutParens;
+  }
+
+  let s = base
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    // توحيد الهاء في نهاية الكلمة إلى تاء مربوطة للعنقدة الصحيحة
+    .replace(/ه(\s|$)/g, 'ة$1')
+    .replace(/^(ال|آل|بنو|بني|بيت|ابو|أبو|ابي|أبي|البو|الابو|بو|عشيرة|عشيره|قبيلة|قبيله|اولاد|ذوي)\s+/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
   // Strip definite article "ال" from individual words and normalize trailing nisba "ي" on words >= 4 chars
   s = s
     .split(/\s+/)
     .map((word) => {
-      let w = word.replace(/^ال/, '');
+      let w = word.replace(/^ال/, '').replace(/ه$/, 'ة');
+      if (w === 'داور') w = 'دوار';
       if (w.length >= 4 && w.endsWith('ي') && w !== 'علي') {
-        w = w.slice(0, -1);
+        w = w.slice(0, -1).replace(/ه$/, 'ة');
       }
       return w;
     })
     .filter(Boolean)
     .join(' ');
 
-  return s.trim();
+  return s.replace(/ه(\s|$)/g, 'ة$1').trim();
+};
+
+/**
+ * Normalizes an Arabic lineage name to its morphological stem (`normalizeArabicStem`)
+ * so variants like "أبي الفضل العباس" and "أبي الفضل العباسي", or "شمر طوقة" and "شمر طوقه",
+ * or "داور" and "الدوار" match deterministically.
+ */
+export function normalizeArabicStem(raw: string): string {
+  return stemTribeToken(raw);
+}
+
+/**
+ * القاعدة الإلزامية 1: عند قراءة وتجهيز أي سجل خام وتفكيك حقل `ancestors` / `lineage_ancestors` الخاص به،
+ * يجب إضافة اسم السجل نفسه (`record.name` / `record_name`) كأول محطة في سلسلة الأجداد إذا لم يكن موجوداً!
+ */
+export function extractRawRecordAncestors(
+  record: Partial<CorroboratingAlphaEvidence> & { name?: string; ancestors?: string }
+): string[] {
+  const rawAncStr = record.lineage_ancestors || record.ancestors || '';
+  const cleanAncs = rawAncStr
+    ? rawAncStr
+        .split(/[؛—⬅️>|]+/)
+        .map((a) => a.trim())
+        .filter(Boolean)
+    : [];
+  const recName = (record.record_name || record.name || '').trim();
+  if (recName) {
+    const recStem = stemTribeToken(recName);
+    const firstAncStem = cleanAncs.length > 0 ? stemTribeToken(cleanAncs[0]) : '';
+    // إضافة اسم السجل قبل الأجداد إذا لم يكن هو أول جد
+    if (recStem && recStem !== firstAncStem) {
+      cleanAncs.unshift(recName);
+    }
+  }
+  return cleanAncs;
 }
 
 export function isHighApexStopNode(name: string): boolean {
@@ -4688,19 +4804,27 @@ export function computeCrossSourceConsensusClusters(
     const isChildMatch = isRecordChildBranchMatchForQuery(familyName, ev);
     const parentRecordTitle = sanitizeLineageAncestorToken(ev.record_name || familyName);
 
-    const rawAncTokens = (ev.lineage_ancestors || '')
-      .split(/[؛—⬅️>|]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    // القاعدة الإلزامية 1: قراءة الأجداد مع إضافة اسم السجل نفسه (`record.name` / `ev.record_name`)
+    // في بداية السلسلة إذا لم يكن هو أول جد (لمنع ابتلاع العقدة الأم مثل "داور" عند البحث في الفروع مثل "بيت دبش")
+    let cleanAncs = ev.lineage_ancestors
+      ? ev.lineage_ancestors
+          .split(/[؛—⬅️>|]+/)
+          .map((a) => a.trim())
+          .filter(Boolean)
+      : [];
+    const recName = ev.record_name ? ev.record_name.trim() : '';
+    if (recName) {
+      const recStem = stemTribeToken(recName);
+      const firstAncStem = cleanAncs.length > 0 ? stemTribeToken(cleanAncs[0]) : '';
+      // إضافة اسم السجل قبل الأجداد إذا لم يكن هو أول جد
+      if (recStem !== firstAncStem) {
+        cleanAncs.unshift(recName);
+      }
+    }
 
-    // Prepend parentRecordTitle if this is a child_branch match (e.g. الشاهل -> آل الحمزي -> حمزة -> ...)
-    // or prepend decomposed record parts if record_name is compound `A بن B` (e.g. قدم بن قادم -> قدم ⬅️ قادم)
     const recordParts = decomposeCompoundLineageName(parentRecordTitle);
-    const seedTokens = isChildMatch
-      ? [parentRecordTitle, ...rawAncTokens]
-      : recordParts.length > 1
-      ? [...recordParts, ...rawAncTokens]
-      : rawAncTokens;
+    const seedTokens =
+      recordParts.length > 1 ? [...recordParts, ...cleanAncs] : cleanAncs;
 
     const cleanedAncestors = cleanAndUnrollLineageChain(seedTokens, familyName);
 
@@ -7761,34 +7885,45 @@ export function parsePort8090UniversalResponse(
         ? 'STAGE_2_GEOGRAPHY'
         : 'STAGE_1_TRIBE_ROOT';
 
-    const rawDisambigEvidence: CorroboratingAlphaEvidence[] = Array.isArray(
+    const rawApiEvidenceArray = Array.isArray(
       apiData.corroborating_alpha_evidence_for_researcher
     )
-      ? apiData.corroborating_alpha_evidence_for_researcher.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any, idx: number) => {
-            const parsedRef = extractBookVolPageFromEvidence(item);
-            return {
-              alpha_id: String(item.alpha_id || `ALP_DISAMBIG_${idx + 1}`),
-              record_name: String(item.record_name || displayFamilyName),
-              source_book: parsedRef.book,
-              page: parsedRef.page,
-              volume: parsedRef.volume,
-              lineage_ancestors: item.lineage_ancestors
-                ? String(item.lineage_ancestors)
-                : item.full_lineage_text
-                ? String(item.full_lineage_text)
-                : null,
-              child_branches: item.child_branches ? String(item.child_branches) : null,
-              locations: item.locations ? String(item.locations) : null,
-              priority_tier:
-                item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                  ? 'PRIORITY_1_COUNTRY_BOOK'
-                  : 'PRIORITY_2_GENERAL_BOOK',
-            };
-          }
-        )
-      : localFallback.corroborating_alpha_evidence_for_researcher || [];
+      ? apiData.corroborating_alpha_evidence_for_researcher
+      : Array.isArray(apiData.alpha_evidence)
+      ? apiData.alpha_evidence
+      : Array.isArray(apiData.raw_sources)
+      ? apiData.raw_sources
+      : null;
+
+    const rawDisambigEvidence: CorroboratingAlphaEvidence[] =
+      rawApiEvidenceArray && rawApiEvidenceArray.length > 0
+        ? rawApiEvidenceArray.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (item: any, idx: number) => {
+              const parsedRef = extractBookVolPageFromEvidence(item);
+              return {
+                alpha_id: String(item.alpha_id || `ALP_DISAMBIG_${idx + 1}`),
+                record_name: String(item.record_name || item.name || displayFamilyName),
+                source_book: parsedRef.book,
+                page: parsedRef.page,
+                volume: parsedRef.volume,
+                lineage_ancestors: item.lineage_ancestors
+                  ? String(item.lineage_ancestors)
+                  : item.ancestors
+                  ? String(item.ancestors)
+                  : item.full_lineage_text
+                  ? String(item.full_lineage_text)
+                  : null,
+                child_branches: item.child_branches ? String(item.child_branches) : null,
+                locations: item.locations ? String(item.locations) : null,
+                priority_tier:
+                  item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+                    ? 'PRIORITY_1_COUNTRY_BOOK'
+                    : 'PRIORITY_2_GENERAL_BOOK',
+              };
+            }
+          )
+        : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
     const disambigClusters =
       rawDisambigEvidence.length > 0
@@ -7800,11 +7935,43 @@ export function parsePort8090UniversalResponse(
       'option_b',
       'option_c',
     ];
+
+    // Match each API disambiguation option to its corresponding cluster in `disambigClusters`
+    // by `choice_id` (e.g. `ALPHA_CL_ALP_B_0d2a1e526e3b`) or by normalized stem (`stemTribeToken`)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const findMatchingClusterForOption = (opt: any, fallbackIdx: number): ConsensusClusterGroup | undefined => {
+      const choiceId = String(opt?.choice_id || '');
+      const optTitleStem = stemTribeToken(String(opt?.origin_tribe_label || opt?.title || ''));
+      if (choiceId) {
+        const byAlphaId = disambigClusters.find((c) =>
+          c.records.some((r) => r.alpha_id && choiceId.includes(r.alpha_id))
+        );
+        if (byAlphaId) return byAlphaId;
+      }
+      if (optTitleStem) {
+        const byStem = disambigClusters.find(
+          (c) =>
+            stemTribeToken(c.originTribeLabel) === optTitleStem ||
+            c.fullChainNodes.some((n) => stemTribeToken(n) === optTitleStem)
+        );
+        if (byStem) return byStem;
+      }
+      return disambigClusters[fallbackIdx];
+    };
+
+    // Sort rawOptions so options with a consensus_badge or matching a multi-source cluster come first
+    const sortedRawOptions = [...rawOptions].sort((a, b) => {
+      const aHasBadge = Boolean(a?.consensus_badge || a?.is_consensus_winner) ? 1 : 0;
+      const bHasBadge = Boolean(b?.consensus_badge || b?.is_consensus_winner) ? 1 : 0;
+      return bHasBadge - aHasBadge;
+    });
+
     const mappedOptions: BlindDisambiguationOption[] =
-      rawOptions.length >= 2
-        ? rawOptions.slice(0, 3).map(
+      sortedRawOptions.length >= 2
+        ? sortedRawOptions.slice(0, 3).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (opt: any, idx: number): BlindDisambiguationOption => {
+              const matchedCluster = findMatchingClusterForOption(opt, idx);
               const rawOptSources = Array.isArray(opt.sources)
                 ? opt.sources
                 : Array.isArray(opt.contributing_sources)
@@ -7828,43 +7995,63 @@ export function parsePort8090UniversalResponse(
                       priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
                     };
                   })
-                : disambigClusters[idx]?.records || [];
+                : matchedCluster?.records || [];
 
               return {
                 id: optionIds[idx] || 'option_a',
                 choice_id: opt.choice_id ? String(opt.choice_id) : undefined,
                 badge:
                   opt.consensus_badge ||
-                  (idx === 0
+                  (matchedCluster && matchedCluster.sourcesCount >= 2
+                    ? `توافق (${matchedCluster.sourcesCount}) مصادر`
+                    : idx === 0
                     ? 'المسار المتوافق عليه في المصادر'
                     : 'مسار موازٍ في المصادر'),
-                title: String(opt.title || opt.origin_tribe_label || `المسار ${idx + 1}`),
+                title: String(
+                  opt.title ||
+                    opt.origin_tribe_label ||
+                    matchedCluster?.originTribeLabel ||
+                    `المسار ${idx + 1}`
+                ),
                 originTribeLabel: String(
-                  opt.origin_tribe_label || opt.title || `المسار ${idx + 1}`
+                  opt.origin_tribe_label ||
+                    opt.title ||
+                    matchedCluster?.originTribeLabel ||
+                    `المسار ${idx + 1}`
                 ),
                 geographicScope: String(
                   opt.geographic_scope ||
                     opt.locations ||
-                    disambigClusters[idx]?.geographicScope ||
+                    matchedCluster?.geographicScope ||
                     localFallback.disambiguationOptions?.[idx]?.geographicScope ||
                     opt.title ||
                     'النطاق الجغرافي المرصود'
                 ),
-                nearBranchHint: opt.choice_id ? `معرّف المسار: ${opt.choice_id}` : '',
+                nearBranchHint:
+                  matchedCluster?.rootPreviewLabel ||
+                  (opt.choice_id ? `معرّف المسار: ${opt.choice_id}` : ''),
                 isConsensusWinner: Boolean(
-                  opt.is_consensus_winner ?? (idx === 0 && Boolean(opt.consensus_badge))
+                  opt.is_consensus_winner ??
+                    (Boolean(opt.consensus_badge) || matchedCluster?.isConsensusWinner)
                 ),
                 consensusBadge: opt.consensus_badge
                   ? String(opt.consensus_badge)
+                  : matchedCluster && matchedCluster.sourcesCount >= 2
+                  ? `توافق (${matchedCluster.sourcesCount}) مصادر`
                   : undefined,
                 sourcesCount: opt.sources_count
                   ? Number(opt.sources_count)
-                  : mappedOptSources.length || disambigClusters[idx]?.sourcesCount,
+                  : mappedOptSources.length || matchedCluster?.sourcesCount,
                 contributingSources: mappedOptSources,
               };
             }
           )
         : localFallback.disambiguationOptions;
+
+    const taggedDisambigEvidence =
+      rawDisambigEvidence.length > 0
+        ? tagConsensusWinnersOnEvidence(displayFamilyName, rawDisambigEvidence)
+        : localFallback.corroborating_alpha_evidence_for_researcher;
 
     const baseDisambigResult: LineageSearchResult = {
       ...localFallback,
@@ -7876,43 +8063,41 @@ export function parsePort8090UniversalResponse(
       requiresBlindDisambiguation: true,
       disambiguation_stage: disambigStage,
       disambiguationOptions: mappedOptions,
-      corroborating_alpha_evidence_for_researcher:
-        rawDisambigEvidence.length > 0
-          ? rawDisambigEvidence
-          : localFallback.corroborating_alpha_evidence_for_researcher,
+      corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
       consensusClusterGroups: disambigClusters,
     };
 
-    const optA =
-      localFallback.matched && localFallback.optionAResultOverride
-        ? localFallback.optionAResultOverride
-        : mappedOptions[0]
-        ? buildResolvedLineageFromDisambiguationOption(
-            baseDisambigResult,
-            mappedOptions[0],
-            disambigClusters[0]
-          )
-        : undefined;
-    const optB =
-      localFallback.matched && localFallback.optionBResultOverride
-        ? localFallback.optionBResultOverride
-        : mappedOptions[1]
-        ? buildResolvedLineageFromDisambiguationOption(
-            baseDisambigResult,
-            mappedOptions[1],
-            disambigClusters[1]
-          )
-        : undefined;
-    const optC =
-      localFallback.matched && localFallback.optionCResultOverride
-        ? localFallback.optionCResultOverride
-        : mappedOptions[2]
-        ? buildResolvedLineageFromDisambiguationOption(
-            baseDisambigResult,
-            mappedOptions[2],
-            disambigClusters[2]
-          )
-        : undefined;
+    const clusterForOpt0 = sortedRawOptions[0]
+      ? findMatchingClusterForOption(sortedRawOptions[0], 0)
+      : disambigClusters[0];
+    const clusterForOpt1 = sortedRawOptions[1]
+      ? findMatchingClusterForOption(sortedRawOptions[1], 1)
+      : disambigClusters[1];
+    const clusterForOpt2 = sortedRawOptions[2]
+      ? findMatchingClusterForOption(sortedRawOptions[2], 2)
+      : disambigClusters[2];
+
+    const optA = mappedOptions[0]
+      ? buildResolvedLineageFromDisambiguationOption(
+          baseDisambigResult,
+          mappedOptions[0],
+          clusterForOpt0
+        )
+      : localFallback.optionAResultOverride;
+    const optB = mappedOptions[1]
+      ? buildResolvedLineageFromDisambiguationOption(
+          baseDisambigResult,
+          mappedOptions[1],
+          clusterForOpt1
+        )
+      : localFallback.optionBResultOverride;
+    const optC = mappedOptions[2]
+      ? buildResolvedLineageFromDisambiguationOption(
+          baseDisambigResult,
+          mappedOptions[2],
+          clusterForOpt2
+        )
+      : localFallback.optionCResultOverride;
 
     return {
       ...baseDisambigResult,
@@ -7921,6 +8106,8 @@ export function parsePort8090UniversalResponse(
       requiresBlindDisambiguation: true,
       disambiguation_stage: disambigStage,
       disambiguationOptions: mappedOptions,
+      corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
+      consensusClusterGroups: disambigClusters,
       optionAResultOverride: optA,
       optionBResultOverride: optB,
       optionCResultOverride: optC,
@@ -8346,7 +8533,7 @@ export function parsePort8090UniversalResponse(
             ...cleanAndUnrollLineageChain(
               apiData.full_stitched_lineage_for_researcher.map(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (sn: any) => String(sn?.name || '')
+                (sn: any) => (typeof sn === 'string' ? sn : String(sn?.name || ''))
               ),
               displayFamilyName
             ),
@@ -8570,9 +8757,11 @@ export function buildResolvedLineageFromDisambiguationOption(
       ? chainStations[0]
       : baseResult.rootBranchName &&
         !baseResult.rootBranchName.includes('غير مفهرس') &&
+        !baseResult.rootBranchName.includes('قيد التحقيق') &&
+        !baseResult.rootBranchName.includes('قيد الفهرسة') &&
         baseResult.rootBranchName !== resolvedB0
       ? baseResult.rootBranchName
-      : `فرع ${familyName}`;
+      : resolvedB0 || `فرع ${familyName}`;
 
   const regionText =
     option.geographicScope && option.geographicScope !== 'النطاق الجغرافي المرصود'
@@ -8842,6 +9031,76 @@ export async function searchJuthoriLineage(
     ip_city: geo?.ip_city || 'الرياض',
   };
 
+  // Helper: when the German server returns `requires_disambiguation: true` without
+  // `corroborating_alpha_evidence_for_researcher`, automatically fetch the resolved payload
+  // using the best `choice_id` so all raw sources (`corroborating_alpha_evidence_for_researcher`)
+  // and `full_stitched_lineage_for_researcher` are populated and Step 1 NEVER displays `0 مصادر خام`!
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hydrateDisambiguationPayloadIfNeeded = async (rawPayload: any, endpointUrl: string, isProxy: boolean) => {
+    if (
+      !disambiguationChoiceId &&
+      rawPayload &&
+      rawPayload.requires_disambiguation === true &&
+      (!Array.isArray(rawPayload.corroborating_alpha_evidence_for_researcher) ||
+        rawPayload.corroborating_alpha_evidence_for_researcher.length === 0) &&
+      Array.isArray(rawPayload.disambiguation_modal?.options)
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const validOptions = rawPayload.disambiguation_modal.options.filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (o: any) =>
+          o?.choice_id &&
+          o.choice_id !== 'NEED_LOCATION_STEP' &&
+          o.choice_id !== 'NOT_SURE_ESCALATE_P1'
+      );
+      const preferredOpt =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        validOptions.find((o: any) => Boolean(o?.consensus_badge)) || validOptions[0];
+      if (preferredOpt?.choice_id) {
+        try {
+          const followUpRes = await fetch(endpointUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+            body: JSON.stringify({
+              ...requestPayload,
+              disambiguation_choice_id: String(preferredOpt.choice_id),
+            }),
+          });
+          if (followUpRes.ok) {
+            const followUpJson = await followUpRes.json();
+            const resolvedData = isProxy ? followUpJson?.data : followUpJson?.data || followUpJson;
+            if (resolvedData && typeof resolvedData === 'object') {
+              return {
+                ...resolvedData,
+                ...rawPayload,
+                corroborating_alpha_evidence_for_researcher:
+                  resolvedData.corroborating_alpha_evidence_for_researcher ||
+                  rawPayload.corroborating_alpha_evidence_for_researcher,
+                verified_sources:
+                  resolvedData.verified_sources || rawPayload.verified_sources,
+                full_stitched_lineage_for_researcher:
+                  resolvedData.full_stitched_lineage_for_researcher ||
+                  rawPayload.full_stitched_lineage_for_researcher,
+                root_connection_5usd_tier:
+                  resolvedData.root_connection_5usd_tier ||
+                  rawPayload.root_connection_5usd_tier,
+                background_researcher_ticket:
+                  resolvedData.background_researcher_ticket ||
+                  rawPayload.background_researcher_ticket,
+              };
+            }
+          }
+        } catch {
+          // Keep original rawPayload if follow-up probe fails
+        }
+      }
+    }
+    return rawPayload;
+  };
+
   // Attempt 1: Direct HTTPS call to German Engine Tunnel (https://yes-poems-tennessee-condo.trycloudflare.com/api/v1/juthori/lineage-search)
   try {
     const directController = new AbortController();
@@ -8861,7 +9120,12 @@ export async function searchJuthoriLineage(
       const directJson = await directRes.json();
       const rawPayload = directJson?.data || directJson;
       if (rawPayload && typeof rawPayload === 'object') {
-        return parsePort8090UniversalResponse(rawPayload, form);
+        const hydratedPayload = await hydrateDisambiguationPayloadIfNeeded(
+          rawPayload,
+          DIRECT_ENGINE_URL,
+          false
+        );
+        return parsePort8090UniversalResponse(hydratedPayload, form);
       }
     }
   } catch {
@@ -8883,7 +9147,12 @@ export async function searchJuthoriLineage(
     if (proxyRes.ok) {
       const json = await proxyRes.json();
       if (json && json.source === 'live_german_engine' && json.data) {
-        const parsed = parsePort8090UniversalResponse(json.data, form);
+        const hydratedData = await hydrateDisambiguationPayloadIfNeeded(
+          json.data,
+          PROXY_ENGINE_URL,
+          true
+        );
+        const parsed = parsePort8090UniversalResponse(hydratedData, form);
         return parsed;
       }
     }

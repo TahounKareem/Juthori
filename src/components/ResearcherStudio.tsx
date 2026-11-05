@@ -41,6 +41,7 @@ import {
   cleanAndUnrollLineageChain,
   computeCrossSourceConsensusClusters,
   extractBookVolPageFromEvidence,
+  extractRawRecordAncestors,
   formatAlphaEvidenceCitation,
   formatAlphaReferenceBadge,
   formatCompactSourceBracket,
@@ -56,6 +57,7 @@ import {
   resolveDeterministicLineage,
   sanitizeAndNormalizeAdamNode,
   searchJuthoriLineage,
+  stemTribeToken,
   stitchLineageChains,
   tagConsensusWinnersOnEvidence,
 } from '../utils/lineageEngine';
@@ -228,7 +230,7 @@ const ARC_CODE_OPTIONS: Array<{
 function splitAncestorsChain(raw?: string | null): string[] {
   if (!raw) return [];
   return raw
-    .split(/(?:⬅️|<-|->|—|،|-|\|)/)
+    .split(/(?:؛|⬅️|<-|->|—|،|\||>)/)
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -283,9 +285,81 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [directSearchLocality, setDirectSearchLocality] = useState('');
   const [directSearchResult, setDirectSearchResult] =
     useState<LineageSearchResult | null>(null);
+  const [rawSources, setRawSources] = useState<CorroboratingAlphaEvidence[]>([]);
   const [diagnosticSimStage, setDiagnosticSimStage] = useState<1 | 2>(1);
   const [diagnosticSimChoice, setDiagnosticSimChoice] =
     useState<string>('option_a');
+
+  const extractRawSourcesFromResult = (
+    res: LineageSearchResult | null
+  ): CorroboratingAlphaEvidence[] => {
+    if (!res) return [];
+    if (
+      res.corroborating_alpha_evidence_for_researcher &&
+      res.corroborating_alpha_evidence_for_researcher.length > 0
+    ) {
+      return tagConsensusWinnersOnEvidence(
+        res.familyName,
+        res.corroborating_alpha_evidence_for_researcher.map((ev) => {
+          const parsed = extractBookVolPageFromEvidence(ev);
+          return {
+            ...ev,
+            source_book: parsed.book,
+            volume: parsed.volume,
+            page: parsed.page,
+          };
+        })
+      );
+    }
+    if (res.consensusClusterGroups && res.consensusClusterGroups.length > 0) {
+      const fromClusters = res.consensusClusterGroups.flatMap((c) => c.records || []);
+      if (fromClusters.length > 0) {
+        return tagConsensusWinnersOnEvidence(
+          res.familyName,
+          fromClusters.map((ev) => {
+            const parsed = extractBookVolPageFromEvidence(ev);
+            return {
+              ...ev,
+              source_book: parsed.book,
+              volume: parsed.volume,
+              page: parsed.page,
+            };
+          })
+        );
+      }
+    }
+    if (res.disambiguationOptions && res.disambiguationOptions.length > 0) {
+      const fromOpts = res.disambiguationOptions.flatMap(
+        (o) => o.contributingSources || []
+      );
+      if (fromOpts.length > 0) {
+        return tagConsensusWinnersOnEvidence(res.familyName, fromOpts);
+      }
+    }
+    return (res.verified_sources || [res.verifiedSourceCitation])
+      .filter(Boolean)
+      .map((src, idx) => {
+        const parsed = extractBookVolPageFromEvidence(src);
+        return {
+          alpha_id: `raw-src-${idx + 1}`,
+          record_name: res.familyName,
+          source_book: parsed.book,
+          volume: parsed.volume || `${idx + 1}`,
+          page: parsed.page || '—',
+          lineage_ancestors: (
+            res.full_stitched_lineage_for_researcher ||
+            res.adamSpineNodes ||
+            []
+          )
+            .map((n) => n.name)
+            .join(' ؛ '),
+          child_branches: (res.sibling_branches_in_record || []).join('، '),
+          locations: res.originRegion || res.originCountry,
+          priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+          is_consensus_winner: true,
+        };
+      });
+  };
 
   const runDirectInspectionSearch = (params?: {
     familyName?: string;
@@ -342,6 +416,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     })
       .then((liveRes) => {
         setDirectSearchResult(liveRes);
+        const extracted = extractRawSourcesFromResult(liveRes);
+        if (extracted.length > 0) {
+          setRawSources(extracted);
+        }
       })
       .catch(() => {
         // Keep synchronous deterministic result if offline
@@ -359,6 +437,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
     const res = runDirectInspectionSearch();
     setDirectSearchResult(res);
+    setRawSources(extractRawSourcesFromResult(res));
     setDiagnosticSimStage(1);
     setDiagnosticSimChoice('option_a');
     triggerLiveEngineInspection({
@@ -3227,54 +3306,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
               ) : (
                 (() => {
+                  const extractedFromCurrent =
+                    extractRawSourcesFromResult(directSearchResult);
                   const rawEvidenceList: CorroboratingAlphaEvidence[] =
-                    directSearchResult.corroborating_alpha_evidence_for_researcher &&
-                    directSearchResult.corroborating_alpha_evidence_for_researcher.length > 0
-                      ? tagConsensusWinnersOnEvidence(
-                          directSearchResult.familyName,
-                          directSearchResult.corroborating_alpha_evidence_for_researcher.map(
-                            (ev) => {
-                              const parsed = extractBookVolPageFromEvidence(ev);
-                              return {
-                                ...ev,
-                                source_book: parsed.book,
-                                volume: parsed.volume,
-                                page: parsed.page,
-                              };
-                            }
-                          )
-                        )
-                      : (
-                          directSearchResult.verified_sources || [
-                            directSearchResult.verifiedSourceCitation,
-                          ]
-                        )
-                          .filter(Boolean)
-                          .map((src, idx) => {
-                            const parsed = extractBookVolPageFromEvidence(src);
-                            return {
-                              alpha_id: `raw-src-${idx + 1}`,
-                              record_name: directSearchResult.familyName,
-                              source_book: parsed.book,
-                              volume: parsed.volume || `${idx + 1}`,
-                              page: parsed.page || '—',
-                              lineage_ancestors: (
-                                directSearchResult.full_stitched_lineage_for_researcher ||
-                                directSearchResult.adamSpineNodes ||
-                                []
-                              )
-                                .map((n) => n.name)
-                                .join(' ⬅️ '),
-                              child_branches: (
-                                directSearchResult.sibling_branches_in_record || []
-                              ).join('، '),
-                              locations:
-                                directSearchResult.originRegion ||
-                                directSearchResult.originCountry,
-                              priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-                              is_consensus_winner: true,
-                            };
-                          });
+                    extractedFromCurrent.length > 0
+                      ? extractedFromCurrent
+                      : rawSources;
 
                   const diagnosticClusters: ConsensusClusterGroup[] =
                     directSearchResult.consensusClusterGroups &&
@@ -3316,11 +3353,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   const childBranchFreq = new Map<string, number>();
 
                   rawEvidenceList.forEach((ev) => {
-                    const tokens = splitAncestorsChain(ev.lineage_ancestors);
+                    const tokens = extractRawRecordAncestors(ev);
                     const uniqueStemsInSource = new Set<string>();
                     tokens.forEach((tok) => {
-                      const st = normalizeArabicStem(tok);
-                      if (!st || st === normalizeArabicStem(directSearchResult.familyName)) {
+                      const st = stemTribeToken(tok);
+                      if (!st || st === stemTribeToken(directSearchResult.familyName)) {
                         return;
                       }
                       if (!uniqueStemsInSource.has(st)) {
@@ -3369,6 +3406,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             : idx === 1
                             ? 'option_b'
                             : 'option_c') as 'option_a' | 'option_b' | 'option_c',
+                          choice_id: c.clusterId,
                           badge: c.isConsensusWinner
                             ? `مسار مرجّح (${c.sourcesCount} مصادر)`
                             : `مسار بديل (${c.sourcesCount} مصدر)`,
@@ -3414,7 +3452,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {rawEvidenceList.map((ev, idx) => {
-                            const rawTokens = splitAncestorsChain(ev.lineage_ancestors);
+                            const rawTokens = extractRawRecordAncestors(ev);
                             const refBadgeText = formatAlphaReferenceBadge(ev);
                             return (
                               <div
@@ -3465,7 +3503,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     {/* Raw lineage line paired directly with its bibliographic badge */}
                                     <div className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg p-2.5 border border-stone-200/80">
                                       <p className="text-xs font-mono font-bold text-stone-900 leading-relaxed">
-                                        {ev.lineage_ancestors || directSearchResult.familyName}
+                                        {rawTokens.length > 0
+                                          ? rawTokens.join(' ⬅️ ')
+                                          : ev.lineage_ancestors || directSearchResult.familyName}
                                       </p>
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-sans font-bold shrink-0">
                                         {refBadgeText}
@@ -3810,22 +3850,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       : oIdx === 2
                                       ? directSearchResult.optionCResultOverride
                                       : directSearchResult.optionAResultOverride;
-                                  const resultingBranch =
-                                    overrideObj?.rootBranchName ||
-                                    opt.nearBranchHint ||
-                                    directSearchResult.rootBranchName;
-                                  const resultingTribe =
-                                    overrideObj?.rootTribeName ||
-                                    opt.originTribeLabel ||
-                                    opt.title;
+                                  const matchedClusterForOpt =
+                                    diagnosticClusters.find(
+                                      (c) =>
+                                        (opt.choice_id &&
+                                          c.records.some(
+                                            (r) =>
+                                              r.alpha_id &&
+                                              opt.choice_id?.includes(r.alpha_id)
+                                          )) ||
+                                        stemTribeToken(c.originTribeLabel) ===
+                                          stemTribeToken(
+                                            opt.originTribeLabel || opt.title
+                                          )
+                                    ) || diagnosticClusters[oIdx];
 
                                   const optSources: CorroboratingAlphaEvidence[] =
                                     opt.contributingSources &&
                                     opt.contributingSources.length > 0
                                       ? opt.contributingSources
-                                      : diagnosticClusters[oIdx]?.records &&
-                                        diagnosticClusters[oIdx].records.length > 0
-                                      ? diagnosticClusters[oIdx].records
+                                      : matchedClusterForOpt?.records &&
+                                        matchedClusterForOpt.records.length > 0
+                                      ? matchedClusterForOpt.records
                                       : overrideObj
                                           ?.corroborating_alpha_evidence_for_researcher &&
                                         overrideObj
@@ -3833,6 +3879,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           .length > 0
                                       ? overrideObj.corroborating_alpha_evidence_for_researcher
                                       : rawEvidenceList.slice(oIdx, oIdx + 1);
+
+                                  const fullStitchedChainForOpt =
+                                    matchedClusterForOpt &&
+                                    matchedClusterForOpt.fullChainNodes.length > 1
+                                      ? matchedClusterForOpt.fullChainNodes.join(' ⬅️ ')
+                                      : overrideObj?.full_stitched_lineage_for_researcher &&
+                                        overrideObj.full_stitched_lineage_for_researcher
+                                          .length > 1
+                                      ? overrideObj.full_stitched_lineage_for_researcher
+                                          .map((n) => n.name)
+                                          .join(' ⬅️ ')
+                                      : `${directSearchResult.familyName} ⬅️ ${
+                                          opt.originTribeLabel || opt.title
+                                        }`;
 
                                   return (
                                     <div
@@ -3868,26 +3928,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       >
                                         <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
                                           <span>
-                                            توافق {optSources.length}{' '}
+                                            توافق ({optSources.length}){' '}
                                             {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
                                           </span>
-                                          {optSources.map((srcEv, sIdx) => (
-                                            <React.Fragment key={srcEv.alpha_id || sIdx}>
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
-                                                {formatCompactSourceBracket(srcEv)}
-                                              </span>
-                                              {sIdx < optSources.length - 1 && (
-                                                <span className="text-slate-400 font-bold">،</span>
-                                              )}
-                                            </React.Fragment>
-                                          ))}
+                                          {optSources.map((srcEv, sIdx) => {
+                                            const parsedRef =
+                                              extractBookVolPageFromEvidence(srcEv);
+                                            return (
+                                              <React.Fragment key={srcEv.alpha_id || sIdx}>
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
+                                                  {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
+                                                </span>
+                                                {sIdx < optSources.length - 1 && (
+                                                  <span className="text-slate-400 font-bold">،</span>
+                                                )}
+                                              </React.Fragment>
+                                            );
+                                          })}
                                         </div>
                                       </div>
 
                                       <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
                                         <div>
                                           <strong>المسار الناتج:</strong>{' '}
-                                          {directSearchResult.familyName} ⬅️ {resultingBranch} ⬅️ {resultingTribe}
+                                          {fullStitchedChainForOpt}
                                         </div>
                                         <div className="text-amber-900 font-bold">
                                           <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
@@ -3934,11 +3998,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       : oIdx === 2
                                       ? directSearchResult.optionCResultOverride
                                       : directSearchResult.optionAResultOverride;
-                                  const resultingBranch =
-                                    overrideObj?.rootBranchName ||
-                                    opt.nearBranchHint ||
-                                    directSearchResult.rootBranchName;
+                                  const matchedClusterForOpt =
+                                    diagnosticClusters.find(
+                                      (c) =>
+                                        (opt.choice_id &&
+                                          c.records.some(
+                                            (r) =>
+                                              r.alpha_id &&
+                                              opt.choice_id?.includes(r.alpha_id)
+                                          )) ||
+                                        stemTribeToken(c.originTribeLabel) ===
+                                          stemTribeToken(
+                                            opt.originTribeLabel || opt.title
+                                          )
+                                    ) || diagnosticClusters[oIdx];
                                   const resultingTribe =
+                                    matchedClusterForOpt?.originTribeLabel ||
                                     overrideObj?.rootTribeName ||
                                     opt.originTribeLabel ||
                                     opt.title;
@@ -3947,9 +4022,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     opt.contributingSources &&
                                     opt.contributingSources.length > 0
                                       ? opt.contributingSources
-                                      : diagnosticClusters[oIdx]?.records &&
-                                        diagnosticClusters[oIdx].records.length > 0
-                                      ? diagnosticClusters[oIdx].records
+                                      : matchedClusterForOpt?.records &&
+                                        matchedClusterForOpt.records.length > 0
+                                      ? matchedClusterForOpt.records
                                       : overrideObj
                                           ?.corroborating_alpha_evidence_for_researcher &&
                                         overrideObj
@@ -3957,6 +4032,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           .length > 0
                                       ? overrideObj.corroborating_alpha_evidence_for_researcher
                                       : rawEvidenceList.slice(oIdx, oIdx + 1);
+
+                                  const fullStitchedChainForOpt =
+                                    matchedClusterForOpt &&
+                                    matchedClusterForOpt.fullChainNodes.length > 1
+                                      ? matchedClusterForOpt.fullChainNodes.join(' ⬅️ ')
+                                      : overrideObj?.full_stitched_lineage_for_researcher &&
+                                        overrideObj.full_stitched_lineage_for_researcher
+                                          .length > 1
+                                      ? overrideObj.full_stitched_lineage_for_researcher
+                                          .map((n) => n.name)
+                                          .join(' ⬅️ ')
+                                      : `${directSearchResult.familyName} ⬅️ ${resultingTribe}`;
 
                                   return (
                                     <div
@@ -3992,26 +4079,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       >
                                         <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
                                           <span>
-                                            توافق {optSources.length}{' '}
+                                            توافق ({optSources.length}){' '}
                                             {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
                                           </span>
-                                          {optSources.map((srcEv, sIdx) => (
-                                            <React.Fragment key={srcEv.alpha_id || sIdx}>
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
-                                                {formatCompactSourceBracket(srcEv)}
-                                              </span>
-                                              {sIdx < optSources.length - 1 && (
-                                                <span className="text-slate-400 font-bold">،</span>
-                                              )}
-                                            </React.Fragment>
-                                          ))}
+                                          {optSources.map((srcEv, sIdx) => {
+                                            const parsedRef =
+                                              extractBookVolPageFromEvidence(srcEv);
+                                            return (
+                                              <React.Fragment key={srcEv.alpha_id || sIdx}>
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
+                                                  {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
+                                                </span>
+                                                {sIdx < optSources.length - 1 && (
+                                                  <span className="text-slate-400 font-bold">،</span>
+                                                )}
+                                              </React.Fragment>
+                                            );
+                                          })}
                                         </div>
                                       </div>
 
                                       <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
                                         <div>
                                           <strong>المسار الناتج:</strong>{' '}
-                                          {directSearchResult.familyName} ⬅️ {resultingBranch} ⬅️ {resultingTribe}
+                                          {fullStitchedChainForOpt}
                                         </div>
                                         <div className="text-amber-900 font-bold">
                                           <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
