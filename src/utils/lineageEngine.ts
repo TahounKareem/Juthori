@@ -3798,6 +3798,7 @@ export function decomposeCompoundLineageName(rawName: string): string[] {
 export interface InvertedPreambleCheckResult {
   wasInvertedPreambleStripped: boolean;
   strippedPreambleTokens: string[];
+  relocatedApexTokens: string[];
   matchedSubjectToken: string;
   cleanedTokensAfterSubject: string[];
 }
@@ -3810,8 +3811,9 @@ export interface InvertedPreambleCheckResult {
  *
  * When the searched family/record name (or the first part of a compound record name like `الحطيم` from `الحَطيم بن عدى`)
  * appears again at index 1, 2, 3, or 4 preceded by major tribes or high apex roots (`الأوس`, `قحطان`),
- * this function automatically strips that inverted preamble and the repeated subject token so the clean chain
- * begins immediately after the subject (`عدي ⬅️ عمرو ⬅️ سواد ⬅️ ظفر ⬅️ كعب ⬅️ الخزرج ⬅️ النبيت ⬅️ مالك ⬅️ الأوس`).
+ * this function automatically strips that inverted preamble and relocates any ancient apex root (`قحطان` / `عدنان`)
+ * to the very end (summit) of the chain after the Mother Tribe (`الأوس`), producing:
+ * `عدي ⬅️ عمرو ⬅️ سواد ⬅️ ظفر ⬅️ كعب ⬅️ الخزرج ⬅️ النبيت ⬅️ مالك ⬅️ الأوس ⬅️ قحطان`.
  */
 export function detectAndStripInvertedPreamble(
   rawTokens: string[],
@@ -3834,6 +3836,7 @@ export function detectAndStripInvertedPreamble(
     return {
       wasInvertedPreambleStripped: false,
       strippedPreambleTokens: [],
+      relocatedApexTokens: [],
       matchedSubjectToken: '',
       cleanedTokensAfterSubject: expanded,
     };
@@ -3910,11 +3913,23 @@ export function detectAndStripInvertedPreamble(
       (matchesSubject && hasMajorTribeOrApexInPreamble) ||
       allPreambleAreApexOrRepeatedInTail
     ) {
+      // Relocate any ancient apex root (`قحطان` or `عدنان`) from the inverted preamble to the summit of the chain after the Mother Tribe (`الأوس`)
+      const relocatedApexTokens: string[] = [];
+      const seenRelocatedStems = new Set<string>(tailStems);
+      for (const p of preambleSlice) {
+        const pStem = normalizeArabicStem(p);
+        if (isHighApexStopNode(p) && pStem && !seenRelocatedStems.has(pStem)) {
+          seenRelocatedStems.add(pStem);
+          relocatedApexTokens.push(p);
+        }
+      }
+
       return {
         wasInvertedPreambleStripped: true,
         strippedPreambleTokens: preambleSlice,
+        relocatedApexTokens,
         matchedSubjectToken: tokenAtIdx,
-        cleanedTokensAfterSubject: tailAfterSubject,
+        cleanedTokensAfterSubject: [...tailAfterSubject, ...relocatedApexTokens],
       };
     }
   }
@@ -3922,6 +3937,7 @@ export function detectAndStripInvertedPreamble(
   return {
     wasInvertedPreambleStripped: false,
     strippedPreambleTokens: [],
+    relocatedApexTokens: [],
     matchedSubjectToken: '',
     cleanedTokensAfterSubject: expanded,
   };
@@ -3929,7 +3945,8 @@ export function detectAndStripInvertedPreamble(
 
 /**
  * Rule 4: In-Record Cycle, Inverted Preamble & Summary-Prefix Trimmer (`cleanAndUnrollLineageChain`)
- * - Strips any Inverted Preamble Summary (`الأوس; قحطان; الحطيم; عدي...` -> `عدي ⬅️ عمرو ⬅️ ... ⬅️ الأوس`).
+ * - Strips any Inverted Preamble Summary (`الأوس; قحطان; الحطيم; عدي...` -> `عدي ⬅️ عمرو ⬅️ ... ⬅️ الأوس ⬅️ قحطان`).
+ * - Relocates any ancient apex root (`قحطان` / `عدنان`) from the inverted preamble to the summit (end) of the chain.
  * - Removes any leading station that duplicates the family/record name itself (e.g. `قدم ⬅️ قدم` -> `قدم`).
  * - Decomposes any compound `A بن B` node if its sub-roots `A` and `B` are already present or expands it in-place.
  * - Detects if a 1..4 node summary prefix at the beginning of `lineage_ancestors`
@@ -3947,7 +3964,16 @@ export function cleanAndUnrollLineageChain(
     familyOrRecordName,
     secondaryRecordName
   );
-  let working = [...preambleResult.cleanedTokensAfterSubject];
+  let working =
+    preambleResult.wasInvertedPreambleStripped &&
+    !familyOrRecordName &&
+    !secondaryRecordName &&
+    preambleResult.matchedSubjectToken
+      ? [
+          preambleResult.matchedSubjectToken,
+          ...preambleResult.cleanedTokensAfterSubject,
+        ]
+      : [...preambleResult.cleanedTokensAfterSubject];
 
   if (working.length === 0) return [];
 
@@ -4313,12 +4339,26 @@ export function computeCrossSourceConsensusClusters(
     const isWinner = idx === 0 && topCount >= 2;
     const cleanedDisplayNodes = cleanAndUnrollLineageChain(
       c.stitchedAncestors,
-      familyName
+      familyName,
+      c.parentRecordTitle
     );
 
-    const chainTokens = [familyName, ...cleanedDisplayNodes];
+    const famParts = decomposeCompoundLineageName(familyName);
+    const subjectHeadStation =
+      famParts.length > 1 &&
+      cleanedDisplayNodes.length > 0 &&
+      normalizeArabicStem(famParts[1]) ===
+        normalizeArabicStem(cleanedDisplayNodes[0])
+        ? famParts[0]
+        : familyName;
 
+    const chainTokens = [subjectHeadStation, ...cleanedDisplayNodes];
+
+    const nonApexDisplayNodes = cleanedDisplayNodes.filter(
+      (n) => !isHighApexStopNode(n)
+    );
     const dynamicTopOrigin =
+      nonApexDisplayNodes[nonApexDisplayNodes.length - 1] ||
       cleanedDisplayNodes[cleanedDisplayNodes.length - 1] ||
       c.originTribeLabel ||
       familyName;
@@ -4329,7 +4369,7 @@ export function computeCrossSourceConsensusClusters(
         : c.geographicScope;
 
     const weightedRoots = selectWeightedConsensusTwoRootNodes(
-      familyName,
+      subjectHeadStation,
       chainTokens.slice(1),
       c.records,
       c.isChildBranchCluster
@@ -4757,11 +4797,12 @@ export function selectWeightedConsensusTwoRootNodes(
 
   if (options?.isChildBranchMatch && options?.recordTitleNodeName) {
     // Score remaining ancestors to pick the highest-weighted Mother Tribe (B0)
+    // Strictly exclude HIGH_APEX_STOP_LIST nodes (`قحطان` / `عدنان`) when any non-apex ancestor exists
+    const hasNonApex = validAncestors.some((tok) => !isHighApexStopNode(tok));
     let bestB0Idx = validAncestors.length - 1;
     let bestB0Score = -Infinity;
     validAncestors.forEach((tok, idx) => {
-      // Do not pick a HIGH_APEX_STOP_LIST node in the middle of the chain as B0 if non-apex nodes exist above it
-      if (isHighApexStopNode(tok) && idx < validAncestors.length - 1) {
+      if (hasNonApex && isHighApexStopNode(tok)) {
         return;
       }
       const sc = calculateAncestorNodeWeightScore(
@@ -4786,16 +4827,15 @@ export function selectWeightedConsensusTwoRootNodes(
   // Score all valid ancestors
   const scored = validAncestors.map((tok, idx) => {
     const isApex = isHighApexStopNode(tok);
-    // Strict Guard 1(ب): Any HIGH_APEX_STOP_LIST node (`قحطان`, `عدنان`) in the first/middle part of the chain
-    // gets heavily penalized so it is NEVER chosen as B2 or B0 out of place
+    // Strict Guard: Any HIGH_APEX_STOP_LIST node (`قحطان`, `عدنان`) gets heavily penalized
+    // even at the summit of the chain so it is NEVER chosen as B2 or B0 for the customer's $5 Root Card!
     const baseScore = calculateAncestorNodeWeightScore(
       tok,
       idx,
       validAncestors.length,
       corroboratingRecords
     );
-    const adjustedScore =
-      isApex && idx < validAncestors.length - 1 ? baseScore - 500 : baseScore;
+    const adjustedScore = isApex ? baseScore - 500 : baseScore;
     return {
       tok,
       idx,
@@ -4804,19 +4844,24 @@ export function selectWeightedConsensusTwoRootNodes(
     };
   });
 
-  // 1. Pick B0 (Mother Tribe at the upper part/summit of the chain):
-  // Prefer the highest-scoring node in the upper half of the chain (index >= 1)
-  const b0Candidates = scored.filter((item) => item.idx >= 1);
-  const sortedForB0 = [...(b0Candidates.length > 0 ? b0Candidates : scored)].sort(
-    (a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return b.idx - a.idx;
-    }
+  // 1. Pick B0 (Mother Tribe at the upper part/summit of the chain, strictly excluding `قحطان` / `عدنان` when non-apex tribes exist):
+  const nonApexB0Candidates = scored.filter(
+    (item) => item.idx >= 1 && !item.isApex
   );
+  const b0Candidates =
+    nonApexB0Candidates.length > 0
+      ? nonApexB0Candidates
+      : scored.filter((item) => !item.isApex && item.idx >= 0);
+  const sortedForB0 = [
+    ...(b0Candidates.length > 0 ? b0Candidates : scored),
+  ].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.idx - a.idx;
+  });
   const b0Item = sortedForB0[0] || scored[scored.length - 1];
 
   // 2. Pick B2 (Sub-Root / Branch node below B0):
-  // STRICT RULE 1(ب): B2 MUST have `idx < b0Item.idx` AND MUST NOT be in `HIGH_APEX_STOP_LIST` (`!item.isApex`)!
+  // STRICT RULE: B2 MUST have `idx < b0Item.idx` AND MUST NOT be in `HIGH_APEX_STOP_LIST` (`!item.isApex`)!
   const b2Candidates = scored.filter(
     (item) => item.idx < b0Item.idx && !item.isApex
   );
@@ -6341,7 +6386,13 @@ export function parsePort8090UniversalResponse(
       rawB2 ||
       displayFamilyName;
     const rootB0Name =
-      dynamicSpine[dynamicSpine.length - 1]?.name || rawB0 || rootB2Name;
+      dynamicSpine.find((n) => n.code === 'B0')?.name ||
+      dynamicSpine
+        .slice(1)
+        .reverse()
+        .find((n) => !isHighApexStopNode(n.name))?.name ||
+      rawB0 ||
+      rootB2Name;
 
     const dynamicCapsules = buildIntermediateRingsForSpine(
       [...dynamicSpine],
@@ -6404,16 +6455,25 @@ export function parsePort8090UniversalResponse(
         ? primaryWinningCluster.fullChainNodes
         : Array.isArray(apiData.full_stitched_lineage_for_researcher) &&
           apiData.full_stitched_lineage_for_researcher.length > 0
-        ? [
-            displayFamilyName,
-            ...cleanAndUnrollLineageChain(
+        ? (() => {
+            const cleanedApiStitched = cleanAndUnrollLineageChain(
               apiData.full_stitched_lineage_for_researcher.map(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (sn: any) => (typeof sn === 'string' ? sn : String(sn?.name || ''))
               ),
-              displayFamilyName
-            ),
-          ]
+              displayFamilyName,
+              primaryEvidenceWithLineage?.record_name
+            );
+            const famParts = decomposeCompoundLineageName(displayFamilyName);
+            const headStation =
+              famParts.length > 1 &&
+              cleanedApiStitched.length > 0 &&
+              normalizeArabicStem(famParts[1]) ===
+                normalizeArabicStem(cleanedApiStitched[0])
+                ? famParts[0]
+                : displayFamilyName;
+            return [headStation, ...cleanedApiStitched];
+          })()
         : null;
 
     const apiFullStitched: UpperAncestorNode[] | undefined = alignedStitchedChainNames
@@ -6426,14 +6486,22 @@ export function parsePort8090UniversalResponse(
               code:
                 idx === 0
                   ? 'FE0'
+                  : stemTribeToken(stationName) === stemTribeToken(rootB0Name)
+                  ? 'B0'
+                  : stemTribeToken(stationName) === stemTribeToken(rootB2Name)
+                  ? 'B2'
+                  : isHighApexStopNode(stationName)
+                  ? 'M'
                   : idx === alignedStitchedChainNames.length - 1
                   ? 'B0'
                   : 'B2',
               rankLabel:
                 idx === 0
                   ? 'عقدة العائلة الموثقة'
-                  : idx === alignedStitchedChainNames.length - 1
-                  ? 'القبيلة الأم / الجذم الجامع في السجل'
+                  : stemTribeToken(stationName) === stemTribeToken(rootB0Name)
+                  ? 'القبيلة الأم / الجذم الجامع في السجل (B0)'
+                  : isHighApexStopNode(stationName)
+                  ? 'الجذم العربي الأعلى (قمة السلسلة)'
                   : 'محطة موثقة في سلسلة النسب',
               isCodedStation: true,
               region: String(matchedLocation),

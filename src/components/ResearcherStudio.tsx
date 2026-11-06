@@ -4903,36 +4903,48 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       : activeClusterForStitchedChain &&
                         activeClusterForStitchedChain.fullChainNodes.length > 1
                       ? activeClusterForStitchedChain.fullChainNodes.map(
-                          (stationName, idx) => ({
-                            id: `stitched-diag-${idx + 1}`,
-                            orderNumber: idx + 1,
-                            name: stationName,
-                            code:
-                              idx === 0
-                                ? 'FE0'
-                                : stemTribeToken(stationName) ===
-                                  stemTribeToken(directSearchResult.rootTribeName)
-                                ? 'B0'
-                                : stemTribeToken(stationName) ===
-                                  stemTribeToken(directSearchResult.rootBranchName)
-                                ? 'B2'
-                                : idx ===
-                                  activeClusterForStitchedChain.fullChainNodes.length - 1
-                                ? 'B0'
-                                : idx === 1
-                                ? 'B2'
-                                : undefined,
-                            rankLabel:
-                              idx === 0
-                                ? 'عقدة العائلة الموثقة'
-                                : 'محطة موثقة في سلسلة النسب',
-                            isCodedStation: true,
-                            region:
-                              activeClusterForStitchedChain.geographicScope ||
-                              directSearchResult.originRegion,
-                            eraNote: '',
-                            dataLakeSource: 'alpha_projects',
-                          })
+                          (stationName, idx) => {
+                            const stationStem = stemTribeToken(stationName);
+                            const isAncientApexStation =
+                              stationStem === 'قحطان' ||
+                              stationStem === 'عدنان' ||
+                              stationStem === 'قحطاني' ||
+                              stationStem === 'عدناني';
+                            return {
+                              id: `stitched-diag-${idx + 1}`,
+                              orderNumber: idx + 1,
+                              name: stationName,
+                              code:
+                                idx === 0
+                                  ? 'FE0'
+                                  : isAncientApexStation
+                                  ? undefined
+                                  : stationStem ===
+                                    stemTribeToken(directSearchResult.rootTribeName)
+                                  ? 'B0'
+                                  : stationStem ===
+                                    stemTribeToken(directSearchResult.rootBranchName)
+                                  ? 'B2'
+                                  : idx ===
+                                    activeClusterForStitchedChain.fullChainNodes.length - 1
+                                  ? 'B0'
+                                  : idx === 1
+                                  ? 'B2'
+                                  : undefined,
+                              rankLabel:
+                                idx === 0
+                                  ? 'عقدة العائلة الموثقة'
+                                  : isAncientApexStation
+                                  ? 'الجذر العروبي الأعلى'
+                                  : 'محطة موثقة في سلسلة النسب',
+                              isCodedStation: true,
+                              region:
+                                activeClusterForStitchedChain.geographicScope ||
+                                directSearchResult.originRegion,
+                              eraNote: '',
+                              dataLakeSource: 'alpha_projects',
+                            };
+                          }
                         )
                       : directSearchResult.full_stitched_lineage_for_researcher &&
                         directSearchResult.full_stitched_lineage_for_researcher.length > 0
@@ -5056,7 +5068,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         if (!variantsByStem.has(st)) {
                           variantsByStem.set(st, new Set());
                         }
-                        variantsByStem.get(st)!.add(part);
+                        variantsByStem.get(st)! .add(part);
                       });
                     });
                   });
@@ -5123,9 +5135,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       ev.record_name || directSearchResult.familyName
                     );
                     if (check.wasInvertedPreambleStripped) {
-                      invertedPreambleExamples.push(
-                        `تم تجريد التمهيد المعكوس (${check.strippedPreambleTokens.join(' ؛ ')}) الذي سبق اسم صاحب السجل (${check.matchedSubjectToken}) في سجل «${ev.record_name || directSearchResult.familyName}» لتبدأ السلسلة النظيفة من (${check.cleanedTokensAfterSubject.slice(0, 4).join(' ⬅️ ')})`
+                      const nonApexTail = check.cleanedTokensAfterSubject.filter(
+                        (t) =>
+                          !check.relocatedApexTokens.some(
+                            (apx) => stemTribeToken(apx) === stemTribeToken(t)
+                          )
                       );
+                      const precedingMotherTribe =
+                        nonApexTail.length > 0
+                          ? nonApexTail[nonApexTail.length - 1]
+                          : directSearchResult.rootTribeName;
+                      if (
+                        check.relocatedApexTokens &&
+                        check.relocatedApexTokens.length > 0
+                      ) {
+                        invertedPreambleExamples.push(
+                          `تم تجريد التمهيد المقلوب (${check.strippedPreambleTokens.join(' ؛ ')}) الذي سبق اسم صاحب السجل (${check.matchedSubjectToken}) في سجل «${ev.record_name || directSearchResult.familyName}» وترحيل الجذر الأعلى (${check.relocatedApexTokens.join(' ، ')}) إلى موضعه العلمي في قمة السلسلة بعد (${precedingMotherTribe})`
+                        );
+                      } else {
+                        invertedPreambleExamples.push(
+                          `تم تجريد التمهيد المقلوب (${check.strippedPreambleTokens.join(' ؛ ')}) الذي سبق اسم صاحب السجل (${check.matchedSubjectToken}) في سجل «${ev.record_name || directSearchResult.familyName}» لتبدأ السلسلة النظيفة من (${check.cleanedTokensAfterSubject.slice(0, 4).join(' ⬅️ ')})`
+                        );
+                      }
                     }
                   });
 
