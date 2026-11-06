@@ -1930,8 +1930,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   // =========================================================================
   const renderCompactReadOnlyOtherSourcesSection = (
     familyName: string,
-    evidenceList: CorroboratingAlphaEvidence[] | undefined,
-    onTransferToTicketRoom?: () => void
+    evidenceList: CorroboratingAlphaEvidence[] | undefined
   ) => {
     const safeEvidence = evidenceList || [];
     const extractedLeads = extractAllOtherSourceLeadsFromEvidence(safeEvidence);
@@ -1941,41 +1940,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         data-testid="diagnostic-step5-secondary-sources-adam-prime-direct_search"
         className="rounded-3xl border border-indigo-200/90 bg-gradient-to-l from-indigo-50/40 via-white to-stone-50/60 p-5 shadow-2xs space-y-3.5"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="w-7 h-7 rounded-lg bg-indigo-900 text-amber-300 font-mono text-xs font-extrabold flex items-center justify-center shrink-0">
-              5
-            </span>
-            <div>
-              <h3 className="text-sm font-extrabold font-serif text-[#141414]">
-                القسم الخامس: المصادر الأخرى الخام (other_sources) المرصودة في الهامش
-              </h3>
-              <p className="text-[11px] text-stone-600 mt-0.5">
-                يتم توثيق واعتماد هذه المصادر الإضافية وربطها بآدم برايم من داخل غرفة عمليات التذكرة في قسم إدارة البحوث
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-1 rounded-lg bg-indigo-100/80 border border-indigo-200 text-indigo-950 text-[11px] font-bold">
-              إحالات إضافية مرصودة: {extractedLeads.length}
-            </span>
-            {onTransferToTicketRoom && (
-              <button
-                type="button"
-                onClick={onTransferToTicketRoom}
-                data-testid="transfer-diagnostic-to-ticket-room-btn"
-                className="px-3.5 py-1.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-amber-300 text-xs font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-1.5"
-              >
-                <span>🚀 نقل مخرجات الفحص إلى غرفة عمليات التذكرة للإثراء والتوثيق</span>
-              </button>
-            )}
-          </div>
+        <div className="flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg bg-indigo-900 text-amber-300 font-mono text-xs font-extrabold flex items-center justify-center shrink-0">
+            5
+          </span>
+          <h3 className="text-sm font-extrabold font-serif text-[#141414]">
+            القسم الخامس: المصادر الأخرى الخام المرصودة في الهامش
+          </h3>
         </div>
 
         {extractedLeads.length === 0 ? (
           <div className="rounded-xl bg-white/90 border border-stone-200 px-3.5 py-2.5 text-xs text-stone-600">
-            لا توجد إحالات لمصادر أخرى خام (<code className="font-mono">other_sources</code>) في سجلات ({familyName}) الحالية.
+            لا توجد إحالات لمصادر أخرى خام في سجلات ({familyName}) الحالية.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -6092,13 +6068,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       ========================================================= */}
                       {renderCompactReadOnlyOtherSourcesSection(
                         directSearchResult.familyName,
-                        rawEvidenceList,
-                        () =>
-                          handleTransferDiagnosticToTicketRoom(
-                            directSearchResult,
-                            rawEvidenceList,
-                            finalStitchedStations
-                          )
+                        rawEvidenceList
                       )}
 
                       {/* =========================================================
