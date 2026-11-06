@@ -1594,9 +1594,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                           بطاقة المصادر والمراجع التاريخية المجمعة ({(effectiveResult.verified_sources?.length || effectiveResult.secondarySources?.length || 1)} مراجع)
                         </h3>
                       </div>
-                      <p className="text-xs text-[#8D4925] font-semibold mt-0.5">
-                        «{effectiveResult.verifiedSourceCitation}»
-                      </p>
                     </div>
                   </div>
                   <span className="text-xs font-bold text-[#8D4925] px-3 py-1.5 rounded-xl bg-[#8D4925]/10 shrink-0">

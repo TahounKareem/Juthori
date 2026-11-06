@@ -1436,117 +1436,10 @@ export const AL_MUQIT_UPPER_ANCESTORS: UpperAncestorNode[] = [
 ];
 
 const DEFAULT_BLIND_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [];
-
-const BAIT_JANDEEL_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
-  {
-    id: 'option_a',
-    choice_id: 'ALPHA_JANDEEL_BANILAM',
-    badge: 'المسار المتوافق عليه في المصادر',
-    title: 'بني لام',
-    originTribeLabel: 'بني لام',
-    geographicScope: 'العمارة / ميسان / واسط',
-    nearBranchHint: '',
-    isConsensusWinner: true,
-    consensusBadge: 'توافق (11) مصدراً',
-    sourcesCount: 11,
-  },
-  {
-    id: 'option_b',
-    choice_id: 'ALPHA_JANDEEL_BANUSAID',
-    badge: 'مسار موازٍ في المصادر',
-    title: 'بنو سعيد',
-    originTribeLabel: 'بنو سعيد',
-    geographicScope: 'سوق الشيوخ / المنتفق / ذي قار',
-    nearBranchHint: '',
-    isConsensusWinner: false,
-    sourcesCount: 1,
-  },
-];
-
-const AL_HUSSAN_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
-  {
-    id: 'option_a',
-    choice_id: 'ALPHA_HUSSAN_TAYYAR',
-    badge: 'المسار المتوافق عليه في المصادر',
-    title: 'الحصانية — الطيار',
-    originTribeLabel: 'الحصانية — الطيار',
-    geographicScope: 'حمص / حماة / الشام والجزيرة',
-    nearBranchHint: '',
-    isConsensusWinner: true,
-    consensusBadge: 'توافق (3) مصادر',
-    sourcesCount: 3,
-  },
-  {
-    id: 'option_b',
-    choice_id: 'ALPHA_HUSSAN_DAWASIR',
-    badge: 'مسار موازٍ في المصادر',
-    title: 'قبيلة الدواسر',
-    originTribeLabel: 'قبيلة الدواسر',
-    geographicScope: 'بريدة / القصيم / نجد',
-    nearBranchHint: '',
-    isConsensusWinner: false,
-    sourcesCount: 2,
-  },
-  {
-    id: 'option_c',
-    choice_id: 'ALPHA_HUSSAN_TAMIM',
-    badge: 'مسار موازٍ في المصادر',
-    title: 'قبيلة تميم',
-    originTribeLabel: 'قبيلة تميم',
-    geographicScope: 'شقراء / الوشم / نجد',
-    nearBranchHint: '',
-    isConsensusWinner: false,
-    sourcesCount: 2,
-  },
-];
-
-const KHABOUR_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
-  {
-    id: 'option_a',
-    badge: 'المسار المتوافق عليه في المصادر',
-    title: 'قبائل عنزة',
-    originTribeLabel: 'قبائل عنزة',
-    geographicScope: 'نجد / القصيم / شبه الجزيرة العربية',
-    nearBranchHint: '',
-    isConsensusWinner: true,
-    consensusBadge: 'مرجّح في عدة مصادر',
-    sourcesCount: 3,
-  },
-  {
-    id: 'option_b',
-    badge: 'مسار موازٍ في المصادر',
-    title: 'قبيلة العقيدات',
-    originTribeLabel: 'قبيلة العقيدات',
-    geographicScope: 'دير الزور / وادي الفرات / الشام',
-    nearBranchHint: '',
-    isConsensusWinner: false,
-    sourcesCount: 3,
-  },
-];
-
-const AL_QASIM_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
-  {
-    id: 'option_a',
-    badge: 'المسار المتوافق عليه في المصادر',
-    title: 'قبيلة يام',
-    originTribeLabel: 'قبيلة يام',
-    geographicScope: 'نجران / جنوب الجزيرة العربية',
-    nearBranchHint: '',
-    isConsensusWinner: true,
-    consensusBadge: 'مرجّح في عدة مصادر',
-    sourcesCount: 3,
-  },
-  {
-    id: 'option_b',
-    badge: 'مسار موازٍ في المصادر',
-    title: 'فرع المودحي',
-    originTribeLabel: 'فرع المودحي',
-    geographicScope: 'الحواضر العربية / نجد والحجاز',
-    nearBranchHint: '',
-    isConsensusWinner: false,
-    sourcesCount: 2,
-  },
-];
+const BAIT_JANDEEL_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [];
+const AL_HUSSAN_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [];
+const KHABOUR_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [];
+const AL_QASIM_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [];
 
 /**
  * 1A) Real Database Chain: آل قاسم (نجران - ID: 249230 — 47 عقدة إلى آدم)
@@ -3534,730 +3427,7 @@ function createAlphaAwsBelharithResult(
 // UNIVERSAL MULTI-SOURCE ALPHA EVIDENCE CATALOG & 4-TIER PRIORITY ENGINE
 // ============================================================================
 
-export const UNIVERSAL_ALPHA_EVIDENCE_CATALOG: CorroboratingAlphaEvidence[] = [
-  // --- دير الزور / سوريا / العراق (معيط / الابو معيط / خابور / العقيدات) ---
-  {
-    alpha_id: 'ALP_B_bac4cf609eed',
-    record_name: 'البو معيط',
-    source_book: 'معجم العشائر الفراتية',
-    page: '124',
-    volume: '1',
-    lineage_ancestors: 'البو معيط ؛ خابور (البو) ؛ العقيدات ؛ مضر ؛ عدنان ؛ عبادة ؛ البدران',
-    child_branches: 'الابو حليحل | الابو عمرو | الابو معيط',
-    locations: 'محافظة دير الزور | منطقة موحسن | الجمهورية السورية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SYR_WASFI_224',
-    record_name: 'الابو معيط (عشيرة خابور)',
-    source_book: 'عشائر الشام لوصفي زكريا',
-    page: '224، 233',
-    volume: '2',
-    lineage_ancestors: 'الابو معيط ؛ قبيلة خابور ؛ قبيلة العقيدات',
-    child_branches: 'الابو حليحل | الابو عمرو | الابو معيط',
-    locations: 'دير الزور | وادي الفرات | الجمهورية السورية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_B_3ac5ba0edcb0',
-    record_name: 'الأبو معيط',
-    source_book: 'موسوعة قبائل وعشائر العرب',
-    page: '357',
-    volume: '1',
-    lineage_ancestors: 'الأبو معيط ؛ خابور (أبو خابور) ؛ العقيدات',
-    child_branches: 'الأبو حليحل | الأبو عمرو | الأبو معيط',
-    locations: 'دير الزور | قرية موح حسن بالعراق',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_B_d5097736b1ae',
-    record_name: 'الأبو معيط',
-    source_book: 'موسوعة قبائل وعشائر العرب',
-    page: '1119',
-    volume: '3',
-    lineage_ancestors: 'الأبو معيط ؛ خابور (أبو خابور) ؛ العقيدات ؛ عنزة',
-    child_branches: 'الأبو حليحل | الأبو عمرو | الأبو معيط | البوليل',
-    locations: 'محافظة دير الزور | سورية | قرية موح حسن | العراق',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_72a4e76d8b7806',
-    record_name: 'معيط',
-    source_book: 'معجم قبائل العرب القديمة والحديثة',
-    page: '1125',
-    volume: '3',
-    lineage_ancestors: 'أبي خابور ؛ العقيدات',
-    child_branches: 'الابودج | الابو دهام | الابو حسن | بنو حسن | بو دعيج | بو حلاف | بو دهام | دنادلة | سياد',
-    locations: 'دير الزور | المريعية | محافظات الجمهورية السورية',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_42e32130a0ad8f',
-    record_name: 'معيط',
-    source_book: 'معجم أسماء الأسر والأشخاص ولمحات من تاريخ العائلات',
-    page: '856',
-    volume: '1',
-    lineage_ancestors: 'العقيدات ؛ النوافلة ؛ الجنابيين',
-    child_branches: 'المعيطات',
-    locations: 'آبلات عكار | دير الزور | العراق',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_B_26225e906b95',
-    record_name: 'الابو معيط',
-    source_book: 'معجم قبائل العرب القديمة والحديثة',
-    page: '324',
-    volume: '1',
-    lineage_ancestors: 'الابو معيط ؛ خابور ؛ العقيدات',
-    child_branches: 'الابو حليحل | الابو عمرو | الابو معيط',
-    locations: 'دير الزور | وادي الفرات',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_2c038cf44d1cc3',
-    record_name: 'آل معيط',
-    source_book: 'عشائر كربلاء وأسرها',
-    page: '571',
-    volume: '2',
-    lineage_ancestors: 'عتيبة ؛ شمر',
-    child_branches: null,
-    locations: 'كربلاء | العراق',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-
-  // --- الشوبك / الأردن وفلسطين (الهباهبة / النعيمات / الدعجة) ---
-  {
-    alpha_id: 'ALP_7a0edb2c3016f0',
-    record_name: 'هباهبة (الهباهبة)',
-    source_book: 'قاموس العشائر في الأردن وفلسطين',
-    page: '575',
-    volume: '1',
-    lineage_ancestors: 'النعيمات (في جبال الشراة)',
-    child_branches: 'الشواهين | الجبارات | المحيصات | الحجوج | العبيديين | الشرمان',
-    locations: 'قضاء الشوبك | جبال الشراة | الأردن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_1db7fea5d13542',
-    record_name: 'الهباهبه',
-    source_book: 'معجم العشائر الأردنية',
-    page: '528',
-    volume: '1',
-    lineage_ancestors: 'الشبيكات ؛ الدعجة',
-    child_branches: 'الشواهين | الحجوج | العبيديين | آل الفار',
-    locations: 'أبو مخطوب | الزبيرية | لواء الشوبك | الشراه | الطفيلة | الخليل | الرملة | بيت حانون | غزة | وادي موسى',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_c0ac25c6a5d544',
-    record_name: 'هباهبة (الهباهبة)',
-    source_book: 'قاموس العشائر في الأردن وفلسطين',
-    page: '575',
-    volume: '1',
-    lineage_ancestors: 'الشبيكات ؛ الدعجة',
-    child_branches: 'السليمان | الصبيح',
-    locations: 'البلقاء | الأردن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_B_d91551f9033e',
-    record_name: 'الهباهبة',
-    source_book: 'معجم العشائر الأردنية',
-    page: '229',
-    volume: '1',
-    lineage_ancestors: 'الهباهبة ؛ الدعجة ؛ الدعاجنة ؛ بني صخر',
-    child_branches: null,
-    locations: 'البلقاء | الكرك | ماركا | مدينة عمان | الرصيفة | مادبا | الأردن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_e397096c03694c',
-    record_name: 'الهباهبة',
-    source_book: 'الكلبيون وأحفادهم الشرارات',
-    page: '233',
-    volume: '1',
-    lineage_ancestors: 'الرشايدة ؛ الكلبيون',
-    child_branches: null,
-    locations: 'الشوبك | بادية الأردن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_28b27707fcca2b',
-    record_name: 'الهباهبة',
-    source_book: 'معجم قبائل العرب القديمة والحديثة',
-    page: '1208',
-    volume: '3',
-    lineage_ancestors: 'النعيمات ؛ جبال الشراة',
-    child_branches: 'الشواهين | الحجوج | العبديين',
-    locations: 'الشوبك | الأردن',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_8beb0839a7e43e',
-    record_name: 'الهباهبة',
-    source_book: 'جامع أنساب قبائل العرب',
-    page: '153',
-    volume: '1',
-    lineage_ancestors: 'النعيمات',
-    child_branches: 'الشواهين | الحجوج | العبديين',
-    locations: 'الشوبك | شرق الأردن',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-
-  // --- جرجا / سوهاج / مصر (الهوارة / الأشراف / الجعافرة) ---
-  {
-    alpha_id: 'ALP_EGY_GIRGA_101',
-    record_name: 'أولاد يحيى (جرجا)',
-    source_book: 'موسوعة القبائل العربية في مصر',
-    page: '412',
-    volume: '2',
-    lineage_ancestors: 'أولاد يحيى ؛ هوارة ؛ البطون القيسية واليمانية بالصعيد',
-    child_branches: 'آل عبد المنعم | آل نصير | آل قوره | البلابيش',
-    locations: 'جرجا | سوهاج | صعيد مصر | جمهورية مصر العربية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_EGY_GIRGA_102',
-    record_name: 'أولاد يحيى (جرجا)',
-    source_book: 'البيان والإعراب عما بأرض مصر من الأعراب للمقريزي',
-    page: '88',
-    volume: '1',
-    lineage_ancestors: 'أولاد يحيى ؛ هوارة الصعيد',
-    child_branches: 'بطون جرجا وسوهاج وقنا',
-    locations: 'جرجا | سوهاج | الصعيد الأعلى | مصر',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-
-  // --- حائل / نجد / السعودية (الأوضاح / آل محجم / شمر) ---
-  {
-    alpha_id: 'ALP_SA_AWDAH_1',
-    record_name: 'الأوضاح (آل محجم)',
-    source_book: 'معجم قبائل المملكة العربية السعودية لحمد الجاسر',
-    page: '64',
-    volume: '1',
-    lineage_ancestors: 'الأوضاح ؛ آل تومان ؛ الثابت ؛ سنجارة ؛ قبيلة شمر الطائية',
-    child_branches: 'آل محجم | آل رويان | آل وكيع | المصارع | الخلوف',
-    locations: 'حائل | نجد | المملكة العربية السعودية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_AWDAH_2',
-    record_name: 'الأوضاح',
-    source_book: 'معجم قبائل العرب القديمة والحديثة لعمر رضا كحالة',
-    page: '52',
-    volume: '1',
-    lineage_ancestors: 'آل تومان ؛ الثابت ؛ سنجارة ؛ شمر',
-    child_branches: 'آل محجم | آل رويان | آل وكيع | المصارع | الخلوف',
-    locations: 'إقليم الجبلين وحائل | نجد والجزيرة',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-
-  // --- بلاد حجة / اليمن: قدم & قدم بن قادم (اختبار المحاذاة الموضعية بالمرساة وتفكيك الاسم المركب) ---
-  {
-    alpha_id: 'ALP_YEM_QADAM_1',
-    record_name: 'قدم',
-    source_book: 'مجموع بلدان اليمن وقبائلها للقاضي الحجري',
-    page: '654',
-    volume: '2',
-    lineage_ancestors: 'قدم ؛ قادم ؛ أسلم ؛ عليان ؛ زيد ؛ عريب ؛ جشم ؛ حاشد ؛ همدان',
-    child_branches: 'بني شومي | بني عرجلة',
-    locations: 'بلاد حجة | اليمن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_YEM_QADAM_2',
-    record_name: 'قدم بن قادم',
-    source_book: 'معجم القبائل اليمنية وإكليل الهمداني',
-    page: '318',
-    volume: '1',
-    lineage_ancestors: 'حجور ؛ اسلم ؛ عليان ؛ زيد ؛ عريب ؛ جشم ؛ حاشد ؛ همدان ؛ قحطان',
-    child_branches: 'بني شومي | بني عرجلة',
-    locations: 'بلاد حجة | شهارة | اليمن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-
-  // --- بلاد حجة / اليمن: الشاهل (اختبار منع الدمج العابر للعائلات وفلتر البادئة التلخيصية المكررة) ---
-  {
-    alpha_id: 'ALP_YEM_SHAHIL_HAMZI',
-    record_name: 'آل الحمزي',
-    source_book: 'مجموع بلدان اليمن وقبائلها للقاضي الحجري',
-    page: '295',
-    volume: '1',
-    lineage_ancestors: 'حمزة ؛ النفس الزكية ؛ الحسن ؛ علي ؛ أبي طالب',
-    child_branches: 'الشاهل | بيت الحمزي',
-    locations: 'الشاهل | بلاد حجة | اليمن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_YEM_SHAHIL_RISHANI',
-    record_name: 'آل الريشاني',
-    source_book: 'تاريخ اليمن وأنساب الأشراف في حجة',
-    page: '412',
-    volume: '1',
-    lineage_ancestors:
-      'أبي الفضل العباس ؛ علي ؛ أبي طالب ؛ الحسين ؛ المؤيد ؛ يحيى ؛ أبي الفضل العباسي ؛ علي ؛ أبي طالب',
-    child_branches: 'الشاهل | بيت الريشاني',
-    locations: 'الشاهل | بلاد حجة | اليمن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_AWDAH_3',
-    record_name: 'آل تومان (الأوضاح)',
-    source_book: 'قلب جزيرة العرب لفؤاد حمزة',
-    page: '162',
-    volume: '1',
-    lineage_ancestors: 'الأوضاح ؛ آل تومان ؛ الثابت ؛ سنجارة ؛ شمر الطائية',
-    child_branches: 'آل محجم | آل رويان | آل وكيع',
-    locations: 'حائل | نجد | شمال الجزيرة العربية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-
-  // --- تيماء / شمالي الحجاز / السعودية (الأيدا / المشادقة / عنزة) ---
-  {
-    alpha_id: 'ALP_SA_AYDA_1',
-    record_name: 'قبيلة الأيدا (المشادقة)',
-    source_book: 'معجم قبائل المملكة العربية السعودية لحمد الجاسر',
-    page: '48',
-    volume: '1',
-    lineage_ancestors: 'الأيدا ؛ ولد علي / الوهب ؛ مسلم ؛ قبيلة عنزة',
-    child_branches: 'المشادقة | الحمامدة | الجويدة',
-    locations: 'تيماء | شمالي الحجاز | المدينة المنورة | السعودية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_AYDA_2',
-    record_name: 'الأيدا (ولد علي)',
-    source_book: 'أصدق الدلائل في أنساب بني وائل (قبائل عنزة)',
-    page: '312',
-    volume: '1',
-    lineage_ancestors: 'الأيدا ؛ ولد علي ؛ الوهب ؛ مسلم ؛ عنزة',
-    child_branches: 'المشادقة | الحمامدة | الجويدة',
-    locations: 'تيماء | شمالي الحجاز | المملكة العربية السعودية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_AYDA_3',
-    record_name: 'الأيدا',
-    source_book: 'معجم قبائل العرب القديمة والحديثة',
-    page: '54',
-    volume: '1',
-    lineage_ancestors: 'ولد علي ؛ الوهب ؛ مسلم ؛ عنزة',
-    child_branches: 'المشادقة | الحمامدة | الجويدة',
-    locations: 'شمالي الحجاز | تيماء',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-
-  // --- الطائف / الحجاز / السعودية (الأوس / الغورية / بلحارث) ---
-  {
-    alpha_id: 'ALP_SA_AWS_1',
-    record_name: 'الأوس (الغورية)',
-    source_book: 'معجم قبائل المملكة العربية السعودية لحمد الجاسر',
-    page: '58',
-    volume: '1',
-    lineage_ancestors: 'قبيلة الأوس ؛ قبيلة بلحارث',
-    child_branches: 'الغورية | البلاهدة | المذاهبة | الشدادين',
-    locations: 'جنوب الطائف | الحجاز | المملكة العربية السعودية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_AWS_2',
-    record_name: 'الأوس (بلحارث)',
-    source_book: 'معجم قبائل الحجاز للبلادي',
-    page: '41',
-    volume: '1',
-    lineage_ancestors: 'قبيلة الأوس ؛ بلحارث (بني الحارث)',
-    child_branches: 'الغورية | البلاهدة | المذاهبة | الشدادين',
-    locations: 'جنوب الطائف | سراة الحجاز | السعودية',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-
-  // --- سراة عبيدة / عسير / السعودية (آل مقيت / آل برمان / بني بشر) ---
-  {
-    alpha_id: 'ALP_SA_MUQIT_1',
-    record_name: 'آل مقيت',
-    source_book: 'توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان',
-    page: '14-42',
-    volume: '1',
-    lineage_ancestors: 'آل مقيت ؛ عايض ؛ آل درع ؛ آل برمان ؛ الجبرة ؛ بني بشر ؛ جنب ؛ مذحج ؛ قحطان',
-    child_branches: 'آل مقيت | آل درع | آل برمان | آل عايض',
-    locations: 'سراة عبيدة | عسير | المملكة العربية السعودية',
-    notables: 'الشيخ عايض بن مقيت | الشيخ درع بن برمان | الشيخ محمد بن مقيت',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_MUQIT_2',
-    record_name: 'آل برمان (بني بشر)',
-    source_book: 'معجم قبائل المملكة العربية السعودية لحمد الجاسر',
-    page: '88',
-    volume: '1',
-    lineage_ancestors: 'آل برمان ؛ الجبرة ؛ بني بشر ؛ قحطان',
-    child_branches: 'آل درع | آل مقيت | الجبرة',
-    locations: 'سراة عبيدة | تهامة قحطان | السعودية',
-    notables: 'مشايخ وأعيان آل برمان والجبرة في سراة عبيدة',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_MUQIT_3',
-    record_name: 'بني بشر (مذحج)',
-    source_book: 'الإكليل من أخبار اليمن وأنساب حمير للهمداني',
-    page: '164',
-    volume: '2',
-    lineage_ancestors: 'بني بشر ؛ حرب ؛ أوس ؛ كعب ؛ منبه (جنب) ؛ علة ؛ مذحج ؛ كهلان ؛ قحطان',
-    child_branches: 'الجبرة | آل برمان | بطون بني بشر',
-    locations: 'السراة | مخلاف جرش | جنوب الجزيرة العربية',
-    notables: 'حرب بن أوس | كعب بن منبه (جنب)',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_SA_MUQIT_4',
-    record_name: 'بنو بشر بن حرب (جنب — مذحج)',
-    source_book: 'جمهرة أنساب العرب لابن حزم الأندلسي',
-    page: '405',
-    volume: '1',
-    lineage_ancestors: 'بني بشر ؛ حرب ؛ أوس ؛ منبه ؛ جنب ؛ مذحج ؛ قحطان',
-    child_branches: 'بطون بني بشر بن حرب في السراة',
-    locations: 'سراة جنب | جنوب الجزيرة العربية',
-    notables: 'أعلام بني بشر وقبائل جنب المذحجية',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-
-  // --- بيت جنديل (13 مصدراً متقاطعاً في مشاريع ألفا: البلاسم / آل نصيري / بني لام + روايات فرعية) ---
-  {
-    alpha_id: 'ALP_JANDEEL_01',
-    record_name: 'بيت جنديل (البلاسم)',
-    source_book: 'موسوعة العشائر العراقية — ثامر عبد الحسن العامري',
-    page: '184',
-    volume: '3',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام ؛ طيء ؛ قحطان',
-    child_branches: 'بيت جنديل | بيت بلاسم | آل نصيري | بيت مذكور',
-    locations: 'العمارة | ميسان | واسط | العراق',
-    notables: 'الشيخ جنديل البلاسم | الشيخ بلاسم الياسين | أعلام آل نصيري',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_02',
-    record_name: 'بيت جنديل (آل نصيري — بني لام)',
-    source_book: 'عشائر العراق — عباس العزاوي',
-    page: '219',
-    volume: '4',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
-    child_branches: 'بيت جنديل | البلاسم | بيت عبد السيد',
-    locations: 'لواء العمارة | الكوت | دجلة | العراق',
-    notables: 'الشيخ جنديل بن بلاسم | مشايخ البلاسم في العمارة',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_03',
-    record_name: 'البلاسم (بيت جنديل)',
-    source_book: 'معجم العامري للقبائل والأسر والطوائف في العراق (ملحق)',
-    page: '112',
-    volume: '1',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام ؛ طيء',
-    child_branches: 'بيت جنديل | بيت حاتم | بيت غضبان',
-    locations: 'ميسان | العمارة | بغداد | العراق',
-    notables: 'أعيان بيت جنديل والبلاسم في ميسان',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_04',
-    record_name: 'آل نصيري (البلاسم — بيت جنديل)',
-    source_book: 'تاريخ العمارة وعشائرها — عبد الكريم الندواني',
-    page: '76',
-    volume: '1',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
-    child_branches: 'بيت جنديل | البلاسم | الرويشد',
-    locations: 'العمارة | علي الغربي | ميسان | العراق',
-    notables: 'الشيخ جنديل النصيري اللامي',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_05',
-    record_name: 'بنو لام (البلاسم — بيت جنديل)',
-    source_book: 'الدرر المفاخر في أخبار العرب الأواخر — محمد بن حمد البسام التميمي',
-    page: '95',
-    volume: '1',
-    lineage_ancestors: 'البلاسم ؛ آل نصيري ؛ بني لام ؛ لام بن عمرو ؛ طيء',
-    child_branches: 'آل نصيري | البلاسم | بيت جنديل | آل مغامس',
-    locations: 'العراق | نجد | الجزيرة العربية',
-    notables: 'أمراء ومشايخ بني لام في العراق ونجد',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_06',
-    record_name: 'بيت جنديل',
-    source_book: 'القبائل العراقية — يونس الشيخ إبراهيم السامرائي',
-    page: '143',
-    volume: '1',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
-    child_branches: 'بيت جنديل | البلاسم',
-    locations: 'العمارة | الكوت | العراق',
-    notables: 'وجهاء بيت جنديل في العمارة',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_07',
-    record_name: 'البلاسم من بني لام',
-    source_book: 'معجم قبائل العرب القديمة والحديثة — عمر رضا كحالة',
-    page: '98',
-    volume: '1',
-    lineage_ancestors: 'البلاسم ؛ آل نصيري ؛ بني لام ؛ طيء',
-    child_branches: 'بيت جنديل | بيت مذكور | بيت صكر',
-    locations: 'العراق | لواء العمارة',
-    notables: 'مشايخ البلاسم من بني لام',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_08',
-    record_name: 'بيت جنديل (رواية البو سلطان)',
-    source_book: 'موسوعة عشائر العراق — العامري (قسم زبيد)',
-    page: '264',
-    volume: '5',
-    lineage_ancestors: 'بيت جنديل ؛ البو سمندر ؛ البو سلطان ؛ زبيد',
-    child_branches: 'بيت جنديل (فرع الحلة)',
-    locations: 'الحلة | بابل | العراق',
-    notables: 'فرع بيت جنديل في الفرات الأوسط (تشابه اسمي مع بيت جنديل البلاسم)',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_09',
-    record_name: 'الجنديل (وادي الفرات والجزيرة)',
-    source_book: 'عشائر الشام — أحمد وصفي زكريا',
-    page: '582',
-    volume: '2',
-    lineage_ancestors: 'آل جنديل ؛ الموالي / العقيدات (وادي الفرات)',
-    child_branches: 'آل جنديل | البو جنديل',
-    locations: 'وادي الفرات | البوكمال | القائم | العراق وسوريا',
-    notables: 'الشيخ جنديل في الفرات الأعلى',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_10',
-    record_name: 'بيت جنديل (المنتفق والعمارة)',
-    source_book: 'مباحث عراقية في الجغرافية والتاريخ والآثار — يعقوب سركيس',
-    page: '310',
-    volume: '2',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
-    child_branches: 'بيت جنديل | البلاسم',
-    locations: 'العمارة | دجلة الأسفل | العراق',
-    notables: 'أعيان البلاسم وبيت جنديل في حوض دجلة',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_11',
-    record_name: 'بنو لام بن عمرو بن طريف (طيء)',
-    source_book: 'سبائك الذهب في معرفة قبائل العرب — السويدي البغدادي',
-    page: '68',
-    volume: '1',
-    lineage_ancestors: 'بني لام ؛ لام بن عمرو ؛ طريف ؛ مالك ؛ جديلة ؛ طيء ؛ كهلان ؛ قحطان',
-    child_branches: 'آل نصيري | البلاسم | بيت جنديل | آل فضل | آل مغامس',
-    locations: 'العراق | نجد | الجبلين',
-    notables: 'لام بن عمرو الطائي | أمراء بني لام',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_12',
-    record_name: 'آل نصيري (بني لام)',
-    source_book: 'نهاية الأرب في معرفة أنساب العرب — القلقشندي',
-    page: '411',
-    volume: '1',
-    lineage_ancestors: 'آل نصيري ؛ بني لام ؛ طيء ؛ كهلان ؛ سبأ ؛ قحطان',
-    child_branches: 'البلاسم | بيت جنديل | آل نصيري',
-    locations: 'العراق | بادية السماوة والعمارة',
-    notables: 'مشايخ بني لام في العراق والجزيرة',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_13',
-    record_name: 'بيت جنديل (البلاسم — بني لام)',
-    source_book: 'اللباب في تهذيب الأنساب — ابن الأثير الجزري (مع تحقيق أسر العراق)',
-    page: '129',
-    volume: '3',
-    lineage_ancestors: 'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام ؛ طيء ؛ كهلان ؛ قحطان',
-    child_branches: 'بيت جنديل | البلاسم | آل نصيري',
-    locations: 'العمارة | ميسان | العراق',
-    notables: 'الشيخ جنديل بن بلاسم النصيري اللامي الطائي',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-  },
-  {
-    alpha_id: 'ALP_JANDEEL_14_BANU_SAID',
-    record_name: 'بيت جنديل (رواية بنو سعيد — المنتفق)',
-    source_book: 'موسوعة عشائر العراق — ثامر العامري (قسم عشائر المنتفق وبنو سعيد)',
-    page: '302',
-    volume: '4',
-    lineage_ancestors:
-      'جنديل ؛ بلاسم ؛ محمد ؛ حسن ؛ علي ؛ ناصر ؛ منصور ؛ عبد الله ؛ راشد ؛ حمد ؛ عقيل ؛ عامر ؛ سعد ؛ مالك ؛ عوف ؛ ذهل ؛ شيبان ؛ ثعلبة ؛ بكر ؛ وائل ؛ قاسط ؛ هنب ؛ أفصى ؛ دعمي ؛ جديلة ؛ أسد ؛ منيع ؛ بنو سعيد',
-    child_branches: 'بيت جنديل (فرع بنو سعيد) | آل منيع | البو سعيد',
-    locations: 'سوق الشيوخ | المنتفق | ذي قار | العراق',
-    notables: 'الشيخ جنديل بن بلاسم السعيدي في سوق الشيوخ والمنتفق (سلسلة من 28 جدّاً تنتهي بـ منيع ⬅️ بنو سعيد)',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-  },
-
-  // --- الحصان / آل الحصان (قرائن التقاطع في الشوبك ومعان: محمود ⬅️ الحصانية + جعفر ⬅️ الطيار + مسارات القصيم/الدواسر والوشم/تميم) ---
-  {
-    alpha_id: 'ALP_HUSSAN_TAYYAR_01',
-    record_name: 'الحصان (الحصانية — الشوبك ومعان)',
-    source_book: 'معجم العشائر الأردنية — عبد الرؤوف الروابدة',
-    page: '183',
-    volume: '1',
-    lineage_ancestors: 'الحصان ؛ محمود ؛ الحصانية',
-    child_branches: 'العمران | العيد | عساف | مطر | الصوابطة',
-    locations: 'الشوبك | معان | الأردن',
-    notables: 'الشيخ محمود الحصان | وجهاء عشيرة الحصان في الشوبك ومعان',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: true,
-    consensus_badge: 'توافق (3) مصادر',
-  },
-  {
-    alpha_id: 'ALP_HUSSAN_TAYYAR_02',
-    record_name: 'عشيرة الحصان (جعفر — الطيار)',
-    source_book: 'عشائر شمالي الأردن — محمود مهيدات',
-    page: '123',
-    volume: '1',
-    lineage_ancestors: 'الحصان ؛ جعفر ؛ الطيار',
-    child_branches: 'العمران | العيد | عساف | مطر | الصوابطة',
-    locations: 'الشوبك | معان | إربد | الأردن',
-    notables: 'أعلام الحصان من ذرية جعفر الطيار في الشوبك وشمالي الأردن',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: true,
-    consensus_badge: 'توافق (3) مصادر',
-  },
-  {
-    alpha_id: 'ALP_HUSSAN_TAYYAR_03',
-    record_name: 'بنو الطيار (الحصانية — آل الحصان)',
-    source_book: 'موسوعة أنساب آل جعفر الطيار والأسر الهاشمية — ابن عنبة (تحقيق فروع الطيار)',
-    page: '184',
-    volume: '2',
-    lineage_ancestors: 'الحصان ؛ محمود ؛ الحصانية ؛ جعفر ؛ الطيار',
-    child_branches: 'العمران | العيد | عساف | مطر | الصوابطة | الحصانية',
-    locations: 'الشوبك | معان | مؤتة | الكرك | الحجاز',
-    notables: 'جعفر الطيار بن أبي طالب | أعلام ذريته في مؤتة والشوبك والحجاز',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-    is_consensus_winner: true,
-    consensus_badge: 'توافق (3) مصادر',
-  },
-  {
-    alpha_id: 'ALP_HUSSAN_01',
-    record_name: 'آل الحصان (بريدة والقصيم)',
-    source_book: 'معجم أسر بريدة — محمد بن ناصر العبودي',
-    page: '412',
-    volume: '4',
-    lineage_ancestors: 'آل الحصان ؛ آل سابق ؛ الحسن ؛ البدارين ؛ قبيلة الدواسر',
-    child_branches: 'آل الحصان في بريدة وعنيزة والرياض',
-    locations: 'بريدة | القصيم | نجد | المملكة العربية السعودية',
-    notables: 'الشيخ صالح بن حصان | أعيان أسرة الحصان في القصيم',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: false,
-  },
-  {
-    alpha_id: 'ALP_HUSSAN_02',
-    record_name: 'آل الحصان (شقراء والوشم)',
-    source_book: 'جمهرة أنساب الأسر المتحضرة في نجد — حمد الجاسر',
-    page: '154',
-    volume: '1',
-    lineage_ancestors: 'آل الحصان ؛ النواصر ؛ بني عمرو ؛ قبيلة تميم',
-    child_branches: 'آل الحصان في شقراء والقرائن والرياض',
-    locations: 'شقراء | الوشم | نجد | المملكة العربية السعودية',
-    notables: 'أعيان آل الحصان التميميين في الوشم ونجد',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: false,
-  },
-  {
-    alpha_id: 'ALP_HUSSAN_03',
-    record_name: 'آل الحصان (البدارين — الدواسر)',
-    source_book: 'الأسر المتحضرة في القصيم — عبد الله بن صالح العقيل',
-    page: '208',
-    volume: '1',
-    lineage_ancestors: 'آل الحصان ؛ آل سابق ؛ البدارين ؛ آل زايد ؛ الدواسر',
-    child_branches: 'آل الحصان | آل سابق',
-    locations: 'القصيم | بريدة | النبقية | السعودية',
-    notables: 'وجهاء أسرة الحصان في بريدة والقصيم',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: false,
-  },
-  {
-    alpha_id: 'ALP_HUSSAN_04',
-    record_name: 'الحصان (النواصر — تميم)',
-    source_book: 'علماء نجد خلال ثمانية قرون — عبد الله بن عبد الرحمن البسام',
-    page: '328',
-    volume: '2',
-    lineage_ancestors: 'آل الحصان ؛ النواصر ؛ الحبطات ؛ بني عمرو ؛ تميم ؛ مضر ؛ عدنان',
-    child_branches: 'آل الحصان في الوشم والقصيم وحواضر نجد',
-    locations: 'الوشم | القصيم | نجد | السعودية',
-    notables: 'علماء وأعيان آل الحصان في نجد',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-    is_consensus_winner: false,
-  },
-  // ===========================================================================
-  // BAYT DABASH / DAWAR (بيت دبش — داور ⬅️ الصلتة ⬅️ شمر طوقة)
-  // ===========================================================================
-  {
-    alpha_id: 'ALP_B_0d2a1e526e3b',
-    record_name: 'داور',
-    source_book: 'معجم قبائل العرب القديمة والحديثة — عمر رضا كحالة',
-    page: '372',
-    volume: '1',
-    lineage_ancestors: 'الصلتة ؛ شمر طوقة',
-    child_branches: 'بيت دبش | البو دبش',
-    locations: 'العراق | ديالى | بغداد | واسط',
-    notables: 'شيوخ ووجهاء عشيرة الداور وبيت دبش من الصلتة من شمر طوقة',
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-    is_consensus_winner: true,
-    consensus_badge: 'توافق (2) مصادر',
-  },
-  {
-    alpha_id: 'ALP_5b7de8941e09f1',
-    record_name: 'بيت دبش',
-    source_book: 'موسوعة العشائر العراقية — ثامر عبد الحسن العامري',
-    page: '211',
-    volume: '3',
-    lineage_ancestors: 'بيت دبش ؛ الدوار',
-    child_branches: 'بيت دبش',
-    locations: 'العراق | ديالى | المدائن',
-    notables: 'وجهاء بيت دبش من عشيرة الداور (شمر طوقة)',
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: true,
-    consensus_badge: 'توافق (2) مصادر',
-  },
-  {
-    alpha_id: 'ALP_B_4e08cdd719e6',
-    record_name: 'البو دبش',
-    source_book: 'معجم قبائل العرب القديمة والحديثة — عمر رضا كحالة',
-    page: '547',
-    volume: '3',
-    lineage_ancestors: 'على المضعد',
-    child_branches: null,
-    locations: 'العراق',
-    notables: null,
-    priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-    is_consensus_winner: false,
-  },
-  {
-    alpha_id: 'ALP_544217cf421ce6',
-    record_name: 'البو دبش',
-    source_book: 'موسوعة عشائر العراق — عباس العزاوي',
-    page: '198',
-    volume: '4',
-    lineage_ancestors: 'البو دبش ؛ البو عاصي ؛ البو جمع ؛ البو كمال ؛ العقيدات',
-    child_branches: null,
-    locations: 'دير الزور | البوكمال | وادي الفرات',
-    notables: null,
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: false,
-  },
-  {
-    alpha_id: 'ALP_63075077556343',
-    record_name: 'دبش (بيت دبش)',
-    source_book: 'عشائر العراق — عباس العزاوي',
-    page: '142',
-    volume: '4',
-    lineage_ancestors: 'دبش (بيت دبش) ؛ حمام ؛ السليمان ؛ الجري ؛ سعيد (بني)',
-    child_branches: null,
-    locations: 'المنتفق | ذي قار | العراق',
-    notables: null,
-    priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-    is_consensus_winner: false,
-  },
-];
+export const UNIVERSAL_ALPHA_EVIDENCE_CATALOG: CorroboratingAlphaEvidence[] = [];
 
 /**
  * Extracts clean `{ book, volume, page }` from a `CorroboratingAlphaEvidence` object or citation string,
@@ -4484,8 +3654,11 @@ export const stemTribeToken = (str: string): string => {
     .replace(/ى/g, 'ي')
     // توحيد الهاء في نهاية الكلمة إلى تاء مربوطة للعنقدة الصحيحة
     .replace(/ه(\s|$)/g, 'ة$1')
-    // معالجة التصحيف المطبعي الشائع: شعر طوقة -> شمر طوقة
+    // معالجة التصحيفات المطبعية الشائعة بين المعاجم (OCR / Orthographic Variants):
+    // شعر طوقة -> شمر طوقة | جُدّان / جدان -> حدان | رهران -> زهران
     .replace(/شعر\s+طوقة/g, 'شمر طوقة')
+    .replace(/(^|\s)جدان(\s|$)/g, '$1حدان$2')
+    .replace(/(^|\s)رهران(\s|$)/g, '$1زهران$2')
     .replace(/^(ال|آل|بنو|بني|بيت|ابو|أبو|ابي|أبي|البو|الابو|بو|عشيرة|عشيره|قبيلة|قبيله|اولاد|ذوي)\s+/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -4496,6 +3669,8 @@ export const stemTribeToken = (str: string): string => {
     .map((word) => {
       let w = word.replace(/^ال/, '').replace(/ه$/, 'ة');
       if (w === 'داور') w = 'دوار';
+      if (w === 'جدان') w = 'حدان';
+      if (w === 'رهران') w = 'زهران';
       if (w.length >= 4 && w.endsWith('ي') && w !== 'علي') {
         w = w.slice(0, -1).replace(/ه$/, 'ة');
       }
@@ -4506,6 +3681,8 @@ export const stemTribeToken = (str: string): string => {
 
   return s
     .replace(/شعر\s+طوقة/g, 'شمر طوقة')
+    .replace(/(^|\s)جدان(\s|$)/g, '$1حدان$2')
+    .replace(/(^|\s)رهران(\s|$)/g, '$1زهران$2')
     .replace(/ه(\s|$)/g, 'ة$1')
     .trim();
 };
@@ -4718,13 +3895,16 @@ export function stitchLineageChains(
     if (inserted) continue;
 
     // 2. If no subsequent anchor exists (nodeX is at the upper apex of cleanIncoming, e.g. `قحطان` after `همدان`),
-    // search backward in cleanIncoming for the nearest preceding shared anchor (`prevAnchor`)
-    for (let prevIdx = i - 1; prevIdx >= 0; prevIdx--) {
-      const prevPosInResult = findIndexInResult(cleanIncoming[prevIdx]);
-      if (prevPosInResult !== -1) {
-        result.splice(prevPosInResult + 1, 0, nodeX);
-        inserted = true;
-        break;
+    // if nodeX is a High Apex Stop Node (`قحطان`, `عدنان`, etc.), always place it at the very end of the chain
+    // so it never splices in the middle below a specific mother tribe like `الأزد`.
+    if (!isHighApexStopNode(nodeX)) {
+      for (let prevIdx = i - 1; prevIdx >= 0; prevIdx--) {
+        const prevPosInResult = findIndexInResult(cleanIncoming[prevIdx]);
+        if (prevPosInResult !== -1) {
+          result.splice(prevPosInResult + 1, 0, nodeX);
+          inserted = true;
+          break;
+        }
       }
     }
 
@@ -4772,7 +3952,7 @@ function isRecordChildBranchMatchForQuery(
  * - Rule 1: Uses `stitchLineageChains` (Anchor-Based Topological Alignment) to stitch chains within each cluster.
  * - Rule 2: Decomposes compound `A بن B` names (`قدم بن قادم` -> `قدم ⬅️ قادم`) and prevents duplicate record name nodes.
  * - Rule 3: Enforces `HIGH_APEX_STOP_LIST` and the `Different Parent Record Guard` so child-branch matches with different parent records
- *           (like `الشاهل` in `آل الحمزي` vs `آل الريشاني`) are NEVER merged into one cluster.
+ *           are NEVER merged into one cluster.
  * - Rule 4: Runs `cleanAndUnrollLineageChain` on every record's ancestors before clustering and stitching.
  * - Rule 5: Removes the wrong `همدان -> قبيلة يام / نجران` fallback and derives `originTribeLabel` dynamically from the top node
  *           of the cluster's stitched chain and `geographicScope` from the cluster records' actual `locations`.
@@ -4795,73 +3975,13 @@ export function computeCrossSourceConsensusClusters(
     records: CorroboratingAlphaEvidence[];
   }
 
-  const inferNamedTribePreset = (
-    ev: CorroboratingAlphaEvidence,
-    cleanedAncestors: string[]
-  ): {
-    key: string;
-    originTribeLabel: string;
-    defaultGeo: string;
-  } | null => {
-    const text = normalizeArabic(`${cleanedAncestors.join(' ')} ${ev.record_name || ''}`);
-    if (text.includes('بني لام') || text.includes('بنو لام') || text.includes('نصيري') || text.includes('بلاسم')) {
-      return { key: 'BANI_LAM', originTribeLabel: 'بني لام', defaultGeo: 'العمارة / ميسان / واسط' };
-    }
-    if (text.includes('بنو سعيد') || text.includes('بني سعيد') || text.includes('منيع')) {
-      return { key: 'BANU_SAID', originTribeLabel: 'بنو سعيد', defaultGeo: 'سوق الشيوخ / المنتفق / ذي قار' };
-    }
-    if (text.includes('دواسر') || text.includes('بدارين') || text.includes('سابق')) {
-      return { key: 'DAWASIR', originTribeLabel: 'قبيلة الدواسر', defaultGeo: 'بريدة / القصيم / نجد' };
-    }
-    if (text.includes('تميم') || text.includes('نواصر') || text.includes('بني عمرو')) {
-      return { key: 'TAMIM', originTribeLabel: 'قبيلة تميم', defaultGeo: 'شقراء / الوشم / نجد' };
-    }
-    if (text.includes('عقيدات') || text.includes('خابور')) {
-      return { key: 'UQAIDAT', originTribeLabel: 'قبيلة العقيدات', defaultGeo: 'دير الزور / وادي الفرات' };
-    }
-    if (text.includes('عنزه') || text.includes('سميحان') || text.includes('ولد علي')) {
-      return { key: 'ANAZZAH', originTribeLabel: 'قبائل عنزة', defaultGeo: 'نجد / القصيم / شمالي الحجاز' };
-    }
-    if (text.includes('بو سلطان') || text.includes('زبيد')) {
-      return { key: 'ZUBAID', originTribeLabel: 'البو سلطان — زبيد', defaultGeo: 'الحلة / بابل / الفرات الأوسط' };
-    }
-    if (text.includes('موالي')) {
-      return { key: 'MAWALI', originTribeLabel: 'الموالي / وادي الفرات', defaultGeo: 'البوكمال / القائم / وادي الفرات' };
-    }
-    // Rule 5 Fix: NEVER map general 'همدان' records to 'قبيلة يام' / 'نجران'! Only match explicit 'يام' or 'آل قطعان'
-    if (
-      /\bيام\b/.test(text) ||
-      text.includes('ال فاطمه') ||
-      text.includes('قطعان')
-    ) {
-      return { key: 'YAM', originTribeLabel: 'قبيلة يام', defaultGeo: 'نجران / جنوب الجزيرة العربية' };
-    }
-    if (text.includes('مودحي') || text.includes('امداثر')) {
-      return { key: 'MAWDAHI', originTribeLabel: 'فرع المودحي', defaultGeo: 'الحواضر العربية / نجد والحجاز' };
-    }
-    if (text.includes('بني بشر') || text.includes('برمان')) {
-      return { key: 'BANI_BISHR', originTribeLabel: 'قبيلة بني بشر', defaultGeo: 'سراة عبيدة / عسير' };
-    }
-    if (text.includes('نعيمات')) {
-      return { key: 'NUAIMAT', originTribeLabel: 'النعيمات', defaultGeo: 'قضاء الشوبك / جبال الشراة' };
-    }
-    if (text.includes('دعجه') || text.includes('شبيكات')) {
-      return { key: 'DAAJAH', originTribeLabel: 'الشبيكات — الدعجة', defaultGeo: 'البلقاء / الشوبك / الأردن' };
-    }
-    if (text.includes('شمر') || text.includes('سنجاره')) {
-      return { key: 'SHAMMAR', originTribeLabel: 'قبيلة شمر الطائية', defaultGeo: 'حائل / نجد / الجزيرة' };
-    }
-    return null;
-  };
-
   const clusters: RawCluster[] = [];
+  const queryStem = normalizeArabicStem(familyName);
 
   for (const ev of evidenceList) {
     const isChildMatch = isRecordChildBranchMatchForQuery(familyName, ev);
     const parentRecordTitle = sanitizeLineageAncestorToken(ev.record_name || familyName);
 
-    // القاعدة الإلزامية 1: قراءة الأجداد مع إضافة اسم السجل نفسه (`record.name` / `ev.record_name`)
-    // في بداية السلسلة إذا لم يكن هو أول جد (لمنع ابتلاع العقدة الأم مثل "داور" عند البحث في الفروع مثل "بيت دبش")
     let cleanAncs = ev.lineage_ancestors
       ? ev.lineage_ancestors
           .split(/[؛—⬅️>|]+/)
@@ -4872,7 +3992,6 @@ export function computeCrossSourceConsensusClusters(
     if (recName) {
       const recStem = stemTribeToken(recName);
       const firstAncStem = cleanAncs.length > 0 ? stemTribeToken(cleanAncs[0]) : '';
-      // إضافة اسم السجل قبل الأجداد إذا لم يكن هو أول جد
       if (recStem !== firstAncStem) {
         cleanAncs.unshift(recName);
       }
@@ -4884,20 +4003,19 @@ export function computeCrossSourceConsensusClusters(
 
     const cleanedAncestors = cleanAndUnrollLineageChain(seedTokens, familyName);
 
-    // Collect non-apex stems for Rule 3 similarity check
+    // Collect non-apex intermediate stems ABOVE the searched familyName (`st !== queryStem`) for Rule 3 similarity check
     const nonApexStems = new Set<string>();
     cleanedAncestors.forEach((tok) => {
       if (!isHighApexStopNode(tok)) {
         const st = normalizeArabicStem(tok);
-        if (st) nonApexStems.add(st);
+        if (st && st !== queryStem) nonApexStems.add(st);
       }
     });
-    // Also add non-apex stems from decomposed record_name if it matches the family name directly
     if (!isChildMatch) {
       recordParts.forEach((part) => {
         if (!isHighApexStopNode(part)) {
           const st = normalizeArabicStem(part);
-          if (st) nonApexStems.add(st);
+          if (st && st !== queryStem) nonApexStems.add(st);
         }
       });
     }
@@ -4907,16 +4025,11 @@ export function computeCrossSourceConsensusClusters(
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const preset = inferNamedTribePreset(ev, cleanedAncestors);
-
-    // Try to find a compatible existing cluster obeying Rule 3 (Different Parent Record Guard + HIGH_APEX_STOP_LIST)
+    // Try to find a compatible existing cluster obeying Rule 3 (Different Parent Record Guard + Immediate Sub-Root Guard + HIGH_APEX_STOP_LIST)
     let matchedCluster: RawCluster | undefined;
+    const currFirstStem = normalizeArabicStem(cleanedAncestors[0] || '');
 
     for (const candidate of clusters) {
-      // Rule 3A — Different Parent Record Guard:
-      // If either record is a child_branch match (like الشاهل inside آل الحمزي vs الشاهل inside آل الريشاني),
-      // and their parent `record_name`s are fundamentally different (and neither is in the other's ancestors),
-      // strictly FORBID merging them!
       if (isChildMatch || candidate.isChildBranchCluster) {
         const candParentStem = normalizeArabicStem(candidate.parentRecordTitle);
         const currParentStem = normalizeArabicStem(parentRecordTitle);
@@ -4935,13 +4048,20 @@ export function computeCrossSourceConsensusClusters(
         }
       }
 
-      // If both match the same named tribe preset (and passed the parent record guard)
-      if (preset && candidate.key === preset.key) {
-        matchedCluster = candidate;
-        break;
+      // Immediate Sub-Root Compatibility Guard:
+      // If two records have distinct first stations above the family (e.g. `آل الحمزي` vs `آل الريشاني`, or `داور` vs `بني سعيد`),
+      // and neither first station appears in the other record's intermediate ancestors, they are distinct lineages and must NOT merge.
+      const candFirstStem = normalizeArabicStem(candidate.stitchedAncestors[0] || '');
+      if (
+        currFirstStem &&
+        candFirstStem &&
+        currFirstStem !== candFirstStem &&
+        !candidate.nonApexStemSet.has(currFirstStem) &&
+        !nonApexStems.has(candFirstStem)
+      ) {
+        continue;
       }
 
-      // Rule 3B — Must share at least one specific NON-APEX ancestor stem (outside HIGH_APEX_STOP_LIST)
       let sharedNonApexCount = 0;
       for (const st of nonApexStems) {
         if (candidate.nonApexStemSet.has(st)) {
@@ -4957,7 +4077,6 @@ export function computeCrossSourceConsensusClusters(
     if (matchedCluster) {
       matchedCluster.records.push(ev);
       nonApexStems.forEach((st) => matchedCluster!.nonApexStemSet.add(st));
-      // Rule 1: Stitch using Anchor-Based Topological Alignment!
       matchedCluster.stitchedAncestors = stitchLineageChains(
         matchedCluster.stitchedAncestors,
         cleanedAncestors,
@@ -4973,16 +4092,12 @@ export function computeCrossSourceConsensusClusters(
         cleanedAncestors[cleanedAncestors.length - 1] ||
         parentRecordTitle ||
         familyName;
-      const clusterKey = preset
-        ? preset.key
-        : `CLUSTER_${normalizeArabicStem(isChildMatch ? parentRecordTitle : topNode)}_${clusters.length + 1}`;
+      const clusterKey = `CLUSTER_${normalizeArabicStem(isChildMatch ? parentRecordTitle : topNode)}_${clusters.length + 1}`;
       clusters.push({
         key: clusterKey,
-        originTribeLabel: preset?.originTribeLabel || topNode,
+        originTribeLabel: topNode,
         geographicScope:
-          evLocations.slice(0, 3).join(' / ') ||
-          preset?.defaultGeo ||
-          'النطاق المرصود في السجل',
+          evLocations.slice(0, 3).join(' / ') || 'غير محدد في المصدر',
         isChildBranchCluster: isChildMatch,
         parentRecordTitle,
         nonApexStemSet: nonApexStems,
@@ -5006,21 +4121,13 @@ export function computeCrossSourceConsensusClusters(
       familyName
     );
 
-    const chainTokens =
-      c.key === 'BANI_LAM'
-        ? [familyName, 'البلاسم', 'آل نصيري', 'بني لام']
-        : [familyName, ...cleanedDisplayNodes];
+    const chainTokens = [familyName, ...cleanedDisplayNodes];
 
-    // Rule 5: Dynamically derive `originTribeLabel` from the actual top node of the stitched chain
-    // and `geographicScope` from the cluster's actual record locations
     const dynamicTopOrigin =
       cleanedDisplayNodes[cleanedDisplayNodes.length - 1] ||
       c.originTribeLabel ||
       familyName;
-    const finalOriginTribeLabel =
-      c.key.startsWith('CLUSTER_')
-        ? dynamicTopOrigin
-        : c.originTribeLabel || dynamicTopOrigin;
+    const finalOriginTribeLabel = dynamicTopOrigin;
     const finalGeoScope =
       c.locationTokens.length > 0
         ? c.locationTokens.slice(0, 3).join(' / ')
@@ -5282,9 +4389,18 @@ export function sanitizeLineageAncestorToken(rawToken: string): string {
   if (trimmed.includes('رواية') || trimmed.includes('روايه')) {
     return '';
   }
-  // Strip location parentheticals like "(في جبال الشراة)" or "(في الشوبك)"
-  return trimmed
-    .replace(/\(\s*(في|بـ|من منطقة|من حواضر|سكنوا|مساكنهم)\s+[^)]+\)/g, '')
+  // Convert inverted prefix notation like "سعيد (بني)" -> "بني سعيد"
+  const invertedPrefixMatch = trimmed.match(/^(.+?)\s*\(\s*(بني|بنو|آل|بيت)\s*\)$/);
+  const baseText = invertedPrefixMatch
+    ? `${invertedPrefixMatch[2]} ${invertedPrefixMatch[1].trim()}`
+    : trimmed;
+
+  // Strip location or descriptive parentheticals like "(في جبال الشراة)", "(تدّعي)", "(الأصل قيل)"
+  return baseText
+    .replace(
+      /\(\s*(في|بـ|من منطقة|من حواضر|سكنوا|مساكنهم|تدّعي|تدعي|الأصل قيل|الاصل قيل|الأصل|الاصل)[^)]*\)/g,
+      ''
+    )
     .trim();
 }
 
@@ -5295,7 +4411,9 @@ export function isGeographicOrDescriptiveNoiseToken(rawToken: string): boolean {
     trimmed.includes('(رواية)') ||
     trimmed.includes('رواية') ||
     trimmed.includes('مساكنهم') ||
-    trimmed.includes('منازلهم')
+    trimmed.includes('منازلهم') ||
+    trimmed.includes('الأصل قيل') ||
+    trimmed.includes('الاصل قيل')
   ) {
     return true;
   }
@@ -5308,8 +4426,8 @@ export function isGeographicOrDescriptiveNoiseToken(rawToken: string): boolean {
 /**
  * Calculates the Weighted Consensus Node Score (`Node Weight Score`) for a candidate node in `lineage_ancestors`:
  * 1) `Cross-Source Frequency`: How many corroborating records for the family mention this node.
- * 2) `Structural Weight`: Tribal/Clan collective indicators (`بني`, `بنو`, `آل`, `قبيلة`, `بيت`, or plural clan patterns like `البلاسم`, `الحصانية`, `البدارين`, `النعيمات`) score significantly higher than bare individual given names (`زيد`, `مانع`, `شبيب`, `مشعل`, `عيسى`, `راشد`).
- * 3) `Summit Bonus`: Topmost overarching tribe in the chain receives a summit anchor bonus.
+ * 2) `Structural Weight`: Tribal/Clan collective indicators (`بني`, `بنو`, `آل`, `قبيلة`, `بيت`, or plural clan patterns) score higher than bare given names.
+ * 3) `Position Bonus`: Immediate sub-root (`indexInChain === 0`) and topmost Mother Tribe receive anchor bonuses.
  */
 export function calculateAncestorNodeWeightScore(
   nodeName: string,
@@ -5323,24 +4441,28 @@ export function calculateAncestorNodeWeightScore(
   const cleaned = sanitizeLineageAncestorToken(nodeName);
   const normFull = normalizeArabic(cleaned);
   const normCore = normalizeArabicToken(cleaned, true);
+  const stem = stemTribeToken(cleaned);
 
-  // 1. Cross-Source Frequency Score
+  // 1. Cross-Source Frequency Score (using normalized stem so OCR variants like حدان / بني حدان / جُدّان count together)
   let crossSourceHits = 0;
   for (const rec of corroboratingRecords) {
+    const recTokens = extractRawRecordAncestors(rec);
+    const hasStemMatch = recTokens.some((t) => stemTribeToken(t) === stem);
     const recText = normalizeArabic(
       `${rec.record_name || ''} ${rec.lineage_ancestors || ''} ${rec.child_branches || ''}`
     );
     if (
+      hasStemMatch ||
       (normFull.length >= 3 && recText.includes(normFull)) ||
       (normCore.length >= 3 && recText.includes(normCore))
     ) {
       crossSourceHits += 1;
     }
   }
-  const frequencyScore = crossSourceHits * 18;
+  const frequencyScore = crossSourceHits * 20;
 
   // 2. Structural / Collective Tribal Weight Score
-  let structuralScore = 1; // Base weight for a bare individual given name (زيد، مانع، شبيب...)
+  let structuralScore = 1;
   if (
     /^(قبيلة|قبائل|عشيرة|عشائر|بني|بنو)\s+/u.test(cleaned)
   ) {
@@ -5373,16 +4495,23 @@ export function calculateAncestorNodeWeightScore(
 
   // Famous overarching mother tribes bonus
   if (
-    /(شمر|عنزه|عنزة|تميم|طيء|طي|قحطان|همدان|يام|عتيبه|عتيبة|حرب|مطير|دواسر|بلحارث|قريش|هواره|هوارة|بني لام|بنو سعيد|بني سعيد|عقيدات|نعيمات|دعجه|دعجة)/u.test(
+    /(شمر|عنزه|عنزة|تميم|طيء|طي|قحطان|همدان|الازد|أزد|ازد|مذحج|كنده|كندة|يام|عتيبه|عتيبة|حرب|مطير|دواسر|بلحارث|قريش|هواره|هوارة|بني لام|بنو سعيد|بني سعيد|عقيدات|نعيمات|دعجه|دعجة|زبيد)/u.test(
       normFull
     )
   ) {
-    structuralScore += 35;
+    structuralScore += 42;
   }
 
-  // 3. Summit Position Bonus (anchors the Mother Tribe at the top of the chain)
+  // 3. Sub-Root (B2 at index 0) and Summit (B0 at top of chain) Anchor Bonuses
+  const isFirstSubRoot = indexInChain === 0;
   const isLastSummit = indexInChain === totalChainLength - 1;
-  const positionBonus = isLastSummit ? 28 : indexInChain === totalChainLength - 2 ? 8 : 0;
+  const positionBonus = isFirstSubRoot
+    ? 40
+    : isLastSummit
+    ? 34
+    : indexInChain === totalChainLength - 2
+    ? 18
+    : 0;
 
   return frequencyScore + structuralScore + positionBonus;
 }
@@ -5656,420 +4785,8 @@ interface UniversalAdamTreeEntry {
   corroboratingEvidence: CorroboratingAlphaEvidence[];
 }
 
-const UNIVERSAL_ADAM_TREE_CATALOG: UniversalAdamTreeEntry[] = [
-  {
-    choiceId: 'ADAM_249230',
-    adamNodeId: '249230',
-    tokens: ['قاسم', 'ال قاسم', 'القاسم'],
-    canonicalFamilyLabel: 'آل قاسم',
-    familyCode: 'FE0-249230',
-    country: 'السعودية',
-    localityKeywords: ['نجران', 'جنوب الجزيره'],
-    structuralKeywords: ['مليح', 'كرعه', 'هشلان', 'قطعان', 'بطون', 'جشم', 'يام', 'حاشد', 'همدان'],
-    rootBranchName: 'القطعان (البطون — جشم)',
-    rootBranchCode: 'B2',
-    rootTribeName: 'قبيلة يام (حاشد — همدان)',
-    rootTribeCode: 'B0',
-    spineBuilder: buildAlQasimNajran47NodesSpine,
-    verifiedSourceCitation:
-      'الإكليل للهمداني ومشجرات قبائل يام وهمدان في نجران (شجرة آدم — ID: 249230 — 47 عقدة)',
-    secondarySources: [
-      'الإكليل من أخبار اليمن وأنساب حمير وهمدان — الحسن بن أحمد الهمداني (ج10 ص64)',
-      'معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج2 ص812 — بطون يام في نجران)',
-    ],
-    alphaParallelSource: 'أرشيف مشجرات نجران وقبائل يام في مشاريع ألفا (ID: 249230)',
-    historicalRegion: 'إقليم نجران — بلاد يام وهمدان (المملكة العربية السعودية)',
-    conflictingNarrativesNote:
-      'سلسلة موثقة في شجرة آدم (ID: 249230 — 47 عقدة): آل قاسم ⬅️ آل مليح ⬅️ آل كرعه ⬅️ آل هشلان ⬅️ القطعان ⬅️ البطون ⬅️ جشم ⬅️ يام ⬅️ حاشد ⬅️ همدان ⬅️ كهلان ⬅️ سبأ ⬅️ قحطان ⬅️ عابر ⬅️ سام ⬅️ نوح ⬅️ آدم عليه السلام.',
-    corroboratingEvidence: [
-      {
-        alpha_id: 'ALP_QASIM_NAJRAN_1',
-        record_name: 'آل قاسم (آل مليح)',
-        source_book: 'مشجرات قبائل يام وهمدان في نجران (السعودية)',
-        page: '64',
-        volume: '1',
-        lineage_ancestors: 'آل مليح ؛ آل كرعه ؛ القطعان ؛ جشم ؛ يام ؛ حاشد ؛ همدان',
-        child_branches: 'آل مليح | آل كرعه | آل هشلان',
-        locations: 'نجران | جنوب الجزيرة العربية | المملكة العربية السعودية',
-        notables: 'الشيخ قاسم بن مليح | الشيخ هشلان اليامي',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-      {
-        alpha_id: 'ALP_QASIM_NAJRAN_2',
-        record_name: 'القطعان (قبيلة يام)',
-        source_book: 'معجم قبائل المملكة العربية السعودية لحمد الجاسر (السعودية)',
-        page: '812',
-        volume: '2',
-        lineage_ancestors: 'القطعان ؛ البطون ؛ جشم ؛ يام ؛ حاشد ؛ همدان',
-        child_branches: 'آل قاسم | آل مليح | آل هشلان',
-        locations: 'نجران | وادي نجران | السعودية',
-        notables: 'أعيان ومشايخ القطعان وجشم في نجران',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-      {
-        alpha_id: 'ALP_QASIM_NAJRAN_3',
-        record_name: 'يام بن أصبأ (همدان)',
-        source_book: 'الإكليل من أخبار اليمن وأنساب حمير وهمدان للهمداني',
-        page: '64',
-        volume: '10',
-        lineage_ancestors: 'جشم ؛ يام ؛ أصبأ ؛ رافع ؛ مالك ؛ جشم ؛ حاشد ؛ همدان',
-        child_branches: 'البطون | جشم | مواجد',
-        locations: 'نجران | الجوف | بلاد همدان',
-        notables: 'جشم بن يام | حاشد بن جشم الهمداني',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-      },
-    ],
-  },
-  {
-    choiceId: 'ADAM_189691',
-    adamNodeId: '189691',
-    tokens: ['قاسم', 'ال قاسم', 'القاسم'],
-    canonicalFamilyLabel: 'آل قاسم',
-    familyCode: 'FE0-189691',
-    country: 'السعودية',
-    localityKeywords: ['مودحي', 'الحواضر العربيه'],
-    structuralKeywords: ['سلمان', 'حسن', 'امداثر', 'مداثر', 'مودحي', 'عامر'],
-    rootBranchName: 'آل امداثر (آل سلمان)',
-    rootBranchCode: 'B2',
-    rootTribeName: 'فرع المودحي',
-    rootTribeCode: 'B0',
-    spineBuilder: buildAlQasimMawdahi36NodesSpine,
-    verifiedSourceCitation:
-      'سجل مشجرات فرع المودحي وآل امداثر الموثق في شجرة آدم (ID: 189691 — 36 عقدة)',
-    secondarySources: [
-      'أرشيف المشجرات المحققة في شجرة آدم (سجل رقم 189691)',
-      'جمهرة أنساب الأسر العربية المحققة (ج1 ص219)',
-    ],
-    alphaParallelSource: 'سجل مشجرات آل قاسم (فرع المودحي — ID: 189691)',
-    historicalRegion: 'الحواضر العربية — فرع المودحي',
-    conflictingNarrativesNote:
-      'سلسلة موثقة في شجرة آدم (ID: 189691 — 36 عقدة): آل قاسم ⬅️ آل سلمان ⬅️ آل حسن ⬅️ قاسم ⬅️ آل امداثر ⬅️ المودحي ⬅️ ... ⬅️ آدم عليه السلام.',
-    corroboratingEvidence: [
-      {
-        alpha_id: 'ALP_QASIM_MAWDAHI_1',
-        record_name: 'آل قاسم (المودحي)',
-        source_book: 'سجل المشجرات العربية المحققة — الحواضر العربية',
-        page: '219',
-        volume: '1',
-        lineage_ancestors: 'آل سلمان ؛ آل حسن ؛ آل امداثر ؛ المودحي',
-        child_branches: 'آل سلمان | آل حسن | آل امداثر',
-        locations: 'الحواضر العربية | الجزيرة العربية | السعودية',
-        notables: 'الشيخ سلمان بن حسن آل قاسم | الشيخ قاسم بن امداثر',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-      {
-        alpha_id: 'ALP_QASIM_MAWDAHI_2',
-        record_name: 'آل امداثر (المودحي)',
-        source_book: 'جمهرة أنساب الأسر العربية المحققة',
-        page: '114',
-        volume: '2',
-        lineage_ancestors: 'آل امداثر ؛ المودحي ؛ عامر',
-        child_branches: 'آل قاسم | آل سلمان',
-        locations: 'الحواضر العربية | نجد والحجاز',
-        notables: 'أعلام فرع المودحي وآل امداثر',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-      },
-    ],
-  },
-  {
-    choiceId: 'ADAM_232718',
-    adamNodeId: '232718',
-    tokens: ['خابور', 'الخابور'],
-    canonicalFamilyLabel: 'الخابور',
-    familyCode: 'FE0-232718',
-    country: 'السعودية',
-    localityKeywords: ['نجد', 'القصيم', 'الرياض', 'شبه الجزيره'],
-    structuralKeywords: ['سميحان', 'دبجان', 'خدلات', 'مزرع', 'ملاك', 'جعفر', 'عبده', 'عنزه', 'وايل', 'ربيعه'],
-    rootBranchName: 'السميحان (ملاك — جعفر)',
-    rootBranchCode: 'B2',
-    rootTribeName: 'عبده — قبائل عنزة',
-    rootTribeCode: 'B0',
-    spineBuilder: buildKhabourAnazzah43NodesSpine,
-    verifiedSourceCitation:
-      'أصدق الدلائل في أنساب بني وائل - قبائل عنزة ص 490 (سلسلة شجرة آدم: 43 عقدة — ID: 232718)',
-    secondarySources: [
-      'أصدق الدلائل في أنساب بني وائل - قبائل عنزة (ج1 ص490 — عبد الله بن عبار العنزي)',
-      'جمهرة أنساب العرب — ابن حزم الأندلسي (ج1 ص294 — نسب عنزة بن أسد بن ربيعة)',
-    ],
-    alphaParallelSource: 'سجل خابور — العقيدات في دير الزور (مسار موازٍ مفصول جغرافياً في مشاريع ألفا)',
-    historicalRegion: 'شبه الجزيرة العربية — المملكة العربية السعودية',
-    conflictingNarrativesNote:
-      'المسار الموثق في شجرة آدم (ID: 232718 — 43 عقدة): الخابور ⬅️ السميحان ⬅️ الدبجان ⬅️ الخدلات ⬅️ مزرع ⬅️ ملاك ⬅️ جعفر ⬅️ عبده ⬅️ عنزة ⬅️ أسد ⬅️ ربيعة ⬅️ نزار ⬅️ معد ⬅️ عدنان ⬅️ إسماعيل ⬅️ إبراهيم ⬅️ سام ⬅️ نوح ⬅️ آدم عليه السلام.',
-    corroboratingEvidence: [
-      {
-        alpha_id: 'ALP_KHABOUR_ANAZZAH_490',
-        record_name: 'الخابور (السميحان)',
-        source_book: 'أصدق الدلائل في أنساب بني وائل (قبائل عنزة)',
-        page: '490',
-        volume: '1',
-        lineage_ancestors: 'الخابور ؛ السميحان ؛ الدبجان ؛ الخدلات ؛ ملاك ؛ جعفر ؛ عبده ؛ عنزة',
-        child_branches: 'السميحان | الدبجان | الخدلات | آل مزرع',
-        locations: 'نجد | القصيم | شبه الجزيرة العربية | المملكة العربية السعودية',
-        notables: 'الشيخ سميحان بن دبجان | فرسان الخدلات وملاك',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-      {
-        alpha_id: 'ALP_KHABOUR_ANAZZAH_215',
-        record_name: 'السميحان (عبده — السبعة)',
-        source_book: 'معجم قبائل المملكة العربية السعودية لحمد الجاسر',
-        page: '215',
-        volume: '1',
-        lineage_ancestors: 'السميحان ؛ الدبجان ؛ ملاك ؛ عبده ؛ السبعة ؛ عنزة',
-        child_branches: 'الخابور | السميحان | الدبجان',
-        locations: 'نجد | الرياض | شمال الجزيرة العربية | السعودية',
-        notables: 'مشايخ السميحان وعبده من السبعة العنزية',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-      {
-        alpha_id: 'ALP_KHABOUR_ANAZZAH_294',
-        record_name: 'عنزة بن أسد بن ربيعة',
-        source_book: 'جمهرة أنساب العرب لابن حزم الأندلسي',
-        page: '294',
-        volume: '1',
-        lineage_ancestors: 'عنزة ؛ أسد ؛ ربيعة ؛ نزار ؛ معد ؛ عدنان',
-        child_branches: 'ضنا بشر | عبده | السبعة | العمارات',
-        locations: 'نجد | الحجاز | الجزيرة العربية',
-        notables: 'أسد بن ربيعة | أعيان بني وائل وعنزة',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-      },
-    ],
-  },
-  {
-    choiceId: 'ADAM_DHAWOO_MUQIT',
-    adamNodeId: '194012',
-    tokens: ['ذوو مقيت', 'ذوي مقيت'],
-    canonicalFamilyLabel: 'ذوو مقيت',
-    familyCode: 'FE-DHAWOO-MUQIT',
-    country: 'السعودية',
-    localityKeywords: ['مكه', 'الطائف', 'الحجاز'],
-    structuralKeywords: ['عبادله', 'اشراف', 'حسني', 'قريش', 'هاشم'],
-    rootBranchName: 'العبادلة',
-    rootBranchCode: 'B2',
-    rootTribeName: 'الأشراف الحسنيون (قريش)',
-    rootTribeCode: 'B0',
-    spineBuilder: buildDhawooMuqit36NodesSpine,
-    verifiedSourceCitation:
-      'جمهرة أنساب الأشراف ومشجرات الحجاز المحققة (شجرة آدم — 36 عقدة فعلية)',
-    secondarySources: [
-      'عمدة الطالب في أنساب آل أبي طالب — ابن عنبة (ج1 ص142)',
-      'جمهرة أنساب العرب — ابن حزم الأندلسي (ج1 ص48)',
-    ],
-    alphaParallelSource: 'سجل الأسر الحجازية في مشاريع ألفا (مصدر موازٍ داعم)',
-    historicalRegion: 'مكة المكرمة والطائف — إقليم الحجاز',
-    conflictingNarrativesNote:
-      'سلسلة موثقة مستقلة مكونة من 36 عقدة فعلية في شجرة آدم من ذوو مقيت عبر العبادلة والأشراف الحسنيين وقريش ومضر وعدنان حتى آدم عليه السلام.',
-    corroboratingEvidence: [
-      {
-        alpha_id: 'ALP_DHAWOO_MUQIT_1',
-        record_name: 'ذوو مقيت (العبادلة)',
-        source_book: 'جمهرة أنساب الأشراف ومشجرات الحجاز',
-        page: '142',
-        volume: '1',
-        lineage_ancestors: 'ذوو مقيت ؛ العبادلة ؛ الأشراف الحسنيون ؛ هاشم ؛ قريش',
-        child_branches: 'ذوو مقيت | العبادلة',
-        locations: 'مكة المكرمة | الطائف | الحجاز',
-        notables: 'الشريف عبد الله بن الحسن | أعلام ذوو مقيت العبادلة',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-      {
-        alpha_id: 'ALP_DHAWOO_MUQIT_2',
-        record_name: 'العبادلة الحسنيون',
-        source_book: 'عمدة الطالب في أنساب آل أبي طالب لابن عنبة',
-        page: '142',
-        volume: '1',
-        lineage_ancestors: 'العبادلة ؛ الحسن المثنى ؛ الحسن السبط ؛ علي بن أبي طالب ؛ هاشم ؛ قريش',
-        child_branches: 'ذوو مقيت | الأشراف العبادلة',
-        locations: 'مكة المكرمة | الحجاز',
-        notables: 'أشراف مكة والطائف من العبادلة',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-      },
-    ],
-  },
-  {
-    choiceId: 'ADAM_MAQAYTAH_71',
-    adamNodeId: '710071',
-    tokens: ['المقايته', 'مقايته', 'المقايتة'],
-    canonicalFamilyLabel: 'المقايتة',
-    familyCode: 'FE-MAQAYTAH-71',
-    country: 'السودان',
-    localityKeywords: ['السودان', 'وادي النيل', 'الخرطوم'],
-    structuralKeywords: ['جعليين', 'عباسيين', 'نافعاب', 'قريش'],
-    rootBranchName: 'فرع الجعليين الإبراهيميين',
-    rootBranchCode: 'B2',
-    rootTribeName: 'قبيلة الجعليين (العباسيين - قريش)',
-    rootTribeCode: 'B0',
-    spineBuilder: buildAlMaqaytah71NodesSpine,
-    verifiedSourceCitation:
-      'موسوعة أنساب القبائل العربية والجعليين العباسيين في شجرة آدم (71 عقدة فعلية)',
-    secondarySources: [
-      'طبقات ود ضيف الله ومشجرات الجعليين العباسيين (ج1 ص94)',
-      'جمهرة أنساب العرب — ابن حزم الأندلسي (ج1 ص22 — نسب بني العباس بن عبد المطلب من قريش)',
-    ],
-    alphaParallelSource: 'أرشيف مشجرات وادي النيل والجزيرة في مشاريع ألفا',
-    historicalRegion: 'وادي النيل والحجاز والجزيرة العربية',
-    conflictingNarrativesNote:
-      'سلسلة موثقة مستقلة مكونة من 71 عقدة فعلية في شجرة آدم: المقايتة ⬅️ الجعليين ⬅️ العباسيين ⬅️ قريش ⬅️ مضر ⬅️ عدنان ⬅️ آدم عليه السلام.',
-    corroboratingEvidence: [
-      {
-        alpha_id: 'ALP_MAQAYTAH_1',
-        record_name: 'المقايتة (الجعليين)',
-        source_book: 'موسوعة أنساب القبائل العربية والجعليين العباسيين',
-        page: '94',
-        volume: '1',
-        lineage_ancestors: 'المقايتة ؛ النافعاب ؛ الجعليين ؛ العباسيين ؛ قريش',
-        child_branches: 'النافعاب | المقايتة',
-        locations: 'وادي النيل | السودان | الحجاز',
-        notables: 'إبراهيم جعل | أعلام المقايتة والنافعاب',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-      },
-    ],
-  },
-  {
-    choiceId: 'ADAM_272887',
-    adamNodeId: '272887',
-    tokens: ['مقيت', 'ال مقيت', 'ال مقيت بني بشر', 'برمان', 'ال برمان'],
-    canonicalFamilyLabel: 'آل مقيت',
-    familyCode: 'FE0-272887',
-    country: 'السعودية',
-    localityKeywords: ['سراه عبيده', 'عسير', 'السراه', 'تهامه قحطان', 'جنوب الجزيره'],
-    structuralKeywords: ['عايض', 'درع', 'برمان', 'جبره', 'بني بشر', 'بشر', 'جنب', 'منبه', 'عله', 'مذحج', 'قحطان'],
-    rootBranchName: 'آل برمان',
-    rootBranchCode: 'B2',
-    rootTribeName: 'قبيلة بني بشر',
-    rootTribeCode: 'B0',
-    spineBuilder: () => ADAM_SPINE_40_NODES,
-    verifiedSourceCitation:
-      'توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (شجرة آدم المحققة — ID: 272887 — 40 عقدة)',
-    secondarySources: [
-      'توفيق العزيز المقيت في مشجرة آل مقيت بني بشر قحطان (ج1 ص14-42)',
-      'معجم قبائل المملكة العربية السعودية — حمد الجاسر (ج1 ص88)',
-      'الإكليل من أخبار اليمن وأنساب حمير — الهمداني (ج2 ص164)',
-      'جمهرة أنساب العرب — ابن حزم الأندلسي (ج1 ص405)',
-    ],
-    alphaParallelSource: 'موسوعة أسر ومشجرات الجزيرة العربية (مصدر موازٍ من مشاريع ألفا — مرتبط بتذكرة إثراء #ENR-ADAM-272887)',
-    historicalRegion: 'سراة عبيدة — بلاد بني بشر (جنوب المملكة العربية السعودية)',
-    conflictingNarrativesNote:
-      'اتفاق تام في شجرة آدم (ID: 272887 — 40 عقدة) والمصادر المحققة على اتصال آل مقيت بـ عايض ثم آل درع ثم الفرع الجامع آل برمان والبطن الجبرة من القبيلة الأم بني بشر صعوداً عبر حرب وأوس وكعب ومنبه وقبائل جنب وعلة ومذحج وكهلان وقحطان وسام ونوح إلى آدم عليه السلام.',
-    corroboratingEvidence: UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-      e.alpha_id.startsWith('ALP_SA_MUQIT_')
-    ),
-  },
-];
-
-const EXPLICIT_UNMATCHED_TOKENS = ['سنجر', 'سنجر الشرقاوي', 'ال سنجر الشرقاوي'];
-
-function buildAdamEntrySearchResult(
-  entry: UniversalAdamTreeEntry,
-  clientName: string,
-  fatherName: string,
-  grandfatherName: string,
-  engineSource: 'live_german_engine' | 'neo4j_verified_graph',
-  geoOntology: GeoOntologyResolution,
-  customFamilyDisplay?: string
-): LineageSearchResult {
-  const displayFam = customFamilyDisplay || entry.canonicalFamilyLabel;
-  const customAdamNodes = entry.spineBuilder().map((n) =>
-    customFamilyDisplay && n.orderNumber === 1 ? { ...n, name: customFamilyDisplay } : n
-  );
-  const customCapsules =
-    entry.choiceId === 'ADAM_272887'
-      ? AL_MUQIT_8_CAPSULES
-      : buildIntermediateRingsForSpine([...customAdamNodes], 'adam-ring');
-
-  // Parallel Alpha Cross-Confirmation & Enrichment: continue searching Alpha projects (Country Books then General Books)
-  const parallelAlphaEvidence = findParallelAlphaEvidenceForAdamMatch(
-    displayFam,
-    entry.rootBranchName,
-    entry.rootTribeName,
-    entry.country,
-    entry.corroboratingEvidence
-  );
-
-  const agg = aggregateAlphaEvidenceForFamily(
-    displayFam,
-    entry.historicalRegion,
-    parallelAlphaEvidence,
-    entry.adamNodeId
-  );
-
-  const combinedVerifiedSources = Array.from(
-    new Set([
-      ...(entry.secondarySources || []),
-      ...(agg.verified_sources || []),
-    ])
-  );
-
-  return {
-    matched: true,
-    engineSource,
-    primary_source_of_truth: 'ADAM_MASTER_TREE',
-    priorityTierMatched: 'TIER_1_ADAM_MASTER_TREE',
-    clientName,
-    fatherName,
-    grandfatherName,
-    familyName: displayFam,
-    familyCode: entry.familyCode,
-    adamNodeId: entry.adamNodeId,
-    originCountry: entry.country,
-    originRegion: entry.historicalRegion,
-    resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-    inferred_client_countries:
-      geoOntology.inferredClientCountries.length > 0
-        ? geoOntology.inferredClientCountries
-        : [entry.country],
-    matched_location: entry.historicalRegion,
-    enrichedLocations: agg.locations_in_record,
-    sibling_branches_in_record: agg.sibling_branches_in_record,
-    siblingBranches: agg.sibling_branches_in_record,
-    siblingBranchesLabel:
-      agg.sibling_branches_in_record.length > 0
-        ? `الفروع الشقيقة المرصودة في السجل: ${agg.sibling_branches_in_record.join('، ')}`
-        : undefined,
-    notables_in_record: agg.notables_in_record,
-    rootBranchName: entry.rootBranchName,
-    rootBranchCode: entry.rootBranchCode,
-    rootTribeName: entry.rootTribeName,
-    rootTribeCode: entry.rootTribeCode,
-    rootSummaryLabel: `الجذر: ${entry.rootBranchName} — ${entry.rootTribeName}`,
-    upperAncestors: customAdamNodes.filter((n) => n.orderNumber > 6),
-    adamSpineNodes: customAdamNodes,
-    capsules: customCapsules,
-    requiresBlindDisambiguation: false,
-    disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
-    alphaParallelSource: entry.alphaParallelSource,
-    alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
-    verifiedSourceCitation: entry.verifiedSourceCitation,
-    verified_sources: combinedVerifiedSources,
-    secondarySources: combinedVerifiedSources,
-    corroborating_alpha_evidence_for_researcher: tagConsensusWinnersOnEvidence(
-      displayFam,
-      parallelAlphaEvidence
-    ),
-    full_stitched_lineage_for_researcher: buildFullStitchedLineageForResearcher(
-      customAdamNodes
-    ),
-    suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-      displayFam,
-      entry.rootBranchName,
-      entry.rootTribeName,
-      entry.adamNodeId
-    ),
-    lake3_unlinked_projects_for_researcher: buildLake3UnlinkedProjectsForResearcher(
-      displayFam,
-      entry.rootTribeName,
-      entry.historicalRegion
-    ),
-    consensusClusterGroups: computeCrossSourceConsensusClusters(
-      displayFam,
-      parallelAlphaEvidence
-    ),
-    background_researcher_ticket: agg.background_researcher_ticket,
-    historicalRegion: entry.historicalRegion,
-    conflictingNarrativesNote: entry.conflictingNarrativesNote,
-    confidenceLabel: `تطابق محقق في شجرة آدم (${customAdamNodes.length} عقدة فعلية — الأولوية 1 + ${parallelAlphaEvidence.length} شواهد موازية من ألفا)`,
-    recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-  };
-}
+// Hardcoded Adam Tree mock catalog eradicated: the engine relies 100% exclusively on the live API response
+const UNIVERSAL_ADAM_TREE_CATALOG: UniversalAdamTreeEntry[] = [];
 
 /**
  * Builds the complete open chain (`full_stitched_lineage_for_researcher`) for the Researcher Studio
@@ -6119,7 +4836,7 @@ export function tagConsensusWinnersOnEvidence(
 
 /**
  * Builds the Lake 1 Auto-Discovered Adam Bridge (`suggested_adam_bridge_for_researcher`)
- * connecting the top station of an Alpha chain to its matching node in Adam's Tree.
+ * dynamically from the resolved station and explicit node ID without hardcoded family mocks.
  */
 export function buildSuggestedAdamBridgeForResearcher(
   familyName: string,
@@ -6127,133 +4844,30 @@ export function buildSuggestedAdamBridgeForResearcher(
   rootB0Name: string,
   explicitAdamNodeId?: string
 ): SuggestedAdamBridgeForResearcher {
-  const combinedText = `${familyName} ${rootB2Name} ${rootB0Name}`;
-  if (
-    combinedText.includes('بني لام') ||
-    combinedText.includes('بنو لام') ||
-    combinedText.includes('نصيري') ||
-    combinedText.includes('جنديل') ||
-    combinedText.includes('بلاسم')
-  ) {
-    return {
-      matched_station_name: 'بني لام',
-      adam_node_id: '8911',
-      adam_node_name: 'لأم',
-      adam_chain_preview:
-        '#8911: لأم ⬅️ عمرو ⬅️ طريف ⬅️ عمرو ⬅️ ثمامة ⬅️ مالك ⬅️ جدعاء ⬅️ ذهل',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم — عقدة #8911)',
-    };
-  }
-  if (
-    combinedText.includes('الطيار') ||
-    combinedText.includes('الحصانية') ||
-    combinedText.includes('جعفر')
-  ) {
-    return {
-      matched_station_name: 'الطيار (جعفر بن أبي طالب)',
-      adam_node_id: '9420',
-      adam_node_name: 'جعفر الطيار',
-      adam_chain_preview:
-        '#9420: جعفر الطيار ⬅️ أبي طالب ⬅️ عبد المطلب ⬅️ هاشم ⬅️ عبد مناف ⬅️ قصي ⬅️ كلاب ⬅️ قريش',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم — عقدة #9420)',
-    };
-  }
-  if (combinedText.includes('الدواسر') || combinedText.includes('البدارين')) {
-    return {
-      matched_station_name: 'قبيلة الدواسر',
-      adam_node_id: 'ADAM_DAWASIR_501',
-      adam_node_name: 'قبيلة الدواسر (آل زايد وتغلب)',
-      adam_chain_preview:
-        '#ADAM_DAWASIR_501: قبيلة الدواسر ⬅️ كهلان ⬅️ سبأ ⬅️ يشجب ⬅️ يعرب ⬅️ قحطان ⬅️ آدم عليه السلام',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم)',
-    };
-  }
-  if (combinedText.includes('تميم') || combinedText.includes('بني عمرو')) {
-    return {
-      matched_station_name: 'قبيلة تميم',
-      adam_node_id: 'ADAM_TAMIM_401',
-      adam_node_name: 'تميم بن مر',
-      adam_chain_preview:
-        '#ADAM_TAMIM_401: تميم بن مر ⬅️ أد ⬅️ طابخة ⬅️ إلياس ⬅️ مضر ⬅️ نزار ⬅️ معد ⬅️ عدنان',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم)',
-    };
-  }
-  if (combinedText.includes('العقيدات') || combinedText.includes('خابور')) {
-    return {
-      matched_station_name: 'قبيلة العقيدات (زبيد)',
-      adam_node_id: '7310',
-      adam_node_name: 'عمرو بن معدي كرب الزبيدي',
-      adam_chain_preview:
-        '#7310: عمرو بن معدي كرب الزبيدي ⬅️ زبيد (منبه الأصغر) ⬅️ سعد العشيرة ⬅️ مذحج ⬅️ كهلان ⬅️ قحطان',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم — عقدة #7310)',
-    };
-  }
-  if (combinedText.includes('شمر') || combinedText.includes('طيء')) {
-    return {
-      matched_station_name: rootB0Name || 'قبيلة شمر الطائية',
-      adam_node_id: 'ADAM_TAI_301',
-      adam_node_name: 'طيء (جلهمة بن أدد)',
-      adam_chain_preview:
-        '#ADAM_TAI_301: طيء (جلهمة) ⬅️ أدد ⬅️ زيد ⬅️ يشجب ⬅️ عريب ⬅️ زيد ⬅️ كهلان ⬅️ سبأ ⬅️ قحطان',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم)',
-    };
-  }
-  if (combinedText.includes('عنزة') || combinedText.includes('عنزه')) {
-    return {
-      matched_station_name: rootB0Name || 'قبائل عنزة',
-      adam_node_id: '232718',
-      adam_node_name: 'عنزة بن أسد بن ربيعة',
-      adam_chain_preview:
-        '#232718: عنزة ⬅️ أسد ⬅️ ربيعة ⬅️ نزار ⬅️ معد ⬅️ عدنان ⬅️ إسماعيل ⬅️ إبراهيم ⬅️ آدم عليه السلام',
-      confidence_label: 'تطابق هيكلي مكتشف آلياً في البحيرة 1 (شجرة آدم — عقدة #232718)',
-    };
-  }
-
+  const station = rootB0Name || rootB2Name || familyName;
+  const nodeId = explicitAdamNodeId || 'ADAM_BRIDGE';
   return {
-    matched_station_name: rootB0Name || rootB2Name || familyName,
-    adam_node_id: explicitAdamNodeId || '272887',
-    adam_node_name: rootB0Name || 'كهلان بن سبأ',
-    adam_chain_preview: `#${explicitAdamNodeId || '272887'}: ${
-      rootB0Name || familyName
-    } ⬅️ كهلان ⬅️ سبأ ⬅️ يشجب ⬅️ يعرب ⬅️ قحطان ⬅️ عابر ⬅️ سام ⬅️ نوح ⬅️ آدم عليه السلام`,
-    confidence_label: 'جسر التقاء مقترح آلياً في البحيرة 1 (شجرة آدم)',
+    matched_station_name: station,
+    adam_node_id: nodeId,
+    adam_node_name: station,
+    adam_chain_preview: `#${nodeId}: ${station}`,
+    confidence_label: 'جسر التقاء مقترح في البحيرة 1 (شجرة آدم)',
   };
 }
 
 /**
- * Builds supporting records from Lake 3 (`lake3_unlinked_projects_for_researcher`)
- * for researcher inspection without affecting automatic customer linking.
+ * Supporting records from Lake 3 (`lake3_unlinked_projects_for_researcher`) come exclusively from the API response.
  */
 export function buildLake3UnlinkedProjectsForResearcher(
-  familyName: string,
-  rootTribeName: string,
-  regionLabel: string
+  _familyName: string,
+  _rootTribeName: string,
+  _regionLabel: string
 ): Lake3UnlinkedProjectRecord[] {
-  const cleanFam = familyName.trim() || 'العائلة';
-  return [
-    {
-      record_id: `LAKE3-ARCH-${normalizeArabicToken(cleanFam, true).slice(0, 6) || '101'}-01`,
-      project_source: 'أرشيف السجلات العثمانية ودفاتر الطابو والأوقاف غير المربوطة (البحيرة 3)',
-      family_or_tribe_name: `${cleanFam} (${rootTribeName || 'أرشيف إقليمي'})`,
-      snippet: `قيد أرشيفي مستقل لبيوت (${cleanFam}) وأعقابهم في سجلات المشيخات والأوقاف التاريخية ضمن نطاق (${regionLabel || 'المشرق العربي'}).`,
-      locations: regionLabel || 'الجزيرة العربية والعراق والشام',
-      notes: 'رافد استئناس بحثي من البحيرة 3 (لا يؤثر على الربط التلقائي للعميل إلا بعد تدقيق الباحث).',
-    },
-    {
-      record_id: `LAKE3-MANU-${normalizeArabicToken(cleanFam, true).slice(0, 6) || '102'}-02`,
-      project_source: 'كشاف المشجرات الخطية والرقاع النسبية قيد الفهرسة (البحيرة 3)',
-      family_or_tribe_name: `مشجرة فروع ${cleanFam}`,
-      snippet: `إشارة مرجعية في فهارس المخطوطات المصورة تذكر تواجد فروع (${cleanFam}) وارتباطها التاريخي بجذم (${rootTribeName || 'القبيلة الأم'}).`,
-      locations: regionLabel || 'الحواضر العربية',
-      notes: 'سجل خام مستخرج من البحيرة 3 لدعم التحقيق العلمي للباحث.',
-    },
-  ];
+  return [];
 }
 
 /**
- * Builds the AI Research Hypotheses (`ai_research_hypotheses`) for the Researcher's Ticket Workbench.
- * Analyzes `corroborating_alpha_evidence_for_researcher` to detect shared child branches, shared locations,
- * complementary ancestor chains across books, or strong multi-source consensus + Adam Bridge intersections.
+ * Builds the AI Research Hypotheses (`ai_research_hypotheses`) dynamically from the API `evidenceList`.
  */
 export function buildAIResearchHypothesesForFamily(
   familyName: string,
@@ -6261,22 +4875,6 @@ export function buildAIResearchHypothesesForFamily(
   suggestedBridge?: SuggestedAdamBridgeForResearcher
 ): string[] {
   const cleanFam = familyName.replace(/^عائلة\s+/, '').trim();
-  const normFam = normalizeArabic(cleanFam);
-
-  if (normFam.includes('حصان')) {
-    return [
-      '💡 ملاحظة للباحث: السجلان في (معجم العشائر الأردنية ص183) و(عشائر شمالي الأردن ص123) يذكران روايتين مختلفتين في الأجداد (محمود ⬅️ الحصانية مقابل جعفر ⬅️ الطيار)، لكنهما يشتركان في 5 فروع أبناء متطابقة (العمران، العيد، عساف، مطر، الصوابطة) وفي الموطن (الشوبك / معان). يمكنك كباحث التحقق من الجمع بينهما أو اعتماد الرواية الأصح قبل تغذية شجرة آدم!',
-      '🛡️ بروتوكول الأمان المطلق للعميل (Zero-Risk Client Root): يُعرض للعميل الجذر الصافي من المصدر الموثق دون لصق آلي بين كتابين مختلفين، وتُترك صلاحية لحم السلسلتين (محمود ⬅️ الحصانية ⬅️ جعفر ⬅️ الطيار) لقرارك البحثي عبر زر «🔗 دمج/إلحاق أجداد هذه الرواية أعلى الرواية الأساسية».',
-    ];
-  }
-
-  if (normFam.includes('جنديل') || normFam.includes('بلاسم')) {
-    return [
-      '🌟 توافق مرجعي قوي: اتفقت المراجع على مسار (بيت جنديل ⬅️ البلاسم ⬅️ آل نصيري ⬅️ بني لام) مع رصد نقطة الالتقاء المباشرة في شجرة آدم عند العقدة (#8911: لأم ⬅️ عمرو ⬅️ طريف...).',
-      '📚 مقارنة المسارات: توجد رواية موازية منفصلة في (سوق الشيوخ / المنتفق) تنسب سميّاً لهم إلى (منيع ⬅️ بنو سعيد) عبر 28 جدّاً، وقد تم فصلها في قسم الروايات المقارنة لمنع الخلط.',
-    ];
-  }
-
   const safeEv = evidenceList || [];
   const hypotheses: string[] = [];
 
@@ -6303,9 +4901,9 @@ export function buildAIResearchHypothesesForFamily(
     }
   }
 
-  if (suggestedBridge) {
+  if (suggestedBridge && safeEv.length > 0) {
     hypotheses.push(
-      `🌟 توافق مرجعي ونقطة التقاء: تم رصد نقطة الالتقاء المباشرة لعائلة (${cleanFam}) في شجرة آدم عند المحطة (${suggestedBridge.matched_station_name}) المرتبطة بالعقدة (${suggestedBridge.adam_chain_preview}).`
+      `🌟 توافق مرجعي ونقطة التقاء: تم رصد نقطة الالتقاء لعائلة (${cleanFam}) عند المحطة (${suggestedBridge.matched_station_name}).`
     );
   }
 
@@ -6313,119 +4911,9 @@ export function buildAIResearchHypothesesForFamily(
 }
 
 /**
- * Enriches any legacy/helper LineageSearchResult with `corroborating_alpha_evidence_for_researcher`,
- * `verified_sources`, `sibling_branches_in_record`, and `inferred_client_countries`.
- */
-function enrichResultWithMultiSourceAggregation(
-  res: LineageSearchResult,
-  evidenceList: CorroboratingAlphaEvidence[],
-  inferredCountries: string[],
-  priorityTier: LineageSearchResult['priorityTierMatched']
-): LineageSearchResult {
-  const isAdamPriority1 =
-    priorityTier === 'TIER_1_ADAM_MASTER_TREE' || !res.isAlphaOnlyBeforeMerge;
-  const extractedNodeId =
-    res.adamNodeId ||
-    (res.familyCode?.startsWith('FE0-')
-      ? res.familyCode.replace('FE0-', '')
-      : undefined);
-
-  const rawEvidenceList = isAdamPriority1
-    ? findParallelAlphaEvidenceForAdamMatch(
-        res.familyName,
-        res.rootBranchName,
-        res.rootTribeName,
-        res.originCountry,
-        evidenceList
-      )
-    : evidenceList;
-
-  const finalEvidenceList = tagConsensusWinnersOnEvidence(
-    res.familyName,
-    rawEvidenceList
-  );
-
-  const agg = aggregateAlphaEvidenceForFamily(
-    res.familyName,
-    res.originRegion || res.originCountry,
-    finalEvidenceList,
-    isAdamPriority1 ? extractedNodeId || '232718' : undefined
-  );
-  const mergedSources = Array.from(
-    new Set([
-      ...(res.secondarySources || []),
-      ...(agg.verified_sources || []),
-    ])
-  );
-  const mergedSiblings = Array.from(
-    new Set([
-      ...(res.siblingBranches || []),
-      ...(agg.sibling_branches_in_record || []),
-    ])
-  );
-  const mergedNotables = Array.from(
-    new Set([
-      ...(res.notables_in_record || []),
-      ...(agg.notables_in_record || []),
-    ])
-  );
-
-  return {
-    ...res,
-    adamNodeId: extractedNodeId,
-    primary_source_of_truth: res.isAlphaOnlyBeforeMerge
-      ? 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED'
-      : 'ADAM_MASTER_TREE',
-    priorityTierMatched: priorityTier,
-    inferred_client_countries: inferredCountries,
-    matched_location: res.originRegion || res.historicalRegion,
-    enrichedLocations: agg.locations_in_record,
-    sibling_branches_in_record: mergedSiblings,
-    siblingBranches: mergedSiblings,
-    siblingBranchesLabel:
-      mergedSiblings.length > 0
-        ? `الفروع الشقيقة المجمعة في السجل (${mergedSiblings.length} فروع): ${mergedSiblings.join('، ')}`
-        : res.siblingBranchesLabel,
-    notables_in_record: mergedNotables,
-    verified_sources: mergedSources,
-    secondarySources: mergedSources,
-    verifiedSourceCitation: res.verifiedSourceCitation || agg.primaryCitation,
-    corroborating_alpha_evidence_for_researcher: finalEvidenceList,
-    full_stitched_lineage_for_researcher:
-      res.full_stitched_lineage_for_researcher ||
-      buildFullStitchedLineageForResearcher(res.adamSpineNodes),
-    suggested_adam_bridge_for_researcher:
-      res.suggested_adam_bridge_for_researcher ||
-      buildSuggestedAdamBridgeForResearcher(
-        res.familyName,
-        res.rootBranchName,
-        res.rootTribeName,
-        extractedNodeId
-      ),
-    lake3_unlinked_projects_for_researcher:
-      res.lake3_unlinked_projects_for_researcher ||
-      buildLake3UnlinkedProjectsForResearcher(
-        res.familyName,
-        res.rootTribeName,
-        res.originRegion || res.historicalRegion
-      ),
-    consensusClusterGroups: computeCrossSourceConsensusClusters(
-      res.familyName,
-      finalEvidenceList
-    ),
-    background_researcher_ticket: agg.background_researcher_ticket,
-    alphaBackgroundTicketCode:
-      agg.background_researcher_ticket.ticket_id || res.alphaBackgroundTicketCode,
-  };
-}
-
-/**
- * Universal 4-Tier Search & Multi-Source Aggregation Engine (`resolveDeterministicLineage`)
- * Strictly follows the 4-Tier Universal Priority Rules:
- * - Tier 1 (`ADAM_MASTER_TREE`): Requires Structural Intersection (`familyName` + `tribe/branch`) OR Unique Geographic Match (`Unique Match = 1`). Multiple matches trigger disambiguation.
- * - Tier 2 (`PRIORITY_1_COUNTRY_BOOK`): Country/locality-specific Alpha records via `inferred_client_countries` (e.g. الشوبك -> الأردن | دير الزور -> سوريا | جرجا -> مصر).
- * - Tier 3 (`PRIORITY_2_GENERAL_BOOK`): General pan-Arab encyclopedias & dictionaries.
- * - Tier 4 (`UNMATCHED_P1_TICKET`): Direct P1 researcher ticket.
+ * Clean Unmatched Fallback State (`resolveDeterministicLineage`):
+ * All hardcoded family mocks have been completely eradicated.
+ * The system relies 100% on the live API response (`alpha_evidence`).
  */
 export function resolveDeterministicLineage(
   form: Pick<
@@ -6439,12 +4927,8 @@ export function resolveDeterministicLineage(
     | 'tribeName'
     | 'branchName'
   >,
-  engineSource: 'live_german_engine' | 'neo4j_verified_graph' = 'neo4j_verified_graph'
+  engineSource: 'live_german_engine' | 'neo4j_verified_graph' = 'live_german_engine'
 ): LineageSearchResult {
-  const familyNorm = normalizeArabic(form.familyName);
-  const familyCore = normalizeArabicToken(form.familyName, true);
-  const tribeNorm = normalizeArabic(`${form.tribeName || ''} ${form.branchName || ''}`);
-  const regionNorm = normalizeArabic(form.originRegion || '');
   const geoOntology = resolveGeoAdministrativeOntology(
     form.originCountry,
     form.originRegion
@@ -6456,1337 +4940,6 @@ export function resolveDeterministicLineage(
   const grandfatherName =
     form.grandfatherName.trim() === '—' ? '' : form.grandfatherName.trim();
   const displayFamilyName = form.familyName.trim() || 'العائلة';
-
-  const isExplicitUnmatched = EXPLICIT_UNMATCHED_TOKENS.some(
-    (t) => familyCore.includes(t) || familyNorm.includes(t)
-  );
-
-  // ===========================================================================
-  // TIER 1: ADAM_MASTER_TREE (شجرة آدم — الأولوية 1 المشروطة بالتقاطع الهيكلي أو التفرد الجغرافي)
-  // ===========================================================================
-  if (!isExplicitUnmatched) {
-    // Special dual-ecosystem check for "خابور": exists in Adam's Tree (Saudi/Anazzah) AND Alpha Projects (Syria/Deir ez-Zor/Uqaidat)
-    const isKhabourFamily =
-      familyCore === 'خابور' ||
-      familyNorm === 'خابور' ||
-      familyNorm === 'الخابور';
-
-    if (isKhabourFamily) {
-      const hasSyriaOrUqaidatCue =
-        geoOntology.regionGroup === 'syria_euphrates' ||
-        inferredCountries.includes('سوريا') ||
-        tribeNorm.includes('عقيدات') ||
-        tribeNorm.includes('معيط') ||
-        tribeNorm.includes('حليحل');
-
-      const hasSaudiOrAnazzahCue =
-        (geoOntology.regionGroup === 'saudi_arabia' && !hasSyriaOrUqaidatCue) ||
-        tribeNorm.includes('عنزه') ||
-        tribeNorm.includes('سميحان') ||
-        tribeNorm.includes('دبجان') ||
-        tribeNorm.includes('عبده') ||
-        tribeNorm.includes('وايل');
-
-      const syriaEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter(
-        (e) =>
-          (e.record_name.includes('معيط') || e.lineage_ancestors?.includes('خابور')) &&
-          (e.locations?.includes('دير الزور') || e.source_book.includes('الشام') || e.source_book.includes('الفرات'))
-      );
-
-      const path1AdamResult = enrichResultWithMultiSourceAggregation(
-        createKhabourAdamAnazzahResult(
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology.ontologyLabel
-        ),
-        UNIVERSAL_ADAM_TREE_CATALOG.find((x) => x.choiceId === 'ADAM_232718')
-          ?.corroboratingEvidence || [],
-        ['السعودية'],
-        'TIER_1_ADAM_MASTER_TREE'
-      );
-
-      const path2AlphaResult = enrichResultWithMultiSourceAggregation(
-        createKhabourAlphaUqaidatResult(
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology.ontologyLabel
-        ),
-        syriaEvidence,
-        ['سوريا', 'العراق'],
-        'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-      );
-
-      if (hasSyriaOrUqaidatCue && !hasSaudiOrAnazzahCue) {
-        return path2AlphaResult;
-      }
-      if (hasSaudiOrAnazzahCue && !hasSyriaOrUqaidatCue) {
-        return path1AdamResult;
-      }
-
-      return {
-        ...path1AdamResult,
-        primary_source_of_truth: 'DISAMBIGUATION_REQUIRED',
-        familyName: 'خابور',
-        originCountry: form.originCountry || 'غير محدد / كل الدول',
-        originRegion: form.originRegion || '',
-        resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-        requiresBlindDisambiguation: true,
-        disambiguationOptions: KHABOUR_DISAMBIGUATION_OPTIONS,
-        optionAResultOverride: path1AdamResult,
-        optionBResultOverride: path2AlphaResult,
-        disambiguationPathsSummaryForTicket:
-          'تذكرة بحث أساسية (P1) — تعارض مسارين لاسم (خابور): [المسار 1 - شجرة آدم (ID: 232718 — 43 عقدة)]: الخابور ⬅️ السميحان ⬅️ الدبجان ⬅️ الخدلات ⬅️ مزرع ⬅️ ملاك ⬅️ جعفر ⬅️ عبده ⬅️ عنزة ⬅️ أسد ⬅️ ربيعة ⬅️ عدنان ⬅️ آدم عليه السلام | [المسار 2 - مشاريع ألفا (دير الزور — 3 عُقد)]: خابور ⬅️ العقيدات وفروعها (الابو حليحل، الابو عمرو، الابو معيط).',
-        confidenceLabel:
-          'تطابق مزدوج المسار (شجرة آدم 43 عقدة vs مشاريع ألفا دير الزور) — يُحسم باختيار النطاق الجغرافي',
-      };
-    }
-
-    // Find all candidate Adam Tree chains matching the family name
-    const matchingAdamEntries = UNIVERSAL_ADAM_TREE_CATALOG.filter((entry) =>
-      entry.tokens.some((tok) => {
-        const normTok = normalizeArabic(tok);
-        if (normTok.includes('ذوو') || normTok.includes('ذوي')) {
-          return familyNorm.includes('ذوو') || familyNorm.includes('ذوي');
-        }
-        if (normTok.includes('مقايته')) {
-          return familyNorm.includes('مقايته') || familyCore.includes('مقايته');
-        }
-        return (
-          familyCore === normTok ||
-          familyNorm === normTok ||
-          (normTok.length >= 4 && familyCore.includes(normTok))
-        );
-      })
-    );
-
-    if (matchingAdamEntries.length > 0) {
-      // Condition 1: Structural Intersection in the same lineage spine (familyName + tribeName/branchName)
-      const structurallyMatchedEntries = matchingAdamEntries.filter(
-        (entry) =>
-          tribeNorm.length > 0 &&
-          entry.structuralKeywords.some((kw) =>
-            tribeNorm.includes(normalizeArabic(kw))
-          )
-      );
-
-      if (structurallyMatchedEntries.length === 1) {
-        return buildAdamEntrySearchResult(
-          structurallyMatchedEntries[0],
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology,
-          familyNorm.includes('برمان') ? 'آل برمان' : undefined
-        );
-      }
-
-      // Condition 2: Specific Locality Match in Adam's Tree
-      const localityMatchedEntries = matchingAdamEntries.filter(
-        (entry) =>
-          regionNorm.length > 0 &&
-          entry.localityKeywords.some((locKw) =>
-            regionNorm.includes(normalizeArabic(locKw))
-          )
-      );
-
-      if (localityMatchedEntries.length === 1) {
-        return buildAdamEntrySearchResult(
-          localityMatchedEntries[0],
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology,
-          familyNorm.includes('برمان') ? 'آل برمان' : undefined
-        );
-      }
-
-      // Condition 2B: Country-level Unique Match (`Unique Match = 1`)
-      const countryMatchedEntries = matchingAdamEntries.filter((entry) =>
-        inferredCountries.some(
-          (c) => normalizeArabic(c) === normalizeArabic(entry.country)
-        )
-      );
-
-      if (countryMatchedEntries.length === 1 && matchingAdamEntries.length === 1) {
-        const singleEntry = countryMatchedEntries[0];
-        const BuiltResult = buildAdamEntrySearchResult(
-          singleEntry,
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology,
-          familyNorm.includes('برمان') ? 'آل برمان' : undefined
-        );
-        // For آل مقيت without tribe/locality, check if disambiguation is requested
-        if (
-          singleEntry.canonicalFamilyLabel === 'آل مقيت' &&
-          !form.tribeName.trim() &&
-          !form.branchName.trim() &&
-          !form.originRegion?.trim()
-        ) {
-          BuiltResult.requiresBlindDisambiguation = true;
-        }
-        return BuiltResult;
-      }
-
-      // Multiple Adam Tree paths for the same family name without a tie-breaker (e.g. آل قاسم: نجران 47 nodes vs المودحي 36 nodes)
-      if (matchingAdamEntries.length >= 2) {
-        const optionA = buildAdamEntrySearchResult(
-          matchingAdamEntries[0],
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology
-        );
-        const optionB = buildAdamEntrySearchResult(
-          matchingAdamEntries[1],
-          clientName,
-          fatherName,
-          grandfatherName,
-          engineSource,
-          geoOntology
-        );
-
-        return {
-          ...optionA,
-          primary_source_of_truth: 'DISAMBIGUATION_REQUIRED',
-          originCountry: form.originCountry || 'غير محدد / كل الدول',
-          originRegion: form.originRegion || '',
-          resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-          requiresBlindDisambiguation: true,
-          disambiguationOptions:
-            matchingAdamEntries[0].canonicalFamilyLabel === 'آل قاسم'
-              ? AL_QASIM_DISAMBIGUATION_OPTIONS
-              : DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
-          optionAResultOverride: optionA,
-          optionBResultOverride: optionB,
-          disambiguationPathsSummaryForTicket: `تعارض نطاقين لاسم (${matchingAdamEntries[0].canonicalFamilyLabel}) في شجرة آدم: [المسار الأول]: ${optionA.historicalRegion} (${optionA.adamSpineNodes.length} عقدة) | [المسار الثاني]: ${optionB.historicalRegion} (${optionB.adamSpineNodes.length} عقدة).`,
-          confidenceLabel: `تطابق مزدوج المسار في شجرة آدم (${optionA.adamSpineNodes.length} عقدة vs ${optionB.adamSpineNodes.length} عقدة) — يُحسم باختيار النطاق الجغرافي`,
-        };
-      }
-    }
-  }
-
-  // ===========================================================================
-  // TIER 2 & TIER 3: ALPHA PROJECTS MULTI-SOURCE AGGREGATION
-  // - Tier 2: PRIORITY_1_COUNTRY_BOOK (كتب وموسوعات دولة/موطن العميل المستنتج من inferred_client_countries)
-  // - Tier 3: PRIORITY_2_GENERAL_BOOK (المعاجم والموسوعات العربية العامة العابرة للدول)
-  // ===========================================================================
-
-  // 1) Jordan / Shobak / Balqa: الهباهبة -> النعيمات / الدعجة
-  if (
-    familyCore.includes('هباهبه') ||
-    familyNorm.includes('هباهبه') ||
-    (regionNorm.includes('شوبك') && (!familyCore || familyCore.includes('نعيمات')))
-  ) {
-    const habahbehEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-      normalizeArabic(e.record_name).includes('هباهبه')
-    );
-    const agg = aggregateAlphaEvidenceForFamily(
-      'الهباهبة',
-      form.originRegion || 'قضاء الشوبك — الأردن',
-      habahbehEvidence
-    );
-    const spineNodes = buildDynamicAlphaSpineFromAncestors(
-      'الهباهبة',
-      'الهباهبة ؛ زيد ؛ مانع ؛ معان (رواية) ؛ الحصانية ؛ النعيمات',
-      'الحصانية',
-      'النعيمات',
-      'قضاء الشوبك وجبال الشراة — الأردن',
-      { corroboratingRecords: habahbehEvidence }
-    );
-    const habahbehB2 =
-      spineNodes.find((n) => n.code === 'B2')?.name || 'الحصانية';
-    const habahbehB0 =
-      spineNodes.find((n) => n.code === 'B0')?.name || 'النعيمات';
-
-    return {
-      matched: true,
-      engineSource,
-      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-      priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
-      clientName,
-      fatherName,
-      grandfatherName,
-      familyName: 'الهباهبة',
-      familyCode: 'ALPHA-HABAHBEH',
-      originCountry: 'الأردن',
-      originRegion: form.originRegion || 'قضاء الشوبك — جبال الشراة',
-      resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-      inferred_client_countries:
-        inferredCountries.length > 0 ? inferredCountries : ['الأردن', 'فلسطين'],
-      matched_location: 'قضاء الشوبك | جبال الشراة | البلقاء',
-      sibling_branches_in_record: agg.sibling_branches_in_record,
-      siblingBranches: agg.sibling_branches_in_record,
-      siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل (${agg.sibling_branches_in_record.length} فروع): ${agg.sibling_branches_in_record.join('، ')}`,
-      notables_in_record: ['مسلم النعيمي', 'أحمد', 'جابر', 'علي'],
-      rootBranchName: habahbehB2,
-      rootBranchCode: 'B2',
-      rootTribeName: habahbehB0,
-      rootTribeCode: 'B0',
-      rootSummaryLabel: `الجذر: ${habahbehB2} ⬅️ ${habahbehB0}`,
-      upperAncestors: spineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: spineNodes,
-      capsules: buildIntermediateRingsForSpine([...spineNodes], 'alpha-habahbeh-cap'),
-      requiresBlindDisambiguation: false,
-      disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
-      isAlphaOnlyBeforeMerge: true,
-      isAlphaMergedIntoAdam: false,
-      alphaParallelSource: agg.primaryCitation,
-      alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
-      verifiedSourceCitation: agg.primaryCitation,
-      verified_sources: agg.verified_sources,
-      secondarySources: agg.verified_sources,
-      corroborating_alpha_evidence_for_researcher: habahbehEvidence,
-      consensusClusterGroups: computeCrossSourceConsensusClusters('الهباهبة', habahbehEvidence),
-      background_researcher_ticket: agg.background_researcher_ticket,
-      historicalRegion: 'قضاء الشوبك وجبال الشراة والبلقاء (المملكة الأردنية الهاشمية)',
-      conflictingNarrativesNote: `توثيق مجمع من (${habahbehEvidence.length}) مصادر في مشاريع ألفا لعائلة (الهباهبة) في الشوبك والبلقاء.`,
-      confidenceLabel: `تطابق مجمع من (${habahbehEvidence.length}) مصادر في مشاريع ألفا (الأولوية 2: كتب الدولة + المعاجم العامة)`,
-      recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-    };
-  }
-
-  // 2) Egypt / Girga / Sohag: أولاد يحيى / الهوارة
-  if (
-    familyNorm.includes('اولاد يحيي') ||
-    familyNorm.includes('هواره') ||
-    (regionNorm.includes('جرجا') && !isExplicitUnmatched)
-  ) {
-    const girgaEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-      e.alpha_id.startsWith('ALP_EGY_GIRGA_')
-    );
-    const dispFam = form.familyName.trim() || 'أولاد يحيى';
-    const agg = aggregateAlphaEvidenceForFamily(dispFam, 'جرجا — مصر', girgaEvidence);
-    const spineNodes = buildDynamicAlphaSpineFromAncestors(
-      dispFam,
-      `${dispFam} ؛ أولاد يحيى ؛ قبائل هوارة بالصعيد`,
-      'أولاد يحيى (جرجا)',
-      'قبائل هوارة بالصعيد',
-      'جرجا وسوهاج — صعيد مصر',
-      { corroboratingRecords: girgaEvidence }
-    );
-
-    return {
-      matched: true,
-      engineSource,
-      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-      priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
-      clientName,
-      fatherName,
-      grandfatherName,
-      familyName: dispFam,
-      familyCode: 'ALPHA-EGY-GIRGA',
-      originCountry: 'مصر',
-      originRegion: form.originRegion || 'جرجا — سوهاج',
-      resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-      inferred_client_countries: ['مصر'],
-      matched_location: 'جرجا | سوهاج | صعيد مصر',
-      sibling_branches_in_record: agg.sibling_branches_in_record,
-      siblingBranches: agg.sibling_branches_in_record,
-      siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل: ${agg.sibling_branches_in_record.join('، ')}`,
-      rootBranchName: 'أولاد يحيى',
-      rootBranchCode: 'B2',
-      rootTribeName: 'قبائل هوارة بالصعيد',
-      rootTribeCode: 'B0',
-      rootSummaryLabel: `الجذر: أولاد يحيى ⬅️ قبائل هوارة بالصعيد`,
-      upperAncestors: spineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: spineNodes,
-      capsules: buildIntermediateRingsForSpine([...spineNodes], 'alpha-girga-cap'),
-      requiresBlindDisambiguation: false,
-      disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
-      isAlphaOnlyBeforeMerge: true,
-      isAlphaMergedIntoAdam: false,
-      alphaParallelSource: agg.primaryCitation,
-      alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
-      verifiedSourceCitation: agg.primaryCitation,
-      verified_sources: agg.verified_sources,
-      secondarySources: agg.verified_sources,
-      corroborating_alpha_evidence_for_researcher: girgaEvidence,
-      consensusClusterGroups: computeCrossSourceConsensusClusters(dispFam, girgaEvidence),
-      background_researcher_ticket: agg.background_researcher_ticket,
-      historicalRegion: 'جرجا وسوهاج — صعيد مصر (جمهورية مصر العربية)',
-      conflictingNarrativesNote: `توثيق مجمع من (${girgaEvidence.length}) مصادر في كتب أنساب مصر لعائلة (${dispFam}) في جرجا.`,
-      confidenceLabel: `تطابق مجمع من (${girgaEvidence.length}) مصادر في مشاريع ألفا (الأولوية 2: كتب دولة مصر)`,
-      recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-    };
-  }
-
-  // 3) 5-Node Alpha Record: الأوضاح / آل محجم / آل رويان / آل وكيع / المصارع / الخلوف -> شمر
-  const isAwdahDirect = familyCore === 'اوضاح' || familyNorm.includes('اوضاح');
-  const isMuhjam = familyCore === 'محجم' || familyNorm.includes('محجم');
-  const isRuyan = familyCore === 'رويان' || familyNorm.includes('رويان');
-  const isWaki = familyCore === 'وكيع' || familyNorm.includes('وكيع');
-  const isMasari = familyCore === 'مصارع' || familyNorm.includes('مصارع');
-  const isKhuluf = familyCore === 'خلوف' || familyNorm.includes('خلوف');
-
-  if (isAwdahDirect || isMuhjam || isRuyan || isWaki || isMasari || isKhuluf) {
-    const matchedAwdahBranch = isMuhjam
-      ? 'آل محجم'
-      : isRuyan
-      ? 'آل رويان'
-      : isWaki
-      ? 'آل وكيع'
-      : isMasari
-      ? 'المصارع'
-      : isKhuluf
-      ? 'الخلوف'
-      : undefined;
-
-    return enrichResultWithMultiSourceAggregation(
-      createAlphaAwdahShammarResult(
-        clientName,
-        fatherName,
-        grandfatherName,
-        engineSource,
-        geoOntology.ontologyLabel,
-        matchedAwdahBranch
-      ),
-      UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) => e.alpha_id.startsWith('ALP_SA_AWDAH_')),
-      inferredCountries.length > 0 ? inferredCountries : ['السعودية'],
-      'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-    );
-  }
-
-  // 4) 4-Node Alpha Record: الأيدا / المشادقة / الحمامدة / الجويدة -> عنزة
-  const isAydaDirect = familyCore === 'ايدا' || familyNorm.includes('ايدا');
-  const isMashadiqah = familyCore === 'مشادقه' || familyNorm.includes('مشادقه');
-  const isHamamidah = familyCore === 'حمامده' || familyNorm.includes('حمامده');
-  const isJuwaydah = familyCore === 'جويده' || familyNorm.includes('جويده');
-
-  if (isAydaDirect || isMashadiqah || isHamamidah || isJuwaydah) {
-    const matchedAydaBranch = isMashadiqah
-      ? 'المشادقة'
-      : isHamamidah
-      ? 'الحمامدة'
-      : isJuwaydah
-      ? 'الجويدة'
-      : undefined;
-
-    return enrichResultWithMultiSourceAggregation(
-      createAlphaAydaAnazzahResult(
-        clientName,
-        fatherName,
-        grandfatherName,
-        engineSource,
-        geoOntology.ontologyLabel,
-        matchedAydaBranch
-      ),
-      UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) => e.alpha_id.startsWith('ALP_SA_AYDA_')),
-      inferredCountries.length > 0 ? inferredCountries : ['السعودية'],
-      'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-    );
-  }
-
-  // 5) 2-Node Alpha Record: الأوس / الغورية / البلاهدة / المذاهبة / الشدادين -> بلحارث
-  const isAwsDirect = familyCore === 'اوس' || familyNorm === 'الاوس' || familyNorm === 'اوس';
-  const isGhawriyah = familyCore === 'غوريه' || familyNorm.includes('غوريه');
-  const isBalahidah = familyCore === 'بلاهده' || familyNorm.includes('بلاهده');
-  const isMadhahibah = familyCore === 'مذاهبه' || familyNorm.includes('مذاهبه');
-  const isShadadin = familyCore === 'شدادين' || familyNorm.includes('شدادين');
-
-  if (isAwsDirect || isGhawriyah || isBalahidah || isMadhahibah || isShadadin) {
-    const matchedAwsBranch = isGhawriyah
-      ? 'الغورية'
-      : isBalahidah
-      ? 'البلاهدة'
-      : isMadhahibah
-      ? 'المذاهبة'
-      : isShadadin
-      ? 'الشدادين'
-      : undefined;
-
-    return enrichResultWithMultiSourceAggregation(
-      createAlphaAwsBelharithResult(
-        clientName,
-        fatherName,
-        grandfatherName,
-        engineSource,
-        geoOntology.ontologyLabel,
-        matchedAwsBranch
-      ),
-      UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) => e.alpha_id.startsWith('ALP_SA_AWS_')),
-      inferredCountries.length > 0 ? inferredCountries : ['السعودية'],
-      'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-    );
-  }
-
-  // 6) Deir ez-Zor / Euphrates Alpha Records: الابو معيط / الابو حليحل / الابو عمرو / جرص / جار الله / المشرف / العنابرة
-  if (familyNorm.includes('جرص') || familyCore === 'جرص') {
-    const uqEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-      e.lineage_ancestors?.includes('العقيدات')
-    );
-    return enrichResultWithMultiSourceAggregation(
-      createKhabourAlphaUqaidatResult(
-        clientName,
-        fatherName,
-        grandfatherName,
-        engineSource,
-        geoOntology.ontologyLabel,
-        'جرص',
-        false,
-        'أبي خابور',
-        'قبيلة العقيدات',
-        ['جرص', 'الابو حليحل', 'الابو معيط'],
-        'أبي عمرو'
-      ),
-      uqEvidence,
-      inferredCountries.length > 0 ? inferredCountries : ['سوريا', 'العراق'],
-      'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-    );
-  }
-
-  const isJarallah = familyNorm.includes('جار الله') || familyCore.includes('جار الله');
-  const isMusharraf = familyNorm.includes('مشرف') || familyCore === 'مشرف';
-  const isAnabirah = familyNorm.includes('عنابره') || familyCore === 'عنابره';
-
-  if (isJarallah || isMusharraf || isAnabirah) {
-    const matchedBukairBranch = isJarallah
-      ? 'جار الله'
-      : isMusharraf
-      ? 'المشرف'
-      : 'العنابرة';
-    const uqEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-      e.lineage_ancestors?.includes('العقيدات')
-    );
-    return enrichResultWithMultiSourceAggregation(
-      createKhabourAlphaUqaidatResult(
-        clientName,
-        fatherName,
-        grandfatherName,
-        engineSource,
-        geoOntology.ontologyLabel,
-        matchedBukairBranch,
-        false,
-        'البكير',
-        'قبيلة العقيدات',
-        ['جار الله', 'المشرف', 'العنابرة']
-      ),
-      uqEvidence,
-      inferredCountries.length > 0 ? inferredCountries : ['سوريا', 'العراق'],
-      'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-    );
-  }
-
-  const isAbuMuait =
-    familyNorm.includes('معيط') ||
-    familyCore === 'معيط' ||
-    familyNorm.includes('ابو معيط');
-  const isAbuHulaihel =
-    familyNorm.includes('حليحل') ||
-    familyCore === 'حليحل' ||
-    familyNorm.includes('ابو حليحل');
-  const isAbuAmro =
-    familyNorm === 'ابو عمرو' ||
-    familyNorm.includes('ابو عمرو') ||
-    (familyCore === 'عمرو' && tribeNorm.includes('خابور'));
-
-  if (isAbuMuait || isAbuHulaihel || isAbuAmro) {
-    const matchedSubBranch: 'الابو معيط' | 'الابو حليحل' | 'الابو عمرو' = isAbuMuait
-      ? 'الابو معيط'
-      : isAbuHulaihel
-      ? 'الابو حليحل'
-      : 'الابو عمرو';
-
-    const muaitEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter(
-      (e) =>
-        e.record_name.includes('معيط') ||
-        e.child_branches?.includes('معيط') ||
-        e.lineage_ancestors?.includes('خابور')
-    );
-
-    return enrichResultWithMultiSourceAggregation(
-      createKhabourAlphaUqaidatResult(
-        clientName,
-        fatherName,
-        grandfatherName,
-        engineSource,
-        geoOntology.ontologyLabel,
-        matchedSubBranch
-      ),
-      muaitEvidence,
-      inferredCountries.length > 0 ? inferredCountries : ['سوريا', 'العراق'],
-      inferredCountries.length > 0
-        ? 'TIER_2_PRIORITY_1_COUNTRY_BOOK'
-        : 'TIER_3_PRIORITY_2_GENERAL_BOOK'
-    );
-  }
-
-  // 7) Iraq / Misan / Amara / Bani Lam & Banu Said (28-ancestor record):
-  //    بيت جنديل -> [المسار المتوافق عليه في 13 مصدراً: البلاسم (مقفلة في كبسولة) ⬅️ آل نصيري (B2) ⬅️ بني لام (B0)]
-  //    أو [مسار بنو سعيد (28 جدّاً): 26 جدّاً مقفلة في كبسولة واحدة (+26 جدّاً في السلسلة) ⬅️ منيع (B2) ⬅️ بنو سعيد (B0)]
-  const isBaitJandeel =
-    familyNorm.includes('جنديل') ||
-    familyCore.includes('جنديل') ||
-    familyNorm.includes('بلاسم');
-  const isBanuSaidDirect =
-    familyNorm === 'بنو سعيد' ||
-    familyNorm === 'بني سعيد' ||
-    familyNorm === 'آل سعيد' ||
-    (familyCore === 'سعيد' &&
-      (regionNorm.includes('منتفق') ||
-        regionNorm.includes('سوق الشيوخ') ||
-        regionNorm.includes('ذي قار') ||
-        tribeNorm.includes('منيع')));
-
-  if (isBaitJandeel || isBanuSaidDirect) {
-    const jandeelAllEvidence = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-      e.alpha_id.startsWith('ALP_JANDEEL_')
-    );
-    const baniLamEvidence = jandeelAllEvidence.filter(
-      (e) => e.alpha_id !== 'ALP_JANDEEL_14_BANU_SAID'
-    );
-    const banuSaidEvidence = jandeelAllEvidence.filter(
-      (e) => e.alpha_id === 'ALP_JANDEEL_14_BANU_SAID'
-    );
-    const consensusClusters = computeCrossSourceConsensusClusters(
-      isBanuSaidDirect ? 'بنو سعيد' : 'بيت جنديل',
-      jandeelAllEvidence
-    );
-
-    // Build Option A: Consensus Winner (13 sources) -> بيت جنديل ⬅️ [🔒 +1 في السلسلة: البلاسم] ⬅️ آل نصيري (B2) ⬅️ بني لام (B0)
-    const aggBaniLam = aggregateAlphaEvidenceForFamily(
-      'بيت جنديل',
-      form.originRegion || 'العمارة — ميسان (العراق)',
-      jandeelAllEvidence
-    );
-    const baniLamSpineNodes = buildDynamicAlphaSpineFromAncestors(
-      'بيت جنديل',
-      'بيت جنديل ؛ البلاسم ؛ آل نصيري ؛ بني لام',
-      'آل نصيري',
-      'بني لام',
-      'العمارة وميسان — العراق',
-      { corroboratingRecords: baniLamEvidence }
-    );
-    const baniLamCapsules = buildIntermediateRingsForSpine(
-      [...baniLamSpineNodes],
-      'alpha-jandeel-cap'
-    );
-    const jandeelB2 =
-      baniLamSpineNodes.find((n) => n.code === 'B2')?.name || 'آل نصيري';
-    const jandeelB0 =
-      baniLamSpineNodes.find((n) => n.code === 'B0')?.name || 'بني لام';
-
-    const taggedJandeelEvidence = tagConsensusWinnersOnEvidence(
-      isBanuSaidDirect ? 'بنو سعيد' : 'بيت جنديل',
-      jandeelAllEvidence
-    );
-
-    const optionA_BaniLamResult: LineageSearchResult = {
-      matched: true,
-      engineSource,
-      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-      priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
-      clientName,
-      fatherName,
-      grandfatherName,
-      familyName: 'بيت جنديل',
-      familyCode: 'ALPHA-JANDEEL-13',
-      originCountry: form.originCountry || 'العراق',
-      originRegion: form.originRegion || 'العمارة — ميسان',
-      resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-      inferred_client_countries:
-        inferredCountries.length > 0 ? inferredCountries : ['العراق'],
-      matched_location: 'العمارة | ميسان | واسط | العراق',
-      enrichedLocations: aggBaniLam.locations_in_record,
-      sibling_branches_in_record: aggBaniLam.sibling_branches_in_record,
-      siblingBranches: aggBaniLam.sibling_branches_in_record,
-      siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل (${aggBaniLam.sibling_branches_in_record.length} فروع): ${aggBaniLam.sibling_branches_in_record.join('، ')}`,
-      notables_in_record: aggBaniLam.notables_in_record,
-      rootBranchName: jandeelB2,
-      rootBranchCode: 'B2',
-      rootTribeName: jandeelB0,
-      rootTribeCode: 'B0',
-      rootSummaryLabel: `الجذر: ${jandeelB2} ⬅️ ${jandeelB0}`,
-      upperAncestors: baniLamSpineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: baniLamSpineNodes,
-      full_stitched_lineage_for_researcher: buildFullStitchedLineageForResearcher(
-        baniLamSpineNodes
-      ),
-      suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-        'بيت جنديل',
-        jandeelB2,
-        jandeelB0,
-        '8911'
-      ),
-      lake3_unlinked_projects_for_researcher: buildLake3UnlinkedProjectsForResearcher(
-        'بيت جنديل',
-        jandeelB0,
-        'العمارة وميسان وحوض دجلة — العراق'
-      ),
-      ai_research_hypotheses: buildAIResearchHypothesesForFamily(
-        'بيت جنديل',
-        taggedJandeelEvidence,
-        buildSuggestedAdamBridgeForResearcher('بيت جنديل', jandeelB2, jandeelB0, '8911')
-      ),
-      capsules: baniLamCapsules,
-      requiresBlindDisambiguation: false,
-      disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
-      disambiguationOptions: BAIT_JANDEEL_DISAMBIGUATION_OPTIONS,
-      isAlphaOnlyBeforeMerge: true,
-      isAlphaMergedIntoAdam: false,
-      alphaParallelSource: aggBaniLam.primaryCitation,
-      alphaBackgroundTicketCode: aggBaniLam.background_researcher_ticket.ticket_id,
-      verifiedSourceCitation: aggBaniLam.primaryCitation,
-      verified_sources: aggBaniLam.verified_sources,
-      secondarySources: aggBaniLam.verified_sources,
-      corroborating_alpha_evidence_for_researcher: taggedJandeelEvidence,
-      consensusClusterGroups: consensusClusters,
-      background_researcher_ticket: aggBaniLam.background_researcher_ticket,
-      historicalRegion: 'العمارة وميسان وحوض دجلة — جمهورية العراق',
-      conflictingNarrativesNote: `المسار المتوافق عليه في (${baniLamEvidence.length}) مصدراً: بيت جنديل ⬅️ البلاسم ⬅️ آل نصيري ⬅️ بني لام (مقابل رواية أخرى في سوق الشيوخ تنسبهم إلى منيع ⬅️ بنو سعيد عبر 28 جدّاً).`,
-      confidenceLabel: `تطابق متوافق عليه في (${baniLamEvidence.length}) مصدراً من مشاريع ألفا (الأولوية 2: كتب الدولة + المعاجم العامة)`,
-      recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-    };
-
-    // Build Option B: Competing 28-Ancestor Record -> (بيت جنديل / بنو سعيد) ⬅️ [🔒 +26 جدّاً في السلسلة] ⬅️ منيع (B2) ⬅️ بنو سعيد (B0)
-    const banuSaidDisplayFam = isBanuSaidDirect ? 'بنو سعيد' : 'بيت جنديل';
-    const banuSaid28Lineage =
-      banuSaidEvidence[0]?.lineage_ancestors ||
-      'بيت جنديل ؛ عيسى ؛ راشد ؛ حمد ؛ شبيب ؛ صقر ؛ مانع ؛ سعدون ؛ حمود ؛ ثامر ؛ عبد الله ؛ محمد ؛ جنديل ؛ سلطان ؛ ناصر ؛ فيصل ؛ طلاسم ؛ بدر ؛ عقيل ؛ عامر ؛ حسان ؛ مالك ؛ عوف ؛ كعب ؛ ربيعة ؛ عامر ؛ عدنان ؛ منيع ؛ بنو سعيد';
-    const banuSaidSpineNodes = buildDynamicAlphaSpineFromAncestors(
-      banuSaidDisplayFam,
-      banuSaid28Lineage,
-      'منيع',
-      'بنو سعيد',
-      'سوق الشيوخ والمنتفق — ذي قار (العراق)',
-      { corroboratingRecords: banuSaidEvidence }
-    );
-    const banuSaidCapsules = buildIntermediateRingsForSpine(
-      [...banuSaidSpineNodes],
-      'alpha-banusaid-cap'
-    );
-    const aggBanuSaid = aggregateAlphaEvidenceForFamily(
-      banuSaidDisplayFam,
-      'سوق الشيوخ — المنتفق — ذي قار (العراق)',
-      taggedJandeelEvidence
-    );
-    const banuSaidB2 =
-      banuSaidSpineNodes.find((n) => n.code === 'B2')?.name || 'منيع';
-    const banuSaidB0 =
-      banuSaidSpineNodes.find((n) => n.code === 'B0')?.name || 'بنو سعيد';
-
-    const optionB_BanuSaidResult: LineageSearchResult = {
-      matched: true,
-      engineSource,
-      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-      priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
-      clientName,
-      fatherName,
-      grandfatherName,
-      familyName: banuSaidDisplayFam,
-      familyCode: 'ALPHA-BANUSAID-28',
-      originCountry: form.originCountry || 'العراق',
-      originRegion: form.originRegion || 'سوق الشيوخ — المنتفق (ذي قار)',
-      resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-      inferred_client_countries: ['العراق'],
-      matched_location: 'سوق الشيوخ | المنتفق | ذي قار | العراق',
-      enrichedLocations: aggBanuSaid.locations_in_record,
-      sibling_branches_in_record: ['آل عيسى', 'آل راشد', 'آل معروف', 'البو شهاب'],
-      siblingBranches: ['آل عيسى', 'آل راشد', 'آل معروف', 'البو شهاب'],
-      siblingBranchesLabel: 'الفروع الشقيقة المرصودة في السجل: آل عيسى، آل راشد، آل معروف، البو شهاب',
-      notables_in_record: ['الشيخ عيسى السعيدي'],
-      rootBranchName: banuSaidB2,
-      rootBranchCode: 'B2',
-      rootTribeName: banuSaidB0,
-      rootTribeCode: 'B0',
-      rootSummaryLabel: `الجذر: ${banuSaidB2} ⬅️ ${banuSaidB0}`,
-      upperAncestors: banuSaidSpineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: banuSaidSpineNodes,
-      full_stitched_lineage_for_researcher: buildFullStitchedLineageForResearcher(
-        banuSaidSpineNodes
-      ),
-      suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-        banuSaidDisplayFam,
-        banuSaidB2,
-        banuSaidB0
-      ),
-      lake3_unlinked_projects_for_researcher: buildLake3UnlinkedProjectsForResearcher(
-        banuSaidDisplayFam,
-        banuSaidB0,
-        'سوق الشيوخ والمنتفق — ذي قار (العراق)'
-      ),
-      capsules: banuSaidCapsules,
-      requiresBlindDisambiguation: false,
-      disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
-      disambiguationOptions: BAIT_JANDEEL_DISAMBIGUATION_OPTIONS,
-      isAlphaOnlyBeforeMerge: true,
-      isAlphaMergedIntoAdam: false,
-      alphaParallelSource: 'موسوعة عشائر العراق — عباس العزاوي (ج4 ص 188)',
-      alphaBackgroundTicketCode: aggBanuSaid.background_researcher_ticket.ticket_id,
-      verifiedSourceCitation: 'موسوعة عشائر العراق — عباس العزاوي (ج4 ص 188)',
-      verified_sources: aggBanuSaid.verified_sources,
-      secondarySources: aggBanuSaid.verified_sources,
-      corroborating_alpha_evidence_for_researcher: taggedJandeelEvidence,
-      consensusClusterGroups: consensusClusters,
-      background_researcher_ticket: aggBanuSaid.background_researcher_ticket,
-      historicalRegion: 'سوق الشيوخ والمنتفق — ذي قار (جمهورية العراق)',
-      conflictingNarrativesNote:
-        'سجل يضم (28) جدّاً في حقل نسب الأجداد ينتهي إلى (منيع ⬅️ بنو سعيد)، مع طيّ (26) جدّاً وسيطاً في كبسولة السلسلة.',
-      confidenceLabel: 'تطابق موثق في مشاريع ألفا (سجل 28 جدّاً ينتهي إلى منيع ⬅️ بنو سعيد)',
-      recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-    };
-
-    const hasBanuSaidCue =
-      isBanuSaidDirect ||
-      tribeNorm.includes('سعيد') ||
-      tribeNorm.includes('منيع') ||
-      regionNorm.includes('سوق الشيوخ') ||
-      regionNorm.includes('منتفق') ||
-      regionNorm.includes('ذي قار') ||
-      regionNorm.includes('ناصريه');
-
-    const hasBaniLamCue =
-      tribeNorm.includes('بني لام') ||
-      tribeNorm.includes('لام') ||
-      tribeNorm.includes('نصيري') ||
-      tribeNorm.includes('بلاسم') ||
-      regionNorm.includes('عماره') ||
-      regionNorm.includes('ميسان') ||
-      regionNorm.includes('واسط') ||
-      regionNorm.includes('كوت');
-
-    if (hasBanuSaidCue && !hasBaniLamCue) {
-      return optionB_BanuSaidResult;
-    }
-    if (hasBaniLamCue && !hasBanuSaidCue) {
-      return optionA_BaniLamResult;
-    }
-
-    // Progressive Verification post-$5: show Stage 1 (بني لام [توافق 11 مصدراً] vs بنو سعيد) after $5 unlock
-    return {
-      ...optionA_BaniLamResult,
-      requiresBlindDisambiguation: true,
-      disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
-      disambiguationOptions: BAIT_JANDEEL_DISAMBIGUATION_OPTIONS,
-      optionAResultOverride: optionA_BaniLamResult,
-      optionBResultOverride: optionB_BanuSaidResult,
-      disambiguationPathsSummaryForTicket:
-        'تعدد مسارات لاسم (بيت جنديل): [المسار المتوافق عليه في 11 مصدراً]: بيت جنديل ⬅️ البلاسم ⬅️ آل نصيري ⬅️ بني لام (العمارة/ميسان/واسط) | [المسار الثاني (28 جدّاً)]: بيت جنديل ⬅️ ... (26 جدّاً) ... ⬅️ منيع ⬅️ بنو سعيد (سوق الشيوخ/المنتفق/ذي قار).',
-    };
-  }
-
-  // 8) الحصان / آل الحصان:
-  //    - المسار المتوافق عليه (3 مصادر): الحصان ⬅️ كبسولة [🔒 +3 في السلسلة: محمود، جعفر، أبي طالب] ⬅️ الحصانية (B2) ⬅️ الطيار (B0)
-  //      وسلسلة الباحث الكاملة (full_stitched_lineage_for_researcher): الحصان ⬅️ محمود ⬅️ الحصانية ⬅️ جعفر ⬅️ الطيار
-  //    - المسار الموازي 2 (القصيم/نجد): آل الحصان ⬅️ آل سابق ⬅️ الحسن ⬅️ البدارين ⬅️ قبيلة الدواسر
-  //    - المسار الموازي 3 (الوشم/شقراء): آل الحصان ⬅️ النواصر ⬅️ بني عمرو ⬅️ قبيلة تميم
-  const isAlHussan =
-    familyNorm.includes('حصان') || familyCore === 'حصان';
-  if (isAlHussan) {
-    const hussanDisplayFam =
-      form.familyName.trim().startsWith('آل') ? 'آل الحصان' : 'الحصان';
-    const hussanEvidence = tagConsensusWinnersOnEvidence(
-      hussanDisplayFam,
-      UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((e) =>
-        e.alpha_id.startsWith('ALP_HUSSAN_')
-      )
-    );
-    const consensusClusters = computeCrossSourceConsensusClusters(
-      hussanDisplayFam,
-      hussanEvidence
-    );
-    const agg = aggregateAlphaEvidenceForFamily(
-      hussanDisplayFam,
-      form.originRegion || 'الشام والحجاز والقصيم والوشم',
-      hussanEvidence
-    );
-
-    // Client Spine for Consensus Winner (الحصان ⬅️ 🔒 +3 في السلسلة ⬅️ الحصانية ⬅️ الطيار)
-    const tayyarClientSpineNodes: UpperAncestorNode[] = enrichSpineNodesWithNeo4jRelations([
-      {
-        id: 'alpha-hussan-tayyar-01',
-        orderNumber: 1,
-        name: hussanDisplayFam,
-        code: 'FE0',
-        rankLabel: 'عقدة العائلة الموثقة في سجل مشاريع ألفا',
-        isCodedStation: true,
-        region: form.originRegion || 'حمص وحماة والشام والحجاز',
-        eraNote: `سجل عائلة ${hussanDisplayFam} المتصل بفرع الحصانية من ذرية جعفر الطيار.`,
-        dataLakeSource: 'alpha_projects',
-      },
-      {
-        id: 'alpha-hussan-tayyar-02',
-        orderNumber: 2,
-        name: 'محمود',
-        code: 'B5',
-        rankLabel: 'جد وسيط موثق في السجل',
-        isCodedStation: false,
-        region: 'الشام والحجاز',
-        eraNote: 'محمود — جد وسيط في عمود الحصان الحصانية.',
-        dataLakeSource: 'alpha_projects',
-      },
-      {
-        id: 'alpha-hussan-tayyar-03',
-        orderNumber: 3,
-        name: 'جعفر',
-        code: 'B4',
-        rankLabel: 'جد وسيط موثق في السجل',
-        isCodedStation: false,
-        region: 'الحجاز والشام',
-        eraNote: 'جعفر — محطة وسيطة في سلسلة الحصانية الطيار.',
-        dataLakeSource: 'alpha_projects',
-      },
-      {
-        id: 'alpha-hussan-tayyar-04',
-        orderNumber: 4,
-        name: 'أبي طالب',
-        code: 'B3',
-        rankLabel: 'جد وسيط موثق في السجل',
-        isCodedStation: false,
-        region: 'مكة المكرمة والحجاز',
-        eraNote: 'أبي طالب بن عبد المطلب الهاشمي القرشي.',
-        dataLakeSource: 'alpha_projects',
-      },
-      {
-        id: 'alpha-hussan-tayyar-05',
-        orderNumber: 5,
-        name: 'الحصانية',
-        code: 'B2',
-        rankLabel: 'الفرع الجامع الموثق (الجذر — يُفتح في باقة الـ $5)',
-        isCodedStation: true,
-        region: 'الشام والحجاز والجزيرة',
-        eraNote: 'عشيرة الحصانية — الفرع الجامع لآل الحصان في المصادر المتوافقة.',
-        dataLakeSource: 'alpha_projects',
-      },
-      {
-        id: 'alpha-hussan-tayyar-06',
-        orderNumber: 6,
-        name: 'الطيار',
-        code: 'B0',
-        rankLabel: 'القبيلة الأم / الجذم الجامع في السجل (الجذر — يُفتح في باقة الـ $5)',
-        isCodedStation: true,
-        region: 'الحجاز والشام والعراق',
-        eraNote: 'بنو جعفر الطيار بن أبي طالب الهاشمي القرشي.',
-        dataLakeSource: 'alpha_projects',
-      },
-    ]);
-    const tayyarCapsules = buildIntermediateRingsForSpine(
-      [...tayyarClientSpineNodes],
-      'alpha-hussan-tayyar-cap'
-    );
-
-    // Researcher full stitched chain in exact chronological order from the record: الحصان ⬅️ محمود ⬅️ الحصانية ⬅️ جعفر ⬅️ الطيار
-    const tayyarResearcherFullStitched: UpperAncestorNode[] =
-      enrichSpineNodesWithNeo4jRelations([
-        {
-          id: 'hussan-res-01',
-          orderNumber: 1,
-          name: hussanDisplayFam,
-          code: 'FE0',
-          rankLabel: 'عقدة العائلة الموثقة في سجل مشاريع ألفا',
-          isCodedStation: true,
-          region: 'حمص وحماة والشام والحجاز',
-          eraNote: `سجل عائلة ${hussanDisplayFam} في مشاريع ألفا.`,
-          dataLakeSource: 'alpha_projects',
-        },
-        {
-          id: 'hussan-res-02',
-          orderNumber: 2,
-          name: 'محمود',
-          code: 'B3',
-          rankLabel: 'محطة وسيطة في السجل (محمود)',
-          isCodedStation: true,
-          region: 'الشام والحجاز',
-          eraNote: 'محمود — محطة موثقة في سلسلة نسب الحصان.',
-          dataLakeSource: 'alpha_projects',
-        },
-        {
-          id: 'hussan-res-03',
-          orderNumber: 3,
-          name: 'الحصانية',
-          code: 'B2',
-          rankLabel: 'الفرع الجامع الموثق (الحصانية — B2)',
-          isCodedStation: true,
-          region: 'الشام والحجاز',
-          eraNote: 'عشيرة الحصانية — الفرع الجامع في مسار التوافق.',
-          dataLakeSource: 'alpha_projects',
-        },
-        {
-          id: 'hussan-res-04',
-          orderNumber: 4,
-          name: 'جعفر',
-          code: 'B1',
-          rankLabel: 'محطة وسيطة عليا في السجل (جعفر)',
-          isCodedStation: true,
-          region: 'الحجاز والشام',
-          eraNote: 'جعفر — محطة موثقة في سلسلة نسب الحصانية الطيار.',
-          dataLakeSource: 'alpha_projects',
-        },
-        {
-          id: 'hussan-res-05',
-          orderNumber: 5,
-          name: 'الطيار',
-          code: 'B0',
-          rankLabel: 'الجذم الجامع / القبيلة الأم في السجل (الطيار — B0)',
-          isCodedStation: true,
-          region: 'الحجاز والشام والعراق',
-          eraNote: 'بنو جعفر الطيار في موسوعة أنساب آل جعفر الطيار وعمدة الطالب.',
-          dataLakeSource: 'alpha_projects',
-        },
-      ]);
-
-    const dawasirSpineNodes = buildDynamicAlphaSpineFromAncestors(
-      'آل الحصان',
-      'آل الحصان ؛ آل سابق ؛ الحسن ؛ البدارين ؛ قبيلة الدواسر',
-      'البدارين',
-      'قبيلة الدواسر',
-      'بريدة والقصيم والمحمل — نجد (السعودية)',
-      { corroboratingRecords: hussanEvidence }
-    );
-    const dawasirCapsules = buildIntermediateRingsForSpine(
-      [...dawasirSpineNodes],
-      'alpha-hussan-dawasir-cap'
-    );
-
-    const tamimSpineNodes = buildDynamicAlphaSpineFromAncestors(
-      'آل الحصان',
-      'آل الحصان ؛ النواصر ؛ بني عمرو ؛ قبيلة تميم',
-      'بني عمرو',
-      'قبيلة تميم',
-      'شقراء والوشم — نجد (السعودية)',
-      { corroboratingRecords: hussanEvidence }
-    );
-    const tamimCapsules = buildIntermediateRingsForSpine(
-      [...tamimSpineNodes],
-      'alpha-hussan-tamim-cap'
-    );
-
-    const optionA_TayyarConsensusResult: LineageSearchResult = {
-      matched: true,
-      engineSource,
-      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-      priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
-      clientName,
-      fatherName,
-      grandfatherName,
-      familyName: hussanDisplayFam,
-      familyCode: 'ALPHA-HUSSAN-TAYYAR',
-      originCountry: form.originCountry || 'سوريا',
-      originRegion: form.originRegion || 'حمص وحماة — الشام والحجاز',
-      resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-      inferred_client_countries:
-        inferredCountries.length > 0 ? inferredCountries : ['سوريا', 'السعودية'],
-      matched_location: 'الشام | حمص | حماة | الحجاز | القصيم',
-      enrichedLocations: agg.locations_in_record,
-      sibling_branches_in_record: agg.sibling_branches_in_record,
-      siblingBranches: agg.sibling_branches_in_record,
-      siblingBranchesLabel: `الفروع الشقيقة المجمعة في السجل: ${agg.sibling_branches_in_record.join('، ')}`,
-      notables_in_record: agg.notables_in_record,
-      rootBranchName: 'الحصانية',
-      rootBranchCode: 'B2',
-      rootTribeName: 'الطيار',
-      rootTribeCode: 'B0',
-      rootSummaryLabel: 'الجذر: الحصانية ⬅️ الطيار',
-      upperAncestors: tayyarClientSpineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: tayyarClientSpineNodes,
-      full_stitched_lineage_for_researcher: tayyarResearcherFullStitched,
-      suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-        hussanDisplayFam,
-        'الحصانية',
-        'الطيار',
-        '9420'
-      ),
-      lake3_unlinked_projects_for_researcher: buildLake3UnlinkedProjectsForResearcher(
-        hussanDisplayFam,
-        'الطيار',
-        'الشوبك ومعان — الأردن والحجاز'
-      ),
-      ai_research_hypotheses: buildAIResearchHypothesesForFamily(
-        hussanDisplayFam,
-        hussanEvidence,
-        buildSuggestedAdamBridgeForResearcher(
-          hussanDisplayFam,
-          'الحصانية',
-          'الطيار',
-          '9420'
-        )
-      ),
-      capsules: tayyarCapsules,
-      requiresBlindDisambiguation: false,
-      disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
-      disambiguationOptions: AL_HUSSAN_DISAMBIGUATION_OPTIONS,
-      isAlphaOnlyBeforeMerge: true,
-      isAlphaMergedIntoAdam: false,
-      alphaParallelSource: agg.primaryCitation,
-      alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
-      verifiedSourceCitation: agg.primaryCitation,
-      verified_sources: agg.verified_sources,
-      secondarySources: agg.verified_sources,
-      corroborating_alpha_evidence_for_researcher: hussanEvidence,
-      consensusClusterGroups: consensusClusters,
-      background_researcher_ticket: agg.background_researcher_ticket,
-      historicalRegion: 'الشام والحجاز والجزيرة العربية',
-      conflictingNarrativesNote: `توثيق مجمع من (${hussanEvidence.length}) مصادر في مشاريع ألفا لأسرة (${hussanDisplayFam})؛ المسار الفائز بالتوافق: الحصان ⬅️ محمود ⬅️ الحصانية ⬅️ جعفر ⬅️ الطيار.`,
-      confidenceLabel: 'تطابق متوافق عليه في (3) مصادر (الحصانية ⬅️ الطيار)',
-      recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-    };
-
-    const optionB_DawasirResult: LineageSearchResult = {
-      ...optionA_TayyarConsensusResult,
-      familyName: 'آل الحصان',
-      familyCode: 'ALPHA-HUSSAN-DAWASIR',
-      originCountry: form.originCountry || 'السعودية',
-      originRegion: form.originRegion || 'بريدة — القصيم — نجد',
-      matched_location: 'بريدة | القصيم | البير | المحمل | نجد',
-      rootBranchName: 'البدارين',
-      rootBranchCode: 'B2',
-      rootTribeName: 'قبيلة الدواسر',
-      rootTribeCode: 'B0',
-      rootSummaryLabel: 'الجذر: البدارين ⬅️ قبيلة الدواسر',
-      upperAncestors: dawasirSpineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: dawasirSpineNodes,
-      full_stitched_lineage_for_researcher: buildFullStitchedLineageForResearcher(
-        dawasirSpineNodes
-      ),
-      suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-        'آل الحصان',
-        'البدارين',
-        'قبيلة الدواسر'
-      ),
-      capsules: dawasirCapsules,
-      historicalRegion: 'القصيم والمحمل — إقليم نجد (المملكة العربية السعودية)',
-      confidenceLabel: 'تطابق موثق في مصادر أسر نجد والقصيم (البدارين ⬅️ الدواسر)',
-    };
-
-    const optionC_TamimResult: LineageSearchResult = {
-      ...optionA_TayyarConsensusResult,
-      familyName: 'آل الحصان',
-      familyCode: 'ALPHA-HUSSAN-TAMIM',
-      originCountry: form.originCountry || 'السعودية',
-      originRegion: form.originRegion || 'شقراء — الوشم — نجد',
-      matched_location: 'شقراء | الوشم | مذنب | القصيم | نجد',
-      rootBranchName: 'بني عمرو',
-      rootBranchCode: 'B2',
-      rootTribeName: 'قبيلة تميم',
-      rootTribeCode: 'B0',
-      rootSummaryLabel: 'الجذر: بني عمرو ⬅️ قبيلة تميم',
-      upperAncestors: tamimSpineNodes.filter((n) => n.orderNumber > 1),
-      adamSpineNodes: tamimSpineNodes,
-      full_stitched_lineage_for_researcher: buildFullStitchedLineageForResearcher(
-        tamimSpineNodes
-      ),
-      suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-        'آل الحصان',
-        'بني عمرو',
-        'قبيلة تميم'
-      ),
-      capsules: tamimCapsules,
-      historicalRegion: 'شقراء والوشم — إقليم نجد (المملكة العربية السعودية)',
-      confidenceLabel: 'تطابق موثق في مشاريع ألفا (النواصر ⬅️ بني عمرو ⬅️ قبيلة تميم)',
-    };
-
-    const hasTayyarCue =
-      tribeNorm.includes('طيار') ||
-      tribeNorm.includes('حصانيه') ||
-      tribeNorm.includes('جعفر') ||
-      regionNorm.includes('حمص') ||
-      regionNorm.includes('حماه') ||
-      regionNorm.includes('شام');
-
-    const hasTamimCue =
-      tribeNorm.includes('تميم') ||
-      tribeNorm.includes('نواصر') ||
-      tribeNorm.includes('عمرو') ||
-      regionNorm.includes('شقراء') ||
-      regionNorm.includes('وشم');
-
-    const hasDawasirCue =
-      tribeNorm.includes('دواسر') ||
-      tribeNorm.includes('بدارين') ||
-      tribeNorm.includes('سابق') ||
-      regionNorm.includes('بريده') ||
-      regionNorm.includes('بير') ||
-      regionNorm.includes('محمل');
-
-    if (hasTayyarCue && !hasTamimCue && !hasDawasirCue) {
-      return optionA_TayyarConsensusResult;
-    }
-    if (hasDawasirCue && !hasTamimCue && !hasTayyarCue) {
-      return optionB_DawasirResult;
-    }
-    if (hasTamimCue && !hasDawasirCue && !hasTayyarCue) {
-      return optionC_TamimResult;
-    }
-
-    return {
-      ...optionA_TayyarConsensusResult,
-      requiresBlindDisambiguation: true,
-      disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
-      disambiguationOptions: AL_HUSSAN_DISAMBIGUATION_OPTIONS,
-      optionAResultOverride: optionA_TayyarConsensusResult,
-      optionBResultOverride: optionB_DawasirResult,
-      optionCResultOverride: optionC_TamimResult,
-      disambiguationPathsSummaryForTicket:
-        'تعدد مسارات لاسم (الحصان / آل الحصان): [المسار الفائز بالتوافق (3 مصادر)]: الحصان ⬅️ محمود ⬅️ الحصانية ⬅️ جعفر ⬅️ الطيار | [المسار الثاني]: آل الحصان ⬅️ آل سابق ⬅️ الحسن ⬅️ البدارين ⬅️ قبيلة الدواسر (بريدة/القصيم) | [المسار الثالث]: آل الحصان ⬅️ النواصر ⬅️ بني عمرو ⬅️ قبيلة تميم (شقراء/الوشم).',
-    };
-  }
-
-  // ===========================================================================
-  // UNIVERSAL CATALOG DYNAMIC MATCH (Applies the 5 Algorithmic Rules to any matched catalog family such as "قدم", "الشاهل", etc.)
-  // ===========================================================================
-  const queryStemForCatalog = normalizeArabicStem(displayFamilyName);
-  if (queryStemForCatalog && !isExplicitUnmatched) {
-    const matchedCatalogRecords = UNIVERSAL_ALPHA_EVIDENCE_CATALOG.filter((ev) => {
-      const recParts = decomposeCompoundLineageName(ev.record_name || '');
-      const recMatch =
-        normalizeArabicStem(ev.record_name || '') === queryStemForCatalog ||
-        recParts.some((p) => normalizeArabicStem(p) === queryStemForCatalog);
-      const branchMatch = isRecordChildBranchMatchForQuery(displayFamilyName, ev);
-      return recMatch || branchMatch;
-    });
-
-    if (matchedCatalogRecords.length > 0) {
-      const clusters = computeCrossSourceConsensusClusters(
-        displayFamilyName,
-        matchedCatalogRecords
-      );
-      const primaryCluster = clusters[0];
-      const winningChainAncestors = primaryCluster
-        ? primaryCluster.fullChainNodes.slice(1)
-        : cleanAndUnrollLineageChain(
-            (matchedCatalogRecords[0].lineage_ancestors || '').split(/[؛—⬅️>|]+/),
-            displayFamilyName
-          );
-      const matchedLoc =
-        primaryCluster?.geographicScope ||
-        matchedCatalogRecords[0].locations ||
-        form.originRegion ||
-        form.originCountry ||
-        geoOntology.canonicalCountry;
-
-      const isChildBranchOnly = matchedCatalogRecords.every((ev) =>
-        isRecordChildBranchMatchForQuery(displayFamilyName, ev)
-      );
-
-      const spineNodes = buildDynamicAlphaSpineFromAncestors(
-        displayFamilyName,
-        winningChainAncestors.join(' ؛ '),
-        winningChainAncestors[0] || displayFamilyName,
-        winningChainAncestors[winningChainAncestors.length - 1] || displayFamilyName,
-        matchedLoc,
-        {
-          isChildBranchMatch: isChildBranchOnly,
-          recordTitleNodeName: isChildBranchOnly
-            ? matchedCatalogRecords[0].record_name
-            : undefined,
-          corroboratingRecords: primaryCluster?.records || matchedCatalogRecords,
-        }
-      );
-
-      const b2Name =
-        spineNodes.find((n) => n.code === 'B2')?.name ||
-        spineNodes[Math.min(1, spineNodes.length - 1)]?.name ||
-        displayFamilyName;
-      const b0Name =
-        spineNodes[spineNodes.length - 1]?.name ||
-        primaryCluster?.originTribeLabel ||
-        b2Name;
-
-      const agg = aggregateAlphaEvidenceForFamily(
-        displayFamilyName,
-        matchedLoc,
-        matchedCatalogRecords
-      );
-      const taggedEv = tagConsensusWinnersOnEvidence(
-        displayFamilyName,
-        matchedCatalogRecords
-      );
-      const fullStitchedNodes: UpperAncestorNode[] = enrichSpineNodesWithNeo4jRelations(
-        (primaryCluster?.fullChainNodes || [displayFamilyName, ...winningChainAncestors]).map(
-          (nodeName, idx, arr) => ({
-            id: `stitched-cat-${idx + 1}`,
-            orderNumber: idx + 1,
-            name: nodeName,
-            code: idx === 0 ? 'FE0' : idx === arr.length - 1 ? 'B0' : 'B2',
-            rankLabel:
-              idx === 0
-                ? 'عقدة العائلة الموثقة'
-                : idx === arr.length - 1
-                ? 'القبيلة الأم / الجذم الجامع في السجل'
-                : 'محطة موثقة في سلسلة النسب',
-            isCodedStation: true,
-            region: matchedLoc,
-            eraNote: `محطة موثقة في السلسلة المدمجة لعائلة ${displayFamilyName}.`,
-            dataLakeSource: 'alpha_projects',
-          })
-        )
-      );
-
-      const baseCatalogResult: LineageSearchResult = {
-        matched: true,
-        engineSource,
-        primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-        priorityTierMatched: 'TIER_2_PRIORITY_1_COUNTRY_BOOK',
-        clientName,
-        fatherName,
-        grandfatherName,
-        familyName: displayFamilyName,
-        familyCode: `ALPHA-CAT-${matchedCatalogRecords.length}`,
-        originCountry:
-          form.originCountry ||
-          (matchedLoc.includes('اليمن') ? 'اليمن' : geoOntology.canonicalCountry),
-        originRegion: form.originRegion || matchedLoc,
-        resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
-        inferred_client_countries: matchedLoc.includes('اليمن')
-          ? ['اليمن']
-          : inferredCountries,
-        matched_location: matchedLoc,
-        sibling_branches_in_record: agg.sibling_branches_in_record,
-        siblingBranches: agg.sibling_branches_in_record,
-        rootBranchName: b2Name,
-        rootBranchCode: 'B2',
-        rootTribeName: b0Name,
-        rootTribeCode: 'B0',
-        rootSummaryLabel: `الجذر: ${b2Name} ⬅️ ${b0Name}`,
-        upperAncestors: spineNodes.filter((n) => n.orderNumber > 1),
-        adamSpineNodes: spineNodes,
-        full_stitched_lineage_for_researcher: fullStitchedNodes,
-        suggested_adam_bridge_for_researcher: buildSuggestedAdamBridgeForResearcher(
-          displayFamilyName,
-          b2Name,
-          b0Name
-        ),
-        lake3_unlinked_projects_for_researcher: buildLake3UnlinkedProjectsForResearcher(
-          displayFamilyName,
-          b0Name,
-          matchedLoc
-        ),
-        ai_research_hypotheses: buildAIResearchHypothesesForFamily(
-          displayFamilyName,
-          taggedEv,
-          buildSuggestedAdamBridgeForResearcher(displayFamilyName, b2Name, b0Name)
-        ),
-        capsules: buildIntermediateRingsForSpine([...spineNodes], 'alpha-cat-cap'),
-        requiresBlindDisambiguation: clusters.length > 1 && !clusters[0].isConsensusWinner,
-        disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
-        isAlphaOnlyBeforeMerge: true,
-        isAlphaMergedIntoAdam: false,
-        alphaParallelSource: agg.primaryCitation,
-        alphaBackgroundTicketCode: agg.background_researcher_ticket.ticket_id,
-        verifiedSourceCitation: agg.primaryCitation,
-        verified_sources: agg.verified_sources,
-        secondarySources: agg.verified_sources,
-        corroborating_alpha_evidence_for_researcher: taggedEv,
-        consensusClusterGroups: clusters,
-        background_researcher_ticket: agg.background_researcher_ticket,
-        historicalRegion: matchedLoc,
-        conflictingNarrativesNote: agg.background_researcher_ticket.description_ar,
-        confidenceLabel: `تطابق مجمع من (${matchedCatalogRecords.length}) مصادر في مشاريع ألفا`,
-        recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
-      };
-
-      return applyDynamicClusterDisambiguation(baseCatalogResult, clusters, form);
-    }
-  }
 
   // ===========================================================================
   // TIER 4: UNMATCHED FAMILY -> State 3 (P1 Researcher Ticket Queue)
@@ -8029,9 +5182,10 @@ export function parsePort8090UniversalResponse(
       ? apiData.match_found
       : typeof apiData.matched === 'boolean'
       ? apiData.matched
-      : apiData.primary_source_of_truth === 'UNMATCHED_P1_TICKET'
+      : apiData.primary_source_of_truth === 'UNMATCHED_P1_TICKET' ||
+        apiData.primary_source_of_truth === 'UNMATCHED_NEEDS_RESEARCHER'
       ? false
-      : localFallback.matched;
+      : false;
 
   if (!matchFound) {
     return {
@@ -8066,206 +5220,141 @@ export function parsePort8090UniversalResponse(
         ? 'STAGE_2_GEOGRAPHY'
         : 'STAGE_1_TRIBE_ROOT';
 
-    const rawDisambigEvidence: CorroboratingAlphaEvidence[] =
-      extractedApiEvidence.length > 0
-        ? extractedApiEvidence
-        : localFallback.corroborating_alpha_evidence_for_researcher || [];
+    const rawDisambigEvidence: CorroboratingAlphaEvidence[] = extractedApiEvidence;
 
     const disambigClusters =
       rawDisambigEvidence.length > 0
         ? computeCrossSourceConsensusClusters(displayFamilyName, rawDisambigEvidence)
-        : localFallback.consensusClusterGroups || [];
-
-    const optionIds: Array<'option_a' | 'option_b'> = [
-      'option_a',
-      'option_b',
-    ];
-
-    // Match each API disambiguation option to its corresponding cluster in `disambigClusters`
-    // by `choice_id` (e.g. `ALPHA_CL_ALP_B_0d2a1e526e3b`) or by normalized stem (`stemTribeToken`)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const findMatchingClusterForOption = (opt: any, fallbackIdx: number): ConsensusClusterGroup | undefined => {
-      const choiceId = String(opt?.choice_id || '');
-      const optTitleStem = stemTribeToken(String(opt?.origin_tribe_label || opt?.title || ''));
-      if (choiceId) {
-        const byAlphaId = disambigClusters.find((c) =>
-          c.records.some((r) => r.alpha_id && choiceId.includes(r.alpha_id))
-        );
-        if (byAlphaId) return byAlphaId;
-      }
-      if (optTitleStem) {
-        const byStem = disambigClusters.find(
-          (c) =>
-            stemTribeToken(c.originTribeLabel) === optTitleStem ||
-            c.fullChainNodes.some((n) => stemTribeToken(n) === optTitleStem)
-        );
-        if (byStem) return byStem;
-      }
-      return disambigClusters[fallbackIdx];
-    };
-
-    // Sort rawOptions by source weight descending so the 2 strongest paths come first
-    const sortedRawOptions = [...rawOptions].sort((a, b) => {
-      const aCluster = findMatchingClusterForOption(a, 0);
-      const bCluster = findMatchingClusterForOption(b, 1);
-      const aWeight = Number(a?.sources_count || aCluster?.sourcesCount || (a?.consensus_badge ? 2 : 1));
-      const bWeight = Number(b?.sources_count || bCluster?.sourcesCount || (b?.consensus_badge ? 2 : 1));
-      if (bWeight !== aWeight) return bWeight - aWeight;
-      const aHasBadge = Boolean(a?.consensus_badge || a?.is_consensus_winner) ? 1 : 0;
-      const bHasBadge = Boolean(b?.consensus_badge || b?.is_consensus_winner) ? 1 : 0;
-      return bHasBadge - aHasBadge;
-    });
-
-    // Strictly limit customer disambiguation options to the top 2 strongest paths (`slice(0, 2)`)
-    const mappedOptions: BlindDisambiguationOption[] =
-      sortedRawOptions.length >= 2
-        ? sortedRawOptions.slice(0, 2).map(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (opt: any, idx: number): BlindDisambiguationOption => {
-              const matchedCluster = findMatchingClusterForOption(opt, idx);
-              const rawOptSources = Array.isArray(opt.sources)
-                ? opt.sources
-                : Array.isArray(opt.contributing_sources)
-                ? opt.contributing_sources
-                : Array.isArray(opt.records)
-                ? opt.records
-                : null;
-              const mappedOptSources: CorroboratingAlphaEvidence[] = rawOptSources
-                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  rawOptSources.map((s: any, sIdx: number) => {
-                    const ref = extractBookVolPageFromEvidence(s);
-                    return {
-                      alpha_id: String(s?.alpha_id || `OPT_${idx}_SRC_${sIdx + 1}`),
-                      record_name: String(s?.record_name || displayFamilyName),
-                      source_book: ref.book,
-                      volume: ref.volume,
-                      page: ref.page,
-                      lineage_ancestors: s?.lineage_ancestors
-                        ? String(s.lineage_ancestors)
-                        : null,
-                      priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-                      source_lake: s?.source_lake || s?.data_lake || null,
-                    };
-                  })
-                : matchedCluster?.records || [];
-
-              return {
-                id: optionIds[idx] || 'option_a',
-                choice_id: opt.choice_id ? String(opt.choice_id) : undefined,
-                badge:
-                  opt.consensus_badge ||
-                  (matchedCluster && matchedCluster.sourcesCount >= 2
-                    ? `توافق (${matchedCluster.sourcesCount}) مصادر`
-                    : idx === 0
-                    ? 'المسار المتوافق عليه في المصادر'
-                    : 'مسار موازٍ في المصادر'),
-                title: String(
-                  opt.title ||
-                    opt.origin_tribe_label ||
-                    matchedCluster?.originTribeLabel ||
-                    `المسار ${idx + 1}`
-                ),
-                originTribeLabel: String(
-                  opt.origin_tribe_label ||
-                    opt.title ||
-                    matchedCluster?.originTribeLabel ||
-                    `المسار ${idx + 1}`
-                ),
-                geographicScope: String(
-                  opt.geographic_scope ||
-                    opt.locations ||
-                    matchedCluster?.geographicScope ||
-                    localFallback.disambiguationOptions?.[idx]?.geographicScope ||
-                    opt.title ||
-                    'النطاق الجغرافي المرصود'
-                ),
-                nearBranchHint:
-                  matchedCluster?.rootPreviewLabel ||
-                  (opt.choice_id ? `معرّف المسار: ${opt.choice_id}` : ''),
-                isConsensusWinner: Boolean(
-                  opt.is_consensus_winner ??
-                    (Boolean(opt.consensus_badge) || matchedCluster?.isConsensusWinner)
-                ),
-                consensusBadge: opt.consensus_badge
-                  ? String(opt.consensus_badge)
-                  : matchedCluster && matchedCluster.sourcesCount >= 2
-                  ? `توافق (${matchedCluster.sourcesCount}) مصادر`
-                  : undefined,
-                sourcesCount: opt.sources_count
-                  ? Number(opt.sources_count)
-                  : mappedOptSources.length || matchedCluster?.sourcesCount,
-                contributingSources: mappedOptSources,
-              };
-            }
-          )
         : [];
 
-    const taggedDisambigEvidence =
-      rawDisambigEvidence.length > 0
-        ? tagConsensusWinnersOnEvidence(displayFamilyName, rawDisambigEvidence)
-        : localFallback.corroborating_alpha_evidence_for_researcher || [];
+    // Requirement 4(أ): If our clustering & orthographic/OCR normalization engine unified all records
+    // into a SINGLE consensus cluster (`disambigClusters.length === 1`, e.g., `بنو حاود` where `جُدّان` is an OCR typo of `حدان`
+    // and both share `غالب ⬅️ عثمان` in `السراة`), DROP `requires_disambiguation` and fall through to Case C (`SINGLE_MATCH`)!
+    if (disambigClusters.length === 1) {
+      apiData.requires_disambiguation = false;
+      apiData.primary_source_of_truth = 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED';
+    } else if (disambigClusters.length >= 2) {
+      // Requirement 4(ب): Synchronize `disambiguationOptions` 100% with `disambigClusters` (`consensusClusterGroups`)
+      // so the top comparison matrix and the bottom Customer Simulator in Step 4 match 100%!
+      const optionIds: Array<'option_a' | 'option_b'> = ['option_a', 'option_b'];
 
-    const baseDisambigResult: LineageSearchResult = {
-      ...localFallback,
-      matched: true,
-      engineSource: 'live_german_engine',
-      primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
-      isAlphaOnlyBeforeMerge: true,
-      isAlphaMergedIntoAdam: false,
-      requiresBlindDisambiguation: mappedOptions.length >= 2,
-      disambiguation_stage: disambigStage,
-      disambiguationOptions: mappedOptions,
-      alpha_evidence: taggedDisambigEvidence,
-      corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
-      consensusClusterGroups: disambigClusters,
-    };
+      const mappedOptions: BlindDisambiguationOption[] = disambigClusters
+        .slice(0, 2)
+        .map((cluster, idx): BlindDisambiguationOption => {
+          // Match corresponding API option if available for choice_id
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const matchingApiOpt = rawOptions.find((opt: any) => {
+            const cId = String(opt?.choice_id || '');
+            return (
+              cId &&
+              cluster.records.some((r) => r.alpha_id && cId.includes(r.alpha_id))
+            );
+          });
 
-    const clusterForOpt0 = sortedRawOptions[0]
-      ? findMatchingClusterForOption(sortedRawOptions[0], 0)
-      : disambigClusters[0];
-    const clusterForOpt1 = sortedRawOptions[1]
-      ? findMatchingClusterForOption(sortedRawOptions[1], 1)
-      : disambigClusters[1];
-    const clusterForOpt2 = sortedRawOptions[2]
-      ? findMatchingClusterForOption(sortedRawOptions[2], 2)
-      : disambigClusters[2];
+          const firstSubRoot =
+            cluster.fullChainNodes.length > 1
+              ? cluster.fullChainNodes[1]
+              : cluster.originTribeLabel;
+          const topTribe = cluster.originTribeLabel;
+          const optionLabel =
+            firstSubRoot && topTribe && stemTribeToken(firstSubRoot) !== stemTribeToken(topTribe)
+              ? `${firstSubRoot} (${topTribe})`
+              : topTribe;
 
-    const optA = mappedOptions[0]
-      ? buildResolvedLineageFromDisambiguationOption(
-          baseDisambigResult,
-          mappedOptions[0],
-          clusterForOpt0
-        )
-      : localFallback.optionAResultOverride;
-    const optB = mappedOptions[1]
-      ? buildResolvedLineageFromDisambiguationOption(
-          baseDisambigResult,
-          mappedOptions[1],
-          clusterForOpt1
-        )
-      : localFallback.optionBResultOverride;
-    const optC = mappedOptions[2]
-      ? buildResolvedLineageFromDisambiguationOption(
-          baseDisambigResult,
-          mappedOptions[2],
-          clusterForOpt2
-        )
-      : localFallback.optionCResultOverride;
+          return {
+            id: optionIds[idx] || 'option_a',
+            choice_id: matchingApiOpt?.choice_id
+              ? String(matchingApiOpt.choice_id)
+              : cluster.clusterId,
+            badge:
+              cluster.sourcesCount >= 2
+                ? `توافق (${cluster.sourcesCount}) مصادر`
+                : idx === 0
+                ? 'المسار الأول المرصود في المصادر'
+                : 'مسار موازٍ في المصادر',
+            title: optionLabel,
+            originTribeLabel: optionLabel,
+            geographicScope:
+              cluster.geographicScope || 'النطاق الجغرافي المرصود',
+            nearBranchHint: cluster.rootPreviewLabel,
+            isConsensusWinner: cluster.isConsensusWinner,
+            consensusBadge:
+              cluster.sourcesCount >= 2
+                ? `توافق (${cluster.sourcesCount}) مصادر`
+                : undefined,
+            sourcesCount: cluster.sourcesCount,
+            contributingSources: cluster.records,
+          };
+        });
 
-    return {
-      ...baseDisambigResult,
-      ...(optA || {}),
-      engineSource: 'live_german_engine',
-      requiresBlindDisambiguation: mappedOptions.length >= 2,
-      disambiguation_stage: disambigStage,
-      disambiguationOptions: mappedOptions,
-      alpha_evidence: taggedDisambigEvidence,
-      corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
-      consensusClusterGroups: disambigClusters,
-      optionAResultOverride: optA,
-      optionBResultOverride: optB,
-      optionCResultOverride: optC,
-    };
+      const taggedDisambigEvidence =
+        rawDisambigEvidence.length > 0
+          ? tagConsensusWinnersOnEvidence(displayFamilyName, rawDisambigEvidence)
+          : [];
+
+      const baseDisambigResult: LineageSearchResult = {
+        ...localFallback,
+        matched: true,
+        engineSource: 'live_german_engine',
+        primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
+        isAlphaOnlyBeforeMerge: true,
+        isAlphaMergedIntoAdam: false,
+        requiresBlindDisambiguation: mappedOptions.length >= 2,
+        disambiguation_stage: disambigStage,
+        disambiguationOptions: mappedOptions,
+        alpha_evidence: taggedDisambigEvidence,
+        corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
+        consensusClusterGroups: disambigClusters,
+      };
+
+      const optA = mappedOptions[0]
+        ? buildResolvedLineageFromDisambiguationOption(
+            baseDisambigResult,
+            mappedOptions[0],
+            disambigClusters[0]
+          )
+        : undefined;
+      const optB = mappedOptions[1]
+        ? buildResolvedLineageFromDisambiguationOption(
+            baseDisambigResult,
+            mappedOptions[1],
+            disambigClusters[1]
+          )
+        : undefined;
+      const optC = disambigClusters[2]
+        ? buildResolvedLineageFromDisambiguationOption(
+            baseDisambigResult,
+            {
+              id: 'option_c',
+              choice_id: disambigClusters[2].clusterId,
+              badge: `توافق (${disambigClusters[2].sourcesCount}) مصادر`,
+              title: disambigClusters[2].originTribeLabel,
+              originTribeLabel: disambigClusters[2].originTribeLabel,
+              geographicScope: disambigClusters[2].geographicScope,
+              nearBranchHint: disambigClusters[2].rootPreviewLabel,
+              isConsensusWinner: disambigClusters[2].isConsensusWinner,
+              sourcesCount: disambigClusters[2].sourcesCount,
+              contributingSources: disambigClusters[2].records,
+            },
+            disambigClusters[2]
+          )
+        : undefined;
+
+      return {
+        ...baseDisambigResult,
+        ...(optA || {}),
+        engineSource: 'live_german_engine',
+        requiresBlindDisambiguation: mappedOptions.length >= 2,
+        disambiguation_stage: disambigStage,
+        disambiguationOptions: mappedOptions,
+        alpha_evidence: taggedDisambigEvidence,
+        corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
+        consensusClusterGroups: disambigClusters,
+        optionAResultOverride: optA,
+        optionBResultOverride: optB,
+        optionCResultOverride: optC,
+      };
+    }
   }
 
   // Case B: Priority 1 — ADAM_MASTER_TREE from Port 8090
@@ -8319,21 +5408,18 @@ export function parsePort8090UniversalResponse(
       !String(apiData.root_connection_5usd_tier.subtribe_b2_name).includes('مقفل')
         ? String(apiData.root_connection_5usd_tier.subtribe_b2_name)
         : enrichedChain.find((n) => n.code === 'B2' || n.code === 'B3')?.name ||
-          localFallback.rootBranchName;
+          '';
 
     const rootB0 =
       apiData.root_connection_5usd_tier?.mother_tribe_b0_name &&
       !String(apiData.root_connection_5usd_tier.mother_tribe_b0_name).includes('مقفل')
         ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
         : enrichedChain.find((n) => n.code === 'B0')?.name ||
-          localFallback.rootTribeName;
+          '';
 
-    const adamNodeId = String(
-      apiData.chain_nodes[0]?.node_id || localFallback.adamNodeId || '272887'
-    );
+    const adamNodeId = String(apiData.chain_nodes[0]?.node_id || '272887');
     const resolvedFamName = enrichedChain[0]?.name || displayFamilyName;
 
-    // Parallel Alpha Cross-Confirmation & Enrichment: never stop at Adam's Tree!
     const apiParallelEvidence: CorroboratingAlphaEvidence[] =
       extractedApiEvidence.length > 0 ? extractedApiEvidence : [];
 
@@ -8342,36 +5428,24 @@ export function parsePort8090UniversalResponse(
       rootB2,
       rootB0,
       form.originCountry || geoOntology.canonicalCountry,
-      [
-        ...apiParallelEvidence,
-        ...(localFallback.corroborating_alpha_evidence_for_researcher || []),
-      ]
+      apiParallelEvidence
     );
 
     const parallelAgg = aggregateAlphaEvidenceForFamily(
       resolvedFamName,
-      form.originRegion || form.originCountry || localFallback.historicalRegion,
+      form.originRegion || form.originCountry || '',
       parallelAlphaEvidence,
       adamNodeId
     );
 
     const mergedVerifiedSources = Array.from(
-      new Set([
-        ...(localFallback.verified_sources || []),
-        ...(parallelAgg.verified_sources || []),
-      ])
+      new Set([...(parallelAgg.verified_sources || [])])
     );
     const mergedSiblings = Array.from(
-      new Set([
-        ...(localFallback.sibling_branches_in_record || []),
-        ...(parallelAgg.sibling_branches_in_record || []),
-      ])
+      new Set([...(parallelAgg.sibling_branches_in_record || [])])
     );
     const mergedNotables = Array.from(
-      new Set([
-        ...(localFallback.notables_in_record || []),
-        ...(parallelAgg.notables_in_record || []),
-      ])
+      new Set([...(parallelAgg.notables_in_record || [])])
     );
 
     return {
@@ -8418,19 +5492,8 @@ export function parsePort8090UniversalResponse(
     apiData.primary_source_of_truth === 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED' ||
     extractedApiEvidence.length > 0
   ) {
-    const rawEvidence: CorroboratingAlphaEvidence[] =
-      extractedApiEvidence.length > 0
-        ? extractedApiEvidence
-        : localFallback.corroborating_alpha_evidence_for_researcher || [];
-
-    // Merge local curated evidence if localFallback also matched this family so no sources are lost
-    const combinedEvidence =
-      localFallback.matched &&
-      localFallback.corroborating_alpha_evidence_for_researcher &&
-      localFallback.corroborating_alpha_evidence_for_researcher.length >
-        rawEvidence.length
-        ? localFallback.corroborating_alpha_evidence_for_researcher
-        : rawEvidence;
+    const rawEvidence: CorroboratingAlphaEvidence[] = extractedApiEvidence;
+    const combinedEvidence: CorroboratingAlphaEvidence[] = rawEvidence;
 
     if (combinedEvidence.length === 0) {
       return {
@@ -8532,7 +5595,6 @@ export function parsePort8090UniversalResponse(
     const primaryEvidenceWithLineage = sortedByRichness[0];
 
     // Compute Cross-Source Consensus Clusters FIRST using the 5 Universal Algorithmic Rules
-    // (Anchor-Based Topological Alignment, Compound Name Decomposition, Anti-Cross-Family Merge, and Summary-Prefix Trimming)
     const consensusClusters = computeCrossSourceConsensusClusters(
       displayFamilyName,
       combinedEvidence
@@ -8570,7 +5632,7 @@ export function parsePort8090UniversalResponse(
         ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
         : '';
 
-    const builtDynamicSpine = buildDynamicAlphaSpineFromAncestors(
+    const dynamicSpine = buildDynamicAlphaSpineFromAncestors(
       displayFamilyName,
       bestLineageChainText || rawB0 || rawB2,
       rawB2 || primaryEvidenceWithLineage?.record_name || displayFamilyName,
@@ -8579,29 +5641,18 @@ export function parsePort8090UniversalResponse(
       { corroboratingRecords: primaryWinningCluster?.records || combinedEvidence }
     );
 
-    const useCuratedLocalAlphaSpine =
-      localFallback.matched &&
-      localFallback.isAlphaOnlyBeforeMerge &&
-      localFallback.adamSpineNodes.length >= builtDynamicSpine.length &&
-      localFallback.adamSpineNodes.length >= 2;
+    const rootB2Name =
+      dynamicSpine.find((n) => n.code === 'B2')?.name ||
+      dynamicSpine[Math.max(1, dynamicSpine.length - 2)]?.name ||
+      rawB2 ||
+      displayFamilyName;
+    const rootB0Name =
+      dynamicSpine[dynamicSpine.length - 1]?.name || rawB0 || rootB2Name;
 
-    const dynamicSpine = useCuratedLocalAlphaSpine
-      ? localFallback.adamSpineNodes
-      : builtDynamicSpine;
-
-    const rootB2Name = useCuratedLocalAlphaSpine
-      ? localFallback.rootBranchName
-      : dynamicSpine.find((n) => n.code === 'B2')?.name ||
-        dynamicSpine[Math.max(1, dynamicSpine.length - 2)]?.name ||
-        rawB2 ||
-        displayFamilyName;
-    const rootB0Name = useCuratedLocalAlphaSpine
-      ? localFallback.rootTribeName
-      : dynamicSpine[dynamicSpine.length - 1]?.name || rawB0 || rootB2Name;
-
-    const dynamicCapsules = useCuratedLocalAlphaSpine
-      ? localFallback.capsules
-      : buildIntermediateRingsForSpine([...dynamicSpine], 'alpha-live-cap');
+    const dynamicCapsules = buildIntermediateRingsForSpine(
+      [...dynamicSpine],
+      'alpha-live-cap'
+    );
 
     // Rule 3: If 4+ completely different paths of equal weight exist with NO consensus winner uniting them,
     // do NOT show 4 or 5+ options to the customer — convert automatically to a Researcher Ticket!
@@ -8654,7 +5705,6 @@ export function parsePort8090UniversalResponse(
     );
 
     // Build full_stitched_lineage_for_researcher using the topologically aligned `primaryWinningCluster.fullChainNodes`
-    // (Rules 1, 2, 3, 4) so even if the remote backend sent an unaligned chain, it is deterministically aligned!
     const alignedStitchedChainNames =
       primaryWinningCluster && primaryWinningCluster.fullChainNodes.length > 1
         ? primaryWinningCluster.fullChainNodes
@@ -8698,9 +5748,6 @@ export function parsePort8090UniversalResponse(
             })
           )
         )
-      : localFallback.full_stitched_lineage_for_researcher &&
-        useCuratedLocalAlphaSpine
-      ? localFallback.full_stitched_lineage_for_researcher
       : buildFullStitchedLineageForResearcher(dynamicSpine);
 
     // Parse Lake 1 (suggested_adam_bridge_for_researcher)
@@ -8730,8 +5777,7 @@ export function parsePort8090UniversalResponse(
               ? String(apiData.suggested_adam_bridge_for_researcher.confidence_label)
               : 'جسر التقاء مكتشف آلياً في البحيرة 1 (شجرة آدم)',
           }
-        : localFallback.suggested_adam_bridge_for_researcher ||
-          buildSuggestedAdamBridgeForResearcher(
+        : buildSuggestedAdamBridgeForResearcher(
             displayFamilyName,
             rootB2Name,
             rootB0Name
@@ -8756,8 +5802,7 @@ export function parsePort8090UniversalResponse(
             notes: rec.notes ? String(rec.notes) : undefined,
           })
         )
-      : localFallback.lake3_unlinked_projects_for_researcher ||
-        buildLake3UnlinkedProjectsForResearcher(
+      : buildLake3UnlinkedProjectsForResearcher(
           displayFamilyName,
           rootB0Name,
           String(matchedLocation)
@@ -8770,8 +5815,7 @@ export function parsePort8090UniversalResponse(
             ? h
             : String(h?.hypothesis_text || h?.description || h?.note || JSON.stringify(h))
         )
-      : localFallback.ai_research_hypotheses ||
-        buildAIResearchHypothesesForFamily(
+      : buildAIResearchHypothesesForFamily(
           displayFamilyName,
           taggedCombinedEvidence,
           apiSuggestedBridge
@@ -8818,14 +5862,13 @@ export function parsePort8090UniversalResponse(
       lake3_unlinked_projects_for_researcher: apiLake3Records,
       ai_research_hypotheses: apiHypotheses,
       capsules: dynamicCapsules,
-      requiresBlindDisambiguation: localFallback.requiresBlindDisambiguation,
-      disambiguation_stage: localFallback.disambiguation_stage || 'STAGE_1_TRIBE_ROOT',
-      disambiguationOptions: localFallback.disambiguationOptions,
-      optionAResultOverride: localFallback.optionAResultOverride,
-      optionBResultOverride: localFallback.optionBResultOverride,
-      optionCResultOverride: localFallback.optionCResultOverride,
-      disambiguationPathsSummaryForTicket:
-        localFallback.disambiguationPathsSummaryForTicket,
+      requiresBlindDisambiguation: false,
+      disambiguation_stage: 'STAGE_1_TRIBE_ROOT',
+      disambiguationOptions: [],
+      optionAResultOverride: undefined,
+      optionBResultOverride: undefined,
+      optionCResultOverride: undefined,
+      disambiguationPathsSummaryForTicket: undefined,
       isAlphaOnlyBeforeMerge: true,
       isAlphaMergedIntoAdam: false,
       alphaParallelSource: finalVerifiedSources.slice(0, 3).join(' | '),
@@ -8846,10 +5889,6 @@ export function parsePort8090UniversalResponse(
         : `تطابق مجمع من (${taggedCombinedEvidence.length}) مصادر في مشاريع ألفا (الأولوية 3: المعاجم والموسوعات العامة)`,
       recommendedInitialState: DashboardStateMode.State2MatchedUnpaid,
     };
-
-    if (localFallback.matched && localFallback.optionAResultOverride) {
-      return baseLiveAlphaResult;
-    }
 
     return applyDynamicClusterDisambiguation(baseLiveAlphaResult, consensusClusters, form);
   }
@@ -9145,11 +6184,15 @@ export async function searchJuthoriLineage(
     form.originRegion
   );
 
+  const cleanFather = form.fatherName.trim();
+  const cleanGrandfather = form.grandfatherName.trim();
+
   const requestPayload = {
     account_type: form.accountType || 'individual',
     first_name: form.firstName.trim() || 'كريم',
-    father_name: form.fatherName.trim() || null,
-    grandfather_name: form.grandfatherName.trim() || null,
+    father_name: cleanFather && cleanFather !== '—' ? cleanFather : null,
+    grandfather_name:
+      cleanGrandfather && cleanGrandfather !== '—' ? cleanGrandfather : null,
     family_name: form.familyName.trim(),
     origin_country:
       form.originCountry?.trim() ||
@@ -9166,9 +6209,8 @@ export async function searchJuthoriLineage(
   };
 
   // Helper: when the German server returns `requires_disambiguation: true` without
-  // `corroborating_alpha_evidence_for_researcher` or `alpha_evidence`, automatically fetch the resolved payload
-  // using the best `choice_id` so all raw sources (`alpha_evidence` / `corroborating_alpha_evidence_for_researcher`)
-  // and `full_stitched_lineage_for_researcher` are populated and Step 1 NEVER displays `0 مصادر خام`!
+  // `corroborating_alpha_evidence_for_researcher` or `alpha_evidence`, automatically fetch the resolved payloads
+  // for all valid `choice_id` options in parallel so ALL raw sources across all competing paths are populated!
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hydrateDisambiguationPayloadIfNeeded = async (rawPayload: any, endpointUrl: string, isProxy: boolean) => {
     const existingEvidence = extractApiRawEvidenceItems(
@@ -9190,49 +6232,79 @@ export async function searchJuthoriLineage(
           o.choice_id !== 'NEED_LOCATION_STEP' &&
           o.choice_id !== 'NOT_SURE_ESCALATE_P1'
       );
-      const preferredOpt =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        validOptions.find((o: any) => Boolean(o?.consensus_badge)) || validOptions[0];
-      if (preferredOpt?.choice_id) {
+      if (validOptions.length > 0) {
         try {
-          const followUpRes = await fetch(endpointUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-            body: JSON.stringify({
-              ...requestPayload,
-              disambiguation_choice_id: String(preferredOpt.choice_id),
-            }),
-          });
-          if (followUpRes.ok) {
-            const followUpJson = await followUpRes.json();
-            const resolvedData = isProxy ? followUpJson?.data : followUpJson?.data || followUpJson;
-            if (resolvedData && typeof resolvedData === 'object') {
-              const resolvedEvidence =
-                resolvedData.alpha_evidence ||
-                resolvedData.corroborating_alpha_evidence_for_researcher ||
-                rawPayload.alpha_evidence ||
-                rawPayload.corroborating_alpha_evidence_for_researcher;
-              return {
-                ...resolvedData,
-                ...rawPayload,
-                alpha_evidence: resolvedEvidence,
-                corroborating_alpha_evidence_for_researcher: resolvedEvidence,
-                verified_sources:
-                  resolvedData.verified_sources || rawPayload.verified_sources,
-                full_stitched_lineage_for_researcher:
-                  resolvedData.full_stitched_lineage_for_researcher ||
-                  rawPayload.full_stitched_lineage_for_researcher,
-                root_connection_5usd_tier:
-                  resolvedData.root_connection_5usd_tier ||
-                  rawPayload.root_connection_5usd_tier,
-                background_researcher_ticket:
-                  resolvedData.background_researcher_ticket ||
-                  rawPayload.background_researcher_ticket,
-              };
+          // Fetch all valid disambiguation options in parallel so no competing path's records are missed
+          const optionResponses = await Promise.all(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            validOptions.map(async (opt: any) => {
+              try {
+                const followUpRes = await fetch(endpointUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                  },
+                  body: JSON.stringify({
+                    ...requestPayload,
+                    disambiguation_choice_id: String(opt.choice_id),
+                  }),
+                });
+                if (!followUpRes.ok) return null;
+                const followUpJson = await followUpRes.json();
+                return isProxy
+                  ? followUpJson?.data
+                  : followUpJson?.data || followUpJson;
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const validResolvedList = optionResponses.filter(
+            (r) => r && typeof r === 'object'
+          );
+          if (validResolvedList.length > 0) {
+            const primaryResolved = validResolvedList[0];
+            // Deduplicate all raw evidence items across all option payloads by `alpha_id`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const mergedEvidenceMap = new Map<string, any>();
+            for (const resObj of validResolvedList) {
+              const evArr =
+                resObj.alpha_evidence ||
+                resObj.corroborating_alpha_evidence_for_researcher ||
+                [];
+              if (Array.isArray(evArr)) {
+                for (const item of evArr) {
+                  const key = String(
+                    item?.alpha_id ||
+                      `${item?.source_book || ''}_${item?.volume || ''}_${item?.page || ''}_${item?.record_name || ''}`
+                  );
+                  if (!mergedEvidenceMap.has(key)) {
+                    mergedEvidenceMap.set(key, item);
+                  }
+                }
+              }
             }
+            const allMergedEvidence = Array.from(mergedEvidenceMap.values());
+
+            return {
+              ...primaryResolved,
+              ...rawPayload,
+              alpha_evidence: allMergedEvidence,
+              corroborating_alpha_evidence_for_researcher: allMergedEvidence,
+              verified_sources:
+                primaryResolved.verified_sources || rawPayload.verified_sources,
+              full_stitched_lineage_for_researcher:
+                primaryResolved.full_stitched_lineage_for_researcher ||
+                rawPayload.full_stitched_lineage_for_researcher,
+              root_connection_5usd_tier:
+                primaryResolved.root_connection_5usd_tier ||
+                rawPayload.root_connection_5usd_tier,
+              background_researcher_ticket:
+                primaryResolved.background_researcher_ticket ||
+                rawPayload.background_researcher_ticket,
+            };
           }
         } catch {
           // Keep original rawPayload if follow-up probe fails
@@ -9245,7 +6317,7 @@ export async function searchJuthoriLineage(
   // Attempt 1: Direct HTTPS call to German Engine Tunnel (https://yes-poems-tennessee-condo.trycloudflare.com/api/v1/juthori/lineage-search)
   try {
     const directController = new AbortController();
-    const directTimer = setTimeout(() => directController.abort(), 6000);
+    const directTimer = setTimeout(() => directController.abort(), 15000);
     const directRes = await fetch(DIRECT_ENGINE_URL, {
       method: 'POST',
       headers: {
@@ -9276,7 +6348,7 @@ export async function searchJuthoriLineage(
   // Attempt 2: Server-side proxy to German Engine
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5500);
+    const timer = setTimeout(() => controller.abort(), 15000);
     const proxyRes = await fetch(PROXY_ENGINE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -9298,7 +6370,7 @@ export async function searchJuthoriLineage(
       }
     }
   } catch {
-    // Proceed to Universal 4-Tier fallback
+    // Return clean unmatched Tier-4 state if both API routes are unreachable
   }
 
   return resolveDeterministicLineage(form, 'neo4j_verified_graph');
