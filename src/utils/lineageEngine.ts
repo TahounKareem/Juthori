@@ -3781,6 +3781,193 @@ export function isMajorOverarchingTribeOrApexNode(name: string): boolean {
   });
 }
 
+export interface DetachedEpithetFusionResult {
+  mergedTokens: string[];
+  fusionExamples: string[];
+}
+
+const HISTORICAL_DETACHED_EPITHETS_MAP: Array<{
+  epithetStems: string[];
+  canonicalEpithet: string;
+  canonicalAncestorOverrides?: Record<string, string>;
+}> = [
+  {
+    epithetStems: ['بهلول', 'البهلول'],
+    canonicalEpithet: 'البهلول',
+    canonicalAncestorOverrides: {
+      ثعلبه: 'ثعلبة البهلول',
+    },
+  },
+  {
+    epithetStems: ['مزيقياء', 'مزبقياء', 'زبقياء', 'المزيقياء', 'المزبقياء'],
+    canonicalEpithet: 'مزيقياء',
+    canonicalAncestorOverrides: {
+      عمرو: 'عمرو مزيقياء',
+      عمر: 'عمرو مزيقياء',
+    },
+  },
+  {
+    epithetStems: ['ماء السماء', 'ماءالسماء'],
+    canonicalEpithet: 'ماء السماء',
+    canonicalAncestorOverrides: {
+      عامر: 'عامر ماء السماء',
+    },
+  },
+  {
+    epithetStems: ['غطريف', 'الغطريف'],
+    canonicalEpithet: 'الغطريف',
+    canonicalAncestorOverrides: {
+      حارثه: 'حارثة الغطريف',
+      الحارث: 'الحارث الغطريف',
+    },
+  },
+  {
+    epithetStems: ['بطريق', 'البطريق'],
+    canonicalEpithet: 'البطريق',
+    canonicalAncestorOverrides: {
+      'امريء القيس': 'امرؤ القيس البطريق',
+      'امرئ القيس': 'امرؤ القيس البطريق',
+      'امرؤ القيس': 'امرؤ القيس البطريق',
+      'امرا القيس': 'امرؤ القيس البطريق',
+      'امرو القيس': 'امرؤ القيس البطريق',
+    },
+  },
+  {
+    epithetStems: ['عنقاء', 'العنقاء'],
+    canonicalEpithet: 'العنقاء',
+    canonicalAncestorOverrides: {
+      ثعلبه: 'ثعلبة العنقاء',
+    },
+  },
+];
+
+/**
+ * Normalizes attached historical epithet spellings (e.g. `عمرو مُزَبْقياء` -> `عمرو مزيقياء`,
+ * `امرئ القيس البطريق` / `امريء القيس البطريق` -> `امرؤ القيس البطريق`).
+ */
+export function normalizeAttachedHistoricalEpithetToken(rawToken: string): {
+  normalized: string;
+  wasNormalized: boolean;
+} {
+  const cleaned = sanitizeLineageAncestorToken(rawToken);
+  if (!cleaned) return { normalized: '', wasNormalized: false };
+  const norm = normalizeArabic(cleaned);
+
+  if (/^ثعلبه\s+البهلول$/u.test(norm)) {
+    return { normalized: 'ثعلبة البهلول', wasNormalized: cleaned !== 'ثعلبة البهلول' };
+  }
+  if (/^عمرو?\s+(?:مزيقياء|مزبقياء|زبقياء)$/u.test(norm)) {
+    return { normalized: 'عمرو مزيقياء', wasNormalized: cleaned !== 'عمرو مزيقياء' };
+  }
+  if (/^عامر\s+ماء\s+السماء$/u.test(norm)) {
+    return { normalized: 'عامر ماء السماء', wasNormalized: cleaned !== 'عامر ماء السماء' };
+  }
+  if (/^حارثه\s+الغطريف$/u.test(norm)) {
+    return { normalized: 'حارثة الغطريف', wasNormalized: cleaned !== 'حارثة الغطريف' };
+  }
+  if (/^(?:امريء|امرئ|امرؤ|امرا|امرو)\s+القيس\s+البطريق$/u.test(norm)) {
+    return {
+      normalized: 'امرؤ القيس البطريق',
+      wasNormalized: cleaned !== 'امرؤ القيس البطريق',
+    };
+  }
+  if (/^ثعلبه\s+العنقاء$/u.test(norm)) {
+    return { normalized: 'ثعلبة العنقاء', wasNormalized: cleaned !== 'ثعلبة العنقاء' };
+  }
+  if (/^(?:امريء|امرئ|امرا|امرو)\s+القيس$/u.test(norm)) {
+    return { normalized: 'امرؤ القيس', wasNormalized: cleaned !== 'امرؤ القيس' };
+  }
+  return { normalized: cleaned, wasNormalized: false };
+}
+
+/**
+ * Extracts the base ancestor name and epithet from a station if it carries a known historical epithet
+ * (e.g., `ثعلبة البهلول` -> `{ baseName: 'ثعلبة', epithet: 'البهلول', hasEpithet: true }`).
+ */
+export function splitHistoricalEpithetFromStation(token: string): {
+  baseName: string;
+  epithet: string;
+  hasEpithet: boolean;
+} {
+  const { normalized } = normalizeAttachedHistoricalEpithetToken(token);
+  const norm = normalizeArabic(normalized);
+  const suffixes = [
+    { suffixNorm: 'البهلول', display: 'البهلول' },
+    { suffixNorm: 'مزيقياء', display: 'مزيقياء' },
+    { suffixNorm: 'ماء السماء', display: 'ماء السماء' },
+    { suffixNorm: 'الغطريف', display: 'الغطريف' },
+    { suffixNorm: 'البطريق', display: 'البطريق' },
+    { suffixNorm: 'العنقاء', display: 'العنقاء' },
+  ];
+  for (const item of suffixes) {
+    if (norm.endsWith(` ${item.suffixNorm}`)) {
+      const baseLen = normalized.length - item.display.length;
+      const baseName = normalized.slice(0, Math.max(0, baseLen)).trim();
+      if (baseName) {
+        return { baseName, epithet: item.display, hasEpithet: true };
+      }
+    }
+  }
+  return { baseName: normalized, epithet: '', hasEpithet: false };
+}
+
+/**
+ * Requirement 1: Detached Epithets Merger (`mergeDetachedHistoricalEpithets`)
+ * Merges detached historical epithets that were separated from their ancestor by a semicolon (`؛`)
+ * in transcribed dictionaries (such as «الخَزْرَج بن حارثة» in Mu'jam Qaba'il al-Arab:
+ * `ثعلبة؛ البُهْلُول؛ عمرو؛ مُزَبْقياء؛ عامر؛ ماء السماء؛ حارثة؛ الغِطْريف؛ امريء القيس؛ البَطْريق؛ ثعلبة؛ العَنْقاء`)
+ * into unified canonical stations (`ثعلبة البهلول`, `عمرو مزيقياء`, `عامر ماء السماء`, `حارثة الغطريف`,
+ * `امرؤ القيس البطريق`, `ثعلبة العنقاء`).
+ */
+export function mergeDetachedHistoricalEpithets(
+  rawTokens: string[]
+): DetachedEpithetFusionResult {
+  const mergedTokens: string[] = [];
+  const fusionExamplesSet = new Set<string>();
+
+  for (let i = 0; i < rawTokens.length; i++) {
+    const rawCurr = sanitizeLineageAncestorToken(rawTokens[i] || '');
+    if (!rawCurr) continue;
+
+    const currNorm = normalizeArabic(rawCurr);
+    const currStem = normalizeArabicStem(rawCurr);
+
+    // Check if `rawCurr` itself is a detached historical epithet that belongs to the previous token in `mergedTokens`
+    const matchedEpithetDef = HISTORICAL_DETACHED_EPITHETS_MAP.find(
+      (def) =>
+        def.epithetStems.includes(currNorm) || def.epithetStems.includes(currStem)
+    );
+
+    if (matchedEpithetDef && mergedTokens.length > 0) {
+      const prevTok = mergedTokens[mergedTokens.length - 1];
+      const prevNorm = normalizeArabic(prevTok);
+      const prevStem = normalizeArabicStem(prevTok);
+      // Avoid double-attaching if prevTok already contains the epithet
+      if (!prevNorm.includes(normalizeArabic(matchedEpithetDef.canonicalEpithet))) {
+        const canonicalCombined =
+          matchedEpithetDef.canonicalAncestorOverrides?.[prevNorm] ||
+          matchedEpithetDef.canonicalAncestorOverrides?.[prevStem] ||
+          `${prevTok} ${matchedEpithetDef.canonicalEpithet}`;
+        mergedTokens[mergedTokens.length - 1] = canonicalCombined;
+        fusionExamplesSet.add(`«${prevTok}؛ ${rawCurr}» ⬅️ (${canonicalCombined})`);
+        continue;
+      }
+    }
+
+    const { normalized, wasNormalized } =
+      normalizeAttachedHistoricalEpithetToken(rawCurr);
+    if (wasNormalized) {
+      fusionExamplesSet.add(`«${rawCurr}» ⬅️ (${normalized})`);
+    }
+    mergedTokens.push(normalized);
+  }
+
+  return {
+    mergedTokens,
+    fusionExamples: Array.from(fusionExamplesSet),
+  };
+}
+
 /**
  * Rule 2: Decompose Compound Names (`A بن B`) into atomic stations `['A', 'B']`.
  * For example, "قدم بن قادم" -> ['قدم', 'قادم'].
@@ -3820,61 +4007,89 @@ export function detectAndStripInvertedPreamble(
   familyOrRecordName?: string,
   secondaryRecordName?: string
 ): InvertedPreambleCheckResult {
+  // Step 0: Merge any detached historical epithets first (`ثعلبة؛ البُهْلُول` -> `ثعلبة البهلول`, `حارثة؛ الغِطْريف` -> `حارثة الغطريف`)
+  const { mergedTokens: epithetMergedTokens } =
+    mergeDetachedHistoricalEpithets(rawTokens);
+
   const expanded: string[] = [];
-  for (const raw of rawTokens) {
+  for (const raw of epithetMergedTokens) {
     const clean = sanitizeLineageAncestorToken(raw);
     if (!clean || isGeographicOrDescriptiveNoiseToken(clean)) continue;
     const subParts = decomposeCompoundLineageName(clean);
     for (const part of subParts) {
       if (part && !isGeographicOrDescriptiveNoiseToken(part)) {
-        expanded.push(part);
+        const { normalized } = normalizeAttachedHistoricalEpithetToken(part);
+        expanded.push(normalized || part);
       }
     }
   }
 
-  if (expanded.length < 3) {
+  // Re-run epithet merger in case a decomposed compound contained a detached epithet
+  const finalExpanded = mergeDetachedHistoricalEpithets(expanded).mergedTokens;
+
+  if (finalExpanded.length < 3) {
     return {
       wasInvertedPreambleStripped: false,
       strippedPreambleTokens: [],
       relocatedApexTokens: [],
       matchedSubjectToken: '',
-      cleanedTokensAfterSubject: expanded,
+      cleanedTokensAfterSubject: finalExpanded,
     };
   }
 
   const primarySubjectStems = new Set<string>();
-  const allSubjectPartStems = new Set<string>();
+  const directFatherStems = new Set<string>();
 
   for (const candidateName of [familyOrRecordName, secondaryRecordName]) {
     if (!candidateName) continue;
     const fullStem = normalizeArabicStem(candidateName);
     if (fullStem) {
       primarySubjectStems.add(fullStem);
-      allSubjectPartStems.add(fullStem);
     }
     const parts = decomposeCompoundLineageName(candidateName);
     if (parts.length > 0) {
       const firstPartStem = normalizeArabicStem(parts[0]);
       if (firstPartStem) primarySubjectStems.add(firstPartStem);
-      parts.forEach((p) => {
-        const st = normalizeArabicStem(p);
-        if (st) allSubjectPartStems.add(st);
-      });
+      // Requirement 2 Guard: `parts[1]` (e.g. `حارثة` in `الخَزْرَج بن حارثة`) is the Direct Father, NOT the subject!
+      // Record it in `directFatherStems` so we NEVER strip or clip a chain that starts with the Direct Father.
+      if (parts.length > 1) {
+        const secondPartStem = normalizeArabicStem(parts[1]);
+        if (secondPartStem && secondPartStem !== firstPartStem) {
+          directFatherStems.add(secondPartStem);
+        }
+      }
     }
   }
 
-  // If the caller prepended `record_name` / `recordParts` at index 0..1 before the raw `lineage_ancestors`,
-  // advance `startOffset` past those initial prepended subject tokens to inspect the raw chain underneath.
+  // Advance `startOffset` ONLY past initial prepended subject tokens (`primarySubjectStems`, e.g. `الخزرج`),
+  // NEVER past `directFatherStems` (`حارثة`)!
   let startOffset = 0;
   while (
-    startOffset < expanded.length &&
+    startOffset < finalExpanded.length &&
     startOffset < 2 &&
-    allSubjectPartStems.has(normalizeArabicStem(expanded[startOffset]))
+    primarySubjectStems.has(normalizeArabicStem(finalExpanded[startOffset]))
   ) {
     startOffset++;
   }
 
-  const rest = expanded.slice(startOffset);
+  const rest = finalExpanded.slice(startOffset);
+
+  // Requirement 2 Guard: If the chain starts with the Direct Father from the compound record name
+  // (e.g., `حارثة` in `الخَزْرَج بن حارثة`), it is in normal ascending order — NEVER clip it as an inverted preamble!
+  if (
+    rest.length > 0 &&
+    directFatherStems.size > 0 &&
+    directFatherStems.has(normalizeArabicStem(rest[0]))
+  ) {
+    return {
+      wasInvertedPreambleStripped: false,
+      strippedPreambleTokens: [],
+      relocatedApexTokens: [],
+      matchedSubjectToken: '',
+      cleanedTokensAfterSubject: finalExpanded,
+    };
+  }
+
   const maxCheckIdx = Math.min(4, rest.length - 2);
 
   for (let idx = 1; idx <= maxCheckIdx; idx++) {
@@ -3887,31 +4102,37 @@ export function detectAndStripInvertedPreamble(
     const tailStems = new Set(
       tailAfterSubject.map((t) => normalizeArabicStem(t)).filter(Boolean)
     );
+    const topMotherTribeStem =
+      tailAfterSubject.length > 0
+        ? normalizeArabicStem(tailAfterSubject[tailAfterSubject.length - 1])
+        : '';
 
     const matchesSubject = primarySubjectStems.has(stemAtIdx);
 
     // Check if the preceding slice (1..4 tokens before `idx`) consists of major tribes, high-apex roots (`قحطان`, `عدنان`),
-    // or tokens that repeat at the top/end of `tailAfterSubject` (like `الأوس`)
+    // or the final Mother Tribe at the summit of `tailAfterSubject` (like `الأوس`)
     const hasMajorTribeOrApexInPreamble = preambleSlice.some(
       (p) =>
         isHighApexStopNode(p) ||
         isMajorOverarchingTribeOrApexNode(p) ||
-        tailStems.has(normalizeArabicStem(p))
+        (topMotherTribeStem && normalizeArabicStem(p) === topMotherTribeStem)
     );
 
-    // Fallback check even when `familyOrRecordName` wasn't passed:
-    // if EVERY token in `preambleSlice` is either in `HIGH_APEX_STOP_LIST` (`قحطان`) or repeats at the end of `tailAfterSubject` (`الأوس`),
-    // and `tokenAtIdx` is NOT an apex/major tribe (e.g. `الحطيم`), it's unmistakably an inverted preamble!
-    const allPreambleAreApexOrRepeatedInTail =
+    // Fallback check ONLY when `primarySubjectStems.size === 0` (no record/family name was passed):
+    // every token in `preambleSlice` must be either in `HIGH_APEX_STOP_LIST` (`قحطان`) or match the final Mother Tribe (`الأوس`).
+    const allPreambleAreApexOrTopTribeWithoutSubject =
+      primarySubjectStems.size === 0 &&
       preambleSlice.length >= 1 &&
       preambleSlice.every(
-        (p) => isHighApexStopNode(p) || tailStems.has(normalizeArabicStem(p))
+        (p) =>
+          isHighApexStopNode(p) ||
+          (topMotherTribeStem && normalizeArabicStem(p) === topMotherTribeStem)
       ) &&
       !isMajorOverarchingTribeOrApexNode(tokenAtIdx);
 
     if (
       (matchesSubject && hasMajorTribeOrApexInPreamble) ||
-      allPreambleAreApexOrRepeatedInTail
+      allPreambleAreApexOrTopTribeWithoutSubject
     ) {
       // Relocate any ancient apex root (`قحطان` or `عدنان`) from the inverted preamble to the summit of the chain after the Mother Tribe (`الأوس`)
       const relocatedApexTokens: string[] = [];
@@ -3939,26 +4160,23 @@ export function detectAndStripInvertedPreamble(
     strippedPreambleTokens: [],
     relocatedApexTokens: [],
     matchedSubjectToken: '',
-    cleanedTokensAfterSubject: expanded,
+    cleanedTokensAfterSubject: finalExpanded,
   };
 }
 
 /**
- * Rule 4: In-Record Cycle, Inverted Preamble & Summary-Prefix Trimmer (`cleanAndUnrollLineageChain`)
+ * Rule 4: In-Record Cycle, Detached Epithet Merger, Inverted Preamble & Summary-Prefix Trimmer (`cleanAndUnrollLineageChain`)
+ * - Merges detached historical epithets (`ثعلبة؛ البُهْلُول` -> `ثعلبة البهلول`, `حارثة؛ الغِطْريف` -> `حارثة الغطريف`, etc.).
  * - Strips any Inverted Preamble Summary (`الأوس; قحطان; الحطيم; عدي...` -> `عدي ⬅️ عمرو ⬅️ ... ⬅️ الأوس ⬅️ قحطان`).
  * - Relocates any ancient apex root (`قحطان` / `عدنان`) from the inverted preamble to the summit (end) of the chain.
- * - Removes any leading station that duplicates the family/record name itself (e.g. `قدم ⬅️ قدم` -> `قدم`).
- * - Decomposes any compound `A بن B` node if its sub-roots `A` and `B` are already present or expands it in-place.
- * - Detects if a 1..4 node summary prefix at the beginning of `lineage_ancestors`
- *   (e.g. `أبي الفضل العباس ⬅️ علي ⬅️ أبي طالب`) repeats by stem in the upper half of the chain, and strips the repeated summary prefix.
- * - Deduplicates any ancestor appearing twice in the same spine by stem while preserving the highest (topmost) position.
+ * - Preserves the Direct Father from compound record names (`حارثة` in `الخَزْرَج بن حارثة`) at the start of the chain without false clipping.
  */
 export function cleanAndUnrollLineageChain(
   rawTokens: string[],
   familyOrRecordName?: string,
   secondaryRecordName?: string
 ): string[] {
-  // 1. Sanitize, decompose compound `A بن B` nodes, and strip any Inverted Preamble Summary (`تمهيد التفريغ المعكوس`)
+  // 1. Merge detached historical epithets, decompose compound `A بن B` nodes, and strip any Inverted Preamble Summary
   const preambleResult = detectAndStripInvertedPreamble(
     rawTokens,
     familyOrRecordName,
@@ -3977,10 +4195,58 @@ export function cleanAndUnrollLineageChain(
 
   if (working.length === 0) return [];
 
-  // 2. Detect and strip a 1..4 station summary prefix at index 0 that repeats later in the chain
+  // Identify subject stems (`الخزرج`) and Direct Father token/stems (`حارثة` from `الخَزْرَج بن حارثة`)
+  const leadingSubjectStems = new Set<string>();
+  const directFatherStems = new Set<string>();
+  let explicitDirectFatherToken = '';
+
+  for (const nameCandidate of [familyOrRecordName, secondaryRecordName]) {
+    if (!nameCandidate) continue;
+    const fullStem = normalizeArabicStem(nameCandidate);
+    if (fullStem) leadingSubjectStems.add(fullStem);
+    const subParts = decomposeCompoundLineageName(nameCandidate);
+    if (subParts.length > 0) {
+      const firstStem = normalizeArabicStem(subParts[0]);
+      if (firstStem) leadingSubjectStems.add(firstStem);
+      if (subParts.length > 1) {
+        const secondStem = normalizeArabicStem(subParts[1]);
+        if (secondStem && secondStem !== firstStem) {
+          directFatherStems.add(secondStem);
+          if (!explicitDirectFatherToken) {
+            explicitDirectFatherToken = subParts[1];
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Remove any leading station that duplicates `familyOrRecordName` or its first compound part (e.g. `الخزرج` from `الخَزْرَج بن حارثة`)
+  while (
+    working.length > 0 &&
+    leadingSubjectStems.has(normalizeArabicStem(working[0]))
+  ) {
+    working.shift();
+  }
+
+  // Requirement 2 Guard: If the record/family name is a compound `X بن Y` (e.g. `الخَزْرَج بن حارثة`)
+  // and `lineage_ancestors` in the dictionary started directly after `Y` (e.g. `ثعلبة البهلول...`),
+  // ensure the Direct Father `Y` (`حارثة`) is present at `working[0]`!
+  if (
+    explicitDirectFatherToken &&
+    working.length > 0 &&
+    !directFatherStems.has(normalizeArabicStem(working[0]))
+  ) {
+    working.unshift(explicitDirectFatherToken);
+  }
+
+  if (working.length === 0) return [];
+
+  // 3. Detect and strip a 2..4 station summary prefix at index 0 that repeats later in the chain
+  // (Never strip a single token `k === 1` when it is the Direct Father or a personal ancestor name)
   const maxPrefixLen = Math.min(4, Math.floor(working.length / 2));
-  for (let k = maxPrefixLen; k >= 1; k--) {
+  for (let k = maxPrefixLen; k >= 2; k--) {
     const prefixStems = working.slice(0, k).map((t) => normalizeArabicStem(t));
+    if (directFatherStems.has(prefixStems[0])) continue;
     let foundMatchLater = false;
     for (let startIdx = k; startIdx <= working.length - k; startIdx++) {
       let allMatch = true;
@@ -4001,28 +4267,8 @@ export function cleanAndUnrollLineageChain(
     }
   }
 
-  // 3. Remove any leading station that duplicates `familyOrRecordName` or its first compound part (e.g. `الحطيم` from `الحَطيم بن عدى` or `قدم` from `قدم بن قادم`)
-  if (familyOrRecordName || secondaryRecordName) {
-    const leadingSubjectStems = new Set<string>();
-    for (const nameCandidate of [familyOrRecordName, secondaryRecordName]) {
-      if (!nameCandidate) continue;
-      const fullStem = normalizeArabicStem(nameCandidate);
-      if (fullStem) leadingSubjectStems.add(fullStem);
-      const subParts = decomposeCompoundLineageName(nameCandidate);
-      if (subParts.length > 0) {
-        const firstStem = normalizeArabicStem(subParts[0]);
-        if (firstStem) leadingSubjectStems.add(firstStem);
-      }
-    }
-    while (
-      working.length > 0 &&
-      leadingSubjectStems.has(normalizeArabicStem(working[0]))
-    ) {
-      working.shift();
-    }
-  }
-
-  // 4. Deduplicate any repeated stem within the chain while preserving its LAST (highest/topmost) occurrence
+  // 4. Deduplicate repeated stems within the chain while preserving the Direct Father at `idx === 0`
+  // (in case a grandfather/upper ancestor shares the same personal given name as the Direct Father)
   const lastIndexByStem = new Map<string, number>();
   working.forEach((tok, idx) => {
     const stem = normalizeArabicStem(tok);
@@ -4035,6 +4281,23 @@ export function cleanAndUnrollLineageChain(
   working.forEach((tok, idx) => {
     const stem = normalizeArabicStem(tok);
     if (!stem) return;
+    // Remove immediate adjacent duplicate (`A ⬅️ A`)
+    if (
+      deduplicated.length > 0 &&
+      normalizeArabicStem(deduplicated[deduplicated.length - 1]) === stem
+    ) {
+      return;
+    }
+    // Preserve Direct Father at index 0 even if an ancestor 3+ layers higher has the same given name
+    if (
+      idx === 0 &&
+      directFatherStems.has(stem) &&
+      (lastIndexByStem.get(stem) ?? 0) >= 2 &&
+      !isMajorOverarchingTribeOrApexNode(tok)
+    ) {
+      deduplicated.push(tok);
+      return;
+    }
     if (lastIndexByStem.get(stem) === idx) {
       deduplicated.push(tok);
     }
@@ -4045,13 +4308,11 @@ export function cleanAndUnrollLineageChain(
 
 /**
  * Rule 1: Anchor-Based Topological Alignment (`stitchLineageChains`)
- * Stitches `incomingChain` into `baseChain` using shared anchor nodes instead of blindly appending at the end:
- * - For each unseen node `X` in `incomingChain`:
- *   1. Look ahead in `incomingChain` for the nearest subsequent node (`nextAnchor`) that exists in `result`.
- *      If found, insert `X` IMMEDIATELY BEFORE `nextAnchor` (preserving true genealogical order, e.g., inserting `حجور` before `أسلم`).
- *   2. If no subsequent node exists in `result` (because `X` is above the top of `baseChain`, e.g., `قحطان` after `همدان`),
- *      look backward in `incomingChain` for the nearest preceding node (`prevAnchor`) that exists in `result`,
- *      and insert `X` IMMEDIATELY AFTER `prevAnchor`.
+ * Upgraded with Requirement 1(b): Epithet-Aware Station Unification
+ * - If an ancestor appears in one reference with his historical epithet (`ثعلبة البهلول`, `عمرو مزيقياء`,
+ *   `عامر ماء السماء`, `حارثة الغطريف`, `امرؤ القيس البطريق`, `ثعلبة العنقاء`) and in another reference
+ *   without the epithet (`ثعلبة`, `عمرو`, `عامر`, `حارثة`, `امرؤ القيس`) or detached, both are unified into
+ *   the complete epithet-bearing station (`ثعلبة البهلول`) to prevent duplicate stations.
  */
 export function stitchLineageChains(
   baseChain: string[],
@@ -4066,15 +4327,103 @@ export function stitchLineageChains(
 
   const result = [...cleanBase];
 
-  const findIndexInResult = (token: string): number => {
+  const findIndexInResult = (
+    token: string,
+    prevNeighbor?: string,
+    nextNeighbor?: string
+  ): number => {
     const targetStem = normalizeArabicStem(token);
     if (!targetStem) return -1;
-    return result.findIndex((r) => normalizeArabicStem(r) === targetStem);
+
+    // 1. Exact stem match
+    const exactIdx = result.findIndex(
+      (r) => normalizeArabicStem(r) === targetStem
+    );
+    if (exactIdx !== -1) return exactIdx;
+
+    // 2. Epithet-Aware Match: check if `token` and a station in `result` share the same base personal name
+    // where one carries a historical epithet (e.g. `ثعلبة البهلول`) and the other is bare (`ثعلبة`)
+    const tokenSplit = splitHistoricalEpithetFromStation(token);
+    const tokenBaseStem = normalizeArabicStem(tokenSplit.baseName);
+    if (!tokenBaseStem) return -1;
+
+    const prevStem = prevNeighbor ? normalizeArabicStem(prevNeighbor) : '';
+    const nextStem = nextNeighbor ? normalizeArabicStem(nextNeighbor) : '';
+
+    const candidateIndices: number[] = [];
+    result.forEach((r, idx) => {
+      const rSplit = splitHistoricalEpithetFromStation(r);
+      const rBaseStem = normalizeArabicStem(rSplit.baseName);
+      if (
+        rBaseStem === tokenBaseStem &&
+        (tokenSplit.hasEpithet || rSplit.hasEpithet) &&
+        (!tokenSplit.hasEpithet ||
+          !rSplit.hasEpithet ||
+          normalizeArabic(tokenSplit.epithet) === normalizeArabic(rSplit.epithet))
+      ) {
+        candidateIndices.push(idx);
+      }
+    });
+
+    if (candidateIndices.length === 0) return -1;
+
+    // Pick the candidate index that aligns with `prevNeighbor` or `nextNeighbor` (or the sole candidate if unique)
+    let matchedIdx =
+      candidateIndices.length === 1 ? candidateIndices[0] : -1;
+    for (const cIdx of candidateIndices) {
+      const resPrev = cIdx > 0 ? result[cIdx - 1] : '';
+      const resNext = cIdx + 1 < result.length ? result[cIdx + 1] : '';
+      const resPrevBase = normalizeArabicStem(
+        splitHistoricalEpithetFromStation(resPrev).baseName
+      );
+      const resNextBase = normalizeArabicStem(
+        splitHistoricalEpithetFromStation(resNext).baseName
+      );
+      const inPrevBase = prevNeighbor
+        ? normalizeArabicStem(
+            splitHistoricalEpithetFromStation(prevNeighbor).baseName
+          )
+        : '';
+      const inNextBase = nextNeighbor
+        ? normalizeArabicStem(
+            splitHistoricalEpithetFromStation(nextNeighbor).baseName
+          )
+        : '';
+
+      if (
+        (prevStem &&
+          (normalizeArabicStem(resPrev) === prevStem ||
+            (inPrevBase && resPrevBase === inPrevBase))) ||
+        (nextStem &&
+          (normalizeArabicStem(resNext) === nextStem ||
+            (inNextBase && resNextBase === inNextBase)))
+      ) {
+        matchedIdx = cIdx;
+        break;
+      }
+    }
+
+    if (matchedIdx !== -1) {
+      // Upgrade the station in `result` to the complete epithet-bearing form if `token` has the epithet
+      if (
+        tokenSplit.hasEpithet &&
+        !splitHistoricalEpithetFromStation(result[matchedIdx]).hasEpithet
+      ) {
+        result[matchedIdx] = token;
+      }
+      return matchedIdx;
+    }
+
+    return -1;
   };
 
   for (let i = 0; i < cleanIncoming.length; i++) {
     const nodeX = cleanIncoming[i];
-    if (findIndexInResult(nodeX) !== -1) {
+    const prevIn = i > 0 ? cleanIncoming[i - 1] : undefined;
+    const nextIn =
+      i + 1 < cleanIncoming.length ? cleanIncoming[i + 1] : undefined;
+
+    if (findIndexInResult(nodeX, prevIn, nextIn) !== -1) {
       continue;
     }
 
@@ -4090,7 +4439,11 @@ export function stitchLineageChains(
     // 1. Search forward in cleanIncoming for the nearest subsequent shared anchor (`nextAnchor`)
     let inserted = false;
     for (let nextIdx = i + 1; nextIdx < cleanIncoming.length; nextIdx++) {
-      const anchorPosInResult = findIndexInResult(cleanIncoming[nextIdx]);
+      const anchorPosInResult = findIndexInResult(
+        cleanIncoming[nextIdx],
+        cleanIncoming[nextIdx - 1],
+        cleanIncoming[nextIdx + 1]
+      );
       if (anchorPosInResult !== -1) {
         result.splice(anchorPosInResult, 0, nodeX);
         inserted = true;
@@ -4105,7 +4458,11 @@ export function stitchLineageChains(
     // so it never splices in the middle below a specific mother tribe like `الأزد`.
     if (!isHighApexStopNode(nodeX)) {
       for (let prevIdx = i - 1; prevIdx >= 0; prevIdx--) {
-        const prevPosInResult = findIndexInResult(cleanIncoming[prevIdx]);
+        const prevPosInResult = findIndexInResult(
+          cleanIncoming[prevIdx],
+          cleanIncoming[prevIdx - 1],
+          cleanIncoming[prevIdx + 1]
+        );
         if (prevPosInResult !== -1) {
           result.splice(prevPosInResult + 1, 0, nodeX);
           inserted = true;
@@ -4478,10 +4835,93 @@ export function buildAdamParallelEnrichmentTicket(
 }
 
 /**
+ * Requirement 4: OCR-Tolerant Notable Names Deduplicator (`deduplicateNotablesWithOcrTolerance`)
+ * Merges near-identical notable names across records that differ only by a 1-character OCR/transcription typo
+ * (such as `أبا قس بن الأسلت` vs `أبا قيس بن الأسلت`), retaining only the more complete/accurate spelling (`أبا قيس بن الأسلت`).
+ */
+function computeArabicEditDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    new Array(n + 1).fill(0)
+  );
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+export function deduplicateNotablesWithOcrTolerance(
+  rawNotables: string[]
+): string[] {
+  const candidates: string[] = [];
+  for (const item of rawNotables) {
+    if (!item) continue;
+    item
+      .split(/[|،؛,]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach((clean) => candidates.push(clean));
+  }
+
+  const uniqueList: string[] = [];
+
+  for (const cand of candidates) {
+    const normCand = normalizeArabic(cand).replace(/\s+/g, ' ').trim();
+    if (!normCand) continue;
+
+    let mergedIntoExisting = false;
+    for (let i = 0; i < uniqueList.length; i++) {
+      const existing = uniqueList[i];
+      const normExisting = normalizeArabic(existing)
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (normCand === normExisting) {
+        if (cand.length > existing.length) {
+          uniqueList[i] = cand;
+        }
+        mergedIntoExisting = true;
+        break;
+      }
+
+      // Check for 1-character dropped/typo difference (e.g. `ابا قس بن الاسلت` vs `ابا قيس بن الاسلت`)
+      const minLen = Math.min(normCand.length, normExisting.length);
+      const lenDiff = Math.abs(normCand.length - normExisting.length);
+      if (minLen >= 6 && lenDiff <= 2) {
+        const dist = computeArabicEditDistance(normCand, normExisting);
+        if (dist <= 1 || (minLen >= 12 && dist <= 2 && lenDiff >= 1)) {
+          // Keep the longer/more complete name (e.g. `أبا قيس بن الأسلت` over `أبا قس بن الأسلت`)
+          if (normCand.length > normExisting.length) {
+            uniqueList[i] = cand;
+          }
+          mergedIntoExisting = true;
+          break;
+        }
+      }
+    }
+
+    if (!mergedIntoExisting) {
+      uniqueList.push(cand);
+    }
+  }
+
+  return uniqueList;
+}
+
+/**
  * Aggregates multiple `CorroboratingAlphaEvidence` items for the same family into:
  * - `verified_sources`: deduplicated list of books, volumes, and pages
  * - `sibling_branches_in_record`: deduplicated union of child branches
- * - `notables_in_record`: deduplicated union of notables
+ * - `notables_in_record`: OCR-tolerant deduplicated union of notables
  * - `background_researcher_ticket`: P2 multi-source enrichment ticket summary
  */
 export function aggregateAlphaEvidenceForFamily(
@@ -4499,7 +4939,7 @@ export function aggregateAlphaEvidenceForFamily(
 } {
   const verifiedSourcesSet = new Set<string>();
   const siblingBranchesSet = new Set<string>();
-  const notablesSet = new Set<string>();
+  const rawNotablesCollected: string[] = [];
   const locationsSet = new Set<string>();
   const normSearchedFamily = normalizeArabicToken(familyName, true);
 
@@ -4517,11 +4957,7 @@ export function aggregateAlphaEvidenceForFamily(
         });
     }
     if (ev.notables) {
-      ev.notables
-        .split(/[|،؛,]/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .forEach((n) => notablesSet.add(n));
+      rawNotablesCollected.push(ev.notables);
     }
     if (ev.locations) {
       ev.locations
@@ -4534,7 +4970,8 @@ export function aggregateAlphaEvidenceForFamily(
 
   const verified_sources = Array.from(verifiedSourcesSet);
   const sibling_branches_in_record = Array.from(siblingBranchesSet);
-  const notables_in_record = Array.from(notablesSet);
+  const notables_in_record =
+    deduplicateNotablesWithOcrTolerance(rawNotablesCollected);
   const locations_in_record = Array.from(locationsSet);
   const primaryLineage =
     evidenceList.find((e) => e.lineage_ancestors)?.lineage_ancestors?.replace(/؛/g, ' ⬅️ ') ||
@@ -4916,7 +5353,7 @@ export function buildDynamicAlphaSpineFromAncestors(
     .filter((s) => Boolean(s) && !isGeographicOrDescriptiveNoiseToken(s));
 
   const normFam = normalizeArabicToken(familyName, true);
-  // Apply Rule 2 & Rule 4 (Summary-Prefix Trimmer, Compound Name Decomposition & Stem Deduplication)
+  // Apply Rule 2 & Rule 4 (Detached Epithets Merger, Summary-Prefix Trimmer, Compound Name Decomposition & Stem Deduplication)
   const filteredTokens = cleanAndUnrollLineageChain(rawTokens, familyName);
 
   if (filteredTokens.length === 0) {
@@ -4939,16 +5376,26 @@ export function buildDynamicAlphaSpineFromAncestors(
     }
   }
 
+  // Requirement 2: If `familyName` is a compound `X بن Y` (e.g. `الخَزْرَج بن حارثة`) and `filteredTokens[0]` is `Y` (`حارثة`),
+  // use `X` (`الخزرج`) as the head station `FE0` so the spine flows `الخزرج ⬅️ حارثة ⬅️ ... ⬅️ الأزد` (10 stations).
+  const famParts = decomposeCompoundLineageName(familyName);
+  const headStationName =
+    famParts.length > 1 &&
+    filteredTokens.length > 0 &&
+    normalizeArabicStem(famParts[1]) === normalizeArabicStem(filteredTokens[0])
+      ? famParts[0]
+      : familyName;
+
   const nodes: UpperAncestorNode[] = [
     {
       id: `alpha-dyn-01`,
       orderNumber: 1,
-      name: familyName,
+      name: headStationName,
       code: 'FE0',
       rankLabel: 'عقدة العائلة الموثقة في سجل مشاريع ألفا',
       isCodedStation: true,
       region: regionLabel,
-      eraNote: `سجل عائلة ${familyName} المرصود في أرشيف مشاريع ألفا.`,
+      eraNote: `سجل عائلة ${headStationName} المرصود في أرشيف مشاريع ألفا.`,
       dataLakeSource: 'alpha_projects',
     },
   ];
@@ -5530,14 +5977,32 @@ export function parseOtherSourcesStringIntoLeads(
     .filter((s) => s.length >= 3);
 
   return segments.map((seg): ParsedOtherSourceLead => {
-    const volMatch = seg.match(/(?:ج|جزء|مجلد)\s*[:.]?\s*(\d+)/i);
-    const pageMatch = seg.match(/(?:ص|صفحة|صفحه)\s*[:.]?\s*(\d+(?:\s*-\s*\d+)?)/i);
+    const volMatch = seg.match(/(?:^|\s)(?:ج|جزء|مجلد)\s*[:.]?\s*(\d+)/i);
+    const pageMatch = seg.match(
+      /(?:^|\s)(?:ص|صفحة|صفحه)\s*[:.]?\s*(\d+(?:\s*[-،,]\s*\d+)*)/i
+    );
+    const folioMatch = seg.match(
+      /(?:^|\s)(?:مخطوط\s*)?(?:ق|ورقة|ورقه)\s*[:.]?\s*(\d+(?:\s*[-،,]\s*\d+)*)/i
+    );
+
     const extractedVolume = volMatch ? volMatch[1].trim() : '—';
-    const extractedPage = pageMatch ? pageMatch[1].trim() : '—';
+    const extractedPage = pageMatch
+      ? pageMatch[1].replace(/\s*[،,]\s*/g, '-').trim()
+      : folioMatch
+      ? folioMatch[1].replace(/\s*[،,]\s*/g, '-').trim()
+      : '—';
 
     let bookTitle = seg
-      .replace(/(?:ج|جزء|مجلد)\s*[:.]?\s*\d+/gi, '')
-      .replace(/(?:ص|صفحة|صفحه)\s*[:.]?\s*\d+(?:\s*-\s*\d+)?/gi, '')
+      .replace(/(?:^|\s)(?:ج|جزء|مجلد)\s*[:.]?\s*\d+/gi, ' ')
+      .replace(
+        /(?:^|\s)(?:ص|صفحة|صفحه)\s*[:.]?\s*\d+(?:\s*[-،,]\s*\d+)*/gi,
+        ' '
+      )
+      .replace(
+        /(?:^|\s)(?:مخطوط\s*)?(?:ق|ورقة|ورقه)\s*[:.]?\s*\d+(?:\s*[-،,]\s*\d+)*/gi,
+        ' '
+      )
+      .replace(/\bمخطوط\b/gi, ' ')
       .replace(/[()،,-]+$/g, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -5560,7 +6025,8 @@ export function parseOtherSourcesStringIntoLeads(
 
 /**
  * Extracts all `ParsedOtherSourceLead` items across an array of `CorroboratingAlphaEvidence`,
- * automatically synchronizing any verified items from the Adam Prime local/remote store.
+ * automatically synchronizing any verified items from the Adam Prime local/remote store
+ * and re-parsing manuscript folios (`ق` / `ورقة`) if `extracted_page` was missing.
  */
 export function extractAllOtherSourceLeadsFromEvidence(
   evidenceList: CorroboratingAlphaEvidence[] | undefined
@@ -5574,7 +6040,30 @@ export function extractAllOtherSourceLeadsFromEvidence(
     const recName = ev.record_name || 'سجل المعجم';
     const baseLeads =
       Array.isArray(ev.parsed_other_sources) && ev.parsed_other_sources.length > 0
-        ? ev.parsed_other_sources
+        ? ev.parsed_other_sources.map((item) => {
+            if (
+              (!item.extracted_page || item.extracted_page === '—') &&
+              item.raw_citation
+            ) {
+              const reparsed = parseOtherSourcesStringIntoLeads(
+                item.raw_citation,
+                alphaId,
+                recName
+              )[0];
+              if (reparsed) {
+                return {
+                  ...item,
+                  extracted_book_title: reparsed.extracted_book_title || item.extracted_book_title,
+                  extracted_volume:
+                    item.extracted_volume && item.extracted_volume !== '—'
+                      ? item.extracted_volume
+                      : reparsed.extracted_volume,
+                  extracted_page: reparsed.extracted_page,
+                };
+              }
+            }
+            return item;
+          })
         : ev.other_sources
         ? parseOtherSourcesStringIntoLeads(ev.other_sources, alphaId, recName)
         : [];
@@ -6609,9 +7098,15 @@ export function parsePort8090UniversalResponse(
         finalSiblings.length > 0
           ? `الفروع الشقيقة المجمعة في السجل (${finalSiblings.length} فروع): ${finalSiblings.join('، ')}`
           : undefined,
-      notables_in_record: Array.isArray(apiData.notables_in_record)
-        ? apiData.notables_in_record.map(String)
-        : undefined,
+      notables_in_record: (() => {
+        const mergedNotables = deduplicateNotablesWithOcrTolerance([
+          ...(Array.isArray(apiData.notables_in_record)
+            ? apiData.notables_in_record.map(String)
+            : []),
+          ...(agg.notables_in_record || []),
+        ]);
+        return mergedNotables.length > 0 ? mergedNotables : undefined;
+      })(),
       rootBranchName: rootB2Name,
       rootBranchCode: 'B2',
       rootTribeName: rootB0Name,

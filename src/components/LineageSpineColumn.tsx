@@ -16,6 +16,7 @@ import {
 } from '../types/juthori';
 import {
   buildResolvedLineageFromDisambiguationOption,
+  deduplicateNotablesWithOcrTolerance,
   getDashboardCapabilities,
   getVerifiedAddonSourcesForEvidence,
   mergeVerifiedAddonSourceLists,
@@ -328,14 +329,18 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     0
   );
 
-  const unlockedIntermediateNodesCount = capsulesList
-    .filter((c: AncestorCapsule) => unlockedCapsules.includes(c.id))
-    .reduce((acc: number, c: AncestorCapsule) => acc + c.ancestors.length, 0);
+  const unlockedIntermediateNodesCount = spineNodes.filter(
+    (n: UpperAncestorNode) =>
+      !n.isCodedStation &&
+      Boolean(n.capsuleId && unlockedCapsules.includes(n.capsuleId))
+  ).length;
 
-  const visibleAdamNodesCount =
-    effectiveResult.isAlphaMergedIntoAdam
+  const visibleAdamNodesCount = Math.min(
+    totalFamilySpineNodesCount,
+    isResearcherDirectPreview || effectiveResult.isAlphaMergedIntoAdam
       ? totalFamilySpineNodesCount
-      : codedStationsCount + unlockedIntermediateNodesCount;
+      : codedStationsCount + unlockedIntermediateNodesCount
+  );
 
   const remainingLockedCapsules =
     effectiveResult.isAlphaMergedIntoAdam || isUnmatchedCase
@@ -1850,23 +1855,26 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       );
                     })()}
 
-                    {effectiveResult.notables_in_record && effectiveResult.notables_in_record.length > 0 && (
-                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
-                        <div className="text-xs font-display font-bold text-[#8D4925]">
-                          الأعلام والشخصيات المرصودة في السجل:
+                    {effectiveResult.notables_in_record &&
+                      effectiveResult.notables_in_record.length > 0 && (
+                        <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
+                          <div className="text-xs font-display font-bold text-[#8D4925]">
+                            الأعلام والشخصيات المرصودة في السجل:
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {deduplicateNotablesWithOcrTolerance(
+                              effectiveResult.notables_in_record
+                            ).map((notable: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"
+                              >
+                                {notable}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {effectiveResult.notables_in_record.map((notable: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"
-                            >
-                              {notable}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
 
                     {effectiveResult.enrichedLocations && effectiveResult.enrichedLocations.length > 0 && (
                       <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">

@@ -70,6 +70,10 @@ import {
   KNOWLEDGE_BASE_SECTIONS,
   KnowledgeCenterView,
 } from './KnowledgeCenterView';
+import {
+  formatDurationMmSs,
+  loadResearcherKpiTelemetry,
+} from '../utils/researcherKpiAndP3Engine';
 
 export type AdminModuleTab =
   | 'users_rbac'
@@ -1706,6 +1710,139 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* ===============================================================
+                  PILLAR 3: RESEARCHER PRODUCTIVITY, KPI & MONTHLY INCENTIVES
+              =============================================================== */}
+              {(() => {
+                const liveKpi = loadResearcherKpiTelemetry();
+                const totalToday =
+                  liveKpi.completedTodayP1 +
+                  liveKpi.completedTodayP2 +
+                  liveKpi.completedTodayP3;
+                return (
+                  <div
+                    data-testid="executive-researcher-kpi-panel"
+                    className="bg-white rounded-3xl border-2 border-[#C5A059]/60 p-6 shadow-sm space-y-5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-4">
+                      <div>
+                        <span className="px-3 py-1 rounded-full bg-[#14110D] text-[#C5A059] text-xs font-extrabold">
+                          📊 منظومة تقييم إنتاجية الباحثين والمكافآت الشهرية (KPI & Incentives)
+                        </span>
+                        <h3 className="text-base sm:text-lg font-extrabold text-[#14110D] mt-2">
+                          مؤشرات الأداء الحي لفريق التحقيق وربط شجرة آدم وسجل آدم برايم
+                        </h3>
+                      </div>
+                      <div className="px-4 py-2 rounded-2xl bg-emerald-950 text-amber-300 font-mono text-sm font-extrabold">
+                        🏆 الرصيد التراكمي للمكافآت: {liveKpi.totalXpScore} XP
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#6E6456]">
+                          متوسط زمن إنجاز التذكرة (Avg Handling Time)
+                        </div>
+                        <div className="text-2xl font-mono font-extrabold text-[#14110D]">
+                          {formatDurationMmSs(liveKpi.avgHandlingTimeSeconds)}
+                        </div>
+                        <div className="text-[11px] text-emerald-800 font-bold">
+                          ضمن المعيار القياسي للاستوديو التفاعلي (&lt; 02:00)
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#6E6456]">
+                          التذاكر المنجزة اليوم حسب الأولوية ({totalToday})
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1 font-mono text-xs font-extrabold">
+                          <span className="px-2.5 py-1 rounded-lg bg-red-100 text-red-900 border border-red-300">
+                            P1: {liveKpi.completedTodayP1}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 border border-amber-300">
+                            P2: {liveKpi.completedTodayP2}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 border border-emerald-300">
+                            P3: {liveKpi.completedTodayP3}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#6E6456]">
+                          عُقد ألفا الموصولة بشجرة آدم
+                        </div>
+                        <div className="text-2xl font-mono font-extrabold text-emerald-900">
+                          {liveKpi.totalAlphaNodesBridged} عقدة
+                        </div>
+                        <div className="text-[11px] text-[#6E6456]">
+                          موثقة ومعلّمة في Neo4j لمنع التكرار
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#6E6456]">
+                          المصادر الإضافية الموثقة في آدم برايم
+                        </div>
+                        <div className="text-2xl font-mono font-extrabold text-indigo-950">
+                          {liveKpi.totalAdamPrimeSourcesVerified} مرجع
+                        </div>
+                        <div className="text-[11px] text-[#6E6456]">
+                          مربوطة بمعرفات APR-SRC في محفظة العميل
+                        </div>
+                      </div>
+                    </div>
+
+                    {liveKpi.recentCompletedLog.length > 0 && (
+                      <div className="rounded-2xl border border-[#E2DACB] overflow-hidden">
+                        <div className="bg-[#F9F6F0] px-4 py-2.5 border-b border-[#E2DACB] text-xs font-extrabold text-[#14110D]">
+                          سجل آخر التذاكر المنجزة وتقييم النقاط التحفيزية للباحثين
+                        </div>
+                        <div className="divide-y divide-[#E2DACB] text-xs">
+                          {liveKpi.recentCompletedLog.slice(0, 6).map((log, idx) => (
+                            <div
+                              key={`${log.ticketId}-${idx}`}
+                              className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 bg-white"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#14110D] text-[#C5A059]">
+                                  {log.ticketId}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] ${
+                                    log.priority === 'P1'
+                                      ? 'bg-red-100 text-red-900'
+                                      : log.priority === 'P3'
+                                      ? 'bg-emerald-100 text-emerald-900'
+                                      : 'bg-amber-100 text-amber-900'
+                                  }`}
+                                >
+                                  {log.priority}
+                                </span>
+                                <span className="font-extrabold text-[#14110D]">
+                                  {log.familyName}
+                                </span>
+                                <span className="text-[#6E6456]">
+                                  ({log.researcherName})
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 font-mono">
+                                <span className="text-[#6E6456]">
+                                  ⏱️ {formatDurationMmSs(log.durationSec)}
+                                </span>
+                                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-950 font-extrabold">
+                                  +{log.xpEarned} XP
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
       </main>

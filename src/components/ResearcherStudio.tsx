@@ -57,6 +57,7 @@ import {
   inspectNameInAdamMasterTree,
   isAdamNodeStructurallyCoded,
   matchesFlexibleArabicSearch,
+  mergeDetachedHistoricalEpithets,
   mergeVerifiedAddonSourceLists,
   normalizeArabic,
   normalizeArabicForSearch,
@@ -81,6 +82,18 @@ import {
   updateResearchTicketFullInFirebase,
   updateTicketStatus,
 } from '../services/firestoreService';
+import {
+  P3ProactiveCandidate,
+  P3StrategicSelectionMeta,
+  PrecomputedTicketDiagnostic,
+  ResearcherKpiTelemetry,
+  TicketPriorityTier,
+  fetchOrGenerateP3ProactiveTickets,
+  formatDurationMmSs,
+  loadResearcherKpiTelemetry,
+  markAlphaNodeBridgedOnServer,
+  saveResearcherKpiTelemetry,
+} from '../utils/researcherKpiAndP3Engine';
 
 export interface ExtractableLineageNode {
   id: string;
@@ -94,11 +107,15 @@ export interface ResearcherStudioTicket {
   id: string;
   firestoreDocId?: string;
   userId?: string;
-  queue: 'P1' | 'P2';
+  queue: 'P1' | 'P2' | 'P3';
+  priorityTier?: TicketPriorityTier;
+  precomputed_diagnostic?: PrecomputedTicketDiagnostic;
+  p3StrategicMeta?: P3StrategicSelectionMeta;
   ticketCategory?:
     | 'ADAM_NODE_ENRICHMENT'
     | 'ALPHA_TO_ADAM_LINK'
-    | 'P1_CUSTOMER_SEARCH';
+    | 'P1_CUSTOMER_SEARCH'
+    | 'P3_PROACTIVE_MINING';
   adamNodeId?: string;
   fullAdamSpineCount?: number;
   fullAdamSpineStations?: string[];
@@ -471,7 +488,372 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   };
 
   // =========================================================================
-  // BUILD REAL STRUCTURED TICKETS FROM ENGINE & FIRESTORE
+  // PILLAR 1 HELPER: REVERSE AUTO-HYDRATED DIAGNOSTIC ENGINE FOR ANY TICKET
+  // =========================================================================
+  const computeTicketDiagnosticContext = (
+    familyName: string,
+    rawEvidenceInput: CorroboratingAlphaEvidence[],
+    fallbackSubRoot = '',
+    fallbackMotherTribe = '',
+    fallbackLocation = ''
+  ): {
+    precomputed: PrecomputedTicketDiagnostic;
+    enrichedEvidence: CorroboratingAlphaEvidence[];
+    cleanExtractedNodes: ExtractableLineageNode[];
+    resolvedSubRoot: string;
+    resolvedMotherTribe: string;
+    allBranches: string[];
+    allLocations: string[];
+  } => {
+    const cleanFam = familyName.replace(/^عائلة\s+/, '').trim();
+    const taggedEvidence = tagConsensusWinnersOnEvidence(
+      cleanFam,
+      rawEvidenceInput.map((ev) => {
+        const parsedRef = extractBookVolPageFromEvidence(ev);
+        const parsedLeads =
+          Array.isArray(ev.parsed_other_sources) &&
+          ev.parsed_other_sources.length > 0
+            ? ev.parsed_other_sources
+            : ev.other_sources && ev.other_sources.trim()
+            ? parseOtherSourcesStringIntoLeads(
+                ev.other_sources,
+                ev.alpha_id,
+                ev.record_name || cleanFam
+              )
+            : [];
+        return {
+          ...ev,
+          source_book: parsedRef.book || ev.source_book,
+          volume: parsedRef.volume || ev.volume,
+          page: parsedRef.page || ev.page,
+          parsed_other_sources: parsedLeads,
+        };
+      })
+    );
+
+    const clusters = computeCrossSourceConsensusClusters(
+      cleanFam,
+      taggedEvidence
+    );
+    const primaryCluster = clusters[0];
+
+    const fullStitchedNames: string[] =
+      primaryCluster && primaryCluster.fullChainNodes.length > 1
+        ? primaryCluster.fullChainNodes
+        : [
+            cleanFam,
+            ...(fallbackSubRoot ? [fallbackSubRoot] : []),
+            ...(fallbackMotherTribe && fallbackMotherTribe !== fallbackSubRoot
+              ? [fallbackMotherTribe]
+              : []),
+          ];
+
+    const nonApexStations = fullStitchedNames.filter((st) => {
+      const s = stemTribeToken(st);
+      return (
+        s !== 'قحطان' && s !== 'عدنان' && s !== 'قحطاني' && s !== 'عدناني'
+      );
+    });
+
+    const resolvedSubRoot =
+      (nonApexStations.length > 2
+        ? nonApexStations[1]
+        : fallbackSubRoot || nonApexStations[1] || cleanFam
+      )
+        .replace(/^بطن\s+/, '')
+        .trim();
+
+    const resolvedMotherTribe =
+      (nonApexStations.length > 1
+        ? nonApexStations[nonApexStations.length - 1]
+        : fallbackMotherTribe || resolvedSubRoot
+      )
+        .replace(/^قبيلة\s+/, '')
+        .trim();
+
+    // Compute the 8-Stage Automated Pipeline Audit Bullets
+    const searchedFamStem = stemTribeToken(cleanFam);
+    const parentAttributedRecords = new Set<string>();
+    const compoundUnrollExamples = new Set<string>();
+    const variantsByStem = new Map<string, Set<string>>();
+    const deduplicatedNodesSet = new Set<string>();
+    const filteredNoiseTokensSet = new Set<string>();
+    const invertedPreambleExamples: string[] = [];
+    const detachedEpithetExamples = new Set<string>();
+    const stemFreq = new Map<string, { display: string; count: number }>();
+    const childBranchFreq = new Map<string, number>();
+
+    taggedEvidence.forEach((ev) => {
+      const recTitle = (ev.record_name || '').trim();
+      const recStem = stemTribeToken(recTitle);
+      const rawAncTokens = extractRawRecordAncestors(ev);
+      if (recTitle && recStem && recStem !== searchedFamStem) {
+        parentAttributedRecords.add(recTitle);
+      }
+      const seenStemsInRec = new Set<string>();
+      rawAncTokens.forEach((tok) => {
+        const trimmed = tok.trim();
+        if (/\s+(?:بن|ابن)\s+/.test(trimmed)) {
+          const parts = trimmed
+            .split(/\s+(?:بن|ابن)\s+/)
+            .map((p) => p.trim())
+            .filter(Boolean);
+          if (parts.length > 1) {
+            compoundUnrollExamples.add(
+              `«${trimmed}» إلى (${parts.join(' ⬅️ ')})`
+            );
+          }
+        }
+        if (
+          trimmed.includes('الأصل قيل') ||
+          trimmed.includes('تدّعي') ||
+          trimmed.includes('رواية')
+        ) {
+          filteredNoiseTokensSet.add(trimmed);
+        }
+        trimmed
+          .split(/\s+(?:بن|ابن)\s+/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .forEach((part) => {
+            const st = stemTribeToken(part);
+            if (!st) return;
+            if (!variantsByStem.has(st)) variantsByStem.set(st, new Set());
+            variantsByStem.get(st)!.add(part);
+            if (seenStemsInRec.has(st)) {
+              deduplicatedNodesSet.add(part);
+            } else {
+              seenStemsInRec.add(st);
+            }
+          });
+      });
+
+      seenStemsInRec.forEach((st) => {
+        if (st === searchedFamStem) return;
+        const curr = stemFreq.get(st);
+        const surf = Array.from(variantsByStem.get(st) || [])[0] || st;
+        if (curr) curr.count += 1;
+        else stemFreq.set(st, { display: surf, count: 1 });
+      });
+
+      const rawSplit = String(ev.lineage_ancestors || '')
+        .split(/(?:؛|⬅️|<-|->|—|،|\||>)/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const epithetFusion = mergeDetachedHistoricalEpithets(rawSplit);
+      epithetFusion.fusionExamples.forEach((ex) =>
+        detachedEpithetExamples.add(ex)
+      );
+      const invCheck = detectAndStripInvertedPreamble(
+        rawSplit,
+        ev.record_name || cleanFam
+      );
+      if (invCheck.wasInvertedPreambleStripped) {
+        if (
+          invCheck.relocatedApexTokens &&
+          invCheck.relocatedApexTokens.length > 0
+        ) {
+          invertedPreambleExamples.push(
+            `تم تجريد التمهيد المقلوب (${invCheck.strippedPreambleTokens.join(' ؛ ')}) في سجل «${ev.record_name || cleanFam}» وترحيل الجذر الأعلى (${invCheck.relocatedApexTokens.join(' ، ')}) إلى موضعه العلمي في قمة السلسلة بعد (${resolvedMotherTribe})`
+          );
+        } else {
+          invertedPreambleExamples.push(
+            `تم تجريد التمهيد المعكوس (${invCheck.strippedPreambleTokens.join(' ؛ ')}) في سجل «${ev.record_name || cleanFam}»`
+          );
+        }
+      }
+
+      (ev.child_branches || '')
+        .split(/[|،,؛]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((b) =>
+          childBranchFreq.set(b, (childBranchFreq.get(b) || 0) + 1)
+        );
+    });
+
+    const mergedVariantGroups: string[] = [];
+    variantsByStem.forEach((sSet) => {
+      const arr = Array.from(sSet);
+      if (arr.length >= 2) mergedVariantGroups.push(`(${arr.join(' / ')})`);
+    });
+
+    const sharedAnchorNames = Array.from(stemFreq.values())
+      .filter((item) => item.count >= 2)
+      .map((item) => item.display);
+
+    const hiddenIntermediateCount = Math.max(0, fullStitchedNames.length - 3);
+    const extractedLeads =
+      extractAllOtherSourceLeadsFromEvidence(taggedEvidence);
+
+    const pipelineAuditBullets: PrecomputedTicketDiagnostic['pipelineAuditBullets'] =
+      taggedEvidence.length === 0
+        ? [
+            {
+              icon: '⚠️',
+              title: 'قرار التوجيه الآلي (P1 Deep Research)',
+              detail: `لم يتم رصد مصادر خام مطابقة لاسم (${cleanFam}) في قواعد البيانات الحالية؛ تم توجيه التذكرة للتحقيق المعمق المباشر.`,
+            },
+          ]
+        : [
+            {
+              icon: '🌿',
+              title: 'إسناد الفرع للحاضنة الأم',
+              detail:
+                parentAttributedRecords.size > 0
+                  ? `تم إسناد (${cleanFam}) إلى السجل الحاضن (${Array.from(parentAttributedRecords).join(' ، ')}).`
+                  : `تطابق مباشر مع عنوان السجل الرئيس (${cleanFam}) في المعاجم.`,
+            },
+            {
+              icon: '🔗',
+              title: 'تفكيك الأسماء المركبة',
+              detail:
+                compoundUnrollExamples.size > 0
+                  ? `تم تفكيك المركبات النسبية (بن/ابن) آلياً: ${Array.from(compoundUnrollExamples).join(' ، ')}.`
+                  : 'جميع المحطات المرصودة وردت مفردة في السجلات الخام.',
+            },
+            {
+              icon: '👑',
+              title: 'دمج الألقاب التاريخية المفصولة وتوحيد التصحيف (Detached Epithet & Title Fusion)',
+              detail:
+                detachedEpithetExamples.size > 0
+                  ? `تم رصد ودمج الألقاب التاريخية التي فُصلت عن أصحابها في التفريغ وتوحيدها مع المراجع الأخرى: ${Array.from(detachedEpithetExamples).join(' ، ')}.`
+                  : 'تم فحص السلسلة لدمج أي ألقاب تاريخية مفصولة (مثل: البهلول، مزيقياء، ماء السماء، الغطريف، البطريق، العنقاء).',
+            },
+            {
+              icon: '🔤',
+              title: 'توحيد الرسم الإملائي والتصحيف المطبعي',
+              detail:
+                mergedVariantGroups.length > 0
+                  ? `تم توحيد الصيغ ومعالجة التصحيفات المطبعية لدمج: ${mergedVariantGroups.join(' ، ')}.`
+                  : 'تم تجريد البادئات وتوحيد الهمزات والتاء المربوطة عبر المراجع.',
+            },
+            {
+              icon: '♻️',
+              title: 'تنظيف التكرار الدائري',
+              detail:
+                deduplicatedNodesSet.size > 0
+                  ? `تم حذف العُقد المكررة داخل السلسلة (${Array.from(deduplicatedNodesSet).join(' ، ')}) مع الاحتفاظ بأعلى موضع طبقي للجد.`
+                  : 'السلسلة خالية من التكرار الدائري.',
+            },
+            {
+              icon: '🔄',
+              title: 'فلترة الشوائب وإصلاح التمهيد المعكوس',
+              detail:
+                invertedPreambleExamples.length > 0
+                  ? invertedPreambleExamples.join(' — ')
+                  : filteredNoiseTokensSet.size > 0
+                  ? `تم تصفية الألفاظ المكانية والوصفية: (${Array.from(filteredNoiseTokensSet).join(' ، ')}).`
+                  : 'تم فحص مطلع السلسلة ضد التمهيد المعكوس والشوائب الجغرافية مع حماية الأب المباشر من القص الخاطئ.',
+            },
+            {
+              icon: '⚓',
+              title: 'المحاذاة الطوبولوجية بالارتكاز',
+              detail:
+                sharedAnchorNames.length > 0
+                  ? `تم استخدام عُقد الارتكاز المشتركة (${sharedAnchorNames.join(' ، ')}) لمحاذاة البطون الوسيطة تصاعدياً.`
+                  : `تم ترتيب المحطات تصاعدياً من (${cleanFam}) حتى (${resolvedMotherTribe}).`,
+            },
+            {
+              icon: '🧬',
+              title: 'قرينة التوافق الجغرافي والمرجعي',
+              detail: primaryCluster
+                ? `توافق (${primaryCluster.sourcesCount}) مراجع ضمن النطاق الجغرافي (${primaryCluster.geographicScope})؛ إجمالي العناقيد: (${clusters.length}).`
+                : `تم تجميع الشواهد وفق النطاق الجغرافي (${fallbackLocation || '—'}).`,
+            },
+            {
+              icon: '⚖️',
+              title: 'معادلة الأوزان وعقدتا الجذر (5$)',
+              detail: `تم تثبيت الفرع الجامع (B2: ${resolvedSubRoot}) والقبيلة الأم (B0: ${resolvedMotherTribe}) مع طيّ (+${hiddenIntermediateCount} محطات وسيطة).`,
+            },
+          ];
+
+    const cleanExtractedNodes: ExtractableLineageNode[] = fullStitchedNames.map(
+      (stationName, idx) => {
+        const cleanStation = stationName
+          .replace(/^(بطن|قبيلة|فرع|فخذ)\s+/, '')
+          .trim();
+        const stStem = stemTribeToken(cleanStation);
+        const isApex =
+          stStem === 'قحطان' ||
+          stStem === 'عدنان' ||
+          stStem === 'قحطاني' ||
+          stStem === 'عدناني';
+        return {
+          id: `node-hydrated-${cleanFam}-${idx}`,
+          name: cleanStation,
+          nodeCode:
+            idx === 0
+              ? 'FE0'
+              : isApex
+              ? 'M'
+              : stStem === stemTribeToken(resolvedMotherTribe)
+              ? 'B0'
+              : stStem === stemTribeToken(resolvedSubRoot)
+              ? 'B2'
+              : idx === 1
+              ? 'B2'
+              : 'B1',
+          relationType: idx === 0 ? 'bin' : 'aan',
+          region:
+            primaryCluster?.geographicScope ||
+            fallbackLocation ||
+            'الجزيرة العربية',
+        };
+      }
+    );
+
+    const allBranches = Array.from(
+      new Set(
+        taggedEvidence.flatMap((ev) =>
+          (ev.child_branches || '')
+            .split(/[|،,؛]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        )
+      )
+    );
+    const allLocations = Array.from(
+      new Set(
+        [
+          fallbackLocation,
+          ...taggedEvidence.flatMap((ev) =>
+            (ev.locations || '')
+              .split(/[|،,؛/]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          ),
+        ]
+          .map((s) => (s || '').trim())
+          .filter(Boolean)
+      )
+    );
+
+    return {
+      precomputed: {
+        hydratedAt: new Date().toLocaleTimeString('ar-SA', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        rawSourcesCount: taggedEvidence.length,
+        clustersCount: clusters.length,
+        rootBranchB2: resolvedSubRoot,
+        rootTribeB0: resolvedMotherTribe,
+        fullStitchedNodes: fullStitchedNames,
+        pipelineAuditBullets,
+        extractedOtherSourcesCount: extractedLeads.length,
+      },
+      enrichedEvidence: taggedEvidence,
+      cleanExtractedNodes,
+      resolvedSubRoot,
+      resolvedMotherTribe,
+      allBranches,
+      allLocations,
+    };
+  };
+
+  // =========================================================================
+  // BUILD REAL STRUCTURED TICKETS FROM ENGINE, FIRESTORE & P3 AUTO-MINING
   // =========================================================================
   const buildTicketFromLineageResult = (
     res: LineageSearchResult,
@@ -488,10 +870,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       res.alpha_evidence && res.alpha_evidence.length > 0
         ? res.alpha_evidence
         : res.corroborating_alpha_evidence_for_researcher || [];
-    const evidenceList = tagConsensusWinnersOnEvidence(
+
+    const diag = computeTicketDiagnosticContext(
       cleanFam,
-      rawEvidenceList
+      rawEvidenceList,
+      res.rootBranchName,
+      res.rootTribeName,
+      res.originRegion || res.originCountry
     );
+    const evidenceList = diag.enrichedEvidence;
+
     const isAlphaLink = Boolean(
       !isAdamEnrichment &&
         (res.isAlphaOnlyBeforeMerge || evidenceList.length > 0)
@@ -503,18 +891,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       ? 'ALPHA_TO_ADAM_LINK'
       : 'P1_CUSTOMER_SEARCH';
 
-    const winnerEv =
-      evidenceList.find((e) => e.is_consensus_winner !== false) ||
-      evidenceList[0];
-    const firstChain = splitAncestorsChain(winnerEv?.lineage_ancestors);
-    const subRoot =
-      res.rootBranchName?.replace(/^بطن\s+/, '').trim() ||
-      firstChain[1] ||
-      '';
-    const motherTribe =
-      res.rootTribeName?.replace(/^قبيلة\s+/, '').trim() ||
-      firstChain[firstChain.length - 1] ||
-      '';
+    const priorityTier: TicketPriorityTier =
+      category === 'P1_CUSTOMER_SEARCH'
+        ? 'P1_CLIENT_UNMATCHED'
+        : 'P2_CLIENT_ADAM_BRIDGE';
+
+    const subRoot = diag.resolvedSubRoot;
+    const motherTribe = diag.resolvedMotherTribe;
 
     const resolvedBridge: SuggestedAdamBridgeForResearcher =
       res.suggested_adam_bridge_for_researcher ||
@@ -529,11 +912,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       res.full_stitched_lineage_for_researcher &&
       res.full_stitched_lineage_for_researcher.length > 0
         ? res.full_stitched_lineage_for_researcher
-        : buildFullStitchedLineageForResearcher(
-            res.adamSpineNodes && res.adamSpineNodes.length > 0
-              ? res.adamSpineNodes
-              : res.upperAncestors
-          );
+        : diag.cleanExtractedNodes.map((n, idx) => ({
+            id: n.id,
+            orderNumber: idx + 1,
+            name: n.name,
+            code: n.nodeCode,
+            rankLabel:
+              idx === 0 ? 'عقدة العائلة الموثقة' : 'محطة موثقة في سلسلة النسب',
+            isCodedStation: true,
+            region: n.region,
+            eraNote: '',
+            dataLakeSource: 'alpha_projects',
+          }));
 
     const resolvedLake3: Lake3UnlinkedProjectRecord[] =
       res.lake3_unlinked_projects_for_researcher &&
@@ -553,32 +943,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       res.background_researcher_ticket?.ticket_id ||
       (res.adamNodeId ? `#ENR-ADAM-${res.adamNodeId}` : `#TKT-${Date.now()}`);
 
-    const extractedNodesList: ExtractableLineageNode[] = [
-      {
-        id: `node-fe0-${cleanFam}`,
-        name: cleanFam,
-        nodeCode: 'FE0',
-        relationType: 'bin',
-        region: res.originCountry || 'العراق / نجد',
-      },
-      ...resolvedStitchedLineage.map((st, idx) => ({
-        id: `node-stitch-${cleanFam}-${idx}`,
-        name: st.name.replace(/^(بطن|قبيلة|فرع|فخذ)\s+/, '').trim(),
-        nodeCode:
-          st.code ||
-          (idx === resolvedStitchedLineage.length - 1 ? 'B0' : 'B2'),
-        relationType: (st.relation_nature === 'DIRECT' ? 'bin' : 'aan') as
-          | 'bin'
-          | 'aan',
-        region: res.originCountry || 'الجزيرة العربية',
-      })),
-    ];
-
     return {
       id: ticketId,
       firestoreDocId,
       userId,
       queue: category === 'P1_CUSTOMER_SEARCH' ? 'P1' : 'P2',
+      priorityTier,
+      precomputed_diagnostic: diag.precomputed,
       ticketCategory: category,
       adamNodeId: res.adamNodeId || resolvedBridge.adam_node_id,
       fullAdamSpineCount: resolvedStitchedLineage.length,
@@ -593,7 +964,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       familyName: cleanFam,
       subRootName: subRoot,
       motherTribeName: motherTribe,
-      locationLabel: res.originCountry || 'العراق / الجزيرة العربية',
+      locationLabel:
+        res.originRegion || res.originCountry || 'العراق / الجزيرة العربية',
       status:
         isAlphaAlreadyMerged && cleanFam === currentFamilyName
           ? 'CLOSED_AND_ENRICHED'
@@ -643,17 +1015,167 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           resolvedBridge.confidence_label ||
           `تقاطع موثق في شجرة آدم عند المحطة (${resolvedBridge.matched_station_name}).`,
       },
-      extractedNodes: extractedNodesList,
+      extractedNodes: diag.cleanExtractedNodes,
     };
   };
 
-  // Initialize tickets strictly from real Firebase Firestore `research_tickets` (zero hardcoded tickets)
+  const buildTicketFromP3Candidate = (
+    cand: P3ProactiveCandidate
+  ): ResearcherStudioTicket => {
+    const diag = computeTicketDiagnosticContext(
+      cand.familyName,
+      cand.corroboratingEvidence,
+      cand.subRootName,
+      cand.motherTribeName,
+      cand.locationLabel
+    );
+    const resolvedBridge = buildSuggestedAdamBridgeForResearcher(
+      cand.familyName,
+      diag.resolvedSubRoot,
+      diag.resolvedMotherTribe
+    );
+    const resolvedLake3 = buildLake3UnlinkedProjectsForResearcher(
+      cand.familyName,
+      diag.resolvedMotherTribe,
+      cand.inferredCountries[0] || 'العراق'
+    );
+    const stitchedNodes: UpperAncestorNode[] = diag.cleanExtractedNodes.map(
+      (n, idx) => ({
+        id: n.id,
+        orderNumber: idx + 1,
+        name: n.name,
+        code: n.nodeCode,
+        rankLabel:
+          idx === 0 ? 'عقدة العائلة الموثقة' : 'محطة موثقة في سلسلة النسب',
+        isCodedStation: true,
+        region: n.region,
+        eraNote: '',
+        dataLakeSource: 'alpha_projects',
+      })
+    );
+
+    return {
+      id: cand.ticketId,
+      queue: 'P3',
+      priorityTier: 'P3_PROACTIVE_ALPHA_ENRICHMENT',
+      precomputed_diagnostic: diag.precomputed,
+      p3StrategicMeta: {
+        ...cand.strategicMeta,
+        chain_stations_count: diag.cleanExtractedNodes.length,
+        corroborating_sources_count: diag.enrichedEvidence.length,
+      },
+      ticketCategory: 'P3_PROACTIVE_MINING',
+      adamNodeId: resolvedBridge.adam_node_id,
+      fullAdamSpineCount: stitchedNodes.length,
+      fullAdamSpineStations: stitchedNodes.map((u) => u.name),
+      title: `تعدين استباقي ذكي (P3): وصل وإثراء (${cand.familyName} ⬅️ ${diag.resolvedSubRoot} ⬅️ ${diag.resolvedMotherTribe}) بشجرة آدم`,
+      clientName: 'مولد التعدين الاستباقي الذكي (Auto-Miner)',
+      familyName: cand.familyName,
+      subRootName: diag.resolvedSubRoot,
+      motherTribeName: diag.resolvedMotherTribe,
+      locationLabel: cand.locationLabel,
+      status: 'open',
+      createdAt: 'توليد ذكي آلي · P3 Auto-Queue',
+      inferredCountries: cand.inferredCountries,
+      corroboratingEvidence: diag.enrichedEvidence,
+      aiResearchHypotheses: buildAIResearchHypothesesForFamily(
+        cand.familyName,
+        diag.enrichedEvidence,
+        resolvedBridge
+      ),
+      fullStitchedLineage: stitchedNodes,
+      suggestedAdamBridge: resolvedBridge,
+      lake3UnlinkedProjects: resolvedLake3,
+      copilotSources: diag.enrichedEvidence.map((ev) => ({
+        project: 'بحيرة ألفا (P3 Proactive Mining)',
+        bookCitation: formatAlphaEvidenceCitation(ev),
+        extractedSnippet: `السلسلة المستخرجة: ${ev.lineage_ancestors}`,
+      })),
+      suggestedAdamTarget: {
+        confidencePercent: 98,
+        entryNodeName: `${resolvedBridge.adam_node_id}: ${resolvedBridge.adam_chain_preview}`,
+        fullChainPreview: `${cand.familyName} ⬅️ ${stitchedNodes
+          .map((n) => n.name)
+          .join(' ⬅️ ')} ⬅️ ${resolvedBridge.adam_chain_preview}`,
+        rationale: `مرشح استراتيجي بوزن (${cand.strategicMeta.strategic_score} نقطة) جاهز للربط المباشر بشجرة آدم.`,
+      },
+      extractedNodes: diag.cleanExtractedNodes,
+    };
+  };
+
+  // =========================================================================
+  // PILLAR 3 STATE: RESEARCHER PRODUCTIVITY & KPI TELEMETRY
+  // =========================================================================
+  const [kpiTelemetry, setKpiTelemetry] = useState<ResearcherKpiTelemetry>(() =>
+    loadResearcherKpiTelemetry()
+  );
+  const [activeTicketElapsedSeconds, setActiveTicketElapsedSeconds] =
+    useState<number>(0);
+  const [isDiagnosticDrawerOpen, setIsDiagnosticDrawerOpen] =
+    useState<boolean>(true);
+  const [isGeneratingP3Batch, setIsGeneratingP3Batch] =
+    useState<boolean>(false);
+
+  const recordKpiTicketCompletion = (
+    ticket: ResearcherStudioTicket,
+    verifiedSourcesCount: number
+  ) => {
+    const durationSec = Math.max(18, activeTicketElapsedSeconds || 45);
+    const priorityKey: 'P1' | 'P2' | 'P3' =
+      ticket.priorityTier === 'P1_CLIENT_UNMATCHED' || ticket.queue === 'P1'
+        ? 'P1'
+        : ticket.priorityTier === 'P3_PROACTIVE_ALPHA_ENRICHMENT' ||
+          ticket.queue === 'P3'
+        ? 'P3'
+        : 'P2';
+    const baseXp =
+      priorityKey === 'P1' ? 150 : priorityKey === 'P2' ? 110 : 85;
+    const speedBonusXp = durationSec <= 120 ? 20 : 10;
+    const sourcesXp = verifiedSourcesCount * 15;
+    const xpEarned = baseXp + speedBonusXp + sourcesXp;
+
+    setKpiTelemetry((prev) => {
+      const nextTimes = [...prev.handlingTimesSeconds.slice(-19), durationSec];
+      const nextAvg = Math.round(
+        nextTimes.reduce((a, b) => a + b, 0) / nextTimes.length
+      );
+      const nextState: ResearcherKpiTelemetry = {
+        ...prev,
+        completedTodayP1:
+          prev.completedTodayP1 + (priorityKey === 'P1' ? 1 : 0),
+        completedTodayP2:
+          prev.completedTodayP2 + (priorityKey === 'P2' ? 1 : 0),
+        completedTodayP3:
+          prev.completedTodayP3 + (priorityKey === 'P3' ? 1 : 0),
+        totalAlphaNodesBridged: prev.totalAlphaNodesBridged + 1,
+        totalXpScore: prev.totalXpScore + xpEarned,
+        handlingTimesSeconds: nextTimes,
+        avgHandlingTimeSeconds: nextAvg,
+        recentCompletedLog: [
+          {
+            ticketId: ticket.id,
+            familyName: ticket.familyName,
+            priority: priorityKey,
+            durationSec,
+            xpEarned,
+            sourcesVerified: verifiedSourcesCount,
+            completedAt: 'الآن',
+            researcherName: 'كريم طاحون · المايسترو',
+          },
+          ...prev.recentCompletedLog.slice(0, 14),
+        ],
+      };
+      return saveResearcherKpiTelemetry(nextState);
+    });
+    setActiveTicketElapsedSeconds(0);
+  };
+
+  // Initialize tickets from Firebase Firestore `research_tickets` + Proactive P3 Queue
   const [tickets, setTickets] = useState<ResearcherStudioTicket[]>([]);
 
-  // Load all real customer research tickets from Firebase `research_tickets`
   useEffect(() => {
     let isMounted = true;
-    const loadRealTicketsFromFirebase = async () => {
+    const loadRealTicketsAndP3Queue = async () => {
       try {
         const firestoreDocs = await fetchAllResearchTicketsForStaff();
         if (!isMounted) return;
@@ -661,7 +1183,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         const hydratedList: ResearcherStudioTicket[] = [];
         for (const docItem of (firestoreDocs || []) as any[]) {
           let parsedPayload: Record<string, any> = {};
-          if (typeof docItem.studioPayloadJson === 'string' && docItem.studioPayloadJson.trim()) {
+          if (
+            typeof docItem.studioPayloadJson === 'string' &&
+            docItem.studioPayloadJson.trim()
+          ) {
             try {
               parsedPayload = JSON.parse(docItem.studioPayloadJson);
             } catch {
@@ -714,7 +1239,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           });
 
           const resolvedEvidence: CorroboratingAlphaEvidence[] =
-            Array.isArray(parsedPayload.corroborating_alpha_evidence_for_researcher) &&
+            Array.isArray(
+              parsedPayload.corroborating_alpha_evidence_for_researcher
+            ) &&
             parsedPayload.corroborating_alpha_evidence_for_researcher.length > 0
               ? parsedPayload.corroborating_alpha_evidence_for_researcher
               : Array.isArray(docItem.corroboratingEvidence) &&
@@ -770,7 +1297,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 ? parsedPayload.adamSpineNodes
                 : deterministic.adamSpineNodes,
             full_stitched_lineage_for_researcher:
-              Array.isArray(parsedPayload.full_stitched_lineage_for_researcher) &&
+              Array.isArray(
+                parsedPayload.full_stitched_lineage_for_researcher
+              ) &&
               parsedPayload.full_stitched_lineage_for_researcher.length > 0
                 ? parsedPayload.full_stitched_lineage_for_researcher
                 : deterministic.full_stitched_lineage_for_researcher,
@@ -785,13 +1314,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           const built = buildTicketFromLineageResult(
             mergedResultForTicket,
             clientDisplayLabel,
-            docItem.ticketNumber || `#FS-${String(docItem.id || '').slice(0, 6)}`,
+            docItem.ticketNumber ||
+              `#FS-${String(docItem.id || '').slice(0, 6)}`,
             docItem.id,
             docItem.userId
           );
 
           if (docItem.ticketCategory) {
             built.ticketCategory = docItem.ticketCategory;
+            built.priorityTier =
+              docItem.ticketCategory === 'P1_CUSTOMER_SEARCH'
+                ? 'P1_CLIENT_UNMATCHED'
+                : 'P2_CLIENT_ADAM_BRIDGE';
+            built.queue =
+              docItem.ticketCategory === 'P1_CUSTOMER_SEARCH' ? 'P1' : 'P2';
           }
           if (docItem.additionalNotes && !built.researcherNotes) {
             built.researcherNotes = docItem.additionalNotes;
@@ -810,50 +1346,103 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           hydratedList.push(built);
         }
 
-        setTickets(hydratedList);
+        // Also fetch/generate P3 Proactive Alpha Enrichment tickets so researchers always have high-value mining work
+        const existingFams = new Set(hydratedList.map((t) => t.familyName));
+        const p3Candidates = await fetchOrGenerateP3ProactiveTickets(
+          4,
+          existingFams
+        );
+        if (!isMounted) return;
+        const p3Tickets = p3Candidates.map((cand) =>
+          buildTicketFromP3Candidate(cand)
+        );
+
+        setTickets([...hydratedList, ...p3Tickets]);
       } catch (err) {
         console.warn('Firestore ticket sync warning:', err);
+        const p3Fallback = await fetchOrGenerateP3ProactiveTickets(4);
+        if (isMounted) {
+          setTickets(p3Fallback.map((cand) => buildTicketFromP3Candidate(cand)));
+        }
       }
     };
-    loadRealTicketsFromFirebase();
+    loadRealTicketsAndP3Queue();
     return () => {
       isMounted = false;
     };
   }, [currentClientResult]);
 
   // =========================================================================
-  // TAB 2: TICKET INBOX FILTER (ONLY 2 BUTTONS) & ANALYTICAL SOURCES STATE
+  // PILLAR 2: 3-TIER PRIORITY QUEUE (`P1 -> P2 -> P3 Auto-Refill Mining Queue`)
   // =========================================================================
   const [inboxCategoryFilter, setInboxCategoryFilter] = useState<
-    'ALPHA_ADAM_ENRICHMENT' | 'DIRECT_CUSTOMER_TICKETS'
-  >('ALPHA_ADAM_ENRICHMENT');
+    | 'ALL_PRIORITY_SORTED'
+    | 'P1_CLIENT_UNMATCHED'
+    | 'P2_CLIENT_ADAM_BRIDGE'
+    | 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+    | 'ALPHA_ADAM_ENRICHMENT'
+    | 'DIRECT_CUSTOMER_TICKETS'
+  >('ALL_PRIORITY_SORTED');
 
-  useEffect(() => {
-    if (tickets.length === 0) return;
-    const hasAlpha = tickets.some(
-      (t) =>
-        t.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
-        t.ticketCategory === 'ADAM_NODE_ENRICHMENT'
-    );
-    const hasDirectP1 = tickets.some(
-      (t) => t.ticketCategory === 'P1_CUSTOMER_SEARCH'
-    );
-    if (!hasAlpha && hasDirectP1 && inboxCategoryFilter === 'ALPHA_ADAM_ENRICHMENT') {
-      setInboxCategoryFilter('DIRECT_CUSTOMER_TICKETS');
-    } else if (hasAlpha && !hasDirectP1 && inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS') {
-      setInboxCategoryFilter('ALPHA_ADAM_ENRICHMENT');
+  const resolveTicketPriorityTier = (
+    t: ResearcherStudioTicket
+  ): TicketPriorityTier => {
+    if (t.priorityTier) return t.priorityTier;
+    if (t.queue === 'P3' || t.ticketCategory === 'P3_PROACTIVE_MINING') {
+      return 'P3_PROACTIVE_ALPHA_ENRICHMENT';
     }
-  }, [tickets]);
+    if (t.queue === 'P1' || t.ticketCategory === 'P1_CUSTOMER_SEARCH') {
+      return 'P1_CLIENT_UNMATCHED';
+    }
+    return 'P2_CLIENT_ADAM_BRIDGE';
+  };
+
+  const priorityRankScore = (t: ResearcherStudioTicket): number => {
+    const isClosed =
+      t.status === 'CLOSED_AND_ENRICHED' || t.status === 'merged_closed';
+    if (isClosed) return 99;
+    const tier = resolveTicketPriorityTier(t);
+    if (tier === 'P1_CLIENT_UNMATCHED') return 1;
+    if (tier === 'P2_CLIENT_ADAM_BRIDGE') return 2;
+    return 3;
+  };
 
   const filteredInboxTickets = useMemo(() => {
-    if (inboxCategoryFilter === 'ALPHA_ADAM_ENRICHMENT') {
-      return tickets.filter(
-        (t) =>
-          t.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
-          t.ticketCategory === 'ADAM_NODE_ENRICHMENT'
+    const sorted = [...tickets].sort((a, b) => {
+      const rankDiff = priorityRankScore(a) - priorityRankScore(b);
+      if (rankDiff !== 0) return rankDiff;
+      return (
+        (b.p3StrategicMeta?.strategic_score || 0) -
+        (a.p3StrategicMeta?.strategic_score || 0)
+      );
+    });
+
+    if (inboxCategoryFilter === 'ALL_PRIORITY_SORTED') {
+      return sorted;
+    }
+    if (
+      inboxCategoryFilter === 'P1_CLIENT_UNMATCHED' ||
+      inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS'
+    ) {
+      return sorted.filter(
+        (t) => resolveTicketPriorityTier(t) === 'P1_CLIENT_UNMATCHED'
       );
     }
-    return tickets.filter((t) => t.ticketCategory === 'P1_CUSTOMER_SEARCH');
+    if (inboxCategoryFilter === 'P2_CLIENT_ADAM_BRIDGE') {
+      return sorted.filter(
+        (t) => resolveTicketPriorityTier(t) === 'P2_CLIENT_ADAM_BRIDGE'
+      );
+    }
+    if (inboxCategoryFilter === 'P3_PROACTIVE_ALPHA_ENRICHMENT') {
+      return sorted.filter(
+        (t) => resolveTicketPriorityTier(t) === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+      );
+    }
+    return sorted.filter(
+      (t) =>
+        resolveTicketPriorityTier(t) === 'P2_CLIENT_ADAM_BRIDGE' ||
+        resolveTicketPriorityTier(t) === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+    );
   }, [tickets, inboxCategoryFilter]);
 
   const [selectedTicketId, setSelectedTicketId] = useState<string>('');
@@ -874,6 +1463,46 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       tickets[0],
     [tickets, selectedTicketId, filteredInboxTickets]
   );
+
+  // Active Ticket Timer: ticks every second while viewing an open ticket in `ticket_inbox`
+  useEffect(() => {
+    setActiveTicketElapsedSeconds(0);
+  }, [selectedTicket?.id]);
+
+  useEffect(() => {
+    if (activeSubTab !== 'ticket_inbox' || !selectedTicket) return;
+    if (
+      selectedTicket.status === 'CLOSED_AND_ENRICHED' ||
+      selectedTicket.status === 'merged_closed'
+    ) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setActiveTicketElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [activeSubTab, selectedTicket?.id, selectedTicket?.status]);
+
+  const handleAutoRefillNextP3Tickets = async (count = 1) => {
+    setIsGeneratingP3Batch(true);
+    try {
+      const existingFams = new Set(tickets.map((t) => t.familyName));
+      const newCands = await fetchOrGenerateP3ProactiveTickets(
+        count,
+        existingFams
+      );
+      if (newCands.length > 0) {
+        const builtNew = newCands.map((c) => buildTicketFromP3Candidate(c));
+        setTickets((prev) => {
+          const existingIds = new Set(prev.map((t) => t.id));
+          const uniqueNew = builtNew.filter((b) => !existingIds.has(b.id));
+          return [...prev, ...uniqueNew];
+        });
+      }
+    } finally {
+      setIsGeneratingP3Batch(false);
+    }
+  };
 
   // Per-source researcher controls: included checkbox, primary spine radio, researcher note, Lake 3 inclusion, and Live Final Column Preview
   const [includedSourceIndices, setIncludedSourceIndices] = useState<
@@ -1533,37 +2162,87 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const resolveAutoMatchedAdamPrimeSource = (
     lead: ParsedOtherSourceLead
   ): { source_id: string; title: string; author: string } => {
+    const rawBookTitle = (lead.extracted_book_title || '').trim();
+    const normBook = normalizeArabic(rawBookTitle);
+    const normBookCore = normBook
+      .replace(
+        /\s+(?:للنويري|للقلقشندي|لياقوت(?:\s+الحموي)?|لابن\s+منظور|للزبيدي|للسويدي|لابن\s+حزم|لابن\s+عبد\s+ربه|للهمداني|للسمعاني|لابن\s+الكلبي|للبلاذري|لابن\s+خلدون|للمقريزي|للدباغ)$/u,
+        ''
+      )
+      .trim();
+
+    // Requirement 3(أ): Match against the 41/46 Core Registry (`APR-CORE-...`) ONLY on exact full title equality!
+    // Never use partial `.includes()` so `معجم البلدان` (by Yaqut) NEVER takes the ID of `معجم البلدان والقبائل اليمنية`!
+    const exactMatchedReg = adamPrimeRegistryResults.find((r) => {
+      const rNorm = normalizeArabic(r.title);
+      return rNorm === normBook || (normBookCore.length >= 5 && rNorm === normBookCore);
+    });
+
     if (lead.adam_prime_source_id) {
       const found = adamPrimeRegistryResults.find(
         (r) => r.source_id === lead.adam_prime_source_id
       );
+      // Guard against false server-side partial matches to `APR-CORE-...`
+      if (
+        !lead.adam_prime_source_id.startsWith('APR-CORE-') ||
+        (found &&
+          (normalizeArabic(found.title) === normBook ||
+            normalizeArabic(found.title) === normBookCore))
+      ) {
+        return {
+          source_id: lead.adam_prime_source_id,
+          title:
+            found?.title || lead.canonical_title || lead.extracted_book_title,
+          author: found?.author || lead.author || 'محقق في سجل آدم برايم',
+        };
+      }
+    }
+
+    if (exactMatchedReg) {
       return {
-        source_id: lead.adam_prime_source_id,
-        title:
-          found?.title || lead.canonical_title || lead.extracted_book_title,
-        author: found?.author || lead.author || 'محقق في سجل آدم برايم',
+        source_id: exactMatchedReg.source_id,
+        title: exactMatchedReg.title,
+        author: exactMatchedReg.author || 'محقق في سجل آدم برايم',
       };
     }
 
-    const normBook = normalizeArabic(lead.extracted_book_title || '');
-    const matchedReg = adamPrimeRegistryResults.find(
-      (r) =>
-        normalizeArabic(r.title).includes(normBook) ||
-        normBook.includes(normalizeArabic(r.title))
-    );
-    if (matchedReg) {
+    // Requirement 3(ب): Differentiate books that share the first two words by their author
+    // (`نهاية الأرب للنويري` != `نهاية الأرب للقلقشندي`)
+    if (normBook.includes('نهايه الارب')) {
+      if (normBook.includes('قلقشندي')) {
+        return {
+          source_id: 'APR-SRC-618209',
+          title: 'نهاية الأرب في معرفة أنساب العرب للقلقشندي',
+          author: 'أبو العباس القلقشندي',
+        };
+      }
+      if (normBook.includes('نويري')) {
+        return {
+          source_id: 'APR-SRC-957172',
+          title: 'نهاية الأرب في فنون الأدب للنويري',
+          author: 'شهاب الدين النويري',
+        };
+      }
+    }
+    if (normBook === 'معجم البلدان' || normBook.includes('معجم البلدان لياقوت')) {
       return {
-        source_id: matchedReg.source_id,
-        title: matchedReg.title,
-        author: matchedReg.author || 'محقق في سجل آدم برايم',
+        source_id: 'APR-SRC-284510',
+        title: 'معجم البلدان لياقوت الحموي',
+        author: 'ياقوت الحموي',
       };
     }
-
-    if (normBook.includes('نهايه الارب') || normBook.includes('نويري')) {
+    if (normBook.includes('لسان العرب')) {
       return {
-        source_id: 'APR-SRC-957172',
-        title: 'نهاية الأرب في فنون الأدب',
-        author: 'شهاب الدين النويري',
+        source_id: 'APR-SRC-319402',
+        title: 'لسان العرب لابن منظور',
+        author: 'ابن منظور',
+      };
+    }
+    if (normBook.includes('تاج العروس')) {
+      return {
+        source_id: 'APR-SRC-482915',
+        title: 'تاج العروس من جواهر القاموس للزبيدي',
+        author: 'مرتضى الزبيدي',
       };
     }
     if (normBook.includes('سبائك الذهب') || normBook.includes('سويدي')) {
@@ -1573,7 +2252,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         author: 'محمد أمين السويدي',
       };
     }
-    if (normBook.includes('صبح الاعشي') || normBook.includes('قلقشندي')) {
+    if (normBook.includes('صبح الاعشي')) {
       return {
         source_id: 'APR-SRC-510384',
         title: 'صبح الأعشى في صناعة الإنشا',
@@ -1587,7 +2266,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         author: 'أبو العباس القلقشندي',
       };
     }
-    if (normBook.includes('جمهره انساب') || normBook.includes('حزم')) {
+    if (normBook.includes('جمهره انساب') || normBook.includes('ابن حزم')) {
       return {
         source_id: 'APR-SRC-304819',
         title: 'جمهرة أنساب العرب',
@@ -1609,9 +2288,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       };
     }
 
+    // Hash the entire normalized book title (including author) so distinct books never collide
+    const fullHashSeed = `${normBook}::${normalizeArabic(lead.author || '')}`;
     let hash = 0;
-    for (let i = 0; i < normBook.length; i++) {
-      hash = (hash * 31 + normBook.charCodeAt(i)) % 900000;
+    for (let i = 0; i < fullHashSeed.length; i++) {
+      hash = (hash * 31 + fullHashSeed.charCodeAt(i)) % 900000;
     }
     const codeNum = 100000 + Math.abs(hash);
     return {
@@ -1758,12 +2439,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       );
       setAdamPrimeRegistryResults(refreshed);
 
+      setKpiTelemetry((prev) =>
+        saveResearcherKpiTelemetry({
+          ...prev,
+          totalAdamPrimeSourcesVerified:
+            prev.totalAdamPrimeSourcesVerified + 1,
+          totalXpScore: prev.totalXpScore + 25,
+        })
+      );
+
       showToast(
         `✨ تم توثيق «${verifiedAddon.canonical_title}» في آدم برايم [${verifiedAddon.source_id}] وإتاحته للعميل (${
           verifiedAddon.addon_unlock_price_usd === 0
             ? 'مجاني'
             : `$${verifiedAddon.addon_unlock_price_usd}`
-        })! تقدّم شريط إنجاز التذكرة 🚀`
+        })! (+25 XP في عداد الإنتاجية) 🚀`
       );
     } finally {
       setVerifyingLeadKey(null);
@@ -1908,12 +2598,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }));
     setEnrichmentBranchesInput(allBranches.join('، '));
     setEnrichmentLocationsInput(allLocations.join('، '));
-
-    if (newTkt.ticketCategory === 'P1_CUSTOMER_SEARCH') {
-      setInboxCategoryFilter('DIRECT_CUSTOMER_TICKETS');
-    } else {
-      setInboxCategoryFilter('ALPHA_ADAM_ENRICHMENT');
-    }
+    setInboxCategoryFilter('ALL_PRIORITY_SORTED');
 
     setSelectedTicketId(newTkt.id);
     setActiveSubTab('ticket_inbox');
@@ -1923,6 +2608,108 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       `🚀 تم نقل مخرجات فحص (${cleanFam}) بالكامل إلى غرفة عمليات التذكرة (${newTkt.id}) للإثراء والتوثيق بنقرة واحدة!`
     );
   };
+
+  // =========================================================================
+  // PILLAR 1: REVERSE AUTO-HYDRATION ON TICKET SELECTION IN `ticket_inbox`
+  // Whenever a researcher selects any ticket in `ticket_inbox`, if it lacks
+  // `precomputed_diagnostic` or station hydration, automatically run the
+  // diagnostic engine in the background and inject Stations 1, 2, and 3!
+  // =========================================================================
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const tId = selectedTicket.id;
+
+    const hydrateTicketStationsAndDiagnostic = (
+      tkt: ResearcherStudioTicket,
+      evidenceToUse: CorroboratingAlphaEvidence[]
+    ) => {
+      const diag = computeTicketDiagnosticContext(
+        tkt.familyName,
+        evidenceToUse,
+        tkt.subRootName,
+        tkt.motherTribeName,
+        tkt.locationLabel
+      );
+
+      setTickets((prev) =>
+        prev.map((item) =>
+          item.id === tId
+            ? {
+                ...item,
+                precomputed_diagnostic: diag.precomputed,
+                corroboratingEvidence: diag.enrichedEvidence,
+                subRootName: diag.resolvedSubRoot || item.subRootName,
+                motherTribeName:
+                  diag.resolvedMotherTribe || item.motherTribeName,
+                extractedNodes:
+                  diag.cleanExtractedNodes.length > 0
+                    ? diag.cleanExtractedNodes
+                    : item.extractedNodes,
+              }
+            : item
+        )
+      );
+
+      setLivePreviewNodesByTicket((prev) =>
+        prev[tId] && prev[tId].length > 0
+          ? prev
+          : { ...prev, [tId]: diag.cleanExtractedNodes }
+      );
+      setIncludedSourceIndices((prev) =>
+        prev[tId]
+          ? prev
+          : {
+              ...prev,
+              [tId]: diag.enrichedEvidence.map((_, idx) => idx),
+            }
+      );
+      setSelectedBranchPillsByTicket((prev) =>
+        prev[tId] ? prev : { ...prev, [tId]: diag.allBranches }
+      );
+      setSelectedLocationPillsByTicket((prev) =>
+        prev[tId] ? prev : { ...prev, [tId]: diag.allLocations }
+      );
+    };
+
+    if (!selectedTicket.precomputed_diagnostic) {
+      if (
+        selectedTicket.corroboratingEvidence &&
+        selectedTicket.corroboratingEvidence.length > 0
+      ) {
+        hydrateTicketStationsAndDiagnostic(
+          selectedTicket,
+          selectedTicket.corroboratingEvidence
+        );
+      } else {
+        searchJuthoriLineage({
+          accountType: AccountLegalType.Individual,
+          firstName: 'باحث',
+          fatherName: '—',
+          grandfatherName: '—',
+          familyName: selectedTicket.familyName,
+          originCountry: selectedTicket.inferredCountries?.[0] || '',
+          originRegion: selectedTicket.locationLabel || '',
+          tribeName: selectedTicket.motherTribeName || '',
+          branchName: selectedTicket.subRootName || '',
+          email: '',
+          password: '',
+          agreedToTerms: true,
+        })
+          .then((liveRes) => {
+            const extracted = extractRawSourcesFromResult(liveRes);
+            hydrateTicketStationsAndDiagnostic(selectedTicket, extracted);
+          })
+          .catch(() => {
+            hydrateTicketStationsAndDiagnostic(selectedTicket, []);
+          });
+      }
+    } else if (!livePreviewNodesByTicket[tId]) {
+      hydrateTicketStationsAndDiagnostic(
+        selectedTicket,
+        selectedTicket.corroboratingEvidence || []
+      );
+    }
+  }, [selectedTicket?.id]);
 
   // =========================================================================
   // REQUIREMENT 1: READ-ONLY COMPACT SECTION 5 FOR DIAGNOSTIC SEARCH (`direct_search`)
@@ -2010,6 +2797,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   // =========================================================================
   // REQUIREMENT 3: GAMIFIED ALL-IN-ONE 3-STATION ACTION WORKSPACE IN TICKET INBOX
+  // + PILLAR 1: EMBEDDED DIAGNOSTIC DRAWER (Reverse Auto-Hydrated Context)
+  // + PILLAR 2: P3 STRATEGIC SELECTION SCORE & REASONS BANNER
   // =========================================================================
   const renderGamifiedTicketOperationsWorkspace = (
     ticket: ResearcherStudioTicket
@@ -2022,6 +2811,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             ticket.corroboratingEvidence
           )
         : [];
+
+    const diagnosticCtx =
+      ticket.precomputed_diagnostic ||
+      computeTicketDiagnosticContext(
+        ticket.familyName,
+        allTicketEvidence,
+        ticket.subRootName,
+        ticket.motherTribeName,
+        ticket.locationLabel
+      ).precomputed;
 
     const extractedLeads =
       extractAllOtherSourceLeadsFromEvidence(allTicketEvidence);
@@ -2162,6 +2961,177 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         className="rounded-3xl border-2 border-[#141414] bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] p-5 sm:p-6 shadow-sm space-y-6"
       >
         {/* =========================================================
+            P3 STRATEGIC SELECTION WEIGHT & REASONS CARD (WHEN P3 TICKET)
+        ========================================================= */}
+        {ticket.p3StrategicMeta && (
+          <div
+            data-testid="p3-strategic-selection-card"
+            className="rounded-2xl border-2 border-emerald-600 bg-gradient-to-l from-emerald-950 via-emerald-900 to-stone-900 text-white p-4 space-y-2.5 shadow-xs"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-3 py-1 rounded-xl bg-amber-400 text-stone-950 font-mono text-xs font-extrabold shadow-2xs">
+                  [★ وزن استراتيجي: {ticket.p3StrategicMeta.strategic_score} نقطة]
+                </span>
+                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-bold">
+                  🟢 أولوية 3 (P3): التعدين الاستباقي الذكي لعقد ألفا ذات الثقل المرجعي
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-amber-300">
+                Auto-Refill Mining Queue
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-stone-300 font-bold">
+                أسباب الاختيار الذكي:
+              </span>
+              {ticket.p3StrategicMeta.why_selected_reasons.map((reason, rIdx) => (
+                <span
+                  key={rIdx}
+                  className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-amber-200 font-bold text-[11px]"
+                >
+                  • {reason}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================
+            PILLAR 1(A): EMBEDDED DIAGNOSTIC DRAWER (أكورديون/درج التشخيص الخوارزمي المدمج)
+            Reverse Auto-Hydrated Diagnostic Context inside Ticket Operations Room
+        ========================================================= */}
+        <div
+          data-testid="embedded-diagnostic-drawer"
+          className="rounded-2xl border-2 border-amber-500/80 bg-gradient-to-l from-amber-50/90 via-[#FAF8F5] to-white overflow-hidden shadow-2xs"
+        >
+          <div
+            onClick={() => setIsDiagnosticDrawerOpen((prev) => !prev)}
+            className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-amber-50/60 transition-colors"
+          >
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-lg bg-[#141414] text-amber-300 text-[11px] font-extrabold">
+                  🔬 درج التشخيص الخوارزمي المدمج (Reverse Auto-Hydrated Diagnostic)
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-bold">
+                  مُغذّى آلياً دون مغادرة التذكرة ✓
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-stone-700 pt-0.5">
+                <span>
+                  المصادر الخام: <strong>{diagnosticCtx.rawSourcesCount}</strong>
+                </span>
+                <span>·</span>
+                <span>
+                  العمليات الخوارزمية:{' '}
+                  <strong>{diagnosticCtx.pipelineAuditBullets.length} مراحل</strong>
+                </span>
+                <span>·</span>
+                <span className="text-amber-950 font-extrabold">
+                  عقدتا الجذر: B2 ({diagnosticCtx.rootBranchB2}) ⬅️ B0 (
+                  {diagnosticCtx.rootTribeB0})
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              data-testid="toggle-embedded-diagnostic-drawer-btn"
+              className="px-3 py-1.5 rounded-xl bg-white border border-amber-400 text-amber-950 text-xs font-extrabold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <span>
+                {isDiagnosticDrawerOpen
+                  ? 'طيّ درج التشخيص الفوري'
+                  : 'فتح درج التشخيص الفوري الكامل'}
+              </span>
+              {isDiagnosticDrawerOpen ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {isDiagnosticDrawerOpen && (
+            <div className="p-4 pt-0 border-t border-amber-200/80 space-y-4 bg-white/90">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-3">
+                {/* 1. Raw Sources Summary inside Drawer (5 cols) */}
+                <div className="lg:col-span-5 rounded-xl bg-[#FAF8F5] border border-stone-200 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-extrabold text-[#141414]">
+                      1️⃣ ملخص المصادر الخام المرصودة ({allTicketEvidence.length})
+                    </h5>
+                    <span className="text-[10px] font-mono text-stone-500">
+                      Raw Sources
+                    </span>
+                  </div>
+                  {allTicketEvidence.length === 0 ? (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] font-bold text-amber-950">
+                      تذكرة عميل (P1) بدون تطابق مباشر في المعاجم الحالية — موجهة للتحقيق المعمق.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {allTicketEvidence.map((ev, eIdx) => {
+                        const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                        const rawChainTokens = extractRawRecordAncestors(ev);
+                        return (
+                          <div
+                            key={ev.alpha_id || eIdx}
+                            className="rounded-xl bg-white border border-stone-200 p-2.5 space-y-1.5 shadow-2xs"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-1">
+                              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-800 text-[10px] font-bold">
+                                {formatAlphaReferenceBadge(ev)}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                              >
+                                {lakeBadge.tag}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-stone-800 font-bold leading-relaxed">
+                              {rawChainTokens.join(' ⬅️ ')}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. 8-Stage Pipeline Audit inside Drawer (7 cols) */}
+                <div className="lg:col-span-7 rounded-xl bg-amber-50/50 border border-amber-200 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-extrabold text-amber-950">
+                      2️⃣ سجل العمليات الخوارزمية الـ 8 (8-Stage Pipeline Audit)
+                    </h5>
+                    <span className="px-2 py-0.5 rounded bg-amber-900 text-amber-100 font-mono text-[10px] font-bold">
+                      B2: {diagnosticCtx.rootBranchB2} ⬅️ B0: {diagnosticCtx.rootTribeB0}
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5 text-[11px] text-stone-800 max-h-60 overflow-y-auto pr-1">
+                    {diagnosticCtx.pipelineAuditBullets.map((b, bIdx) => (
+                      <li
+                        key={bIdx}
+                        className="flex items-start gap-2 bg-white/90 rounded-lg px-2.5 py-1.5 border border-amber-200/70"
+                      >
+                        <span className="shrink-0">{b.icon}</span>
+                        <div>
+                          <strong className="text-amber-950">{b.title}:</strong>{' '}
+                          <span>{b.detail}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* =========================================================
             QUEST PROGRESS BAR HEADER (0% -> 100%)
         ========================================================= */}
         <div className="rounded-2xl bg-[#141414] text-white p-4 sm:p-5 space-y-3 shadow-xs">
@@ -2173,6 +3143,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </span>
                 <span className="text-xs text-stone-300 font-mono">
                   {ticket.id}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-lg bg-stone-800 border border-stone-600 text-amber-300 font-mono text-[11px] font-bold">
+                  ⏱️ زمن التذكرة النشطة: {formatDurationMmSs(activeTicketElapsedSeconds)}
                 </span>
               </div>
               <h4 className="text-sm sm:text-base font-extrabold font-serif text-amber-300">
@@ -4335,7 +5308,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       [newAdamNodeId]: newlyLinkedAdamNode,
     }));
 
-    // 2. Call German Engine HTTPS endpoint
+    // 2. Call German Engine HTTPS endpoint + mark-alpha-bridged for Neo4j deduplication
     try {
       await fetch(
         `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`,
@@ -4356,6 +5329,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       // Offline fallback
     }
 
+    await markAlphaNodeBridgedOnServer({
+      ticketId: ticket.id,
+      familyName: ticket.familyName,
+      adamNodeId: newAdamNodeId,
+      bridgedChain: liveNodes.map((n) => n.name),
+      verifiedSources: selectedCitations,
+      alphaIds: evList.map((e) => e.alpha_id).filter(Boolean) as string[],
+    });
+
     // 3. Update Firestore ticket status & send real customer notification
     if (ticket.firestoreDocId) {
       await updateResearchTicketFullInFirebase(ticket.firestoreDocId, {
@@ -4375,20 +5357,41 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       });
     }
 
-    // 4. Update local ticket status & notify parent App state
-    setTickets((prev) =>
-      prev.map((t) =>
+    // 4. Record KPI Telemetry & Auto-Refill P3 Queue
+    recordKpiTicketCompletion(ticket, selectedCitations.length);
+
+    setTickets((prev) => {
+      const updated = prev.map((t) =>
         t.id === ticket.id
           ? {
               ...t,
-              status: 'CLOSED_AND_ENRICHED',
+              status: 'CLOSED_AND_ENRICHED' as const,
               extractedNodes: liveNodes,
               subRootName: resolvedSubRoot,
               motherTribeName: resolvedMotherTribe,
             }
           : t
-      )
-    );
+      );
+      const nextOpen = updated
+        .filter(
+          (t) =>
+            t.id !== ticket.id &&
+            t.status !== 'CLOSED_AND_ENRICHED' &&
+            t.status !== 'merged_closed'
+        )
+        .sort((a, b) => priorityRankScore(a) - priorityRankScore(b))[0];
+      if (nextOpen) {
+        setTimeout(() => setSelectedTicketId(nextOpen.id), 150);
+      }
+      return updated;
+    });
+
+    if (
+      ticket.queue === 'P3' ||
+      ticket.priorityTier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+    ) {
+      handleAutoRefillNextP3Tickets(1);
+    }
 
     onApproveAlphaMergeIntoAdam({
       familyName: ticket.familyName,
@@ -4406,7 +5409,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     showToast(
       `✅ تم اعتماد ربط (${liveNodes
         .map((n) => n.name)
-        .join(' ⬅️ ')}) بشجرة آدم وإثراء السجل بـ (${selectedCitations.length}) مصادر وإقفال التذكرة!`
+        .join(' ⬅️ ')}) بشجرة آدم، وتعليم العقدة في Neo4j، وتحديث عداد الإنتاجية، وسحب التذكرة التالية تلقائياً!`
     );
   };
 
@@ -4456,6 +5459,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       // Offline fallback
     }
 
+    await markAlphaNodeBridgedOnServer({
+      ticketId: ticket.id,
+      familyName: ticket.familyName,
+      adamNodeId: ticket.adamNodeId || '272887',
+      bridgedChain: getLivePreviewNodesForTicket(ticket).map((n) => n.name),
+      verifiedSources: selectedCitations,
+      alphaIds: evList.map((e) => e.alpha_id).filter(Boolean) as string[],
+    });
+
     if (ticket.firestoreDocId) {
       await updateResearchTicketFullInFirebase(ticket.firestoreDocId, {
         status: 'CLOSED_AND_ENRICHED',
@@ -4463,11 +5475,34 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       });
     }
 
-    setTickets((prev) =>
-      prev.map((t) =>
-        t.id === ticket.id ? { ...t, status: 'CLOSED_AND_ENRICHED' } : t
-      )
-    );
+    recordKpiTicketCompletion(ticket, selectedCitations.length);
+
+    setTickets((prev) => {
+      const updated = prev.map((t) =>
+        t.id === ticket.id
+          ? { ...t, status: 'CLOSED_AND_ENRICHED' as const }
+          : t
+      );
+      const nextOpen = updated
+        .filter(
+          (t) =>
+            t.id !== ticket.id &&
+            t.status !== 'CLOSED_AND_ENRICHED' &&
+            t.status !== 'merged_closed'
+        )
+        .sort((a, b) => priorityRankScore(a) - priorityRankScore(b))[0];
+      if (nextOpen) {
+        setTimeout(() => setSelectedTicketId(nextOpen.id), 150);
+      }
+      return updated;
+    });
+
+    if (
+      ticket.queue === 'P3' ||
+      ticket.priorityTier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+    ) {
+      handleAutoRefillNextP3Tickets(1);
+    }
 
     onApproveAlphaMergeIntoAdam({
       familyName: ticket.familyName,
@@ -4482,7 +5517,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     });
 
     showToast(
-      `✨ تم إثراء سجل (${ticket.familyName}) في شجرة آدم بالمصادر والفروع الإضافية وإقفال التذكرة!`
+      `✨ تم إثراء سجل (${ticket.familyName}) في شجرة آدم بالمصادر والفروع الإضافية، وتحديث عداد الإنتاجية، والانتقال للتذكرة التالية!`
     );
   };
 
@@ -5100,12 +6135,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   const filteredNoiseList = Array.from(filteredNoiseTokensSet);
 
                   // 5b. Inverted Preamble Summary Stripper (`إصلاح التمهيد المعكوس في التفريغ`)
+                  // & Detached Epithet Fusion (`دمج الألقاب التاريخية المفصولة وتوحيد التصحيف`)
                   const invertedPreambleExamples: string[] = [];
+                  const detachedEpithetExamplesSet = new Set<string>();
                   rawEvidenceList.forEach((ev) => {
                     const rawTokens = String(ev.lineage_ancestors || '')
                       .split(/(?:؛|⬅️|<-|->|—|،|\||>)/)
                       .map((s) => s.trim())
                       .filter(Boolean);
+                    const epithetFusion = mergeDetachedHistoricalEpithets(rawTokens);
+                    epithetFusion.fusionExamples.forEach((ex) =>
+                      detachedEpithetExamplesSet.add(ex)
+                    );
                     const check = detectAndStripInvertedPreamble(
                       rawTokens,
                       ev.record_name || directSearchResult.familyName
@@ -5135,6 +6176,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       }
                     }
                   });
+                  const detachedEpithetExamplesList = Array.from(
+                    detachedEpithetExamplesSet
+                  );
 
                   // 8. Folded intermediate stations count for $5 2-Root Selection (`🔒 +X في السلسلة`)
                   const totalStitchedCount = finalStitchedStations.length;
@@ -5375,6 +6419,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   {compoundUnrollList.length > 0
                                     ? `تم تفكيك المركبات النسبية المحتوية على (بن/ابن) آلياً إلى محطات مستقلة متتالية: ${compoundUnrollList.join(' ، ')}.`
                                     : `جميع المحطات المرصودة في السجلات الخام وردت مفردة؛ لم يتطلب المسار تفكيك تراكيب إضافية (بن/ابن).`}
+                                </div>
+                              </li>
+
+                              {/* 2b. Detached Epithet & Title Fusion */}
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">👑</span>
+                                <div>
+                                  <strong className="text-amber-950">
+                                    دمج الألقاب التاريخية المفصولة وتوحيد التصحيف (Detached Epithet & Title Fusion):
+                                  </strong>{' '}
+                                  {detachedEpithetExamplesList.length > 0
+                                    ? `تم رصد ودمج الألقاب التاريخية التي فُصلت بفاصلة منقوطة عن أصحابها في التفريغ وتوحيدها في محطة قياسية واحدة عبر المراجع: ${detachedEpithetExamplesList.join(' ، ')}.`
+                                    : `تم فحص السلسلة لدمج أي ألقاب تاريخية مفصولة في التفريغ (مثل: البهلول، مزيقياء، ماء السماء، الغطريف، البطريق، العنقاء) وتوحيدها مع المراجع الموازية.`}
                                 </div>
                               </li>
 
@@ -6149,34 +7206,150 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         =================================================================== */}
         {activeSubTab === 'ticket_inbox' && (
           <div className="space-y-6">
-            {/* TOP FILTER BAR WITH ONLY 2 BUTTONS */}
-            <div className="bg-white rounded-2xl border border-stone-200/90 p-4 flex flex-wrap items-center justify-between gap-4 shadow-2xs">
-              <div className="flex flex-wrap items-center gap-3">
+            {/* ===================================================================
+                PILLAR 3: RESEARCHER PRODUCTIVITY & KPI TELEMETRY BAR
+            =================================================================== */}
+            <div
+              data-testid="researcher-kpi-telemetry-bar"
+              className="rounded-3xl border-2 border-[#141414] bg-gradient-to-l from-[#141414] via-stone-900 to-[#141414] text-white p-4 sm:p-5 shadow-md space-y-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-3 py-1 rounded-xl bg-amber-400 text-stone-950 font-mono text-xs font-extrabold">
+                    📊 مؤشرات إنتاجية الباحث والمكافآت (KPI Telemetry)
+                  </span>
+                  <span className="text-xs text-stone-300">
+                    متزامن حياً مع لوحة تقارير الإدارة العليا وتقييم المكافآت الشهرية
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    data-testid="kpi-xp-incentive-score"
+                    className="px-3.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-mono text-xs sm:text-sm font-extrabold"
+                  >
+                    🏆 نقاط الإنجاز والمكافآت: {kpiTelemetry.totalXpScore} XP
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                {/* 1. Active Ticket Timer & Avg Handling Time */}
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
+                  <span className="text-stone-400 text-[11px] block">
+                    ⏱️ زمن التذكرة النشطة / متوسط الإنجاز
+                  </span>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span
+                      data-testid="kpi-active-ticket-timer"
+                      className="text-base sm:text-lg font-mono font-extrabold text-amber-300"
+                    >
+                      {formatDurationMmSs(activeTicketElapsedSeconds)}
+                    </span>
+                    <span className="text-[11px] font-mono text-stone-300">
+                      المتوسط: {formatDurationMmSs(kpiTelemetry.avgHandlingTimeSeconds)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Completed Tickets Today by Priority (P1 / P2 / P3) */}
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
+                  <span className="text-stone-400 text-[11px] block">
+                    ✅ المنجز اليوم حسب الأولوية (إجمالي:{' '}
+                    {kpiTelemetry.completedTodayP1 +
+                      kpiTelemetry.completedTodayP2 +
+                      kpiTelemetry.completedTodayP3}
+                    )
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5 font-mono text-[11px] font-extrabold">
+                    <span className="px-2 py-0.5 rounded bg-red-500/25 border border-red-400/40 text-red-200">
+                      P1: {kpiTelemetry.completedTodayP1}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-amber-500/25 border border-amber-400/40 text-amber-200">
+                      P2: {kpiTelemetry.completedTodayP2}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/40 text-emerald-200">
+                      P3: {kpiTelemetry.completedTodayP3}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. Total Alpha Nodes Bridged to Adam */}
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
+                  <span className="text-stone-400 text-[11px] block">
+                    🌳 عُقد ألفا الموصولة بشجرة آدم
+                  </span>
+                  <div className="flex items-baseline justify-between">
+                    <span
+                      data-testid="kpi-alpha-nodes-bridged"
+                      className="text-base sm:text-lg font-mono font-extrabold text-emerald-300"
+                    >
+                      {kpiTelemetry.totalAlphaNodesBridged} عقدة موصولة
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. Total Addon Sources Verified in Adam Prime */}
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
+                  <span className="text-stone-400 text-[11px] block">
+                    🏛️ مصادر إضافية موثقة في آدم برايم
+                  </span>
+                  <div className="flex items-baseline justify-between">
+                    <span
+                      data-testid="kpi-adam-prime-sources-verified"
+                      className="text-base sm:text-lg font-mono font-extrabold text-indigo-300"
+                    >
+                      {kpiTelemetry.totalAdamPrimeSourcesVerified} مرجع موثق
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ===================================================================
+                PILLAR 2: 3-TIER PRIORITY QUEUE BAR (`P1 -> P2 -> P3 Auto-Refill Mining Queue`)
+            =================================================================== */}
+            <div className="bg-white rounded-2xl border border-stone-200/90 p-4 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setInboxCategoryFilter('ALPHA_ADAM_ENRICHMENT');
-                    const firstMatch = tickets.find(
-                      (t) =>
-                        t.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
-                        t.ticketCategory === 'ADAM_NODE_ENRICHMENT'
-                    );
-                    if (firstMatch) setSelectedTicketId(firstMatch.id);
-                  }}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    inboxCategoryFilter === 'ALPHA_ADAM_ENRICHMENT'
+                  data-testid="queue-filter-all-priority"
+                  onClick={() => setInboxCategoryFilter('ALL_PRIORITY_SORTED')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                    inboxCategoryFilter === 'ALL_PRIORITY_SORTED'
                       ? 'bg-[#141414] text-amber-300 shadow-sm'
                       : 'bg-[#FAF8F5] text-stone-700 hover:bg-stone-100 border border-stone-200'
                   }`}
                 >
-                  <Sparkles className="w-4 h-4" />
-                  <span>إثراء ودمج شجرة آدم من مشاريع ألفا</span>
+                  <span>⚡ الطابور الذكي المتسلسل (P1 ⬅️ P2 ⬅️ P3)</span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-amber-500/20 text-amber-400">
+                    {tickets.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="queue-filter-p1"
+                  onClick={() => {
+                    setInboxCategoryFilter('P1_CLIENT_UNMATCHED');
+                    const firstMatch = tickets.find(
+                      (t) =>
+                        resolveTicketPriorityTier(t) === 'P1_CLIENT_UNMATCHED'
+                    );
+                    if (firstMatch) setSelectedTicketId(firstMatch.id);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    inboxCategoryFilter === 'P1_CLIENT_UNMATCHED' ||
+                    inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS'
+                      ? 'bg-red-900 text-white shadow-sm'
+                      : 'bg-red-50/70 text-red-950 hover:bg-red-100 border border-red-200'
+                  }`}
+                >
+                  <span>🔴 P1: طوارئ العملاء</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-red-950">
                     {
                       tickets.filter(
                         (t) =>
-                          t.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
-                          t.ticketCategory === 'ADAM_NODE_ENRICHMENT'
+                          resolveTicketPriorityTier(t) === 'P1_CLIENT_UNMATCHED'
                       ).length
                     }
                   </span>
@@ -6184,34 +7357,78 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 <button
                   type="button"
+                  data-testid="queue-filter-p2"
                   onClick={() => {
-                    setInboxCategoryFilter('DIRECT_CUSTOMER_TICKETS');
+                    setInboxCategoryFilter('P2_CLIENT_ADAM_BRIDGE');
                     const firstMatch = tickets.find(
-                      (t) => t.ticketCategory === 'P1_CUSTOMER_SEARCH'
+                      (t) =>
+                        resolveTicketPriorityTier(t) === 'P2_CLIENT_ADAM_BRIDGE'
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS'
-                      ? 'bg-[#141414] text-amber-300 shadow-sm'
-                      : 'bg-[#FAF8F5] text-stone-700 hover:bg-stone-100 border border-stone-200'
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    inboxCategoryFilter === 'P2_CLIENT_ADAM_BRIDGE'
+                      ? 'bg-amber-800 text-white shadow-sm'
+                      : 'bg-amber-50/80 text-amber-950 hover:bg-amber-100 border border-amber-200'
                   }`}
                 >
-                  <FileText className="w-4 h-4" />
-                  <span>تذاكر بحث العملاء المباشرة</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-stone-200 text-stone-700">
+                  <span>🟡 P2: استكمال تسليم العملاء (جسر آدم)</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-amber-950">
                     {
                       tickets.filter(
-                        (t) => t.ticketCategory === 'P1_CUSTOMER_SEARCH'
+                        (t) =>
+                          resolveTicketPriorityTier(t) ===
+                          'P2_CLIENT_ADAM_BRIDGE'
+                      ).length
+                    }
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="queue-filter-p3"
+                  onClick={() => {
+                    setInboxCategoryFilter('P3_PROACTIVE_ALPHA_ENRICHMENT');
+                    const firstMatch = tickets.find(
+                      (t) =>
+                        resolveTicketPriorityTier(t) ===
+                        'P3_PROACTIVE_ALPHA_ENRICHMENT'
+                    );
+                    if (firstMatch) setSelectedTicketId(firstMatch.id);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    inboxCategoryFilter === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+                      ? 'bg-emerald-900 text-white shadow-sm'
+                      : 'bg-emerald-50/80 text-emerald-950 hover:bg-emerald-100 border border-emerald-300'
+                  }`}
+                >
+                  <span>🟢 P3: التعدين الاستباقي الذكي</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-emerald-950">
+                    {
+                      tickets.filter(
+                        (t) =>
+                          resolveTicketPriorityTier(t) ===
+                          'P3_PROACTIVE_ALPHA_ENRICHMENT'
                       ).length
                     }
                   </span>
                 </button>
               </div>
 
-              <span className="text-xs text-stone-500 font-medium">
-                متصل مباشرة بمجموعة <code className="font-mono">research_tickets</code> في Firebase
-              </span>
+              <button
+                type="button"
+                disabled={isGeneratingP3Batch}
+                onClick={() => handleAutoRefillNextP3Tickets(3)}
+                data-testid="auto-generate-p3-batch-btn"
+                className="px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-amber-300 text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {isGeneratingP3Batch
+                    ? 'جارٍ سحب تذاكر P3...'
+                    : '🔄 توليد دفعة تذاكر P3 ذكية (Auto-Refill)'}
+                </span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -6219,8 +7436,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               <div className="lg:col-span-4 bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
                 <div className="p-4 bg-[#FAF8F5] border-b border-stone-200 flex items-center justify-between">
                   <h3 className="text-sm font-bold font-serif text-[#141414]">
-                    قائمة التذاكر البحثية ({filteredInboxTickets.length})
+                    طابور التذاكر البحثية ({filteredInboxTickets.length})
                   </h3>
+                  <span className="text-[10px] font-mono font-bold text-stone-500">
+                    P1 ⬅️ P2 ⬅️ P3
+                  </span>
                 </div>
 
                 <div className="divide-y divide-stone-100 max-h-[750px] overflow-y-auto">
@@ -6234,6 +7454,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       const isClosed =
                         tkt.status === 'CLOSED_AND_ENRICHED' ||
                         tkt.status === 'merged_closed';
+                      const tier = resolveTicketPriorityTier(tkt);
+                      const priorityBadge =
+                        tier === 'P1_CLIENT_UNMATCHED'
+                          ? {
+                              label: '🔴 P1 · طوارئ عميل',
+                              cls: 'bg-red-100 text-red-900 border border-red-300',
+                            }
+                          : tier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+                          ? {
+                              label: '🟢 P3 · تعدين ذكي',
+                              cls: 'bg-emerald-100 text-emerald-900 border border-emerald-300',
+                            }
+                          : {
+                              label: '🟡 P2 · جسر آدم للعميل',
+                              cls: 'bg-amber-100 text-amber-950 border border-amber-300',
+                            };
                       return (
                         <button
                           key={tkt.id}
@@ -6248,10 +7484,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               : 'hover:bg-stone-50'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-stone-900 text-amber-300">
-                              {tkt.id}
-                            </span>
+                          <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-stone-900 text-amber-300">
+                                {tkt.id}
+                              </span>
+                              <span
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${priorityBadge.cls}`}
+                              >
+                                {priorityBadge.label}
+                              </span>
+                            </div>
                             <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                                 isClosed
@@ -6260,7 +7503,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   ? 'bg-blue-100 text-blue-800'
                                   : tkt.status === 'exported_adam_prime'
                                   ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-amber-100 text-amber-900'
+                                  : 'bg-stone-100 text-stone-800'
                               }`}
                             >
                               {isClosed
@@ -6277,8 +7520,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             {tkt.title}
                           </h4>
 
+                          {tkt.p3StrategicMeta && (
+                            <div className="mt-1.5 mb-1.5 flex flex-wrap items-center gap-1 text-[10px]">
+                              <span className="px-2 py-0.5 rounded bg-emerald-900 text-amber-300 font-mono font-extrabold">
+                                [★ وزن استراتيجي: {tkt.p3StrategicMeta.strategic_score} نقطة]
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
+                                عمود ({tkt.p3StrategicMeta.chain_stations_count} محطات)
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
+                                توافق ({tkt.p3StrategicMeta.corroborating_sources_count}) مراجع
+                              </span>
+                            </div>
+                          )}
+
                           <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-500 mt-2">
-                            <span>العميل: {tkt.clientName}</span>
+                            <span>المصدر: {tkt.clientName}</span>
                             <span className="font-bold text-[#B45309]">
                               {tkt.corroboratingEvidence?.length ||
                                 tkt.copilotSources.length}{' '}
