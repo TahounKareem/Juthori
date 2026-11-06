@@ -1435,29 +1435,7 @@ export const AL_MUQIT_UPPER_ANCESTORS: UpperAncestorNode[] = [
   ADAM_SPINE_40_NODES[16], // أدد
 ];
 
-const DEFAULT_BLIND_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
-  {
-    id: 'option_a',
-    badge: 'الخيار الأول',
-    title: 'شبه الجزيرة العربية والخليج',
-    originTribeLabel: 'قبيلة بني بشر (قحطان)',
-    geographicScope: 'سراة عبيدة / عسير / جنوب الجزيرة العربية',
-    nearBranchHint: '',
-    isConsensusWinner: true,
-    consensusBadge: 'مرجّح في عدة مصادر',
-    sourcesCount: 4,
-  },
-  {
-    id: 'option_b',
-    badge: 'الخيار الثاني',
-    title: 'الحجاز وتهامة',
-    originTribeLabel: 'الأشراف الحسنيون (قريش)',
-    geographicScope: 'مكة المكرمة / الطائف / الحجاز',
-    nearBranchHint: '',
-    isConsensusWinner: false,
-    sourcesCount: 2,
-  },
-];
+const DEFAULT_BLIND_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [];
 
 const BAIT_JANDEEL_DISAMBIGUATION_OPTIONS: BlindDisambiguationOption[] = [
   {
@@ -7819,10 +7797,10 @@ export function resolveDeterministicLineage(
       orderNumber: 1,
       name: displayFamilyName,
       code: 'FE0',
-      rankLabel: 'عقدة العائلة المدخلة — قيد التحقيق الأرشيفي في تذاكر الباحثين',
+      rankLabel: 'عقدة العائلة المدخلة — محالة للبحث المعمق (P1)',
       isCodedStation: true,
       region: geoOntology.canonicalCountry || form.originCountry || 'غير محدد',
-      eraNote: `سجل عائلة ${displayFamilyName} محال إلى فريق الباحثين لمطابقة المخطوطات والأوقاف وربطه بشجرة آدم.`,
+      eraNote: `سجل عائلة ${displayFamilyName} محال إلى فريق الباحثين للبحث المعمق في المخطوطات والأوقاف وربطه بشجرة آدم.`,
       dataLakeSource: 'alpha_projects',
     },
   ];
@@ -7841,27 +7819,27 @@ export function resolveDeterministicLineage(
     originRegion: form.originRegion || '',
     resolvedGeoOntologyLabel: geoOntology.ontologyLabel,
     inferred_client_countries: inferredCountries,
-    rootBranchName: form.branchName.trim() || 'قيد التحقيق الأرشيفي',
+    rootBranchName: form.branchName.trim() || '',
     rootBranchCode: 'B2?',
-    rootTribeName: form.tribeName.trim() || 'قيد الفهرسة في المخطوطات',
+    rootTribeName: form.tribeName.trim() || '',
     rootTribeCode: 'B0?',
-    rootSummaryLabel: 'الجذر: قيد البحث والتحقيق في أرشيف المخطوطات',
+    rootSummaryLabel: 'لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق',
     upperAncestors: [],
     adamSpineNodes: unmatchedSingleNode,
+    full_stitched_lineage_for_researcher: [],
     capsules: [],
     requiresBlindDisambiguation: false,
-    disambiguationOptions: DEFAULT_BLIND_DISAMBIGUATION_OPTIONS,
-    verifiedSourceCitation: 'قسم التحقيق النسبي — بانتظار ربط المشجرة بالمصادر الأولية',
+    disambiguationOptions: [],
+    verifiedSourceCitation: '',
     verified_sources: [],
-    secondarySources: [
-      'فهرس المخطوطات العربية المصورة — معهد المخطوطات العربية',
-      'سجلات الأسر والقبائل قيد الفهرسة الرقمية في جذوري',
-    ],
+    secondarySources: [],
+    alpha_evidence: [],
     corroborating_alpha_evidence_for_researcher: [],
+    consensusClusterGroups: [],
     historicalRegion: geoOntology.ontologyLabel,
     conflictingNarrativesNote:
-      'هذه العائلة غير مفهرسة آلياً بعد في العقد المفتوحة؛ عند الاشتراك يتولى فريق الباحثين مطابقة الوثائق والمشجرات وإضافتها لحسابك.',
-    confidenceLabel: 'عائلة غير مفهرسة آلياً — محالة لقائمة البحث المتخصص',
+      'لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق.',
+    confidenceLabel: 'لم يتم رصد مصادر خام مطابقة — محال للبحث المعمق (تذكرة P1)',
     recommendedInitialState: DashboardStateMode.State3Unmatched,
   };
 }
@@ -7901,6 +7879,102 @@ export function getDashboardCapabilities(
 }
 
 /**
+ * Extracts raw source records (`alpha_evidence` / `corroborating_alpha_evidence_for_researcher` / `raw_sources`)
+ * verbatim from `/api/v1/juthori/lineage-search` payloads without losing any source.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractApiRawEvidenceItems(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  apiData: any,
+  displayFamilyName: string
+): CorroboratingAlphaEvidence[] {
+  if (!apiData || typeof apiData !== 'object') return [];
+
+  const candidateArrays = [
+    apiData.alpha_evidence,
+    apiData.corroborating_alpha_evidence_for_researcher,
+    apiData.raw_sources,
+    apiData.records,
+    apiData.sources,
+    apiData.data?.alpha_evidence,
+    apiData.data?.corroborating_alpha_evidence_for_researcher,
+    apiData.data?.raw_sources,
+  ];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawItems: any[] = [];
+  for (const arr of candidateArrays) {
+    if (Array.isArray(arr) && arr.length > 0) {
+      rawItems = arr;
+      break;
+    }
+  }
+
+  // Also check if sources are embedded inside disambiguation_modal.options
+  if (
+    rawItems.length === 0 &&
+    Array.isArray(apiData.disambiguation_modal?.options)
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const optSources = apiData.disambiguation_modal.options.flatMap((opt: any) =>
+      Array.isArray(opt?.alpha_evidence)
+        ? opt.alpha_evidence
+        : Array.isArray(opt?.sources)
+        ? opt.sources
+        : Array.isArray(opt?.contributing_sources)
+        ? opt.contributing_sources
+        : Array.isArray(opt?.records)
+        ? opt.records
+        : []
+    );
+    if (optSources.length > 0) {
+      rawItems = optSources;
+    }
+  }
+
+  if (rawItems.length === 0) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rawItems.map((item: any, idx: number): CorroboratingAlphaEvidence => {
+    const parsedRef = extractBookVolPageFromEvidence(item);
+    return {
+      alpha_id: String(item?.alpha_id || item?.id || `ALP_API_${idx + 1}`),
+      record_name: String(
+        item?.record_name || item?.name || item?.family_name || displayFamilyName
+      ),
+      source_book: parsedRef.book,
+      page: parsedRef.page,
+      volume: parsedRef.volume,
+      lineage_ancestors: item?.lineage_ancestors
+        ? String(item.lineage_ancestors)
+        : item?.ancestors
+        ? String(item.ancestors)
+        : item?.full_lineage_text
+        ? String(item.full_lineage_text)
+        : item?.lineage
+        ? String(item.lineage)
+        : null,
+      child_branches: item?.child_branches
+        ? String(item.child_branches)
+        : Array.isArray(item?.branches)
+        ? item.branches.join(' | ')
+        : null,
+      locations: item?.locations
+        ? String(item.locations)
+        : item?.geographic_scope
+        ? String(item.geographic_scope)
+        : null,
+      notables: item?.notables ? String(item.notables) : null,
+      priority_tier:
+        item?.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+          ? 'PRIORITY_1_COUNTRY_BOOK'
+          : 'PRIORITY_2_GENERAL_BOOK',
+      source_lake: item?.source_lake || item?.data_lake || item?.lake || null,
+    };
+  });
+}
+
+/**
  * Parses the live Universal Methodology JSON response from Port 8090 (`/api/v1/juthori/lineage-search`)
  * into a full `LineageSearchResult` without losing any multi-source evidence or chain nodes.
  */
@@ -7934,11 +8008,29 @@ export function parsePort8090UniversalResponse(
     form.originRegion
   );
 
+  const extractedApiEvidence = extractApiRawEvidenceItems(
+    apiData,
+    displayFamilyName
+  );
+
+  const hasApiChainNodes =
+    Array.isArray(apiData.chain_nodes) && apiData.chain_nodes.length > 0;
+  const hasApiDisambiguation =
+    Boolean(apiData.requires_disambiguation) &&
+    Array.isArray(apiData.disambiguation_modal?.options) &&
+    apiData.disambiguation_modal.options.length > 0;
+
   const matchFound =
-    typeof apiData.match_found === 'boolean'
+    extractedApiEvidence.length > 0 ||
+    hasApiChainNodes ||
+    hasApiDisambiguation
+      ? true
+      : typeof apiData.match_found === 'boolean'
       ? apiData.match_found
       : typeof apiData.matched === 'boolean'
       ? apiData.matched
+      : apiData.primary_source_of_truth === 'UNMATCHED_P1_TICKET'
+      ? false
       : localFallback.matched;
 
   if (!matchFound) {
@@ -7948,6 +8040,17 @@ export function parsePort8090UniversalResponse(
       engineSource: 'live_german_engine',
       primary_source_of_truth: 'UNMATCHED_P1_TICKET',
       priorityTierMatched: 'TIER_4_UNMATCHED',
+      rootBranchName: form.branchName.trim() || '',
+      rootTribeName: form.tribeName.trim() || '',
+      requiresBlindDisambiguation: false,
+      disambiguationOptions: [],
+      alpha_evidence: [],
+      corroborating_alpha_evidence_for_researcher: [],
+      consensusClusterGroups: [],
+      verified_sources: [],
+      secondarySources: [],
+      verifiedSourceCitation: '',
+      full_stitched_lineage_for_researcher: [],
       recommendedInitialState: DashboardStateMode.State3Unmatched,
     };
   }
@@ -7963,45 +8066,9 @@ export function parsePort8090UniversalResponse(
         ? 'STAGE_2_GEOGRAPHY'
         : 'STAGE_1_TRIBE_ROOT';
 
-    const rawApiEvidenceArray = Array.isArray(
-      apiData.corroborating_alpha_evidence_for_researcher
-    )
-      ? apiData.corroborating_alpha_evidence_for_researcher
-      : Array.isArray(apiData.alpha_evidence)
-      ? apiData.alpha_evidence
-      : Array.isArray(apiData.raw_sources)
-      ? apiData.raw_sources
-      : null;
-
     const rawDisambigEvidence: CorroboratingAlphaEvidence[] =
-      rawApiEvidenceArray && rawApiEvidenceArray.length > 0
-        ? rawApiEvidenceArray.map(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (item: any, idx: number) => {
-              const parsedRef = extractBookVolPageFromEvidence(item);
-              return {
-                alpha_id: String(item.alpha_id || `ALP_DISAMBIG_${idx + 1}`),
-                record_name: String(item.record_name || item.name || displayFamilyName),
-                source_book: parsedRef.book,
-                page: parsedRef.page,
-                volume: parsedRef.volume,
-                lineage_ancestors: item.lineage_ancestors
-                  ? String(item.lineage_ancestors)
-                  : item.ancestors
-                  ? String(item.ancestors)
-                  : item.full_lineage_text
-                  ? String(item.full_lineage_text)
-                  : null,
-                child_branches: item.child_branches ? String(item.child_branches) : null,
-                locations: item.locations ? String(item.locations) : null,
-                priority_tier:
-                  item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                    ? 'PRIORITY_1_COUNTRY_BOOK'
-                    : 'PRIORITY_2_GENERAL_BOOK',
-                source_lake: item.source_lake || item.data_lake || item.lake || null,
-              };
-            }
-          )
+      extractedApiEvidence.length > 0
+        ? extractedApiEvidence
         : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
     const disambigClusters =
@@ -8131,12 +8198,12 @@ export function parsePort8090UniversalResponse(
               };
             }
           )
-        : localFallback.disambiguationOptions;
+        : [];
 
     const taggedDisambigEvidence =
       rawDisambigEvidence.length > 0
         ? tagConsensusWinnersOnEvidence(displayFamilyName, rawDisambigEvidence)
-        : localFallback.corroborating_alpha_evidence_for_researcher;
+        : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
     const baseDisambigResult: LineageSearchResult = {
       ...localFallback,
@@ -8145,9 +8212,10 @@ export function parsePort8090UniversalResponse(
       primary_source_of_truth: 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED',
       isAlphaOnlyBeforeMerge: true,
       isAlphaMergedIntoAdam: false,
-      requiresBlindDisambiguation: true,
+      requiresBlindDisambiguation: mappedOptions.length >= 2,
       disambiguation_stage: disambigStage,
       disambiguationOptions: mappedOptions,
+      alpha_evidence: taggedDisambigEvidence,
       corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
       consensusClusterGroups: disambigClusters,
     };
@@ -8188,9 +8256,10 @@ export function parsePort8090UniversalResponse(
       ...baseDisambigResult,
       ...(optA || {}),
       engineSource: 'live_german_engine',
-      requiresBlindDisambiguation: true,
+      requiresBlindDisambiguation: mappedOptions.length >= 2,
       disambiguation_stage: disambigStage,
       disambiguationOptions: mappedOptions,
+      alpha_evidence: taggedDisambigEvidence,
       corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
       consensusClusterGroups: disambigClusters,
       optionAResultOverride: optA,
@@ -8265,30 +8334,8 @@ export function parsePort8090UniversalResponse(
     const resolvedFamName = enrichedChain[0]?.name || displayFamilyName;
 
     // Parallel Alpha Cross-Confirmation & Enrichment: never stop at Adam's Tree!
-    const apiParallelEvidence: CorroboratingAlphaEvidence[] = Array.isArray(
-      apiData.corroborating_alpha_evidence_for_researcher
-    )
-      ? apiData.corroborating_alpha_evidence_for_researcher.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any, idx: number) => ({
-            alpha_id: String(item.alpha_id || `ALP_ADAM_PARALLEL_${idx + 1}`),
-            record_name: String(item.record_name || resolvedFamName),
-            source_book: String(item.source_book || 'مرجع أنساب موثق'),
-            page: item.page ? String(item.page) : null,
-            volume: item.volume ? String(item.volume) : null,
-            lineage_ancestors: item.lineage_ancestors
-              ? String(item.lineage_ancestors)
-              : null,
-            child_branches: item.child_branches ? String(item.child_branches) : null,
-            locations: item.locations ? String(item.locations) : null,
-            notables: item.notables ? String(item.notables) : null,
-            priority_tier:
-              item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                ? 'PRIORITY_1_COUNTRY_BOOK'
-                : 'PRIORITY_2_GENERAL_BOOK',
-          })
-        )
-      : [];
+    const apiParallelEvidence: CorroboratingAlphaEvidence[] =
+      extractedApiEvidence.length > 0 ? extractedApiEvidence : [];
 
     const parallelAlphaEvidence = findParallelAlphaEvidenceForAdamMatch(
       resolvedFamName,
@@ -8348,6 +8395,7 @@ export function parsePort8090UniversalResponse(
       upperAncestors: enrichedChain.filter((n) => n.orderNumber > 6),
       capsules: rings,
       requiresBlindDisambiguation: false,
+      disambiguationOptions: [],
       isAlphaOnlyBeforeMerge: false,
       isAlphaMergedIntoAdam: false,
       enrichedLocations: parallelAgg.locations_in_record,
@@ -8356,6 +8404,7 @@ export function parsePort8090UniversalResponse(
       notables_in_record: mergedNotables,
       verified_sources: mergedVerifiedSources,
       secondarySources: mergedVerifiedSources,
+      alpha_evidence: parallelAlphaEvidence,
       corroborating_alpha_evidence_for_researcher: parallelAlphaEvidence,
       background_researcher_ticket: parallelAgg.background_researcher_ticket,
       alphaBackgroundTicketCode: parallelAgg.background_researcher_ticket.ticket_id,
@@ -8367,37 +8416,12 @@ export function parsePort8090UniversalResponse(
   // Case C: Priority 2 & Priority 3 — ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED from Port 8090
   if (
     apiData.primary_source_of_truth === 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED' ||
-    Array.isArray(apiData.corroborating_alpha_evidence_for_researcher)
+    extractedApiEvidence.length > 0
   ) {
-    const rawEvidence: CorroboratingAlphaEvidence[] = Array.isArray(
-      apiData.corroborating_alpha_evidence_for_researcher
-    )
-      ? apiData.corroborating_alpha_evidence_for_researcher.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any, idx: number) => {
-            const parsedRef = extractBookVolPageFromEvidence(item);
-            return {
-              alpha_id: String(item.alpha_id || `ALP_LIVE_${idx + 1}`),
-              record_name: String(item.record_name || displayFamilyName),
-              source_book: parsedRef.book,
-              page: parsedRef.page,
-              volume: parsedRef.volume,
-              lineage_ancestors: item.lineage_ancestors
-                ? String(item.lineage_ancestors)
-                : item.full_lineage_text
-                ? String(item.full_lineage_text)
-                : null,
-              child_branches: item.child_branches ? String(item.child_branches) : null,
-              locations: item.locations ? String(item.locations) : null,
-              priority_tier:
-                item.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                  ? 'PRIORITY_1_COUNTRY_BOOK'
-                  : 'PRIORITY_2_GENERAL_BOOK',
-              source_lake: item.source_lake || item.data_lake || item.lake || null,
-            };
-          }
-        )
-      : localFallback.corroborating_alpha_evidence_for_researcher || [];
+    const rawEvidence: CorroboratingAlphaEvidence[] =
+      extractedApiEvidence.length > 0
+        ? extractedApiEvidence
+        : localFallback.corroborating_alpha_evidence_for_researcher || [];
 
     // Merge local curated evidence if localFallback also matched this family so no sources are lost
     const combinedEvidence =
@@ -8407,6 +8431,28 @@ export function parsePort8090UniversalResponse(
         rawEvidence.length
         ? localFallback.corroborating_alpha_evidence_for_researcher
         : rawEvidence;
+
+    if (combinedEvidence.length === 0) {
+      return {
+        ...localFallback,
+        matched: false,
+        engineSource: 'live_german_engine',
+        primary_source_of_truth: 'UNMATCHED_P1_TICKET',
+        priorityTierMatched: 'TIER_4_UNMATCHED',
+        rootBranchName: form.branchName.trim() || '',
+        rootTribeName: form.tribeName.trim() || '',
+        requiresBlindDisambiguation: false,
+        disambiguationOptions: [],
+        alpha_evidence: [],
+        corroborating_alpha_evidence_for_researcher: [],
+        consensusClusterGroups: [],
+        verified_sources: [],
+        secondarySources: [],
+        verifiedSourceCitation: '',
+        full_stitched_lineage_for_researcher: [],
+        recommendedInitialState: DashboardStateMode.State3Unmatched,
+      };
+    }
 
     const hasCountryBookMatch = combinedEvidence.some(
       (e) => e.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
@@ -8789,6 +8835,7 @@ export function parsePort8090UniversalResponse(
         'سجل مشاريع ألفا الموثق متعدد المصادر',
       verified_sources: finalVerifiedSources,
       secondarySources: finalVerifiedSources,
+      alpha_evidence: taggedCombinedEvidence,
       corroborating_alpha_evidence_for_researcher: taggedCombinedEvidence,
       consensusClusterGroups: consensusClusters,
       background_researcher_ticket: bgTicket,
@@ -8985,6 +9032,7 @@ function applyDynamicClusterDisambiguation(
     return {
       ...baseResult,
       requiresBlindDisambiguation: false,
+      disambiguationOptions: [],
     };
   }
 
@@ -9118,17 +9166,20 @@ export async function searchJuthoriLineage(
   };
 
   // Helper: when the German server returns `requires_disambiguation: true` without
-  // `corroborating_alpha_evidence_for_researcher`, automatically fetch the resolved payload
-  // using the best `choice_id` so all raw sources (`corroborating_alpha_evidence_for_researcher`)
+  // `corroborating_alpha_evidence_for_researcher` or `alpha_evidence`, automatically fetch the resolved payload
+  // using the best `choice_id` so all raw sources (`alpha_evidence` / `corroborating_alpha_evidence_for_researcher`)
   // and `full_stitched_lineage_for_researcher` are populated and Step 1 NEVER displays `0 مصادر خام`!
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hydrateDisambiguationPayloadIfNeeded = async (rawPayload: any, endpointUrl: string, isProxy: boolean) => {
+    const existingEvidence = extractApiRawEvidenceItems(
+      rawPayload,
+      form.familyName.trim() || 'العائلة'
+    );
     if (
       !disambiguationChoiceId &&
       rawPayload &&
       rawPayload.requires_disambiguation === true &&
-      (!Array.isArray(rawPayload.corroborating_alpha_evidence_for_researcher) ||
-        rawPayload.corroborating_alpha_evidence_for_researcher.length === 0) &&
+      existingEvidence.length === 0 &&
       Array.isArray(rawPayload.disambiguation_modal?.options)
     ) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -9159,12 +9210,16 @@ export async function searchJuthoriLineage(
             const followUpJson = await followUpRes.json();
             const resolvedData = isProxy ? followUpJson?.data : followUpJson?.data || followUpJson;
             if (resolvedData && typeof resolvedData === 'object') {
+              const resolvedEvidence =
+                resolvedData.alpha_evidence ||
+                resolvedData.corroborating_alpha_evidence_for_researcher ||
+                rawPayload.alpha_evidence ||
+                rawPayload.corroborating_alpha_evidence_for_researcher;
               return {
                 ...resolvedData,
                 ...rawPayload,
-                corroborating_alpha_evidence_for_researcher:
-                  resolvedData.corroborating_alpha_evidence_for_researcher ||
-                  rawPayload.corroborating_alpha_evidence_for_researcher,
+                alpha_evidence: resolvedEvidence,
+                corroborating_alpha_evidence_for_researcher: resolvedEvidence,
                 verified_sources:
                   resolvedData.verified_sources || rawPayload.verified_sources,
                 full_stitched_lineage_for_researcher:

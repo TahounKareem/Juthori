@@ -296,13 +296,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     res: LineageSearchResult | null
   ): CorroboratingAlphaEvidence[] => {
     if (!res) return [];
-    if (
-      res.corroborating_alpha_evidence_for_researcher &&
-      res.corroborating_alpha_evidence_for_researcher.length > 0
-    ) {
+    const primaryEvidenceArray =
+      res.alpha_evidence && res.alpha_evidence.length > 0
+        ? res.alpha_evidence
+        : res.corroborating_alpha_evidence_for_researcher &&
+          res.corroborating_alpha_evidence_for_researcher.length > 0
+        ? res.corroborating_alpha_evidence_for_researcher
+        : [];
+
+    if (primaryEvidenceArray.length > 0) {
       return tagConsensusWinnersOnEvidence(
         res.familyName,
-        res.corroborating_alpha_evidence_for_researcher.map((ev) => {
+        primaryEvidenceArray.map((ev) => {
           const parsed = extractBookVolPageFromEvidence(ev);
           return {
             ...ev,
@@ -338,7 +343,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         return tagConsensusWinnersOnEvidence(res.familyName, fromOpts);
       }
     }
-    return (res.verified_sources || [res.verifiedSourceCitation])
+    if (
+      !res.matched ||
+      res.primary_source_of_truth === 'UNMATCHED_P1_TICKET'
+    ) {
+      return [];
+    }
+    return (res.verified_sources || [])
       .filter(Boolean)
       .map((src, idx) => {
         const parsed = extractBookVolPageFromEvidence(src);
@@ -419,9 +430,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       .then((liveRes) => {
         setDirectSearchResult(liveRes);
         const extracted = extractRawSourcesFromResult(liveRes);
-        if (extracted.length > 0) {
-          setRawSources(extracted);
-        }
+        setRawSources(extracted);
       })
       .catch(() => {
         // Keep synchronous deterministic result if offline
@@ -466,7 +475,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       res.isAdamNodeEnrichedWithAlpha || res.adamNodeId
     );
     const rawEvidenceList =
-      res.corroborating_alpha_evidence_for_researcher || [];
+      res.alpha_evidence && res.alpha_evidence.length > 0
+        ? res.alpha_evidence
+        : res.corroborating_alpha_evidence_for_researcher || [];
     const evidenceList = tagConsensusWinnersOnEvidence(
       cleanFam,
       rawEvidenceList
@@ -489,11 +500,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     const subRoot =
       res.rootBranchName?.replace(/^بطن\s+/, '').trim() ||
       firstChain[1] ||
-      'فرع قيد التحقيق';
+      '';
     const motherTribe =
       res.rootTribeName?.replace(/^قبيلة\s+/, '').trim() ||
       firstChain[firstChain.length - 1] ||
-      'قبيلة قيد التحقيق';
+      '';
 
     const resolvedBridge: SuggestedAdamBridgeForResearcher =
       res.suggested_adam_bridge_for_researcher ||
@@ -3372,18 +3383,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   const extractedFromCurrent =
                     extractRawSourcesFromResult(directSearchResult);
                   const rawEvidenceList: CorroboratingAlphaEvidence[] =
-                    extractedFromCurrent.length > 0
-                      ? extractedFromCurrent
-                      : rawSources;
+                    rawSources.length > 0
+                      ? rawSources
+                      : extractedFromCurrent;
 
                   const diagnosticClusters: ConsensusClusterGroup[] =
-                    directSearchResult.consensusClusterGroups &&
-                    directSearchResult.consensusClusterGroups.length > 0
+                    rawEvidenceList.length === 0
+                      ? []
+                      : directSearchResult.consensusClusterGroups &&
+                        directSearchResult.consensusClusterGroups.length > 0
                       ? directSearchResult.consensusClusterGroups
                       : computeCrossSourceConsensusClusters(
                           directSearchResult.familyName,
                           rawEvidenceList
                         );
+
+                  const isDirectDeepResearchP1 =
+                    rawEvidenceList.length === 0 ||
+                    diagnosticClusters.length === 0;
 
                   const primaryCluster =
                     diagnosticClusters.find((c) => c.isConsensusWinner) ||
@@ -3451,39 +3468,42 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     .map(([name]) => name);
 
                   const finalStitchedStations: UpperAncestorNode[] =
-                    directSearchResult.full_stitched_lineage_for_researcher &&
-                    directSearchResult.full_stitched_lineage_for_researcher.length > 0
+                    isDirectDeepResearchP1
+                      ? []
+                      : directSearchResult.full_stitched_lineage_for_researcher &&
+                        directSearchResult.full_stitched_lineage_for_researcher.length > 0
                       ? directSearchResult.full_stitched_lineage_for_researcher
                       : directSearchResult.adamSpineNodes &&
                         directSearchResult.adamSpineNodes.length > 0
                       ? directSearchResult.adamSpineNodes
                       : directSearchResult.upperAncestors || [];
 
-                  const allCandidateDisambigOptions =
-                    directSearchResult.disambiguationOptions &&
-                    directSearchResult.disambiguationOptions.length > 0
-                      ? directSearchResult.disambiguationOptions
-                      : diagnosticClusters.map((c, idx) => ({
-                          id: (idx === 0
-                            ? 'option_a'
-                            : idx === 1
-                            ? 'option_b'
-                            : 'option_c') as 'option_a' | 'option_b' | 'option_c',
-                          choice_id: c.clusterId,
-                          badge: c.isConsensusWinner
-                            ? `مسار مرجّح (${c.sourcesCount} مصادر)`
-                            : `مسار بديل (${c.sourcesCount} مصدر)`,
-                          title: c.originTribeLabel,
-                          originTribeLabel: c.originTribeLabel,
-                          geographicScope: c.geographicScope,
-                          nearBranchHint: c.rootPreviewLabel,
-                          isConsensusWinner: c.isConsensusWinner,
-                          consensusBadge: c.isConsensusWinner
-                            ? `مرجّح في عدة مصادر (${c.sourcesCount} مراجع)`
-                            : undefined,
-                          sourcesCount: c.sourcesCount,
-                          contributingSources: c.records,
-                        }));
+                  const allCandidateDisambigOptions = isDirectDeepResearchP1
+                    ? []
+                    : directSearchResult.disambiguationOptions &&
+                      directSearchResult.disambiguationOptions.length > 0
+                    ? directSearchResult.disambiguationOptions
+                    : diagnosticClusters.map((c, idx) => ({
+                        id: (idx === 0
+                          ? 'option_a'
+                          : idx === 1
+                          ? 'option_b'
+                          : 'option_c') as 'option_a' | 'option_b' | 'option_c',
+                        choice_id: c.clusterId,
+                        badge: c.isConsensusWinner
+                          ? `مسار مرجّح (${c.sourcesCount} مصادر)`
+                          : `مسار بديل (${c.sourcesCount} مصدر)`,
+                        title: c.originTribeLabel,
+                        originTribeLabel: c.originTribeLabel,
+                        geographicScope: c.geographicScope,
+                        nearBranchHint: c.rootPreviewLabel,
+                        isConsensusWinner: c.isConsensusWinner,
+                        consensusBadge: c.isConsensusWinner
+                          ? `مرجّح في عدة مصادر (${c.sourcesCount} مراجع)`
+                          : undefined,
+                        sourcesCount: c.sourcesCount,
+                        contributingSources: c.records,
+                      }));
 
                   // Requirement 2: Strictly limit the Customer Simulator to AT MOST 2 options (the 2 strongest paths by source weight)
                   const candidateDisambigOptions = [...allCandidateDisambigOptions]
@@ -3550,133 +3570,139 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {rawEvidenceList.map((ev, idx) => {
-                            const rawTokens = extractRawRecordAncestors(ev);
-                            const refBadgeText = formatAlphaReferenceBadge(ev);
-                            const lakeBadge = resolveResearcherDataLakeBadge(ev);
-                            return (
-                              <div
-                                key={ev.alpha_id || idx}
-                                className="rounded-2xl bg-white border border-stone-200 p-4 shadow-2xs space-y-3 flex flex-col justify-between"
-                              >
-                                <div className="space-y-2.5">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[11px] font-bold">
-                                        المصدر الخام #{idx + 1}
-                                      </span>
-                                      {/* Requirement 4: Researcher-Only Data Lake Badge */}
-                                      <span
-                                        data-testid={`raw-source-lake-badge-${idx}`}
-                                        className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${lakeBadge.colorClass}`}
-                                      >
-                                        {lakeBadge.tag}
-                                      </span>
-                                    </div>
-                                    <span
-                                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                        ev.is_consensus_winner !== false
-                                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                          : 'bg-amber-100 text-amber-900 border border-amber-300'
-                                      }`}
-                                    >
-                                      {ev.is_consensus_winner !== false
-                                        ? 'ضمن عنقود التوافق الأساسي'
-                                        : 'مسار منافس مستقل'}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
-                                      <span>اسم السجل في المعجم:</span>
-                                      <strong className="text-stone-900">
-                                        {ev.record_name || directSearchResult.familyName}
-                                      </strong>
-                                    </div>
-                                    {/* Prominent Slate-Blue Bibliographic Badge + Data Lake Badge */}
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span
-                                        data-testid={`raw-source-ref-badge-${idx}`}
-                                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
-                                      >
-                                        {refBadgeText}
-                                      </span>
-                                      <span
-                                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
-                                      >
-                                        {lakeBadge.tag}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="rounded-xl bg-[#FAF8F5] border border-stone-200/90 p-3 space-y-2">
+                        {rawEvidenceList.length === 0 ? (
+                          <div className="rounded-2xl bg-amber-50/80 border border-amber-300 p-4 text-xs font-bold text-amber-950">
+                            لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {rawEvidenceList.map((ev, idx) => {
+                              const rawTokens = extractRawRecordAncestors(ev);
+                              const refBadgeText = formatAlphaReferenceBadge(ev);
+                              const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                              return (
+                                <div
+                                  key={ev.alpha_id || idx}
+                                  className="rounded-2xl bg-white border border-stone-200 p-4 shadow-2xs space-y-3 flex flex-col justify-between"
+                                >
+                                  <div className="space-y-2.5">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className="text-[11px] font-bold text-stone-600">
-                                        النص / السلسلة الخام كما وردت في المصدر:
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[11px] font-bold">
+                                          المصدر الخام #{idx + 1}
+                                        </span>
+                                        {/* Requirement 4: Researcher-Only Data Lake Badge */}
+                                        <span
+                                          data-testid={`raw-source-lake-badge-${idx}`}
+                                          className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${lakeBadge.colorClass}`}
+                                        >
+                                          {lakeBadge.tag}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                          ev.is_consensus_winner !== false
+                                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                            : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                        }`}
+                                      >
+                                        {ev.is_consensus_winner !== false
+                                          ? 'ضمن عنقود التوافق الأساسي'
+                                          : 'مسار منافس مستقل'}
                                       </span>
                                     </div>
 
-                                    {/* Raw lineage line paired directly with its bibliographic badge */}
-                                    <div className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg p-2.5 border border-stone-200/80">
-                                      <p className="text-xs font-mono font-bold text-stone-900 leading-relaxed">
-                                        {rawTokens.length > 0
-                                          ? rawTokens.join(' ⬅️ ')
-                                          : ev.lineage_ancestors || directSearchResult.familyName}
-                                      </p>
-                                      <div className="flex items-center gap-1.5 shrink-0">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-sans font-bold">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
+                                        <span>اسم السجل في المعجم:</span>
+                                        <strong className="text-stone-900">
+                                          {ev.record_name || directSearchResult.familyName}
+                                        </strong>
+                                      </div>
+                                      {/* Prominent Slate-Blue Bibliographic Badge + Data Lake Badge */}
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span
+                                          data-testid={`raw-source-ref-badge-${idx}`}
+                                          className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                                        >
                                           {refBadgeText}
                                         </span>
                                         <span
-                                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                          className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
                                         >
                                           {lakeBadge.tag}
                                         </span>
                                       </div>
                                     </div>
 
-                                    {rawTokens.length > 0 && (
-                                      <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                        {rawTokens.map((tok, tIdx) => (
-                                          <React.Fragment key={tIdx}>
-                                            <span className="px-2 py-0.5 rounded bg-white border border-stone-300 text-[11px] font-bold text-stone-800">
-                                              {tok}
-                                            </span>
-                                            {tIdx < rawTokens.length - 1 && (
-                                              <span className="text-stone-400 text-[10px]">
-                                                ⬅️
-                                              </span>
-                                            )}
-                                          </React.Fragment>
-                                        ))}
+                                    <div className="rounded-xl bg-[#FAF8F5] border border-stone-200/90 p-3 space-y-2">
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="text-[11px] font-bold text-stone-600">
+                                          النص / السلسلة الخام كما وردت في المصدر:
+                                        </span>
                                       </div>
-                                    )}
-                                  </div>
-                                </div>
 
-                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100 text-[11px]">
-                                  <div>
-                                    <span className="text-stone-500 block">
-                                      الفروع الأبناء في المصدر:
-                                    </span>
-                                    <span className="font-bold text-stone-800">
-                                      {ev.child_branches || '—'}
-                                    </span>
+                                      {/* Raw lineage line paired directly with its bibliographic badge */}
+                                      <div className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg p-2.5 border border-stone-200/80">
+                                        <p className="text-xs font-mono font-bold text-stone-900 leading-relaxed">
+                                          {rawTokens.length > 0
+                                            ? rawTokens.join(' ⬅️ ')
+                                            : ev.lineage_ancestors || directSearchResult.familyName}
+                                        </p>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-sans font-bold">
+                                            {refBadgeText}
+                                          </span>
+                                          <span
+                                            className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                          >
+                                            {lakeBadge.tag}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {rawTokens.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                          {rawTokens.map((tok, tIdx) => (
+                                            <React.Fragment key={tIdx}>
+                                              <span className="px-2 py-0.5 rounded bg-white border border-stone-300 text-[11px] font-bold text-stone-800">
+                                                {tok}
+                                              </span>
+                                              {tIdx < rawTokens.length - 1 && (
+                                                <span className="text-stone-400 text-[10px]">
+                                                  ⬅️
+                                                </span>
+                                              )}
+                                            </React.Fragment>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div>
-                                    <span className="text-stone-500 block">
-                                      النطاق الجغرافي في المصدر:
-                                    </span>
-                                    <span className="font-bold text-stone-800">
-                                      {ev.locations || directSearchResult.originCountry || '—'}
-                                    </span>
+
+                                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100 text-[11px]">
+                                    <div>
+                                      <span className="text-stone-500 block">
+                                        الفروع الأبناء في المصدر:
+                                      </span>
+                                      <span className="font-bold text-stone-800">
+                                        {ev.child_branches || '—'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-stone-500 block">
+                                        النطاق الجغرافي في المصدر:
+                                      </span>
+                                      <span className="font-bold text-stone-800">
+                                        {ev.locations || directSearchResult.originCountry || '—'}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       {/* =========================================================
@@ -3707,172 +3733,201 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         </div>
 
                         <div className="rounded-2xl bg-white border border-amber-300 p-4 sm:p-5 shadow-2xs">
-                          <ul className="space-y-3 text-xs sm:text-sm text-stone-800">
-                            <li className="flex items-start gap-2.5 leading-relaxed">
-                              <span className="shrink-0">⚓</span>
-                              <div>
-                                <strong className="text-amber-950">المحاذاة:</strong>{' '}
-                                تم إدراج المحطات الوسيطة في موضعها الطبقي
-                                {sharedAnchorNames.length > 0
-                                  ? ` بالارتكاز على العُقد المشتركة (${sharedAnchorNames.join('، ')})`
-                                  : ` التصاعدي من (${directSearchResult.familyName}) حتى (${directSearchResult.rootTribeName})`}
-                                .
-                              </div>
-                            </li>
-                            <li className="flex items-start gap-2.5 leading-relaxed">
-                              <span className="shrink-0">🧬</span>
-                              <div>
-                                <strong className="text-amber-950">قرينة الدمج:</strong>{' '}
-                                تطابق الأجداد وتوافق النطاق الجغرافي
-                                {sharedChildBranches.length > 0
-                                  ? ` وتقاطع الفروع الأبناء (${sharedChildBranches.join('، ')})`
-                                  : primaryCluster
-                                  ? ` (${primaryCluster.originTribeLabel} — ${primaryCluster.geographicScope})`
-                                  : ''}
-                                .
-                              </div>
-                            </li>
-                            <li className="flex items-start gap-2.5 leading-relaxed">
-                              <span className="shrink-0">⚠️</span>
-                              <div>
-                                <strong className="text-amber-950">ملاحظة محرك التطابق:</strong>{' '}
-                                {hasShammarTouqaInChain
-                                  ? `تم دمج مسار (شعر طوقة) مع (شمر طوقة) لاحتمالية تصحيف مطبعي${
-                                      mergedVariantPairs.length > 0
-                                        ? `، وتوحيد (${mergedVariantPairs.join(' ، ')})`
-                                        : ''
-                                    }.`
-                                  : mergedVariantPairs.length > 0
-                                  ? `تم دمج مسار ${mergedVariantPairs.join(' و')} بعد توحيد الرسم الإملائي والتاء المربوطة/الهاء لاحتمالية تصحيف مطبعي.`
-                                  : `تم توحيد الهاء والتاء المربوطة وتجريد السوابق (آل/بيت/البو) لضمان عدم انشطار المسار الواحد بسبب اختلاف الرسم الإملائي أو التصحيف المطبعي.`}
-                              </div>
-                            </li>
-                          </ul>
+                          {isDirectDeepResearchP1 ? (
+                            <ul className="space-y-3 text-xs sm:text-sm text-stone-800">
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">⚓</span>
+                                <div>
+                                  <strong className="text-amber-950">المحاذاة:</strong>{' '}
+                                  لا توجد سلاسل خام مرصودة لاسم ({directSearchResult.familyName}) لإجراء محاذاة أو خياطة آلية.
+                                </div>
+                              </li>
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">🧬</span>
+                                <div>
+                                  <strong className="text-amber-950">قرينة الدمج:</strong>{' '}
+                                  0 عناقيد مطابقة في قواعد البيانات الحالية.
+                                </div>
+                              </li>
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">⚠️</span>
+                                <div>
+                                  <strong className="text-amber-950">ملاحظة محرك التطابق:</strong>{' '}
+                                  لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق.
+                                </div>
+                              </li>
+                            </ul>
+                          ) : (
+                            <ul className="space-y-3 text-xs sm:text-sm text-stone-800">
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">⚓</span>
+                                <div>
+                                  <strong className="text-amber-950">المحاذاة:</strong>{' '}
+                                  تم إدراج المحطات الوسيطة في موضعها الطبقي
+                                  {sharedAnchorNames.length > 0
+                                    ? ` بالارتكاز على العُقد المشتركة (${sharedAnchorNames.join('، ')})`
+                                    : ` التصاعدي من (${directSearchResult.familyName}) حتى (${directSearchResult.rootTribeName})`}
+                                  .
+                                </div>
+                              </li>
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">🧬</span>
+                                <div>
+                                  <strong className="text-amber-950">قرينة الدمج:</strong>{' '}
+                                  تطابق الأجداد وتوافق النطاق الجغرافي
+                                  {sharedChildBranches.length > 0
+                                    ? ` وتقاطع الفروع الأبناء (${sharedChildBranches.join('، ')})`
+                                    : primaryCluster
+                                    ? ` (${primaryCluster.originTribeLabel} — ${primaryCluster.geographicScope})`
+                                    : ''}
+                                  .
+                                </div>
+                              </li>
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">⚠️</span>
+                                <div>
+                                  <strong className="text-amber-950">ملاحظة محرك التطابق:</strong>{' '}
+                                  {hasShammarTouqaInChain
+                                    ? `تم دمج مسار (شعر طوقة) مع (شمر طوقة) لاحتمالية تصحيف مطبعي${
+                                        mergedVariantPairs.length > 0
+                                          ? `، وتوحيد (${mergedVariantPairs.join(' ، ')})`
+                                          : ''
+                                      }.`
+                                    : mergedVariantPairs.length > 0
+                                    ? `تم دمج مسار ${mergedVariantPairs.join(' و')} بعد توحيد الرسم الإملائي والتاء المربوطة/الهاء لاحتمالية تصحيف مطبعي.`
+                                    : `تم توحيد الهاء والتاء المربوطة وتجريد السوابق (آل/بيت/البو) لضمان عدم انشطار المسار الواحد بسبب اختلاف الرسم الإملائي أو التصحيف المطبعي.`}
+                                </div>
+                              </li>
+                            </ul>
+                          )}
                         </div>
                       </div>
 
                       {/* =========================================================
                           STEP 3 CARD: القسم الثالث — النتيجة المجمعة والخياطة النهائية (Final Stitched Chain)
+                          STRICT RULE: Never render Step 3 when rawSources.length === 0 or diagnosticClusters.length === 0!
                       ========================================================= */}
-                      <div
-                        data-testid="diagnostic-step3-final-stitched-chain"
-                        className="rounded-3xl border-2 border-emerald-600/80 bg-emerald-50/40 p-5 sm:p-6 shadow-xs space-y-4"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3.5">
-                          <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-xl bg-emerald-800 text-white font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
-                              3
-                            </span>
-                            <div>
-                              <h3 className="text-sm sm:text-base font-extrabold font-serif text-emerald-950">
-                                القسم الثالث: النتيجة المجمعة والخياطة النهائية (Final Stitched Chain)
-                              </h3>
-                              <p className="text-xs text-emerald-900/80 mt-0.5">
-                                عمود النسب النهائي المخيّط بعد دمج كافة المصادر المتوافقة ومحاذاة الأجداد من الأسفل إلى الأعلى
-                              </p>
+                      {!isDirectDeepResearchP1 && (
+                        <div
+                          data-testid="diagnostic-step3-final-stitched-chain"
+                          className="rounded-3xl border-2 border-emerald-600/80 bg-emerald-50/40 p-5 sm:p-6 shadow-xs space-y-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3.5">
+                            <div className="flex items-center gap-3">
+                              <span className="w-8 h-8 rounded-xl bg-emerald-800 text-white font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
+                                3
+                              </span>
+                              <div>
+                                <h3 className="text-sm sm:text-base font-extrabold font-serif text-emerald-950">
+                                  القسم الثالث: النتيجة المجمعة والخياطة النهائية (Final Stitched Chain)
+                                </h3>
+                                <p className="text-xs text-emerald-900/80 mt-0.5">
+                                  عمود النسب النهائي المخيّط بعد دمج كافة المصادر المتوافقة ومحاذاة الأجداد من الأسفل إلى الأعلى
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 rounded-xl bg-emerald-800 text-white text-xs font-bold">
+                                {finalStitchedStations.length} محطة مخيطة وموثقة ✓
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="px-3 py-1 rounded-xl bg-emerald-800 text-white text-xs font-bold">
-                              {finalStitchedStations.length} محطة مخيطة وموثقة ✓
-                            </span>
-                          </div>
-                        </div>
 
-                        {/* Horizontal / Flow Chain View of Final Stitched Stations */}
-                        <div className="rounded-2xl bg-white border border-emerald-200 p-4 space-y-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <span className="font-bold text-stone-700">
-                              تسلسل المحطات المخيطة (من العائلة FE0 صعوداً إلى الجذر الأعلى):
-                            </span>
-                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
-                              الفرع الجامع (B2): {directSearchResult.rootBranchName} · القبيلة الأم (B0): {directSearchResult.rootTribeName}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            {finalStitchedStations.map((node, nIdx) => {
-                              const isFamily = node.orderNumber === 1 || node.code === 'FE0';
-                              const isRoot =
-                                node.code === 'B2' ||
-                                node.code === 'B1' ||
-                                node.code === 'B0' ||
-                                node.code === 'MT';
-                              return (
-                                <React.Fragment key={node.id || nIdx}>
-                                  <div
-                                    className={`px-3 py-2 rounded-xl border text-xs flex items-center gap-2 shadow-2xs ${
-                                      isFamily
-                                        ? 'bg-purple-50 border-purple-300 text-purple-950 font-extrabold'
-                                        : isRoot
-                                        ? 'bg-amber-50 border-amber-400 text-amber-950 font-extrabold'
-                                        : 'bg-[#FAF8F5] border-stone-300 text-stone-800 font-bold'
-                                    }`}
-                                  >
-                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/10">
-                                      #{nIdx + 1}
-                                    </span>
-                                    <span>{node.name}</span>
-                                    {node.code && (
-                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-stone-300 text-stone-700">
-                                        {node.code}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {nIdx < finalStitchedStations.length - 1 && (
-                                    <span className="text-emerald-700 font-bold text-xs">
-                                      ⬅️
-                                    </span>
-                                  )}
-                                </React.Fragment>
-                              );
-                            })}
-                          </div>
-
-                          {/* SUB-SECTION BELOW FINAL STITCHED CHAIN: المراجع المساهمة في هذا المسار */}
-                          <div
-                            data-testid="contributing-references-subsection"
-                            className="pt-3.5 border-t border-emerald-200/80 space-y-2"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                                <span>📚</span>
-                                <span>المراجع المساهمة في هذا المسار</span>
-                              </h4>
-                              <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
-                                {contributingReferencesForStitchedPath.length}{' '}
-                                {contributingReferencesForStitchedPath.length === 1
-                                  ? 'مرجع معتمد في الخياطة'
-                                  : 'مراجع معتمدة في الخياطة'}
+                          {/* Horizontal / Flow Chain View of Final Stitched Stations */}
+                          <div className="rounded-2xl bg-white border border-emerald-200 p-4 space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <span className="font-bold text-stone-700">
+                                تسلسل المحطات المخيطة (من العائلة FE0 صعوداً إلى الجذر الأعلى):
+                              </span>
+                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                                الفرع الجامع (B2): {directSearchResult.rootBranchName} · القبيلة الأم (B0): {directSearchResult.rootTribeName}
                               </span>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              {contributingReferencesForStitchedPath.map(
-                                (refEv, rIdx) => {
-                                  const lakeBadge = resolveResearcherDataLakeBadge(refEv);
-                                  return (
-                                    <span
-                                      key={refEv.alpha_id || rIdx}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              {finalStitchedStations.map((node, nIdx) => {
+                                const isFamily = node.orderNumber === 1 || node.code === 'FE0';
+                                const isRoot =
+                                  node.code === 'B2' ||
+                                  node.code === 'B1' ||
+                                  node.code === 'B0' ||
+                                  node.code === 'MT';
+                                return (
+                                  <React.Fragment key={node.id || nIdx}>
+                                    <div
+                                      className={`px-3 py-2 rounded-xl border text-xs flex items-center gap-2 shadow-2xs ${
+                                        isFamily
+                                          ? 'bg-purple-50 border-purple-300 text-purple-950 font-extrabold'
+                                          : isRoot
+                                          ? 'bg-amber-50 border-amber-400 text-amber-950 font-extrabold'
+                                          : 'bg-[#FAF8F5] border-stone-300 text-stone-800 font-bold'
+                                      }`}
                                     >
-                                      <span>{formatAlphaReferenceBadge(refEv)}</span>
-                                      <span
-                                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
-                                      >
-                                        {lakeBadge.tag}
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/10">
+                                        #{nIdx + 1}
                                       </span>
-                                    </span>
-                                  );
-                                }
-                              )}
+                                      <span>{node.name}</span>
+                                      {node.code && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-stone-300 text-stone-700">
+                                          {node.code}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {nIdx < finalStitchedStations.length - 1 && (
+                                      <span className="text-emerald-700 font-bold text-xs">
+                                        ⬅️
+                                      </span>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </div>
+
+                            {/* SUB-SECTION BELOW FINAL STITCHED CHAIN: المراجع المساهمة في هذا المسار */}
+                            <div
+                              data-testid="contributing-references-subsection"
+                              className="pt-3.5 border-t border-emerald-200/80 space-y-2"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                  <span>📚</span>
+                                  <span>المراجع المساهمة في هذا المسار</span>
+                                </h4>
+                                <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                                  {contributingReferencesForStitchedPath.length}{' '}
+                                  {contributingReferencesForStitchedPath.length === 1
+                                    ? 'مرجع معتمد في الخياطة'
+                                    : 'مراجع معتمدة في الخياطة'}
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2">
+                                {contributingReferencesForStitchedPath.map(
+                                  (refEv, rIdx) => {
+                                    const lakeBadge = resolveResearcherDataLakeBadge(refEv);
+                                    return (
+                                      <span
+                                        key={refEv.alpha_id || rIdx}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold shadow-2xs"
+                                      >
+                                        <span>{formatAlphaReferenceBadge(refEv)}</span>
+                                        <span
+                                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                        >
+                                          {lakeBadge.tag}
+                                        </span>
+                                      </span>
+                                    );
+                                  }
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* =========================================================
-                          STEP 4 CARD: القسم الرابع — محاكي أسئلة التحقق للعميل (Disambiguation Simulator)
+                          STEP 4 CARD: القسم الرابع — محاكي أسئلة التحقق للعميل (أو الإحالة المباشرة للبحث المعمق P1)
                       ========================================================= */}
                       <div
                         data-testid="diagnostic-step4-disambiguation-simulator"
@@ -3885,377 +3940,428 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             </span>
                             <div>
                               <h3 className="text-sm sm:text-base font-extrabold font-serif text-[#141414]">
-                                القسم الرابع: محاكي أسئلة التحقق للعميل (Disambiguation Simulator)
+                                {isDirectDeepResearchP1
+                                  ? 'القسم الرابع: التوجيه المباشر لتذكرة البحث المعمق (P1 Deep Research Routing)'
+                                  : 'القسم الرابع: محاكي أسئلة التحقق للعميل (Disambiguation Simulator)'}
                               </h3>
                               <p className="text-xs text-stone-600 mt-0.5">
-                                عرض شامل لكافة العناقيد المرصودة للباحث ({diagnosticClusters.length} مسارات)، مع تقليص سؤال العميل إلى أقوى خيارين فقط + خيار «لا أعرف»
+                                {isDirectDeepResearchP1
+                                  ? 'عدم وجود مصادر خام مطابقة — إحالة مباشرة إلى مسار البحث المعمق (تذكرة بحث وتوثيق نشطة P1)'
+                                  : `عرض شامل لكافة العناقيد المرصودة للباحث (${diagnosticClusters.length} مسارات)، مع تقليص سؤال العميل إلى أقوى خيارين فقط + خيار «لا أعرف»`}
                               </p>
                             </div>
                           </div>
 
                           <span
                             className={`px-3 py-1 rounded-xl text-xs font-bold border ${
-                              directSearchResult.requiresBlindDisambiguation ||
-                              diagnosticClusters.length > 1
+                              isDirectDeepResearchP1
+                                ? 'bg-amber-200 border-amber-400 text-amber-950'
+                                : directSearchResult.requiresBlindDisambiguation ||
+                                  diagnosticClusters.length > 1
                                 ? 'bg-amber-100 border-amber-300 text-amber-950'
                                 : 'bg-emerald-100 border-emerald-300 text-emerald-950'
                             }`}
                           >
-                            {directSearchResult.requiresBlindDisambiguation ||
-                            diagnosticClusters.length > 1
+                            {isDirectDeepResearchP1
+                              ? 'المخرج (ب) · البحث المعمق (تذكرة P1)'
+                              : directSearchResult.requiresBlindDisambiguation ||
+                                diagnosticClusters.length > 1
                               ? `يُعرض للعميل خياران فقط (أقوى مسارين من أصل ${diagnosticClusters.length} مسارات مرصودة للباحث)`
                               : 'تطابق وحيد مباشر (تظهر للعميل بطاقة الجذر المقفلة $5 مباشرة)'}
                           </span>
                         </div>
 
-                        {/* Competing Paths Comparison Matrix (Shows ALL clusters for the Researcher outside the simulator) */}
-                        {renderConsensusAndCompetingPathsMatrix(
-                          directSearchResult.familyName,
-                          rawEvidenceList,
-                          'direct_search'
-                        )}
-
-                        {/* Interactive Customer Verification Simulator (Stage 1 & Stage 2 — Max 2 Strongest Options + Not Sure) */}
-                        <div className="rounded-2xl border-2 border-[#D97706]/80 bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] p-5 space-y-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#B98A78]/30 pb-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="px-3 py-1 rounded-full bg-[#D97706]/20 text-[#92400E] text-xs font-extrabold">
-                                🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (أقوى مسارين فقط + خيار لا أعرف)
-                              </span>
+                        {isDirectDeepResearchP1 ? (
+                          <div
+                            data-testid="direct-deep-research-p1-card"
+                            className="p-5 rounded-2xl border-2 border-amber-500 bg-amber-50/90 space-y-3 shadow-2xs"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 rounded-lg bg-amber-900 text-amber-100 text-xs font-extrabold">
+                                  المخرج (ب) · البحث المعمق
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-950 text-xs font-extrabold">
+                                  تذكرة بحث وتوثيق نشطة P1
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newTkt = buildTicketFromLineageResult(
+                                    directSearchResult,
+                                    `فحص باحث (${directSearchResult.familyName})`
+                                  );
+                                  setTickets((prev) => [newTkt, ...prev]);
+                                  setSelectedTicketId(newTkt.id);
+                                  setActiveSubTab('ticket_inbox');
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-[#141414] hover:bg-stone-800 text-amber-300 text-xs font-bold cursor-pointer transition-colors"
+                              >
+                                فتح كتذكرة بحث وتوثيق نشطة (P1) ←
+                              </button>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setDiagnosticSimStage(1)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                                  diagnosticSimStage === 1
-                                    ? 'bg-[#252321] text-[#FEF3C7]'
-                                    : 'bg-white text-stone-700 border border-stone-300'
-                                }`}
-                              >
-                                المرحلة 1: سؤال الأصل والقبيلة
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDiagnosticSimStage(2)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                                  diagnosticSimStage === 2
-                                    ? 'bg-[#252321] text-[#FEF3C7]'
-                                    : 'bg-white text-stone-700 border border-stone-300'
-                                }`}
-                              >
-                                المرحلة 2: سؤال الجغرافيا والمواضع
-                              </button>
+                            <div className="rounded-xl bg-white p-4 border border-amber-300 space-y-1.5">
+                              <p className="text-sm font-extrabold text-amber-950">
+                                لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق
+                              </p>
+                              <p className="text-xs text-stone-700 leading-relaxed">
+                                نظراً لعدم وجود سجلات خام أو عناقيد مطابقة لاسم ({directSearchResult.familyName}) في قواعد البيانات الحالية، لا يُعرض للعميل أي سؤال تحقق آلي ولا يُطالب بدفع $5، بل يتم توجيهه مباشرة إلى مسار <strong>«المخرج (ب) · البحث المعمق» (تذكرة بحث وتوثيق نشطة P1)</strong> ليتولى فريق الباحثين التحقيق في المخطوطات والأوقاف.
+                              </p>
                             </div>
                           </div>
+                        ) : (
+                          <>
+                            {/* Competing Paths Comparison Matrix (Shows ALL clusters for the Researcher outside the simulator) */}
+                            {renderConsensusAndCompetingPathsMatrix(
+                              directSearchResult.familyName,
+                              rawEvidenceList,
+                              'direct_search'
+                            )}
 
-                          {diagnosticSimStage === 1 ? (
-                            <div className="space-y-3">
-                              <div className="text-sm font-extrabold text-[#252321]">
-                                نص سؤال المرحلة 1 للعميل: «لتثبيت الجذر الصحيح لعائلة ({directSearchResult.familyName})، أيٌّ من هذين الأصلين يرتبط بأسرتكم؟»
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {candidateDisambigOptions.slice(0, 2).map((opt, oIdx) => {
-                                  const isSelected = diagnosticSimChoice === opt.id;
-                                  const overrideObj =
-                                    oIdx === 1
-                                      ? directSearchResult.optionBResultOverride
-                                      : oIdx === 2
-                                      ? directSearchResult.optionCResultOverride
-                                      : directSearchResult.optionAResultOverride;
-                                  const matchedClusterForOpt =
-                                    diagnosticClusters.find(
-                                      (c) =>
-                                        (opt.choice_id &&
-                                          c.records.some(
-                                            (r) =>
-                                              r.alpha_id &&
-                                              opt.choice_id?.includes(r.alpha_id)
-                                          )) ||
-                                        stemTribeToken(c.originTribeLabel) ===
-                                          stemTribeToken(
-                                            opt.originTribeLabel || opt.title
-                                          )
-                                    ) || diagnosticClusters[oIdx];
-
-                                  const optSources: CorroboratingAlphaEvidence[] =
-                                    opt.contributingSources &&
-                                    opt.contributingSources.length > 0
-                                      ? opt.contributingSources
-                                      : matchedClusterForOpt?.records &&
-                                        matchedClusterForOpt.records.length > 0
-                                      ? matchedClusterForOpt.records
-                                      : overrideObj
-                                          ?.corroborating_alpha_evidence_for_researcher &&
-                                        overrideObj
-                                          .corroborating_alpha_evidence_for_researcher
-                                          .length > 0
-                                      ? overrideObj.corroborating_alpha_evidence_for_researcher
-                                      : rawEvidenceList.slice(oIdx, oIdx + 1);
-
-                                  const fullStitchedChainForOpt =
-                                    matchedClusterForOpt &&
-                                    matchedClusterForOpt.fullChainNodes.length > 1
-                                      ? matchedClusterForOpt.fullChainNodes.join(' ⬅️ ')
-                                      : overrideObj?.full_stitched_lineage_for_researcher &&
-                                        overrideObj.full_stitched_lineage_for_researcher
-                                          .length > 1
-                                      ? overrideObj.full_stitched_lineage_for_researcher
-                                          .map((n) => n.name)
-                                          .join(' ⬅️ ')
-                                      : `${directSearchResult.familyName} ⬅️ ${
-                                          opt.originTribeLabel || opt.title
-                                        }`;
-
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => {
-                                        setDiagnosticSimChoice(opt.id);
-                                        if (overrideObj) {
-                                          setDirectSearchResult({
-                                            ...directSearchResult,
-                                            ...overrideObj,
-                                          });
-                                        }
-                                      }}
-                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
-                                        isSelected
-                                          ? 'bg-white border-[#D8755B] shadow-xs'
-                                          : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
-                                          🔘 الخيار #{oIdx + 1}: {opt.originTribeLabel || opt.title}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
-                                          {opt.badge}
-                                        </span>
-                                      </div>
-
-                                      {/* Explicit Sources & Pages under the competing option */}
-                                      <div
-                                        data-testid={`sim-stage1-option-sources-${oIdx}`}
-                                        className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5"
-                                      >
-                                        <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
-                                          <span>
-                                            توافق ({optSources.length}){' '}
-                                            {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
-                                          </span>
-                                          {optSources.map((srcEv, sIdx) => {
-                                            const parsedRef =
-                                              extractBookVolPageFromEvidence(srcEv);
-                                            return (
-                                              <React.Fragment key={srcEv.alpha_id || sIdx}>
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
-                                                  {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
-                                                </span>
-                                                {sIdx < optSources.length - 1 && (
-                                                  <span className="text-slate-400 font-bold">،</span>
-                                                )}
-                                              </React.Fragment>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-
-                                      <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
-                                        <div>
-                                          <strong>المسار الناتج:</strong>{' '}
-                                          {fullStitchedChainForOpt}
-                                        </div>
-                                        <div className="text-amber-900 font-bold">
-                                          <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
-                                          تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-
-                                {/* Stage 1 "لا أعرف" Option */}
-                                <div
-                                  onClick={() => {
-                                    setDiagnosticSimChoice('not_sure_stage1');
-                                    setDiagnosticSimStage(2);
-                                  }}
-                                  className="p-3.5 rounded-xl border-2 border-dashed border-amber-500 bg-amber-50/70 hover:bg-amber-50 transition-all cursor-pointer space-y-2"
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs sm:text-sm font-extrabold text-amber-950">
-                                      🔘 خيار: لا أعرف / لست متأكداً (الاحتكام للمواضع الجغرافية)
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded bg-white border border-amber-300 text-[10px] font-mono font-bold text-amber-900">
-                                      NEED_LOCATION_STEP
-                                    </span>
-                                  </div>
-                                  <div className="text-[11px] text-amber-900 bg-white/80 p-2 rounded-lg border border-amber-200">
-                                    <strong>الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong>المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2 ←)
-                                  </div>
+                            {/* Interactive Customer Verification Simulator (Stage 1 & Stage 2 — Max 2 Strongest Options + Not Sure) */}
+                            <div className="rounded-2xl border-2 border-[#D97706]/80 bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] p-5 space-y-4">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#B98A78]/30 pb-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="px-3 py-1 rounded-full bg-[#D97706]/20 text-[#92400E] text-xs font-extrabold">
+                                    🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (أقوى مسارين فقط + خيار لا أعرف)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setDiagnosticSimStage(1)}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                                      diagnosticSimStage === 1
+                                        ? 'bg-[#252321] text-[#FEF3C7]'
+                                        : 'bg-white text-stone-700 border border-stone-300'
+                                    }`}
+                                  >
+                                    المرحلة 1: سؤال الأصل والقبيلة
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDiagnosticSimStage(2)}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                                      diagnosticSimStage === 2
+                                        ? 'bg-[#252321] text-[#FEF3C7]'
+                                        : 'bg-white text-stone-700 border border-stone-300'
+                                    }`}
+                                  >
+                                    المرحلة 2: سؤال الجغرافيا والمواضع
+                                  </button>
                                 </div>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <div className="text-sm font-extrabold text-[#252321]">
-                                نص سؤال المرحلة 2 للعميل: «لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟»
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {candidateDisambigOptions.slice(0, 2).map((opt, oIdx) => {
-                                  const isSelected = diagnosticSimChoice === opt.id;
-                                  const overrideObj =
-                                    oIdx === 1
-                                      ? directSearchResult.optionBResultOverride
-                                      : oIdx === 2
-                                      ? directSearchResult.optionCResultOverride
-                                      : directSearchResult.optionAResultOverride;
-                                  const matchedClusterForOpt =
-                                    diagnosticClusters.find(
-                                      (c) =>
-                                        (opt.choice_id &&
-                                          c.records.some(
-                                            (r) =>
-                                              r.alpha_id &&
-                                              opt.choice_id?.includes(r.alpha_id)
-                                          )) ||
-                                        stemTribeToken(c.originTribeLabel) ===
-                                          stemTribeToken(
-                                            opt.originTribeLabel || opt.title
-                                          )
-                                    ) || diagnosticClusters[oIdx];
-                                  const resultingTribe =
-                                    matchedClusterForOpt?.originTribeLabel ||
-                                    overrideObj?.rootTribeName ||
-                                    opt.originTribeLabel ||
-                                    opt.title;
 
-                                  const optSources: CorroboratingAlphaEvidence[] =
-                                    opt.contributingSources &&
-                                    opt.contributingSources.length > 0
-                                      ? opt.contributingSources
-                                      : matchedClusterForOpt?.records &&
-                                        matchedClusterForOpt.records.length > 0
-                                      ? matchedClusterForOpt.records
-                                      : overrideObj
-                                          ?.corroborating_alpha_evidence_for_researcher &&
-                                        overrideObj
-                                          .corroborating_alpha_evidence_for_researcher
-                                          .length > 0
-                                      ? overrideObj.corroborating_alpha_evidence_for_researcher
-                                      : rawEvidenceList.slice(oIdx, oIdx + 1);
+                              {diagnosticSimStage === 1 ? (
+                                <div className="space-y-3">
+                                  <div className="text-sm font-extrabold text-[#252321]">
+                                    نص سؤال المرحلة 1 للعميل: «لتثبيت الجذر الصحيح لعائلة ({directSearchResult.familyName})، أيٌّ من هذين الأصلين يرتبط بأسرتكم؟»
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {candidateDisambigOptions.slice(0, 2).map((opt, oIdx) => {
+                                      const isSelected = diagnosticSimChoice === opt.id;
+                                      const overrideObj =
+                                        oIdx === 1
+                                          ? directSearchResult.optionBResultOverride
+                                          : oIdx === 2
+                                          ? directSearchResult.optionCResultOverride
+                                          : directSearchResult.optionAResultOverride;
+                                      const matchedClusterForOpt =
+                                        diagnosticClusters.find(
+                                          (c) =>
+                                            (opt.choice_id &&
+                                              c.records.some(
+                                                (r) =>
+                                                  r.alpha_id &&
+                                                  opt.choice_id?.includes(r.alpha_id)
+                                              )) ||
+                                            stemTribeToken(c.originTribeLabel) ===
+                                              stemTribeToken(
+                                                opt.originTribeLabel || opt.title
+                                              )
+                                        ) || diagnosticClusters[oIdx];
 
-                                  const fullStitchedChainForOpt =
-                                    matchedClusterForOpt &&
-                                    matchedClusterForOpt.fullChainNodes.length > 1
-                                      ? matchedClusterForOpt.fullChainNodes.join(' ⬅️ ')
-                                      : overrideObj?.full_stitched_lineage_for_researcher &&
-                                        overrideObj.full_stitched_lineage_for_researcher
-                                          .length > 1
-                                      ? overrideObj.full_stitched_lineage_for_researcher
-                                          .map((n) => n.name)
-                                          .join(' ⬅️ ')
-                                      : `${directSearchResult.familyName} ⬅️ ${resultingTribe}`;
+                                      const optSources: CorroboratingAlphaEvidence[] =
+                                        opt.contributingSources &&
+                                        opt.contributingSources.length > 0
+                                          ? opt.contributingSources
+                                          : matchedClusterForOpt?.records &&
+                                            matchedClusterForOpt.records.length > 0
+                                          ? matchedClusterForOpt.records
+                                          : overrideObj
+                                              ?.corroborating_alpha_evidence_for_researcher &&
+                                            overrideObj
+                                              .corroborating_alpha_evidence_for_researcher
+                                              .length > 0
+                                          ? overrideObj.corroborating_alpha_evidence_for_researcher
+                                          : rawEvidenceList.slice(oIdx, oIdx + 1);
 
-                                  return (
+                                      const fullStitchedChainForOpt =
+                                        matchedClusterForOpt &&
+                                        matchedClusterForOpt.fullChainNodes.length > 1
+                                          ? matchedClusterForOpt.fullChainNodes.join(' ⬅️ ')
+                                          : overrideObj?.full_stitched_lineage_for_researcher &&
+                                            overrideObj.full_stitched_lineage_for_researcher
+                                              .length > 1
+                                          ? overrideObj.full_stitched_lineage_for_researcher
+                                              .map((n) => n.name)
+                                              .join(' ⬅️ ')
+                                          : `${directSearchResult.familyName} ⬅️ ${
+                                              opt.originTribeLabel || opt.title
+                                            }`;
+
+                                      return (
+                                        <div
+                                          key={opt.id}
+                                          onClick={() => {
+                                            setDiagnosticSimChoice(opt.id);
+                                            if (overrideObj) {
+                                              setDirectSearchResult({
+                                                ...directSearchResult,
+                                                ...overrideObj,
+                                              });
+                                            }
+                                          }}
+                                          className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
+                                            isSelected
+                                              ? 'bg-white border-[#D8755B] shadow-xs'
+                                              : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
+                                              🔘 الخيار #{oIdx + 1}: {opt.originTribeLabel || opt.title}
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                                              {opt.badge}
+                                            </span>
+                                          </div>
+
+                                          {/* Explicit Sources & Pages under the competing option */}
+                                          <div
+                                            data-testid={`sim-stage1-option-sources-${oIdx}`}
+                                            className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5"
+                                          >
+                                            <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
+                                              <span>
+                                                توافق ({optSources.length}){' '}
+                                                {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
+                                              </span>
+                                              {optSources.map((srcEv, sIdx) => {
+                                                const parsedRef =
+                                                  extractBookVolPageFromEvidence(srcEv);
+                                                return (
+                                                  <React.Fragment key={srcEv.alpha_id || sIdx}>
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
+                                                      {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
+                                                    </span>
+                                                    {sIdx < optSources.length - 1 && (
+                                                      <span className="text-slate-400 font-bold">،</span>
+                                                    )}
+                                                  </React.Fragment>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+
+                                          <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
+                                            <div>
+                                              <strong>المسار الناتج:</strong>{' '}
+                                              {fullStitchedChainForOpt}
+                                            </div>
+                                            <div className="text-amber-900 font-bold">
+                                              <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
+                                              تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {/* Stage 1 "لا أعرف" Option */}
                                     <div
-                                      key={opt.id}
                                       onClick={() => {
-                                        setDiagnosticSimChoice(opt.id);
-                                        if (overrideObj) {
-                                          setDirectSearchResult({
-                                            ...directSearchResult,
-                                            ...overrideObj,
-                                          });
-                                        }
+                                        setDiagnosticSimChoice('not_sure_stage1');
+                                        setDiagnosticSimStage(2);
                                       }}
-                                      className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
-                                        isSelected
-                                          ? 'bg-white border-[#D8755B] shadow-xs'
-                                          : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
-                                      }`}
+                                      className="p-3.5 rounded-xl border-2 border-dashed border-amber-500 bg-amber-50/70 hover:bg-amber-50 transition-all cursor-pointer space-y-2"
                                     >
                                       <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
-                                          📍 الموضع الجغرافي #{oIdx + 1}: {opt.geographicScope}
+                                        <span className="text-xs sm:text-sm font-extrabold text-amber-950">
+                                          🔘 خيار: لا أعرف / لست متأكداً (الاحتكام للمواضع الجغرافية)
                                         </span>
-                                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-bold">
-                                          يحسم لصالح: {resultingTribe}
+                                        <span className="px-2 py-0.5 rounded bg-white border border-amber-300 text-[10px] font-mono font-bold text-amber-900">
+                                          NEED_LOCATION_STEP
                                         </span>
                                       </div>
-
-                                      {/* Explicit Sources & Pages under the competing geographic option */}
-                                      <div
-                                        data-testid={`sim-stage2-option-sources-${oIdx}`}
-                                        className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5"
-                                      >
-                                        <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
-                                          <span>
-                                            توافق ({optSources.length}){' '}
-                                            {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
-                                          </span>
-                                          {optSources.map((srcEv, sIdx) => {
-                                            const parsedRef =
-                                              extractBookVolPageFromEvidence(srcEv);
-                                            return (
-                                              <React.Fragment key={srcEv.alpha_id || sIdx}>
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
-                                                  {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
-                                                </span>
-                                                {sIdx < optSources.length - 1 && (
-                                                  <span className="text-slate-400 font-bold">،</span>
-                                                )}
-                                              </React.Fragment>
-                                            );
-                                          })}
-                                        </div>
+                                      <div className="text-[11px] text-amber-900 bg-white/80 p-2 rounded-lg border border-amber-200">
+                                        <strong>الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong>المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2 ←)
                                       </div>
-
-                                      <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
-                                        <div>
-                                          <strong>المسار الناتج:</strong>{' '}
-                                          {fullStitchedChainForOpt}
-                                        </div>
-                                        <div className="text-amber-900 font-bold">
-                                          <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
-                                          تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-
-                                {/* Stage 2 "لا أعرف / موضع آخر" Option -> Outcome B */}
-                                <div
-                                  onClick={() =>
-                                    setDiagnosticSimChoice('not_sure_escalate')
-                                  }
-                                  className={`p-3.5 rounded-xl border-2 border-dashed transition-all cursor-pointer space-y-2 ${
-                                    diagnosticSimChoice === 'not_sure_escalate'
-                                      ? 'border-red-500 bg-red-50/80'
-                                      : 'border-amber-600 bg-amber-50/70 hover:bg-amber-50'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs sm:text-sm font-extrabold text-amber-950">
-                                      🔘 خيار: لا أعرف / موضع آخر (فشل التحقق في المرحلتين)
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 text-[10px] font-bold">
-                                      المخرج (ب) · البحث المعمق
-                                    </span>
-                                  </div>
-                                  <div className="text-[11px] text-stone-800 bg-white/90 p-2 rounded-lg border border-amber-300 space-y-1">
-                                    <div>
-                                      <strong>الخطوة التالية للعميل (المخرج ب):</strong>{' '}
-                                      يتم نقل العميل فوراً إلى شاشة <strong>«البحث المعمق» (Deep Research)</strong> ليُطلب منه الاشتراك السنوي لفتح تذكرة بحث خاصة لدى الباحثين، دون مطالبته بدفع الـ $5 الخاصة بالجذر الآلي!
                                     </div>
                                   </div>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <div className="text-sm font-extrabold text-[#252321]">
+                                    نص سؤال المرحلة 2 للعميل: «لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟»
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {candidateDisambigOptions.slice(0, 2).map((opt, oIdx) => {
+                                      const isSelected = diagnosticSimChoice === opt.id;
+                                      const overrideObj =
+                                        oIdx === 1
+                                          ? directSearchResult.optionBResultOverride
+                                          : oIdx === 2
+                                          ? directSearchResult.optionCResultOverride
+                                          : directSearchResult.optionAResultOverride;
+                                      const matchedClusterForOpt =
+                                        diagnosticClusters.find(
+                                          (c) =>
+                                            (opt.choice_id &&
+                                              c.records.some(
+                                                (r) =>
+                                                  r.alpha_id &&
+                                                  opt.choice_id?.includes(r.alpha_id)
+                                              )) ||
+                                            stemTribeToken(c.originTribeLabel) ===
+                                              stemTribeToken(
+                                                opt.originTribeLabel || opt.title
+                                              )
+                                        ) || diagnosticClusters[oIdx];
+                                      const resultingTribe =
+                                        matchedClusterForOpt?.originTribeLabel ||
+                                        overrideObj?.rootTribeName ||
+                                        opt.originTribeLabel ||
+                                        opt.title;
+
+                                      const optSources: CorroboratingAlphaEvidence[] =
+                                        opt.contributingSources &&
+                                        opt.contributingSources.length > 0
+                                          ? opt.contributingSources
+                                          : matchedClusterForOpt?.records &&
+                                            matchedClusterForOpt.records.length > 0
+                                          ? matchedClusterForOpt.records
+                                          : overrideObj
+                                              ?.corroborating_alpha_evidence_for_researcher &&
+                                            overrideObj
+                                              .corroborating_alpha_evidence_for_researcher
+                                              .length > 0
+                                          ? overrideObj.corroborating_alpha_evidence_for_researcher
+                                          : rawEvidenceList.slice(oIdx, oIdx + 1);
+
+                                      const fullStitchedChainForOpt =
+                                        matchedClusterForOpt &&
+                                        matchedClusterForOpt.fullChainNodes.length > 1
+                                          ? matchedClusterForOpt.fullChainNodes.join(' ⬅️ ')
+                                          : overrideObj?.full_stitched_lineage_for_researcher &&
+                                            overrideObj.full_stitched_lineage_for_researcher
+                                              .length > 1
+                                          ? overrideObj.full_stitched_lineage_for_researcher
+                                              .map((n) => n.name)
+                                              .join(' ⬅️ ')
+                                          : `${directSearchResult.familyName} ⬅️ ${resultingTribe}`;
+
+                                      return (
+                                        <div
+                                          key={opt.id}
+                                          onClick={() => {
+                                            setDiagnosticSimChoice(opt.id);
+                                            if (overrideObj) {
+                                              setDirectSearchResult({
+                                                ...directSearchResult,
+                                                ...overrideObj,
+                                              });
+                                            }
+                                          }}
+                                          className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
+                                            isSelected
+                                              ? 'bg-white border-[#D8755B] shadow-xs'
+                                              : 'bg-white/80 border-stone-300 hover:border-[#8D4925]'
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
+                                              📍 الموضع الجغرافي #{oIdx + 1}: {opt.geographicScope}
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                                              يحسم لصالح: {resultingTribe}
+                                            </span>
+                                          </div>
+
+                                          {/* Explicit Sources & Pages under the competing geographic option */}
+                                          <div
+                                            data-testid={`sim-stage2-option-sources-${oIdx}`}
+                                            className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5"
+                                          >
+                                            <div className="text-[11px] font-bold text-slate-700 flex flex-wrap items-center gap-1.5">
+                                              <span>
+                                                توافق ({optSources.length}){' '}
+                                                {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
+                                              </span>
+                                              {optSources.map((srcEv, sIdx) => {
+                                                const parsedRef =
+                                                  extractBookVolPageFromEvidence(srcEv);
+                                                return (
+                                                  <React.Fragment key={srcEv.alpha_id || sIdx}>
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-sans font-bold">
+                                                      {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
+                                                    </span>
+                                                    {sIdx < optSources.length - 1 && (
+                                                      <span className="text-slate-400 font-bold">،</span>
+                                                    )}
+                                                  </React.Fragment>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+
+                                          <div className="text-[11px] text-stone-600 bg-[#FAF8F5] p-2 rounded-lg border border-stone-200 space-y-1">
+                                            <div>
+                                              <strong>المسار الناتج:</strong>{' '}
+                                              {fullStitchedChainForOpt}
+                                            </div>
+                                            <div className="text-amber-900 font-bold">
+                                              <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
+                                              تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {/* Stage 2 "لا أعرف / موضع آخر" Option -> Outcome B */}
+                                    <div
+                                      onClick={() =>
+                                        setDiagnosticSimChoice('not_sure_escalate')
+                                      }
+                                      className={`p-3.5 rounded-xl border-2 border-dashed transition-all cursor-pointer space-y-2 ${
+                                        diagnosticSimChoice === 'not_sure_escalate'
+                                          ? 'border-red-500 bg-red-50/80'
+                                          : 'border-amber-600 bg-amber-50/70 hover:bg-amber-50'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs sm:text-sm font-extrabold text-amber-950">
+                                          🔘 خيار: لا أعرف / موضع آخر (فشل التحقق في المرحلتين)
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 text-[10px] font-bold">
+                                          المخرج (ب) · البحث المعمق
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-stone-800 bg-white/90 p-2 rounded-lg border border-amber-300 space-y-1">
+                                        <div>
+                                          <strong>الخطوة التالية للعميل (المخرج ب):</strong>{' '}
+                                          يتم نقل العميل فوراً إلى شاشة <strong>«البحث المعمق» (Deep Research)</strong> ليُطلب منه الاشتراك السنوي لفتح تذكرة بحث خاصة لدى الباحثين، دون مطالبته بدفع الـ $5 الخاصة بالجذر الآلي!
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </div>
 
                       {/* =========================================================

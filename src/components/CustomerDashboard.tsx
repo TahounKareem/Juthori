@@ -1038,7 +1038,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       familyName: result.familyName,
       originCountry: result.originCountry,
       originRegion: result.originRegion,
-      rootBranchName: 'قيد التحقيق الأرشيفي',
+      rootBranchName: '',
       rootTribeName: 'تذكرة بحث للباحثين (تعدد مسارات)',
       matched: false,
       isAlphaOnlyBeforeMerge: false,

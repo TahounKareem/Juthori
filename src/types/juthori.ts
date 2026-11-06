@@ -243,6 +243,7 @@ export interface LineageSearchResult {
   verifiedSourceCitation: string;
   verified_sources?: string[];
   secondarySources: string[];
+  alpha_evidence?: CorroboratingAlphaEvidence[];
   corroborating_alpha_evidence_for_researcher?: CorroboratingAlphaEvidence[];
   background_researcher_ticket?: BackgroundResearcherTicketPayload;
   historicalRegion: string;
