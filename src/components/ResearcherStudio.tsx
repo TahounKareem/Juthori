@@ -19,13 +19,16 @@ import {
 } from 'lucide-react';
 import {
   AccountLegalType,
+  AdamPrimeRegistrySourceItem,
   ConsensusClusterGroup,
   CorroboratingAlphaEvidence,
   DashboardStateMode,
   Lake3UnlinkedProjectRecord,
   LineageSearchResult,
+  ParsedOtherSourceLead,
   SuggestedAdamBridgeForResearcher,
   UpperAncestorNode,
+  VerifiedAddonSourceItem,
 } from '../types/juthori';
 import {
   AdamTreeInteractiveNode,
@@ -41,6 +44,8 @@ import {
   checkArcCodeRepresentationConflict,
   cleanAndUnrollLineageChain,
   computeCrossSourceConsensusClusters,
+  detectAndStripInvertedPreamble,
+  extractAllOtherSourceLeadsFromEvidence,
   extractBookVolPageFromEvidence,
   extractRawRecordAncestors,
   formatAlphaEvidenceCitation,
@@ -48,20 +53,25 @@ import {
   formatCompactSourceBracket,
   getCanonicalAdamNodeDedupKey,
   getInitialAdamTreeNodesById,
+  getVerifiedAddonSourcesForEvidence,
   inspectNameInAdamMasterTree,
   isAdamNodeStructurallyCoded,
   matchesFlexibleArabicSearch,
+  mergeVerifiedAddonSourceLists,
   normalizeArabic,
   normalizeArabicForSearch,
   normalizeArabicStem,
+  parseOtherSourcesStringIntoLeads,
   resolveAdamTreeChildren,
   resolveDeterministicLineage,
   resolveResearcherDataLakeBadge,
   sanitizeAndNormalizeAdamNode,
+  searchAdamPrimeUnifiedSourcesRegistry,
   searchJuthoriLineage,
   stemTribeToken,
   stitchLineageChains,
   tagConsensusWinnersOnEvidence,
+  verifyAndAttachSecondarySourceToAdamPrime,
 } from '../utils/lineageEngine';
 import { LineageSpineColumn } from './LineageSpineColumn';
 import {
@@ -1472,6 +1482,601 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             </div>
           )}
         </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
+  // SECTION 5: SECONDARY SOURCES & ADAM PRIME UNIFIED REGISTRY LAB STATE
+  // (القسم الخامس: المصادر الأخرى الخام ومختبر التوثيق الموحد مع آدم برايم)
+  // =========================================================================
+  const [adamPrimeSearchQuery, setAdamPrimeSearchQuery] = useState<string>('');
+  const [adamPrimeRegistryResults, setAdamPrimeRegistryResults] = useState<
+    AdamPrimeRegistrySourceItem[]
+  >([]);
+  const [isSearchingAdamPrimeRegistry, setIsSearchingAdamPrimeRegistry] =
+    useState<boolean>(false);
+  const [addonUnlockPricesByLeadKey, setAddonUnlockPricesByLeadKey] = useState<
+    Record<string, number>
+  >({});
+  const [selectedAdamPrimeIdByLeadKey, setSelectedAdamPrimeIdByLeadKey] =
+    useState<Record<string, string>>({});
+  const [customAuthorByLeadKey, setCustomAuthorByLeadKey] = useState<
+    Record<string, string>
+  >({});
+  const [customVolumeByLeadKey, setCustomVolumeByLeadKey] = useState<
+    Record<string, string>
+  >({});
+  const [customPageByLeadKey, setCustomPageByLeadKey] = useState<
+    Record<string, string>
+  >({});
+  const [verifyingLeadKey, setVerifyingLeadKey] = useState<string | null>(null);
+  const [manualOtherSourceInput, setManualOtherSourceInput] =
+    useState<string>('');
+  const [manualOtherSourceNodeId, setManualOtherSourceNodeId] =
+    useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    searchAdamPrimeUnifiedSourcesRegistry('').then((items) => {
+      if (active) setAdamPrimeRegistryResults(items);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSearchAdamPrimeRegistry = async (queryText: string) => {
+    setAdamPrimeSearchQuery(queryText);
+    setIsSearchingAdamPrimeRegistry(true);
+    try {
+      const results = await searchAdamPrimeUnifiedSourcesRegistry(queryText);
+      setAdamPrimeRegistryResults(results);
+    } finally {
+      setIsSearchingAdamPrimeRegistry(false);
+    }
+  };
+
+  const handleVerifyAndAttachOtherSourceLead = async (
+    lead: ParsedOtherSourceLead,
+    leadKey: string,
+    contextMode: 'direct_search' | 'ticket_inbox'
+  ) => {
+    setVerifyingLeadKey(leadKey);
+    try {
+      const chosenPrice = addonUnlockPricesByLeadKey[leadKey] ?? 2;
+      const chosenRegistryId = selectedAdamPrimeIdByLeadKey[leadKey];
+      const matchedReg = adamPrimeRegistryResults.find(
+        (r) =>
+          r.source_id === chosenRegistryId ||
+          normalizeArabic(r.title).includes(
+            normalizeArabic(lead.extracted_book_title)
+          ) ||
+          normalizeArabic(lead.extracted_book_title).includes(
+            normalizeArabic(r.title)
+          )
+      );
+
+      const resolvedBookTitle =
+        matchedReg?.title || lead.canonical_title || lead.extracted_book_title;
+      const resolvedAuthor =
+        customAuthorByLeadKey[leadKey] ||
+        matchedReg?.author ||
+        lead.author ||
+        'محقق في سجل آدم برايم';
+      const resolvedVolume =
+        customVolumeByLeadKey[leadKey] || lead.extracted_volume || '—';
+      const resolvedPage =
+        customPageByLeadKey[leadKey] || lead.extracted_page || '—';
+
+      const verifiedAddon: VerifiedAddonSourceItem =
+        await verifyAndAttachSecondarySourceToAdamPrime({
+          alpha_or_adam_node_id: lead.linked_alpha_id || 'ALP_NODE',
+          linked_record_name: lead.linked_record_name,
+          raw_citation: lead.raw_citation,
+          book_title: resolvedBookTitle,
+          author: resolvedAuthor,
+          volume: resolvedVolume,
+          page: resolvedPage,
+          adam_prime_source_id:
+            chosenRegistryId || matchedReg?.source_id || undefined,
+          addon_unlock_price_usd: chosenPrice,
+          researcher_notes: `تم توثيق المرجع الثانوي (${resolvedBookTitle}) في سجل آدم برايم الموحد وربطه بالعقدة (${lead.linked_record_name}) بسعر فتح ($${chosenPrice})`,
+        });
+
+      const updateEvidenceArray = (
+        evArr: CorroboratingAlphaEvidence[] | undefined
+      ): CorroboratingAlphaEvidence[] => {
+        if (!Array.isArray(evArr)) return [];
+        return evArr.map((ev) => {
+          if (
+            ev.alpha_id !== lead.linked_alpha_id &&
+            ev.record_name !== lead.linked_record_name
+          ) {
+            return ev;
+          }
+          const existingLeads =
+            Array.isArray(ev.parsed_other_sources) &&
+            ev.parsed_other_sources.length > 0
+              ? ev.parsed_other_sources
+              : ev.other_sources
+              ? parseOtherSourcesStringIntoLeads(
+                  ev.other_sources,
+                  ev.alpha_id,
+                  ev.record_name
+                )
+              : [];
+
+          const updatedLeads = existingLeads.map((l) =>
+            l.raw_citation === lead.raw_citation ||
+            normalizeArabic(l.extracted_book_title) ===
+              normalizeArabic(lead.extracted_book_title)
+              ? {
+                  ...l,
+                  verification_status: 'VERIFIED_ADDON_SOURCE' as const,
+                  adam_prime_source_id: verifiedAddon.source_id,
+                  canonical_title: verifiedAddon.canonical_title,
+                  author: verifiedAddon.author,
+                  extracted_volume: verifiedAddon.volume,
+                  extracted_page: verifiedAddon.page,
+                  addon_unlock_price_usd: verifiedAddon.addon_unlock_price_usd,
+                  formatted_verified_addon:
+                    verifiedAddon.formatted_verified_addon,
+                }
+              : l
+          );
+
+          const updatedVerifiedAddons = mergeVerifiedAddonSourceLists(
+            ev.verified_addon_sources,
+            [verifiedAddon]
+          );
+
+          return {
+            ...ev,
+            parsed_other_sources: updatedLeads,
+            verified_addon_sources: updatedVerifiedAddons,
+          };
+        });
+      };
+
+      if (contextMode === 'direct_search') {
+        setRawSources((prev) => updateEvidenceArray(prev));
+        setDirectSearchResult((prev) => {
+          if (!prev) return prev;
+          const updatedAlphaEv = updateEvidenceArray(prev.alpha_evidence);
+          const updatedCorroborating = updateEvidenceArray(
+            prev.corroborating_alpha_evidence_for_researcher
+          );
+          const mergedAddons = mergeVerifiedAddonSourceLists(
+            prev.verifiedAddonSources,
+            [verifiedAddon],
+            getVerifiedAddonSourcesForEvidence(updatedCorroborating)
+          );
+          return {
+            ...prev,
+            alpha_evidence: updatedAlphaEv,
+            corroborating_alpha_evidence_for_researcher: updatedCorroborating,
+            verifiedAddonSources: mergedAddons,
+          };
+        });
+      } else if (selectedTicket) {
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === selectedTicket.id
+              ? {
+                  ...t,
+                  corroboratingEvidence: updateEvidenceArray(
+                    t.corroboratingEvidence
+                  ),
+                }
+              : t
+          )
+        );
+      }
+
+      // Refresh registry list so newly minted APR-SRC-* appears immediately
+      const refreshed = await searchAdamPrimeUnifiedSourcesRegistry(
+        adamPrimeSearchQuery
+      );
+      setAdamPrimeRegistryResults(refreshed);
+
+      showToast(
+        `✅ تم توثيق واعتماد «${verifiedAddon.canonical_title}» في سجل آدم برايم الموحد بالمعرف [${verifiedAddon.source_id}] وربطه بالعقدة (${lead.linked_record_name}) كمرجع إضافي قابل للفتح ($${verifiedAddon.addon_unlock_price_usd})!`
+      );
+    } finally {
+      setVerifyingLeadKey(null);
+    }
+  };
+
+  const renderSecondarySourcesAndAdamPrimeLab = (
+    familyName: string,
+    evidenceList: CorroboratingAlphaEvidence[] | undefined,
+    contextMode: 'direct_search' | 'ticket_inbox'
+  ) => {
+    const safeEvidence = evidenceList || [];
+    const extractedLeads = extractAllOtherSourceLeadsFromEvidence(safeEvidence);
+    const verifiedAddonsCount = extractedLeads.filter(
+      (l) => l.verification_status === 'VERIFIED_ADDON_SOURCE'
+    ).length;
+
+    return (
+      <div
+        data-testid={`diagnostic-step5-secondary-sources-adam-prime-${contextMode}`}
+        className="rounded-3xl border-2 border-indigo-600/80 bg-gradient-to-l from-indigo-50/70 via-white to-amber-50/40 p-5 sm:p-6 shadow-xs space-y-5"
+      >
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-200 pb-3.5">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-indigo-900 text-amber-300 font-mono text-sm font-extrabold flex items-center justify-center shrink-0">
+              5
+            </span>
+            <div>
+              <h3 className="text-sm sm:text-base font-extrabold font-serif text-[#141414]">
+                القسم الخامس: المصادر الأخرى الخام ومختبر التوثيق الموحد مع آدم برايم (Secondary Sources & Adam Prime Unified Registry)
+              </h3>
+              <p className="text-xs text-stone-600 mt-0.5">
+                إحالات الهامش والمصادر الثانوية الخام (`other_sources`) لا تظهر للعميل إطلاقاً وهي غير محققة، وتتحول إلى مراجع إضافية قابلة للفتح من المحفظة فقط بعد توثيقها واعتماد معرفها الموحد في سجل آدم برايم (`APR-CORE` / `APR-SRC`).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-3 py-1 rounded-xl bg-indigo-100 border border-indigo-300 text-indigo-950 text-xs font-bold">
+              إحالات خام مرصودة: {extractedLeads.length}
+            </span>
+            <span className="px-3 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold">
+              موثقة للعميل (VERIFIED_ADDON_SOURCE): {verifiedAddonsCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Strict Customer Privacy & Governance Notice */}
+        <div className="rounded-2xl bg-amber-50/90 border border-amber-300 p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-amber-950 font-bold">
+            <span>🛡️</span>
+            <span>
+              قاعدة الحوكمة الصارمة: المصادر الخام في حقل <code className="font-mono">other_sources</code> تظل في حالة <code className="font-mono">RAW_UNVERIFIED_LEAD</code> ومخفية تماماً عن واجهة العميل حتى يعتمدها الباحث هنا ويربطها بمعرف موحد في سجل آدم برايم.
+            </span>
+          </div>
+        </div>
+
+        {/* Adam Prime Unified Sources Registry Search & Link Bar */}
+        <div className="rounded-2xl bg-[#FAF8F5] border border-stone-300 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="text-xs sm:text-sm font-extrabold text-[#141414] flex items-center gap-1.5">
+                <span>🏛️</span>
+                <span>شريط البحث والربط في «سجل المصادر الموحد المتوافق مع آدم برايم»</span>
+              </h4>
+              <p className="text-[11px] text-stone-600">
+                ابحث في فهرس آدم برايم الموحد للتحقق من وجود الكتاب مسبقاً واستخدام نفس الـ <code className="font-mono">source_id</code> القياسي دون تكرار
+              </p>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[10px] font-bold">
+              GET /api/v1/juthori/sources-registry/search
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={adamPrimeSearchQuery}
+              onChange={(e) => handleSearchAdamPrimeRegistry(e.target.value)}
+              placeholder="ابحث باسم المصدر أو المؤلف في سجل آدم برايم الموحد (مثال: نهاية الأرب، النويري، سبائك الذهب، القلقشندي)..."
+              className="flex-1 px-3.5 py-2 rounded-xl border border-stone-300 bg-white text-xs font-bold focus:outline-none focus:border-indigo-700"
+            />
+            <button
+              type="button"
+              onClick={() => handleSearchAdamPrimeRegistry(adamPrimeSearchQuery)}
+              className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-amber-300 text-xs font-bold cursor-pointer shrink-0"
+            >
+              {isSearchingAdamPrimeRegistry
+                ? 'جارٍ البحث...'
+                : '🔍 فحص في سجل آدم برايم'}
+            </button>
+          </div>
+
+          {adamPrimeRegistryResults.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-[11px] font-bold text-stone-600">
+                المراجع القياسية المتاحة في سجل آدم برايم ({adamPrimeRegistryResults.length}):
+              </span>
+              {adamPrimeRegistryResults.slice(0, 6).map((reg) => (
+                <span
+                  key={reg.source_id}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-[11px] font-bold text-stone-800 shadow-2xs"
+                >
+                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-indigo-900 text-amber-300">
+                    {reg.source_id}
+                  </span>
+                  <span>{reg.title}</span>
+                  <span className="text-stone-500 text-[10px]">
+                    ({reg.author})
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Decomposed Raw Secondary Source Leads List */}
+        {extractedLeads.length === 0 ? (
+          <div className="rounded-2xl bg-white border border-stone-200 p-4 space-y-3">
+            <p className="text-xs font-bold text-stone-700">
+              لا توجد إحالات هامشية خام (`other_sources`) مرصودة تلقائياً في سجلات ({familyName}) الحالية. يمكنك إضافة وتوثيق مصدر ثانوي جديد يدوياً في سجل آدم برايم الموحد وربطه بالعقدة:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
+              <input
+                type="text"
+                value={manualOtherSourceInput}
+                onChange={(e) => setManualOtherSourceInput(e.target.value)}
+                placeholder="مثال: نهاية الأرب للنويري ج 2 ص 315"
+                className="sm:col-span-2 px-3 py-2 rounded-xl border border-stone-300 bg-[#FAF8F5] text-xs font-bold"
+              />
+              <input
+                type="text"
+                value={manualOtherSourceNodeId}
+                onChange={(e) => setManualOtherSourceNodeId(e.target.value)}
+                placeholder={`معرف السجل (افتراضي: ${safeEvidence[0]?.alpha_id || 'ALP_NODE'})`}
+                className="px-3 py-2 rounded-xl border border-stone-300 bg-[#FAF8F5] text-xs font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!manualOtherSourceInput.trim()) return;
+                  const targetNodeId =
+                    manualOtherSourceNodeId.trim() ||
+                    safeEvidence[0]?.alpha_id ||
+                    'ALP_MANUAL_1';
+                  const targetRecName =
+                    safeEvidence[0]?.record_name || familyName;
+                  const parsed = parseOtherSourcesStringIntoLeads(
+                    manualOtherSourceInput.trim(),
+                    targetNodeId,
+                    targetRecName
+                  );
+                  if (parsed[0]) {
+                    handleVerifyAndAttachOtherSourceLead(
+                      parsed[0],
+                      `manual-${Date.now()}`,
+                      contextMode
+                    );
+                    setManualOtherSourceInput('');
+                  }
+                }}
+                className="px-3 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer"
+              >
+                ➕ توثيق واعتماد في سجل آدم برايم
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <h4 className="text-xs sm:text-sm font-extrabold text-indigo-950">
+              📋 المصادر الأخرى الخام المرتبطة بالعقدة ({extractedLeads.length} مصدر مفكك آلياً):
+            </h4>
+
+            <div className="grid grid-cols-1 gap-3.5">
+              {extractedLeads.map((lead, lIdx) => {
+                const leadKey = `${contextMode}-${lead.linked_alpha_id}-${lIdx}`;
+                const isVerified =
+                  lead.verification_status === 'VERIFIED_ADDON_SOURCE';
+                const currentPrice =
+                  addonUnlockPricesByLeadKey[leadKey] ??
+                  lead.addon_unlock_price_usd ??
+                  2;
+                const selectedRegId =
+                  selectedAdamPrimeIdByLeadKey[leadKey] ||
+                  lead.adam_prime_source_id ||
+                  '';
+
+                const autoMatchedReg = adamPrimeRegistryResults.find(
+                  (r) =>
+                    normalizeArabic(r.title).includes(
+                      normalizeArabic(lead.extracted_book_title)
+                    ) ||
+                    normalizeArabic(lead.extracted_book_title).includes(
+                      normalizeArabic(r.title)
+                    )
+                );
+
+                return (
+                  <div
+                    key={leadKey}
+                    data-testid={`secondary-source-lead-card-${lIdx}`}
+                    className={`rounded-2xl border-2 p-4 space-y-3 transition-all ${
+                      isVerified
+                        ? 'bg-emerald-50/70 border-emerald-500 shadow-xs'
+                        : 'bg-white border-indigo-200 hover:border-indigo-400'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-amber-300 font-mono text-[11px] font-bold">
+                          إحالة ثانوية #{lIdx + 1}
+                        </span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                            isVerified
+                              ? 'bg-emerald-800 text-white border-emerald-900'
+                              : 'bg-amber-100 text-amber-950 border-amber-400'
+                          }`}
+                        >
+                          {isVerified
+                            ? `✅ VERIFIED_ADDON_SOURCE (${lead.adam_prime_source_id || 'SYNCED_UNIFIED_ID'})`
+                            : '⚠️ RAW_UNVERIFIED_LEAD (مخفي عن العميل)'}
+                        </span>
+                        <span className="text-xs font-bold text-stone-700">
+                          السجل المرتبط:{' '}
+                          <strong className="text-stone-950">
+                            {lead.linked_record_name}
+                          </strong>{' '}
+                          <code className="font-mono text-[10px] text-stone-500">
+                            ({lead.linked_alpha_id})
+                          </code>
+                        </span>
+                      </div>
+
+                      <span className="text-[11px] font-mono bg-stone-100 border border-stone-300 px-2.5 py-0.5 rounded-lg text-stone-700">
+                        النص الخام: «{lead.raw_citation}»
+                      </span>
+                    </div>
+
+                    {/* Decomposed Fields Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 bg-[#FAF8F5] rounded-xl p-3 border border-stone-200">
+                      <div className="sm:col-span-2">
+                        <span className="text-[10px] font-bold text-stone-500 block">
+                          اسم المصدر المستخرج (Book Title):
+                        </span>
+                        <span className="text-xs font-extrabold text-stone-900">
+                          {lead.canonical_title || lead.extracted_book_title}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block">
+                          رقم الجزء (Volume):
+                        </span>
+                        <input
+                          type="text"
+                          value={
+                            customVolumeByLeadKey[leadKey] ??
+                            lead.extracted_volume
+                          }
+                          onChange={(e) =>
+                            setCustomVolumeByLeadKey((prev) => ({
+                              ...prev,
+                              [leadKey]: e.target.value,
+                            }))
+                          }
+                          className="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block">
+                          رقم الصفحة (Page):
+                        </span>
+                        <input
+                          type="text"
+                          value={
+                            customPageByLeadKey[leadKey] ?? lead.extracted_page
+                          }
+                          onChange={(e) =>
+                            setCustomPageByLeadKey((prev) => ({
+                              ...prev,
+                              [leadKey]: e.target.value,
+                            }))
+                          }
+                          className="mt-0.5 w-full px-2 py-1 rounded-lg border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block">
+                          سعر الفتح للعميل من المحفظة ($):
+                        </span>
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            step={0.5}
+                            value={currentPrice}
+                            onChange={(e) =>
+                              setAddonUnlockPricesByLeadKey((prev) => ({
+                                ...prev,
+                                [leadKey]: Number(e.target.value) || 2,
+                              }))
+                            }
+                            className="w-full px-2 py-1 rounded-lg border border-amber-400 bg-white text-xs font-mono font-extrabold text-amber-950"
+                          />
+                          <span className="text-xs font-bold text-amber-900">
+                            USD
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Adam Prime Unified ID Selection + Verify & Attach Action Button */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                      <div className="flex flex-wrap items-center gap-2 flex-1">
+                        <select
+                          value={
+                            selectedRegId || autoMatchedReg?.source_id || ''
+                          }
+                          onChange={(e) =>
+                            setSelectedAdamPrimeIdByLeadKey((prev) => ({
+                              ...prev,
+                              [leadKey]: e.target.value,
+                            }))
+                          }
+                          className="px-3 py-1.5 rounded-xl border border-indigo-300 bg-indigo-50/70 text-indigo-950 text-xs font-bold"
+                        >
+                          <option value="">
+                            {autoMatchedReg
+                              ? `تطابق آلي في آدم برايم: [${autoMatchedReg.source_id}] ${autoMatchedReg.title}`
+                              : 'إنشاء معرف موحد جديد في سجل آدم برايم (APR-SRC-...)'}
+                          </option>
+                          {adamPrimeRegistryResults.map((reg) => (
+                            <option key={reg.source_id} value={reg.source_id}>
+                              [{reg.source_id}] {reg.title} — ({reg.author})
+                            </option>
+                          ))}
+                        </select>
+
+                        <input
+                          type="text"
+                          value={
+                            customAuthorByLeadKey[leadKey] ??
+                            lead.author ??
+                            autoMatchedReg?.author ??
+                            ''
+                          }
+                          onChange={(e) =>
+                            setCustomAuthorByLeadKey((prev) => ({
+                              ...prev,
+                              [leadKey]: e.target.value,
+                            }))
+                          }
+                          placeholder="اسم المؤلف في السجل الموحد (اختياري)..."
+                          className="px-3 py-1.5 rounded-xl border border-stone-300 bg-white text-xs"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={verifyingLeadKey === leadKey}
+                        onClick={() =>
+                          handleVerifyAndAttachOtherSourceLead(
+                            lead,
+                            leadKey,
+                            contextMode
+                          )
+                        }
+                        data-testid={`verify-and-attach-btn-${lIdx}`}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-xs flex items-center gap-1.5 ${
+                          isVerified
+                            ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
+                            : 'bg-indigo-900 hover:bg-indigo-950 text-amber-300'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>
+                          {verifyingLeadKey === leadKey
+                            ? 'جارٍ التوثيق والمزامنة مع آدم برايم...'
+                            : isVerified
+                            ? `✓ تم التوثيق والربط بالعقدة (${lead.adam_prime_source_id || 'SYNCED'}) — تحديث السعر ($${currentPrice})`
+                            : 'توثيق واعتماد في سجل آدم برايم الموحد وربطه بالعقدة'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -3681,6 +4286,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   });
                   const filteredNoiseList = Array.from(filteredNoiseTokensSet);
 
+                  // 5b. Inverted Preamble Summary Stripper (`إصلاح التمهيد المعكوس في التفريغ`)
+                  const invertedPreambleExamples: string[] = [];
+                  rawEvidenceList.forEach((ev) => {
+                    const rawTokens = String(ev.lineage_ancestors || '')
+                      .split(/(?:؛|⬅️|<-|->|—|،|\||>)/)
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const check = detectAndStripInvertedPreamble(
+                      rawTokens,
+                      ev.record_name || directSearchResult.familyName
+                    );
+                    if (check.wasInvertedPreambleStripped) {
+                      invertedPreambleExamples.push(
+                        `تم تجريد التمهيد المعكوس (${check.strippedPreambleTokens.join(' ؛ ')}) الذي سبق اسم صاحب السجل (${check.matchedSubjectToken}) في سجل «${ev.record_name || directSearchResult.familyName}» لتبدأ السلسلة النظيفة من (${check.cleanedTokensAfterSubject.slice(0, 4).join(' ⬅️ ')})`
+                      );
+                    }
+                  });
+
                   // 8. Folded intermediate stations count for $5 2-Root Selection (`🔒 +X في السلسلة`)
                   const totalStitchedCount = finalStitchedStations.length;
                   const hiddenIntermediateCount = Math.max(0, totalStitchedCount - 3);
@@ -3773,11 +4396,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       </div>
                                     </div>
 
-                                    <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
-                                      <span>اسم السجل في المعجم:</span>
-                                      <strong className="text-stone-900">
-                                        {ev.record_name || directSearchResult.familyName}
-                                      </strong>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-500">
+                                      <div className="flex items-center gap-1.5">
+                                        <span>اسم السجل في المعجم:</span>
+                                        <strong className="text-stone-900">
+                                          {ev.record_name || directSearchResult.familyName}
+                                        </strong>
+                                      </div>
+                                      {(Boolean(ev.other_sources && ev.other_sources.trim()) ||
+                                        (Array.isArray(ev.parsed_other_sources) &&
+                                          ev.parsed_other_sources.length > 0)) && (
+                                        <span
+                                          data-testid={`raw-source-other-sources-badge-${idx}`}
+                                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 border border-amber-400 text-amber-950 text-[10px] font-extrabold"
+                                        >
+                                          <span>⚠️</span>
+                                          <span>
+                                            إحالات لمصادر أخرى في الهامش (
+                                            {ev.parsed_other_sources?.length || 1})
+                                          </span>
+                                        </span>
+                                      )}
                                     </div>
 
                                     {/* Requirement 2(ب): Single Sequential Capsule Chain Box (No duplicate text line or duplicate badges) */}
@@ -3943,6 +4582,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   {filteredNoiseList.length > 0
                                     ? `تم استبعاد وتصفية الألفاظ المكانية والعبارات الوصفية من خانات الأجداد: (${filteredNoiseList.join(' ، ')}).`
                                     : `تم فحص جميع محطات الأجداد للتأكد من خلوّها من أسماء المدن أو العبارات الوصفية (مثل: تدّعي، الأصل قيل، مساكنهم).`}
+                                </div>
+                              </li>
+
+                              {/* 5b. Preamble Inversion Correction */}
+                              <li className="flex items-start gap-2.5 leading-relaxed">
+                                <span className="shrink-0">🔄</span>
+                                <div>
+                                  <strong className="text-amber-950">
+                                    إصلاح التمهيد المعكوس في التفريغ (Preamble Inversion Correction):
+                                  </strong>{' '}
+                                  {invertedPreambleExamples.length > 0
+                                    ? invertedPreambleExamples.join(' — ')
+                                    : `تم فحص مطلع السلسلة ضد التمهيد المعكوس للقبائل الكبرى؛ لم يُرصد انقلاب تمهيدي يسبق اسم صاحب السجل (${directSearchResult.familyName}).`}
                                 </div>
                               </li>
 
@@ -4580,6 +5232,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       </div>
 
                       {/* =========================================================
+                          STEP 5 CARD: القسم الخامس — المصادر الأخرى الخام ومختبر التوثيق الموحد مع آدم برايم
+                          (Secondary Sources & Adam Prime Unified Registry)
+                      ========================================================= */}
+                      {renderSecondarySourcesAndAdamPrimeLab(
+                        directSearchResult.familyName,
+                        rawEvidenceList,
+                        'direct_search'
+                      )}
+
+                      {/* =========================================================
                           VISUAL COLUMN PREVIEW FOR RESEARCHER
                       ========================================================= */}
                       <div className="pt-2">
@@ -5136,6 +5798,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                         ? 'كتاب دولة العميل - أولوية 1'
                                         : 'مرجع عام - أولوية 2'}
                                     </span>
+                                    {(Boolean(ev.other_sources && ev.other_sources.trim()) ||
+                                      (Array.isArray(ev.parsed_other_sources) &&
+                                        ev.parsed_other_sources.length > 0)) && (
+                                      <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-400 text-amber-950 text-[10px] font-extrabold">
+                                        ⚠️ إحالات لمصادر أخرى في الهامش (
+                                        {ev.parsed_other_sources?.length || 1})
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
 
@@ -5572,6 +6242,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             </div>
                           </div>
                         )}
+
+                      {/* =====================================================
+                          القسم الخامس: المصادر الأخرى الخام ومختبر التوثيق الموحد مع آدم برايم
+                          (Secondary Sources & Adam Prime Unified Registry inside Ticket Inbox)
+                      ===================================================== */}
+                      {renderSecondarySourcesAndAdamPrimeLab(
+                        selectedTicket.familyName,
+                        selectedTicket.corroboratingEvidence,
+                        'ticket_inbox'
+                      )}
 
                       {/* =====================================================
                           القسم 4: معاينة العمود النهائي ولوحة الإجراءات والمخرجات الحاسمة

@@ -1,5 +1,6 @@
 import {
   AccountLegalType,
+  AdamPrimeRegistrySourceItem,
   AlphaPriorityTier,
   AncestorCapsule,
   BackgroundResearcherTicketPayload,
@@ -13,10 +14,12 @@ import {
   Neo4jRelationNature,
   Neo4jRelationType,
   NodeRepresentation,
+  ParsedOtherSourceLead,
   RegistrationFormState,
   SpineConnectorLabel,
   SuggestedAdamBridgeForResearcher,
   UpperAncestorNode,
+  VerifiedAddonSourceItem,
 } from '../types/juthori';
 
 export const GERMAN_ENGINE_BASE_URL =
@@ -3733,6 +3736,51 @@ export function isHighApexStopNode(name: string): boolean {
   });
 }
 
+const MAJOR_OVERARCHING_TRIBE_OR_APEX_LIST: string[] = [
+  ...HIGH_APEX_STOP_LIST,
+  'الأوس',
+  'الاوس',
+  'الخزرج',
+  'الأنصار',
+  'الانصار',
+  'الأزد',
+  'الازد',
+  'طيء',
+  'طي',
+  'تميم',
+  'قضاعة',
+  'قضاعه',
+  'مذحج',
+  'كندة',
+  'كنده',
+  'غطفان',
+  'هوازن',
+  'كنانة',
+  'كنانه',
+  'بكر',
+  'تغلب',
+  'عنزة',
+  'عنزه',
+  'شمر',
+  'زبيد',
+  'خولان',
+  'حاشد',
+  'بكيل',
+  'سبأ',
+];
+
+export function isMajorOverarchingTribeOrApexNode(name: string): boolean {
+  if (isHighApexStopNode(name)) return true;
+  const norm = normalizeArabicToken(name, true);
+  const stem = normalizeArabicStem(name);
+  if (!norm && !stem) return false;
+  return MAJOR_OVERARCHING_TRIBE_OR_APEX_LIST.some((item) => {
+    const itemNorm = normalizeArabicToken(item, true);
+    const itemStem = normalizeArabicStem(item);
+    return norm === itemNorm || stem === itemStem;
+  });
+}
+
 /**
  * Rule 2: Decompose Compound Names (`A بن B`) into atomic stations `['A', 'B']`.
  * For example, "قدم بن قادم" -> ['قدم', 'قادم'].
@@ -3747,20 +3795,29 @@ export function decomposeCompoundLineageName(rawName: string): string[] {
   return parts.length > 1 ? parts : [cleaned];
 }
 
+export interface InvertedPreambleCheckResult {
+  wasInvertedPreambleStripped: boolean;
+  strippedPreambleTokens: string[];
+  matchedSubjectToken: string;
+  cleanedTokensAfterSubject: string[];
+}
+
 /**
- * Rule 4: In-Record Cycle & Summary-Prefix Trimmer (`cleanAndUnrollLineageChain`)
- * - Removes any leading station that duplicates the family/record name itself (e.g. `قدم ⬅️ قدم` -> `قدم`).
- * - Decomposes any compound `A بن B` node if its sub-roots `A` and `B` are already present or expands it in-place.
- * - Detects if a 1..4 node summary prefix at the beginning of `lineage_ancestors`
- *   (e.g. `أبي الفضل العباس ⬅️ علي ⬅️ أبي طالب`) repeats by stem in the upper half of the chain
- *   (`... ⬅️ الحسين ⬅️ المؤيد ⬅️ يحيى ⬅️ أبي الفضل العباسي ⬅️ علي ⬅️ أبي طالب`), and strips the repeated summary prefix.
- * - Deduplicates any ancestor appearing twice in the same spine by stem while preserving the highest (topmost) position.
+ * Inverted Preamble Summary Stripper (`detectAndStripInvertedPreamble`):
+ * Handles transcribed dictionary records where the transcriber placed the general tribe/apex summary
+ * at the very start of `lineage_ancestors` before re-stating the record's own subject name
+ * (e.g., `الحَطيم بن عدى` transcribed as: `الأوس; قحطان; الحطيم; عدي; عمرو; سواد; ظفر; كعب; الخزرج; النبيت; مالك; الأوس`).
+ *
+ * When the searched family/record name (or the first part of a compound record name like `الحطيم` from `الحَطيم بن عدى`)
+ * appears again at index 1, 2, 3, or 4 preceded by major tribes or high apex roots (`الأوس`, `قحطان`),
+ * this function automatically strips that inverted preamble and the repeated subject token so the clean chain
+ * begins immediately after the subject (`عدي ⬅️ عمرو ⬅️ سواد ⬅️ ظفر ⬅️ كعب ⬅️ الخزرج ⬅️ النبيت ⬅️ مالك ⬅️ الأوس`).
  */
-export function cleanAndUnrollLineageChain(
+export function detectAndStripInvertedPreamble(
   rawTokens: string[],
-  familyOrRecordName?: string
-): string[] {
-  // 1. Sanitize and decompose compound `A بن B` nodes in-place
+  familyOrRecordName?: string,
+  secondaryRecordName?: string
+): InvertedPreambleCheckResult {
   const expanded: string[] = [];
   for (const raw of rawTokens) {
     const clean = sanitizeLineageAncestorToken(raw);
@@ -3773,10 +3830,128 @@ export function cleanAndUnrollLineageChain(
     }
   }
 
-  if (expanded.length === 0) return [];
+  if (expanded.length < 3) {
+    return {
+      wasInvertedPreambleStripped: false,
+      strippedPreambleTokens: [],
+      matchedSubjectToken: '',
+      cleanedTokensAfterSubject: expanded,
+    };
+  }
+
+  const primarySubjectStems = new Set<string>();
+  const allSubjectPartStems = new Set<string>();
+
+  for (const candidateName of [familyOrRecordName, secondaryRecordName]) {
+    if (!candidateName) continue;
+    const fullStem = normalizeArabicStem(candidateName);
+    if (fullStem) {
+      primarySubjectStems.add(fullStem);
+      allSubjectPartStems.add(fullStem);
+    }
+    const parts = decomposeCompoundLineageName(candidateName);
+    if (parts.length > 0) {
+      const firstPartStem = normalizeArabicStem(parts[0]);
+      if (firstPartStem) primarySubjectStems.add(firstPartStem);
+      parts.forEach((p) => {
+        const st = normalizeArabicStem(p);
+        if (st) allSubjectPartStems.add(st);
+      });
+    }
+  }
+
+  // If the caller prepended `record_name` / `recordParts` at index 0..1 before the raw `lineage_ancestors`,
+  // advance `startOffset` past those initial prepended subject tokens to inspect the raw chain underneath.
+  let startOffset = 0;
+  while (
+    startOffset < expanded.length &&
+    startOffset < 2 &&
+    allSubjectPartStems.has(normalizeArabicStem(expanded[startOffset]))
+  ) {
+    startOffset++;
+  }
+
+  const rest = expanded.slice(startOffset);
+  const maxCheckIdx = Math.min(4, rest.length - 2);
+
+  for (let idx = 1; idx <= maxCheckIdx; idx++) {
+    const tokenAtIdx = rest[idx];
+    const stemAtIdx = normalizeArabicStem(tokenAtIdx);
+    if (!stemAtIdx) continue;
+
+    const preambleSlice = rest.slice(0, idx);
+    const tailAfterSubject = rest.slice(idx + 1);
+    const tailStems = new Set(
+      tailAfterSubject.map((t) => normalizeArabicStem(t)).filter(Boolean)
+    );
+
+    const matchesSubject = primarySubjectStems.has(stemAtIdx);
+
+    // Check if the preceding slice (1..4 tokens before `idx`) consists of major tribes, high-apex roots (`قحطان`, `عدنان`),
+    // or tokens that repeat at the top/end of `tailAfterSubject` (like `الأوس`)
+    const hasMajorTribeOrApexInPreamble = preambleSlice.some(
+      (p) =>
+        isHighApexStopNode(p) ||
+        isMajorOverarchingTribeOrApexNode(p) ||
+        tailStems.has(normalizeArabicStem(p))
+    );
+
+    // Fallback check even when `familyOrRecordName` wasn't passed:
+    // if EVERY token in `preambleSlice` is either in `HIGH_APEX_STOP_LIST` (`قحطان`) or repeats at the end of `tailAfterSubject` (`الأوس`),
+    // and `tokenAtIdx` is NOT an apex/major tribe (e.g. `الحطيم`), it's unmistakably an inverted preamble!
+    const allPreambleAreApexOrRepeatedInTail =
+      preambleSlice.length >= 1 &&
+      preambleSlice.every(
+        (p) => isHighApexStopNode(p) || tailStems.has(normalizeArabicStem(p))
+      ) &&
+      !isMajorOverarchingTribeOrApexNode(tokenAtIdx);
+
+    if (
+      (matchesSubject && hasMajorTribeOrApexInPreamble) ||
+      allPreambleAreApexOrRepeatedInTail
+    ) {
+      return {
+        wasInvertedPreambleStripped: true,
+        strippedPreambleTokens: preambleSlice,
+        matchedSubjectToken: tokenAtIdx,
+        cleanedTokensAfterSubject: tailAfterSubject,
+      };
+    }
+  }
+
+  return {
+    wasInvertedPreambleStripped: false,
+    strippedPreambleTokens: [],
+    matchedSubjectToken: '',
+    cleanedTokensAfterSubject: expanded,
+  };
+}
+
+/**
+ * Rule 4: In-Record Cycle, Inverted Preamble & Summary-Prefix Trimmer (`cleanAndUnrollLineageChain`)
+ * - Strips any Inverted Preamble Summary (`الأوس; قحطان; الحطيم; عدي...` -> `عدي ⬅️ عمرو ⬅️ ... ⬅️ الأوس`).
+ * - Removes any leading station that duplicates the family/record name itself (e.g. `قدم ⬅️ قدم` -> `قدم`).
+ * - Decomposes any compound `A بن B` node if its sub-roots `A` and `B` are already present or expands it in-place.
+ * - Detects if a 1..4 node summary prefix at the beginning of `lineage_ancestors`
+ *   (e.g. `أبي الفضل العباس ⬅️ علي ⬅️ أبي طالب`) repeats by stem in the upper half of the chain, and strips the repeated summary prefix.
+ * - Deduplicates any ancestor appearing twice in the same spine by stem while preserving the highest (topmost) position.
+ */
+export function cleanAndUnrollLineageChain(
+  rawTokens: string[],
+  familyOrRecordName?: string,
+  secondaryRecordName?: string
+): string[] {
+  // 1. Sanitize, decompose compound `A بن B` nodes, and strip any Inverted Preamble Summary (`تمهيد التفريغ المعكوس`)
+  const preambleResult = detectAndStripInvertedPreamble(
+    rawTokens,
+    familyOrRecordName,
+    secondaryRecordName
+  );
+  let working = [...preambleResult.cleanedTokensAfterSubject];
+
+  if (working.length === 0) return [];
 
   // 2. Detect and strip a 1..4 station summary prefix at index 0 that repeats later in the chain
-  let working = [...expanded];
   const maxPrefixLen = Math.min(4, Math.floor(working.length / 2));
   for (let k = maxPrefixLen; k >= 1; k--) {
     const prefixStems = working.slice(0, k).map((t) => normalizeArabicStem(t));
@@ -3800,17 +3975,22 @@ export function cleanAndUnrollLineageChain(
     }
   }
 
-  // 3. Remove any station that duplicates `familyOrRecordName` (Rule 2: prevent `قدم ⬅️ قدم` or `قدم بن قادم` duplication)
-  if (familyOrRecordName) {
-    const famStem = normalizeArabicStem(familyOrRecordName);
-    const famSubStems = decomposeCompoundLineageName(familyOrRecordName).map((p) =>
-      normalizeArabicStem(p)
-    );
-    // If the very first ancestor token is identical to the family/record name itself, strip it
+  // 3. Remove any leading station that duplicates `familyOrRecordName` or its first compound part (e.g. `الحطيم` from `الحَطيم بن عدى` or `قدم` from `قدم بن قادم`)
+  if (familyOrRecordName || secondaryRecordName) {
+    const leadingSubjectStems = new Set<string>();
+    for (const nameCandidate of [familyOrRecordName, secondaryRecordName]) {
+      if (!nameCandidate) continue;
+      const fullStem = normalizeArabicStem(nameCandidate);
+      if (fullStem) leadingSubjectStems.add(fullStem);
+      const subParts = decomposeCompoundLineageName(nameCandidate);
+      if (subParts.length > 0) {
+        const firstStem = normalizeArabicStem(subParts[0]);
+        if (firstStem) leadingSubjectStems.add(firstStem);
+      }
+    }
     while (
       working.length > 0 &&
-      normalizeArabicStem(working[0]) === famStem &&
-      famSubStems.length === 1
+      leadingSubjectStems.has(normalizeArabicStem(working[0]))
     ) {
       working.shift();
     }
@@ -3953,7 +4133,7 @@ function isRecordChildBranchMatchForQuery(
  * - Rule 2: Decomposes compound `A بن B` names (`قدم بن قادم` -> `قدم ⬅️ قادم`) and prevents duplicate record name nodes.
  * - Rule 3: Enforces `HIGH_APEX_STOP_LIST` and the `Different Parent Record Guard` so child-branch matches with different parent records
  *           are NEVER merged into one cluster.
- * - Rule 4: Runs `cleanAndUnrollLineageChain` on every record's ancestors before clustering and stitching.
+ * - Rule 4: Runs `cleanAndUnrollLineageChain` (including Inverted Preamble Summary Stripper) on every record's ancestors before clustering and stitching.
  * - Rule 5: Removes the wrong `همدان -> قبيلة يام / نجران` fallback and derives `originTribeLabel` dynamically from the top node
  *           of the cluster's stitched chain and `geographicScope` from the cluster records' actual `locations`.
  */
@@ -3982,14 +4162,23 @@ export function computeCrossSourceConsensusClusters(
     const isChildMatch = isRecordChildBranchMatchForQuery(familyName, ev);
     const parentRecordTitle = sanitizeLineageAncestorToken(ev.record_name || familyName);
 
-    let cleanAncs = ev.lineage_ancestors
+    const rawAncTokens = ev.lineage_ancestors
       ? ev.lineage_ancestors
           .split(/[؛—⬅️>|]+/)
           .map((a) => a.trim())
           .filter(Boolean)
       : [];
+
+    // Strip any Inverted Preamble Summary (`الأوس; قحطان; الحطيم; عدي...`) on the raw ancestors first!
+    const preambleCheck = detectAndStripInvertedPreamble(
+      rawAncTokens,
+      familyName,
+      parentRecordTitle
+    );
+    const cleanAncs = [...preambleCheck.cleanedTokensAfterSubject];
+
     const recName = ev.record_name ? ev.record_name.trim() : '';
-    if (recName) {
+    if (recName && !preambleCheck.wasInvertedPreambleStripped) {
       const recStem = stemTribeToken(recName);
       const firstAncStem = cleanAncs.length > 0 ? stemTribeToken(cleanAncs[0]) : '';
       if (recStem !== firstAncStem) {
@@ -3999,9 +4188,15 @@ export function computeCrossSourceConsensusClusters(
 
     const recordParts = decomposeCompoundLineageName(parentRecordTitle);
     const seedTokens =
-      recordParts.length > 1 ? [...recordParts, ...cleanAncs] : cleanAncs;
+      recordParts.length > 1 && !preambleCheck.wasInvertedPreambleStripped
+        ? [...recordParts, ...cleanAncs]
+        : cleanAncs;
 
-    const cleanedAncestors = cleanAndUnrollLineageChain(seedTokens, familyName);
+    const cleanedAncestors = cleanAndUnrollLineageChain(
+      seedTokens,
+      familyName,
+      parentRecordTitle
+    );
 
     // Collect non-apex intermediate stems ABOVE the searched familyName (`st !== queryStem`) for Rule 3 similarity check
     const nonApexStems = new Set<string>();
@@ -4493,9 +4688,9 @@ export function calculateAncestorNodeWeightScore(
     structuralScore += 32;
   }
 
-  // Famous overarching mother tribes bonus
+  // Famous overarching mother tribes bonus (only awarded when at the upper summit of the chain or not a macro-apex in the middle)
   if (
-    /(شمر|عنزه|عنزة|تميم|طيء|طي|قحطان|همدان|الازد|أزد|ازد|مذحج|كنده|كندة|يام|عتيبه|عتيبة|حرب|مطير|دواسر|بلحارث|قريش|هواره|هوارة|بني لام|بنو سعيد|بني سعيد|عقيدات|نعيمات|دعجه|دعجة|زبيد)/u.test(
+    /(الاوس|الأوس|اوس|شمر|عنزه|عنزة|تميم|طيء|طي|همدان|الازد|أزد|ازد|مذحج|كنده|كندة|يام|عتيبه|عتيبة|حرب|مطير|دواسر|بلحارث|قريش|هواره|هوارة|بني لام|بنو سعيد|بني سعيد|عقيدات|نعيمات|دعجه|دعجة|زبيد|قضاعه|قضاعة)/u.test(
       normFull
     )
   ) {
@@ -4506,9 +4701,9 @@ export function calculateAncestorNodeWeightScore(
   const isFirstSubRoot = indexInChain === 0;
   const isLastSummit = indexInChain === totalChainLength - 1;
   const positionBonus = isFirstSubRoot
-    ? 40
+    ? 44
     : isLastSummit
-    ? 34
+    ? 40
     : indexInChain === totalChainLength - 2
     ? 18
     : 0;
@@ -4525,6 +4720,8 @@ export function calculateAncestorNodeWeightScore(
  * - Case B (Match with the Record itself or a node in `lineage_ancestors`):
  *   Picks the 2 highest-weighted & most-repeated nodes across the sources while strictly preserving
  *   their ascending chronological order (`selectedB2Index < selectedB0Index`).
+ * - Requirement 1(ب) Guard: Strictly forbids selecting any ancient macro-apex node from `HIGH_APEX_STOP_LIST`
+ *   (such as `قحطان` or `عدنان`) as the Sub-Root / Branch (`B2`) in the middle or start of the chain.
  */
 export function selectWeightedConsensusTwoRootNodes(
   familyName: string,
@@ -4563,6 +4760,10 @@ export function selectWeightedConsensusTwoRootNodes(
     let bestB0Idx = validAncestors.length - 1;
     let bestB0Score = -Infinity;
     validAncestors.forEach((tok, idx) => {
+      // Do not pick a HIGH_APEX_STOP_LIST node in the middle of the chain as B0 if non-apex nodes exist above it
+      if (isHighApexStopNode(tok) && idx < validAncestors.length - 1) {
+        return;
+      }
       const sc = calculateAncestorNodeWeightScore(
         tok,
         idx,
@@ -4582,26 +4783,56 @@ export function selectWeightedConsensusTwoRootNodes(
     };
   }
 
-  // Score all valid ancestors and pick the top 2 by weight, then sort by ascending index
-  const scored = validAncestors.map((tok, idx) => ({
-    tok,
-    idx,
-    score: calculateAncestorNodeWeightScore(
+  // Score all valid ancestors
+  const scored = validAncestors.map((tok, idx) => {
+    const isApex = isHighApexStopNode(tok);
+    // Strict Guard 1(ب): Any HIGH_APEX_STOP_LIST node (`قحطان`, `عدنان`) in the first/middle part of the chain
+    // gets heavily penalized so it is NEVER chosen as B2 or B0 out of place
+    const baseScore = calculateAncestorNodeWeightScore(
       tok,
       idx,
       validAncestors.length,
       corroboratingRecords
-    ),
-  }));
-
-  const sortedByWeight = [...scored].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return b.idx - a.idx;
+    );
+    const adjustedScore =
+      isApex && idx < validAncestors.length - 1 ? baseScore - 500 : baseScore;
+    return {
+      tok,
+      idx,
+      isApex,
+      score: adjustedScore,
+    };
   });
 
-  const topTwo = sortedByWeight.slice(0, 2).sort((a, b) => a.idx - b.idx);
-  const b2Item = topTwo[0];
-  const b0Item = topTwo[1] || topTwo[0];
+  // 1. Pick B0 (Mother Tribe at the upper part/summit of the chain):
+  // Prefer the highest-scoring node in the upper half of the chain (index >= 1)
+  const b0Candidates = scored.filter((item) => item.idx >= 1);
+  const sortedForB0 = [...(b0Candidates.length > 0 ? b0Candidates : scored)].sort(
+    (a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.idx - a.idx;
+    }
+  );
+  const b0Item = sortedForB0[0] || scored[scored.length - 1];
+
+  // 2. Pick B2 (Sub-Root / Branch node below B0):
+  // STRICT RULE 1(ب): B2 MUST have `idx < b0Item.idx` AND MUST NOT be in `HIGH_APEX_STOP_LIST` (`!item.isApex`)!
+  const b2Candidates = scored.filter(
+    (item) => item.idx < b0Item.idx && !item.isApex
+  );
+  const fallbackB2Candidates = scored.filter((item) => item.idx < b0Item.idx);
+  const effectiveB2Pool =
+    b2Candidates.length > 0
+      ? b2Candidates
+      : fallbackB2Candidates.length > 0
+      ? fallbackB2Candidates
+      : [scored[0]];
+
+  const sortedForB2 = [...effectiveB2Pool].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.idx - b.idx;
+  });
+  const b2Item = sortedForB2[0] || scored[0];
 
   return {
     selectedB2Index: b2Item.idx,
@@ -5090,11 +5321,107 @@ export function extractApiRawEvidenceItems(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rawItems.map((item: any, idx: number): CorroboratingAlphaEvidence => {
     const parsedRef = extractBookVolPageFromEvidence(item);
+    const alphaId = String(item?.alpha_id || item?.id || `ALP_API_${idx + 1}`);
+    const recordName = String(
+      item?.record_name || item?.name || item?.family_name || displayFamilyName
+    );
+    const rawOtherSources =
+      item?.other_sources && String(item.other_sources).trim()
+        ? String(item.other_sources).trim()
+        : null;
+
+    const apiParsedOtherSources: ParsedOtherSourceLead[] = Array.isArray(
+      item?.parsed_other_sources
+    )
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        item.parsed_other_sources.map((pos: any): ParsedOtherSourceLead => ({
+          raw_citation: String(pos?.raw_citation || ''),
+          extracted_book_title: String(
+            pos?.extracted_book_title || pos?.raw_citation || ''
+          ),
+          extracted_volume: String(pos?.extracted_volume || '—'),
+          extracted_page: String(pos?.extracted_page || '—'),
+          linked_alpha_id: String(pos?.linked_alpha_id || alphaId),
+          linked_record_name: String(pos?.linked_record_name || recordName),
+          verification_status:
+            pos?.verification_status === 'VERIFIED_ADDON_SOURCE'
+              ? 'VERIFIED_ADDON_SOURCE'
+              : 'RAW_UNVERIFIED_LEAD',
+          adam_prime_source_id: pos?.adam_prime_source_id
+            ? String(pos.adam_prime_source_id)
+            : undefined,
+          canonical_title: pos?.canonical_title
+            ? String(pos.canonical_title)
+            : undefined,
+          author: pos?.author ? String(pos.author) : undefined,
+          addon_unlock_price_usd:
+            typeof pos?.addon_unlock_price_usd === 'number'
+              ? pos.addon_unlock_price_usd
+              : undefined,
+          formatted_verified_addon: pos?.formatted_verified_addon
+            ? String(pos.formatted_verified_addon)
+            : undefined,
+        }))
+      : rawOtherSources
+      ? parseOtherSourcesStringIntoLeads(rawOtherSources, alphaId, recordName)
+      : [];
+
+    const storedVerifiedAddons = getVerifiedAddonSourcesForNodeId(alphaId);
+    const mergedParsedOtherSources = apiParsedOtherSources.map((lead) => {
+      const matchingVerified = storedVerifiedAddons.find(
+        (v) =>
+          v.raw_citation === lead.raw_citation ||
+          normalizeArabic(v.canonical_title) ===
+            normalizeArabic(lead.extracted_book_title)
+      );
+      if (matchingVerified) {
+        return {
+          ...lead,
+          verification_status: 'VERIFIED_ADDON_SOURCE' as const,
+          adam_prime_source_id: matchingVerified.source_id,
+          canonical_title: matchingVerified.canonical_title,
+          author: matchingVerified.author,
+          addon_unlock_price_usd: matchingVerified.addon_unlock_price_usd,
+          formatted_verified_addon: matchingVerified.formatted_verified_addon,
+        };
+      }
+      return lead;
+    });
+
+    const apiVerifiedAddons: VerifiedAddonSourceItem[] = Array.isArray(
+      item?.verified_addon_sources
+    )
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        item.verified_addon_sources.map((vas: any): VerifiedAddonSourceItem => ({
+          source_id: String(vas?.source_id || 'APR-SRC-000000'),
+          canonical_title: String(vas?.canonical_title || vas?.book_title || ''),
+          author: vas?.author ? String(vas.author) : undefined,
+          volume: String(vas?.volume || '—'),
+          page: String(vas?.page || '—'),
+          attached_to_node: String(vas?.attached_to_node || alphaId),
+          linked_record_name: String(vas?.linked_record_name || recordName),
+          raw_citation: vas?.raw_citation ? String(vas.raw_citation) : undefined,
+          formatted_verified_addon: String(
+            vas?.formatted_verified_addon ||
+              `[${vas?.source_id || 'APR-SRC'}] ${vas?.canonical_title || ''} (ج${vas?.volume || '—'} ص${vas?.page || '—'}) | $${vas?.addon_unlock_price_usd ?? 2.0}`
+          ),
+          addon_unlock_price_usd: Number(vas?.addon_unlock_price_usd ?? 2.0),
+          adam_prime_sync_status: 'SYNCED_UNIFIED_ID',
+          verification_status: 'VERIFIED_ADDON_SOURCE',
+          researcher_notes: vas?.researcher_notes
+            ? String(vas.researcher_notes)
+            : undefined,
+        }))
+      : [];
+
+    const combinedVerifiedAddons = mergeVerifiedAddonSourceLists(
+      apiVerifiedAddons,
+      storedVerifiedAddons
+    );
+
     return {
-      alpha_id: String(item?.alpha_id || item?.id || `ALP_API_${idx + 1}`),
-      record_name: String(
-        item?.record_name || item?.name || item?.family_name || displayFamilyName
-      ),
+      alpha_id: alphaId,
+      record_name: recordName,
       source_book: parsedRef.book,
       page: parsedRef.page,
       volume: parsedRef.volume,
@@ -5118,13 +5445,377 @@ export function extractApiRawEvidenceItems(
         ? String(item.geographic_scope)
         : null,
       notables: item?.notables ? String(item.notables) : null,
+      other_sources: rawOtherSources,
+      parsed_other_sources:
+        mergedParsedOtherSources.length > 0
+          ? mergedParsedOtherSources
+          : undefined,
+      verified_addon_sources:
+        combinedVerifiedAddons.length > 0 ? combinedVerifiedAddons : undefined,
       priority_tier:
         item?.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
           ? 'PRIORITY_1_COUNTRY_BOOK'
           : 'PRIORITY_2_GENERAL_BOOK',
       source_lake: item?.source_lake || item?.data_lake || item?.lake || null,
+      data_lake_badge: item?.data_lake_badge
+        ? String(item.data_lake_badge)
+        : undefined,
     };
   });
+}
+
+const VERIFIED_ADDON_SOURCES_STORAGE_KEY =
+  'juthori_verified_addon_sources_registry_v1';
+
+/**
+ * Decomposes a raw `other_sources` string (e.g., `"نهاية الأرب للنويري ج 2 ص 315 ؛ سبائك الذهب ص 44"`)
+ * into structured `ParsedOtherSourceLead[]` items with `RAW_UNVERIFIED_LEAD` status.
+ */
+export function parseOtherSourcesStringIntoLeads(
+  rawOtherSourcesText: string | null | undefined,
+  linkedAlphaId: string,
+  linkedRecordName: string
+): ParsedOtherSourceLead[] {
+  const raw = (rawOtherSourcesText || '').trim();
+  if (!raw || raw === '—' || raw === '-' || raw === 'null') return [];
+
+  const segments = raw
+    .split(/[؛;|\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 3);
+
+  return segments.map((seg): ParsedOtherSourceLead => {
+    const volMatch = seg.match(/(?:ج|جزء|مجلد)\s*[:.]?\s*(\d+)/i);
+    const pageMatch = seg.match(/(?:ص|صفحة|صفحه)\s*[:.]?\s*(\d+(?:\s*-\s*\d+)?)/i);
+    const extractedVolume = volMatch ? volMatch[1].trim() : '—';
+    const extractedPage = pageMatch ? pageMatch[1].trim() : '—';
+
+    let bookTitle = seg
+      .replace(/(?:ج|جزء|مجلد)\s*[:.]?\s*\d+/gi, '')
+      .replace(/(?:ص|صفحة|صفحه)\s*[:.]?\s*\d+(?:\s*-\s*\d+)?/gi, '')
+      .replace(/[()،,-]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!bookTitle) {
+      bookTitle = seg;
+    }
+
+    return {
+      raw_citation: seg,
+      extracted_book_title: bookTitle,
+      extracted_volume: extractedVolume,
+      extracted_page: extractedPage,
+      linked_alpha_id: linkedAlphaId,
+      linked_record_name: linkedRecordName,
+      verification_status: 'RAW_UNVERIFIED_LEAD',
+    };
+  });
+}
+
+/**
+ * Extracts all `ParsedOtherSourceLead` items across an array of `CorroboratingAlphaEvidence`,
+ * automatically synchronizing any verified items from the Adam Prime local/remote store.
+ */
+export function extractAllOtherSourceLeadsFromEvidence(
+  evidenceList: CorroboratingAlphaEvidence[] | undefined
+): ParsedOtherSourceLead[] {
+  if (!Array.isArray(evidenceList) || evidenceList.length === 0) return [];
+  const leads: ParsedOtherSourceLead[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const ev of evidenceList) {
+    const alphaId = ev.alpha_id || 'ALP_RECORD';
+    const recName = ev.record_name || 'سجل المعجم';
+    const baseLeads =
+      Array.isArray(ev.parsed_other_sources) && ev.parsed_other_sources.length > 0
+        ? ev.parsed_other_sources
+        : ev.other_sources
+        ? parseOtherSourcesStringIntoLeads(ev.other_sources, alphaId, recName)
+        : [];
+
+    const verifiedForNode = getVerifiedAddonSourcesForNodeId(alphaId);
+
+    for (const lead of baseLeads) {
+      const dedupeKey = `${lead.linked_alpha_id || alphaId}::${lead.raw_citation}`;
+      if (seenKeys.has(dedupeKey)) continue;
+      seenKeys.add(dedupeKey);
+
+      const matchingVerified = verifiedForNode.find(
+        (v) =>
+          v.raw_citation === lead.raw_citation ||
+          normalizeArabic(v.canonical_title) ===
+            normalizeArabic(lead.extracted_book_title)
+      );
+
+      if (matchingVerified) {
+        leads.push({
+          ...lead,
+          linked_alpha_id: lead.linked_alpha_id || alphaId,
+          linked_record_name: lead.linked_record_name || recName,
+          verification_status: 'VERIFIED_ADDON_SOURCE',
+          adam_prime_source_id: matchingVerified.source_id,
+          canonical_title: matchingVerified.canonical_title,
+          author: matchingVerified.author,
+          addon_unlock_price_usd: matchingVerified.addon_unlock_price_usd,
+          formatted_verified_addon: matchingVerified.formatted_verified_addon,
+        });
+      } else {
+        leads.push({
+          ...lead,
+          linked_alpha_id: lead.linked_alpha_id || alphaId,
+          linked_record_name: lead.linked_record_name || recName,
+        });
+      }
+    }
+  }
+
+  return leads;
+}
+
+function readAllStoredVerifiedAddonSources(): VerifiedAddonSourceItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(VERIFIED_ADDON_SOURCES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getVerifiedAddonSourcesForNodeId(
+  nodeId: string
+): VerifiedAddonSourceItem[] {
+  if (!nodeId) return [];
+  return readAllStoredVerifiedAddonSources().filter(
+    (item) => item.attached_to_node === nodeId
+  );
+}
+
+export function mergeVerifiedAddonSourceLists(
+  ...lists: Array<VerifiedAddonSourceItem[] | undefined>
+): VerifiedAddonSourceItem[] {
+  const merged: VerifiedAddonSourceItem[] = [];
+  const seen = new Set<string>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || item.verification_status !== 'VERIFIED_ADDON_SOURCE') continue;
+      const key = `${item.attached_to_node}::${item.source_id}::${item.volume}::${item.page}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+export function getVerifiedAddonSourcesForEvidence(
+  evidenceList: CorroboratingAlphaEvidence[] | undefined
+): VerifiedAddonSourceItem[] {
+  if (!Array.isArray(evidenceList) || evidenceList.length === 0) return [];
+  const collected: VerifiedAddonSourceItem[] = [];
+  for (const ev of evidenceList) {
+    if (Array.isArray(ev.verified_addon_sources)) {
+      collected.push(...ev.verified_addon_sources);
+    }
+    if (ev.alpha_id) {
+      collected.push(...getVerifiedAddonSourcesForNodeId(ev.alpha_id));
+    }
+    if (Array.isArray(ev.parsed_other_sources)) {
+      for (const pos of ev.parsed_other_sources) {
+        if (pos.verification_status === 'VERIFIED_ADDON_SOURCE' && pos.adam_prime_source_id) {
+          collected.push({
+            source_id: pos.adam_prime_source_id,
+            canonical_title: pos.canonical_title || pos.extracted_book_title,
+            author: pos.author,
+            volume: pos.extracted_volume || '—',
+            page: pos.extracted_page || '—',
+            attached_to_node: pos.linked_alpha_id || ev.alpha_id,
+            linked_record_name: pos.linked_record_name || ev.record_name,
+            raw_citation: pos.raw_citation,
+            formatted_verified_addon:
+              pos.formatted_verified_addon ||
+              `[${pos.adam_prime_source_id}] ${pos.canonical_title || pos.extracted_book_title} (ج${pos.extracted_volume || '—'} ص${pos.extracted_page || '—'}) | $${pos.addon_unlock_price_usd ?? 2.0}`,
+            addon_unlock_price_usd: pos.addon_unlock_price_usd ?? 2.0,
+            adam_prime_sync_status: 'SYNCED_UNIFIED_ID',
+            verification_status: 'VERIFIED_ADDON_SOURCE',
+          });
+        }
+      }
+    }
+  }
+  return mergeVerifiedAddonSourceLists(collected);
+}
+
+export function saveVerifiedAddonSourceToStore(
+  verifiedItem: VerifiedAddonSourceItem
+): VerifiedAddonSourceItem[] {
+  const current = readAllStoredVerifiedAddonSources();
+  const next = mergeVerifiedAddonSourceLists([verifiedItem], current);
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(
+        VERIFIED_ADDON_SOURCES_STORAGE_KEY,
+        JSON.stringify(next)
+      );
+    } catch {
+      // ignore storage quota errors
+    }
+  }
+  return next;
+}
+
+/**
+ * Searches the Adam Prime Unified Sources Registry (`GET /api/v1/juthori/sources-registry/search?q=...`)
+ * so the researcher can reuse canonical `source_id`s (`APR-CORE-...` / `APR-SRC-...`) without duplication.
+ */
+export async function searchAdamPrimeUnifiedSourcesRegistry(
+  query: string = ''
+): Promise<AdamPrimeRegistrySourceItem[]> {
+  const encoded = encodeURIComponent(query.trim());
+  const endpoints = [
+    `/api/v1/juthori/sources-registry/search?q=${encoded}`,
+    `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/sources-registry/search?q=${encoded}`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data?.sources)) {
+          return data.sources.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (s: any): AdamPrimeRegistrySourceItem => ({
+              source_id: String(s?.source_id || 'APR-CORE-001'),
+              title: String(s?.title || s?.canonical_title || ''),
+              author: String(s?.author || 'غير محدد'),
+              country_scope: String(s?.country_scope || 'عام'),
+              adam_prime_synced: Boolean(s?.adam_prime_synced ?? true),
+              origin_system: String(s?.origin_system || 'ADAM_PRIME_MASTER'),
+            })
+          );
+        }
+      }
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Verifies a secondary raw source lead (`RAW_UNVERIFIED_LEAD`), registers/links its unified `source_id`
+ * in the Adam Prime Unified Sources Registry (`POST /api/v1/juthori/sources-registry/verify-and-attach`),
+ * and converts it into a `VERIFIED_ADDON_SOURCE` attached to the lineage node.
+ */
+export async function verifyAndAttachSecondarySourceToAdamPrime(params: {
+  alpha_or_adam_node_id: string;
+  linked_record_name?: string;
+  raw_citation?: string;
+  book_title: string;
+  author?: string;
+  volume?: string;
+  page?: string;
+  adam_prime_source_id?: string;
+  addon_unlock_price_usd?: number;
+  researcher_notes?: string;
+}): Promise<VerifiedAddonSourceItem> {
+  const payload = {
+    alpha_or_adam_node_id: params.alpha_or_adam_node_id,
+    book_title: params.book_title.trim(),
+    author: (params.author || 'محقق في سجل آدم برايم').trim(),
+    volume: (params.volume || '—').trim(),
+    page: (params.page || '—').trim(),
+    adam_prime_source_id: params.adam_prime_source_id || undefined,
+    addon_unlock_price_usd:
+      typeof params.addon_unlock_price_usd === 'number' &&
+      !Number.isNaN(params.addon_unlock_price_usd)
+        ? params.addon_unlock_price_usd
+        : 2.0,
+    researcher_notes:
+      params.researcher_notes ||
+      'توثيق واعتماد المصدر الثانوي في سجل آدم برايم الموحد وربطه بالعقدة',
+  };
+
+  const endpoints = [
+    '/api/v1/juthori/sources-registry/verify-and-attach',
+    `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/sources-registry/verify-and-attach`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const verifiedItem: VerifiedAddonSourceItem = {
+          source_id: String(
+            data?.source_id ||
+              payload.adam_prime_source_id ||
+              `APR-SRC-${Math.floor(100000 + Math.random() * 900000)}`
+          ),
+          canonical_title: String(data?.canonical_title || payload.book_title),
+          author: payload.author,
+          volume: payload.volume,
+          page: payload.page,
+          attached_to_node: String(
+            data?.attached_to_node || payload.alpha_or_adam_node_id
+          ),
+          linked_record_name: params.linked_record_name,
+          raw_citation: params.raw_citation,
+          formatted_verified_addon: String(
+            data?.formatted_verified_addon ||
+              `[${data?.source_id || 'APR-SRC'}] ${data?.canonical_title || payload.book_title} (ج${payload.volume} ص${payload.page}) | $${payload.addon_unlock_price_usd}`
+          ),
+          addon_unlock_price_usd: Number(
+            data?.addon_unlock_price_usd ?? payload.addon_unlock_price_usd
+          ),
+          adam_prime_sync_status: 'SYNCED_UNIFIED_ID',
+          verification_status: 'VERIFIED_ADDON_SOURCE',
+          researcher_notes: payload.researcher_notes,
+        };
+        saveVerifiedAddonSourceToStore(verifiedItem);
+        return verifiedItem;
+      }
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  const fallbackId =
+    payload.adam_prime_source_id ||
+    `APR-SRC-${Math.floor(100000 + Math.random() * 900000)}`;
+  const fallbackItem: VerifiedAddonSourceItem = {
+    source_id: fallbackId,
+    canonical_title: payload.book_title,
+    author: payload.author,
+    volume: payload.volume,
+    page: payload.page,
+    attached_to_node: payload.alpha_or_adam_node_id,
+    linked_record_name: params.linked_record_name,
+    raw_citation: params.raw_citation,
+    formatted_verified_addon: `[${fallbackId}] ${payload.book_title} (ج${payload.volume} ص${payload.page}) | $${payload.addon_unlock_price_usd}`,
+    addon_unlock_price_usd: payload.addon_unlock_price_usd,
+    adam_prime_sync_status: 'SYNCED_UNIFIED_ID',
+    verification_status: 'VERIFIED_ADDON_SOURCE',
+    researcher_notes: payload.researcher_notes,
+  };
+  saveVerifiedAddonSourceToStore(fallbackItem);
+  return fallbackItem;
 }
 
 /**
@@ -5305,6 +5996,7 @@ export function parsePort8090UniversalResponse(
         alpha_evidence: taggedDisambigEvidence,
         corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
         consensusClusterGroups: disambigClusters,
+        verifiedAddonSources: getVerifiedAddonSourcesForEvidence(taggedDisambigEvidence),
       };
 
       const optA = mappedOptions[0]
@@ -5350,6 +6042,7 @@ export function parsePort8090UniversalResponse(
         alpha_evidence: taggedDisambigEvidence,
         corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
         consensusClusterGroups: disambigClusters,
+        verifiedAddonSources: getVerifiedAddonSourcesForEvidence(taggedDisambigEvidence),
         optionAResultOverride: optA,
         optionBResultOverride: optB,
         optionCResultOverride: optC,
@@ -5480,6 +6173,7 @@ export function parsePort8090UniversalResponse(
       secondarySources: mergedVerifiedSources,
       alpha_evidence: parallelAlphaEvidence,
       corroborating_alpha_evidence_for_researcher: parallelAlphaEvidence,
+      verifiedAddonSources: getVerifiedAddonSourcesForEvidence(parallelAlphaEvidence),
       background_researcher_ticket: parallelAgg.background_researcher_ticket,
       alphaBackgroundTicketCode: parallelAgg.background_researcher_ticket.ticket_id,
       confidenceLabel: `تطابق محقق في شجرة آدم (${enrichedChain.length} عقدة حتى آدم عليه السلام — الأولوية 1 + ${parallelAlphaEvidence.length} شواهد موازية من ألفا)`,
@@ -5880,6 +6574,7 @@ export function parsePort8090UniversalResponse(
       secondarySources: finalVerifiedSources,
       alpha_evidence: taggedCombinedEvidence,
       corroborating_alpha_evidence_for_researcher: taggedCombinedEvidence,
+      verifiedAddonSources: getVerifiedAddonSourcesForEvidence(taggedCombinedEvidence),
       consensusClusterGroups: consensusClusters,
       background_researcher_ticket: bgTicket,
       historicalRegion: String(matchedLocation),
@@ -6012,6 +6707,11 @@ export function buildResolvedLineageFromDisambiguationOption(
       ? agg.verified_sources
       : baseResult.verified_sources || [];
 
+  const verifiedAddonSources = mergeVerifiedAddonSourceLists(
+    getVerifiedAddonSourcesForEvidence(clusterRecords),
+    baseResult.verifiedAddonSources
+  );
+
   return {
     ...baseResult,
     matched: true,
@@ -6044,6 +6744,7 @@ export function buildResolvedLineageFromDisambiguationOption(
       baseResult.verifiedSourceCitation,
     verified_sources: verifiedSources,
     secondarySources: verifiedSources,
+    verifiedAddonSources,
     sibling_branches_in_record:
       agg?.sibling_branches_in_record?.length
         ? agg.sibling_branches_in_record

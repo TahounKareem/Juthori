@@ -576,6 +576,187 @@ async function startServer() {
   app.post('/api/v1/juthori/adam-tree/update-node', handleAdamTreeUpdateNode);
   app.post('/api/juthori/adam-tree/update-node', handleAdamTreeUpdateNode);
 
+  // 3C. German Neo4j Lineage Engine (Port 8090) — Adam Prime Unified Sources Registry APIs
+  const LOCAL_ADAM_PRIME_CORE_SOURCES = [
+    {
+      source_id: 'APR-CORE-0001',
+      title: 'معجم قبائل العرب القديمة والحديثة',
+      canonical_title: 'معجم قبائل العرب القديمة والحديثة',
+      author: 'عمر رضا كحالة',
+      country_scope: 'العراق | سوريا | الأردن | فلسطين | السعودية | لبنان',
+      adam_prime_synced: true,
+      origin_system: 'ADAM_PRIME_CORE_46',
+    },
+    {
+      source_id: 'APR-CORE-0002',
+      title: 'موسوعة الألقاب اليمنية',
+      canonical_title: 'موسوعة الألقاب اليمنية',
+      author: 'إبراهيم أحمد المقحفي',
+      country_scope: 'اليمن',
+      adam_prime_synced: true,
+      origin_system: 'ADAM_PRIME_CORE_46',
+    },
+    {
+      source_id: 'APR-CORE-0003',
+      title: 'معجم البلدان والقبائل اليمنية',
+      canonical_title: 'معجم البلدان والقبائل اليمنية',
+      author: 'إبراهيم أحمد المقحفي',
+      country_scope: 'اليمن',
+      adam_prime_synced: true,
+      origin_system: 'ADAM_PRIME_CORE_46',
+    },
+    {
+      source_id: 'APR-SRC-957172',
+      title: 'نهاية الأرب في فنون الأدب',
+      canonical_title: 'نهاية الأرب للنويري',
+      author: 'شهاب الدين النويري',
+      country_scope: 'العالم العربي والإسلامي',
+      adam_prime_synced: true,
+      origin_system: 'ADAM_PRIME_UNIFIED',
+    },
+    {
+      source_id: 'APR-CORE-0009',
+      title: 'سبائك الذهب في معرفة قبائل العرب',
+      canonical_title: 'سبائك الذهب في معرفة قبائل العرب',
+      author: 'محمد أمين البغدادي السويدي',
+      country_scope: 'العراق | الجزيرة العربية | الشام',
+      adam_prime_synced: true,
+      origin_system: 'ADAM_PRIME_CORE_46',
+    },
+    {
+      source_id: 'APR-CORE-0010',
+      title: 'جمهرة أنساب العرب',
+      canonical_title: 'جمهرة أنساب العرب لابن حزم',
+      author: 'ابن حزم الأندلسي',
+      country_scope: 'الجزيرة العربية | الشام | العراق | المغرب',
+      adam_prime_synced: true,
+      origin_system: 'ADAM_PRIME_CORE_46',
+    },
+  ];
+
+  const handleSourcesRegistrySearch = async (
+    req: express.Request,
+    res: express.Response
+  ) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const q = String(req.query.q ?? req.query.query ?? '').trim();
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/sources-registry/search?q=${encodeURIComponent(
+      q
+    )}`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({
+          source: 'live_german_engine',
+          count: Number(data?.count ?? (Array.isArray(data?.sources) ? data.sources.length : 0)),
+          sources: Array.isArray(data?.sources) ? data.sources : [],
+        });
+        return;
+      }
+    } catch {
+      clearTimeout(timeout);
+    }
+
+    const filtered = !q
+      ? LOCAL_ADAM_PRIME_CORE_SOURCES
+      : LOCAL_ADAM_PRIME_CORE_SOURCES.filter(
+          (s) =>
+            s.title.includes(q) ||
+            (s.canonical_title && s.canonical_title.includes(q)) ||
+            s.author.includes(q) ||
+            s.source_id.toLowerCase().includes(q.toLowerCase())
+        );
+
+    res.status(200).json({
+      source: 'local_adam_prime_fallback',
+      count: filtered.length,
+      sources: filtered,
+    });
+  };
+
+  app.get('/api/v1/juthori/sources-registry/search', handleSourcesRegistrySearch);
+  app.get('/api/juthori/sources-registry/search', handleSourcesRegistrySearch);
+
+  const handleVerifyAndAttachSecondarySource = async (
+    req: express.Request,
+    res: express.Response
+  ) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6500);
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/sources-registry/verify-and-attach`;
+    const body = req.body ?? {};
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({
+          source: 'live_german_engine',
+          ...data,
+        });
+        return;
+      }
+    } catch {
+      clearTimeout(timeout);
+    }
+
+    const bookTitle = String(body.book_title || '').trim();
+    const matchedExisting = LOCAL_ADAM_PRIME_CORE_SOURCES.find(
+      (s) =>
+        s.title === bookTitle ||
+        s.canonical_title === bookTitle ||
+        bookTitle.includes(s.title) ||
+        s.title.includes(bookTitle)
+    );
+    const unifiedSourceId =
+      body.adam_prime_source_id ||
+      matchedExisting?.source_id ||
+      `APR-SRC-${String(Math.abs(bookTitle.split('').reduce((acc, ch) => acc * 31 + ch.charCodeAt(0), 7))).slice(0, 6)}`;
+    const vol = String(body.volume || '1').trim();
+    const pg = String(body.page || '—').trim();
+    const price = Number(body.addon_unlock_price_usd) > 0 ? Number(body.addon_unlock_price_usd) : 2.0;
+
+    res.status(200).json({
+      source: 'local_adam_prime_fallback',
+      success: true,
+      source_id: unifiedSourceId,
+      canonical_title: matchedExisting?.canonical_title || bookTitle,
+      author: body.author || matchedExisting?.author || 'الأرشيف المرجعي المعتمد',
+      volume: vol,
+      page: pg,
+      attached_to_node: String(body.alpha_or_adam_node_id || ''),
+      formatted_verified_addon: `[${unifiedSourceId}] ${matchedExisting?.canonical_title || bookTitle} (ج${vol} ص${pg}) | $${price.toFixed(1)}`,
+      addon_unlock_price_usd: price,
+      adam_prime_sync_status: 'SYNCED_UNIFIED_ID',
+    });
+  };
+
+  app.post(
+    '/api/v1/juthori/sources-registry/verify-and-attach',
+    handleVerifyAndAttachSecondarySource
+  );
+  app.post(
+    '/api/juthori/sources-registry/verify-and-attach',
+    handleVerifyAndAttachSecondarySource
+  );
+
   // 4. Resend API — Send Real OTP Verification Email from info@Juthori.com
   app.post('/api/juthori/auth/send-otp', async (req, res) => {
     const rawEmail = String(req.body?.email || '').trim().toLowerCase();

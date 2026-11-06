@@ -12,10 +12,13 @@ import {
   LineageSearchResult,
   SpineConnectorLabel,
   UpperAncestorNode,
+  VerifiedAddonSourceItem,
 } from '../types/juthori';
 import {
   buildResolvedLineageFromDisambiguationOption,
   getDashboardCapabilities,
+  getVerifiedAddonSourcesForEvidence,
+  mergeVerifiedAddonSourceLists,
   resolveSpineConnectorLabel,
 } from '../utils/lineageEngine';
 import {
@@ -47,6 +50,8 @@ interface LineageSpineColumnProps {
   onOpenAsResearcherTicket?: () => void;
   onSelectVerificationPath?: (optionId: 'option_a' | 'option_b' | 'option_c') => void;
   onEscalateVerificationToTicket?: () => void;
+  unlockedAddonSourceIds?: string[];
+  onUnlockVerifiedAddonSource?: (addon: VerifiedAddonSourceItem) => void;
 }
 
 const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
@@ -129,11 +134,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onOpenAsResearcherTicket,
   onSelectVerificationPath,
   onEscalateVerificationToTicket,
+  unlockedAddonSourceIds = [],
+  onUnlockVerifiedAddonSource,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
     useState<UpperAncestorNode | null>(null);
   const [showSourceDetails, setShowSourceDetails] = useState<boolean>(true);
+  const [localUnlockedAddonIds, setLocalUnlockedAddonIds] = useState<string[]>(
+    []
+  );
+  const [localWalletDeduction, setLocalWalletDeduction] = useState<number>(0);
+  const [addonWalletWarning, setAddonWalletWarning] = useState<string | null>(
+    null
+  );
 
   // Progressive 2-Stage Verification State (Triggered ONLY AFTER paying $5)
   const [verificationStage, setVerificationStage] = useState<1 | 2>(1);
@@ -1635,6 +1649,169 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                               </li>
                             ))}
                           </ul>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ======================================================== */}
+                    {/* VERIFIED ADDON SOURCES SUBSECTION (VERIFIED_ADDON_SOURCE) */}
+                    {/* STRICT RULE: Raw `other_sources` (`RAW_UNVERIFIED_LEAD`)  */}
+                    {/* NEVER appear here; ONLY researcher-verified Adam Prime    */}
+                    {/* `VERIFIED_ADDON_SOURCE` items are displayed!              */}
+                    {/* ======================================================== */}
+                    {(() => {
+                      const verifiedAddonList = mergeVerifiedAddonSourceLists(
+                        effectiveResult.verifiedAddonSources,
+                        getVerifiedAddonSourcesForEvidence(
+                          effectiveResult.corroborating_alpha_evidence_for_researcher ||
+                            effectiveResult.alpha_evidence
+                        )
+                      );
+
+                      if (verifiedAddonList.length === 0) return null;
+
+                      const effectiveWalletBalance = Math.max(
+                        0,
+                        walletBalance - localWalletDeduction
+                      );
+
+                      return (
+                        <div
+                          data-testid="verified-addon-sources-customer-section"
+                          className="rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F3E5AB]/55 border-2 border-[#D4AF37]/80 p-4 space-y-3 shadow-2xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">🏛️</span>
+                              <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                                مراجع تاريخية إضافية موثقة من فريق الخبراء (قابلة للفتح عبر المحفظة)
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#252321] text-[#F5D78E]">
+                              VERIFIED_ADDON_SOURCE ({verifiedAddonList.length})
+                            </span>
+                          </div>
+
+                          {addonWalletWarning && (
+                            <div className="rounded-xl bg-amber-100 border border-amber-400 px-3 py-2 text-xs font-bold text-amber-950">
+                              {addonWalletWarning}
+                            </div>
+                          )}
+
+                          <div className="space-y-2.5">
+                            {verifiedAddonList.map((addon, aIdx) => {
+                              const addonKey = `${addon.attached_to_node}::${addon.source_id}::${addon.volume}::${addon.page}`;
+                              const isAddonUnlocked =
+                                unlockedAddonSourceIds.includes(addonKey) ||
+                                unlockedAddonSourceIds.includes(addon.source_id) ||
+                                localUnlockedAddonIds.includes(addonKey);
+                              const priceUsd =
+                                typeof addon.addon_unlock_price_usd === 'number' &&
+                                addon.addon_unlock_price_usd > 0
+                                  ? addon.addon_unlock_price_usd
+                                  : 2;
+
+                              const handleUnlockAddonClick = () => {
+                                setAddonWalletWarning(null);
+                                if (onUnlockVerifiedAddonSource) {
+                                  onUnlockVerifiedAddonSource(addon);
+                                  setLocalUnlockedAddonIds((prev) =>
+                                    prev.includes(addonKey)
+                                      ? prev
+                                      : [...prev, addonKey]
+                                  );
+                                  return;
+                                }
+                                if (effectiveWalletBalance < priceUsd) {
+                                  setAddonWalletWarning(
+                                    `رصيد المحفظة الحالي ($${effectiveWalletBalance.toFixed(2)}) غير كافٍ لفتح المرجع الإضافي ($${priceUsd}). يرجى شحن المحفظة.`
+                                  );
+                                  return;
+                                }
+                                setLocalWalletDeduction(
+                                  (prev) => prev + priceUsd
+                                );
+                                setLocalUnlockedAddonIds((prev) =>
+                                  prev.includes(addonKey)
+                                    ? prev
+                                    : [...prev, addonKey]
+                                );
+                              };
+
+                              return (
+                                <div
+                                  key={addonKey || aIdx}
+                                  data-testid={`verified-addon-source-item-${aIdx}`}
+                                  className="rounded-xl bg-white border border-[#D4AF37]/70 p-3.5 space-y-2 shadow-2xs"
+                                >
+                                  {isAddonUnlocked ? (
+                                    <div className="space-y-1.5">
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="px-2 py-0.5 rounded bg-emerald-800 text-white font-mono text-[10px] font-bold">
+                                            [{addon.source_id}]
+                                          </span>
+                                          <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                                            {addon.canonical_title}
+                                          </span>
+                                          {addon.author && (
+                                            <span className="text-[11px] text-[#8D4925] font-semibold">
+                                              — المؤلف: {addon.author}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-extrabold">
+                                          تم الفتح من المحفظة ✓
+                                        </span>
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#8D4925] bg-[#FAF6F0] px-3 py-1.5 rounded-lg border border-[#B98A78]/30">
+                                        <span>
+                                          📚 الجزء: <strong>{addon.volume || '—'}</strong>
+                                        </span>
+                                        <span>·</span>
+                                        <span>
+                                          📄 الصفحة: <strong>{addon.page || '—'}</strong>
+                                        </span>
+                                        <span>·</span>
+                                        <span className="font-mono text-[11px] text-stone-600">
+                                          معرف آدم برايم الموحد: {addon.source_id} (SYNCED_UNIFIED_ID)
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                      <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="px-2 py-0.5 rounded bg-[#252321] text-[#F5D78E] font-mono text-[10px] font-bold">
+                                            [{addon.source_id}]
+                                          </span>
+                                          <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                                            مرجع تاريخي إضافي موثق في سجل آدم برايم الموحد
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-[#78350F] font-semibold">
+                                          تم التحقق من هذا المصدر الثانوي ومطابقته مع العقدة ({addon.linked_record_name || effectiveResult.familyName}) بواسطة فريق الخبراء.
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        data-testid={`unlock-verified-addon-btn-${aIdx}`}
+                                        onClick={handleUnlockAddonClick}
+                                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8D4925] to-[#B45309] hover:from-[#78350F] hover:to-[#92400E] text-white text-xs font-display font-extrabold shadow-xs transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+                                      >
+                                        <span>🔓</span>
+                                        <span>
+                                          فتح بيانات المرجع الإضافي ورقم الصفحة (${priceUsd} من المحفظة)
+                                        </span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       );
                     })()}

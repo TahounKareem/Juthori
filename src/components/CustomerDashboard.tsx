@@ -47,6 +47,7 @@ import {
   LineageSearchResult,
   NotificationItem,
   SilentGeoMetadata,
+  VerifiedAddonSourceItem,
 } from '../types/juthori';
 import { ORIGIN_COUNTRY_OPTIONS } from '../data/arabCountries';
 import {
@@ -139,6 +140,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     stateMode === DashboardStateMode.AnnualVip ? 25 : 0
   );
   const [unlockedCapsules, setUnlockedCapsules] = useState<string[]>([]);
+  const [unlockedAddonSourceIds, setUnlockedAddonSourceIds] = useState<
+    string[]
+  >([]);
   const [activeCheckoutOrder, setActiveCheckoutOrder] =
     useState<CheckoutOrderRequest | null>(null);
   const [verifiedResultOverride, setVerifiedResultOverride] =
@@ -539,6 +543,47 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       amountUsd: 12,
       allowWalletPayment: true,
     });
+  };
+
+  // Unlocks a Verified Addon Source (`VERIFIED_ADDON_SOURCE`) using the Customer Wallet
+  const handleUnlockVerifiedAddonSource = (addon: VerifiedAddonSourceItem) => {
+    const priceUsd =
+      typeof addon.addon_unlock_price_usd === 'number' &&
+      addon.addon_unlock_price_usd > 0
+        ? addon.addon_unlock_price_usd
+        : 2;
+    const addonKey = `${addon.attached_to_node}::${addon.source_id}::${addon.volume}::${addon.page}`;
+    if (
+      unlockedAddonSourceIds.includes(addonKey) ||
+      unlockedAddonSourceIds.includes(addon.source_id)
+    ) {
+      return;
+    }
+
+    const activeUid =
+      userId ||
+      auth.currentUser?.uid ||
+      `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+
+    if (walletBalance >= priceUsd) {
+      const nextBal = Math.max(0, walletBalance - priceUsd);
+      setWalletBalance(nextBal);
+      setUnlockedAddonSourceIds((prev) => [...prev, addonKey, addon.source_id]);
+      updateUserProfile(activeUid, {
+        walletBalance: nextBal,
+      }).catch(() => {});
+      executeWalletTransaction(
+        activeUid,
+        'debit',
+        priceUsd,
+        `فتح مرجع تاريخي إضافي موثق [${addon.source_id}]: ${addon.canonical_title} (ج${addon.volume} ص${addon.page})`,
+        `addon_src_${addon.source_id}_${Date.now()}`
+      ).catch(() => {});
+      appendActivity(
+        `فتح مرجع تاريخي إضافي موثق ($${priceUsd} من المحفظة)`,
+        `تم كشف بيانات المرجع [${addon.source_id}] «${addon.canonical_title}» (ج${addon.volume} ص${addon.page})`
+      );
+    }
   };
 
   // Reset unlocked capsules when switching families so intermediate rings start folded
@@ -2132,6 +2177,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             userAvatarUrl={avatarUrl || undefined}
             onSelectVerificationPath={handleSelectVerificationPath}
             onEscalateVerificationToTicket={handleEscalateVerificationToTicket}
+            unlockedAddonSourceIds={unlockedAddonSourceIds}
+            onUnlockVerifiedAddonSource={handleUnlockVerifiedAddonSource}
             onOpenMyTreeTab={() => {
               const treeTab = DASHBOARD_TABS.find(
                 (t) => t.id === DashboardTab.MyTree

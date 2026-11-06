@@ -107,6 +107,57 @@ export type AlphaPriorityTier =
   | 'PRIORITY_1_COUNTRY_BOOK'
   | 'PRIORITY_2_GENERAL_BOOK';
 
+export interface ParsedOtherSourceLead {
+  raw_citation: string;
+  extracted_book_title: string;
+  extracted_volume?: string | null;
+  extracted_page?: string | null;
+  linked_alpha_id: string;
+  linked_record_name: string;
+  verification_status: 'RAW_UNVERIFIED_LEAD' | 'VERIFIED_ADDON_SOURCE';
+  adam_prime_source_id?: string;
+  canonical_title?: string;
+  author?: string;
+  addon_unlock_price_usd?: number;
+  formatted_verified_addon?: string;
+  adam_prime_sync_status?: 'SYNCED_UNIFIED_ID';
+  researcher_notes?: string;
+  verified_at?: string;
+}
+
+export interface AdamPrimeRegistrySourceItem {
+  source_id: string;
+  title: string;
+  canonical_title?: string;
+  author?: string;
+  country_scope?: string;
+  adam_prime_synced?: boolean;
+  origin_system?: string;
+  volume?: string;
+  page?: string;
+  adam_prime_sync_status?: 'SYNCED_UNIFIED_ID';
+}
+
+export interface VerifiedAddonSourceItem {
+  id?: string;
+  source_id: string;
+  canonical_title: string;
+  author?: string;
+  volume: string;
+  page: string;
+  attached_to_node: string;
+  linked_alpha_id?: string;
+  linked_record_name?: string;
+  raw_citation?: string;
+  family_name?: string;
+  addon_unlock_price_usd: number;
+  adam_prime_sync_status: 'SYNCED_UNIFIED_ID';
+  formatted_verified_addon: string;
+  verification_status: 'VERIFIED_ADDON_SOURCE';
+  researcher_notes?: string;
+  verified_at?: string;
+}
+
 export interface CorroboratingAlphaEvidence {
   alpha_id: string;
   record_name: string;
@@ -121,6 +172,10 @@ export interface CorroboratingAlphaEvidence {
   is_consensus_winner?: boolean;
   consensus_badge?: string;
   source_lake?: string | null;
+  other_sources?: string | null;
+  parsed_other_sources?: ParsedOtherSourceLead[];
+  verified_addon_sources?: VerifiedAddonSourceItem[];
+  data_lake_badge?: string | null;
 }
 
 export interface SuggestedAdamBridgeForResearcher {
@@ -245,6 +300,7 @@ export interface LineageSearchResult {
   secondarySources: string[];
   alpha_evidence?: CorroboratingAlphaEvidence[];
   corroborating_alpha_evidence_for_researcher?: CorroboratingAlphaEvidence[];
+  verifiedAddonSources?: VerifiedAddonSourceItem[];
   background_researcher_ticket?: BackgroundResearcherTicketPayload;
   historicalRegion: string;
   conflictingNarrativesNote: string;
