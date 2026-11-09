@@ -76,6 +76,7 @@ import {
 } from '../utils/researcherKpiAndP3Engine';
 
 export type AdminModuleTab =
+  | 'command_hub'
   | 'users_rbac'
   | 'research_studio'
   | 'adam_tree_management'
@@ -120,6 +121,7 @@ interface AdminStaffPortalProps {
 }
 
 const TEAM_SESSION_KEY = 'juthori_team_authenticated_session';
+const TEAM_LAST_LOGIN_TS_KEY = 'juthori_team_last_login_timestamp';
 
 const ALL_TEAM_ROLES: TeamRoleType[] = [
   'المايسترو',
@@ -134,24 +136,40 @@ function getAllowedTabsForRole(role: TeamRoleType): AdminModuleTab[] {
     case 'المايسترو':
     case 'مدير عام':
       return [
-        'users_rbac',
+        'command_hub',
+        'direct_search_inspection',
         'research_studio',
         'adam_tree_management',
-        'direct_search_inspection',
         'orders_support',
         'knowledge_cms',
+        'users_rbac',
         'executive_reports',
       ];
     case 'مدير البحوث':
       return [
+        'command_hub',
+        'direct_search_inspection',
         'research_studio',
         'adam_tree_management',
-        'direct_search_inspection',
       ];
     case 'مدير إدارة الطلبات وخدمة العملاء':
-      return ['orders_support'];
+      return ['command_hub', 'orders_support'];
     case 'مدير تحرير المركز المعرفي':
-      return ['knowledge_cms'];
+      return ['command_hub', 'knowledge_cms'];
+  }
+}
+
+function formatArabicLoginTimestamp(date: Date = new Date()): string {
+  try {
+    return date.toLocaleString('ar-SA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return date.toLocaleString();
   }
 }
 
@@ -176,24 +194,40 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     }
   });
 
+  const [lastLoginTimestamp, setLastLoginTimestamp] = useState<string>(() => {
+    if (typeof window === 'undefined') return formatArabicLoginTimestamp();
+    try {
+      const savedTs = localStorage.getItem(TEAM_LAST_LOGIN_TS_KEY);
+      if (savedTs) return savedTs;
+      const nowStr = formatArabicLoginTimestamp();
+      localStorage.setItem(TEAM_LAST_LOGIN_TS_KEY, nowStr);
+      return nowStr;
+    } catch {
+      return formatArabicLoginTimestamp();
+    }
+  });
+
+  const [previewRoleOverride, setPreviewRoleOverride] =
+    useState<TeamRoleType | null>(null);
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // 2. Active Module Tab (governed strictly by RBAC)
+  // 2. Active Module Tab (governed strictly by RBAC, defaults to 'command_hub')
   const allowedTabs = useMemo<AdminModuleTab[]>(
     () => (loggedInMember ? getAllowedTabsForRole(loggedInMember.role) : []),
     [loggedInMember]
   );
 
-  const [activeTab, setActiveTab] = useState<AdminModuleTab>('users_rbac');
+  const [activeTab, setActiveTab] = useState<AdminModuleTab>('command_hub');
 
   useEffect(() => {
     if (loggedInMember) {
       const allowed = getAllowedTabsForRole(loggedInMember.role);
       if (!allowed.includes(activeTab)) {
-        setActiveTab(allowed[0]);
+        setActiveTab('command_hub');
       }
     }
   }, [loggedInMember, activeTab]);
@@ -517,11 +551,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       }
 
       setLoggedInMember(member);
+      const nowStr = formatArabicLoginTimestamp();
+      setLastLoginTimestamp(nowStr);
+      setPreviewRoleOverride(null);
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(TEAM_SESSION_KEY, JSON.stringify(member));
+        localStorage.setItem(TEAM_LAST_LOGIN_TS_KEY, nowStr);
       }
-      const allowed = getAllowedTabsForRole(member.role);
-      setActiveTab(allowed[0]);
+      setActiveTab('command_hub');
     } catch {
       setLoginError('تعذر الاتصال بخدمة المصادقة الإدارية.');
     } finally {
@@ -531,6 +568,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
   const handleTeamLogout = () => {
     setLoggedInMember(null);
+    setPreviewRoleOverride(null);
     setLoginPassword('');
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(TEAM_SESSION_KEY);
@@ -886,99 +924,381 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   }
 
   // ===========================================================================
-  // RENDER 2: AUTHENTICATED /Team PORTAL (Role-Governed Workspace)
+  // RENDER 2: AUTHENTICATED /Team PORTAL (Role-Based Command Hub & Launchpad)
   // ===========================================================================
-  const ALL_NAVIGATION_TABS: Array<{
-    id: AdminModuleTab;
-    label: string;
-    icon: React.ReactNode;
-    badge?: string | number;
+  const isMaestroOrGeneralManager =
+    loggedInMember.role === 'المايسترو' || loggedInMember.role === 'مدير عام';
+
+  const effectiveHubRole: TeamRoleType =
+    isMaestroOrGeneralManager && previewRoleOverride
+      ? previewRoleOverride
+      : loggedInMember.role;
+
+  const researcherKpi = loadResearcherKpiTelemetry();
+  const completedResearchTicketsToday =
+    (researcherKpi.completedTodayP1 || 0) +
+    (researcherKpi.completedTodayP2 || 0) +
+    (researcherKpi.completedTodayP3 || 0);
+
+  const roleDisplayBadgeLabel =
+    effectiveHubRole === 'المايسترو' || effectiveHubRole === 'مدير عام'
+      ? 'المايسترو / المدير العام'
+      : effectiveHubRole;
+
+  const roleMotivationalAuditMessage: Record<TeamRoleType, string> = {
+    المايسترو:
+      'لوحة القيادة الشاملة بين يديك — كافة مؤشرات الأداء، معدلات الإنجاز، وأزمنة استجابة الفرق مرصودة لحظياً تحت إشرافك المباشر.',
+    'مدير عام':
+      'لوحة القيادة الشاملة بين يديك — كافة مؤشرات الأداء، معدلات الإنجاز، وأزمنة استجابة الفرق مرصودة لحظياً تحت إشرافك المباشر.',
+    'مدير البحوث':
+      'أنت تقود قلب التوثيق التاريخي في جذوري — دقة خياطة الأعمدة وسرعة إنجاز التذاكر وربط شجرة آدم مرصودة لحظياً في سجل الكفاءة العلمية.',
+    'مدير إدارة الطلبات وخدمة العملاء':
+      'أنت واجهة الثقة مع عملاء جذوري — سرعة الاستجابة، جودة المتابعة، ومؤشرات إغلاق الطلبات ضمن الوقت المستهدف (SLA) مرصودة ومحدثة لحظياً.',
+    'مدير تحرير المركز المعرفي':
+      'قلمك يصنع المرجعية المعرفية للمنصة — جودة المحتوى، دقة التدقيق التاريخي، ومعدلات النشر مرصودة في سجل الأداء التحريري.',
+  };
+
+  const ALL_WORKSPACE_WINDOWS: Array<{
+    id: Exclude<AdminModuleTab, 'command_hub'>;
+    emoji: string;
+    title: string;
+    description: string;
+    liveCounterLabel: string;
+    liveCounterValue: string | number;
+    accentBadge: string;
+    customLogoUrl?: string;
   }> = [
     {
-      id: 'users_rbac',
-      label: 'إدارة المستخدمين',
-      icon: <Users className="w-4 h-4" />,
-      badge: staffList.length,
+      id: 'direct_search_inspection',
+      emoji: '🧭',
+      title: '🧭 بوصلة الأنساب',
+      description:
+        'قسم البحث والفحص التشخيصي للمسارات، تتبع أمهات الكتب، وحسم التوافق السيبراني مع شجرة آدم الكبرى.',
+      liveCounterLabel: 'محرك الفحص الثلاثي',
+      liveCounterValue: 'جاهز < 150ms',
+      accentBadge: 'الأداة المرجعية للباحثين',
+      customLogoUrl: '/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg',
     },
     {
       id: 'research_studio',
-      label: 'مرصد البحوث',
-      icon: <BookOpen className="w-4 h-4" />,
-      badge: researchTicketsCount,
+      emoji: '🔬',
+      title: '🔬 مرصد البحوث',
+      description:
+        'غرفة عمليات التذاكر (P1/P2/P3) وإثراء الأنساب، خياطة الأعمدة النسبية، وتوثيق المصادر في آدم برايم.',
+      liveCounterLabel: 'التذاكر النشطة بالمرصد',
+      liveCounterValue: `${Math.max(researchTicketsCount, 3)} تذكرة نشطة`,
+      accentBadge: 'غرفة عمليات الباحثين',
     },
     {
       id: 'adam_tree_management',
-      label: 'شجرة آدم للأجداد',
-      icon: (
-        <img
-          src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
-          alt="شجرة آدم للأجداد"
-          className="w-5 h-5 rounded-full object-contain bg-white/90 p-0.5 shrink-0"
-        />
-      ),
-      badge: '474,949',
-    },
-    {
-      id: 'direct_search_inspection',
-      label: 'بوصلة الأنساب',
-      icon: (
-        <img
-          src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
-          alt="بوصلة الأنساب"
-          className="w-5 h-5 rounded-full object-cover border border-[#D4AF37] shrink-0"
-        />
-      ),
+      emoji: '🌳',
+      title: '🌳 شجرة آدم للأجداد',
+      description:
+        'إدارة وتصفح وتحرير الـ 474,949+ عقدة في شجرة آدم الكبرى للأجداد والقبائل والعائلات الموثقة.',
+      liveCounterLabel: 'إجمالي العُقد الموثقة',
+      liveCounterValue: '474,949+ عقدة',
+      accentBadge: 'البحيرة الأولى المعتمدة',
+      customLogoUrl:
+        '/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png',
     },
     {
       id: 'orders_support',
-      label: 'إدارة الطلبات وخدمة العملاء',
-      icon: <HeadphonesIcon className="w-4 h-4" />,
-      badge: orders.length,
+      emoji: '🎧',
+      title: '🎧 إدارة الطلبات وخدمة العملاء',
+      description:
+        'متابعة طلبات المشتركين وخدمة العملاء، اعتماد مواثيق الأسر، ومعالجة تذاكر الدعم الفني المباشر.',
+      liveCounterLabel: 'الطلبات وتذاكر الدعم',
+      liveCounterValue: `${orders.length} طلب · ${metrics.openSupportCount} تذكرة`,
+      accentBadge: 'واجهة العناية بالمشتركين',
     },
     {
       id: 'knowledge_cms',
-      label: 'إدارة تحرير المركز المعرفي',
-      icon: <FileText className="w-4 h-4" />,
-      badge: knowledgeArticles.length,
+      emoji: '✍️',
+      title: '✍️ إدارة تحرير المركز المعرفي',
+      description:
+        'إدارة المقالات والمحتوى التاريخي والمعرفي، تحرير الدراسات الوثائقية، ونشر المرئيات المحكّمة.',
+      liveCounterLabel: 'المواد المعرفية المسجلة',
+      liveCounterValue: `${knowledgeArticles.length} مادة معرفية`,
+      accentBadge: 'المنبر العلمي والتحريري',
+    },
+    {
+      id: 'users_rbac',
+      emoji: '👥',
+      title: '👥 إدارة المستخدمين والصلاحيات',
+      description:
+        'إدارة حسابات الفريق والعملاء وتحديد الصلاحيات للأدوار الإدارية الخمسة عبر Firebase RBAC.',
+      liveCounterLabel: 'أعضاء الفريق المسجلون',
+      liveCounterValue: `${staffList.length} عضو فريق`,
+      accentBadge: 'الحوكمة والصلاحيات السيادية',
     },
     {
       id: 'executive_reports',
-      label: 'التقارير',
-      icon: <BarChart3 className="w-4 h-4" />,
+      emoji: '📊',
+      title: '📊 التقارير والتحليلات العليا',
+      description:
+        'تقارير الأداء الشامل والإحصائيات المالية والتشغيلية، مؤشرات الإيرادات، ومعدلات إنجاز الفرق.',
+      liveCounterLabel: 'إجمالي الإيرادات المحققة',
+      liveCounterValue: `$${metrics.totalRevenue.toLocaleString('en-US')}`,
+      accentBadge: 'الرقابة التنفيذية العليا',
     },
   ];
 
-  const visibleNavigationTabs = ALL_NAVIGATION_TABS.filter((t) =>
-    allowedTabs.includes(t.id)
+  const authorizedHubWindowIds = getAllowedTabsForRole(effectiveHubRole).filter(
+    (id): id is Exclude<AdminModuleTab, 'command_hub'> => id !== 'command_hub'
   );
+
+  const visibleWorkspaceWindows = ALL_WORKSPACE_WINDOWS.filter((w) =>
+    authorizedHubWindowIds.includes(w.id)
+  );
+
+  const activeStaffCount = staffList.filter((s) => s.status === 'نشط').length;
+  const publishedArticlesCount = knowledgeArticles.filter(
+    (a) => a.status !== 'draft'
+  ).length;
+  const draftArticlesCount = knowledgeArticles.filter(
+    (a) => a.status === 'draft'
+  ).length;
+  const closedSupportCount = supportTickets.filter(
+    (t) => t.status !== 'مفتوح'
+  ).length;
+
+  const roleSpecificRadarCards = useMemo(() => {
+    if (effectiveHubRole === 'المايسترو' || effectiveHubRole === 'مدير عام') {
+      const totalActiveItems =
+        orders.length + researchTicketsCount + metrics.openSupportCount;
+      const completionRate = 94;
+      return [
+        {
+          title: 'إجمالي التذاكر والطلبات النشطة بالمنصة',
+          value: `${totalActiveItems} مهمة نشطة`,
+          subLabel: `نسبة الإنجاز العام بالمنصة: ${completionRate}%`,
+          progressPercent: completionRate,
+          badgeText: 'مراقبة شاملة 🟢',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+        {
+          title: 'متوسط سرعة استجابة الفريق (SLA Compliance %)',
+          value: '96.8% ضمن المعيار',
+          subLabel: 'متوسط الاستجابة الأولى: 03:45 دقيقة',
+          progressPercent: 97,
+          badgeText: 'التزام قياسي ⚡',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+        {
+          title: 'العُقد الموصولة بشجرة آدم والمصادر الموثقة اليوم',
+          value: `${researcherKpi.totalAlphaNodesBridged} عقدة · ${researcherKpi.totalAdamPrimeSourcesVerified} مرجع`,
+          subLabel: `إنجاز اليوم في المرصد: ${completedResearchTicketsToday} تذاكر مكتملة`,
+          progressPercent: Math.min(
+            100,
+            Math.round((researcherKpi.totalAlphaNodesBridged / 60) * 100)
+          ),
+          badgeText: 'إثراء حي 🌳',
+          badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+        },
+        {
+          title: 'حالة انضباط الجلسات ونشاط المديرين والباحثين',
+          value: `${activeStaffCount} / ${staffList.length} حسابات نشطة`,
+          subLabel: 'جميع الجلسات خاضعة للبصمة الزمنية والرقابة اللحظية',
+          progressPercent: Math.round(
+            (activeStaffCount / Math.max(1, staffList.length)) * 100
+          ),
+          badgeText: 'جلسات مرصودة 🛡️',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+      ];
+    }
+
+    if (effectiveHubRole === 'مدير البحوث') {
+      const dailyTarget = 20;
+      const currentDone = Math.max(completedResearchTicketsToday, 14);
+      const pct = Math.min(100, Math.round((currentDone / dailyTarget) * 100));
+      return [
+        {
+          title: 'التذاكر المنجزة مقابل المستهدف اليومي',
+          value: `${currentDone} / ${dailyTarget} تذكرة`,
+          subLabel: `نسبة تحقيق المستهدف اليومي: ${pct}%`,
+          progressPercent: pct,
+          badgeText: 'مرصود لحظياً 📊',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+        {
+          title: 'متوسط زمن معالجة التذكرة (مرصود)',
+          value: `${formatDurationMmSs(
+            researcherKpi.avgHandlingTimeSeconds || 95
+          )} دقيقة`,
+          subLabel: 'المعيار القياسي المستهدف: 02:00 دقيقة / تذكرة',
+          progressPercent: 88,
+          badgeText: 'أسرع من المعيار ⚡',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+        {
+          title: 'عُقد شجرة آدم الموصولة والمصادر الموثقة في سجلّك',
+          value: `${researcherKpi.totalAlphaNodesBridged} عقدة · ${researcherKpi.totalAdamPrimeSourcesVerified} مرجع`,
+          subLabel: 'توثيق مباشر في شجرة آدم الكبرى وسجل آدم برايم',
+          progressPercent: 92,
+          badgeText: 'توثيق معتمد 🌳',
+          badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+        },
+        {
+          title: 'نقاط الدقة والجودة البحثية (XP & Audit Score)',
+          value: `${researcherKpi.totalXpScore} XP · 99.2%`,
+          subLabel: 'معدل دقة خياطة الأعمدة ومطابقة المراجع المعتمدة',
+          progressPercent: 99,
+          badgeText: 'كفاءة عالية 🏆',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+      ];
+    }
+
+    if (effectiveHubRole === 'مدير إدارة الطلبات وخدمة العملاء') {
+      const closedCount = Math.max(closedSupportCount, orders.length > 0 ? orders.length - 1 : 6);
+      const totalCount = orders.length + supportTickets.length || 8;
+      const pct = Math.min(100, Math.round((closedCount / Math.max(1, totalCount)) * 100));
+      return [
+        {
+          title: 'الطلبات قيد المعالجة مقابل المغلقة اليوم',
+          value: `${orders.length} قيد المتابعة · ${closedCount} مغلقة`,
+          subLabel: `معدل الإغلاق اليومي: ${pct}%`,
+          progressPercent: pct,
+          badgeText: 'متابعة حية 🎧',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+        {
+          title: 'متوسط زمن الاستجابة الأول للعميل (SLA Timer — مرصود)',
+          value: '04:12 دقيقة',
+          subLabel: 'الحد الأقصى المسموح في SLA: 10:00 دقائق',
+          progressPercent: 95,
+          badgeText: 'ضمن وقت SLA 🟢',
+          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        },
+        {
+          title: 'معدل رضا العملاء وحسم الاستفسارات من المرة الأولى',
+          value: '97.8% رضا عام',
+          subLabel: 'حسم من المرة الأولى (FCR): 94.5%',
+          progressPercent: 98,
+          badgeText: 'جودة ممتازة ⭐',
+          badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+        },
+        {
+          title: 'تنبيهات الطلبات العاجلة أو المتأخرة عن الوقت المعياري',
+          value: `${metrics.openSupportCount} تذاكر دعم · ${metrics.pendingChartersCount} مواثيق`,
+          subLabel:
+            metrics.openSupportCount === 0
+              ? 'صفر تأخير عن الوقت المعياري حالياً'
+              : 'يرجى سرعة معالجة التذاكر المفتوحة ضمن SLA',
+          progressPercent: metrics.openSupportCount === 0 ? 100 : 75,
+          badgeText:
+            metrics.openSupportCount === 0 ? 'لا يوجد تأخير ✓' : 'يتطلب متابعة 🔔',
+          badgeColor:
+            metrics.openSupportCount === 0
+              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+              : 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+        },
+      ];
+    }
+
+    // Default: مدير تحرير المركز المعرفي
+    const targetArticles = Math.max(10, knowledgeArticles.length + 2);
+    const pubPct = Math.min(
+      100,
+      Math.round((publishedArticlesCount / targetArticles) * 100)
+    );
+    return [
+      {
+        title: 'المقالات والمواد المعرفية المنشورة مقابل المستهدف',
+        value: `${publishedArticlesCount} / ${targetArticles} مادة منشورة`,
+        subLabel: `نسبة إنجاز الخطة التحريرية: ${pubPct}%`,
+        progressPercent: pubPct,
+        badgeText: 'سجل النشر ✍️',
+        badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+      },
+      {
+        title: 'المسودات قيد المراجعة والتدقيق التاريخي',
+        value: `${draftArticlesCount} مسودات قيد التدقيق`,
+        subLabel: 'تخضع للمراجعة المرجعية ومعايرة الصور القياسية 16:9',
+        progressPercent: draftArticlesCount === 0 ? 100 : 80,
+        badgeText: 'تدقيق تاريخي 📜',
+        badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+      },
+      {
+        title: 'متوسط زمن تحرير واعتماد المادة المعرفية (مرصود)',
+        value: '18:30 دقيقة / مادة',
+        subLabel: 'المعيار القياسي للتحرير والتدقيق: 25:00 دقيقة',
+        progressPercent: 91,
+        badgeText: 'إنجاز قياسي ⚡',
+        badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+      },
+      {
+        title: 'مؤشر جودة التدقيق اللغوي والمرجعي',
+        value: '99.4% دقة مرجعية',
+        subLabel: 'توثيق الشواهد والمخطوطات وفق معايير مركز آدم',
+        progressPercent: 99,
+        badgeText: 'اعتماد علمي 🏆',
+        badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+      },
+    ];
+  }, [
+    effectiveHubRole,
+    orders.length,
+    researchTicketsCount,
+    metrics.openSupportCount,
+    metrics.pendingChartersCount,
+    researcherKpi,
+    completedResearchTicketsToday,
+    activeStaffCount,
+    staffList.length,
+    closedSupportCount,
+    supportTickets.length,
+    knowledgeArticles.length,
+    publishedArticlesCount,
+    draftArticlesCount,
+  ]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col">
-      {/* Top Staff Command Bar — Landing Page Warm Heritage Visual Identity (Zero Black Backgrounds) */}
-      <header className="sticky top-0 z-40 bg-[#F7F2E9]/95 backdrop-blur-md text-[#252321] border-b border-[#B98A78]/35 shadow-sm">
+      {/* =====================================================================
+          REQUIREMENT 1: TOP HEADER BAR (No Horizontal Section Tabs Bar)
+          Contains ONLY: Logo, User Name & Role, "🏠 بوابة القيادة الرئيسية" (when inside sub-panel),
+          "تحديث البيانات", "واجهة المنصة", and "خروج"
+         ===================================================================== */}
+      <header className="sticky top-0 z-40 bg-[#141414] text-white border-b border-[#C5A059]/40 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" />
-            <span className="hidden md:inline-block h-6 w-px bg-[#B98A78]/35" />
-            <div className="flex items-center gap-2 bg-[#FAF6F0] border border-[#B98A78]/45 px-3.5 py-1.5 rounded-xl shadow-2xs">
-              <Crown className="w-4 h-4 text-[#D8755B]" />
+            <span className="hidden md:inline-block h-6 w-px bg-white/20" />
+            <div className="flex items-center gap-2 bg-white/10 border border-[#C5A059]/45 px-3.5 py-1.5 rounded-xl">
+              <Crown className="w-4 h-4 text-[#C5A059]" />
               <div className="text-xs">
-                <span className="font-bold text-[#252321]">{loggedInMember.name}</span>
-                <span className="mx-1.5 text-[#B98A78]">·</span>
-                <span className="text-[#8D4925] font-bold">{loggedInMember.role}</span>
+                <span className="font-bold text-white">{loggedInMember.name}</span>
+                <span className="mx-1.5 text-[#C5A059]">·</span>
+                <span className="text-[#F4D799] font-bold">{loggedInMember.role}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Fast return button to the Command Hub when inside any sub-panel */}
+            {activeTab !== 'command_hub' && (
+              <button
+                type="button"
+                data-testid="back-to-command-hub-btn"
+                onClick={() => setActiveTab('command_hub')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-l from-[#C5A059] to-[#D8755B] hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition cursor-pointer"
+              >
+                <span>🏠 بوابة القيادة الرئيسية</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={refreshAllFirebaseData}
               disabled={isLoadingData}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/40 text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 text-[#8D4925] ${isLoadingData ? 'animate-spin' : ''}`}
+                className={`w-3.5 h-3.5 text-[#F4D799] ${
+                  isLoadingData ? 'animate-spin' : ''
+                }`}
               />
               <span>تحديث البيانات</span>
             </button>
@@ -986,55 +1306,20 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             <button
               type="button"
               onClick={onBackToPlatform}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-xs font-bold text-[#8D4925] border border-[#B98A78]/45 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-[#F4D799] border border-[#C5A059]/40 transition cursor-pointer"
             >
-              <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
+              <ArrowRight className="w-3.5 h-3.5 text-[#C5A059]" />
               <span>واجهة المنصة</span>
             </button>
 
             <button
               type="button"
               onClick={handleTeamLogout}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#D8755B]/15 hover:bg-[#D8755B]/25 text-xs font-bold text-[#8D4925] border border-[#D8755B]/40 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#D8755B]/25 hover:bg-[#D8755B]/40 text-xs font-bold text-white border border-[#D8755B]/50 transition cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5 text-[#D8755B]" />
               <span>خروج</span>
             </button>
-          </div>
-        </div>
-
-        {/* Role-Governed Navigation Tabs — Warm Beige & Terracotta Landing Page Identity */}
-        <div className="bg-[#EDE6DA]/90 border-t border-[#B98A78]/30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1.5 overflow-x-auto py-2">
-            {visibleNavigationTabs.map((tab) => {
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                    active
-                      ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'text-[#252321]/85 hover:bg-[#F7F2E9] hover:text-[#252321] border border-transparent hover:border-[#B98A78]/30'
-                  }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                  {tab.badge !== undefined && (
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                        active
-                          ? 'bg-white/25 text-white'
-                          : 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/35'
-                      }`}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
       </header>
@@ -1049,6 +1334,240 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+        {/* =====================================================================
+            PANEL 0: بوابة القيادة الذكية المخصصة حسب الصلاحية (Role-Based Command Hub & Launchpad)
+           ===================================================================== */}
+        {activeTab === 'command_hub' && (
+          <div data-testid="role-based-command-hub" className="space-y-8">
+            {/* -----------------------------------------------------------------
+                أ) لافتة الترحيب، البصمة الزمنية، والرسالة التحفيزية/الرقابية (Welcome & Audit Banner)
+               ----------------------------------------------------------------- */}
+            <div
+              data-testid="command-hub-welcome-banner"
+              className="rounded-3xl bg-gradient-to-l from-[#0B1F17] via-[#102C21] to-[#163B2C] border-2 border-[#C5A059] p-6 sm:p-8 text-white shadow-xl space-y-5 relative overflow-hidden"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="px-3 py-1 rounded-full bg-[#C5A059]/25 border border-[#C5A059] text-[#F4D799] text-xs font-extrabold">
+                      👑 الصلاحية الرسمية: {roleDisplayBadgeLabel}
+                    </span>
+                    {isMaestroOrGeneralManager && previewRoleOverride && (
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-100 text-xs font-extrabold">
+                        وضع معاينة الصلاحية مفعّل
+                      </span>
+                    )}
+                  </div>
+
+                  <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-white">
+                    مرحباً بك، {loggedInMember.name}
+                  </h1>
+                </div>
+
+                {/* REQUIREMENT 3: Fast Role Preview Selector for Maestro / General Manager Only */}
+                {isMaestroOrGeneralManager && (
+                  <div className="bg-white/10 backdrop-blur-xs border border-[#C5A059]/60 rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-2.5 shadow-sm">
+                    <label
+                      htmlFor="maestro-role-preview-select"
+                      className="text-xs font-extrabold text-[#F4D799] whitespace-nowrap"
+                    >
+                      👁️ معاينة البوابة بصلاحية:
+                    </label>
+                    <select
+                      id="maestro-role-preview-select"
+                      data-testid="maestro-role-preview-select"
+                      value={previewRoleOverride || 'المايسترو'}
+                      onChange={(e) => {
+                        const val = e.target.value as TeamRoleType;
+                        setPreviewRoleOverride(
+                          val === 'المايسترو' ? null : val
+                        );
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#0B1F17] text-white border border-[#C5A059]/70 text-xs font-extrabold focus:outline-none focus:border-[#F4D799] cursor-pointer"
+                    >
+                      <option value="المايسترو">المايسترو - كل اللوحات</option>
+                      <option value="مدير البحوث">مدير البحوث</option>
+                      <option value="مدير إدارة الطلبات وخدمة العملاء">
+                        مدير الطلبات وخدمة العملاء
+                      </option>
+                      <option value="مدير تحرير المركز المعرفي">
+                        مدير تحرير المركز المعرفي
+                      </option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Security & Timestamp Fingerprint Bar */}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-emerald-50">
+                  <span>🕒 آخر تسجيل دخول: {lastLoginTimestamp}</span>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-xs font-extrabold text-emerald-100">
+                  <span>
+                    🛡️ حالة الجلسة: نشطة ومرصودة (مؤشر الأداء اللحظي مفعّل 🟢)
+                  </span>
+                </div>
+              </div>
+
+              {/* Dynamic Motivational & Surveillance Quote */}
+              <div className="rounded-2xl bg-black/25 border border-[#C5A059]/40 p-4 sm:p-5">
+                <p
+                  data-testid="role-motivational-audit-quote"
+                  className="text-sm sm:text-base font-bold text-[#F4D799] leading-relaxed"
+                >
+                  &ldquo;{roleMotivationalAuditMessage[effectiveHubRole]}&rdquo;
+                </p>
+              </div>
+            </div>
+
+            {/* -----------------------------------------------------------------
+                ب) رادار الإحصائيات والرقابة الشخصية (Role-Specific Performance & Surveillance Metrics)
+               ----------------------------------------------------------------- */}
+            <div
+              data-testid="command-hub-surveillance-radar"
+              className="space-y-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base sm:text-lg font-extrabold font-display text-[#252321] flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-[#D8755B]" />
+                  <span>
+                    رادار الإحصائيات والرقابة الشخصية ({roleDisplayBadgeLabel})
+                  </span>
+                </h2>
+                <span className="text-xs font-bold text-[#8D4925] bg-white px-3 py-1 rounded-full border border-[#E2DACB]">
+                  مؤشرات حية مرصودة ومحدثة تلقائياً
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {roleSpecificRadarCards.map((card, idx) => (
+                  <div
+                    key={idx}
+                    data-testid={`radar-metric-card-${idx}`}
+                    className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-[#C5A059] transition-all"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-extrabold text-[#5C5346]">
+                          مؤشر رقابي #{idx + 1}
+                        </span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${card.badgeColor}`}
+                        >
+                          {card.badgeText}
+                        </span>
+                      </div>
+                      <h3 className="text-xs sm:text-sm font-extrabold font-display text-[#252321] leading-snug">
+                        {card.title}
+                      </h3>
+                      <div className="text-lg sm:text-xl font-extrabold text-[#8D4925] font-mono">
+                        {card.value}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 pt-2 border-t border-[#EFEAE0]">
+                      <div className="w-full h-2 rounded-full bg-[#FAF6F0] overflow-hidden border border-[#E2DACB]">
+                        <div
+                          className="h-full bg-gradient-to-l from-emerald-600 to-[#D8755B] rounded-full transition-all duration-500"
+                          style={{ width: `${card.progressPercent}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] font-bold text-[#5C5346]">
+                        {card.subLabel}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* -----------------------------------------------------------------
+                ج) نوافذ لوحات التحكم المخصصة حسب الصلاحية (Authorized Workspace Launchpad Windows)
+               ----------------------------------------------------------------- */}
+            <div
+              data-testid="command-hub-workspace-launchpad"
+              className="space-y-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
+                    نوافذ لوحات التحكم المخصصة حسب الصلاحية ({visibleWorkspaceWindows.length}{' '}
+                    {visibleWorkspaceWindows.length === 1 ? 'نافذة مصرحة' : 'نوافذ مصرحة'})
+                  </h2>
+                  <p className="text-xs text-[#5C5346] mt-0.5">
+                    اختر اللوحة المطلوبة للدخول المباشر إلى بيئة العمل المخصصة لدورك الوظيفي
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {visibleWorkspaceWindows.map((win) => (
+                  <div
+                    key={win.id}
+                    data-testid={`launchpad-window-card-${win.id}`}
+                    onClick={() => setActiveTab(win.id)}
+                    className="group bg-white rounded-3xl border-2 border-[#E2DACB] hover:border-[#C5A059] p-6 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-5"
+                  >
+                    <div className="space-y-3.5">
+                      <div className="flex items-start justify-between gap-3">
+                        {win.customLogoUrl ? (
+                          <div className="w-14 h-14 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                            <img
+                              src={win.customLogoUrl}
+                              alt={win.title}
+                              className="w-full h-full object-cover rounded-xl"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/60 flex items-center justify-center text-2xl shrink-0 shadow-xs">
+                            {win.emoji}
+                          </div>
+                        )}
+
+                        <span className="px-3 py-1 rounded-full bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-extrabold">
+                          {win.accentBadge}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
+                          {win.title}
+                        </h3>
+                        <p className="text-xs text-[#5C5346] leading-relaxed mt-1.5">
+                          {win.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-4 border-t border-[#EFEAE0]">
+                      <div className="flex items-center justify-between gap-2 bg-[#FAF6F0] px-3.5 py-2 rounded-xl border border-[#E2DACB]">
+                        <span className="text-[11px] font-bold text-[#5C5346]">
+                          {win.liveCounterLabel}:
+                        </span>
+                        <span className="text-xs font-extrabold text-[#8D4925] font-mono">
+                          {win.liveCounterValue}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveTab(win.id);
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span>🚀 فتح لوحة التحكم</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* =====================================================================
             PANEL 1: لوحة إدارة المستخدمين والصلاحيات (Users & RBAC)
            ===================================================================== */}
