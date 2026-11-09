@@ -318,6 +318,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [diagnosticSimStage, setDiagnosticSimStage] = useState<1 | 2>(1);
   const [diagnosticSimChoice, setDiagnosticSimChoice] =
     useState<string>('option_a');
+  const [selectedAdamMatchIndex, setSelectedAdamMatchIndex] =
+    useState<number>(0);
+  const [isRawBundleManualOverride, setIsRawBundleManualOverride] = useState<
+    boolean | null
+  >(null);
+  const [remoteAdamMatchesForDirectSearch, setRemoteAdamMatchesForDirectSearch] =
+    useState<AdamTreeInteractiveNode[]>([]);
 
   const extractRawSourcesFromResult = (
     res: LineageSearchResult | null
@@ -372,7 +379,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
     if (
       !res.matched ||
-      res.primary_source_of_truth === 'UNMATCHED_P1_TICKET'
+      res.primary_source_of_truth === 'UNMATCHED_P1_TICKET' ||
+      (res.primary_source_of_truth === 'ADAM_MASTER_TREE' &&
+        !res.isAdamNodeEnrichedWithAlpha)
     ) {
       return [];
     }
@@ -434,16 +443,64 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     originLocality: string;
   }) => {
     setRawSources([]);
+    setRemoteAdamMatchesForDirectSearch([]);
+    const targetQueryName =
+      params.familyName.trim() ||
+      params.tribeName.trim() ||
+      params.branchName.trim() ||
+      'غير محدد';
+
+    // Query live Adam Tree endpoint in parallel to detect all matching nodes in Adam Master Tree
+    fetch(`${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ query: targetQueryName, limit: 30 }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const incoming: any[] = Array.isArray(data.nodes)
+          ? data.nodes
+          : Array.isArray(data.data?.nodes)
+          ? data.data.nodes
+          : [];
+        if (incoming.length > 0) {
+          const sanitized = incoming.map((raw) =>
+            sanitizeAndNormalizeAdamNode({
+              node_id: String(raw.node_id || raw.id || ''),
+              name: String(raw.name || ''),
+              arc_code: String(raw.arc_code || 'UNASSIGNED'),
+              representation: raw.representation || 'FAMILY',
+              relation_nature: raw.relation_nature || 'DIRECT_DESCENDANT',
+              parent_id: raw.parent_id ? String(raw.parent_id) : null,
+              parent_name: raw.parent_name ? String(raw.parent_name) : undefined,
+              geo_footprint: Array.isArray(raw.geo_footprint)
+                ? raw.geo_footprint
+                : [],
+              enriched_sources: Array.isArray(raw.enriched_sources)
+                ? raw.enriched_sources
+                : [],
+              enriched_branches: Array.isArray(raw.enriched_branches)
+                ? raw.enriched_branches
+                : [],
+            })
+          );
+          setRemoteAdamMatchesForDirectSearch(sanitized);
+        }
+      })
+      .catch(() => {
+        // Local Adam Master Tree nodes remain active
+      });
+
     searchJuthoriLineage({
       accountType: AccountLegalType.Individual,
       firstName: 'باحث',
       fatherName: '—',
       grandfatherName: '—',
-      familyName:
-        params.familyName.trim() ||
-        params.tribeName.trim() ||
-        params.branchName.trim() ||
-        'غير محدد',
+      familyName: targetQueryName,
       originCountry:
         params.originCountry === 'غير محدد / كل الدول'
           ? ''
@@ -502,6 +559,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   };
 
   const setAllBosletSections = (expanded: boolean) => {
+    setIsRawBundleManualOverride(expanded);
     setBosletExpandedSections({
       searchBox: expanded,
       step1: expanded,
@@ -533,6 +591,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
     setDiagnosticSimStage(1);
     setDiagnosticSimChoice('option_a');
+    setSelectedAdamMatchIndex(0);
+    setIsRawBundleManualOverride(null);
     triggerLiveEngineInspection({
       familyName: directSearchFamilyName,
       tribeName: directSearchTribeName,
@@ -6731,7 +6791,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-screen pb-16 transition-colors duration-300 bg-[#F7F2E9] text-[#252321]"
+      className="min-h-screen pb-16 transition-colors duration-300 bg-white text-[#252321]"
     >
       {/* =====================================================================
           REQUIREMENT 1 & 2: COMPACT BRAND HEADER & 2 STREAMLINED SUB-TABS
@@ -6851,20 +6911,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
         {/* ===================================================================
             SUB-TAB 1: 🧭 بوصلة الأنساب (BOSLET AL-ANSAB™ — DIAGNOSTIC COMPASS)
-            Harmonized with Homepage Warm Ivory, Beige, Terracotta & Soft Emerald
+            Clean White Page Background + Header Matching "شجرة آدم للأجداد"
         =================================================================== */}
         {activeSubTab === 'direct_search' && (
-          <div className="space-y-6 bg-[#F7F2E9] text-[#252321]">
+          <div className="space-y-6 bg-white text-[#252321]">
             {/* ===============================================================
                 OFFICIAL "بوصلة الأنساب" IDENTITY HEADER BANNER
-                (Warm Ivory & Terracotta Heritage Theme)
+                (Exact Same Dimensions & Structure as "شجرة آدم للأجداد" Header)
             =============================================================== */}
             <div
               data-testid="boslet-alansab-identity-header"
-              className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/80 text-[#252321] rounded-3xl p-5 sm:p-6 border border-[#B98A78]/50 shadow-xs flex flex-wrap items-center justify-between gap-5"
+              className="bg-gradient-to-l from-[#0B241B] via-[#123A2B] to-[#194D39] text-white rounded-3xl p-5 border border-[#C5A059]/40 shadow-md flex flex-wrap items-center justify-between gap-4"
             >
-              <div className="flex items-center gap-4 sm:gap-5">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1 shadow-sm border-2 border-[#D8755B]/70 shrink-0 flex items-center justify-center overflow-hidden">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 p-1.5 shadow-lg border-2 border-[#C5A059] shrink-0 flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
                     alt="بوصلة الأنساب"
@@ -6873,18 +6933,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-0.5 rounded-full bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-display font-bold">
-                      بوصلة الأنساب · الأداة المرجعية لفريق الباحثين
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1">
-                      <span>⚡</span>
-                      <span>سرعة الاستجابة السيبرانية &lt; 150ms</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/50 text-[#F4D799] text-[10px] font-extrabold tracking-wider">
+                      بوصلة الأنساب
                     </span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold font-display mt-1.5 text-[#252321]">
+                  <h2 className="text-lg sm:text-xl font-bold font-serif mt-1 text-white">
                     بوصلة الأنساب — منظومة الفحص التشخيصي وحسم المسارات النسبية
                   </h2>
-                  <p className="text-xs sm:text-sm text-[#5C5346] mt-1">
+                  <p className="text-xs text-emerald-100/85 mt-0.5">
                     تتبع استقصائي للمصادر الخام وأمهات الكتب، ومنطق العنقدة والخياطة الطوبولوجية، وحسم التوافق السيبراني مع شجرة آدم للأجداد
                   </p>
                 </div>
@@ -6894,14 +6950,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <button
                   type="button"
                   onClick={() => setAllBosletSections(true)}
-                  className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
+                  className="px-3.5 py-2 rounded-xl bg-[#C5A059] hover:bg-[#b38e47] text-[#0B241B] text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
                 >
                   فتح وإبراز كافة الأقسام
                 </button>
                 <button
                   type="button"
                   onClick={() => setAllBosletSections(false)}
-                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA]/70 text-[#8D4925] border border-[#B98A78]/50 text-xs font-bold transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-[#C5A059]/40 text-xs font-bold transition-all cursor-pointer"
                 >
                   طي كافة الأقسام
                 </button>
@@ -7426,12 +7482,650 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 const totalStitchedCount = finalStitchedStations.length;
                 const hiddenIntermediateCount = Math.max(0, totalStitchedCount - 3);
 
+                // =============================================================
+                // COMPUTE CONTAINER 1: ADAM MASTER TREE MATCHES & CHAINS
+                // =============================================================
+                const cleanQueryName = (
+                  directSearchFamilyName.trim() ||
+                  directSearchResult.familyName ||
+                  ''
+                )
+                  .replace(/^عائلة\s+/, '')
+                  .trim();
+                const normQueryName = normalizeArabicForSearch(cleanQueryName);
+                const stemQueryName = stemTribeToken(cleanQueryName);
+                const isCompoundQueryName = /\s+(?:بن|ابن)\s+/.test(cleanQueryName);
+
+                const candidateAdamPoolMap = new Map<
+                  string,
+                  AdamTreeInteractiveNode
+                >();
+                const allKnownAdamNodes: AdamTreeInteractiveNode[] = [
+                  ...adamGraphNodes,
+                  ...Object.values(MASTER_ADAM_NODES_MAP),
+                  ...remoteAdamMatchesForDirectSearch,
+                ];
+
+                for (const node of allKnownAdamNodes) {
+                  if (!node || !node.node_id) continue;
+                  const cleanNodeTitle = (node.name || '')
+                    .replace(/\s*\(#\d+\)\s*$/, '')
+                    .trim();
+                  const normNodeTitle = normalizeArabicForSearch(cleanNodeTitle);
+                  const stemNodeTitle = stemTribeToken(cleanNodeTitle);
+
+                  const isExactNorm =
+                    Boolean(normQueryName) && normNodeTitle === normQueryName;
+                  const isExactStemMatch =
+                    !isCompoundQueryName &&
+                    stemQueryName.length >= 3 &&
+                    stemNodeTitle === stemQueryName &&
+                    !/\s+(?:بن|ابن)\s+/.test(cleanNodeTitle);
+
+                  if (isExactNorm || isExactStemMatch) {
+                    if (!candidateAdamPoolMap.has(node.node_id)) {
+                      candidateAdamPoolMap.set(node.node_id, node);
+                    }
+                  }
+                }
+
+                if (
+                  directSearchResult.primary_source_of_truth ===
+                    'ADAM_MASTER_TREE' &&
+                  directSearchResult.adamNodeId
+                ) {
+                  const explicitNode =
+                    nodesById[directSearchResult.adamNodeId] ||
+                    MASTER_ADAM_NODES_MAP[directSearchResult.adamNodeId];
+                  if (
+                    explicitNode &&
+                    !candidateAdamPoolMap.has(explicitNode.node_id)
+                  ) {
+                    candidateAdamPoolMap.set(explicitNode.node_id, explicitNode);
+                  }
+                }
+
+                const adamMatchedCandidates = Array.from(
+                  candidateAdamPoolMap.values()
+                ).map((node) => {
+                  const chainAscending: AdamTreeInteractiveNode[] = [node];
+                  let currParentId = node.parent_id;
+                  const visitedIds = new Set<string>([node.node_id]);
+                  let safety = 0;
+
+                  while (currParentId && !visitedIds.has(currParentId) && safety < 80) {
+                    visitedIds.add(currParentId);
+                    const pNode =
+                      nodesById[currParentId] ||
+                      MASTER_ADAM_NODES_MAP[currParentId];
+                    if (!pNode) break;
+                    chainAscending.push(pNode);
+                    currParentId = pNode.parent_id;
+                    safety++;
+                  }
+
+                  if (
+                    chainAscending.length === 1 &&
+                    node.parent_name &&
+                    node.parent_name.trim()
+                  ) {
+                    const parentInspect = inspectNameInAdamMasterTree(
+                      node.parent_name,
+                      adamGraphNodes
+                    );
+                    if (parentInspect.found && parentInspect.matchedNode) {
+                      chainAscending.push(
+                        parentInspect.matchedNode,
+                        ...parentInspect.ancestorsUpToAdam
+                      );
+                    } else {
+                      chainAscending.push({
+                        node_id: node.parent_id || 'parent-ref',
+                        name: node.parent_name,
+                        arc_code: 'B1',
+                        representation: 'TRIBE',
+                        relation_nature: 'DIRECT_DESCENDANT',
+                        parent_id: '1',
+                        geo_footprint: node.geo_footprint || [],
+                        enriched_sources: [],
+                        enriched_branches: [],
+                      });
+                    }
+                  }
+
+                  const lastInChain = chainAscending[chainAscending.length - 1];
+                  if (
+                    lastInChain &&
+                    !lastInChain.name.includes('آدم') &&
+                    nodesById['1']
+                  ) {
+                    chainAscending.push(nodesById['1']);
+                  }
+
+                  const ancestorsOnly = chainAscending.slice(1);
+                  const motherTribeNode =
+                    ancestorsOnly.find(
+                      (a) => a.arc_code === 'B0' || a.arc_code === 'MT'
+                    ) ||
+                    ancestorsOnly[0] ||
+                    node;
+                  const subRootNode =
+                    ancestorsOnly.find(
+                      (a) =>
+                        a.arc_code === 'B2' ||
+                        a.arc_code === 'B3' ||
+                        a.arc_code === 'B1'
+                    ) ||
+                    ancestorsOnly[0] ||
+                    node;
+
+                  const directChildNames = adamGraphNodes
+                    .filter((c) => c.parent_id === node.node_id)
+                    .map((c) => c.name);
+                  const documentedBranches = Array.from(
+                    new Set([
+                      ...(node.enriched_branches || []),
+                      ...directChildNames,
+                    ])
+                  ).filter(Boolean);
+
+                  const documentedLocations = Array.from(
+                    new Set([
+                      ...(node.geo_footprint || []),
+                      ...(motherTribeNode.geo_footprint || []).slice(0, 2),
+                    ])
+                  ).filter(Boolean);
+
+                  return {
+                    node,
+                    chainAscending,
+                    motherTribeName: motherTribeNode.name.replace(
+                      /\s*\(#\d+\)\s*$/,
+                      ''
+                    ),
+                    subRootName: subRootNode.name.replace(/\s*\(#\d+\)\s*$/, ''),
+                    documentedBranches,
+                    documentedLocations,
+                  };
+                });
+
+                const safeSelectedAdamIdx =
+                  selectedAdamMatchIndex < adamMatchedCandidates.length
+                    ? selectedAdamMatchIndex
+                    : 0;
+                const activeAdamCandidate =
+                  adamMatchedCandidates[safeSelectedAdamIdx] || null;
+
+                // Smart Collapse behavior for Container 2:
+                // Collapsed automatically when matched in Adam Tree AND 0 pending raw Alpha records
+                const isServedFromAdamOnlyWithZeroAlpha =
+                  adamMatchedCandidates.length > 0 &&
+                  rawEvidenceList.length === 0;
+                const isContainer2Expanded =
+                  isRawBundleManualOverride !== null
+                    ? isRawBundleManualOverride
+                    : !isServedFromAdamOnlyWithZeroAlpha;
+
+                // Dynamic Final Result Source & Effective Result for Container 3
+                const isFinalResultFromAdamTree =
+                  adamMatchedCandidates.length > 0 &&
+                  (rawEvidenceList.length === 0 ||
+                    directSearchResult.primary_source_of_truth ===
+                      'ADAM_MASTER_TREE');
+
+                const effectiveFinalResultForShowcase: LineageSearchResult =
+                  activeAdamCandidate && isFinalResultFromAdamTree
+                    ? {
+                        ...directSearchResult,
+                        matched: true,
+                        primary_source_of_truth: 'ADAM_MASTER_TREE',
+                        adamNodeId: activeAdamCandidate.node.node_id,
+                        familyName: activeAdamCandidate.node.name.replace(
+                          /\s*\(#\d+\)\s*$/,
+                          ''
+                        ),
+                        rootBranchName: activeAdamCandidate.subRootName,
+                        rootTribeName: activeAdamCandidate.motherTribeName,
+                        originRegion:
+                          activeAdamCandidate.documentedLocations.join(' · ') ||
+                          directSearchResult.originRegion,
+                        verified_sources:
+                          activeAdamCandidate.node.enriched_sources &&
+                          activeAdamCandidate.node.enriched_sources.length > 0
+                            ? activeAdamCandidate.node.enriched_sources
+                            : directSearchResult.verified_sources,
+                        sibling_branches_in_record:
+                          activeAdamCandidate.documentedBranches.length > 0
+                            ? activeAdamCandidate.documentedBranches
+                            : directSearchResult.sibling_branches_in_record,
+                        adamSpineNodes: activeAdamCandidate.chainAscending.map(
+                          (st, sIdx) => ({
+                            id: `adam-st-${st.node_id}-${sIdx}`,
+                            orderNumber: sIdx + 1,
+                            name: st.name.replace(/\s*\(#\d+\)\s*$/, ''),
+                            code:
+                              st.arc_code && st.arc_code !== 'UNASSIGNED'
+                                ? st.arc_code
+                                : sIdx === 0
+                                ? 'FE0'
+                                : undefined,
+                            rankLabel:
+                              sIdx === 0
+                                ? 'العقدة المطابقة في شجرة آدم'
+                                : st.name.includes('آدم')
+                                ? 'أبو البشر آدم عليه السلام'
+                                : 'محطة موثقة في شجرة آدم الكبرى',
+                            isCodedStation:
+                              Boolean(st.arc_code) &&
+                              st.arc_code !== 'UNASSIGNED',
+                            region: (st.geo_footprint || [])[0] || '',
+                            eraNote: st.era_note || '',
+                            dataLakeSource: 'adam_tree',
+                          })
+                        ),
+                        upperAncestors: activeAdamCandidate.chainAscending.map(
+                          (st, sIdx) => ({
+                            id: `adam-up-${st.node_id}-${sIdx}`,
+                            orderNumber: sIdx + 1,
+                            name: st.name.replace(/\s*\(#\d+\)\s*$/, ''),
+                            code:
+                              st.arc_code && st.arc_code !== 'UNASSIGNED'
+                                ? st.arc_code
+                                : sIdx === 0
+                                ? 'FE0'
+                                : undefined,
+                            rankLabel:
+                              sIdx === 0
+                                ? 'العقدة المطابقة في شجرة آدم'
+                                : 'محطة موثقة في شجرة آدم الكبرى',
+                            isCodedStation:
+                              Boolean(st.arc_code) &&
+                              st.arc_code !== 'UNASSIGNED',
+                            region: (st.geo_footprint || [])[0] || '',
+                            eraNote: st.era_note || '',
+                            dataLakeSource: 'adam_tree',
+                          })
+                        ),
+                      }
+                    : directSearchResult;
+
                 return (
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     {/* =========================================================
-                        STEP 1 INDEPENDENT COLLAPSIBLE CARD:
-                        القسم الأول — المصادر الخام المستخرجة من المعاجم (Raw Sources)
+                        CONTAINER 1: [🌳 حزمة الأولوية 1 — نتائج البحث والتحقق في «شجرة آدم الكبرى»]
                     ========================================================= */}
+                    <div
+                      data-testid="boslet-container1-adam-tree"
+                      className="rounded-3xl bg-gradient-to-l from-[#0B241B] via-[#113527] to-[#164231] border-2 border-[#C5A059] p-5 sm:p-6 shadow-md text-white space-y-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#C5A059]/35 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-[#C5A059]/20 border border-[#C5A059] flex items-center justify-center text-xl shrink-0 shadow-xs">
+                            🌳
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/60 text-[#F4D799] text-[10px] font-extrabold">
+                                الحزمة البصرية الأولى · الأولوية 1
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-emerald-100 text-[10px] font-bold">
+                                عُقد مرصودة في شجرة آدم: {adamMatchedCandidates.length}
+                              </span>
+                            </div>
+                            <h3 className="text-base sm:text-lg font-extrabold font-display text-white mt-1">
+                              الأولوية 1: فحص التطابق في شجرة آدم الكبرى (البحيرة الأولى المعتمدة)
+                            </h3>
+                          </div>
+                        </div>
+
+                        {adamMatchedCandidates.length === 1 && (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-300/60 text-emerald-100 text-xs font-extrabold">
+                            ✅ محسوم في شجرة آدم (تطابق وحيد مباشر — ينتقل للنتيجة النهائية للعميل مباشرة)
+                          </span>
+                        )}
+                        {adamMatchedCandidates.length > 1 && (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-[#C5A059]/30 border border-[#C5A059] text-[#F4D799] text-xs font-extrabold">
+                            🔍 تعدد نتائج متشابهة في شجرة آدم ({adamMatchedCandidates.length} عُقد) — يتطلب سؤال تحقق
+                          </span>
+                        )}
+                      </div>
+
+                      {/* CASE 1: 0 MATCHES IN ADAM MASTER TREE */}
+                      {adamMatchedCandidates.length === 0 && (
+                        <div
+                          data-testid="adam-container-zero-match"
+                          className="rounded-2xl bg-white/10 border border-[#C5A059]/40 px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-emerald-50"
+                        >
+                          <span className="text-base shrink-0">⚪</span>
+                          <span>
+                            ⚪ لا يوجد تطابق مباشر باسم العائلة في شجرة آدم حالياً — تم توجيه البوصلة آلياً لفحص وخياطة المصادر الخام (ألفا/بيتا) في الحزمة الثانية أدناه
+                          </span>
+                        </div>
+                      )}
+
+                      {/* CASE 2: SINGLE MATCH IN ADAM MASTER TREE (1 Match) */}
+                      {adamMatchedCandidates.length === 1 &&
+                        activeAdamCandidate && (
+                          <div
+                            data-testid="adam-container-single-match"
+                            className="rounded-2xl bg-white text-[#252321] border-2 border-[#C5A059] p-4 sm:p-5 space-y-4 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-3">
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <span className="px-3 py-1 rounded-xl bg-emerald-700 text-white text-xs font-extrabold">
+                                  {activeAdamCandidate.node.name}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] font-mono text-xs font-extrabold">
+                                  الكود الهيكلي:{' '}
+                                  {activeAdamCandidate.node.arc_code &&
+                                  activeAdamCandidate.node.arc_code !==
+                                    'UNASSIGNED'
+                                    ? activeAdamCandidate.node.arc_code
+                                    : 'FE0'}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346] font-mono text-xs font-bold">
+                                  معرف العقدة: #{activeAdamCandidate.node.node_id}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-amber-50 border border-[#C5A059]/60 text-[#8D4925] text-xs font-extrabold">
+                                  القبيلة الأم: {activeAdamCandidate.motherTribeName}
+                                </span>
+                              </div>
+
+                              <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
+                                ✅ محسوم في شجرة آدم (تطابق وحيد مباشر — ينتقل للنتيجة النهائية للعميل مباشرة)
+                              </span>
+                            </div>
+
+                            {/* Full Connected Chain Up To Adam (AS) */}
+                            <div className="space-y-2">
+                              <div className="text-xs font-extrabold text-[#8D4925]">
+                                السلسلة الكاملة المتصلة حتى آدم عليه السلام ({activeAdamCandidate.chainAscending.length} محطة موثقة):
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF6F0] p-3.5 rounded-xl border border-[#E2DACB]">
+                                {activeAdamCandidate.chainAscending.map(
+                                  (st, sIdx) => (
+                                    <React.Fragment key={`${st.node_id}-${sIdx}`}>
+                                      <span
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                                          sIdx === 0
+                                            ? 'bg-emerald-700 text-white border-emerald-800 font-extrabold'
+                                            : st.name.includes('آدم')
+                                            ? 'bg-[#8D4925] text-white border-[#8D4925] font-extrabold'
+                                            : 'bg-white text-[#252321] border-[#E2DACB]'
+                                        }`}
+                                      >
+                                        <span>
+                                          {st.name.replace(/\s*\(#\d+\)\s*$/, '')}
+                                        </span>
+                                        {st.arc_code &&
+                                          st.arc_code !== 'UNASSIGNED' && (
+                                            <span
+                                              className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                                                sIdx === 0
+                                                  ? 'bg-white/20 text-white'
+                                                  : 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/40'
+                                              }`}
+                                            >
+                                              {st.arc_code}
+                                            </span>
+                                          )}
+                                      </span>
+                                      {sIdx <
+                                        activeAdamCandidate.chainAscending
+                                          .length -
+                                          1 && (
+                                        <span className="text-[#D8755B] text-xs font-bold">
+                                          ⬅️
+                                        </span>
+                                      )}
+                                    </React.Fragment>
+                                  )
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Documented Locations & Branches */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                              <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 space-y-1">
+                                <span className="text-[11px] font-extrabold text-[#8D4925] block">
+                                  📍 المواضع والنطاق الجغرافي الموثق:
+                                </span>
+                                <p className="text-xs font-bold text-[#252321]">
+                                  {activeAdamCandidate.documentedLocations
+                                    .length > 0
+                                    ? activeAdamCandidate.documentedLocations.join(
+                                        ' · '
+                                      )
+                                    : directSearchResult.originRegion ||
+                                      'الجزيرة العربية'}
+                                </p>
+                              </div>
+                              <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 space-y-1">
+                                <span className="text-[11px] font-extrabold text-[#8D4925] block">
+                                  🌿 الفروع والأبناء الموثقون في العقدة:
+                                </span>
+                                <p className="text-xs font-bold text-[#252321]">
+                                  {activeAdamCandidate.documentedBranches
+                                    .length > 0
+                                    ? activeAdamCandidate.documentedBranches.join(
+                                        ' ، '
+                                      )
+                                    : 'عقدة طرفية موثقة مباشرة في عمود النسب'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      {/* CASE 3: MULTIPLE SIMILAR MATCHES IN ADAM MASTER TREE (> 1 Matches) */}
+                      {adamMatchedCandidates.length > 1 && (
+                        <div
+                          data-testid="adam-container-multiple-matches"
+                          className="space-y-4"
+                        >
+                          {/* List of all similar nodes detected in Adam Tree */}
+                          <div className="rounded-2xl bg-white text-[#252321] border border-[#E2DACB] p-4 space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h4 className="text-xs sm:text-sm font-extrabold font-display text-[#8D4925]">
+                                📋 قائمة العُقد المتشابهة المرصودة في شجرة آدم ({adamMatchedCandidates.length} عُقد مطابقة للاسم):
+                              </h4>
+                              <span className="text-[11px] font-bold text-[#5C5346]">
+                                انقر على أي عقدة أو خيار في محاكي التحقق أدناه لمعاينة حسم المسار
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {adamMatchedCandidates.map((cand, cIdx) => {
+                                const isSelected = cIdx === safeSelectedAdamIdx;
+                                return (
+                                  <div
+                                    key={cand.node.node_id}
+                                    onClick={() => setSelectedAdamMatchIndex(cIdx)}
+                                    className={`rounded-xl p-3.5 border-2 transition-all cursor-pointer space-y-2 ${
+                                      isSelected
+                                        ? 'bg-emerald-50/70 border-emerald-600 shadow-xs'
+                                        : 'bg-[#FAF6F0] border-[#E2DACB] hover:border-[#B98A78]'
+                                    }`}
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded bg-[#0B241B] text-[#F4D799] font-mono text-[11px] font-extrabold">
+                                          #{cand.node.node_id}
+                                        </span>
+                                        <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
+                                          {cand.node.name}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded bg-white border border-[#B98A78]/50 text-[#8D4925] font-mono text-[10px] font-bold">
+                                          {cand.node.arc_code}
+                                        </span>
+                                      </div>
+                                      <span className="px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#C5A059]/60 text-[#8D4925] text-[11px] font-extrabold">
+                                        القبيلة الأم: {cand.motherTribeName}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-[11px] text-[#252321] bg-white p-2.5 rounded-lg border border-[#E2DACB] leading-relaxed">
+                                      <strong className="text-[#8D4925]">
+                                        السلسلة في شجرة آدم:
+                                      </strong>{' '}
+                                      {cand.chainAscending
+                                        .map((n) =>
+                                          n.name.replace(/\s*\(#\d+\)\s*$/, '')
+                                        )
+                                        .join(' ⬅️ ')}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Adam Tree Disambiguation Simulator */}
+                          <div
+                            data-testid="adam-tree-disambiguation-simulator"
+                            className="rounded-2xl bg-white text-[#252321] border-2 border-[#C5A059] p-4 sm:p-5 space-y-3.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 rounded-full bg-[#0B241B] text-[#F4D799] text-xs font-extrabold">
+                                  🎯 محاكي أسئلة التحقق لنتائج شجرة آدم
+                                </span>
+                                <span className="text-xs font-bold text-[#5C5346]">
+                                  تفريق تفاعلي للعميل بين العُقد المتشابهة حسب القبيلة الأم والفرع الجامع والموضع
+                                </span>
+                              </div>
+                              {activeAdamCandidate && (
+                                <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
+                                  المسار المعاين حالياً: #{activeAdamCandidate.node.node_id} ({activeAdamCandidate.motherTribeName})
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
+                              سؤال التحقق للعميل: «رصدت شجرة آدم ({adamMatchedCandidates.length}) عُقد موثقة تحمل اسم ({cleanQueryName})؛ أيٌّ من هذه الفروع والقبائل الأم والمواضع يرتبط بأسرتكم؟»
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {adamMatchedCandidates.map((cand, cIdx) => {
+                                const isSelected = cIdx === safeSelectedAdamIdx;
+                                return (
+                                  <button
+                                    key={`sim-adam-${cand.node.node_id}`}
+                                    type="button"
+                                    onClick={() => setSelectedAdamMatchIndex(cIdx)}
+                                    className={`text-right p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2 flex flex-col justify-between ${
+                                      isSelected
+                                        ? 'bg-emerald-50/90 border-emerald-600 shadow-xs'
+                                        : 'bg-[#FAF6F0] border-[#E2DACB] hover:border-[#D8755B]'
+                                    }`}
+                                  >
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-extrabold text-[#252321]">
+                                          🔘 الخيار #{cIdx + 1}: فرع {cand.subRootName} ({cand.motherTribeName})
+                                        </span>
+                                        {isSelected && (
+                                          <span className="px-2 py-0.5 rounded bg-emerald-700 text-white text-[10px] font-extrabold">
+                                            قيد المعاينة ✓
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] text-[#5C5346] font-bold">
+                                        📍 الموضع:{' '}
+                                        {cand.documentedLocations.join(' · ') ||
+                                          'الجزيرة العربية'}
+                                      </div>
+                                    </div>
+
+                                    <div className="text-[11px] bg-white p-2 rounded-lg border border-[#E2DACB] text-emerald-950 font-bold">
+                                      يحسم العمود إلى: {cand.node.name} ⬅️{' '}
+                                      {cand.subRootName} ⬅️ {cand.motherTribeName}{' '}
+                                      ⬅️ آدم عليه السلام
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* =========================================================
+                        CONTAINER 2: [📦 حزمة الأولوية 2 و3 — إطار فحص وخياطة المصادر الخام]
+                        Unified Bordered Master Card wrapping Diagnostic Sections 1 to 5
+                    ========================================================= */}
+                    <div
+                      data-testid="boslet-container2-raw-bundle"
+                      className="rounded-3xl border-2 border-[#C5A059]/80 bg-[#FAF6F0]/70 p-5 sm:p-6 shadow-sm space-y-5"
+                    >
+                      {/* Master Header of Container 2 */}
+                      <div
+                        onClick={() =>
+                          setIsRawBundleManualOverride(!isContainer2Expanded)
+                        }
+                        className={`flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none ${
+                          isContainer2Expanded
+                            ? 'border-b-2 border-[#E2DACB] pb-4'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-11 h-11 rounded-2xl bg-[#8D4925] text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
+                            📦
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 border border-[#B98A78] text-[#8D4925] text-[10px] font-extrabold">
+                                الحزمة البصرية الثانية · الأولوية 2 و3
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold">
+                                إجمالي السجلات الخام في ألفا: {rawEvidenceList.length}
+                              </span>
+                            </div>
+                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] mt-1">
+                              حزمة تحليل وهندسة المصادر الخام (مشاريع ألفا والمخطوطات غير المربوطة — الأقسام التشخيصية 1 إلى 5)
+                            </h3>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          {isServedFromAdamOnlyWithZeroAlpha && (
+                            <span
+                              data-testid="raw-bundle-adam-served-badge"
+                              className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold"
+                            >
+                              ℹ️ المسار مخدوم ومكتمل من شجرة آدم (0 سجلات خام معلقة في ألفا) — انقر لعرض تفاصيل الفحص الخام
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsRawBundleManualOverride(!isContainer2Expanded);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/50 text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
+                          >
+                            <span>
+                              {isContainer2Expanded
+                                ? 'طي حزمة المصادر الخام'
+                                : 'فتح حزمة المصادر الخام (الأقسام 1 إلى 5)'}
+                            </span>
+                            {isContainer2Expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {isContainer2Expanded && (
+                        <div className="space-y-5">
+                          {/* =========================================================
+                              STEP 1 INDEPENDENT COLLAPSIBLE CARD:
+                              القسم الأول — المصادر الخام المستخرجة من المعاجم (Raw Sources)
+                          ========================================================= */}
                     <div
                       data-testid="diagnostic-step1-raw-sources"
                       className={`rounded-3xl transition-all duration-300 overflow-hidden ${
@@ -8527,88 +9221,117 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       )}
                     </div>
 
-                    {/* =========================================================
-                        STEP 5 INDEPENDENT COLLAPSIBLE CARD:
-                        القسم الخامس — المصادر الأخرى الخام (Read-Only Compact View)
-                    ========================================================= */}
-                    {renderCompactReadOnlyOtherSourcesSection(
-                      directSearchResult.familyName,
-                      rawEvidenceList
-                    )}
+                          {/* =========================================================
+                              STEP 5 INDEPENDENT COLLAPSIBLE CARD:
+                              القسم الخامس — المصادر الأخرى الخام (Read-Only Compact View)
+                          ========================================================= */}
+                          {renderCompactReadOnlyOtherSourcesSection(
+                            directSearchResult.familyName,
+                            rawEvidenceList
+                          )}
 
-                    {/* =========================================================
-                        PROMINENT SMART TRANSFER BAR TO TICKET OPERATIONS ROOM
-                    ========================================================= */}
-                    <div className="rounded-3xl border border-[#B98A78]/50 bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-extrabold">
-                            غرفة عمليات التذكرة التفاعلية
-                          </span>
-                          <span className="text-xs text-emerald-900 font-bold">
-                            نقل السلسلة المخيطة ({finalStitchedStations.length}{' '}
-                            محطات) + جسر آدم + المصادر الإضافية
-                          </span>
+                          {/* =========================================================
+                              PROMINENT SMART TRANSFER BAR TO TICKET OPERATIONS ROOM
+                          ========================================================= */}
+                          <div className="rounded-3xl border border-[#B98A78]/50 bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-extrabold">
+                                  غرفة عمليات التذكرة التفاعلية
+                                </span>
+                                <span className="text-xs text-emerald-900 font-bold">
+                                  نقل السلسلة المخيطة ({finalStitchedStations.length}{' '}
+                                  محطات) + جسر آدم + المصادر الإضافية
+                                </span>
+                              </div>
+                              <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+                                هل اكتمل فحص مسار ({directSearchResult.familyName}) في بوصلة الأنساب؟ انقل المخرجات الآن لغرفة عمليات التذكرة للإثراء والتوثيق بنقرة واحدة
+                              </h4>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleTransferDiagnosticToTicketRoom(
+                                  directSearchResult,
+                                  rawEvidenceList,
+                                  finalStitchedStations
+                                )
+                              }
+                              data-testid="floating-transfer-to-ticket-room-btn"
+                              className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
+                            >
+                              <Sparkles className="w-4 h-4 shrink-0" />
+                              <span>
+                                🚀 نقل مخرجات الفحص إلى غرفة عمليات التذكرة للإثراء والتوثيق
+                              </span>
+                            </button>
+                          </div>
                         </div>
-                        <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-                          هل اكتمل فحص مسار ({directSearchResult.familyName}) في بوصلة الأنساب؟ انقل المخرجات الآن لغرفة عمليات التذكرة للإثراء والتوثيق بنقرة واحدة
-                        </h4>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleTransferDiagnosticToTicketRoom(
-                            directSearchResult,
-                            rawEvidenceList,
-                            finalStitchedStations
-                          )
-                        }
-                        data-testid="floating-transfer-to-ticket-room-btn"
-                        className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
-                      >
-                        <Sparkles className="w-4 h-4 shrink-0" />
-                        <span>
-                          🚀 نقل مخرجات الفحص إلى غرفة عمليات التذكرة للإثراء والتوثيق
-                        </span>
-                      </button>
+                      )}
                     </div>
 
                     {/* =========================================================
-                        INDEPENDENT COLLAPSIBLE BOX 6:
-                        معاينة عمود النسب الموثق للباحث (Visual Spine Preview)
+                        VISUAL SEPARATOR BEFORE FINAL RESULT SHOWCASE CONTAINER
+                    ========================================================= */}
+                    <div className="relative py-2 flex items-center justify-center">
+                      <div className="w-full border-t-2 border-dashed border-[#C5A059]/60" />
+                      <span className="absolute px-4 py-1 rounded-full bg-white border border-[#C5A059] text-[#8D4925] text-xs font-extrabold shadow-2xs">
+                        👑 المخرج النهائي المعتمد للعميل
+                      </span>
+                    </div>
+
+                    {/* =========================================================
+                        CONTAINER 3: [👑 حزمة النتيجة النهائية — المخرج المعتمد وعمود النسب للعميل]
+                        Final Result Showcase Container
                     ========================================================= */}
                     <div
+                      data-testid="boslet-container3-final-result"
                       className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                         bosletExpandedSections.spinePreview
-                          ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-4'
-                          : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
+                          ? 'border-2 border-[#C5A059] bg-gradient-to-b from-[#FAF6F0] via-white to-[#FAF6F0] p-5 sm:p-6 shadow-md space-y-5'
+                          : 'border-2 border-[#C5A059]/70 bg-[#FAF6F0] hover:border-[#C5A059] px-5 py-4 shadow-2xs'
                       }`}
                     >
                       <div
                         onClick={() => toggleBosletSection('spinePreview')}
-                        className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
+                        className={`flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none ${
                           bosletExpandedSections.spinePreview
-                            ? 'border-b border-[#E2DACB] pb-3.5'
+                            ? 'border-b-2 border-[#E2DACB] pb-4'
                             : ''
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`w-8 h-8 rounded-xl font-mono text-xs font-extrabold flex items-center justify-center shrink-0 transition-all ${
-                              bosletExpandedSections.spinePreview
-                                ? 'bg-[#D8755B] text-white shadow-2xs'
-                                : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
-                            }`}
-                          >
-                            6
-                          </span>
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#C5A059] to-[#8D4925] text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
+                            👑
+                          </div>
                           <div>
-                            <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-                              معاينة عمود نسب عائلة ({directSearchResult.familyName}) الموثق
+                            {/* Dynamic Source of Result Badge */}
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 border border-[#C5A059] text-[#8D4925] text-[10px] font-extrabold">
+                                الحزمة البصرية الثالثة · المخرج النهائي
+                              </span>
+                              {isFinalResultFromAdamTree ? (
+                                <span
+                                  data-testid="final-result-source-badge"
+                                  className="px-3 py-0.5 rounded-full bg-emerald-700 text-white text-xs font-extrabold shadow-2xs"
+                                >
+                                  🌳 مصدر النتيجة النهائية: شجرة آدم الموحدة (تطابق معتمد)
+                                </span>
+                              ) : (
+                                <span
+                                  data-testid="final-result-source-badge"
+                                  className="px-3 py-0.5 rounded-full bg-[#D8755B] text-white text-xs font-extrabold shadow-2xs"
+                                >
+                                  ⚡ مصدر النتيجة النهائية: خياطة المصادر الخام (مشاريع ألفا — جاهز للربط بشجرة آدم)
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
+                              النتيجة النهائية للفحص — معاينة بطاقة عمود النسب المعتمدة للعميل
                             </h3>
                             <p className="text-xs text-[#5C5346] mt-0.5">
-                              محاكاة بصرية لعمود النسب كما يظهر بعد ربط المحطات المخيطة بشجرة آدم للأجداد
+                              معاينة حية لبطاقة عمود نسب عائلة ({effectiveFinalResultForShowcase.familyName}) بكامل عقدها المتسلسلة، حالة الجذر المفتوح، المصادر المجمعة، والفروع الشقيقة
                             </p>
                           </div>
                         </div>
@@ -8619,7 +9342,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             e.stopPropagation();
                             toggleBosletSection('spinePreview');
                           }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
                             bosletExpandedSections.spinePreview
                               ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
                               : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
@@ -8627,8 +9350,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         >
                           <span>
                             {bosletExpandedSections.spinePreview
-                              ? 'طي معاينة العمود'
-                              : 'فتح وإبراز معاينة العمود'}
+                              ? 'طي الحزمة النهائية'
+                              : 'فتح وإبراز الحزمة النهائية'}
                           </span>
                           {bosletExpandedSections.spinePreview ? (
                             <ChevronUp className="w-4 h-4" />
@@ -8639,24 +9362,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       </div>
 
                       {bosletExpandedSections.spinePreview && (
-                        <div className="pt-2">
+                        <div className="pt-1">
                           <LineageSpineColumn
                             stateMode={DashboardStateMode.AnnualVip}
                             accountType={AccountLegalType.RecordKeeper}
-                            result={directSearchResult}
+                            result={effectiveFinalResultForShowcase}
                             bridgedAncestors={[]}
                             onAddBridgedAncestor={() => {}}
                             onUnlockRoot5Usd={() => {}}
                             onUpgradeAnnualVip={() => {}}
-                            unlockedCapsules={(directSearchResult.capsules || []).map(
-                              (c) => c.id
-                            )}
+                            unlockedCapsules={(
+                              effectiveFinalResultForShowcase.capsules || []
+                            ).map((c) => c.id)}
                             onRequestUnlockCapsule={() => {}}
                             walletBalance={25}
                             isResearcherDirectPreview={true}
                             onOpenAsResearcherTicket={() =>
                               handleTransferDiagnosticToTicketRoom(
-                                directSearchResult,
+                                effectiveFinalResultForShowcase,
                                 rawEvidenceList,
                                 finalStitchedStations
                               )

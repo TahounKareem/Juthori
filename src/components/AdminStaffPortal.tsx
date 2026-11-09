@@ -902,17 +902,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     },
     {
       id: 'research_studio',
-      label: 'إدارة البحوث',
+      label: 'مرصد البحوث',
       icon: <BookOpen className="w-4 h-4" />,
       badge: researchTicketsCount,
     },
     {
       id: 'adam_tree_management',
-      label: 'إدارة شجرة آدم',
+      label: 'شجرة آدم للأجداد',
       icon: (
         <img
           src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
-          alt="شجرة آدم"
+          alt="شجرة آدم للأجداد"
           className="w-5 h-5 rounded-full object-contain bg-white/90 p-0.5 shrink-0"
         />
       ),
@@ -1153,19 +1153,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         )}
 
         {/* =====================================================================
-            PANEL 2: أقسام البحوث الثلاثة (إدارة البحوث / إدارة شجرة آدم / بوصلة الأنساب)
+            PANEL 2: أقسام البحوث الثلاثة (مرصد البحوث / شجرة آدم للأجداد / بوصلة الأنساب)
            ===================================================================== */}
         {(activeTab === 'research_studio' ||
           activeTab === 'adam_tree_management' ||
           activeTab === 'direct_search_inspection') &&
           allowedTabs.includes(activeTab) && (
-            <div
-              className={
-                activeTab === 'direct_search_inspection'
-                  ? 'bg-[#0B1F17] rounded-3xl border-2 border-[#D4AF37]/50 p-4 sm:p-6 shadow-xl'
-                  : 'bg-white rounded-3xl border border-[#E2DACB] p-4 sm:p-6 shadow-sm'
-              }
-            >
+            <div className="bg-white rounded-3xl border border-[#E2DACB] p-4 sm:p-6 shadow-sm">
               <ResearcherStudio
                 activePortalSection={activeTab}
                 onSelectPortalSection={(sec) => {
