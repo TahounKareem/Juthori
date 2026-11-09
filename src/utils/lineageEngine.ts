@@ -3606,7 +3606,7 @@ export function resolveResearcherDataLakeBadge(
     return {
       tag: '[آدم]',
       colorClass:
-        'bg-emerald-100 text-emerald-900 border-emerald-300',
+        'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
     };
   }
 
@@ -3627,7 +3627,7 @@ export function resolveResearcherDataLakeBadge(
     return {
       tag: '[مشاريع]',
       colorClass:
-        'bg-purple-100 text-purple-900 border-purple-300',
+        'bg-[#EDE6DA] text-[#5C5346] border-[#B98A78]/50',
     };
   }
 
@@ -3635,7 +3635,7 @@ export function resolveResearcherDataLakeBadge(
   return {
     tag: '[ألفا]',
     colorClass:
-      'bg-amber-100 text-amber-900 border-amber-300',
+      'bg-[#FAF6F0] text-[#8D4925] border-[#E2DACB]',
   };
 }
 

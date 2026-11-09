@@ -2009,28 +2009,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
           <div>
             <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-              خوارزمية التوافق والمقارنة بين المصادر المتعددة لاسم ({familyName})
+              مصفوفة التوافق والمقارنة بين المصادر لاسم ({familyName})
             </h4>
             <p className="text-xs mt-0.5 text-[#5C5346]">
-              تحليل آلي لتقاطع حقلَي «نسب الأجداد» و«الفروع الأبناء» عبر ({safeEvidence.length}) سجلات مرصودة
+              تحليل تقاطع نسب الأجداد والفروع الأبناء عبر ({safeEvidence.length}) سجلات مرصودة
             </p>
           </div>
-          <span className="px-3 py-1 rounded-xl text-xs font-bold border bg-emerald-50 border-emerald-200 text-emerald-900">
+          <span className="px-3 py-1 rounded-xl text-xs font-bold border bg-white border-[#E2DACB] text-[#8D4925]">
             {clusters.length === 1
               ? 'مسار موحد في المصادر ✓'
               : `${clusters.length} مسارات مرصودة للمقارنة`}
           </span>
         </div>
 
-        {/* SECTION 1: 🌟 مسار التوافق المرجعي المرجّح (Consensus Cluster) */}
-        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/50 p-4 space-y-3">
+        {/* SECTION 1: مسار التوافق المرجعي المرجّح */}
+        <div className="rounded-2xl border border-[#B98A78]/50 bg-white p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-extrabold font-display text-emerald-950">
-                🌟 مسار التوافق المرجعي المرجّح (Consensus Cluster)
+              <span className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+                مسار التوافق المرجعي المرجّح
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-700 text-white">
-                مرجّح في عدة مصادر ({consensusWinner.sourcesCount} مراجع)
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#8D4925] text-white">
+                مرجّح في ({consensusWinner.sourcesCount}) مراجع
               </span>
             </div>
 
@@ -2052,7 +2052,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            <div className="rounded-xl p-2.5 border bg-white border-[#E2DACB]">
+            <div className="rounded-xl p-2.5 border bg-[#FAF6F0] border-[#E2DACB]">
               <span className="text-[11px] block text-[#5C5346]">
                 الأصل / القبيلة الأم المرجّحة:
               </span>
@@ -2060,15 +2060,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 {consensusWinner.originTribeLabel}
               </span>
             </div>
-            <div className="rounded-xl p-2.5 border bg-white border-[#E2DACB]">
+            <div className="rounded-xl p-2.5 border bg-[#FAF6F0] border-[#E2DACB]">
               <span className="text-[11px] block text-[#5C5346]">
-                عقدتا الجذر ($5):
+                عقدتا الجذر:
               </span>
-              <span className="font-bold text-emerald-900">
+              <span className="font-bold text-[#8D4925]">
                 {consensusWinner.rootPreviewLabel}
               </span>
             </div>
-            <div className="rounded-xl p-2.5 border bg-white border-[#E2DACB]">
+            <div className="rounded-xl p-2.5 border bg-[#FAF6F0] border-[#E2DACB]">
               <span className="text-[11px] block text-[#5C5346]">
                 النطاق الجغرافي المتوافق عليه:
               </span>
@@ -2078,9 +2078,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             </div>
           </div>
 
-          <div className="rounded-xl p-3 border space-y-1.5 bg-white border-[#E2DACB]">
-            <div className="text-[11px] font-bold text-emerald-900">
-              السلسلة الكاملة المتفق عليها والعُقد المشتركة ({consensusWinner.sharedNodes.join(' ، ')}):
+          <div className="rounded-xl p-3 border space-y-1.5 bg-[#FAF6F0] border-[#E2DACB]">
+            <div className="text-[11px] font-bold text-[#8D4925]">
+              السلسلة الكاملة المتفق عليها ({consensusWinner.sharedNodes.join(' ، ')}):
             </div>
             <p className="text-xs font-bold leading-relaxed text-[#252321]">
               {consensusWinner.fullChainNodes.join(' ⬅️ ')}
@@ -2094,7 +2094,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 return (
                   <span
                     key={ev.alpha_id || i}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs bg-[#FAF6F0] border-[#B98A78]/40 font-sans text-[#252321]"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs bg-white border-[#E2DACB] font-sans text-[#252321]"
                   >
                     <span>{formatCompactSourceBracket(ev)}</span>
                     <span
@@ -2109,30 +2109,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           </div>
         </div>
 
-        {/* SECTION 2: 📚 القائمة الكاملة لكافة المسارات والعناقيد المكتشفة للباحث (حتى المستبعدة من واجهة العميل) */}
+        {/* SECTION 2: القائمة الكاملة لكافة المسارات والعناقيد المكتشفة */}
         <div
           data-testid="researcher-all-discovered-clusters-list"
-          className="rounded-2xl border border-[#B98A78]/45 bg-[#EDE6DA]/45 p-4 space-y-3"
+          className="rounded-2xl border border-[#E2DACB] bg-white p-4 space-y-3"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <span className="text-sm sm:text-base font-extrabold block font-display text-[#8D4925]">
-                📚 القائمة الكاملة لكافة المسارات والعناقيد المكتشفة في البيانات ({clusters.length} مسارات)
-              </span>
-              <span className="text-[11px] text-[#5C5346]">
-                تُعرض جميع المسارات هنا للباحث لأغراض التدقيق الشامل، بينما يقتصر سؤال العميل في المحاكي أدناه على أقوى مسارين فقط (إضافة لخيار لا أعرف)
+                كافة المسارات المكتشفة في المصادر ({clusters.length} مسارات)
               </span>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925]">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925]">
               {competingClusters.length > 0
-                ? `${clusters.length} عناقيد إجمالية (منها ${competingClusters.length} مسارات موازية)`
+                ? `${clusters.length} مسارات إجمالية (${competingClusters.length} مسارات موازية)`
                 : 'مسار موحد بدون مسارات متعارضة'}
             </span>
           </div>
 
           {competingClusters.length === 0 ? (
-            <p className="text-xs rounded-xl p-3 border text-emerald-900 bg-white border-emerald-200 font-bold">
-              جميع المصادر المرصودة لاسم ({familyName}) تتفق على مسار نسبي واحد ولا توجد روايات متعارضة في القاعدة.
+            <p className="text-xs rounded-xl p-3 border text-[#5C5346] bg-[#FAF6F0] border-[#E2DACB] font-bold">
+              جميع المصادر المرصودة لاسم ({familyName}) تتفق على مسار نسبي واحد ولا توجد روايات متعارضة.
             </p>
           ) : (
             <div className="space-y-3">
@@ -2144,37 +2141,26 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     key={comp.clusterId}
                     className={`rounded-xl p-3.5 border space-y-2 ${
                       clusterIdx === 0
-                        ? 'bg-white border-emerald-300'
+                        ? 'bg-[#FAF6F0] border-[#B98A78]/60'
                         : 'bg-white border-[#E2DACB]'
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-[#8D4925] text-white">
-                          عنقود #{clusterIdx + 1}
+                          مسار #{clusterIdx + 1}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-lg border text-xs font-extrabold bg-[#FAF6F0] border-[#B98A78]/50 text-[#8D4925]">
-                          مسار: {comp.originTribeLabel}
+                        <span className="px-2.5 py-0.5 rounded-lg border text-xs font-extrabold bg-white border-[#E2DACB] text-[#8D4925]">
+                          {comp.originTribeLabel}
                         </span>
                         <span className="text-xs font-bold text-[#252321]">
-                          الجذر ($5): {comp.rootPreviewLabel}
+                          الجذر: {comp.rootPreviewLabel}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            isShownToCustomer
-                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                              : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB]'
-                          }`}
-                        >
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-white text-[#5C5346] border-[#E2DACB]">
                           {isShownToCustomer
-                            ? `✓ يُعرض للعميل في سؤال التحقق (الخيار #${clusterIdx + 1})`
-                            : '👁️ مرصود للباحث فقط (لا يُعرض للعميل لمنع التشتيت)'}
+                            ? `✓ الخيار #${clusterIdx + 1} للعميل`
+                            : 'مرصود للباحث فقط'}
                         </span>
-                        {chainCount > 6 && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-[#8D4925] border border-[#B98A78]/40">
-                            سلسلة طويلة ({chainCount} اسماً)
-                          </span>
-                        )}
                       </div>
 
                       {contextMode === 'direct_search' && directSearchResult && (
@@ -2219,9 +2205,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       {comp.geographicScope}
                     </div>
 
-                    <div className="rounded-lg p-2.5 border text-xs leading-relaxed bg-[#FAF6F0] border-[#E2DACB] text-[#252321]">
+                    <div className="rounded-lg p-2.5 border text-xs leading-relaxed bg-white border-[#E2DACB] text-[#252321]">
                       <span className="font-bold block mb-1 text-[#8D4925]">
-                        كامل سلسلة نسب الأجداد في السجل ({chainCount} محطة):
+                        سلسلة نسب الأجداد ({chainCount} محطة):
                       </span>
                       {comp.fullChainNodes.join(' ⬅️ ')}
                     </div>
@@ -2235,7 +2221,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         return (
                           <span
                             key={ev.alpha_id || idx}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs bg-[#FAF6F0] border-[#B98A78]/40 font-sans text-[#252321]"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs bg-[#FAF6F0] border-[#E2DACB] font-sans text-[#252321]"
                           >
                             <span>{formatCompactSourceBracket(ev)}</span>
                             <span
@@ -3261,27 +3247,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   </span>
                 )}
                 {ev.consensus_badge && (
-                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded bg-[#FAF6F0] text-[#8D4925] border border-[#E2DACB] text-[10px] font-bold">
                     {ev.consensus_badge}
                   </span>
                 )}
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    ev.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
-                      : 'bg-[#EDE6DA] text-[#5C5346]'
-                  }`}
-                >
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EDE6DA] text-[#5C5346]">
                   {ev.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
-                    ? 'كتاب دولة العميل - أولوية 1'
-                    : 'مرجع عام - أولوية 2'}
+                    ? 'مرجع دولة العميل'
+                    : 'مرجع عام'}
                 </span>
                 {(Boolean(ev.other_sources && ev.other_sources.trim()) ||
                   (Array.isArray(ev.parsed_other_sources) &&
                     ev.parsed_other_sources.length > 0)) && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-extrabold">
-                    ⚠️ إحالات لمصادر أخرى في الهامش (
-                    {ev.parsed_other_sources?.length || 1})
+                  <span className="px-2 py-0.5 rounded-full bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-extrabold">
+                    إحالات هامشية ({ev.parsed_other_sources?.length || 1})
                   </span>
                 )}
               </div>
@@ -3295,7 +3274,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   onChange={() => toggleSourceInclusion(ticket, idx)}
                   className="w-3.5 h-3.5 accent-[#D8755B] cursor-pointer"
                 />
-                <span>☑️ اعتماد هذا المصدر في توثيق العائلة</span>
+                <span>اعتماد المصدر</span>
               </label>
 
               <button
@@ -3312,8 +3291,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <Star className="w-3.5 h-3.5" />
                 <span>
                   {isPrimary
-                    ? '⭐ الرواية الأساسية المعتمدة لعمود العائلة ✓'
-                    : '⭐ تعيين كـ "الرواية الأساسية المعتمدة لعمود العائلة"'}
+                    ? 'الرواية الأساسية المعتمدة ✓'
+                    : 'تعيين كرواية أساسية'}
                 </span>
               </button>
 
@@ -3326,9 +3305,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   className="px-3 py-1 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
                 >
                   <GitMerge className="w-3.5 h-3.5" />
-                  <span>
-                    🔗 دمج/إلحاق أجداد هذه الرواية أعلى الرواية الأساسية
-                  </span>
+                  <span>دمج أجداد الرواية</span>
                 </button>
               )}
             </div>
@@ -3339,7 +3316,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               {parsedBranches.length > 0 && (
                 <div>
                   <span className="text-[11px] font-bold text-[#5C5346] block mb-1">
-                    الفروع الأبناء المذكورة في السجل (child_branches):
+                    الفروع الأبناء المذكورة في السجل:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedBranches.map((br, bIdx) => {
@@ -3349,14 +3326,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           key={bIdx}
                           className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 ${
                             isShared
-                              ? 'bg-emerald-50 border border-emerald-300 text-emerald-950'
+                              ? 'bg-white border border-[#B98A78] text-[#8D4925]'
                               : 'bg-white border border-[#E2DACB] text-[#252321]'
                           }`}
                         >
                           <span>{br}</span>
                           {isShared && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-700 text-white">
-                              قرينة تقاطع مشتركة
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#8D4925] text-white">
+                              مشترك
                             </span>
                           )}
                         </span>
@@ -3369,7 +3346,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               {parsedLocations.length > 0 && (
                 <div>
                   <span className="text-[11px] font-bold text-[#5C5346] block mb-1">
-                    المواطن والنطاق الجغرافي (locations):
+                    المواطن والنطاق الجغرافي:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {parsedLocations.map((loc, lIdx) => {
@@ -3379,14 +3356,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           key={lIdx}
                           className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 ${
                             isShared
-                              ? 'bg-amber-50 border border-[#B98A78]/50 text-[#8D4925]'
+                              ? 'bg-white border border-[#B98A78] text-[#8D4925]'
                               : 'bg-white border border-[#E2DACB] text-[#252321]'
                           }`}
                         >
                           <span>📍 {loc}</span>
                           {isShared && (
                             <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#8D4925] text-white">
-                              قرينة تقاطع مشتركة
+                              مشترك
                             </span>
                           )}
                         </span>
@@ -3400,7 +3377,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
           <div className="mt-3">
             <span className="text-[11px] font-bold text-[#5C5346] block mb-2">
-              سلسلة نسب الأجداد في هذا المصدر (انقر على أي جد لـ 🔍 فحص في شجرة آدم):
+              سلسلة نسب الأجداد في هذا المصدر (انقر على أي جد للفحص في شجرة آدم):
             </span>
             <div className="flex flex-wrap items-center gap-1.5">
               {displayChain.map((nodeName: string, nodeIdx: number) => {
@@ -3427,7 +3404,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           isInspected ? 'text-white/90' : 'text-[#8D4925]'
                         }`}
                       >
-                        🔍 فحص في شجرة آدم
+                        🔍 فحص
                       </span>
                     </button>
                     {nodeIdx < displayChain.length - 1 && (
@@ -3444,26 +3421,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           {inlineChainInspection &&
             inlineChainInspection.ticketId === ticket.id &&
             inlineChainInspection.sourceIdx === idx && (
-              <div
-                className={`mt-3 p-3.5 rounded-xl border text-xs ${
-                  inlineChainInspection.foundInAdam
-                    ? 'bg-emerald-50 text-emerald-950 border-emerald-300'
-                    : 'bg-amber-50 text-[#8D4925] border-[#B98A78]/50'
-                }`}
-              >
+              <div className="mt-3 p-3.5 rounded-xl border text-xs bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/50">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-bold">
                     {inlineChainInspection.foundInAdam &&
                     inlineChainInspection.matchedNode ? (
                       <span>
-                        ✅ العقدة «{inlineChainInspection.queriedName}» مفهرسة
-                        وموجودة في شجرة آدم (الكود:{' '}
-                        {inlineChainInspection.matchedNode.arc_code} — المعرف:{' '}
+                        ✓ العقدة «{inlineChainInspection.queriedName}» مفهرسة
+                        في شجرة آدم ({inlineChainInspection.matchedNode.arc_code} —{' '}
                         {inlineChainInspection.matchedNode.node_id})
                       </span>
                     ) : (
                       <span>
-                        ⚠️ العقدة «{inlineChainInspection.queriedName}» غير
+                        العقدة «{inlineChainInspection.queriedName}» غير
                         مفهرسة بعد في شجرة آدم — جاهزة للإدراج والربط المباشر
                       </span>
                     )}
@@ -3481,16 +3451,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             setActiveSubTab('adam_tree_explorer');
                           }
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-[#8D4925] hover:bg-[#733A1D] text-white text-[11px] font-bold cursor-pointer"
                       >
-                        🌳 فتح هذا السجل في تبويب شجرة آدم ↗
+                        فتح السجل في شجرة آدم ↗
                       </button>
                     )}
                 </div>
 
                 {inlineChainInspection.foundInAdam &&
                   inlineChainInspection.adamChainPreview.length > 0 && (
-                    <p className="text-[11px] text-emerald-900 mt-1.5 font-mono">
+                    <p className="text-[11px] text-[#252321] mt-1.5 font-mono">
                       الاتصال في شجرة آدم:{' '}
                       {inlineChainInspection.adamChainPreview.join(' ⬅️ ')}
                     </p>
@@ -3522,89 +3492,31 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         className="rounded-3xl border border-[#E2DACB] bg-[#FAF6F0]/60 p-5 sm:p-6 shadow-2xs space-y-5 relative"
       >
         {/* =========================================================
-            P3 STRATEGIC SELECTION WEIGHT & REASONS CARD (WHEN P3 TICKET)
+            WORKFLOW TABS BAR (Simplified & Harmonized with Warm Heritage Theme)
         ========================================================= */}
-        {ticket.p3StrategicMeta && (
-          <div
-            data-testid="p3-strategic-selection-card"
-            className="rounded-2xl border border-emerald-300 bg-gradient-to-l from-emerald-50 via-[#FAF6F0] to-white text-[#252321] p-4 space-y-2 shadow-2xs"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-xl bg-emerald-700 text-white font-mono text-xs font-extrabold shadow-2xs">
-                  [★ وزن استراتيجي: {ticket.p3StrategicMeta.strategic_score} نقطة]
-                </span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100/80 border border-emerald-300 text-emerald-950 text-xs font-bold">
-                  🟢 أولوية 3 (P3): التعدين الاستباقي الذكي لعقد ألفا ذات الثقل المرجعي
-                </span>
-              </div>
-              <span className="text-[11px] font-mono text-[#8D4925] font-bold">
-                Auto-Refill Mining Queue
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-[#5C5346] font-bold">
-                أسباب الاختيار الذكي:
-              </span>
-              {ticket.p3StrategicMeta.why_selected_reasons.map((reason, rIdx) => (
-                <span
-                  key={rIdx}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] text-[#8D4925] font-bold text-[11px]"
-                >
-                  • {reason}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* =========================================================
-            QUEST PROGRESS BAR HEADER (0% -> 100%) + 4-STEP WORKFLOW TABS
-        ========================================================= */}
-        <div className="rounded-2xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 text-[#252321] p-4 sm:p-5 space-y-3.5 border border-[#B98A78]/45 shadow-2xs">
+        <div className="rounded-2xl bg-[#FAF6F0] text-[#252321] p-4 space-y-3 border border-[#E2DACB]">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#D8755B] text-white text-[11px] font-display font-extrabold">
-                  🧭 مرصد جذوري — غرفة عمليات التذكرة التفاعلية
-                </span>
-                <span className="text-xs text-[#8D4925] font-mono font-bold">
-                  {ticket.id}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E2DACB] text-[#8D4925] font-mono text-[11px] font-bold">
-                  ⏱️ زمن التذكرة النشطة: {formatDurationMmSs(activeTicketElapsedSeconds)}
-                </span>
-              </div>
-              <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-                شريط إنجاز التذكرة (Quest Progress Bar): 4 خطوات متسلسلة لحسم التذكرة وتغذية شجرة آدم
-              </h4>
-            </div>
+            <h4 className="text-sm font-extrabold font-display text-[#252321]">
+              مراحل معالجة البحث وتوثيق النسب
+            </h4>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowAllWorkflowStepsAtOnce((prev) => !prev)}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA]/70 border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-bold cursor-pointer transition-all"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA]/70 border border-[#E2DACB] text-[#8D4925] text-[11px] font-bold cursor-pointer transition-all"
               >
                 {showAllWorkflowStepsAtOnce
-                  ? '📑 وضع التبويبات المتسلسلة (4 مراحل)'
-                  : '📜 عرض كافة المراحل في صفحة واحدة'}
+                  ? 'وضع التبويبات المتسلسلة'
+                  : 'عرض كافة المراحل في صفحة واحدة'}
               </button>
               <span
                 data-testid="quest-progress-percentage"
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-700 text-white font-mono text-sm font-extrabold shadow-2xs"
+                className="px-3 py-1 rounded-xl bg-[#8D4925] text-white font-mono text-xs font-extrabold"
               >
                 {questProgressPercent}% مكتمل
               </span>
             </div>
-          </div>
-
-          <div className="w-full h-3 rounded-full bg-[#EDE6DA] overflow-hidden p-0.5 border border-[#B98A78]/40">
-            <div
-              className="h-full rounded-full bg-gradient-to-l from-emerald-600 via-[#D8755B] to-emerald-600 transition-all duration-500"
-              style={{ width: `${questProgressPercent}%` }}
-            />
           </div>
 
           {/* 4-STEP SEQUENTIAL WORKFLOW TABS BAR */}
@@ -3612,28 +3524,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             {[
               {
                 step: 1 as const,
-                title: '1️⃣ الفحص والأدلة المرجعية',
-                sub: `${allTicketEvidence.length} مصادر · كشّاف الأنساب`,
+                title: '1. الفحص والأدلة المرجعية',
+                sub: `${allTicketEvidence.length} مصادر مرصودة`,
                 done: allTicketEvidence.length > 0,
               },
               {
                 step: 2 as const,
-                title: '2️⃣ هندسة العمود وجسر آدم',
+                title: '2. هندسة العمود وجسر آدم',
                 sub: isBridgeConnected
-                  ? '✅ متصل بشجرة آدم'
+                  ? 'متصل بشجرة آدم ✓'
                   : `${liveNodes.length} محطات في السلسلة`,
                 done: isBridgeConnected,
               },
               {
                 step: 3 as const,
-                title: '3️⃣ إثراء العقدة والمصادر الهامشية',
-                sub: `إثراء (${activeSourceIndices.length}) · هامش (${verifiedLeadsCount}/${extractedLeads.length})`,
+                title: '3. إثراء العقدة والمصادر الهامشية',
+                sub: `المصادر (${activeSourceIndices.length}) · الهامش (${verifiedLeadsCount}/${extractedLeads.length})`,
                 done: isStation2Completed && isStation3Completed,
               },
               {
                 step: 4 as const,
-                title: '4️⃣ المعاينة النهائية والاعتماد',
-                sub: 'معاينة العمود ومخرجات العميل',
+                title: '4. المعاينة النهائية والاعتماد',
+                sub: 'معاينة العمود النهائي',
                 done:
                   ticket.status === 'CLOSED_AND_ENRICHED' ||
                   ticket.status === 'merged_closed',
@@ -3653,10 +3565,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   }}
                   className={`rounded-xl px-3.5 py-2.5 border text-right transition-all cursor-pointer flex flex-col justify-between gap-1 ${
                     isCurrent
-                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-sm'
-                      : tabItem.done
-                      ? 'bg-emerald-50/80 border-emerald-300 text-[#252321] hover:border-[#D8755B]'
-                      : 'bg-white border-[#E2DACB] text-[#252321] hover:bg-[#FAF6F0] hover:border-[#B98A78]'
+                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-2xs'
+                      : 'bg-white border-[#E2DACB] text-[#252321] hover:bg-[#EDE6DA]/50 hover:border-[#B98A78]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1.5">
@@ -3668,7 +3578,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         className={`text-[10px] font-mono font-extrabold px-1.5 py-0.5 rounded ${
                           isCurrent
                             ? 'bg-white text-[#D8755B]'
-                            : 'bg-emerald-700 text-white'
+                            : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E2DACB]'
                         }`}
                       >
                         ✓
@@ -3679,7 +3589,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     className={`text-[10px] ${
                       isCurrent
                         ? 'text-white/95 font-bold'
-                        : 'text-[#8D4925] font-medium'
+                        : 'text-[#5C5346] font-medium'
                     }`}
                   >
                     {tabItem.sub}
@@ -3691,7 +3601,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         </div>
 
         {/* ===================================================================
-            WORKFLOW TAB 1: [1️⃣ الفحص والأدلة المرجعية]
+            WORKFLOW TAB 1: [1. الفحص والأدلة المرجعية]
         =================================================================== */}
         <div
           data-testid="workflow-step-1-panel"
@@ -3701,45 +3611,34 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               : 'hidden'
           }
         >
-          {/* 1A: EMBEDDED DIAGNOSTIC DRAWER — كشّاف جذوري للأنساب */}
+          {/* 1A: EMBEDDED DIAGNOSTIC DRAWER — كشّاف الأنساب */}
           <div
             data-testid="embedded-diagnostic-drawer"
-            className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] text-[#252321] overflow-hidden shadow-2xs"
+            className="rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] text-[#252321] overflow-hidden shadow-2xs"
           >
             <div
               onClick={() => setIsDiagnosticDrawerOpen((prev) => !prev)}
-              className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-[#EDE6DA]/60 transition-colors"
+              className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-[#EDE6DA]/50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-white p-0.5 border border-[#B98A78] shadow-2xs shrink-0 flex items-center justify-center overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-white p-0.5 border border-[#B98A78] shadow-2xs shrink-0 flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
-                    alt="كشّاف جذوري للأنساب"
+                    alt="كشّاف الأنساب"
                     className="w-full h-full object-cover rounded-full"
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-lg bg-[#8D4925] text-white text-[11px] font-display font-extrabold">
-                      🧭 كشّاف جذوري للأنساب — درج التشخيص الخوارزمي المدمج (8-Stage Pipeline Audit)
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] font-bold">
-                      مُغذّى آلياً دون مغادرة التذكرة ✓
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#5C5346] pt-0.5">
+                  <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321] block">
+                    كشّاف الأنساب — ملخص الفحص التشخيصي المدمج
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#5C5346]">
                     <span>
                       المصادر الخام: <strong className="text-[#8D4925]">{diagnosticCtx.rawSourcesCount}</strong>
                     </span>
                     <span>·</span>
-                    <span>
-                      العمليات الخوارزمية:{' '}
-                      <strong className="text-emerald-800">{diagnosticCtx.pipelineAuditBullets.length} مراحل</strong>
-                    </span>
-                    <span>·</span>
-                    <span className="text-[#8D4925] font-extrabold">
-                      عقدتا الجذر: B2 ({diagnosticCtx.rootBranchB2}) ⬅️ B0 (
-                      {diagnosticCtx.rootTribeB0})
+                    <span className="text-[#8D4925] font-bold">
+                      عقدتا الجذر: {diagnosticCtx.rootBranchB2} ⬅️ {diagnosticCtx.rootTribeB0}
                     </span>
                   </div>
                 </div>
@@ -3748,12 +3647,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               <button
                 type="button"
                 data-testid="toggle-embedded-diagnostic-drawer-btn"
-                className="px-3.5 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
               >
                 <span>
                   {isDiagnosticDrawerOpen
-                    ? 'طيّ كشّاف جذوري التشخيصي'
-                    : 'فتح كشّاف جذوري التشخيصي الكامل'}
+                    ? 'طيّ ملخص الفحص'
+                    : 'عرض ملخص الفحص'}
                 </span>
                 {isDiagnosticDrawerOpen ? (
                   <ChevronUp className="w-4 h-4" />
@@ -3770,15 +3669,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <div className="lg:col-span-5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <h5 className="text-xs font-extrabold font-display text-[#8D4925]">
-                        1️⃣ ملخص المصادر الخام المرصودة ({allTicketEvidence.length})
+                        ملخص المصادر الخام المرصودة ({allTicketEvidence.length})
                       </h5>
-                      <span className="text-[10px] font-mono text-[#5C5346] font-bold">
-                        Raw Sources
-                      </span>
                     </div>
                     {allTicketEvidence.length === 0 ? (
                       <div className="rounded-lg bg-white border border-[#E2DACB] p-2.5 text-[11px] font-bold text-[#8D4925]">
-                        تذكرة عميل (P1) بدون تطابق مباشر في المعاجم الحالية — موجهة للتحقيق المعمق.
+                        بحث عميل بدون تطابق مباشر في المعاجم الحالية — موجه للتحقيق المعمق.
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -3791,7 +3687,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               className="rounded-xl bg-white border border-[#E2DACB] p-2.5 space-y-1.5"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-1">
-                                <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925] text-[10px] font-bold">
                                   {formatAlphaReferenceBadge(ev)}
                                 </span>
                                 <span
@@ -3810,14 +3706,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     )}
                   </div>
 
-                  {/* 2. 8-Stage Pipeline Audit inside Drawer (7 cols) */}
+                  {/* 2. Pipeline Audit inside Drawer (7 cols) */}
                   <div className="lg:col-span-7 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <h5 className="text-xs font-extrabold font-display text-[#8D4925]">
-                        2️⃣ سجل العمليات الخوارزمية الـ 8 (8-Stage Pipeline Audit)
+                        سجل خطوات المعالجة والتحقق
                       </h5>
-                      <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900 font-mono text-[10px] font-bold">
-                        B2: {diagnosticCtx.rootBranchB2} ⬅️ B0: {diagnosticCtx.rootTribeB0}
+                      <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] text-[#8D4925] font-mono text-[10px] font-bold">
+                        {diagnosticCtx.rootBranchB2} ⬅️ {diagnosticCtx.rootTribeB0}
                       </span>
                     </div>
                     <ul className="space-y-1.5 text-[11px] text-[#252321] max-h-60 overflow-y-auto pr-1">
@@ -3840,34 +3736,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             )}
           </div>
 
-          {/* 1B: AI Research Hypothesis Card */}
+          {/* 1B: Research Hypothesis Card */}
           <div
             data-testid="section1-ai-research-hypothesis-and-bridge"
-            className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 shadow-2xs space-y-3"
+            className="rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 sm:p-5 shadow-2xs space-y-2.5"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-bold">
-                  التحليل الاستدلالي الذكي للباحث
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#5C5346] text-[11px] font-bold">
-                  حصرياً لفريق التحقيق (غير معروض للعميل)
-                </span>
-              </div>
-              <span className="text-[11px] font-mono font-bold text-[#8D4925]">
-                AI Research Hypothesis v11.1
-              </span>
-            </div>
-
-            <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-              🧠 التنبيه الاستدلالي الذكي وتحليل القرائن للباحث (AI Research Hypothesis)
+            <h4 className="text-sm font-extrabold font-display text-[#8D4925]">
+              خلاصة القرائن الاستدلالية للباحث
             </h4>
 
             <div className="space-y-2">
               {hypotheses.map((hyp, hIdx) => (
                 <div
                   key={hIdx}
-                  className="rounded-xl bg-white border border-[#E2DACB] p-3.5 text-xs text-[#252321] leading-relaxed font-medium shadow-2xs"
+                  className="rounded-xl bg-white border border-[#E2DACB] p-3 text-xs text-[#252321] leading-relaxed font-medium"
                 >
                   {hyp}
                 </div>
@@ -3888,15 +3770,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             className="space-y-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
-                  البحيرة 2 — معاجم ومشاريع ألفا
-                </span>
-                <h4 className="text-sm font-bold font-display text-[#252321] mt-1">
-                  📚 مصفوفة تفكيك ومقارنة المصادر والروايات (
-                  {allTicketEvidence.length} مصادر)
-                </h4>
-              </div>
+              <h4 className="text-sm font-bold font-display text-[#252321]">
+                المصادر والروايات المرصودة ({allTicketEvidence.length} مصادر)
+              </h4>
               <span className="px-3 py-1 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#8D4925]">
                 المصادر المعتمدة للتوثيق:{' '}
                 {getTicketIncludedIndices(ticket).length} من{' '}
@@ -3904,13 +3780,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </span>
             </div>
 
-            {/* GROUP 1: 🌟 مراجع مسار التوافق الأساسي */}
-            <div className="rounded-2xl border border-emerald-300 bg-emerald-50/40 p-4 space-y-3">
+            {/* GROUP 1: مراجع مسار التوافق الأساسي */}
+            <div className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs sm:text-sm font-extrabold font-display text-emerald-950">
-                  🌟 مراجع مسار التوافق الأساسي (is_consensus_winner: true)
+                <span className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
+                  مراجع مسار التوافق الأساسي
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white text-[11px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-bold">
                   {winnerItems.length} مصادر متفقة
                 </span>
               </div>
@@ -3921,28 +3797,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </div>
             </div>
 
-            {/* GROUP 2: 📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق */}
-            <div className="rounded-2xl border border-[#B98A78]/45 bg-[#FAF6F0] p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs sm:text-sm font-extrabold font-display text-[#8D4925]">
-                  📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق (is_consensus_winner: false)
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925] text-[11px] font-bold">
-                  {competingItems.length} روايات موازية للمقارنة أو الدمج
-                </span>
-              </div>
-              {competingItems.length === 0 ? (
-                <p className="text-xs text-[#5C5346] bg-white rounded-xl p-3 border border-[#E2DACB]">
-                  جميع مصادر البحيرة 2 لاسم ({ticket.familyName}) تتفق على مسار التوافق الأساسي أعلاه ولا توجد روايات متشابهة متعارضة.
-                </p>
-              ) : (
+            {/* GROUP 2: روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق */}
+            {competingItems.length > 0 && (
+              <div className="rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs sm:text-sm font-extrabold font-display text-[#8D4925]">
+                    روايات أخرى لنفس الاسم للمقارنة والتحقيق
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#8D4925] text-[11px] font-bold">
+                    {competingItems.length} روايات موازية
+                  </span>
+                </div>
                 <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
                   {competingItems.map(({ ev, originalIdx }) =>
                     renderEvidenceCard(ev, originalIdx)
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* 1E: روافد البحيرة الثالثة والمشاريع الخاصة */}
@@ -3953,17 +3825,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 className="rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 space-y-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#5C5346] text-[11px] font-bold">
-                      روافد البحيرة الثالثة والمشاريع الخاصة
-                    </span>
-                    <h4 className="text-xs sm:text-sm font-bold font-display text-[#252321] mt-1">
-                      🗂️ سجلات استئناسية داعمة للباحث مع إمكانية إلحاقها بالمصادر المعتمدة
-                    </h4>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-lg bg-[#8D4925] text-white text-[11px] font-mono font-bold">
-                    {ticket.lake3UnlinkedProjects.length} سجلات
-                  </span>
+                  <h4 className="text-xs sm:text-sm font-bold font-display text-[#252321]">
+                    سجلات استئناسية داعمة من المشاريع الخاصة ({ticket.lake3UnlinkedProjects.length})
+                  </h4>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2.5">
@@ -3976,7 +3840,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         key={rec.record_id}
                         className={`rounded-xl border p-3.5 space-y-1.5 transition-all ${
                           isAttached
-                            ? 'bg-emerald-50/70 border-emerald-400'
+                            ? 'bg-[#FAF6F0] border-[#D8755B]'
                             : 'bg-white border-[#E2DACB]'
                         }`}
                       >
@@ -3985,10 +3849,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             <span className="text-xs font-bold text-[#252321]">
                               {rec.project_source}
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold border bg-purple-50 text-purple-900 border-purple-200">
-                              [مشاريع]
-                            </span>
-                            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#FAF6F0] text-[#5C5346]">
+                            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925]">
                               {rec.family_or_tribe_name}
                             </span>
                           </div>
@@ -4003,13 +3864,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             }
                             className={`px-3 py-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all ${
                               isAttached
-                                ? 'bg-emerald-700 text-white'
+                                ? 'bg-[#8D4925] text-white'
                                 : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
                             }`}
                           >
                             {isAttached
                               ? '✓ تم الإلحاق بالمصادر المعتمدة'
-                              : '➕ إلحاق بالمصادر المعتمدة'}
+                              : '+ إلحاق بالمصادر المعتمدة'}
                           </button>
                         </div>
                         <p className="text-xs text-[#252321] leading-relaxed">
@@ -4026,22 +3887,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
               </div>
             )}
-
-          {!showAllWorkflowStepsAtOnce && (
-            <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setActiveTicketWorkflowStep(2)}
-                className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-2"
-              >
-                <span>التالي: 2️⃣ هندسة العمود وجسر آدم ⬅️</span>
-              </button>
-            </div>
-          )}
         </div>
 
         {/* ===================================================================
-            WORKFLOW TAB 2: [2️⃣ هندسة العمود وجسر آدم]
+            WORKFLOW TAB 2: [2. هندسة العمود وجسر آدم]
         =================================================================== */}
         <div
           data-testid="workflow-step-2-panel"
@@ -4053,25 +3902,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         >
           <div
             data-testid="workspace-station-1-lego-chain-builder"
-            className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
+            className="rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="w-7 h-7 rounded-xl bg-[#D8755B] text-white font-mono text-xs font-extrabold flex items-center justify-center">
-                  2
-                </span>
-                <div>
-                  <h5 className="text-sm font-extrabold font-display text-[#252321]">
-                    ورشة هندسة عمود النسب الموحدة وجسر شجرة آدم (Interactive Lego Chain Builder & Arc Coding)
-                  </h5>
-                  <p className="text-[11px] text-[#5C5346]">
-                    عدّل اسم أي محطة أو كودها الهيكلي (FE0 / B2 / B1 / B0) ونوع الرابط (بن / من)، أو احذف أي شائبة بعلامة (×)، أو أضف محطات جديدة بنقرة واحدة
-                  </p>
-                </div>
+              <div>
+                <h5 className="text-sm font-extrabold font-display text-[#252321]">
+                  هندسة عمود النسب وجسر شجرة آدم
+                </h5>
+                <p className="text-[11px] text-[#5C5346]">
+                  عدّل اسم أي محطة أو كودها الهيكلي ونوع الرابط (بن / من)، أو أضف محطات جديدة
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-1 rounded-xl bg-white border border-[#E2DACB] text-[#8D4925] text-xs font-bold">
-                  {liveNodes.length} محطات في السلسلة
+                  {liveNodes.length} محطات
                 </span>
                 <button
                   type="button"
@@ -4106,13 +3950,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <React.Fragment key={node.id || nIdx}>
                     <div
                       data-testid={`lego-chain-chip-${nIdx}`}
-                      className={`inline-flex flex-wrap items-center gap-1.5 p-2 rounded-2xl border text-xs font-bold shadow-2xs transition-all ${
-                        nIdx === 0
-                          ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
-                          : nIdx === liveNodes.length - 1
-                          ? 'bg-amber-50/80 border-[#B98A78] text-[#8D4925]'
-                          : 'bg-[#FAF6F0] border-[#E2DACB] text-[#252321]'
-                      }`}
+                      className="inline-flex flex-wrap items-center gap-1.5 p-2 rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] text-[#252321] text-xs font-bold shadow-2xs transition-all"
                     >
                       <span className="w-5 h-5 rounded-full bg-[#8D4925] text-white font-mono text-[10px] font-bold flex items-center justify-center shrink-0">
                         {nIdx + 1}
@@ -4136,7 +3974,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             nodeCode: e.target.value,
                           })
                         }
-                        className="px-1.5 py-1 rounded-lg border border-[#B98A78]/50 bg-[#FAF6F0] text-[#8D4925] font-mono text-[11px] font-bold cursor-pointer"
+                        className="px-1.5 py-1 rounded-lg border border-[#E2DACB] bg-white text-[#8D4925] font-mono text-[11px] font-bold cursor-pointer"
                         title="الكود الهيكلي للمحطة"
                       >
                         {ARC_CODE_OPTIONS.map((opt) => (
@@ -4191,8 +4029,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           onClick={() =>
                             handleRemoveLivePreviewNode(ticket, nIdx)
                           }
-                          className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-600 text-red-700 hover:text-white flex items-center justify-center text-xs font-extrabold cursor-pointer transition-colors"
-                          title="حذف هذه العقدة من السلسلة بنقرة واحدة"
+                          className="w-5 h-5 rounded-full bg-[#EDE6DA] hover:bg-[#D8755B] text-[#8D4925] hover:text-white flex items-center justify-center text-xs font-extrabold cursor-pointer transition-colors"
+                          title="حذف هذه العقدة من السلسلة"
                         >
                           ×
                         </button>
@@ -4228,7 +4066,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       }
                     }}
                     placeholder="+ اكتب اسم جد واضغط Enter لإدراجه في السلسلة..."
-                    className="px-3 py-1.5 rounded-xl border border-dashed border-[#B98A78] bg-[#FAF6F0] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#D8755B] w-64"
+                    className="px-3 py-1.5 rounded-xl border border-[#E2DACB] bg-[#FAF6F0] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#D8755B] w-64"
                   />
                   <button
                     type="button"
@@ -4246,14 +4084,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 {lake3SuggestionNames.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] font-bold text-[#5C5346]">
-                      💡 مقترحات سريعة بنقرة واحدة:
+                      مقترحات سريعة:
                     </span>
                     {lake3SuggestionNames.map((sugName, sIdx) => (
                       <button
                         key={sIdx}
                         type="button"
                         onClick={() => handleQuickAddChipToChain(sugName)}
-                        className="px-2.5 py-0.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-bold cursor-pointer transition-all"
+                        className="px-2.5 py-0.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] text-[11px] font-bold cursor-pointer transition-all"
                       >
                         + {sugName}
                       </button>
@@ -4266,25 +4104,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             {/* Unified Adam Tree Bridge & Instant Search Panel (Warm Heritage Theme) */}
             <div
               data-testid="lake1-suggested-adam-bridge"
-              className="rounded-2xl border border-emerald-300 bg-gradient-to-l from-emerald-50/80 via-[#FAF6F0] to-white text-[#252321] p-4 sm:p-5 shadow-2xs space-y-4"
+              className="rounded-2xl border border-[#B98A78]/50 bg-white text-[#252321] p-4 sm:p-5 shadow-2xs space-y-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-bold">
-                      البحيرة 1 — جسر شجرة آدم المقترح آلياً (ADAM_MASTER_TREE)
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925] text-[11px] font-bold">
+                      جسر شجرة آدم المقترح
                     </span>
                     {ticket.suggestedAdamBridge && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#B98A78]/50 text-[#8D4925] font-mono text-[11px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925] font-mono text-[11px] font-bold">
                         العقدة #{ticket.suggestedAdamBridge.adam_node_id} (
-                        {ticket.suggestedAdamBridge.matched_station_name}) ·{' '}
-                        {ticket.suggestedAdamBridge.confidence_label ||
-                          'تطابق آلي 98%'}
+                        {ticket.suggestedAdamBridge.matched_station_name})
                       </span>
                     )}
                   </div>
                   <h4 className="text-sm sm:text-base font-bold font-display text-[#252321]">
-                    🎯 جسر الالتقاء في شجرة آدم والاتصال الكامل حتى آدم عليه السلام
+                    نقطة الالتقاء في شجرة آدم والاتصال الكامل حتى آدم عليه السلام
                   </h4>
                 </div>
 
@@ -4301,30 +4137,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       [ticket.id]: bridgePreview,
                     }));
                     showToast(
-                      `⚡ تم اعتماد ووصل أعلى السلسلة (${
+                      `تم اعتماد ووصل أعلى السلسلة (${
                         liveNodes[liveNodes.length - 1]?.name ||
                         ticket.familyName
-                      }) بشجرة آدم بنجاح! تقدّم شريط الإنجاز 🚀`
+                      }) بشجرة آدم بنجاح ✓`
                     );
                   }}
                   className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs ${
                     isBridgeConnected
-                      ? 'bg-emerald-700 text-white'
+                      ? 'bg-[#8D4925] text-white'
                       : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
                   }`}
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>
                     {isBridgeConnected
-                      ? '✅ تم وصل السلسلة بشجرة آدم بنجاح'
-                      : '⚡ اعتماد ووصل السلسلة بشجرة آدم'}
+                      ? '✓ تم وصل السلسلة بشجرة آدم'
+                      : 'اعتماد ووصل السلسلة بشجرة آدم'}
                   </span>
                 </button>
               </div>
 
               {ticket.suggestedAdamBridge && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="rounded-xl bg-white border border-[#E2DACB] p-3">
+                  <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3">
                     <span className="text-[#5C5346] block text-[11px]">
                       المحطة المطابقة من عمود العائلة:
                     </span>
@@ -4333,11 +4169,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     </span>
                   </div>
 
-                  <div className="sm:col-span-2 rounded-xl bg-white border border-[#E2DACB] p-3">
+                  <div className="sm:col-span-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3">
                     <span className="text-[#5C5346] block text-[11px]">
                       عقدة شجرة آدم المكتشفة وسلسلة اتصالها المباشر:
                     </span>
-                    <span className="font-mono font-bold text-emerald-900 text-xs sm:text-sm">
+                    <span className="font-mono font-bold text-[#252321] text-xs sm:text-sm">
                       {ticket.suggestedAdamBridge.adam_node_id}:{' '}
                       {ticket.suggestedAdamBridge.adam_chain_preview}
                     </span>
@@ -4345,8 +4181,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
               )}
 
-              <div className="rounded-xl bg-white border border-emerald-200 p-3 text-xs space-y-1">
-                <span className="text-emerald-900 font-bold block">
+              <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-xs space-y-1">
+                <span className="text-[#8D4925] font-bold block">
                   الاتصال الكامل حتى آدم عليه السلام:
                 </span>
                 <p className="text-[#252321] font-mono leading-relaxed">
@@ -4367,8 +4203,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       [ticket.id]: e.target.value,
                     }))
                   }
-                  placeholder="🔍 أو ابحث فورياً عن عقدة أخرى في شجرة آدم للربط المباشر..."
-                  className="px-3 py-1.5 rounded-lg bg-white border border-[#B98A78]/50 text-[#252321] placeholder:text-[#5C5346] text-xs focus:outline-none focus:border-[#D8755B] w-80"
+                  placeholder="🔍 أو ابحث عن عقدة أخرى في شجرة آدم للربط المباشر..."
+                  className="px-3 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-[#252321] placeholder:text-[#5C5346] text-xs focus:outline-none focus:border-[#D8755B] w-80"
                 />
                 {quickAdamMatches.map((mNode) => (
                   <button
@@ -4392,40 +4228,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         [ticket.id]: '',
                       }));
                       showToast(
-                        `🌳 تم ربط السلسلة بعقدة شجرة آدم: ${mNode.name} (#${mNode.node_id})!`
+                        `تم ربط السلسلة بعقدة شجرة آدم: ${mNode.name} (#${mNode.node_id}) ✓`
                       );
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/60 text-[#8D4925] text-[11px] font-bold cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] text-[11px] font-bold cursor-pointer"
                   >
-                    ⚡ ربط بـ {mNode.name} ({mNode.arc_code})
+                    ربط بـ {mNode.name} ({mNode.arc_code})
                   </button>
                 ))}
               </div>
             </div>
           </div>
-
-          {!showAllWorkflowStepsAtOnce && (
-            <div className="flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={() => setActiveTicketWorkflowStep(1)}
-                className="px-4 py-2 rounded-xl bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold cursor-pointer"
-              >
-                ➡️ السابق: 1️⃣ الفحص والأدلة المرجعية
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTicketWorkflowStep(3)}
-                className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-2"
-              >
-                <span>التالي: 3️⃣ إثراء العقدة والمصادر الهامشية ⬅️</span>
-              </button>
-            </div>
-          )}
         </div>
 
         {/* ===================================================================
-            WORKFLOW TAB 3: [3️⃣ إثراء العقدة والمصادر الهامشية]
+            WORKFLOW TAB 3: [3. إثراء العقدة والمصادر الهامشية]
         =================================================================== */}
         <div
           data-testid="workflow-step-3-panel"
@@ -4436,24 +4253,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           }
         >
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-            {/* RIGHT COLUMN (6 COLS): STATION 2 — 1-CLICK NODE ENRICHMENT + EXTRA ENRICHMENT INPUTS */}
+            {/* RIGHT COLUMN (6 COLS): STATION 2 — NODE ENRICHMENT */}
             <div
               data-testid="workspace-station-2-node-enrichment"
-              className="xl:col-span-6 rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
+              className="xl:col-span-6 rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-7 h-7 rounded-xl bg-[#D8755B] text-white font-mono text-xs font-extrabold flex items-center justify-center">
-                    3A
-                  </span>
-                  <div>
-                    <h5 className="text-sm font-extrabold font-display text-[#252321]">
-                      إثراء العقدة بالمصادر الأساسية والفروع والمواضع (1-Click Node Enrichment)
-                    </h5>
-                    <p className="text-[11px] text-[#5C5346]">
-                      فعّل أو ألغِ أي مصدر أو فرع أو موضع بنقرة واحدة، ثم اعتمد إثراء العقدة
-                    </p>
-                  </div>
+                <div>
+                  <h5 className="text-sm font-extrabold font-display text-[#252321]">
+                    إثراء العقدة بالمصادر والفروع والمواضع
+                  </h5>
                 </div>
 
                 <button
@@ -4467,25 +4276,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     setEnrichmentBranchesInput(activeBranchPills.join('، '));
                     setEnrichmentLocationsInput(activeLocationPills.join('، '));
                     showToast(
-                      `✅ تم اعتماد إثراء العقدة بـ (${activeSourceIndices.length}) مصادر أساسية و(${activeBranchPills.length}) فروع و(${activeLocationPills.length}) مواضع جغرافية!`
+                      `تم اعتماد إثراء العقدة بـ (${activeSourceIndices.length}) مصادر أساسية و(${activeBranchPills.length}) فروع و(${activeLocationPills.length}) مواضع جغرافية ✓`
                     );
                   }}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-2xs ${
                     isStation2Completed
-                      ? 'bg-emerald-700 text-white'
+                      ? 'bg-[#8D4925] text-white'
                       : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
                   }`}
                 >
                   {isStation2Completed
-                    ? '✓ تم اعتماد عناصر الإثراء للعقدة'
-                    : '⚡ اعتماد كافة عناصر الإثراء المفعّلة بنقرة واحدة'}
+                    ? '✓ تم اعتماد عناصر الإثراء'
+                    : 'اعتماد عناصر الإثراء المفعّلة'}
                 </button>
               </div>
 
               <div className="space-y-3">
                 <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
                   <span className="text-xs font-extrabold text-[#252321] block">
-                    📚 المصادر الأساسية ({activeSourceIndices.length}/
+                    المصادر الأساسية ({activeSourceIndices.length}/
                     {allTicketEvidence.length}):
                   </span>
                   <div className="flex flex-wrap gap-1.5">
@@ -4498,8 +4307,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           onClick={() => toggleSourceInclusion(ticket, idx)}
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-right ${
                             isSelected
-                              ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
-                              : 'bg-[#FAF6F0] border-[#E2DACB] text-[#5C5346]'
+                              ? 'bg-[#FAF6F0] border-[#D8755B] text-[#8D4925]'
+                              : 'bg-white border-[#E2DACB] text-[#5C5346]'
                           }`}
                         >
                           {isSelected ? '✓ ' : '+ '}
@@ -4513,7 +4322,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
                     <span className="text-xs font-extrabold text-[#252321] block">
-                      🌿 الفروع الأبناء المستخرجة ({activeBranchPills.length}):
+                      الفروع الأبناء المستخرجة ({activeBranchPills.length}):
                     </span>
                     {allCandidateBranches.length === 0 ? (
                       <span className="text-[11px] text-[#5C5346] block">
@@ -4541,8 +4350,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               }}
                               className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
                                 isSelected
-                                  ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
-                                  : 'bg-[#FAF6F0] border-[#E2DACB] text-[#5C5346]'
+                                  ? 'bg-[#FAF6F0] border-[#D8755B] text-[#8D4925]'
+                                  : 'bg-white border-[#E2DACB] text-[#5C5346]'
                               }`}
                             >
                               {isSelected ? '✓ ' : '+ '}
@@ -4556,7 +4365,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                   <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
                     <span className="text-xs font-extrabold text-[#252321] block">
-                      📍 المواضع الجغرافية ({activeLocationPills.length}):
+                      المواضع الجغرافية ({activeLocationPills.length}):
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {allCandidateLocations.map((loc, lIdx) => {
@@ -4579,8 +4388,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             }}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-amber-50 border-[#B98A78] text-[#8D4925]'
-                                : 'bg-[#FAF6F0] border-[#E2DACB] text-[#5C5346]'
+                                ? 'bg-[#FAF6F0] border-[#D8755B] text-[#8D4925]'
+                                : 'bg-white border-[#E2DACB] text-[#5C5346]'
                             }`}
                           >
                             {isSelected ? '✓ 📍 ' : '+ 📍 '}
@@ -4595,7 +4404,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 {/* Extra Enrichment Fields integrated directly into the right column */}
                 <div className="bg-white rounded-xl border border-[#E2DACB] p-3.5 space-y-2.5">
                   <h5 className="text-xs font-extrabold text-[#252321]">
-                    ✍️ بيانات الإثراء الإضافية للسجل (فروع شقيقة، أعلام وشخصيات، انتشار جغرافي إضافي):
+                    بيانات الإثراء الإضافية للسجل (فروع شقيقة، أعلام، انتشار جغرافي):
                   </h5>
                   <div className="grid grid-cols-1 gap-2.5">
                     <input
@@ -4630,24 +4439,16 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </div>
             </div>
 
-            {/* LEFT COLUMN (6 COLS): STATION 3 — SECONDARY SOURCES (other_sources) & ADAM PRIME SYNC */}
+            {/* LEFT COLUMN (6 COLS): STATION 3 — SECONDARY SOURCES & ADAM PRIME SYNC */}
             <div
               data-testid="workspace-station-3-secondary-sources-adam-prime"
-              className="xl:col-span-6 rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
+              className="xl:col-span-6 rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-7 h-7 rounded-xl bg-[#8D4925] text-white font-mono text-xs font-extrabold flex items-center justify-center">
-                    3B
-                  </span>
-                  <div>
-                    <h5 className="text-sm font-extrabold font-display text-[#252321]">
-                      توثيق المصادر الإضافية (other_sources) ومزامنة سجل آدم برايم الموحد
-                    </h5>
-                    <p className="text-[11px] text-[#5C5346]">
-                      مطابقة تلقائية ذكية مع معرف آدم برايم الموحد، مع اختيار سريع لسعر الإتاحة في محفظة العميل
-                    </p>
-                  </div>
+                <div>
+                  <h5 className="text-sm font-extrabold font-display text-[#252321]">
+                    توثيق المصادر الإضافية في سجل آدم برايم
+                  </h5>
                 </div>
 
                 <span className="px-3 py-1 rounded-xl bg-white border border-[#E2DACB] text-[#8D4925] text-xs font-bold">
@@ -4656,10 +4457,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </div>
 
               {extractedLeads.length === 0 ? (
-                <div className="rounded-xl bg-white border border-emerald-200 p-4 text-xs font-bold text-emerald-900 flex items-center justify-between">
-                  <span>
-                    ✅ لا توجد إحالات هامشية معلقة في حقل (other_sources) لهذه التذكرة — هذا القسم مكتمل تلقائياً!
-                  </span>
+                <div className="rounded-xl bg-white border border-[#E2DACB] p-4 text-xs font-bold text-[#5C5346]">
+                  لا توجد إحالات هامشية معلقة لهذه التذكرة.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
@@ -4701,39 +4500,33 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         data-testid={`ticket-secondary-source-card-${lIdx}`}
                         className={`rounded-2xl border p-4 transition-all space-y-3 ${
                           isVerified
-                            ? 'bg-emerald-50/70 border-emerald-400 shadow-2xs'
+                            ? 'bg-white border-[#D8755B] shadow-2xs'
                             : 'bg-white border-[#E2DACB] hover:border-[#B98A78]'
                         }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
-                              📘 {lead.extracted_book_title || autoMatch.title}
+                              {lead.extracted_book_title || autoMatch.title}
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] font-mono text-xs font-bold">
+                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925] font-mono text-xs font-bold">
                               ج: {lead.extracted_volume || '—'}
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] font-mono text-xs font-bold">
+                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925] font-mono text-xs font-bold">
                               ص: {lead.extracted_page || '—'}
-                            </span>
-                            <span className="text-xs text-[#5C5346]">
-                              للسجل:{' '}
-                              <strong className="text-[#252321]">
-                                {lead.linked_record_name || ticket.familyName}
-                              </strong>
                             </span>
                           </div>
 
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
                               isVerified
-                                ? 'bg-emerald-700 text-white border-emerald-800'
-                                : 'bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/50'
+                                ? 'bg-[#8D4925] text-white border-[#8D4925]'
+                                : 'bg-[#FAF6F0] text-[#8D4925] border-[#E2DACB]'
                             }`}
                           >
                             {isVerified
-                              ? `✅ موثق ومربوط بآدم برايم (${chosenId})`
-                              : `🏛️ مطابقة آدم برايم التلقائية: ${chosenId}`}
+                              ? `✓ موثق (${chosenId})`
+                              : `معرف آدم برايم: ${chosenId}`}
                           </span>
                         </div>
 
@@ -4776,7 +4569,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#E2DACB]">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-[11px] font-bold text-[#5C5346] ml-1">
-                              سعر الإتاحة في محفظة العميل:
+                              سعر الإتاحة:
                             </span>
                             {[
                               { label: 'مجاني', value: 0 },
@@ -4817,7 +4610,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               }
                               className="px-2.5 py-1 rounded-xl border border-[#E2DACB] bg-white hover:bg-[#FAF6F0] text-[11px] text-[#5C5346] font-bold cursor-pointer mr-1"
                             >
-                              🔍 بحث بكلمة عند الحاجة
+                              🔍 بحث
                             </button>
                           </div>
 
@@ -4834,21 +4627,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             data-testid={`verify-and-attach-btn-${lIdx}`}
                             className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-1.5 ${
                               isVerified
-                                ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                                : 'bg-[#8D4925] hover:bg-[#733A1D] text-white'
+                                ? 'bg-[#8D4925] text-white'
+                                : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
                             }`}
                           >
                             <Sparkles className="w-4 h-4 shrink-0" />
                             <span>
                               {verifyingLeadKey === leadKey
-                                ? 'جارٍ التوثيق والمزامنة...'
+                                ? 'جارٍ التوثيق...'
                                 : isVerified
-                                ? `✅ موثق ومربوط بآدم برايم (${
+                                ? `✓ موثق (${
                                     currentPrice === 0
                                       ? 'مجاني'
                                       : `$${currentPrice}`
                                   })`
-                                : '✨ توثيق في آدم برايم وإتاحة للعميل'}
+                                : 'توثيق في آدم برايم'}
                             </span>
                           </button>
                         </div>
@@ -4859,29 +4652,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               )}
             </div>
           </div>
-
-          {!showAllWorkflowStepsAtOnce && (
-            <div className="flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={() => setActiveTicketWorkflowStep(2)}
-                className="px-4 py-2 rounded-xl bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold cursor-pointer"
-              >
-                ➡️ السابق: 2️⃣ هندسة العمود وجسر آدم
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTicketWorkflowStep(4)}
-                className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-2"
-              >
-                <span>التالي: 4️⃣ المعاينة النهائية والاعتماد ⬅️</span>
-              </button>
-            </div>
-          )}
         </div>
 
         {/* ===================================================================
-            WORKFLOW TAB 4: [4️⃣ المعاينة النهائية والاعتماد]
+            WORKFLOW TAB 4: [4. المعاينة النهائية والاعتماد]
         =================================================================== */}
         <div
           data-testid="workflow-step-4-panel"
@@ -4893,35 +4667,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         >
           <div
             data-testid="section4-live-final-column-preview"
-            className="rounded-3xl border border-[#B98A78]/50 bg-white p-5 space-y-5 shadow-2xs"
+            className="rounded-3xl border border-[#E2DACB] bg-white p-5 space-y-5 shadow-2xs"
           >
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
               <div>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-bold">
-                  المرحلة الرابعة — المعاينة النهائية وموجز الإنجاز قبل الإغلاق
-                </span>
-                <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321] mt-1">
-                  🧬 المعاينة النهائية لعمود النسب المدمج لعائلة ({ticket.familyName})
+                <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+                  المعاينة النهائية لعمود النسب المدمج لعائلة ({ticket.familyName})
                 </h4>
               </div>
-              {!showAllWorkflowStepsAtOnce && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTicketWorkflowStep(3)}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-[#252321] text-xs font-bold cursor-pointer"
-                >
-                  ➡️ العودة لتعديل الإثراء والمصادر
-                </button>
-              )}
             </div>
 
             {/* Quick Executive Summary of Completed Work in Ticket */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 space-y-1">
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-1">
                 <span className="text-[#5C5346] text-[11px] block">
                   محطات السلسلة المخيطة
                 </span>
-                <span className="text-base font-extrabold text-emerald-950 font-mono">
+                <span className="text-base font-extrabold text-[#8D4925] font-mono">
                   {liveNodes.length} محطات موثقة
                 </span>
               </div>
@@ -4952,9 +4714,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             </div>
 
             {/* Visual Connected Spine Summary up to Adam (Warm Heritage Theme) */}
-            <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/50 text-[#252321] p-4 space-y-2.5 shadow-2xs">
+            <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] text-[#252321] p-4 space-y-2.5 shadow-2xs">
               <span className="text-xs font-bold text-[#8D4925] block">
-                🔗 الشكل النهائي لعمود النسب المدمج حتى آدم عليه السلام (كما سيظهر للعميل فور الاعتماد):
+                الشكل النهائي لعمود النسب المدمج حتى آدم عليه السلام:
               </span>
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 {liveNodes.map((n, i) => (
@@ -4968,7 +4730,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     <span className="text-[#D8755B] font-bold">⬅️</span>
                   </React.Fragment>
                 ))}
-                <span className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-mono text-xs font-bold">
+                <span className="px-2.5 py-1 rounded-lg bg-[#8D4925] text-white font-mono text-xs font-bold">
                   🌳 {activeBridgePreview}
                 </span>
               </div>
@@ -4977,42 +4739,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         </div>
 
         {/* ===================================================================
-            REQUIREMENT 5: STICKY ACTION FOOTER (شريط الإجراءات الحاسمة الثابت)
+            STICKY ACTION FOOTER (Simplified Labels & Warm Heritage Colors)
         =================================================================== */}
         <div
           data-testid="sticky-ticket-action-footer"
-          className="sticky bottom-2 z-20 rounded-2xl border border-[#B98A78]/60 bg-[#FAF6F0]/95 backdrop-blur-md p-3.5 sm:p-4 shadow-md space-y-3"
+          className="sticky bottom-2 z-20 rounded-2xl border border-[#E2DACB] bg-[#FAF6F0]/95 backdrop-blur-md p-3.5 sm:p-4 shadow-md space-y-3"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-extrabold text-[#252321] flex items-center gap-1.5">
-              <span>⚡</span>
-              <span>
-                أزرار الإجراءات الحاسمة ومخرجاتها الفورية في Firebase وواجهة العميل:
-              </span>
-            </span>
-            <span className="text-[11px] font-mono font-bold text-[#8D4925]">
-              المرحلة النشطة: {activeTicketWorkflowStep} من 4
-            </span>
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             {/* ACTION 1 */}
             <button
               type="button"
               onClick={() => handleActionAApproveAndLinkToAdam(ticket)}
-              className="p-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              className="p-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>✅ اعتماد الربط وتغذية شجرة آدم وإغلاق التذكرة</span>
+              <span>✅ اعتماد الربط وإثراء شجرة آدم وإغلاق التذكرة</span>
             </button>
 
             {/* ACTION 2 */}
             <button
               type="button"
               onClick={() => handleActionBEnrichExistingAdamNode(ticket)}
-              className="p-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              className="p-3 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 shrink-0" />
               <span>✨ اعتماد إثراء المراجع والفروع فقط</span>
             </button>
 
@@ -5020,9 +4768,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             <button
               type="button"
               onClick={() => setShowClarificationBox((prev) => !prev)}
-              className="p-3 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#252321] border border-[#B98A78]/50 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              className="p-3 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#252321] border border-[#E2DACB] text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
             >
-              <MessageSquare className="w-4 h-4 shrink-0 text-[#8D4925]" />
               <span>💬 طلب إيضاح أو وثيقة من العميل</span>
             </button>
 
@@ -5030,10 +4777,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             <button
               type="button"
               onClick={() => handleActionDEscalateToAdamPrime(ticket)}
-              className="p-3 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              className="p-3 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/50 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
             >
-              <Cpu className="w-4 h-4 shrink-0" />
-              <span>🏛️ تصعيد التذكرة إلى جسر آدم برايم</span>
+              <span>🏛️ تصعيد البحث إلى آدم برايم</span>
             </button>
           </div>
 
@@ -6829,31 +6575,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         activePortalSection !== 'direct_search_inspection' && (
           <div className="bg-[#FAF6F0] border-b border-[#E2DACB] sticky top-0 z-30 shadow-2xs">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
-              {/* Brand Identity: مرصد جذوري — غرفة عمليات الباحثين */}
+              {/* Brand Identity: مرصد البحوث — غرفة عمليات الباحثين */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white p-0.5 border border-[#B98A78] shadow-2xs flex items-center justify-center shrink-0 overflow-hidden">
                   <img
                     src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
-                    alt="مرصد جذوري | كشّاف الأنساب"
+                    alt="كشّاف الأنساب"
                     className="w-full h-full object-cover rounded-full"
                   />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-display font-bold">
-                      مرصد جذوري | كشّاف الأنساب
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] font-bold">
-                      ✦ بيئة عمل مركّزة 4 مراحل
+                      كشّاف الأنساب
                     </span>
                   </div>
                   <h1 className="text-sm sm:text-base font-extrabold font-display text-[#252321] mt-0.5">
-                    مرصد جذوري — غرفة عمليات الباحثين
+                    مرصد البحوث — غرفة عمليات الباحثين
                   </h1>
                 </div>
               </div>
 
-              {/* 2 Main Sub-Tabs Only (No duplicate Drag-and-Drop tab) */}
+              {/* 2 Main Sub-Tabs Only */}
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -6867,8 +6610,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       : 'bg-white text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
                   }`}
                 >
-                  <FileText className="w-4 h-4" />
-                  <span>🗂️ صندوق التذاكر وغرفة العمليات</span>
+                  <span>التذاكر البحثية</span>
                   <span
                     className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
                       activeSubTab === 'ticket_inbox'
@@ -6895,14 +6637,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       : 'bg-white text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
                   }`}
                 >
-                  <Cpu className="w-4 h-4" />
-                  <span>🏛️ جسر آدم برايم (Adam Prime Bridge)</span>
+                  <span>جسر آدم برايم</span>
                   {adamPrimeBundles.length > 0 && (
                     <span
                       className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
                         activeSubTab === 'adam_prime_bridge'
                           ? 'bg-white/25 text-white'
-                          : 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                          : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E2DACB]'
                       }`}
                     >
                       {adamPrimeBundles.length}
@@ -6917,9 +6658,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       {/* TOAST FEEDBACK BANNER */}
       {toastBanner && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
-          <div className="bg-emerald-50 text-emerald-950 border border-emerald-300 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
+          <div className="bg-[#FAF6F0] text-[#252321] border border-[#C5A059] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-[#D8755B] shrink-0" />
               <p className="text-xs sm:text-sm font-bold">{toastBanner}</p>
             </div>
             <button
@@ -9873,89 +9614,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         )}
 
         {/* ===================================================================
-            SUB-TAB 2: 🗂️ صندوق التذاكر وغرفة العمليات (مرصد جذوري | كشّاف الأنساب)
-            Harmonized with Homepage Warm Ivory, Beige, Terracotta & Soft Emerald
+            SUB-TAB 2: التذاكر البحثية (مرصد البحوث — غرفة عمليات الباحثين)
+            Unified Warm Heritage Ivory & Terracotta Visual Identity (KPI Bar Removed)
         =================================================================== */}
         {activeSubTab === 'ticket_inbox' && (
           <div className="space-y-4">
             {/* ===================================================================
-                1. COMPACT SINGLE-ROW KPI TELEMETRY BAR (Warm Heritage Theme)
-            =================================================================== */}
-            <div
-              data-testid="researcher-kpi-telemetry-bar"
-              className="rounded-2xl border border-[#B98A78]/45 bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] px-4 py-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2.5 text-xs"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-1 rounded-lg bg-[#8D4925] text-white font-mono text-[11px] font-extrabold flex items-center gap-1.5">
-                  <span>📊 مؤشرات الإنتاجية (KPI)</span>
-                </span>
-
-                {/* XP Points */}
-                <span
-                  data-testid="kpi-xp-incentive-score"
-                  className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-mono text-xs font-extrabold"
-                >
-                  🏆 نقاط الإنجاز والمكافآت: {kpiTelemetry.totalXpScore} XP
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                {/* 1. Active Ticket Timer & Avg Handling Time */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB]">
-                  <span className="text-[#5C5346] text-[11px]">⏱️ النشطة:</span>
-                  <span
-                    data-testid="kpi-active-ticket-timer"
-                    className="font-mono font-extrabold text-[#8D4925]"
-                  >
-                    {formatDurationMmSs(activeTicketElapsedSeconds)}
-                  </span>
-                  <span className="text-[#5C5346] text-[10px] font-mono">
-                    (المتوسط: {formatDurationMmSs(kpiTelemetry.avgHandlingTimeSeconds)})
-                  </span>
-                </div>
-
-                {/* 2. Completed Tickets Today by Priority (P1 / P2 / P3) */}
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] font-mono text-[11px] font-extrabold">
-                  <span className="text-[#5C5346] font-sans font-bold ml-1">
-                    ✅ المنجز اليوم ({kpiTelemetry.completedTodayP1 + kpiTelemetry.completedTodayP2 + kpiTelemetry.completedTodayP3}):
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-red-900">
-                    P1: {kpiTelemetry.completedTodayP1}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[#8D4925]">
-                    P2: {kpiTelemetry.completedTodayP2}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900">
-                    P3: {kpiTelemetry.completedTodayP3}
-                  </span>
-                </div>
-
-                {/* 3. Total Alpha Nodes Bridged to Adam */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB]">
-                  <span className="text-[#5C5346] text-[11px]">🌳 عُقد ألفا الموصولة:</span>
-                  <span
-                    data-testid="kpi-alpha-nodes-bridged"
-                    className="font-mono font-extrabold text-emerald-900"
-                  >
-                    {kpiTelemetry.totalAlphaNodesBridged} عقدة موصولة
-                  </span>
-                </div>
-
-                {/* 4. Total Addon Sources Verified in Adam Prime */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB]">
-                  <span className="text-[#5C5346] text-[11px]">🏛️ آدم برايم:</span>
-                  <span
-                    data-testid="kpi-adam-prime-sources-verified"
-                    className="font-mono font-extrabold text-[#8D4925]"
-                  >
-                    {kpiTelemetry.totalAdamPrimeSourcesVerified} مرجع موثق
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* ===================================================================
-                2. 3-TIER PRIORITY QUEUE BAR + SIDEBAR COLLAPSE TOGGLE
+                QUEUE FILTER BAR + SIDEBAR COLLAPSE TOGGLE
             =================================================================== */}
             <div className="bg-white rounded-2xl border border-[#E2DACB] p-3.5 flex flex-wrap items-center justify-between gap-2.5 shadow-2xs">
               <div className="flex flex-wrap items-center gap-2">
@@ -9969,16 +9634,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       ? 'bg-[#D8755B] text-white border-[#D8755B]'
                       : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border-[#E2DACB]'
                   }`}
-                  title={
-                    isQueueSidebarCollapsed
-                      ? 'إظهار طابور التذاكر الجانبي'
-                      : 'طيّ طابور التذاكر لتوسيع غرفة العمليات إلى كامل الشاشة (100% Width)'
-                  }
                 >
                   <span>
                     {isQueueSidebarCollapsed
-                      ? `إظهار الطابور ▶ (${filteredInboxTickets.length})`
-                      : 'طيّ الطابور ◀'}
+                      ? 'إظهار تذاكر البحوث'
+                      : 'طيّ تذاكر البحوث ◀'}
                   </span>
                 </button>
 
@@ -9986,18 +9646,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   type="button"
                   data-testid="queue-filter-all-priority"
                   onClick={() => setInboxCategoryFilter('ALL_PRIORITY_SORTED')}
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
                     inboxCategoryFilter === 'ALL_PRIORITY_SORTED'
-                      ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
+                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-2xs'
+                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border-[#E2DACB]'
                   }`}
                 >
-                  <span>⚡ الطابور الذكي المتسلسل (P1 ⬅️ P2 ⬅️ P3)</span>
+                  <span>⚡ كل البحوث النشطة</span>
                   <span
                     className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
                       inboxCategoryFilter === 'ALL_PRIORITY_SORTED'
                         ? 'bg-white/25 text-white'
-                        : 'bg-white text-[#8D4925]'
+                        : 'bg-white text-[#8D4925] border border-[#E2DACB]'
                     }`}
                   >
                     {tickets.length}
@@ -10015,15 +9675,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
                     inboxCategoryFilter === 'P1_CLIENT_UNMATCHED' ||
                     inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS'
-                      ? 'bg-red-800 text-white shadow-sm'
-                      : 'bg-red-50/70 text-red-950 hover:bg-red-100 border border-red-200'
+                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-2xs'
+                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border-[#E2DACB]'
                   }`}
                 >
-                  <span>🔴 P1: طوارئ العملاء</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-red-950">
+                  <span>🔴 بحوث العملاء</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
+                      inboxCategoryFilter === 'P1_CLIENT_UNMATCHED' ||
+                      inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-white text-[#8D4925] border border-[#E2DACB]'
+                    }`}
+                  >
                     {
                       tickets.filter(
                         (t) =>
@@ -10044,14 +9711,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
                     inboxCategoryFilter === 'P2_CLIENT_ADAM_BRIDGE'
-                      ? 'bg-[#8D4925] text-white shadow-sm'
-                      : 'bg-amber-50/80 text-[#8D4925] hover:bg-amber-100 border border-[#B98A78]/40'
+                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-2xs'
+                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border-[#E2DACB]'
                   }`}
                 >
-                  <span>🟡 P2: استكمال تسليم العملاء (جسر آدم)</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-[#8D4925]">
+                  <span>🟡 بحوث إثراء شجرة آدم</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
+                      inboxCategoryFilter === 'P2_CLIENT_ADAM_BRIDGE'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-white text-[#8D4925] border border-[#E2DACB]'
+                    }`}
+                  >
                     {
                       tickets.filter(
                         (t) =>
@@ -10074,14 +9747,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
                     inboxCategoryFilter === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-                      ? 'bg-emerald-800 text-white shadow-sm'
-                      : 'bg-emerald-50/80 text-emerald-950 hover:bg-emerald-100 border border-emerald-300'
+                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-2xs'
+                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border-[#E2DACB]'
                   }`}
                 >
-                  <span>🟢 P3: التعدين الاستباقي الذكي</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-emerald-950">
+                  <span>🟢 بحوث إستباقية</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
+                      inboxCategoryFilter === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-white text-[#8D4925] border border-[#E2DACB]'
+                    }`}
+                  >
                     {
                       tickets.filter(
                         (t) =>
@@ -10098,19 +9777,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 disabled={isGeneratingP3Batch}
                 onClick={() => handleAutoRefillNextP3Tickets(3)}
                 data-testid="auto-generate-p3-batch-btn"
-                className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/50 text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
+                className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
                 <span>
                   {isGeneratingP3Batch
-                    ? 'جارٍ سحب تذاكر P3...'
-                    : '🔄 توليد دفعة تذاكر P3 ذكية (Auto-Refill)'}
+                    ? 'جارٍ التوليد...'
+                    : '🔄 توليد دفعة تذاكر بحثية إستباقية'}
                 </span>
               </button>
             </div>
 
             {/* ===================================================================
-                3. MAIN GRID: STICKY COLLAPSIBLE QUEUE (RIGHT) + TICKET WORKBENCH (LEFT)
+                MAIN GRID: STICKY COLLAPSIBLE QUEUE (RIGHT) + TICKET WORKBENCH (LEFT)
             =================================================================== */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
               {/* RIGHT COLUMN (4 COLS WHEN EXPANDED): STICKY TICKET QUEUE SIDEBAR */}
@@ -10120,28 +9798,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   className="lg:col-span-4 bg-white rounded-3xl border border-[#E2DACB] shadow-2xs overflow-hidden lg:sticky lg:top-4 lg:max-h-[85vh] flex flex-col"
                 >
                   <div className="p-3.5 bg-[#FAF6F0] text-[#252321] border-b border-[#E2DACB] flex items-center justify-between shrink-0">
-                    <div>
-                      <h3 className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
-                        طابور التذاكر النشطة ({filteredInboxTickets.length})
-                      </h3>
-                      <span className="text-[10px] font-mono text-[#5C5346]">
-                        مرتب تلقائياً: P1 ⬅️ P2 ⬅️ P3
-                      </span>
-                    </div>
+                    <h3 className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
+                      تذاكر البحوث النشطة ({filteredInboxTickets.length})
+                    </h3>
                     <button
                       type="button"
                       onClick={() => setIsQueueSidebarCollapsed(true)}
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/45 text-[11px] font-extrabold transition-all cursor-pointer"
-                      title="طيّ طابور التذاكر لتوسيع غرفة العمليات"
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-[11px] font-extrabold transition-all cursor-pointer"
                     >
-                      طيّ الطابور ◀
+                      طيّ تذاكر البحوث ◀
                     </button>
                   </div>
 
                   <div className="divide-y divide-[#E2DACB]/60 overflow-y-auto flex-1">
                     {filteredInboxTickets.length === 0 ? (
                       <div className="p-8 text-center text-xs text-[#5C5346]">
-                        لا توجد تذاكر حالياً ضمن هذا التصنيف.
+                        لا توجد تذاكر بحثية حالياً ضمن هذا التصنيف.
                       </div>
                     ) : (
                       filteredInboxTickets.map((tkt) => {
@@ -10150,21 +9822,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           tkt.status === 'CLOSED_AND_ENRICHED' ||
                           tkt.status === 'merged_closed';
                         const tier = resolveTicketPriorityTier(tkt);
-                        const priorityBadge =
+                        const tierLabel =
                           tier === 'P1_CLIENT_UNMATCHED'
-                            ? {
-                                label: '🔴 P1 · طوارئ عميل',
-                                cls: 'bg-red-50 text-red-900 border border-red-200',
-                              }
+                            ? 'بحث عميل'
                             : tier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-                            ? {
-                                label: '🟢 P3 · تعدين ذكي',
-                                cls: 'bg-emerald-50 text-emerald-900 border border-emerald-200',
-                              }
-                            : {
-                                label: '🟡 P2 · جسر آدم للعميل',
-                                cls: 'bg-amber-50 text-[#8D4925] border border-[#B98A78]/40',
-                              };
+                            ? 'بحث استباقي'
+                            : 'إثراء شجرة آدم';
+
                         return (
                           <button
                             key={tkt.id}
@@ -10181,33 +9845,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           >
                             <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#EDE6DA] text-[#8D4925]">
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925]">
                                   {tkt.id}
                                 </span>
-                                <span
-                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${priorityBadge.cls}`}
-                                >
-                                  {priorityBadge.label}
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-[#E2DACB] text-[#5C5346]">
+                                  {tierLabel}
                                 </span>
                               </div>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                  isClosed
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                    : tkt.status === 'investigating'
-                                    ? 'bg-blue-50 text-blue-800'
-                                    : tkt.status === 'exported_adam_prime'
-                                    ? 'bg-purple-50 text-purple-800'
-                                    : 'bg-[#FAF6F0] text-[#5C5346]'
-                                }`}
-                              >
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FAF6F0] text-[#8D4925]">
                                 {isClosed
-                                  ? 'مكتملة ومعتمدة ✓'
+                                  ? 'معتمدة ✓'
                                   : tkt.status === 'investigating'
-                                  ? 'بانتظار إيضاح العميل'
+                                  ? 'بانتظار العميل'
                                   : tkt.status === 'exported_adam_prime'
-                                  ? 'مصعدة لآدم برايم'
-                                  : 'مفتوحة للتحقيق'}
+                                  ? 'أُحيلت لآدم برايم'
+                                  : 'نشطة'}
                               </span>
                             </div>
 
@@ -10215,26 +9867,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               {tkt.title}
                             </h4>
 
-                            {tkt.p3StrategicMeta && (
-                              <div className="mt-1.5 mb-1.5 flex flex-wrap items-center gap-1 text-[10px]">
-                                <span className="px-2 py-0.5 rounded bg-emerald-700 text-white font-mono font-extrabold">
-                                  [★ وزن استراتيجي: {tkt.p3StrategicMeta.strategic_score} نقطة]
-                                </span>
-                                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
-                                  عمود ({tkt.p3StrategicMeta.chain_stations_count} محطات)
-                                </span>
-                                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
-                                  توافق ({tkt.p3StrategicMeta.corroborating_sources_count}) مراجع
-                                </span>
-                              </div>
-                            )}
-
                             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5C5346] mt-1.5">
-                              <span>المصدر: {tkt.clientName}</span>
+                              <span>{tkt.clientName}</span>
                               <span className="font-bold text-[#8D4925]">
                                 {tkt.corroboratingEvidence?.length ||
                                   tkt.copilotSources.length}{' '}
-                                روايات مرصودة
+                                مصادر
                               </span>
                             </div>
                           </button>
@@ -10254,36 +9892,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 {selectedTicket ? (
                   <div className="bg-white rounded-3xl border border-[#E2DACB] shadow-2xs overflow-hidden">
                     {/* COMPACT TICKET HEADER (Warm Heritage Theme) */}
-                    <div className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] border-b border-[#E2DACB] p-4 sm:p-5">
+                    <div className="bg-[#FAF6F0] text-[#252321] border-b border-[#E2DACB] p-4 sm:p-5">
                       <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                         <div className="flex flex-wrap items-center gap-2">
                           {isQueueSidebarCollapsed && (
                             <button
                               type="button"
                               onClick={() => setIsQueueSidebarCollapsed(false)}
-                              className="px-2.5 py-1 rounded-lg bg-[#D8755B] text-white text-xs font-extrabold cursor-pointer flex items-center gap-1"
+                              className="px-3 py-1 rounded-lg bg-[#D8755B] text-white text-xs font-extrabold cursor-pointer flex items-center gap-1"
                             >
-                              <span>إظهار الطابور ▶</span>
+                              <span>إظهار تذاكر البحوث</span>
                             </button>
                           )}
-                          <span className="px-2.5 py-1 rounded-md bg-white border border-[#B98A78]/50 text-[#8D4925] font-mono text-xs font-bold">
+                          <span className="px-2.5 py-1 rounded-md bg-white border border-[#E2DACB] text-[#8D4925] font-mono text-xs font-bold">
                             {selectedTicket.id}
                           </span>
                           <span className="px-2.5 py-1 rounded-md bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold">
                             📍 الموطن: {selectedTicket.locationLabel}
-                          </span>
-                          <span
-                            className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                              selectedTicket.status === 'CLOSED_AND_ENRICHED' ||
-                              selectedTicket.status === 'merged_closed'
-                                ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
-                                : 'bg-[#D8755B] text-white'
-                            }`}
-                          >
-                            {selectedTicket.status === 'CLOSED_AND_ENRICHED' ||
-                            selectedTicket.status === 'merged_closed'
-                              ? 'مكتملة ومعتمدة ✓'
-                              : 'تذكرة عمل نشطة'}
                           </span>
                         </div>
                         <button
@@ -10291,7 +9916,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           onClick={() =>
                             onSwitchToClientPreview(selectedTicket.familyName)
                           }
-                          className="px-3.5 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold cursor-pointer transition-all shadow-2xs"
+                          className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-xs font-extrabold cursor-pointer transition-all"
                         >
                           معاينة لوحة العميل ({selectedTicket.familyName}) ↗
                         </button>
@@ -10305,7 +9930,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         selectedTicket.fullStitchedLineage.length > 0 && (
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
                             <span className="font-bold text-[#5C5346]">
-                              السلسلة المخيطة الكاملة للباحث:
+                              السلسلة المخيطة:
                             </span>
                             <span className="px-2 py-0.5 rounded bg-[#8D4925] text-white font-extrabold">
                               {selectedTicket.familyName} (FE0)
@@ -10323,9 +9948,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     </div>
 
                     <div className="p-4 sm:p-6 space-y-5">
-                      {/* =====================================================
-                          UNIFIED 4-STEP SEQUENTIAL WORKFLOW WORKSPACE + STICKY ACTION FOOTER
-                      ===================================================== */}
                       {renderGamifiedTicketOperationsWorkspace(selectedTicket)}
                     </div>
                   </div>
@@ -11865,29 +11487,29 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         )}
 
         {/* ===================================================================
-            SUB-TAB 5: 🏛️ جسر آدم برايم (ADAM PRIME BRIDGE — ZERO DUMMY DATA)
+            SUB-TAB 5: جسر آدم برايم
         =================================================================== */}
         {activeSubTab === 'adam_prime_bridge' && (
-          <div className="bg-white rounded-3xl border border-stone-200/90 p-6 shadow-xs space-y-6">
-            <div className="border-b border-stone-100 pb-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-white rounded-3xl border border-[#E2DACB] p-6 shadow-xs space-y-6">
+            <div className="border-b border-[#E2DACB] pb-4 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold font-serif text-[#141414]">
-                  🏛️ جسر آدم برايم (Adam Prime Bridge)
+                <h2 className="text-base font-bold font-display text-[#252321]">
+                  جسر آدم برايم
                 </h2>
-                <p className="text-xs text-stone-500">
-                  تصدير واستيراد حزم التحقيق المعمق للتذاكر المصعدة من صندوق التذاكر (خالي تماماً من أي بيانات وهمية)
+                <p className="text-xs text-[#5C5346]">
+                  تصدير واستيراد حزم التحقيق المعمق للبحوث المصعدة من مرصد البحوث
                 </p>
               </div>
             </div>
 
             {adamPrimeBundles.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-stone-300 bg-[#FAF8F5] p-10 text-center space-y-2">
-                <Cpu className="w-8 h-8 text-stone-400 mx-auto" />
-                <p className="text-sm font-bold text-stone-700">
-                  لا توجد تذاكر مصعدة حالياً في جسر آدم برايم
+              <div className="rounded-2xl border border-dashed border-[#B98A78]/50 bg-[#FAF6F0] p-10 text-center space-y-2">
+                <Cpu className="w-8 h-8 text-[#8D4925] mx-auto" />
+                <p className="text-sm font-bold text-[#252321]">
+                  لا توجد بحوث مصعدة حالياً في جسر آدم برايم
                 </p>
-                <p className="text-xs text-stone-500">
-                  يمكنك تصعيد أي تذكرة حقيقية من تبويب «📥 صندوق تذاكر العملاء» عبر زر «🏛️ تصعيد التذكرة إلى جسر آدم برايم» أو استيراد حزمة JSON أدناه.
+                <p className="text-xs text-[#5C5346]">
+                  يمكنك تصعيد أي بحث من تبويب «التذاكر البحثية» عبر زر «🏛️ تصعيد البحث إلى آدم برايم» أو استيراد حزمة JSON أدناه.
                 </p>
               </div>
             ) : (
@@ -11895,24 +11517,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 {adamPrimeBundles.map((bundle) => (
                   <div
                     key={bundle.taskId}
-                    className="p-5 rounded-2xl border border-stone-200 bg-[#FAF8F5] space-y-3"
+                    className="p-5 rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded bg-purple-900 text-purple-100 font-mono text-xs font-bold">
+                      <span className="px-2.5 py-0.5 rounded bg-[#8D4925] text-white font-mono text-xs font-bold">
                         {bundle.taskId}
                       </span>
-                      <span className="text-xs font-bold text-stone-600">
+                      <span className="text-xs font-bold text-[#5C5346]">
                         {bundle.locationLabel}
                       </span>
                     </div>
-                    <h4 className="text-sm font-bold text-[#141414]">
+                    <h4 className="text-sm font-bold text-[#252321]">
                       {bundle.title}
                     </h4>
-                    <p className="text-xs text-stone-600">
+                    <p className="text-xs text-[#5C5346]">
                       السلسلة المقترحة: {bundle.familyName} ⬅️{' '}
                       {bundle.subRootName} ⬅️ {bundle.targetAdamChain}
                     </p>
-                    <p className="text-[11px] text-stone-500">
+                    <p className="text-[11px] text-[#8D4925]">
                       المصدر المرجعي: {bundle.verifiedCitation}
                     </p>
                   </div>
@@ -11921,8 +11543,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             )}
 
             {/* JSON IMPORT BOX */}
-            <div className="pt-4 border-t border-stone-200 space-y-3">
-              <label className="block text-xs font-bold text-stone-700">
+            <div className="pt-4 border-t border-[#E2DACB] space-y-3">
+              <label className="block text-xs font-bold text-[#252321]">
                 استيراد حزمة JSON مكتملة من محرك آدم برايم:
               </label>
               <textarea
@@ -11930,7 +11552,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 value={customJsonInput}
                 onChange={(e) => setCustomJsonInput(e.target.value)}
                 placeholder='{"familyName": "بيت جنديل", "subRootName": "البلاسم", "motherTribeName": "بني لام"}'
-                className="w-full p-3 rounded-xl border border-stone-300 bg-[#FAF8F5] text-xs font-mono"
+                className="w-full p-3 rounded-xl border border-[#E2DACB] bg-[#FAF6F0] text-xs font-mono"
               />
               <button
                 type="button"
@@ -11962,7 +11584,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     showToast('يرجى التأكد من صحة صيغة JSON المدخلة.');
                   }
                 }}
-                className="px-4 py-2 rounded-xl bg-[#141414] text-amber-300 text-xs font-bold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer"
               >
                 <UploadCloud className="w-4 h-4 inline ml-1.5" />
                 استيراد الحزمة إلى الجسر

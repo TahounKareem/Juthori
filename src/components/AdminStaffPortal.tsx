@@ -1066,37 +1066,47 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   ).length;
 
   const roleSpecificRadarCards = useMemo(() => {
+    const p1Done = researcherKpi.completedTodayP1 || 0;
+    const p2Done = researcherKpi.completedTodayP2 || 0;
+    const p3Done = researcherKpi.completedTodayP3 || 0;
+    const totalDoneToday = p1Done + p2Done + p3Done;
+
     if (effectiveHubRole === 'المايسترو' || effectiveHubRole === 'مدير عام') {
       const totalActiveItems =
         orders.length + researchTicketsCount + metrics.openSupportCount;
       const completionRate = 94;
       return [
         {
-          title: 'إجمالي التذاكر والطلبات النشطة بالمنصة',
-          value: `${totalActiveItems} مهمة نشطة`,
-          subLabel: `نسبة الإنجاز العام بالمنصة: ${completionRate}%`,
+          title: 'إجمالي البحوث والطلبات النشطة والمنجز اليوم',
+          value: `${totalActiveItems} نشط · ${totalDoneToday} منجز`,
+          subLabel: `منجز اليوم (${totalDoneToday}): عملاء ${p1Done} · شجرة آدم ${p2Done} · استباقي ${p3Done}`,
           progressPercent: completionRate,
-          badgeText: 'مراقبة شاملة 🟢',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'مؤشر الإنجاز 📊',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
-          title: 'متوسط سرعة استجابة الفريق (SLA Compliance %)',
-          value: '96.8% ضمن المعيار',
-          subLabel: 'متوسط الاستجابة الأولى: 03:45 دقيقة',
+          title: 'نقاط الإنجاز والمكافآت ومتوسط زمن المعالجة',
+          value: `${researcherKpi.totalXpScore} XP`,
+          subLabel: `متوسط زمن البحث: ${formatDurationMmSs(
+            researcherKpi.avgHandlingTimeSeconds || 94
+          )} دقيقة`,
           progressPercent: 97,
-          badgeText: 'التزام قياسي ⚡',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'نقاط المكافآت 🏆',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
-          title: 'العُقد الموصولة بشجرة آدم والمصادر الموثقة اليوم',
+          title: 'عُقد ألفا الموصولة ومراجع آدم برايم الموثقة',
           value: `${researcherKpi.totalAlphaNodesBridged} عقدة · ${researcherKpi.totalAdamPrimeSourcesVerified} مرجع`,
-          subLabel: `إنجاز اليوم في المرصد: ${completedResearchTicketsToday} تذاكر مكتملة`,
+          subLabel: `عُقد موصولة بشجرة آدم ومراجع موثقة في آدم برايم`,
           progressPercent: Math.min(
             100,
-            Math.round((researcherKpi.totalAlphaNodesBridged / 60) * 100)
+            Math.max(
+              75,
+              Math.round((researcherKpi.totalAlphaNodesBridged / 60) * 100)
+            )
           ),
-          badgeText: 'إثراء حي 🌳',
-          badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+          badgeText: 'توثيق وإثراء 🌳',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
           title: 'حالة انضباط الجلسات ونشاط المديرين والباحثين',
@@ -1105,50 +1115,50 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           progressPercent: Math.round(
             (activeStaffCount / Math.max(1, staffList.length)) * 100
           ),
-          badgeText: 'جلسات مرصودة 🛡️',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'جلسات الفريق 👥',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
       ];
     }
 
     if (effectiveHubRole === 'مدير البحوث') {
       const dailyTarget = 20;
-      const currentDone = Math.max(completedResearchTicketsToday, 14);
+      const currentDone = Math.max(totalDoneToday, 14);
       const pct = Math.min(100, Math.round((currentDone / dailyTarget) * 100));
       return [
         {
-          title: 'التذاكر المنجزة مقابل المستهدف اليومي',
-          value: `${currentDone} / ${dailyTarget} تذكرة`,
-          subLabel: `نسبة تحقيق المستهدف اليومي: ${pct}%`,
+          title: 'البحوث المنجزة اليوم حسب التصنيف',
+          value: `${currentDone} / ${dailyTarget} بحث`,
+          subLabel: `عملاء: ${p1Done} · إثراء آدم: ${p2Done} · استباقية: ${p3Done}`,
           progressPercent: pct,
-          badgeText: 'مرصود لحظياً 📊',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'المنجز اليوم ✅',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
-          title: 'متوسط زمن معالجة التذكرة (مرصود)',
+          title: 'متوسط زمن معالجة البحث الواحد',
           value: `${formatDurationMmSs(
             researcherKpi.avgHandlingTimeSeconds || 95
           )} دقيقة`,
-          subLabel: 'المعيار القياسي المستهدف: 02:00 دقيقة / تذكرة',
+          subLabel: 'المعيار القياسي المستهدف: 02:00 دقيقة / بحث',
           progressPercent: 88,
-          badgeText: 'أسرع من المعيار ⚡',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'سرعة الإنجاز ⏱️',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
-          title: 'عُقد شجرة آدم الموصولة والمصادر الموثقة في سجلّك',
+          title: 'عُقد ألفا الموصولة ومراجع آدم برايم',
           value: `${researcherKpi.totalAlphaNodesBridged} عقدة · ${researcherKpi.totalAdamPrimeSourcesVerified} مرجع`,
           subLabel: 'توثيق مباشر في شجرة آدم الكبرى وسجل آدم برايم',
           progressPercent: 92,
           badgeText: 'توثيق معتمد 🌳',
-          badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
-          title: 'نقاط الدقة والجودة البحثية (XP & Audit Score)',
-          value: `${researcherKpi.totalXpScore} XP · 99.2%`,
-          subLabel: 'معدل دقة خياطة الأعمدة ومطابقة المراجع المعتمدة',
+          title: 'نقاط الإنجاز والمكافآت وجودة التدقيق',
+          value: `${researcherKpi.totalXpScore} XP`,
+          subLabel: 'معدل دقة خياطة الأعمدة ومطابقة المراجع: 99.2%',
           progressPercent: 99,
-          badgeText: 'كفاءة عالية 🏆',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'نقاط الإنجاز 🏆',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
       ];
     }
@@ -1164,15 +1174,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: `معدل الإغلاق اليومي: ${pct}%`,
           progressPercent: pct,
           badgeText: 'متابعة حية 🎧',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
-          title: 'متوسط زمن الاستجابة الأول للعميل (SLA Timer — مرصود)',
+          title: 'متوسط زمن الاستجابة الأول للعميل',
           value: '04:12 دقيقة',
           subLabel: 'الحد الأقصى المسموح في SLA: 10:00 دقائق',
           progressPercent: 95,
-          badgeText: 'ضمن وقت SLA 🟢',
-          badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+          badgeText: 'ضمن وقت SLA ⚡',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
           title: 'معدل رضا العملاء وحسم الاستفسارات من المرة الأولى',
@@ -1180,7 +1190,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: 'حسم من المرة الأولى (FCR): 94.5%',
           progressPercent: 98,
           badgeText: 'جودة ممتازة ⭐',
-          badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
         {
           title: 'تنبيهات الطلبات العاجلة أو المتأخرة عن الوقت المعياري',
@@ -1192,10 +1202,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           progressPercent: metrics.openSupportCount === 0 ? 100 : 75,
           badgeText:
             metrics.openSupportCount === 0 ? 'لا يوجد تأخير ✓' : 'يتطلب متابعة 🔔',
-          badgeColor:
-            metrics.openSupportCount === 0
-              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-              : 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
         },
       ];
     }
@@ -1213,7 +1220,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         subLabel: `نسبة إنجاز الخطة التحريرية: ${pubPct}%`,
         progressPercent: pubPct,
         badgeText: 'سجل النشر ✍️',
-        badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
       {
         title: 'المسودات قيد المراجعة والتدقيق التاريخي',
@@ -1221,15 +1228,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         subLabel: 'تخضع للمراجعة المرجعية ومعايرة الصور القياسية 16:9',
         progressPercent: draftArticlesCount === 0 ? 100 : 80,
         badgeText: 'تدقيق تاريخي 📜',
-        badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60',
+        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
       {
-        title: 'متوسط زمن تحرير واعتماد المادة المعرفية (مرصود)',
+        title: 'متوسط زمن تحرير واعتماد المادة المعرفية',
         value: '18:30 دقيقة / مادة',
         subLabel: 'المعيار القياسي للتحرير والتدقيق: 25:00 دقيقة',
         progressPercent: 91,
         badgeText: 'إنجاز قياسي ⚡',
-        badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
       {
         title: 'مؤشر جودة التدقيق اللغوي والمرجعي',
@@ -1237,7 +1244,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         subLabel: 'توثيق الشواهد والمخطوطات وفق معايير مركز آدم',
         progressPercent: 99,
         badgeText: 'اعتماد علمي 🏆',
-        badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
     ];
   }, [
