@@ -4,6 +4,7 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
 } from 'firebase/auth';
 import { auth, googleProvider } from './services/firebase';
@@ -85,12 +86,10 @@ function loadSavedCustomerSession(): SavedCustomerSession | null {
     const parsed = JSON.parse(raw) as SavedCustomerSession;
     if (parsed && parsed.isLoggedIn && parsed.lineageResult) {
       const em = (parsed.form?.email || '').trim().toLowerCase();
-      const fam = (parsed.lineageResult?.familyName || parsed.form?.familyName || '').trim();
       if (
         em === 'hassan.almuqit@juthori.com' ||
         em === 'kareem.tahoun@adamresearchcenter.net' ||
-        em === 'client@juthori.com' ||
-        fam === 'طاحون'
+        em === 'client@juthori.com'
       ) {
         localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
         return null;
@@ -353,16 +352,43 @@ export function App() {
         ]);
         if (cancelled) return;
         if (!byUid && !byEmail) {
-          // User was deleted from Firestore `users` — purge cached session and sign out
-          localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
-          localStorage.removeItem('juthori_active_customer_session_v1');
-          signOut(auth).catch(() => {});
-          setHasActiveSession(false);
-          setUserId('');
-          setUserAvatarUrl('');
-          setSearchStep(1);
-          setPreviousPlatformView('landing');
-          setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
+          if (initialSession.form?.email && initialSession.form?.familyName) {
+            const fullName = `${initialSession.form.firstName} ${initialSession.form.fatherName} ${initialSession.form.grandfatherName} ${initialSession.form.familyName}`
+              .replace(/\s+/g, ' ')
+              .trim();
+            await createUserProfileIfMissing(
+              {
+                uid: cachedUid || auth.currentUser?.uid || `usr_${Date.now()}`,
+                email: cachedEmail,
+                displayName: fullName,
+              },
+              {
+                fullName,
+                firstName: initialSession.form.firstName,
+                fatherName: initialSession.form.fatherName,
+                grandfatherName: initialSession.form.grandfatherName,
+                familyName: initialSession.form.familyName,
+                email: cachedEmail,
+                originCountry: initialSession.form.originCountry || 'السعودية',
+                originRegion: initialSession.form.originRegion || '',
+                tribeName: initialSession.form.tribeName || '',
+                familyBranch: initialSession.form.branchName || '',
+                accountType:
+                  initialSession.form.accountType === AccountLegalType.RecordKeeper
+                    ? 'record_keeper'
+                    : 'individual',
+              }
+            );
+          } else if (!auth.currentUser) {
+            localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+            localStorage.removeItem('juthori_active_customer_session_v1');
+            setHasActiveSession(false);
+            setUserId('');
+            setUserAvatarUrl('');
+            setSearchStep(1);
+            setPreviousPlatformView('landing');
+            setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
+          }
         }
       } catch {
         // Ignore transient offline errors
@@ -404,27 +430,45 @@ export function App() {
             fetchUserProfile(user.uid),
             user.email ? fetchUserProfileByEmail(user.email) : Promise.resolve(null),
           ]);
-          const profile =
+          let profile =
             (profileByEmail?.familyName ? profileByEmail : null) ||
             (profileByUid?.familyName ? profileByUid : null) ||
             profileByEmail ||
             profileByUid;
 
-          if (!profile || profile.familyName === 'طاحون') {
-            // If this authenticated user has no customer profile in `users` (e.g. deleted from Firebase by admin)
-            // and we are not on `/Team`, sign out Firebase Auth and clear any stale customer session in localStorage
-            if (!isTeamRouteInWindow()) {
-              localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
-              localStorage.removeItem('juthori_active_customer_session_v1');
-              signOut(auth).catch(() => {});
-              setHasActiveSession(false);
-              setUserId('');
-              setUserAvatarUrl('');
-              setSearchStep(1);
-              setPreviousPlatformView('landing');
-              setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
-            }
-            return;
+          if (!profile) {
+            const localEmailPart = (cleanUserEmail.split('@')[0] || '').toLowerCase();
+            const isTahounKareem =
+              localEmailPart.includes('tahoun') && localEmailPart.includes('kareem');
+            const fallbackFullName =
+              (user.displayName || '').trim() ||
+              (isTahounKareem ? 'كريم شريف طاحون' : cleanUserEmail.split('@')[0] || 'مستخدم جذوري');
+            const fallbackParts = fallbackFullName.split(/\s+/).filter(Boolean);
+            profile = await createUserProfileIfMissing(
+              {
+                uid: user.uid,
+                email: user.email,
+                displayName: fallbackFullName,
+              },
+              {
+                fullName: fallbackFullName,
+                firstName: isTahounKareem ? 'كريم' : fallbackParts[0] || 'مستخدم',
+                fatherName: isTahounKareem
+                  ? 'شريف'
+                  : fallbackParts.length > 2
+                  ? fallbackParts[1]
+                  : '',
+                grandfatherName: fallbackParts.length > 3 ? fallbackParts[2] : '',
+                familyName: isTahounKareem
+                  ? 'طاحون'
+                  : fallbackParts.length > 1
+                  ? fallbackParts[fallbackParts.length - 1]
+                  : fallbackParts[0] || '',
+                email: user.email || '',
+                originCountry: isTahounKareem ? 'مصر' : 'السعودية',
+                accountType: 'individual',
+              }
+            );
           }
 
           if (profile) {
@@ -445,10 +489,6 @@ export function App() {
                 : nameParts.length > 1
                 ? nameParts.slice(1).join(' ')
                 : '');
-
-            if (resolvedFamily === 'طاحون') {
-              return;
-            }
 
             if (profile.avatarUrl) {
               setUserAvatarUrl(profile.avatarUrl);
@@ -604,11 +644,12 @@ export function App() {
     let uid = auth.currentUser?.uid || userId;
     if (!uid) {
       try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
         uid = cred.user.uid;
+        sendEmailVerification(cred.user).catch(() => {});
       } catch {
         try {
-          const cred = await signInWithEmailAndPassword(auth, email, password);
+          const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
           uid = cred.user.uid;
         } catch {
           uid = `usr_${Date.now()}`;

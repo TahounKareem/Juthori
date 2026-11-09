@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { X, ArrowLeft, Lock, Mail, Loader2 } from 'lucide-react';
+import { X, ArrowLeft, Lock, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import {
@@ -33,6 +35,54 @@ interface LoginModalProps {
   }) => void;
 }
 
+function inferArabicNameFromEmailOrDisplay(
+  email: string,
+  displayName?: string | null
+): {
+  fullName: string;
+  firstName: string;
+  fatherName: string;
+  grandfatherName: string;
+  familyName: string;
+} {
+  const cleanDisplay = (displayName || '').trim();
+  if (cleanDisplay && cleanDisplay.includes(' ')) {
+    const parts = cleanDisplay.split(/\s+/).filter(Boolean);
+    return {
+      fullName: cleanDisplay,
+      firstName: parts[0] || 'مستخدم',
+      fatherName: parts.length > 2 ? parts[1] : '',
+      grandfatherName: parts.length > 3 ? parts[2] : '',
+      familyName:
+        parts.length > 3
+          ? parts.slice(3).join(' ')
+          : parts.length > 1
+          ? parts.slice(1).join(' ')
+          : parts[0] || '',
+    };
+  }
+
+  const localPart = (email.split('@')[0] || '').toLowerCase();
+  if (localPart.includes('tahoun') && localPart.includes('kareem')) {
+    return {
+      fullName: 'كريم شريف طاحون',
+      firstName: 'كريم',
+      fatherName: 'شريف',
+      grandfatherName: '',
+      familyName: 'طاحون',
+    };
+  }
+
+  const fallbackName = cleanDisplay || email.split('@')[0] || 'مستخدم';
+  return {
+    fullName: fallbackName,
+    firstName: fallbackName,
+    fatherName: '',
+    grandfatherName: '',
+    familyName: fallbackName,
+  };
+}
+
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
@@ -43,7 +93,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [error, setError] = useState('');
+  const [resetNotice, setResetNotice] = useState('');
 
   if (!isOpen) return null;
 
@@ -51,6 +103,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError('');
+    setResetNotice('');
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
@@ -62,34 +115,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const existingByUid = await fetchUserProfile(user.uid);
       const mergedExisting = existingByEmail || existingByUid;
 
-      if (!mergedExisting && !isRegisterMode) {
-        setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني. يرجى التسجيل أولاً من نموذج الفحص الفوري أو إنشاء حساب جديد.');
-        setIsLoading(false);
-        return;
-      }
-
       const rawDisplayName = (user.displayName || '').trim();
-      const sanitizedDisplayName =
-        rawDisplayName.includes('طاحون') ? '' : rawDisplayName;
+      const inferred = inferArabicNameFromEmailOrDisplay(cleanEmail, rawDisplayName);
 
       const userDoc = await createUserProfileIfMissing(
         {
           uid: user.uid,
           email: user.email,
-          displayName: mergedExisting?.fullName || sanitizedDisplayName,
+          displayName: mergedExisting?.fullName || rawDisplayName || inferred.fullName,
         },
         {
           accountType: mergedExisting?.accountType || 'individual',
           fullName:
             mergedExisting?.fullName ||
-            sanitizedDisplayName ||
-            cleanEmail.split('@')[0] ||
+            rawDisplayName ||
+            inferred.fullName ||
             'مستخدم جذوري',
-          firstName: mergedExisting?.firstName,
-          fatherName: mergedExisting?.fatherName,
-          grandfatherName: mergedExisting?.grandfatherName,
-          familyName: mergedExisting?.familyName,
-          originCountry: mergedExisting?.originCountry,
+          firstName: mergedExisting?.firstName || inferred.firstName,
+          fatherName: mergedExisting?.fatherName || inferred.fatherName,
+          grandfatherName: mergedExisting?.grandfatherName || inferred.grandfatherName,
+          familyName: mergedExisting?.familyName || inferred.familyName,
+          originCountry: mergedExisting?.originCountry || 'السعودية',
           originRegion: mergedExisting?.originRegion,
           tribeName: mergedExisting?.tribeName,
           familyBranch: mergedExisting?.familyBranch,
@@ -99,28 +145,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const resolvedDoc = mergedExisting?.familyName ? mergedExisting : userDoc;
       const nameParts = (
         resolvedDoc.fullName ||
-        sanitizedDisplayName ||
-        cleanEmail.split('@')[0] ||
+        rawDisplayName ||
+        inferred.fullName ||
         'مستخدم'
       )
         .split(' ')
         .filter(Boolean);
 
       const resolvedFirstName =
-        resolvedDoc.firstName || nameParts[0] || 'مستخدم';
+        resolvedDoc.firstName || nameParts[0] || inferred.firstName || 'مستخدم';
       const resolvedFatherName =
-        resolvedDoc.fatherName || (nameParts.length > 2 ? nameParts[1] : '') || '';
+        resolvedDoc.fatherName || (nameParts.length > 2 ? nameParts[1] : '') || inferred.fatherName;
       const resolvedGrandfatherName =
         resolvedDoc.grandfatherName ||
         (nameParts.length > 3 ? nameParts[2] : '') ||
-        '';
+        inferred.grandfatherName;
       const resolvedFamilyName =
         resolvedDoc.familyName ||
         (nameParts.length > 3
           ? nameParts.slice(3).join(' ')
           : nameParts.length > 1
           ? nameParts.slice(1).join(' ')
-          : nameParts[0] || '');
+          : inferred.familyName || nameParts[0] || '');
 
       onLoginSuccess({
         uid: user.uid,
@@ -153,6 +199,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
+  const handleForgotPassword = async () => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setError('يرجى كتابة بريدك الإلكتروني في الحقل أعلاه أولاً لإرسال رابط استعادة كلمة المرور.');
+      return;
+    }
+    setIsSendingReset(true);
+    setError('');
+    setResetNotice('');
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      setResetNotice(
+        `تم إرسال رابط إعادة تعيين كلمة المرور بنجاح إلى (${cleanEmail}). يرجى فتح بريدك الإلكتروني وتعيين كلمة المرور الجديدة ثم تسجيل الدخول هنا مباشرًة.`
+      );
+    } catch {
+      setError('تعذر إرسال بريد استعادة كلمة المرور. يرجى التأكد من صحة البريد الإلكتروني المدخل.');
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim();
@@ -167,44 +234,84 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     setIsLoading(true);
     setError('');
+    setResetNotice('');
 
     let uid = '';
+    let authDisplayName = '';
+    let authenticatedViaFirebaseAuth = false;
     const typedFullName = fullName.trim();
 
-    // 1. Always look up existing profile in Firestore by email first (checks both `users` and `customer_orders`)
+    // Look up existing profile in Firestore by email (checks `users`, `customer_orders`, and `research_tickets`)
     const profileByEmail = await fetchUserProfileByEmail(cleanEmail);
 
-    if (!isRegisterMode && !profileByEmail) {
-      setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني في قاعدة البيانات.');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      if (isRegisterMode) {
+    if (isRegisterMode) {
+      try {
         const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         uid = userCred.user.uid;
-      } else {
-        try {
-          const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-          uid = userCred.user.uid;
-        } catch {
-          // If the user registered via OTP / custom UID in Firestore and isn't in Firebase Auth yet, provision them
-          if (profileByEmail) {
-            try {
-              const created = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-              uid = created.user.uid;
-            } catch {
-              uid = profileByEmail.userId || `usr_${Date.now()}`;
-            }
-          } else {
-            const created = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-            uid = created.user.uid;
+        authDisplayName = userCred.user.displayName || '';
+        authenticatedViaFirebaseAuth = true;
+        sendEmailVerification(userCred.user).catch(() => {});
+      } catch (regErr: unknown) {
+        const regMsg = regErr instanceof Error ? regErr.message : String(regErr);
+        if (regMsg.includes('email-already-in-use')) {
+          try {
+            const signCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+            uid = signCred.user.uid;
+            authDisplayName = signCred.user.displayName || '';
+            authenticatedViaFirebaseAuth = true;
+          } catch {
+            setError(
+              'هذا البريد الإلكتروني مسجل بالفعل. يرجى التبديل إلى «تسجيل الدخول» أو الضغط على «نسيت كلمة المرور؟» لاستعادتها.'
+            );
+            setIsLoading(false);
+            return;
           }
+        } else {
+          uid = profileByEmail?.userId || `usr_${Date.now()}`;
         }
       }
-    } catch {
-      uid = profileByEmail?.userId || `usr_${Date.now()}`;
+    } else {
+      // Login Mode: Authenticate with Firebase Auth FIRST (supports users who changed their password via Firebase email link!)
+      try {
+        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        uid = userCred.user.uid;
+        authDisplayName = userCred.user.displayName || '';
+        authenticatedViaFirebaseAuth = true;
+      } catch (signErr: unknown) {
+        const signMsg = signErr instanceof Error ? signErr.message : String(signErr);
+        // If the customer has a profile in Firestore (e.g. from OTP registration) and isn't in Firebase Auth yet, provision them
+        if (profileByEmail) {
+          try {
+            const created = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+            uid = created.user.uid;
+            authDisplayName = created.user.displayName || '';
+            authenticatedViaFirebaseAuth = true;
+          } catch (createErr: unknown) {
+            const createMsg = createErr instanceof Error ? createErr.message : String(createErr);
+            if (createMsg.includes('email-already-in-use') || signMsg.includes('wrong-password') || signMsg.includes('invalid-credential')) {
+              setError(
+                'كلمة المرور غير صحيحة. إذا قمت بتغييرها مؤخراً أو نسيتها، اضغط على «نسيت كلمة المرور؟» أدناه لإرسال رابط الاستعادة لبريدك.'
+              );
+              setIsLoading(false);
+              return;
+            }
+            uid = profileByEmail.userId || `usr_${Date.now()}`;
+          }
+        } else {
+          // Neither Firebase Auth sign-in succeeded nor Firestore profile found
+          if (signMsg.includes('wrong-password') || signMsg.includes('invalid-credential')) {
+            setError(
+              'كلمة المرور غير صحيحة أو الحساب غير مسجل بعد. يمكنك الضغط على «نسيت كلمة المرور؟» لاستعادتها عبر البريد، أو إنشاء حساب جديد.'
+            );
+          } else {
+            setError(
+              'لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني. يمكنك الضغط على «إنشاء حساب جديد» أدناه للتسجيل فوراً.'
+            );
+          }
+          setIsLoading(false);
+          return;
+        }
+      }
     }
 
     const safeUid = uid || profileByEmail?.userId || `usr_${Date.now()}`;
@@ -217,29 +324,36 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       profileByEmail ||
       profileByUid;
 
-    if (!isRegisterMode && !storedProfile) {
+    if (!isRegisterMode && !storedProfile && !authenticatedViaFirebaseAuth) {
       setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني في قاعدة البيانات.');
       setIsLoading(false);
       return;
     }
 
+    const inferredFromIdentity = inferArabicNameFromEmailOrDisplay(
+      cleanEmail,
+      typedFullName || storedProfile?.fullName || authDisplayName
+    );
+
     const effectiveFullName =
       typedFullName ||
       storedProfile?.fullName ||
-      cleanEmail.split('@')[0];
+      authDisplayName ||
+      inferredFromIdentity.fullName;
 
     const nameParts = effectiveFullName.split(' ').filter(Boolean);
 
     const resolvedFirstName =
       (isRegisterMode && typedFullName ? nameParts[0] : storedProfile?.firstName) ||
       nameParts[0] ||
-      cleanEmail.split('@')[0];
+      inferredFromIdentity.firstName;
 
     const resolvedFatherName =
       (isRegisterMode && typedFullName && nameParts.length > 2
         ? nameParts[1]
         : storedProfile?.fatherName) ||
       (nameParts.length > 2 ? nameParts[1] : '') ||
+      inferredFromIdentity.fatherName ||
       '';
 
     const resolvedGrandfatherName =
@@ -247,6 +361,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         ? nameParts[2]
         : storedProfile?.grandfatherName) ||
       (nameParts.length > 3 ? nameParts[2] : '') ||
+      inferredFromIdentity.grandfatherName ||
       '';
 
     const resolvedFamilyName =
@@ -259,9 +374,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         ? nameParts.slice(3).join(' ')
         : nameParts.length > 1
         ? nameParts.slice(1).join(' ')
-        : resolvedFirstName);
+        : inferredFromIdentity.familyName || resolvedFirstName);
 
-    const resolvedCountry = storedProfile?.originCountry || 'السعودية';
+    const resolvedCountry = storedProfile?.originCountry || 'مصر';
     const resolvedRegion = storedProfile?.originRegion || '';
     const resolvedTribe = storedProfile?.tribeName || '';
     const resolvedBranch = storedProfile?.familyBranch || '';
@@ -270,7 +385,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         ? AccountLegalType.RecordKeeper
         : AccountLegalType.Individual;
 
-    // Ensure profile is saved under the active UID in Firestore
+    // Ensure profile is saved/healed under the active UID in Firestore
     await createUserProfileIfMissing(
       {
         uid: safeUid,
@@ -433,12 +548,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
 
           <div>
-            <label
-              htmlFor="login-password"
-              className="block text-xs font-medium text-[#252321] mb-1"
-            >
-              كلمة المرور
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label
+                htmlFor="login-password"
+                className="block text-xs font-medium text-[#252321]"
+              >
+                كلمة المرور
+              </label>
+              {!isRegisterMode && (
+                <button
+                  type="button"
+                  disabled={isSendingReset}
+                  onClick={handleForgotPassword}
+                  className="text-[11px] font-semibold text-[#D8755B] hover:underline cursor-pointer disabled:opacity-50"
+                >
+                  {isSendingReset ? 'جاري إرسال الرابط...' : 'نسيت كلمة المرور؟'}
+                </button>
+              )}
+            </div>
             <div className="relative">
               <input
                 id="login-password"
@@ -455,6 +582,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               />
             </div>
           </div>
+
+          {resetNotice && (
+            <p
+              role="status"
+              className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-start gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>{resetNotice}</span>
+            </p>
+          )}
 
           {error && (
             <p role="alert" className="text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -484,6 +621,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             onClick={() => {
               setIsRegisterMode(!isRegisterMode);
               setError('');
+              setResetNotice('');
             }}
             className="text-xs text-[#D8755B] hover:underline font-semibold cursor-pointer"
           >
@@ -496,3 +634,4 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     </div>
   );
 };
+

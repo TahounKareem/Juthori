@@ -1202,7 +1202,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           )
             .replace(/^عائلة\s+/, '')
             .trim();
-          if (!fam || fam === 'طاحون') continue;
+          if (!fam) continue;
 
           const resolvedTribe = String(
             docItem.tribeName ||

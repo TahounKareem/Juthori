@@ -42,7 +42,7 @@ const JUTHORI_CLOSE_TICKET_URL = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/rese
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || 'منصة جذوري <info@Juthori.com>';
+  process.env.RESEND_FROM_EMAIL || 'منصة جذوري <info@juthori.com>';
 
 // Server-side in-memory OTP store (keyed by normalized email)
 interface OtpEntry {
@@ -87,32 +87,34 @@ async function dispatchResendEmail(payload: {
   };
 
   try {
-    const primaryAttempt = await sendWithSender(RESEND_FROM_EMAIL);
-    if (primaryAttempt.ok) {
-      return {
-        dispatched: true,
-        provider: 'resend',
-        senderUsed: RESEND_FROM_EMAIL,
-      };
-    }
+    const candidateSenders = Array.from(
+      new Set([
+        RESEND_FROM_EMAIL,
+        'منصة جذوري <info@juthori.com>',
+        'منصة جذوري <noreply@juthori.com>',
+        'منصة جذوري <onboarding@resend.dev>',
+      ])
+    );
 
-    // Automatic fallback to Resend's pre-verified onboarding@resend.dev if custom domain is not yet verified in DNS
-    const fallbackSender = 'منصة جذوري <onboarding@resend.dev>';
-    if (RESEND_FROM_EMAIL !== fallbackSender) {
-      const fallbackAttempt = await sendWithSender(fallbackSender);
-      if (fallbackAttempt.ok) {
+    let lastErrorText = '';
+    for (const sender of candidateSenders) {
+      const attempt = await sendWithSender(sender);
+      if (attempt.ok) {
         return {
           dispatched: true,
-          provider: 'resend_onboarding_fallback',
-          senderUsed: fallbackSender,
+          provider: sender.includes('resend.dev')
+            ? 'resend_onboarding_fallback'
+            : 'resend',
+          senderUsed: sender,
         };
       }
+      lastErrorText = attempt.text;
     }
 
     return {
       dispatched: false,
       provider: 'resend_api_error',
-      error: primaryAttempt.text,
+      error: lastErrorText,
     };
   } catch (err) {
     return {
@@ -145,6 +147,16 @@ async function startServer() {
   const PORT = resolveServerPort();
 
   app.use(express.json({ limit: '5mb' }));
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
 
   // 1. Silent IP Geolocation Capture helper endpoint
   app.get('/api/juthori/geo', async (req, res) => {

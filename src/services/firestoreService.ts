@@ -516,13 +516,11 @@ export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
 function isTeamAccountDocInUsers(
   docId?: string,
   email?: string,
-  fullName?: string,
-  familyName?: string
+  fullName?: string
 ): boolean {
   const id = (docId || '').trim();
   const em = (email || '').trim().toLowerCase();
   const fn = (fullName || '').trim();
-  const fam = (familyName || '').trim();
   if (
     id.startsWith('team_usr_') ||
     id.startsWith('team_maestro_') ||
@@ -540,9 +538,7 @@ function isTeamAccountDocInUsers(
   if (
     fn.includes('(المايسترو)') ||
     fn.includes('(مدير البحوث)') ||
-    fn.includes('(مدير عام)') ||
-    fn === 'كريم طاحون' ||
-    (fn.includes('كريم') && fam === 'طاحون')
+    fn.includes('(مدير عام)')
   ) {
     return true;
   }
@@ -562,8 +558,7 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
     isTeamAccountDocInUsers(
       docData.userId || safeUid,
       docData.email,
-      docData.fullName,
-      docData.familyName
+      docData.fullName
     )
   ) {
     dualDeleteDoc(['users', safeUid]).catch(() => {});
@@ -579,9 +574,10 @@ export async function fetchUserProfileByEmail(
   if (!cleanEmail) return null;
 
   try {
-    const [allUsers, allOrders] = await Promise.all([
+    const [allUsers, allOrders, allTickets] = await Promise.all([
       dualGetCollection<UserProfileData & { id?: string }>('users'),
       dualGetCollection<CustomerOrderRecord>('customer_orders'),
+      dualGetCollection<ResearchTicketData>('research_tickets'),
     ]);
 
     const matchingUsers = allUsers.filter(
@@ -589,8 +585,7 @@ export async function fetchUserProfileByEmail(
         !isTeamAccountDocInUsers(
           u.id || u.userId,
           u.email,
-          u.fullName,
-          u.familyName
+          u.fullName
         ) && (u.email || '').trim().toLowerCase() === cleanEmail
     );
     // Prefer a user record that has a non-empty familyName
@@ -600,21 +595,33 @@ export async function fetchUserProfileByEmail(
       null;
 
     const matchingOrders = allOrders.filter(
-      (o) => (o.email || '').trim().toLowerCase() === cleanEmail
+      (o) =>
+        !isTeamAccountDocInUsers(o.userId, o.email, o.fullName) &&
+        (o.email || '').trim().toLowerCase() === cleanEmail
     );
     const bestOrder =
       matchingOrders.find((o) => o.familyName && o.familyName.trim().length > 0) ||
       matchingOrders[0] ||
       null;
 
-    // Crucial: If the customer document was deleted from `users` by the admin, do NOT resurrect them from a stale order alone
-    if (!bestUser) {
+    const matchingTickets = allTickets.filter(
+      (t) =>
+        !isTeamAccountDocInUsers(t.userId, t.userEmail, t.userFullName) &&
+        (t.userEmail || '').trim().toLowerCase() === cleanEmail
+    );
+    const bestTicket =
+      matchingTickets.find((t) => t.familyName && t.familyName.trim().length > 0) ||
+      matchingTickets[0] ||
+      null;
+
+    if (!bestUser && !bestOrder && !bestTicket) {
       return null;
     }
 
     const nameParts = (
       bestUser?.fullName ||
       bestOrder?.fullName ||
+      bestTicket?.userFullName ||
       ''
     )
       .split(' ')
@@ -638,6 +645,7 @@ export async function fetchUserProfileByEmail(
     const resolvedFamilyName =
       bestUser?.familyName ||
       bestOrder?.familyName ||
+      bestTicket?.familyName ||
       (nameParts.length > 3
         ? nameParts.slice(3).join(' ')
         : nameParts.length > 1
@@ -661,10 +669,11 @@ export async function fetchUserProfileByEmail(
         : 'individual';
 
     return {
-      userId: bestUser?.userId || bestOrder?.userId || `usr_${Date.now()}`,
+      userId: bestUser?.userId || bestOrder?.userId || bestTicket?.userId || `usr_${Date.now()}`,
       fullName:
         bestUser?.fullName ||
         bestOrder?.fullName ||
+        bestTicket?.userFullName ||
         [resolvedFirstName, resolvedFatherName, resolvedGrandfatherName, resolvedFamilyName]
           .filter(Boolean)
           .join(' '),
@@ -672,20 +681,28 @@ export async function fetchUserProfileByEmail(
       fatherName: resolvedFatherName,
       grandfatherName: resolvedGrandfatherName,
       familyName: resolvedFamilyName,
-      email: bestUser?.email || bestOrder?.email || email.trim(),
-      phone: bestUser?.phone || bestOrder?.phone || '',
+      email: bestUser?.email || bestOrder?.email || bestTicket?.userEmail || email.trim(),
+      phone: bestUser?.phone || bestOrder?.phone || bestTicket?.userPhone || '',
       avatarUrl: bestUser?.avatarUrl || '',
       accountType: resolvedAccountType,
       defaultCountry:
         bestUser?.defaultCountry ||
         bestUser?.originCountry ||
         bestOrder?.originCountry ||
+        bestTicket?.originCountry ||
         'السعودية',
       originCountry:
-        bestUser?.originCountry || bestOrder?.originCountry || 'السعودية',
-      originRegion: bestUser?.originRegion || bestOrder?.originRegion || '',
-      tribeName: bestUser?.tribeName || '',
-      familyBranch: bestUser?.familyBranch || '',
+        bestUser?.originCountry ||
+        bestOrder?.originCountry ||
+        bestTicket?.originCountry ||
+        'السعودية',
+      originRegion:
+        bestUser?.originRegion ||
+        bestOrder?.originRegion ||
+        bestTicket?.originRegion ||
+        '',
+      tribeName: bestUser?.tribeName || bestTicket?.tribeName || '',
+      familyBranch: bestUser?.familyBranch || bestTicket?.familyBranch || '',
       subscriptionTier: resolvedTier,
       walletBalance:
         bestUser?.walletBalance ?? bestOrder?.walletBalanceUsd ?? 0,
@@ -695,7 +712,10 @@ export async function fetchUserProfileByEmail(
         resolvedTier === 'premium_annual',
       emailNotificationsEnabled: bestUser?.emailNotificationsEnabled ?? true,
       createdAt:
-        bestUser?.createdAt || bestOrder?.createdAt || new Date().toISOString(),
+        bestUser?.createdAt ||
+        bestOrder?.createdAt ||
+        bestTicket?.openedAt ||
+        new Date().toISOString(),
       updatedAt: bestUser?.updatedAt,
     };
   } catch (err) {
@@ -1045,7 +1065,6 @@ const HARDCODED_TICKET_IDS_TO_IGNORE = new Set([
   '#ENR-ADAM-272887',
   'tkt_auto_ADAM_NODE_ENRICHMENT____مقيت',
   'tkt_auto_ADAM_NODE_ENRICHMENT_آل_مقيت',
-  'tkt_auto_P1_CUSTOMER_SEARCH_طاحون',
 ]);
 
 function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
@@ -1055,12 +1074,11 @@ function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
   }
   const uid = (t.userId || '').trim();
   const em = (t.userEmail || '').trim().toLowerCase();
-  const fam = (t.familyName || t.targetAncestor || '').trim();
   if (
     uid === 'active-session-client' ||
     em === 'client@juthori.com' ||
     em === 'hassan.almuqit@juthori.com' ||
-    fam === 'طاحون'
+    em === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
   ) {
     return true;
   }
@@ -1517,11 +1535,10 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
     dualDeleteDoc(['users', 'team_maestro_kareem']),
     dualDeleteDoc(['research_tickets', 'tkt_auto_ADAM_NODE_ENRICHMENT____مقيت']),
     dualDeleteDoc(['research_tickets', 'tkt_auto_ADAM_NODE_ENRICHMENT_آل_مقيت']),
-    dualDeleteDoc(['research_tickets', 'tkt_auto_P1_CUSTOMER_SEARCH_طاحون']),
   ]);
 
   // Architectural separation cleanup: remove any team_usr_* or team member accounts from `users` collection,
-  // and purge any dummy/hardcoded tickets or Tahoun test customer records
+  // and purge any dummy/hardcoded seed tickets
   try {
     const [allUsers, allTeam, allTickets, allOrders] = await Promise.all([
       dualGetCollection<UserProfileData & { id?: string }>('users'),
@@ -1539,7 +1556,7 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
       const uEmail = (u.email || '').trim().toLowerCase();
       if (
         docId &&
-        (isTeamAccountDocInUsers(docId, u.email, u.fullName, u.familyName) ||
+        (isTeamAccountDocInUsers(docId, u.email, u.fullName) ||
           (uEmail && teamEmails.has(uEmail) && docId.startsWith('team_')))
       ) {
         deletePromises.push(dualDeleteDoc(['users', docId]));
@@ -1555,10 +1572,11 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
 
     for (const o of allOrders) {
       const docId = o.id || '';
+      const oEmail = (o.email || '').trim().toLowerCase();
       if (
         docId &&
-        ((o.familyName || '').trim() === 'طاحون' ||
-          (o.email || '').trim().toLowerCase() === 'hassan.almuqit@juthori.com')
+        (oEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() ||
+          oEmail === 'hassan.almuqit@juthori.com')
       ) {
         deletePromises.push(dualDeleteDoc(['customer_orders', docId]));
       }
