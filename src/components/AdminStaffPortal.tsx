@@ -307,6 +307,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     }
   }, [loggedInMember]);
 
+  useEffect(() => {
+    if (loggedInMember && activeTab === 'command_hub') {
+      fetchAllResearchTicketsForStaff()
+        .then((list) => setResearchTicketsCount(list.length))
+        .catch(() => {});
+    }
+  }, [loggedInMember, activeTab]);
+
   // 4. Add / Invite Team Member Modal State (in لوحة إدارة المستخدمين)
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newStaffName, setNewStaffName] = useState('');
@@ -989,7 +997,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       description:
         'غرفة عمليات التذاكر (P1/P2/P3) وإثراء الأنساب، خياطة الأعمدة النسبية، وتوثيق المصادر في آدم برايم.',
       liveCounterLabel: 'التذاكر النشطة بالمرصد',
-      liveCounterValue: `${Math.max(researchTicketsCount, 3)} تذكرة نشطة`,
+      liveCounterValue: `${researchTicketsCount} تذكرة نشطة`,
       accentBadge: 'غرفة عمليات الباحثين',
     },
     {
@@ -1123,7 +1131,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
     if (effectiveHubRole === 'مدير البحوث') {
       const dailyTarget = 20;
-      const currentDone = Math.max(totalDoneToday, 14);
+      const currentDone = totalDoneToday;
       const pct = Math.min(100, Math.round((currentDone / dailyTarget) * 100));
       return [
         {

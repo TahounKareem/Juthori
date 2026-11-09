@@ -77,6 +77,7 @@ import {
 import { LineageSpineColumn } from './LineageSpineColumn';
 import {
   fetchAllResearchTicketsForStaff,
+  saveGeneratedResearchTicketToFirebase,
   sendCustomerNotification,
   syncClientLineageTicketToFirebase,
   updateResearchTicketFullInFirebase,
@@ -117,6 +118,7 @@ export interface ResearcherStudioTicket {
     | 'P1_CUSTOMER_SEARCH'
     | 'P3_PROACTIVE_MINING';
   adamNodeId?: string;
+  alphaId?: string;
   fullAdamSpineCount?: number;
   fullAdamSpineStations?: string[];
   title: string;
@@ -1160,7 +1162,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   };
 
   const buildTicketFromP3Candidate = (
-    cand: P3ProactiveCandidate
+    cand: P3ProactiveCandidate,
+    firestoreDocId?: string
   ): ResearcherStudioTicket => {
     const diag = computeTicketDiagnosticContext(
       cand.familyName,
@@ -1172,12 +1175,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     const resolvedBridge = buildSuggestedAdamBridgeForResearcher(
       cand.familyName,
       diag.resolvedSubRoot,
-      diag.resolvedMotherTribe
+      diag.resolvedMotherTribe,
+      cand.adamNodeId
     );
     const resolvedLake3 = buildLake3UnlinkedProjectsForResearcher(
       cand.familyName,
       diag.resolvedMotherTribe,
-      cand.inferredCountries[0] || 'العراق'
+      cand.inferredCountries[0] || 'الجزيرة العربية'
     );
     const stitchedNodes: UpperAncestorNode[] = diag.cleanExtractedNodes.map(
       (n, idx) => ({
@@ -1194,8 +1198,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       })
     );
 
+    const effectiveAdamNodeId =
+      cand.adamNodeId || resolvedBridge.adam_node_id || '';
+
     return {
       id: cand.ticketId,
+      firestoreDocId,
+      alphaId: cand.alphaId || cand.corroboratingEvidence[0]?.alpha_id,
       queue: 'P3',
       priorityTier: 'P3_PROACTIVE_ALPHA_ENRICHMENT',
       precomputed_diagnostic: diag.precomputed,
@@ -1205,17 +1214,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         corroborating_sources_count: diag.enrichedEvidence.length,
       },
       ticketCategory: 'P3_PROACTIVE_MINING',
-      adamNodeId: resolvedBridge.adam_node_id,
+      adamNodeId: effectiveAdamNodeId,
       fullAdamSpineCount: stitchedNodes.length,
       fullAdamSpineStations: stitchedNodes.map((u) => u.name),
-      title: `تعدين استباقي ذكي (P3): وصل وإثراء (${cand.familyName} ⬅️ ${diag.resolvedSubRoot} ⬅️ ${diag.resolvedMotherTribe}) بشجرة آدم`,
-      clientName: 'مولد التعدين الاستباقي الذكي (Auto-Miner)',
+      title: `بحث إستباقي: وصل وإثراء (${cand.familyName} ⬅️ ${diag.resolvedSubRoot} ⬅️ ${diag.resolvedMotherTribe}) بشجرة آدم`,
+      clientName: 'قاعدة البيانات المركزية · إثراء استباقي',
       familyName: cand.familyName,
       subRootName: diag.resolvedSubRoot,
       motherTribeName: diag.resolvedMotherTribe,
       locationLabel: cand.locationLabel,
       status: 'open',
-      createdAt: 'توليد ذكي آلي · P3 Auto-Queue',
+      createdAt: 'متزامن مع قاعدة البيانات و Firebase',
       inferredCountries: cand.inferredCountries,
       corroboratingEvidence: diag.enrichedEvidence,
       aiResearchHypotheses: buildAIResearchHypothesesForFamily(
@@ -1227,17 +1236,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       suggestedAdamBridge: resolvedBridge,
       lake3UnlinkedProjects: resolvedLake3,
       copilotSources: diag.enrichedEvidence.map((ev) => ({
-        project: 'بحيرة ألفا (P3 Proactive Mining)',
+        project: 'قاعدة بيانات ألفا (بحث إستباقي)',
         bookCitation: formatAlphaEvidenceCitation(ev),
         extractedSnippet: `السلسلة المستخرجة: ${ev.lineage_ancestors}`,
       })),
       suggestedAdamTarget: {
         confidencePercent: 98,
-        entryNodeName: `${resolvedBridge.adam_node_id}: ${resolvedBridge.adam_chain_preview}`,
+        entryNodeName: `${effectiveAdamNodeId}: ${resolvedBridge.adam_chain_preview}`,
         fullChainPreview: `${cand.familyName} ⬅️ ${stitchedNodes
           .map((n) => n.name)
           .join(' ⬅️ ')} ⬅️ ${resolvedBridge.adam_chain_preview}`,
-        rationale: `مرشح استراتيجي بوزن (${cand.strategicMeta.strategic_score} نقطة) جاهز للربط المباشر بشجرة آدم.`,
+        rationale: `سجل حقيقي من قاعدة البيانات بوزن (${cand.strategicMeta.strategic_score} نقطة) جاهز للربط المباشر بشجرة آدم.`,
       },
       extractedNodes: diag.cleanExtractedNodes,
     };
@@ -1310,12 +1319,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     setActiveTicketElapsedSeconds(0);
   };
 
-  // Initialize tickets from Firebase Firestore `research_tickets` + Proactive P3 Queue
+  // Initialize tickets strictly from real Firebase Firestore `research_tickets` (Zero Fake/Auto-Injected Tickets)
   const [tickets, setTickets] = useState<ResearcherStudioTicket[]>([]);
 
   useEffect(() => {
     let isMounted = true;
-    const loadRealTicketsAndP3Queue = async () => {
+    const loadRealTicketsFromDatabase = async () => {
       try {
         const firestoreDocs = await fetchAllResearchTicketsForStaff();
         if (!isMounted) return;
@@ -1342,7 +1351,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           )
             .replace(/^عائلة\s+/, '')
             .trim();
-          if (!fam) continue;
+          if (!fam || fam.startsWith('عشيرة ألفا')) continue;
 
           const resolvedTribe = String(
             docItem.tribeName ||
@@ -1460,14 +1469,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             docItem.userId
           );
 
+          built.alphaId =
+            docItem.alphaId ||
+            parsedPayload.alphaId ||
+            resolvedEvidence[0]?.alpha_id;
+
           if (docItem.ticketCategory) {
             built.ticketCategory = docItem.ticketCategory;
-            built.priorityTier =
-              docItem.ticketCategory === 'P1_CUSTOMER_SEARCH'
-                ? 'P1_CLIENT_UNMATCHED'
-                : 'P2_CLIENT_ADAM_BRIDGE';
-            built.queue =
-              docItem.ticketCategory === 'P1_CUSTOMER_SEARCH' ? 'P1' : 'P2';
+            if (docItem.ticketCategory === 'P3_PROACTIVE_MINING') {
+              built.priorityTier = 'P3_PROACTIVE_ALPHA_ENRICHMENT';
+              built.queue = 'P3';
+              built.title = `بحث إستباقي: وصل وإثراء (${fam} ⬅️ ${built.subRootName} ⬅️ ${built.motherTribeName}) بشجرة آدم`;
+              if (parsedPayload.p3StrategicMeta) {
+                built.p3StrategicMeta = parsedPayload.p3StrategicMeta;
+              }
+            } else if (docItem.ticketCategory === 'P1_CUSTOMER_SEARCH') {
+              built.priorityTier = 'P1_CLIENT_UNMATCHED';
+              built.queue = 'P1';
+            } else {
+              built.priorityTier = 'P2_CLIENT_ADAM_BRIDGE';
+              built.queue = 'P2';
+            }
           }
           if (docItem.additionalNotes && !built.researcherNotes) {
             built.researcherNotes = docItem.additionalNotes;
@@ -1481,32 +1503,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             built.status = 'CLOSED_AND_ENRICHED';
           } else if (docItem.status === 'investigating') {
             built.status = 'investigating';
+          } else if (docItem.status === 'exported_adam_prime') {
+            built.status = 'exported_adam_prime';
           }
 
           hydratedList.push(built);
         }
 
-        // Also fetch/generate P3 Proactive Alpha Enrichment tickets so researchers always have high-value mining work
-        const existingFams = new Set(hydratedList.map((t) => t.familyName));
-        const p3Candidates = await fetchOrGenerateP3ProactiveTickets(
-          4,
-          existingFams
-        );
-        if (!isMounted) return;
-        const p3Tickets = p3Candidates.map((cand) =>
-          buildTicketFromP3Candidate(cand)
-        );
-
-        setTickets([...hydratedList, ...p3Tickets]);
+        setTickets(hydratedList);
       } catch (err) {
         console.warn('Firestore ticket sync warning:', err);
-        const p3Fallback = await fetchOrGenerateP3ProactiveTickets(4);
         if (isMounted) {
-          setTickets(p3Fallback.map((cand) => buildTicketFromP3Candidate(cand)));
+          setTickets([]);
         }
       }
     };
-    loadRealTicketsAndP3Queue();
+    loadRealTicketsFromDatabase();
     return () => {
       isMounted = false;
     };
@@ -1623,21 +1635,112 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     return () => clearInterval(timer);
   }, [activeSubTab, selectedTicket?.id, selectedTicket?.status]);
 
-  const handleAutoRefillNextP3Tickets = async (count = 1) => {
+  const handleAutoRefillNextP3Tickets = async (count = 3) => {
     setIsGeneratingP3Batch(true);
     try {
-      const existingFams = new Set(tickets.map((t) => t.familyName));
+      const excludedSet = new Set<string>(
+        tickets
+          .flatMap((t) => [
+            t.familyName,
+            t.id,
+            t.id.replace(/^#/, ''),
+            t.alphaId || '',
+            ...(t.corroboratingEvidence || []).map((e) => e.alpha_id || ''),
+          ])
+          .filter(Boolean)
+      );
+
       const newCands = await fetchOrGenerateP3ProactiveTickets(
         count,
-        existingFams
+        excludedSet
       );
-      if (newCands.length > 0) {
-        const builtNew = newCands.map((c) => buildTicketFromP3Candidate(c));
+
+      if (newCands.length === 0) {
+        showToast(
+          '⚠️ لا توجد دفعة إضافية جديدة غير معالجة حالياً في قاعدة البيانات.'
+        );
+        return;
+      }
+
+      // Enrich each candidate from the 3-Lake engine and persist directly to Firebase Firestore `research_tickets`
+      const persistedTickets: ResearcherStudioTicket[] = [];
+      for (const cand of newCands) {
+        let enrichedCand = cand;
+        try {
+          const liveSearchRes = await searchJuthoriLineage({
+            accountType: AccountLegalType.Individual,
+            firstName: 'باحث',
+            fatherName: '—',
+            grandfatherName: '—',
+            familyName: cand.familyName,
+            originCountry: cand.inferredCountries[0] || '',
+            originRegion: cand.locationLabel || '',
+            tribeName: cand.motherTribeName || '',
+            branchName: cand.subRootName || '',
+            email: '',
+            password: '',
+            agreedToTerms: true,
+          });
+          const extraEvidence = extractRawSourcesFromResult(liveSearchRes);
+          if (extraEvidence.length > 0) {
+            const byKey = new Map<string, CorroboratingAlphaEvidence>();
+            [...cand.corroboratingEvidence, ...extraEvidence].forEach((ev) => {
+              const key = `${ev.alpha_id || ''}_${ev.source_book || ''}_${ev.page || ''}`;
+              if (!byKey.has(key)) {
+                byKey.set(key, ev);
+              }
+            });
+            enrichedCand = {
+              ...cand,
+              adamNodeId: cand.adamNodeId || liveSearchRes.adamNodeId,
+              corroboratingEvidence: Array.from(byKey.values()),
+            };
+          }
+        } catch {
+          // Keep candidate's primary database evidence
+        }
+
+        const builtTicket = buildTicketFromP3Candidate(enrichedCand);
+        const citations = (builtTicket.corroboratingEvidence || []).map((ev) =>
+          formatAlphaEvidenceCitation(ev)
+        );
+
+        const savedFirestoreDoc = await saveGeneratedResearchTicketToFirebase({
+          ticketId: builtTicket.id,
+          alphaId: builtTicket.alphaId,
+          adamNodeId: builtTicket.adamNodeId,
+          ticketCategory: 'P3_PROACTIVE_MINING',
+          familyName: builtTicket.familyName,
+          subRootName: builtTicket.subRootName,
+          motherTribeName: builtTicket.motherTribeName,
+          originCountry:
+            builtTicket.inferredCountries?.[0] || 'الجزيرة العربية',
+          originRegion: builtTicket.locationLabel,
+          clientName: builtTicket.clientName,
+          verifiedSources: citations,
+          corroboratingAlphaEvidence: builtTicket.corroboratingEvidence || [],
+          fullStitchedLineage: builtTicket.fullStitchedLineage || [],
+          extractedNodes: builtTicket.extractedNodes || [],
+          p3StrategicMeta: builtTicket.p3StrategicMeta,
+          precomputedDiagnostic: builtTicket.precomputed_diagnostic,
+        });
+
+        builtTicket.firestoreDocId = savedFirestoreDoc.id;
+        persistedTickets.push(builtTicket);
+      }
+
+      if (persistedTickets.length > 0) {
         setTickets((prev) => {
           const existingIds = new Set(prev.map((t) => t.id));
-          const uniqueNew = builtNew.filter((b) => !existingIds.has(b.id));
+          const uniqueNew = persistedTickets.filter(
+            (b) => !existingIds.has(b.id)
+          );
           return [...prev, ...uniqueNew];
         });
+        setSelectedTicketId(persistedTickets[0].id);
+        showToast(
+          `✅ تم توليد (${persistedTickets.length}) تذاكر بحثية حقيقية من قاعدة البيانات وحفظها وربطها مباشرة بـ Firebase!`
+        );
       }
     } finally {
       setIsGeneratingP3Batch(false);
@@ -2704,6 +2807,38 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       }));
     }
 
+    // Immediately persist transferred ticket to Firebase Firestore `research_tickets`
+    saveGeneratedResearchTicketToFirebase({
+      ticketId: newTkt.id,
+      alphaId:
+        newTkt.alphaId || newTkt.corroboratingEvidence?.[0]?.alpha_id || '',
+      adamNodeId: newTkt.adamNodeId,
+      ticketCategory: newTkt.ticketCategory || 'ALPHA_TO_ADAM_LINK',
+      familyName: newTkt.familyName,
+      subRootName: newTkt.subRootName,
+      motherTribeName: newTkt.motherTribeName,
+      originCountry: newTkt.inferredCountries?.[0] || 'الجزيرة العربية',
+      originRegion: newTkt.locationLabel,
+      clientName: newTkt.clientName,
+      verifiedSources: (newTkt.corroboratingEvidence || []).map((ev) =>
+        formatAlphaEvidenceCitation(ev)
+      ),
+      corroboratingAlphaEvidence: newTkt.corroboratingEvidence || [],
+      fullStitchedLineage: newTkt.fullStitchedLineage || [],
+      extractedNodes: newTkt.extractedNodes || [],
+      precomputedDiagnostic: newTkt.precomputed_diagnostic,
+    })
+      .then((savedDoc) => {
+        setTickets((prev) =>
+          prev.map((item) =>
+            item.id === newTkt.id
+              ? { ...item, firestoreDocId: savedDoc.id }
+              : item
+          )
+        );
+      })
+      .catch(() => {});
+
     setTickets((prev) => [
       newTkt,
       ...prev.filter((existing) => existing.id !== newTkt.id),
@@ -2733,7 +2868,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     onSelectPortalSection?.('research_studio');
 
     showToast(
-      `🚀 تم نقل مخرجات فحص (${cleanFam}) بالكامل إلى غرفة عمليات التذكرة (${newTkt.id}) للإثراء والتوثيق بنقرة واحدة!`
+      `🚀 تم نقل مخرجات فحص (${cleanFam}) بالكامل وحفظها كتذكرة حقيقية في قاعدة البيانات (${newTkt.id})!`
     );
   };
 
@@ -6273,25 +6408,47 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }));
 
     // 2. Call German Engine HTTPS endpoint + mark-alpha-bridged for Neo4j deduplication
+    const closePayload = {
+      ticket_id: ticket.id.replace(/^#/, ''),
+      target_adam_node_id: String(newAdamNodeId),
+      approved_sources: selectedCitations,
+      approved_branches: [resolvedSubRoot],
+      approved_locations: (
+        ticket.inferredCountries || [ticket.locationLabel]
+      ).join(' ، '),
+      researcher_notes: `تم اعتماد ربط (${liveNodes
+        .map((n) => n.name)
+        .join(' ⬅️ ')}) بشجرة آدم`,
+    };
+
     try {
       await fetch(
         `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            adamNodeId: newAdamNodeId,
-            familyName: ticket.familyName,
-            addedVerifiedSources: selectedCitations,
-            addedSiblingBranches: [resolvedSubRoot],
-            addedLocations: ticket.inferredCountries || [ticket.locationLabel],
-            mergedNodes: liveNodes,
-          }),
+          body: JSON.stringify(closePayload),
         }
       );
     } catch {
-      // Offline fallback
+      try {
+        await fetch('/api/v1/juthori/researcher/close-enrichment-ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(closePayload),
+        });
+      } catch {
+        // Offline fallback
+      }
     }
+
+    const allAlphaIds = Array.from(
+      new Set(
+        [ticket.alphaId, ...evList.map((e) => e.alpha_id)]
+          .map((id) => String(id || '').trim())
+          .filter(Boolean)
+      )
+    );
 
     await markAlphaNodeBridgedOnServer({
       ticketId: ticket.id,
@@ -6299,17 +6456,40 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       adamNodeId: newAdamNodeId,
       bridgedChain: liveNodes.map((n) => n.name),
       verifiedSources: selectedCitations,
-      alphaIds: evList.map((e) => e.alpha_id).filter(Boolean) as string[],
+      alphaIds: allAlphaIds,
+      handlingTimeSeconds: Math.max(18, activeTicketElapsedSeconds || 45),
     });
 
     // 3. Update Firestore ticket status & send real customer notification
-    if (ticket.firestoreDocId) {
-      await updateResearchTicketFullInFirebase(ticket.firestoreDocId, {
+    let resolvedFirestoreDocId = ticket.firestoreDocId;
+    if (!resolvedFirestoreDocId) {
+      const createdDoc = await saveGeneratedResearchTicketToFirebase({
+        ticketId: ticket.id,
+        alphaId: ticket.alphaId,
+        adamNodeId: newAdamNodeId,
+        ticketCategory: ticket.ticketCategory || 'ALPHA_TO_ADAM_LINK',
+        familyName: ticket.familyName,
+        subRootName: resolvedSubRoot,
+        motherTribeName: resolvedMotherTribe,
+        originCountry: ticket.inferredCountries?.[0] || 'الجزيرة العربية',
+        originRegion: ticket.locationLabel,
+        clientName: ticket.clientName,
+        verifiedSources: selectedCitations,
+        corroboratingAlphaEvidence: evList,
+        fullStitchedLineage: ticket.fullStitchedLineage || [],
+        extractedNodes: liveNodes,
+      });
+      resolvedFirestoreDocId = createdDoc.id;
+    }
+
+    if (resolvedFirestoreDocId) {
+      await updateResearchTicketFullInFirebase(resolvedFirestoreDocId, {
         status: 'CLOSED_AND_ENRICHED',
+        adamNodeId: newAdamNodeId,
         verifiedSources: selectedCitations.join(' | '),
       });
     }
-    if (ticket.userId) {
+    if (ticket.userId && ticket.userId !== 'system_proactive_miner') {
       await sendCustomerNotification({
         userId: ticket.userId,
         title: `🎉 تم اعتماد وربط عمود نسب (${ticket.familyName}) بشجرة آدم!`,
@@ -6321,7 +6501,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       });
     }
 
-    // 4. Record KPI Telemetry & Auto-Refill P3 Queue
+    // 4. Record KPI Telemetry
     recordKpiTicketCompletion(ticket, selectedCitations.length);
 
     setTickets((prev) => {
@@ -6329,6 +6509,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         t.id === ticket.id
           ? {
               ...t,
+              firestoreDocId: resolvedFirestoreDocId,
               status: 'CLOSED_AND_ENRICHED' as const,
               extractedNodes: liveNodes,
               subRootName: resolvedSubRoot,
@@ -6349,13 +6530,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       }
       return updated;
     });
-
-    if (
-      ticket.queue === 'P3' ||
-      ticket.priorityTier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-    ) {
-      handleAutoRefillNextP3Tickets(1);
-    }
 
     onApproveAlphaMergeIntoAdam({
       familyName: ticket.familyName,
@@ -6403,37 +6577,75 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const closePayloadB = {
+      ticket_id: ticket.id.replace(/^#/, ''),
+      target_adam_node_id: String(ticket.adamNodeId || '352'),
+      approved_sources: selectedCitations,
+      approved_branches: parsedBranches,
+      approved_locations: parsedLocations.join(' ، '),
+      researcher_notes: `تم اعتماد إثراء المراجع والفروع في مرصد البحوث (${ticket.familyName})`,
+    };
+
     try {
       await fetch(
         `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            adamNodeId: ticket.adamNodeId || '272887',
-            familyName: ticket.familyName,
-            addedVerifiedSources: selectedCitations,
-            addedSiblingBranches: parsedBranches,
-            addedNotables: parsedNotables,
-            addedLocations: parsedLocations,
-          }),
+          body: JSON.stringify(closePayloadB),
         }
       );
     } catch {
-      // Offline fallback
+      try {
+        await fetch('/api/v1/juthori/researcher/close-enrichment-ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(closePayloadB),
+        });
+      } catch {
+        // Offline fallback
+      }
     }
+
+    const allAlphaIdsB = Array.from(
+      new Set(
+        [ticket.alphaId, ...evList.map((e) => e.alpha_id)]
+          .map((id) => String(id || '').trim())
+          .filter(Boolean)
+      )
+    );
 
     await markAlphaNodeBridgedOnServer({
       ticketId: ticket.id,
       familyName: ticket.familyName,
-      adamNodeId: ticket.adamNodeId || '272887',
+      adamNodeId: ticket.adamNodeId || '352',
       bridgedChain: getLivePreviewNodesForTicket(ticket).map((n) => n.name),
       verifiedSources: selectedCitations,
-      alphaIds: evList.map((e) => e.alpha_id).filter(Boolean) as string[],
+      alphaIds: allAlphaIdsB,
+      handlingTimeSeconds: Math.max(18, activeTicketElapsedSeconds || 45),
     });
 
-    if (ticket.firestoreDocId) {
-      await updateResearchTicketFullInFirebase(ticket.firestoreDocId, {
+    let resolvedFirestoreDocIdB = ticket.firestoreDocId;
+    if (!resolvedFirestoreDocIdB) {
+      const createdDocB = await saveGeneratedResearchTicketToFirebase({
+        ticketId: ticket.id,
+        alphaId: ticket.alphaId,
+        adamNodeId: ticket.adamNodeId,
+        ticketCategory: ticket.ticketCategory || 'ADAM_NODE_ENRICHMENT',
+        familyName: ticket.familyName,
+        subRootName: ticket.subRootName,
+        motherTribeName: ticket.motherTribeName,
+        originCountry: ticket.inferredCountries?.[0] || 'الجزيرة العربية',
+        originRegion: ticket.locationLabel,
+        clientName: ticket.clientName,
+        verifiedSources: selectedCitations,
+        corroboratingAlphaEvidence: evList,
+      });
+      resolvedFirestoreDocIdB = createdDocB.id;
+    }
+
+    if (resolvedFirestoreDocIdB) {
+      await updateResearchTicketFullInFirebase(resolvedFirestoreDocIdB, {
         status: 'CLOSED_AND_ENRICHED',
         verifiedSources: selectedCitations.join(' | '),
       });
@@ -6444,7 +6656,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     setTickets((prev) => {
       const updated = prev.map((t) =>
         t.id === ticket.id
-          ? { ...t, status: 'CLOSED_AND_ENRICHED' as const }
+          ? {
+              ...t,
+              firestoreDocId: resolvedFirestoreDocIdB,
+              status: 'CLOSED_AND_ENRICHED' as const,
+            }
           : t
       );
       const nextOpen = updated
@@ -6460,13 +6676,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       }
       return updated;
     });
-
-    if (
-      ticket.queue === 'P3' ||
-      ticket.priorityTier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-    ) {
-      handleAutoRefillNextP3Tickets(1);
-    }
 
     onApproveAlphaMergeIntoAdam({
       familyName: ticket.familyName,
@@ -6541,6 +6750,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       imported: false,
     };
 
+    if (ticket.firestoreDocId) {
+      updateResearchTicketFullInFirebase(ticket.firestoreDocId, {
+        status: 'exported_adam_prime',
+      }).catch(() => {});
+    }
     setAdamPrimeBundles((prev) =>
       prev.some((b) => b.taskId === newBundle.taskId)
         ? prev
@@ -9043,6 +9257,36 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       directSearchResult,
                                       `فحص باحث (${directSearchResult.familyName})`
                                     );
+                                    saveGeneratedResearchTicketToFirebase({
+                                      ticketId: newTkt.id,
+                                      adamNodeId: newTkt.adamNodeId,
+                                      ticketCategory: 'P1_CUSTOMER_SEARCH',
+                                      familyName: newTkt.familyName,
+                                      subRootName: newTkt.subRootName,
+                                      motherTribeName: newTkt.motherTribeName,
+                                      originCountry:
+                                        newTkt.inferredCountries?.[0] ||
+                                        'الجزيرة العربية',
+                                      originRegion: newTkt.locationLabel,
+                                      clientName: newTkt.clientName,
+                                      verifiedSources: [],
+                                      corroboratingAlphaEvidence: [],
+                                      precomputedDiagnostic:
+                                        newTkt.precomputed_diagnostic,
+                                    })
+                                      .then((savedDoc) => {
+                                        setTickets((prev) =>
+                                          prev.map((item) =>
+                                            item.id === newTkt.id
+                                              ? {
+                                                  ...item,
+                                                  firestoreDocId: savedDoc.id,
+                                                }
+                                              : item
+                                          )
+                                        );
+                                      })
+                                      .catch(() => {});
                                     setTickets((prev) => [newTkt, ...prev]);
                                     setSelectedTicketId(newTkt.id);
                                     setActiveSubTab('ticket_inbox');
@@ -9951,7 +10195,33 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       {renderGamifiedTicketOperationsWorkspace(selectedTicket)}
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="bg-white rounded-3xl border border-[#E2DACB] p-8 sm:p-10 text-center space-y-4 shadow-2xs">
+                    <div className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925] flex items-center justify-center mx-auto">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1.5 max-w-lg mx-auto">
+                      <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
+                        لا توجد تذاكر بحثية نشطة حالياً في هذا التصنيف
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed">
+                        يعرض المرصد التذاكر البحثية الحقيقية المسجلة في قاعدة البيانات فقط دون أي بيانات وهمية. يمكنك توليد دفعة تذاكر بحثية إستباقية مباشرة من قاعدة البيانات وحفظها في النظام.
+                      </p>
+                    </div>
+                    <div className="pt-1 flex justify-center">
+                      <button
+                        type="button"
+                        disabled={isGeneratingP3Batch}
+                        onClick={() => handleAutoRefillNextP3Tickets(3)}
+                        className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs"
+                      >
+                        {isGeneratingP3Batch
+                          ? 'جارٍ التوليد والربط بقاعدة البيانات...'
+                          : '🔄 توليد دفعة تذاكر بحثية إستباقية'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

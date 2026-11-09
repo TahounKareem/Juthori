@@ -318,15 +318,18 @@ export interface ResearchTicketData {
   ticketCategory?:
     | 'ADAM_NODE_ENRICHMENT'
     | 'ALPHA_TO_ADAM_LINK'
-    | 'P1_CUSTOMER_SEARCH';
+    | 'P1_CUSTOMER_SEARCH'
+    | 'P3_PROACTIVE_MINING';
   adamNodeId?: string;
+  alphaId?: string;
   status:
     | 'pending_review'
     | 'investigating'
     | 'lineage_found'
     | 'completed'
     | 'no_records_found'
-    | 'CLOSED_AND_ENRICHED';
+    | 'CLOSED_AND_ENRICHED'
+    | 'exported_adam_prime';
   assignedResearcherId?: string;
   assignedResearcherName?: string;
   researchFindings?: string;
@@ -1063,13 +1066,32 @@ const HARDCODED_TICKET_IDS_TO_IGNORE = new Set([
   '#ALPHA-LINK-HISAN-02',
   '#ALPHA-LINK-MUAIT-03',
   '#ENR-ADAM-272887',
+  '#P3-ALPHA-701',
+  '#P3-ALPHA-702',
+  '#P3-ALPHA-703',
+  '#P3-ALPHA-704',
+  '#P3-ALPHA-705',
   'tkt_auto_ADAM_NODE_ENRICHMENT____مقيت',
   'tkt_auto_ADAM_NODE_ENRICHMENT_آل_مقيت',
 ]);
 
 function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
   if (!t) return true;
-  if (HARDCODED_TICKET_IDS_TO_IGNORE.has(t.id) || HARDCODED_TICKET_IDS_TO_IGNORE.has(t.ticketNumber)) {
+  if (
+    HARDCODED_TICKET_IDS_TO_IGNORE.has(t.id) ||
+    HARDCODED_TICKET_IDS_TO_IGNORE.has(t.ticketNumber)
+  ) {
+    return true;
+  }
+  const fam = (t.familyName || t.targetAncestor || '').trim();
+  const branch = (t.familyBranch || '').trim();
+  const tribe = (t.tribeName || '').trim();
+  if (
+    fam.startsWith('عشيرة ألفا') ||
+    branch === 'فرع ألفا' ||
+    tribe === 'قبيلة أم' ||
+    (t.ticketNumber || '').startsWith('#P3-AUTO-71')
+  ) {
     return true;
   }
   const uid = (t.userId || '').trim();
@@ -1087,9 +1109,19 @@ function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
 
 export async function fetchAllResearchTicketsForStaff(): Promise<ResearchTicketData[]> {
   const all = await dualGetCollection<ResearchTicketData>('research_tickets');
-  return all
-    .filter((t) => !isHardcodedOrDummyTicket(t))
-    .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
+  const validTickets: ResearchTicketData[] = [];
+  for (const t of all) {
+    if (isHardcodedOrDummyTicket(t)) {
+      if (t?.id) {
+        dualDeleteDoc(['research_tickets', t.id]).catch(() => {});
+      }
+      continue;
+    }
+    validTickets.push(t);
+  }
+  return validTickets.sort((a, b) =>
+    (b.openedAt || '').localeCompare(a.openedAt || '')
+  );
 }
 
 export async function resolveResearchTicketByStaff(
@@ -1294,6 +1326,106 @@ export async function updateTicketStatus(
   } catch (err) {
     console.warn('[updateTicketStatus] warning:', err);
   }
+}
+
+export async function saveGeneratedResearchTicketToFirebase(params: {
+  ticketId: string;
+  alphaId?: string;
+  adamNodeId?: string;
+  ticketCategory:
+    | 'ADAM_NODE_ENRICHMENT'
+    | 'ALPHA_TO_ADAM_LINK'
+    | 'P1_CUSTOMER_SEARCH'
+    | 'P3_PROACTIVE_MINING';
+  familyName: string;
+  subRootName: string;
+  motherTribeName: string;
+  originCountry: string;
+  originRegion: string;
+  clientName: string;
+  userId?: string;
+  verifiedSources: string[];
+  corroboratingAlphaEvidence: unknown[];
+  fullStitchedLineage?: unknown[];
+  extractedNodes?: unknown[];
+  p3StrategicMeta?: unknown;
+  precomputedDiagnostic?: unknown;
+  additionalNotes?: string;
+}): Promise<ResearchTicketData> {
+  const cleanFam = (params.familyName || '').trim();
+  const rawSlug = (params.ticketId || params.alphaId || cleanFam)
+    .replace(/^#/, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_');
+  const docId = `tkt_db_${rawSlug}`.slice(0, 80);
+
+  const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', docId]);
+
+  const studioPayload = {
+    familyName: cleanFam,
+    clientName: params.clientName,
+    alphaId: params.alphaId || '',
+    adamNodeId: params.adamNodeId || '',
+    originCountry: params.originCountry,
+    originRegion: params.originRegion,
+    rootBranchName: params.subRootName,
+    rootTribeName: params.motherTribeName,
+    matched: params.ticketCategory !== 'P1_CUSTOMER_SEARCH',
+    isAlphaOnlyBeforeMerge:
+      params.ticketCategory === 'P3_PROACTIVE_MINING' ||
+      params.ticketCategory === 'ALPHA_TO_ADAM_LINK',
+    verified_sources: params.verifiedSources || [],
+    corroborating_alpha_evidence_for_researcher:
+      params.corroboratingAlphaEvidence || [],
+    full_stitched_lineage_for_researcher: params.fullStitchedLineage || [],
+    extractedNodes: params.extractedNodes || [],
+    p3StrategicMeta: params.p3StrategicMeta || null,
+    precomputed_diagnostic: params.precomputedDiagnostic || null,
+  };
+
+  const record: ResearchTicketData = {
+    id: docId,
+    ticketNumber: params.ticketId.startsWith('#')
+      ? params.ticketId
+      : `#${params.ticketId}`,
+    userId: params.userId || 'system_proactive_miner',
+    userFullName: params.clientName || `سجل قاعدة البيانات (${cleanFam})`,
+    userEmail: '',
+    familyName: cleanFam,
+    targetAncestor: cleanFam,
+    tribeName: params.motherTribeName || '',
+    familyBranch: params.subRootName || '',
+    originCountry: params.originCountry || 'الجزيرة العربية',
+    originRegion: params.originRegion || '',
+    additionalNotes:
+      params.additionalNotes ||
+      `تذكرة بحثية حقيقية مرتبطة بقاعدة البيانات (${cleanFam} ⬅️ ${params.subRootName} ⬅️ ${params.motherTribeName})`,
+    ticketCategory: params.ticketCategory,
+    adamNodeId: params.adamNodeId || '',
+    alphaId: params.alphaId || '',
+    status: existing?.status || 'pending_review',
+    assignedResearcherName:
+      existing?.assignedResearcherName || 'فريق التحقيق النَّسبي',
+    verifiedSources: (params.verifiedSources || []).join(' | '),
+    studioPayloadJson: JSON.stringify(studioPayload),
+    clientNotified: existing?.clientNotified ?? false,
+    openedAt: existing?.openedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await dualSetDoc(
+    ['research_tickets', docId],
+    record as unknown as Record<string, unknown>
+  );
+  return record;
+}
+
+export async function deleteResearchTicketFromFirebase(
+  ticketId: string
+): Promise<void> {
+  const safeId = (ticketId || '').replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_');
+  if (!safeId) return;
+  await dualDeleteDoc(['research_tickets', safeId]);
 }
 
 // =============================================================================

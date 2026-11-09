@@ -323,6 +323,89 @@ async function startServer() {
   app.post('/api/juthori/researcher/close-enrichment-ticket', handleCloseEnrichmentTicket);
   app.post('/api/v1/juthori/researcher/close-enrichment-ticket', handleCloseEnrichmentTicket);
 
+  // 3A. German Neo4j Lineage Engine (Port 8090) — Real P3 Ticket Generation & Alpha Bridge Marking
+  const handleAutoGenerateP3Tickets = async (
+    req: express.Request,
+    res: express.Response
+  ) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const limitParam = Math.max(1, Math.min(20, Number(req.query.limit) || 5));
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/tickets/auto-generate-p3?limit=${limitParam}`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({
+          source: 'live_german_engine',
+          ...data,
+        });
+        return;
+      }
+      res.status(upstream.status).json({
+        source: 'upstream_error',
+        tickets: [],
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      res.status(502).json({
+        source: 'network_error',
+        error: err instanceof Error ? err.message : String(err),
+        tickets: [],
+      });
+    }
+  };
+
+  app.get('/api/v1/juthori/tickets/auto-generate-p3', handleAutoGenerateP3Tickets);
+  app.get('/api/juthori/tickets/auto-generate-p3', handleAutoGenerateP3Tickets);
+
+  const handleMarkAlphaBridged = async (
+    req: express.Request,
+    res: express.Response
+  ) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6500);
+    const targetUrl = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/tickets/mark-alpha-bridged`;
+
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(req.body ?? {}),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (upstream.ok) {
+        const data = await upstream.json();
+        res.json({
+          source: 'live_german_engine',
+          ...data,
+        });
+        return;
+      }
+      res.status(upstream.status).json({
+        source: 'upstream_error',
+      });
+    } catch {
+      clearTimeout(timeout);
+      res.status(502).json({
+        source: 'network_error',
+      });
+    }
+  };
+
+  app.post('/api/v1/juthori/tickets/mark-alpha-bridged', handleMarkAlphaBridged);
+  app.post('/api/juthori/tickets/mark-alpha-bridged', handleMarkAlphaBridged);
+
   // 3B. German Neo4j Lineage Engine (Port 8090) — Adam Tree Explorer APIs
   const DEFAULT_ADAM_TREE_STATS = {
     total_nodes: 474949,

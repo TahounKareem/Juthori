@@ -32,11 +32,15 @@ export interface P3StrategicSelectionMeta {
 
 export interface P3ProactiveCandidate {
   ticketId: string;
+  alphaId?: string;
+  adamNodeId?: string;
+  adamNodeName?: string;
   familyName: string;
   subRootName: string;
   motherTribeName: string;
   locationLabel: string;
   inferredCountries: string[];
+  fullStitchedLineage?: string[];
   strategicMeta: P3StrategicSelectionMeta;
   corroboratingEvidence: CorroboratingAlphaEvidence[];
 }
@@ -65,14 +69,14 @@ export interface ResearcherKpiTelemetry {
   recentCompletedLog: ResearcherCompletedTicketLog[];
 }
 
-const KPI_STORAGE_KEY = 'juthori_researcher_kpi_telemetry_v1';
-const BRIDGED_FAMILIES_STORAGE_KEY = 'juthori_bridged_alpha_families_v1';
+const KPI_STORAGE_KEY = 'juthori_researcher_kpi_telemetry_v2';
+const BRIDGED_FAMILIES_STORAGE_KEY = 'juthori_bridged_alpha_families_v2';
 
 function getTodayDateKey(): string {
   try {
     return new Date().toISOString().slice(0, 10);
   } catch {
-    return '2026-11-06';
+    return '2026-11-09';
   }
 }
 
@@ -80,36 +84,15 @@ export function loadResearcherKpiTelemetry(): ResearcherKpiTelemetry {
   const today = getTodayDateKey();
   const defaultState: ResearcherKpiTelemetry = {
     dateKey: today,
-    completedTodayP1: 2,
-    completedTodayP2: 5,
-    completedTodayP3: 7,
-    totalAlphaNodesBridged: 12,
-    totalAdamPrimeSourcesVerified: 9,
-    totalXpScore: 1845,
-    handlingTimesSeconds: [95, 112, 84, 76, 105],
-    avgHandlingTimeSeconds: 94,
-    recentCompletedLog: [
-      {
-        ticketId: '#P3-ALPHA-901',
-        familyName: 'الحطيم بن عدي',
-        priority: 'P3',
-        durationSec: 84,
-        xpEarned: 105,
-        sourcesVerified: 1,
-        completedAt: 'منذ 18 دقيقة',
-        researcherName: 'كريم طاحون · المايسترو',
-      },
-      {
-        ticketId: '#P2-CLIENT-412',
-        familyName: 'آل فتلة',
-        priority: 'P2',
-        durationSec: 95,
-        xpEarned: 125,
-        sourcesVerified: 1,
-        completedAt: 'منذ 42 دقيقة',
-        researcherName: 'كريم طاحون · المايسترو',
-      },
-    ],
+    completedTodayP1: 0,
+    completedTodayP2: 0,
+    completedTodayP3: 0,
+    totalAlphaNodesBridged: 0,
+    totalAdamPrimeSourcesVerified: 0,
+    totalXpScore: 0,
+    handlingTimesSeconds: [],
+    avgHandlingTimeSeconds: 0,
+    recentCompletedLog: [],
   };
 
   try {
@@ -119,42 +102,40 @@ export function loadResearcherKpiTelemetry(): ResearcherKpiTelemetry {
     if (!parsed || typeof parsed !== 'object') return defaultState;
     const times = Array.isArray(parsed.handlingTimesSeconds)
       ? parsed.handlingTimesSeconds
-      : defaultState.handlingTimesSeconds;
+      : [];
     const avg =
       times.length > 0
         ? Math.round(times.reduce((a, b) => a + b, 0) / times.length)
-        : 94;
+        : 0;
     return {
       dateKey: parsed.dateKey || today,
       completedTodayP1:
         typeof parsed.completedTodayP1 === 'number'
           ? parsed.completedTodayP1
-          : defaultState.completedTodayP1,
+          : 0,
       completedTodayP2:
         typeof parsed.completedTodayP2 === 'number'
           ? parsed.completedTodayP2
-          : defaultState.completedTodayP2,
+          : 0,
       completedTodayP3:
         typeof parsed.completedTodayP3 === 'number'
           ? parsed.completedTodayP3
-          : defaultState.completedTodayP3,
+          : 0,
       totalAlphaNodesBridged:
         typeof parsed.totalAlphaNodesBridged === 'number'
           ? parsed.totalAlphaNodesBridged
-          : defaultState.totalAlphaNodesBridged,
+          : 0,
       totalAdamPrimeSourcesVerified:
         typeof parsed.totalAdamPrimeSourcesVerified === 'number'
           ? parsed.totalAdamPrimeSourcesVerified
-          : defaultState.totalAdamPrimeSourcesVerified,
+          : 0,
       totalXpScore:
-        typeof parsed.totalXpScore === 'number'
-          ? parsed.totalXpScore
-          : defaultState.totalXpScore,
+        typeof parsed.totalXpScore === 'number' ? parsed.totalXpScore : 0,
       handlingTimesSeconds: times,
       avgHandlingTimeSeconds: avg,
       recentCompletedLog: Array.isArray(parsed.recentCompletedLog)
         ? parsed.recentCompletedLog
-        : defaultState.recentCompletedLog,
+        : [],
     };
   } catch {
     return defaultState;
@@ -211,301 +192,265 @@ export async function markAlphaNodeBridgedOnServer(payload: {
   bridgedChain: string[];
   verifiedSources: string[];
   alphaIds?: string[];
+  researcherName?: string;
+  handlingTimeSeconds?: number;
 }): Promise<boolean> {
   markFamilyBridgedLocally(payload.familyName);
-  try {
-    const resp = await fetch(
-      `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/tickets/mark-alpha-bridged`,
-      {
+  const uniqueAlphaIds = Array.from(
+    new Set(
+      (payload.alphaIds || [])
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+    )
+  );
+  if (uniqueAlphaIds.length === 0 && payload.ticketId.includes('ALP_')) {
+    const extractedAlphaId = payload.ticketId.replace(/^.*?(ALP_[A-Za-z0-9_]+).*$/, '$1');
+    if (extractedAlphaId.startsWith('ALP_')) {
+      uniqueAlphaIds.push(extractedAlphaId);
+    }
+  }
+
+  const targetAlphaIds =
+    uniqueAlphaIds.length > 0 ? uniqueAlphaIds : [payload.ticketId];
+
+  let anySucceeded = false;
+  for (const alphaId of targetAlphaIds) {
+    const requestBody = {
+      alpha_id: alphaId,
+      adam_target_node_id: String(payload.adamNodeId || ''),
+      researcher_name: payload.researcherName || 'كريم طاحون · المايسترو',
+      handling_time_seconds: Math.max(15, Number(payload.handlingTimeSeconds) || 45),
+      stitched_chain_saved: Array.isArray(payload.bridgedChain)
+        ? payload.bridgedChain
+        : [],
+    };
+
+    try {
+      const resp = await fetch(
+        `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/tickets/mark-alpha-bridged`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        }
+      );
+      if (resp.ok) {
+        anySucceeded = true;
+        continue;
+      }
+    } catch {
+      // Try server proxy below
+    }
+
+    try {
+      const proxyResp = await fetch('/api/v1/juthori/tickets/mark-alpha-bridged', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(requestBody),
+      });
+      if (proxyResp.ok) {
+        anySucceeded = true;
       }
-    );
-    return resp.ok;
-  } catch {
-    return false;
+    } catch {
+      // Ignore network error
+    }
   }
+
+  return anySucceeded;
 }
 
-const HIGH_WEIGHT_ALPHA_MINING_POOL: P3ProactiveCandidate[] = [
-  {
-    ticketId: '#P3-ALPHA-701',
-    familyName: 'الحطيم بن عدي',
-    subRootName: 'عدي',
-    motherTribeName: 'الأوس',
-    locationLabel: 'المدينة المنورة / الحجاز',
-    inferredCountries: ['السعودية'],
-    strategicMeta: {
-      strategic_score: 192,
-      why_selected_reasons: [
-        'عمود نسب واضح (11 محطة)',
-        'توافق مرجعي مع تمهيد معكوس قابل للتصحيح الآلي',
-        'مواضع جغرافية وفروع محددة (المدينة المنورة)',
-        'إحالات لمصادر أخرى قابلة للتوثيق (نهاية الأرب للنويري)',
-      ],
-      chain_stations_count: 11,
-      corroborating_sources_count: 2,
-      has_locations_and_branches: true,
-      verifiable_other_sources_count: 1,
-    },
-    corroboratingEvidence: [
-      {
-        alpha_id: 'alpha-p3-hatim-1',
-        record_name: 'الحَطيم بن عدى',
-        source_book: 'معجم قبائل العرب القديمة والحديثة',
-        volume: '1',
-        page: '283',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'الأوس ؛ قحطان ؛ الحطيم ؛ عدي ؛ عمرو ؛ سواد ؛ ظفر ؛ كعب ؛ الخزرج ؛ النبيت ؛ مالك ؛ الأوس',
-        child_branches: 'بنو الحطيم ، بنو ظفر',
-        locations: 'المدينة المنورة ، الحجاز',
-        other_sources: 'نهاية الأرب للنويري ج 2 ص 315',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
+function inferCountriesFromLocationText(locText: string): string[] {
+  const txt = (locText || '').trim();
+  const countries: string[] = [];
+  if (/غزة|فلسطين|القدس|الخليل|نابلس|يافا/.test(txt)) countries.push('فلسطين');
+  if (/العراق|بغداد|البصرة|الكوفة|الموصل|بابل|الحلة|واسط|ذي قار|كربلاء|النجف|الأنبار/.test(txt))
+    countries.push('العراق');
+  if (/الشام|سوريا|دمشق|حلب|حمص|حماة|حوران/.test(txt)) countries.push('سوريا');
+  if (/الأردن|عمان|الكرك|البلقاء|معان|إربد/.test(txt)) countries.push('الأردن');
+  if (/اليمن|صنعاء|حضرموت|تعز|مأرب|زبيد|عدن|تهامة/.test(txt))
+    countries.push('اليمن');
+  if (/مصر|القاهرة|الصعيد|الفسطاط|الإسكندرية|الشرقية|البحيرة|سيناء/.test(txt))
+    countries.push('مصر');
+  if (
+    /الحجاز|نجد|اليمامة|مكة|المدينة|يثرب|الطائف|عسير|الباحة|الأحساء|البحرين|القصيم|حائل|تبوك|الجزيرة العربية/.test(
+      txt
+    )
+  ) {
+    countries.push('السعودية');
+  }
+  if (/عمان|صحار|نزوى|ظفار/.test(txt)) countries.push('عُمان');
+  return countries.length > 0 ? countries : ['الجزيرة العربية'];
+}
+
+function parseServerP3TicketItems(
+  rawItems: any[],
+  excluded: Set<string>
+): P3ProactiveCandidate[] {
+  const candidates: P3ProactiveCandidate[] = [];
+
+  for (const item of rawItems) {
+    if (!item || typeof item !== 'object') continue;
+    const preDiag = item.precomputed_diagnostic || {};
+
+    const fam = String(
+      item.family_or_tribe_name ||
+        item.familyName ||
+        item.family_name ||
+        item.record_name ||
+        preDiag.corroborating_sources?.[0]?.record_name ||
+        ''
+    ).trim();
+
+    // Never accept empty or placeholder/fake names
+    if (!fam || fam.startsWith('عشيرة ألفا') || excluded.has(fam)) {
+      continue;
+    }
+
+    const rawSources: any[] = Array.isArray(preDiag.corroborating_sources)
+      ? preDiag.corroborating_sources
+      : Array.isArray(item.alpha_evidence)
+      ? item.alpha_evidence
+      : Array.isArray(item.corroboratingEvidence)
+      ? item.corroboratingEvidence
+      : [];
+
+    if (rawSources.length === 0) {
+      continue;
+    }
+
+    const alphaId = String(
+      item.alpha_id || rawSources[0]?.alpha_id || ''
+    ).trim();
+
+    if (alphaId && excluded.has(alphaId)) {
+      continue;
+    }
+
+    const evidence: CorroboratingAlphaEvidence[] = rawSources.map(
+      (src: any, sIdx: number) => ({
+        alpha_id: String(src.alpha_id || alphaId || `ALP_${sIdx + 1}`),
+        record_name: String(src.record_name || fam),
+        source_book: String(src.source_book || ''),
+        volume: String(src.volume || '1'),
+        page: String(src.page || '—'),
+        source_lake: src.source_lake || 'alpha_lake_2',
+        data_lake_badge: src.data_lake_badge || 'ألفا',
+        lineage_ancestors: String(src.lineage_ancestors || ''),
+        child_branches: String(
+          src.child_branches || preDiag.child_branches || ''
+        ),
+        locations: String(src.locations || preDiag.locations || ''),
+        other_sources: String(src.other_sources || ''),
+        parsed_other_sources: Array.isArray(src.parsed_other_sources)
+          ? src.parsed_other_sources
+          : Array.isArray(preDiag.parsed_other_sources)
+          ? preDiag.parsed_other_sources
+          : [],
+        priority_tier: src.priority_tier || 'PRIORITY_1_COUNTRY_BOOK',
+        is_consensus_winner:
+          typeof src.is_consensus_winner === 'boolean'
+            ? src.is_consensus_winner
+            : true,
+        consensus_count: Number(src.consensus_count) || rawSources.length,
+      })
+    );
+
+    const fullStitchedChain: string[] = Array.isArray(
+      preDiag.full_stitched_lineage
+    )
+      ? preDiag.full_stitched_lineage
+          .map((s: any) => String(s || '').trim())
+          .filter(Boolean)
+      : [];
+
+    const subRoot = String(
+      preDiag.subtribe_b2_name ||
+        item.subRootName ||
+        item.sub_root ||
+        fullStitchedChain[0] ||
+        fam
+    ).trim();
+
+    const motherTribe = String(
+      preDiag.mother_tribe_b0_name ||
+        preDiag.suggested_adam_bridge?.adam_node_name ||
+        item.motherTribeName ||
+        item.mother_tribe ||
+        fullStitchedChain[fullStitchedChain.length - 1] ||
+        subRoot
+    ).trim();
+
+    const locationLabel = String(
+      preDiag.locations ||
+        evidence[0]?.locations ||
+        item.locationLabel ||
+        item.locations ||
+        'الجزيرة العربية'
+    ).trim();
+
+    const adamNodeId = String(
+      preDiag.suggested_adam_bridge?.adam_node_id || item.adam_node_id || ''
+    ).trim();
+
+    const adamNodeName = String(
+      preDiag.suggested_adam_bridge?.adam_node_name || motherTribe
+    ).trim();
+
+    const parsedLeadsCount = Array.isArray(preDiag.parsed_other_sources)
+      ? preDiag.parsed_other_sources.length
+      : evidence.reduce(
+          (acc, ev) => acc + (ev.parsed_other_sources?.length || 0),
+          0
+        );
+
+    const reasons: string[] = Array.isArray(item.why_selected_reasons)
+      ? item.why_selected_reasons
+      : [];
+
+    const rawTicketId = String(
+      item.ticket_id || item.ticketId || (alphaId ? `P3-AUTO-${alphaId}` : '')
+    ).trim();
+
+    if (!rawTicketId || excluded.has(rawTicketId) || excluded.has(`#${rawTicketId}`)) {
+      continue;
+    }
+
+    candidates.push({
+      ticketId: rawTicketId.startsWith('#') ? rawTicketId : `#${rawTicketId}`,
+      alphaId: alphaId || undefined,
+      adamNodeId: adamNodeId || undefined,
+      adamNodeName: adamNodeName || undefined,
+      familyName: fam,
+      subRootName: subRoot,
+      motherTribeName: motherTribe,
+      locationLabel,
+      inferredCountries: Array.isArray(item.inferredCountries)
+        ? item.inferredCountries
+        : inferCountriesFromLocationText(locationLabel),
+      fullStitchedLineage:
+        fullStitchedChain.length > 0
+          ? [fam, ...fullStitchedChain.filter((n) => n !== fam)]
+          : undefined,
+      strategicMeta: {
+        strategic_score: Number(item.strategic_score) || 200,
+        why_selected_reasons: reasons,
+        chain_stations_count:
+          fullStitchedChain.length > 0 ? fullStitchedChain.length + 1 : 2,
+        corroborating_sources_count: evidence.length,
+        has_locations_and_branches: Boolean(
+          locationLabel && (preDiag.child_branches || evidence[0]?.child_branches)
+        ),
+        verifiable_other_sources_count: parsedLeadsCount,
       },
-      {
-        alpha_id: 'alpha-p3-hatim-2',
-        record_name: 'الحطيم',
-        source_book: 'سبائك الذهب في معرفة قبائل العرب',
-        volume: '1',
-        page: '64',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'الحطيم ؛ عدي بن عمرو ؛ سواد بن ظفر ؛ الخزرج بن النبيت ؛ مالك بن الأوس',
-        child_branches: 'بنو ظفر ، آل سواد',
-        locations: 'يثرب ، المدينة المنورة',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-        is_consensus_winner: true,
-      },
-    ],
-  },
-  {
-    ticketId: '#P3-ALPHA-702',
-    familyName: 'البو سلطان',
-    subRootName: 'زبيد الأكبر',
-    motherTribeName: 'مذحج',
-    locationLabel: 'بابل / الحلة / الفرات الأوسط',
-    inferredCountries: ['العراق'],
-    strategicMeta: {
-      strategic_score: 185,
-      why_selected_reasons: [
-        'عمود نسب واضح (9 محطات)',
-        'توافق (3) مراجع عراقية وعامة',
-        'مواضع جغرافية وفروع محددة (الحلة، النيل، المحاويل)',
-        'إحالات لمصادر أخرى قابلة للتوثيق (عشائر العراق للعزاوي)',
-      ],
-      chain_stations_count: 9,
-      corroborating_sources_count: 3,
-      has_locations_and_branches: true,
-      verifiable_other_sources_count: 2,
-    },
-    corroboratingEvidence: [
-      {
-        alpha_id: 'alpha-p3-busultan-1',
-        record_name: 'البو سلطان',
-        source_book: 'موسوعة عشائر العراق - عباس العزاوي',
-        volume: '3',
-        page: '58',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'البو سلطان ؛ محمد ؛ سلطان ؛ جبر ؛ مكتوم ؛ محجوب ؛ بهيج ؛ زبيد الأكبر ؛ مذحج',
-        child_branches: 'آل جريان ، البو حمد ، البو سمندر ، البو دعيج',
-        locations: 'الحلة ، بابل ، المحاويل ، النيل',
-        other_sources: 'تاريخ الحلة ج 1 ص 114 | قلائد الجمان ص 98',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
-      },
-      {
-        alpha_id: 'alpha-p3-busultan-2',
-        record_name: 'قبيلة البو سلطان الزبيدية',
-        source_book: 'معجم القبائل العراقية - ثامر العامري',
-        volume: '1',
-        page: '142',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'البو سلطان ؛ سلطان بن جبر ؛ مكتوم بن محجوب ؛ بهيج ؛ زبيد الأكبر ؛ مذحج',
-        child_branches: 'آل جريان ، البو حمد ، البو عيسى',
-        locations: 'بابل ، الحلة ، كيش',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
-      },
-      {
-        alpha_id: 'alpha-p3-busultan-3',
-        record_name: 'البو سلطان',
-        source_book: 'معجم قبائل العرب القديمة والحديثة',
-        volume: '2',
-        page: '529',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'البو سلطان ؛ سلطان ؛ جبر ؛ بهيج ؛ زبيد الأكبر ؛ مذحج',
-        child_branches: 'آل جريان ، البو سمندر',
-        locations: 'الحلة ، الفرات الأوسط',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-        is_consensus_winner: true,
-      },
-    ],
-  },
-  {
-    ticketId: '#P3-ALPHA-703',
-    familyName: 'شمر طوقة',
-    subRootName: 'الأسلم',
-    motherTribeName: 'شمر (طيء)',
-    locationLabel: 'واسط / الكوت / المدائن',
-    inferredCountries: ['العراق'],
-    strategicMeta: {
-      strategic_score: 179,
-      why_selected_reasons: [
-        'عمود نسب واضح (8 محطات)',
-        'توافق (2) مراجع مع معالجة تصحيف مطبعي (شعر طوقة / شمر طوقة)',
-        'مواضع جغرافية وفروع محددة (الكوت، العزيزية، المدائن)',
-        'إحالات لمصادر أخرى قابلة للتوثيق (نهاية الأرب للنويري)',
-      ],
-      chain_stations_count: 8,
-      corroborating_sources_count: 2,
-      has_locations_and_branches: true,
-      verifiable_other_sources_count: 1,
-    },
-    corroboratingEvidence: [
-      {
-        alpha_id: 'alpha-p3-toqa-1',
-        record_name: 'شمر طوقة',
-        source_book: 'موسوعة عشائر العراق - عباس العزاوي',
-        volume: '1',
-        page: '215',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'شمر طوقة ؛ منيع ؛ الأسلم ؛ الصايح ؛ شمر ؛ عبدة ؛ طيء ؛ قحطان',
-        child_branches: 'الدلابحة ، القراغول ، الهيرار ، المناصير',
-        locations: 'الكوت ، العزيزية ، المدائن ، واسط',
-        other_sources: 'سبائك الذهب في معرفة قبائل العرب ج 1 ص 88',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
-      },
-      {
-        alpha_id: 'alpha-p3-toqa-2',
-        record_name: 'شعر طوقة',
-        source_book: 'الدرر المفاخر في أخبار العرب الأواخر',
-        volume: '1',
-        page: '109',
-        source_lake: 'projects_lake_3',
-        lineage_ancestors:
-          'شعر طوقة ؛ منيع بن الأسلم ؛ الصايح ؛ شمر ؛ طيء',
-        child_branches: 'الدلابحة ، القراغول ، البنو سعد',
-        locations: 'واسط ، شط الدجيلة ، الكوت',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
-      },
-    ],
-  },
-  {
-    ticketId: '#P3-ALPHA-704',
-    familyName: 'بنو ركاب',
-    subRootName: 'ربيعة',
-    motherTribeName: 'الأجود (المنتفق)',
-    locationLabel: 'ذي قار / الرفاعي / الغراف',
-    inferredCountries: ['العراق'],
-    strategicMeta: {
-      strategic_score: 174,
-      why_selected_reasons: [
-        'عمود نسب واضح (8 محطات)',
-        'توافق (2) مراجع تاريخية',
-        'مواضع جغرافية وفروع محددة (الرفاعي، الغراف، الناصرية)',
-        'إحالات لمصادر أخرى قابلة للتوثيق (قلائد الجمان للقلقشندي)',
-      ],
-      chain_stations_count: 8,
-      corroborating_sources_count: 2,
-      has_locations_and_branches: true,
-      verifiable_other_sources_count: 1,
-    },
-    corroboratingEvidence: [
-      {
-        alpha_id: 'alpha-p3-rikab-1',
-        record_name: 'بنو ركاب',
-        source_book: 'موسوعة عشائر العراق - عباس العزاوي',
-        volume: '4',
-        page: '92',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'بنو ركاب ؛ منصور ؛ ربيعة ؛ الأجود ؛ غزية ؛ أفلت ؛ سلسلة ؛ طيء',
-        child_branches: 'آل صالح ، البو عطالله ، آل حاتم ، آل عايد',
-        locations: 'الرفاعي ، شط الغراف ، ذي قار',
-        other_sources: 'قلائد الجمان في التعريف بقبائل عرب الزمان ج 1 ص 134',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
-      },
-      {
-        alpha_id: 'alpha-p3-rikab-2',
-        record_name: 'بني ركاب',
-        source_book: 'معجم قبائل العرب القديمة والحديثة',
-        volume: '2',
-        page: '441',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'بني ركاب ؛ منصور بن ربيعة ؛ الأجود ؛ غزية ؛ طيء',
-        child_branches: 'آل صالح ، آل حاتم',
-        locations: 'الغراف ، المنتفق ، الناصرية',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-        is_consensus_winner: true,
-      },
-    ],
-  },
-  {
-    ticketId: '#P3-ALPHA-705',
-    familyName: 'آل قشعم',
-    subRootName: 'جعفر',
-    motherTribeName: 'طيء',
-    locationLabel: 'البصرة / الفرات الأوسط / بادية السماوة',
-    inferredCountries: ['العراق', 'السعودية'],
-    strategicMeta: {
-      strategic_score: 168,
-      why_selected_reasons: [
-        'عمود نسب واضح (7 محطات)',
-        'توافق (2) مراجع تاريخية',
-        'مواضع جغرافية وفروع محددة (البصرة، السماوة)',
-        'إحالات لمصادر أخرى قابلة للتوثيق (البيان والإعراب للمقريزي)',
-      ],
-      chain_stations_count: 7,
-      corroborating_sources_count: 2,
-      has_locations_and_branches: true,
-      verifiable_other_sources_count: 1,
-    },
-    corroboratingEvidence: [
-      {
-        alpha_id: 'alpha-p3-qasham-1',
-        record_name: 'آل قشعم',
-        source_book: 'معجم قبائل العرب القديمة والحديثة',
-        volume: '3',
-        page: '952',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors:
-          'آل قشعم ؛ غانم ؛ يحيى ؛ جعفر ؛ شهوان ؛ الضيغم ؛ طيء',
-        child_branches: 'آل ثامر ، آل راشد ، آل صقر',
-        locations: 'بادية السماوة ، البصرة ، نجد',
-        other_sources: 'البيان والإعراب عما بأرض مصر من الأعراب ج 1 ص 67',
-        priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-        is_consensus_winner: true,
-      },
-      {
-        alpha_id: 'alpha-p3-qasham-2',
-        record_name: 'القشعم',
-        source_book: 'سبائك الذهب في معرفة قبائل العرب',
-        volume: '1',
-        page: '112',
-        source_lake: 'alpha_lake_2',
-        lineage_ancestors: 'القشعم ؛ غانم بن يحيى ؛ جعفر بن شهوان ؛ الضيغم ؛ طيء',
-        child_branches: 'آل ثامر ، آل صقر',
-        locations: 'السماوة ، الفرات الأوسط',
-        priority_tier: 'PRIORITY_2_GENERAL_BOOK',
-        is_consensus_winner: true,
-      },
-    ],
-  },
-];
+      corroboratingEvidence: evidence,
+    });
+  }
+
+  return candidates;
+}
 
 export async function fetchOrGenerateP3ProactiveTickets(
-  limit = 5,
+  limit = 3,
   excludedFamilyNames?: Set<string>
 ): Promise<P3ProactiveCandidate[]> {
   const bridgedSet = loadBridgedAlphaFamiliesSet();
@@ -514,9 +459,13 @@ export async function fetchOrGenerateP3ProactiveTickets(
     ...Array.from(excludedFamilyNames || []),
   ]);
 
+  // Request a larger window from the real database so we can filter out already-queued or bridged records
+  const fetchWindow = Math.min(20, Math.max(limit * 4, 12));
+
+  // Attempt 1: Direct call to German Engine /api/v1/juthori/tickets/auto-generate-p3
   try {
     const resp = await fetch(
-      `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/tickets/auto-generate-p3?limit=${limit}`,
+      `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/tickets/auto-generate-p3?limit=${fetchWindow}`,
       {
         method: 'GET',
         headers: { Accept: 'application/json' },
@@ -531,71 +480,41 @@ export async function fetchOrGenerateP3ProactiveTickets(
         : Array.isArray(data?.candidates)
         ? data.candidates
         : [];
-      if (rawItems.length > 0) {
-        const mapped: P3ProactiveCandidate[] = rawItems
-          .map((item: any, idx: number): P3ProactiveCandidate => {
-            const fam = String(
-              item.familyName ||
-                item.family_name ||
-                item.record_name ||
-                `عشيرة ألفا #${idx + 1}`
-            ).trim();
-            const evidence: CorroboratingAlphaEvidence[] = Array.isArray(
-              item.alpha_evidence || item.corroboratingEvidence
-            )
-              ? item.alpha_evidence || item.corroboratingEvidence
-              : [];
-            const reasons: string[] = Array.isArray(item.why_selected_reasons)
-              ? item.why_selected_reasons
-              : [
-                  `عمود نسب واضح (${item.chain_stations_count || 8} محطات)`,
-                  `توافق (${evidence.length || 2}) مراجع`,
-                  'مواضع جغرافية وفروع محددة',
-                  'إحالات لمصادر أخرى قابلة للتوثيق',
-                ];
-            return {
-              ticketId:
-                item.ticket_id ||
-                item.ticketId ||
-                `#P3-AUTO-${710 + idx}`,
-              familyName: fam,
-              subRootName: String(item.subRootName || item.sub_root || 'فرع ألفا'),
-              motherTribeName: String(
-                item.motherTribeName || item.mother_tribe || 'قبيلة أم'
-              ),
-              locationLabel: String(
-                item.locationLabel || item.locations || 'العراق / الجزيرة العربية'
-              ),
-              inferredCountries: Array.isArray(item.inferredCountries)
-                ? item.inferredCountries
-                : ['العراق'],
-              strategicMeta: {
-                strategic_score: Number(item.strategic_score) || 180 - idx * 5,
-                why_selected_reasons: reasons,
-                chain_stations_count: Number(item.chain_stations_count) || 8,
-                corroborating_sources_count: evidence.length || 2,
-                has_locations_and_branches: true,
-                verifiable_other_sources_count: 1,
-              },
-              corroboratingEvidence: evidence,
-            };
-          })
-          .filter((c: P3ProactiveCandidate) => !excluded.has(c.familyName));
-
-        if (mapped.length > 0) {
-          return mapped.slice(0, limit);
-        }
+      const parsed = parseServerP3TicketItems(rawItems, excluded);
+      if (parsed.length > 0) {
+        return parsed.slice(0, limit);
       }
     }
   } catch {
-    // Fallback to deterministic high-weight Alpha pool below
+    // Fallback to server proxy below
   }
 
-  const available = HIGH_WEIGHT_ALPHA_MINING_POOL.filter(
-    (cand) => !excluded.has(cand.familyName)
-  );
-  if (available.length > 0) {
-    return available.slice(0, limit);
+  // Attempt 2: Call via server-side proxy /api/v1/juthori/tickets/auto-generate-p3
+  try {
+    const proxyResp = await fetch(
+      `/api/v1/juthori/tickets/auto-generate-p3?limit=${fetchWindow}`,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      }
+    );
+    if (proxyResp.ok) {
+      const data = await proxyResp.json();
+      const rawItems = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.tickets)
+        ? data.tickets
+        : Array.isArray(data?.candidates)
+        ? data.candidates
+        : [];
+      const parsed = parseServerP3TicketItems(rawItems, excluded);
+      if (parsed.length > 0) {
+        return parsed.slice(0, limit);
+      }
+    }
+  } catch {
+    // Return empty array if database is unreachable — never generate fake tickets
   }
-  return HIGH_WEIGHT_ALPHA_MINING_POOL.slice(0, limit);
+
+  return [];
 }
