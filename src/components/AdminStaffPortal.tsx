@@ -74,6 +74,11 @@ import {
   formatDurationMmSs,
   loadResearcherKpiTelemetry,
 } from '../utils/researcherKpiAndP3Engine';
+import {
+  getDailyAndLoginWisdomQuote,
+  getOrAdvanceSessionWisdomCounter,
+  incrementWisdomLoginCounter,
+} from '../utils/dailyWorkWisdomQuotes';
 
 export type AdminModuleTab =
   | 'command_hub'
@@ -209,6 +214,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
   const [previewRoleOverride, setPreviewRoleOverride] =
     useState<TeamRoleType | null>(null);
+
+  const [wisdomLoginOffset, setWisdomLoginOffset] = useState<number>(() =>
+    getOrAdvanceSessionWisdomCounter()
+  );
+
+  const activeWisdomQuote = useMemo(
+    () => getDailyAndLoginWisdomQuote(wisdomLoginOffset),
+    [wisdomLoginOffset]
+  );
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -554,6 +568,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       const nowStr = formatArabicLoginTimestamp();
       setLastLoginTimestamp(nowStr);
       setPreviewRoleOverride(null);
+      const nextQuoteOffset = incrementWisdomLoginCounter();
+      setWisdomLoginOffset(nextQuoteOffset);
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(TEAM_SESSION_KEY, JSON.stringify(member));
         localStorage.setItem(TEAM_LAST_LOGIN_TS_KEY, nowStr);
@@ -945,19 +961,6 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       ? 'المايسترو / المدير العام'
       : effectiveHubRole;
 
-  const roleMotivationalAuditMessage: Record<TeamRoleType, string> = {
-    المايسترو:
-      'لوحة القيادة الشاملة بين يديك — كافة مؤشرات الأداء، معدلات الإنجاز، وأزمنة استجابة الفرق مرصودة لحظياً تحت إشرافك المباشر.',
-    'مدير عام':
-      'لوحة القيادة الشاملة بين يديك — كافة مؤشرات الأداء، معدلات الإنجاز، وأزمنة استجابة الفرق مرصودة لحظياً تحت إشرافك المباشر.',
-    'مدير البحوث':
-      'أنت تقود قلب التوثيق التاريخي في جذوري — دقة خياطة الأعمدة وسرعة إنجاز التذاكر وربط شجرة آدم مرصودة لحظياً في سجل الكفاءة العلمية.',
-    'مدير إدارة الطلبات وخدمة العملاء':
-      'أنت واجهة الثقة مع عملاء جذوري — سرعة الاستجابة، جودة المتابعة، ومؤشرات إغلاق الطلبات ضمن الوقت المستهدف (SLA) مرصودة ومحدثة لحظياً.',
-    'مدير تحرير المركز المعرفي':
-      'قلمك يصنع المرجعية المعرفية للمنصة — جودة المحتوى، دقة التدقيق التاريخي، ومعدلات النشر مرصودة في سجل الأداء التحريري.',
-  };
-
   const ALL_WORKSPACE_WINDOWS: Array<{
     id: Exclude<AdminModuleTab, 'command_hub'>;
     emoji: string;
@@ -1337,9 +1340,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             PANEL 0: بوابة القيادة الذكية المخصصة حسب الصلاحية (Role-Based Command Hub & Launchpad)
            ===================================================================== */}
         {activeTab === 'command_hub' && (
-          <div data-testid="role-based-command-hub" className="space-y-8">
+          <div data-testid="role-based-command-hub" className="space-y-10">
             {/* -----------------------------------------------------------------
-                أ) لافتة الترحيب، البصمة الزمنية، والرسالة التحفيزية/الرقابية (Welcome & Audit Banner)
+                أ) لافتة الترحيب، البصمة الزمنية، وحكمة العمل اليومية المتجددة (365 مقولة)
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-welcome-banner"
@@ -1348,8 +1351,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="px-3 py-1 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
-                      👑 الصلاحية الرسمية: {roleDisplayBadgeLabel}
+                    <span className="px-3.5 py-1 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
+                      👑{roleDisplayBadgeLabel}
                     </span>
                     {isMaestroOrGeneralManager && previewRoleOverride && (
                       <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
@@ -1397,171 +1400,297 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 )}
               </div>
 
-              {/* Security & Timestamp Fingerprint Bar */}
+              {/* Timestamp Fingerprint Bar (Session status badge removed as requested) */}
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E2DACB] text-xs font-bold text-[#5C5346]">
                   <span>🕒 آخر تسجيل دخول: {lastLoginTimestamp}</span>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs font-extrabold text-emerald-900">
-                  <span>
-                    🛡️ حالة الجلسة: نشطة ومرصودة (مؤشر الأداء اللحظي مفعّل 🟢)
-                  </span>
-                </div>
               </div>
 
-              {/* Dynamic Motivational & Surveillance Quote */}
-              <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/50 p-4 sm:p-5">
-                <p
-                  data-testid="role-motivational-audit-quote"
-                  className="text-sm sm:text-base font-bold text-[#8D4925] leading-relaxed"
+              {/* Dynamic Daily & Per-Login Work Wisdom Quote (365-Quote Library) */}
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#C5A059]/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-2 text-[11px] font-extrabold text-[#8D4925]/80">
+                    <span>✨ إشراقة العمل والإتقان اليومية</span>
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#8D4925]">
+                      {activeWisdomQuote.quoteNumber} / {activeWisdomQuote.totalQuotes}
+                    </span>
+                  </div>
+                  <p
+                    data-testid="role-motivational-audit-quote"
+                    className="text-sm sm:text-base font-extrabold text-[#8D4925] leading-relaxed"
+                  >
+                    &ldquo;{activeWisdomQuote.quote}&rdquo;
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextOffset = incrementWisdomLoginCounter();
+                    setWisdomLoginOffset(nextOffset);
+                  }}
+                  title="استعراض مقولة أخرى من مكتبة الحكم (365 مقولة)"
+                  className="self-start sm:self-center shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[11px] font-extrabold text-[#8D4925] transition cursor-pointer shadow-2xs"
                 >
-                  &ldquo;{roleMotivationalAuditMessage[effectiveHubRole]}&rdquo;
-                </p>
+                  <RefreshCw className="w-3 h-3 text-[#D8755B]" />
+                  <span>حكمة جديدة</span>
+                </button>
               </div>
             </div>
 
             {/* -----------------------------------------------------------------
-                ب) رادار الإحصائيات والرقابة الشخصية (Role-Specific Performance & Surveillance Metrics)
+                ب) لوحات التحكم المخصصة لصلاحيتكم — تنسيق فروع الشجرة (Tree-Branch Launchpad)
+               ----------------------------------------------------------------- */}
+            <div
+              data-testid="command-hub-workspace-launchpad"
+              className="relative py-4"
+            >
+              {/* Tree Crown Header (تاج الشجرة القيادي) */}
+              <div className="flex flex-col items-center justify-center text-center relative z-10 mb-8">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FAF6F0] via-white to-[#EDE6DA] border-2 border-[#C5A059] shadow-md flex items-center justify-center text-2xl mb-3 relative">
+                  <span>🌳</span>
+                  <span className="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[10px] font-extrabold font-mono shadow-2xs">
+                    {visibleWorkspaceWindows.length}
+                  </span>
+                </div>
+                <div className="inline-block px-7 py-3 rounded-full bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] border-2 border-[#C5A059] shadow-sm">
+                  <h2 className="text-lg sm:text-xl font-extrabold font-display text-[#252321]">
+                    لوحات التحكم المخصصة لصلاحيتكم
+                  </h2>
+                </div>
+                {/* Upper Trunk Stem */}
+                <div className="w-1.5 h-8 bg-gradient-to-b from-[#C5A059] to-[#8D4925] rounded-full mt-1" />
+              </div>
+
+              {/* Tree Trunk & Alternating Organic Branches Container */}
+              <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
+                {/* Central Vertical Tree Trunk (Desktop Center / Mobile Right-Aligned) */}
+                <div
+                  aria-hidden="true"
+                  className="hidden lg:block absolute top-0 bottom-6 left-1/2 -translate-x-1/2 w-2 rounded-full bg-gradient-to-b from-[#C5A059] via-[#D8755B] to-[#8D4925] shadow-[0_0_15px_rgba(197,160,89,0.35)]"
+                />
+                <div
+                  aria-hidden="true"
+                  className="lg:hidden absolute top-0 bottom-6 right-5 w-1.5 rounded-full bg-gradient-to-b from-[#C5A059] via-[#D8755B] to-[#8D4925]"
+                />
+
+                <div className="space-y-6 lg:space-y-0">
+                  {visibleWorkspaceWindows.map((win, idx) => {
+                    // In RTL: idx % 2 === 0 branches to the Right side, idx % 2 === 1 branches to the Left side
+                    const isRightBranch = idx % 2 === 0;
+
+                    return (
+                      <div
+                        key={win.id}
+                        className={`relative flex flex-col lg:flex-row items-stretch lg:items-center ${
+                          idx > 0 ? 'lg:-mt-6' : ''
+                        } ${
+                          isRightBranch
+                            ? 'lg:justify-start'
+                            : 'lg:justify-end'
+                        }`}
+                      >
+                        {/* Central Tree Node & Organic Curved Branch Connector (Desktop) */}
+                        <div
+                          aria-hidden="true"
+                          className="hidden lg:flex items-center justify-center absolute left-1/2 -translate-x-1/2 z-20"
+                        >
+                          {/* Horizontal curved wooden/golden branch arm reaching toward the card */}
+                          <div
+                            className={`absolute top-1/2 -translate-y-1/2 h-3 w-20 flex items-center ${
+                              isRightBranch
+                                ? 'left-1/2 rounded-r-full bg-gradient-to-r from-[#8D4925] via-[#C5A059] to-[#E2DACB]'
+                                : 'right-1/2 rounded-l-full bg-gradient-to-l from-[#8D4925] via-[#C5A059] to-[#E2DACB]'
+                            }`}
+                          >
+                            {/* Sprouting Golden Leaf on the Branch */}
+                            <span
+                              className={`text-xs select-none -mt-5 ${
+                                isRightBranch ? 'mr-auto ml-2' : 'ml-auto mr-2'
+                              }`}
+                            >
+                              🌿
+                            </span>
+                          </div>
+
+                          {/* Trunk Junction Ring */}
+                          <div className="w-10 h-10 rounded-full bg-[#FAF6F0] border-2 border-[#C5A059] shadow-sm flex items-center justify-center text-xs font-extrabold text-[#8D4925] font-mono z-10">
+                            {idx + 1}
+                          </div>
+                        </div>
+
+                        {/* Mobile Trunk Node & Branch Connector */}
+                        <div
+                          aria-hidden="true"
+                          className="lg:hidden absolute right-2 top-8 z-20 flex items-center"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-[#FAF6F0] border-2 border-[#C5A059] shadow-2xs flex items-center justify-center text-[11px] font-extrabold text-[#8D4925] font-mono">
+                            {idx + 1}
+                          </div>
+                          <div className="w-5 h-1 bg-gradient-to-l from-[#C5A059] to-[#E2DACB]" />
+                        </div>
+
+                        {/* Branch Leaf Card */}
+                        <div
+                           className={`w-full lg:w-[44%] pr-12 lg:pr-0 ${
+                            isRightBranch ? 'lg:pl-8' : 'lg:pr-8'
+                          }`}
+                        >
+                          <div
+                            data-testid={`launchpad-window-card-${win.id}`}
+                            onClick={() => setActiveTab(win.id)}
+                            className={`group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 hover:border-[#D8755B] p-5 sm:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 overflow-hidden ${
+                              isRightBranch
+                                ? 'rounded-tr-[2.5rem] rounded-bl-[2.5rem] rounded-tl-2xl rounded-br-2xl'
+                                : 'rounded-tl-[2.5rem] rounded-br-[2.5rem] rounded-tr-2xl rounded-bl-2xl'
+                            }`}
+                          >
+                            {/* Subtle Botanical Corner Accent */}
+                            <div
+                              aria-hidden="true"
+                              className="pointer-events-none absolute -top-6 -left-6 w-24 h-24 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20"
+                            />
+
+                            <div className="space-y-3 relative z-10">
+                              <div className="flex items-start justify-between gap-3">
+                                {win.customLogoUrl ? (
+                                  <div className="w-14 h-14 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                                    <img
+                                      src={win.customLogoUrl}
+                                      alt={win.title}
+                                      className="w-full h-full object-cover rounded-xl"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/70 flex items-center justify-center text-2xl shrink-0 shadow-xs">
+                                    {win.emoji}
+                                  </div>
+                                )}
+
+                                <span className="px-3 py-1 rounded-full bg-white/90 border border-[#C5A059]/60 text-[#8D4925] text-[11px] font-extrabold shadow-2xs">
+                                  🌿 {win.accentBadge}
+                                </span>
+                              </div>
+
+                              <div>
+                                <h3 className="text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
+                                  {win.title}
+                                </h3>
+                                <p className="text-xs text-[#5C5346] leading-relaxed mt-1">
+                                  {win.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3 pt-3 border-t border-[#E2DACB]/80 relative z-10">
+                              <div className="flex items-center justify-between gap-2 bg-white/90 px-3.5 py-2 rounded-xl border border-[#E2DACB]">
+                                <span className="text-[11px] font-bold text-[#5C5346]">
+                                  {win.liveCounterLabel}:
+                                </span>
+                                <span className="text-xs font-extrabold text-[#8D4925] font-mono">
+                                  {win.liveCounterValue}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTab(win.id);
+                                }}
+                                className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                <span>🚀 فتح لوحة التحكم</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Tree Root Base Medallion (جذر الشجرة المتصل بدوائر المؤشرات) */}
+                <div className="hidden lg:flex flex-col items-center justify-center mt-4 relative z-10">
+                  <div className="w-4 h-4 rounded-full bg-[#8D4925] border-2 border-[#C5A059] shadow-xs" />
+                </div>
+              </div>
+            </div>
+
+            {/* -----------------------------------------------------------------
+                ج) دوائر المؤشرات الرقابية (Circular Metrics — Moved Below Launchpad, Headings Removed)
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-surveillance-radar"
-              className="space-y-3"
+              className="pt-2 pb-4"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold font-display text-[#252321] flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-[#D8755B]" />
-                  <span>
-                    رادار الإحصائيات والرقابة الشخصية ({roleDisplayBadgeLabel})
-                  </span>
-                </h2>
-                <span className="text-xs font-bold text-[#8D4925] bg-white px-3 py-1 rounded-full border border-[#E2DACB]">
-                  مؤشرات حية مرصودة ومحدثة تلقائياً
-                </span>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 place-items-center">
+                {roleSpecificRadarCards.map((card, idx) => {
+                  const clampedPct = Math.max(
+                    0,
+                    Math.min(100, card.progressPercent || 0)
+                  );
+                  const radius = 54;
+                  const circumference = 2 * Math.PI * radius;
+                  const strokeDashoffset =
+                    circumference - (clampedPct / 100) * circumference;
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {roleSpecificRadarCards.map((card, idx) => (
-                  <div
-                    key={idx}
-                    data-testid={`radar-metric-card-${idx}`}
-                    className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-[#C5A059] transition-all"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-extrabold text-[#5C5346]">
-                          مؤشر رقابي #{idx + 1}
-                        </span>
+                  return (
+                    <div
+                      key={idx}
+                      data-testid={`radar-metric-card-${idx}`}
+                      className="relative w-64 h-64 sm:w-68 sm:h-68 rounded-full bg-gradient-to-b from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 shadow-sm hover:shadow-md hover:border-[#D8755B] transition-all flex flex-col items-center justify-center text-center p-7 group"
+                    >
+                      {/* Circular Progress Ring SVG */}
+                      <svg
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none p-1.5"
+                        viewBox="0 0 120 120"
+                      >
+                        <circle
+                          cx="60"
+                          cy="60"
+                          r={radius}
+                          fill="none"
+                          stroke="#E2DACB"
+                          strokeWidth="3.5"
+                        />
+                        <circle
+                          cx="60"
+                          cy="60"
+                          r={radius}
+                          fill="none"
+                          stroke="#D8755B"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={strokeDashoffset}
+                        />
+                      </svg>
+
+                      <div className="relative z-10 flex flex-col items-center justify-center space-y-2 max-w-[195px]">
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${card.badgeColor}`}
                         >
                           {card.badgeText}
                         </span>
-                      </div>
-                      <h3 className="text-xs sm:text-sm font-extrabold font-display text-[#252321] leading-snug">
-                        {card.title}
-                      </h3>
-                      <div className="text-lg sm:text-xl font-extrabold text-[#8D4925] font-mono">
-                        {card.value}
-                      </div>
-                    </div>
 
-                    <div className="space-y-1.5 pt-2 border-t border-[#EFEAE0]">
-                      <div className="w-full h-2 rounded-full bg-[#FAF6F0] overflow-hidden border border-[#E2DACB]">
-                        <div
-                          className="h-full bg-gradient-to-l from-emerald-600 to-[#D8755B] rounded-full transition-all duration-500"
-                          style={{ width: `${card.progressPercent}%` }}
-                        />
-                      </div>
-                      <p className="text-[11px] font-bold text-[#5C5346]">
-                        {card.subLabel}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* -----------------------------------------------------------------
-                ج) نوافذ لوحات التحكم المخصصة حسب الصلاحية (Authorized Workspace Launchpad Windows)
-               ----------------------------------------------------------------- */}
-            <div
-              data-testid="command-hub-workspace-launchpad"
-              className="space-y-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
-                    نوافذ لوحات التحكم المخصصة حسب الصلاحية ({visibleWorkspaceWindows.length}{' '}
-                    {visibleWorkspaceWindows.length === 1 ? 'نافذة مصرحة' : 'نوافذ مصرحة'})
-                  </h2>
-                  <p className="text-xs text-[#5C5346] mt-0.5">
-                    اختر اللوحة المطلوبة للدخول المباشر إلى بيئة العمل المخصصة لدورك الوظيفي
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {visibleWorkspaceWindows.map((win) => (
-                  <div
-                    key={win.id}
-                    data-testid={`launchpad-window-card-${win.id}`}
-                    onClick={() => setActiveTab(win.id)}
-                    className="group bg-white rounded-3xl border-2 border-[#E2DACB] hover:border-[#C5A059] p-6 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-5"
-                  >
-                    <div className="space-y-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        {win.customLogoUrl ? (
-                          <div className="w-14 h-14 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
-                            <img
-                              src={win.customLogoUrl}
-                              alt={win.title}
-                              className="w-full h-full object-cover rounded-xl"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/60 flex items-center justify-center text-2xl shrink-0 shadow-xs">
-                            {win.emoji}
-                          </div>
-                        )}
-
-                        <span className="px-3 py-1 rounded-full bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-extrabold">
-                          {win.accentBadge}
-                        </span>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
-                          {win.title}
+                        <h3 className="text-xs font-extrabold font-display text-[#252321] leading-snug line-clamp-2">
+                          {card.title}
                         </h3>
-                        <p className="text-xs text-[#5C5346] leading-relaxed mt-1.5">
-                          {win.description}
+
+                        <div className="text-base sm:text-lg font-extrabold text-[#8D4925] font-mono bg-white/90 px-3 py-1 rounded-full border border-[#E2DACB] shadow-2xs">
+                          {card.value}
+                        </div>
+
+                        <p className="text-[10px] font-bold text-[#5C5346] leading-tight line-clamp-2">
+                          {card.subLabel}
                         </p>
                       </div>
                     </div>
-
-                    <div className="space-y-3 pt-4 border-t border-[#EFEAE0]">
-                      <div className="flex items-center justify-between gap-2 bg-[#FAF6F0] px-3.5 py-2 rounded-xl border border-[#E2DACB]">
-                        <span className="text-[11px] font-bold text-[#5C5346]">
-                          {win.liveCounterLabel}:
-                        </span>
-                        <span className="text-xs font-extrabold text-[#8D4925] font-mono">
-                          {win.liveCounterValue}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveTab(win.id);
-                        }}
-                        className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <span>🚀 فتح لوحة التحكم</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
