@@ -771,15 +771,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     return (
       <div
         dir="rtl"
-        className="min-h-screen bg-[#0D0B09] text-[#F7F3EB] flex flex-col justify-between p-6 relative overflow-hidden"
+        className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col justify-between p-6 relative overflow-hidden"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(197,160,89,0.12),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(216,117,91,0.12),transparent_65%)]" />
 
         {/* Top Bar */}
         <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between py-2">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" />
-            <span className="px-2.5 py-0.5 rounded bg-[#C5A059]/15 border border-[#C5A059]/40 text-[#C5A059] text-[11px] font-bold">
+            <span className="px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
               بوابة فريق الإدارة والعمليات (/Team) · Firebase RBAC
             </span>
           </div>
@@ -787,40 +787,40 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           <button
             type="button"
             onClick={onBackToPlatform}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-[#E6DEC8] transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/45 text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
           >
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
             <span>العودة لواجهة المنصة</span>
           </button>
         </header>
 
         {/* Center Login Card */}
         <main className="relative z-10 max-w-md w-full mx-auto my-auto py-8">
-          <div className="rounded-3xl bg-[#16130F] border border-[#C5A059]/30 p-7 sm:p-8 shadow-2xl">
-            <div className="w-12 h-12 rounded-2xl bg-[#C5A059]/15 border border-[#C5A059]/40 flex items-center justify-center text-[#C5A059] mb-5">
+          <div className="rounded-3xl bg-white border border-[#B98A78]/40 p-7 sm:p-8 shadow-xl">
+            <div className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 flex items-center justify-center text-[#D8755B] mb-5">
               <Lock className="w-6 h-6" />
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-bold font-serif text-[#F7F3EB]">
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-[#252321]">
               تسجيل دخول فريق العمل (/Team)
             </h1>
-            <p className="text-xs text-[#A39B8B] mt-1.5 leading-relaxed">
+            <p className="text-xs text-[#6E6456] mt-1.5 leading-relaxed">
               بوابة الإدارة والبحوث والتحرير المعرفي معزولة بالكامل عن واجهة العملاء وتخضع لصلاحيات الأدوار الخمسة في Firebase.
             </p>
 
             {loginError && (
-              <div className="mt-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs font-bold">
+              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
                 {loginError}
               </div>
             )}
 
             <form onSubmit={handleTeamLogin} className="mt-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#D6CEBF] mb-1.5">
+                <label className="block text-xs font-bold text-[#252321] mb-1.5">
                   البريد الإلكتروني الإداري
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-[#A39B8B] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     dir="ltr"
@@ -828,17 +828,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="name@adamresearchcenter.net"
-                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#0D0B09] border border-white/15 text-sm text-white focus:outline-none focus:border-[#C5A059]"
+                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#D6CEBF] mb-1.5">
+                <label className="block text-xs font-bold text-[#252321] mb-1.5">
                   كلمة المرور
                 </label>
                 <div className="relative">
-                  <KeyRound className="w-4 h-4 text-[#A39B8B] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <KeyRound className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="password"
                     dir="ltr"
@@ -846,7 +846,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#0D0B09] border border-white/15 text-sm text-white focus:outline-none focus:border-[#C5A059]"
+                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
                   />
                 </div>
               </div>
@@ -854,21 +854,21 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full py-3 rounded-xl bg-gradient-to-l from-[#C5A059] to-[#A3813E] hover:from-[#D4B06A] hover:to-[#B5914B] text-[#14110D] font-bold text-sm shadow-lg transition cursor-pointer disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-bold text-sm shadow-md transition cursor-pointer disabled:opacity-50"
               >
                 {isLoggingIn ? 'جاري التحقق من الصلاحيات...' : 'دخول بوابة الفريق (/Team)'}
               </button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-white/10">
-              <div className="text-[11px] font-bold text-[#C5A059] mb-2">
+            <div className="mt-6 pt-5 border-t border-[#EFEAE0]">
+              <div className="text-[11px] font-bold text-[#8D4925] mb-2">
                 الأدوار الإدارية المعتمدة في المنظومة:
               </div>
-              <div className="flex flex-wrap gap-1.5 text-[10px] text-[#A39B8B]">
+              <div className="flex flex-wrap gap-1.5 text-[10px] text-[#5C5346]">
                 {ALL_TEAM_ROLES.map((role) => (
                   <span
                     key={role}
-                    className="px-2 py-0.5 rounded bg-white/5 border border-white/10"
+                    className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#E2DACB] font-bold"
                   >
                     {role}
                   </span>
@@ -878,7 +878,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           </div>
         </main>
 
-        <footer className="relative z-10 text-center text-[11px] text-[#7A7264]">
+        <footer className="relative z-10 text-center text-[11px] text-[#6E6456] font-bold">
           منصة جذوري للأنساب العربية الموثقة · منظومة الإدارة والعمليات المحمية (/Team)
         </footer>
       </div>
@@ -920,8 +920,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     },
     {
       id: 'direct_search_inspection',
-      label: 'البحث والفحص',
-      icon: <Search className="w-4 h-4" />,
+      label: 'بوصلة الأنساب',
+      icon: (
+        <img
+          src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
+          alt="بوصلة الأنساب"
+          className="w-5 h-5 rounded-full object-cover border border-[#D4AF37] shrink-0"
+        />
+      ),
     },
     {
       id: 'orders_support',
@@ -947,19 +953,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   );
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F4F1EA] text-[#1A1612] flex flex-col">
-      {/* Top Staff Command Bar */}
-      <header className="sticky top-0 z-40 bg-[#14110D] text-[#F7F3EB] border-b border-[#C5A059]/30 shadow-xl">
+    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col">
+      {/* Top Staff Command Bar — Landing Page Warm Heritage Visual Identity (Zero Black Backgrounds) */}
+      <header className="sticky top-0 z-40 bg-[#F7F2E9]/95 backdrop-blur-md text-[#252321] border-b border-[#B98A78]/35 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" />
-            <span className="hidden md:inline-block h-6 w-px bg-white/15" />
-            <div className="flex items-center gap-2 bg-[#1F1A14] border border-[#C5A059]/40 px-3 py-1.5 rounded-xl">
-              <Crown className="w-4 h-4 text-[#C5A059]" />
+            <span className="hidden md:inline-block h-6 w-px bg-[#B98A78]/35" />
+            <div className="flex items-center gap-2 bg-[#FAF6F0] border border-[#B98A78]/45 px-3.5 py-1.5 rounded-xl shadow-2xs">
+              <Crown className="w-4 h-4 text-[#D8755B]" />
               <div className="text-xs">
-                <span className="font-bold text-white">{loggedInMember.name}</span>
-                <span className="mx-1.5 text-[#C5A059]">·</span>
-                <span className="text-[#C5A059] font-bold">{loggedInMember.role}</span>
+                <span className="font-bold text-[#252321]">{loggedInMember.name}</span>
+                <span className="mx-1.5 text-[#B98A78]">·</span>
+                <span className="text-[#8D4925] font-bold">{loggedInMember.role}</span>
               </div>
             </div>
           </div>
@@ -969,10 +975,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               type="button"
               onClick={refreshAllFirebaseData}
               disabled={isLoadingData}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-[#E6DEC8] transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/40 text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 ${isLoadingData ? 'animate-spin' : ''}`}
+                className={`w-3.5 h-3.5 text-[#8D4925] ${isLoadingData ? 'animate-spin' : ''}`}
               />
               <span>تحديث البيانات</span>
             </button>
@@ -980,25 +986,25 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             <button
               type="button"
               onClick={onBackToPlatform}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-white border border-white/15 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-xs font-bold text-[#8D4925] border border-[#B98A78]/45 transition cursor-pointer"
             >
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
               <span>واجهة المنصة</span>
             </button>
 
             <button
               type="button"
               onClick={handleTeamLogout}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/70 text-xs font-bold text-red-200 border border-red-500/30 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#D8755B]/15 hover:bg-[#D8755B]/25 text-xs font-bold text-[#8D4925] border border-[#D8755B]/40 transition cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 text-[#D8755B]" />
               <span>خروج</span>
             </button>
           </div>
         </div>
 
-        {/* Role-Governed Navigation Tabs */}
-        <div className="bg-[#1C1813] border-t border-white/10">
+        {/* Role-Governed Navigation Tabs — Warm Beige & Terracotta Landing Page Identity */}
+        <div className="bg-[#EDE6DA]/90 border-t border-[#B98A78]/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1.5 overflow-x-auto py-2">
             {visibleNavigationTabs.map((tab) => {
               const active = activeTab === tab.id;
@@ -1009,8 +1015,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   onClick={() => setActiveTab(tab.id)}
                   className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                     active
-                      ? 'bg-[#C5A059] text-[#14110D] shadow-md'
-                      : 'text-[#D6CEBF] hover:bg-white/5 hover:text-white'
+                      ? 'bg-[#D8755B] text-white shadow-sm'
+                      : 'text-[#252321]/85 hover:bg-[#F7F2E9] hover:text-[#252321] border border-transparent hover:border-[#B98A78]/30'
                   }`}
                 >
                   {tab.icon}
@@ -1019,8 +1025,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     <span
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                         active
-                          ? 'bg-[#14110D]/20 text-[#14110D]'
-                          : 'bg-white/10 text-[#C5A059]'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/35'
                       }`}
                     >
                       {tab.badge}
@@ -1035,8 +1041,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
       {/* Toast Banner */}
       {toastBanner && (
-        <div className="bg-[#1E3B2B] text-white border-b border-[#C5A059]/40 px-4 py-2.5 text-center text-xs font-bold flex items-center justify-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-[#C5A059] shrink-0" />
+        <div className="bg-[#FAF6F0] text-[#252321] border-b border-[#B98A78]/45 px-4 py-2.5 text-center text-xs font-bold flex items-center justify-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-[#D8755B] shrink-0" />
           <span>{toastBanner}</span>
         </div>
       )}
@@ -1051,7 +1057,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             <div className="bg-white rounded-2xl border border-[#E2DACB] p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-[#14110D]">
+                  <h2 className="text-lg font-bold text-[#252321]">
                     إدارة المستخدمين وصلاحيات الفريق
                   </h2>
                 </div>
@@ -1059,7 +1065,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddStaffModal(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#14110D] hover:bg-[#2A231B] text-[#C5A059] text-xs font-bold cursor-pointer transition shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer transition shadow-sm"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>إضافة عضو فريق جديد</span>
@@ -1069,7 +1075,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-right border-collapse">
                   <thead>
-                    <tr className="bg-[#F9F6F0] border-b border-[#E2DACB] text-[11px] font-bold text-[#6E6456]">
+                    <tr className="bg-[#FAF6F0] border-b border-[#E2DACB] text-[11px] font-bold text-[#6E6456]">
                       <th className="py-3 px-4">اسم العضو</th>
                       <th className="py-3 px-4">البريد الإلكتروني</th>
                       <th className="py-3 px-4">الصلاحية</th>
@@ -1080,11 +1086,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <tbody className="divide-y divide-[#EFEAE0] text-xs">
                     {staffList.map((st) => (
                       <tr key={st.id} className="hover:bg-[#FCFBF8]">
-                        <td className="py-3.5 px-4 font-bold text-[#14110D]">
+                        <td className="py-3.5 px-4 font-bold text-[#252321]">
                           <div className="flex items-center gap-2">
                             <span>{st.name}</span>
                             {st.role === 'المايسترو' && (
-                              <span className="px-2 py-0.5 rounded bg-[#C5A059]/20 text-[#7A5B20] text-[10px] font-bold">
+                              <span className="px-2 py-0.5 rounded bg-[#D8755B]/15 text-[#8D4925] text-[10px] font-bold">
                                 المؤسس
                               </span>
                             )}
@@ -1118,7 +1124,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleToggleStaffStatus(st)}
-                                className="px-2.5 py-1 rounded-lg border border-[#D8D0C0] hover:bg-[#F4F1EA] text-[11px] font-bold text-[#14110D] cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#D8D0C0] hover:bg-[#F7F2E9] text-[11px] font-bold text-[#252321] cursor-pointer"
                               >
                                 {st.status === 'نشط' ? 'إيقاف مؤقت' : 'إعادة تفعيل'}
                               </button>
@@ -1147,13 +1153,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         )}
 
         {/* =====================================================================
-            PANEL 2: أقسام البحوث الثلاثة (إدارة البحوث / إدارة شجرة آدم / البحث والفحص)
+            PANEL 2: أقسام البحوث الثلاثة (إدارة البحوث / إدارة شجرة آدم / بوصلة الأنساب)
            ===================================================================== */}
         {(activeTab === 'research_studio' ||
           activeTab === 'adam_tree_management' ||
           activeTab === 'direct_search_inspection') &&
           allowedTabs.includes(activeTab) && (
-            <div className="bg-white rounded-3xl border border-[#E2DACB] p-4 sm:p-6 shadow-sm">
+            <div
+              className={
+                activeTab === 'direct_search_inspection'
+                  ? 'bg-[#0B1F17] rounded-3xl border-2 border-[#D4AF37]/50 p-4 sm:p-6 shadow-xl'
+                  : 'bg-white rounded-3xl border border-[#E2DACB] p-4 sm:p-6 shadow-sm'
+              }
+            >
               <ResearcherStudio
                 activePortalSection={activeTab}
                 onSelectPortalSection={(sec) => {
@@ -1210,7 +1222,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   value={orderSearchQuery}
                   onChange={(e) => setOrderSearchQuery(e.target.value)}
                   placeholder="ابحث برقم الطلب، اسم العميل، اللقب، الدولة، أو البريد..."
-                  className="w-full pr-10 pl-4 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs text-[#14110D] focus:outline-none focus:border-[#C5A059]"
+                  className="w-full pr-10 pl-4 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
                 />
               </div>
 
@@ -1228,8 +1240,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     onClick={() => setOrderFilterMatch(f.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       orderFilterMatch === f.id
-                        ? 'bg-[#14110D] text-[#C5A059]'
-                        : 'bg-[#F4F1EA] text-[#5C5346] hover:bg-[#E8E2D5]'
+                        ? 'bg-[#D8755B] text-white'
+                        : 'bg-[#FAF6F0] text-[#5C5346] hover:bg-[#EDE6DA]'
                     }`}
                   >
                     {f.label}
@@ -1241,7 +1253,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             {/* Customer Orders Table */}
             <div className="bg-white rounded-2xl border border-[#E2DACB] overflow-hidden shadow-sm">
               <div className="px-5 py-4 border-b border-[#E2DACB] flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[#14110D]">
+                <h3 className="text-sm font-bold text-[#252321]">
                   سجل طلبات العملاء
                 </h3>
               </div>
@@ -1259,7 +1271,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <div className="overflow-x-auto">
                   <table className="w-full text-right border-collapse">
                     <thead>
-                      <tr className="bg-[#1C1813] text-[#D6CEBF] text-[11px] font-bold">
+                      <tr className="bg-[#EDE6DA] text-[#252321] border-b border-[#B98A78]/35 text-[11px] font-bold">
                         <th className="py-3.5 px-4">رقم الطلب</th>
                         <th className="py-3.5 px-4">العميل واللقب</th>
                         <th className="py-3.5 px-4">الدولة / المنطقة</th>
@@ -1271,11 +1283,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     <tbody className="divide-y divide-[#EFEAE0] text-xs">
                       {filteredOrders.map((order) => (
                         <tr key={order.id} className="hover:bg-[#FCFBF8] transition">
-                          <td className="py-3.5 px-4 font-mono font-bold text-[#14110D]">
+                          <td className="py-3.5 px-4 font-mono font-bold text-[#252321]">
                             {order.id}
                           </td>
                           <td className="py-3.5 px-4">
-                            <div className="font-bold text-[#14110D]">
+                            <div className="font-bold text-[#252321]">
                               {order.fullName}
                             </div>
                             <div className="text-[11px] text-[#6E6456]">
@@ -1284,7 +1296,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="font-bold text-[#14110D]">
+                            <span className="font-bold text-[#252321]">
                               {order.originCountry}
                             </span>
                             {order.originRegion && (
@@ -1318,7 +1330,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setSelectedOrderForModal(order)}
-                                className="px-2.5 py-1.5 rounded-lg bg-[#F4F1EA] hover:bg-[#E5DEC9] text-[#14110D] font-bold text-[11px] cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#252321] font-bold text-[11px] cursor-pointer"
                               >
                                 إدارة الحساب
                               </button>
@@ -1349,7 +1361,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                     email: order.email,
                                   });
                                 }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#14110D] text-[#C5A059] font-bold text-[11px] cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#8D4925] hover:bg-[#753b1d] text-white font-bold text-[11px] cursor-pointer"
                               >
                                 <Eye className="w-3 h-3" />
                                 <span>معاينة</span>
@@ -1370,15 +1382,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <FileSignature className="w-5 h-5 text-[#9E7A32]" />
-                    <h3 className="text-sm font-bold text-[#14110D]">
+                    <FileSignature className="w-5 h-5 text-[#8D4925]" />
+                    <h3 className="text-sm font-bold text-[#252321]">
                       طلبات توثيق &quot;ميثاق أمين السجل&quot; ({charterRequests.length})
                     </h3>
                   </div>
                 </div>
 
                 {charterRequests.length === 0 ? (
-                  <div className="p-8 rounded-xl bg-[#F9F6F0] border border-[#EFEAE0] text-center text-xs font-bold text-[#6E6456]">
+                  <div className="p-8 rounded-xl bg-[#FAF6F0] border border-[#EFEAE0] text-center text-xs font-bold text-[#6E6456]">
                     لا توجد سجلات حالياً
                   </div>
                 ) : (
@@ -1386,10 +1398,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     {charterRequests.map((req) => (
                       <div
                         key={req.id}
-                        className="p-3.5 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] flex items-center justify-between gap-3"
+                        className="p-3.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="text-xs font-bold text-[#14110D]">
+                          <div className="text-xs font-bold text-[#252321]">
                             {req.clientName} — عائلة ({req.familyName})
                           </div>
                           <div className="text-[11px] text-[#6E6456] mt-0.5">
@@ -1417,7 +1429,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                 `تم اعتماد ميثاق أمين السجل للعميل "${req.clientName}" ✓`
                               );
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-[#1E3B2B] text-white text-[11px] font-bold cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-bold cursor-pointer"
                           >
                             اعتماد الميثاق
                           </button>
@@ -1436,15 +1448,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-[#14110D]" />
-                    <h3 className="text-sm font-bold text-[#14110D]">
+                    <MessageSquare className="w-5 h-5 text-[#8D4925]" />
+                    <h3 className="text-sm font-bold text-[#252321]">
                       تذاكر الدعم الفني والاستفسارات ({supportTickets.length})
                     </h3>
                   </div>
                 </div>
 
                 {supportTickets.length === 0 ? (
-                  <div className="p-8 rounded-xl bg-[#F9F6F0] border border-[#EFEAE0] text-center text-xs font-bold text-[#6E6456]">
+                  <div className="p-8 rounded-xl bg-[#FAF6F0] border border-[#EFEAE0] text-center text-xs font-bold text-[#6E6456]">
                     لا توجد سجلات حالياً
                   </div>
                 ) : (
@@ -1452,10 +1464,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     {supportTickets.map((t) => (
                       <div
                         key={t.id}
-                        className="p-3.5 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] flex items-center justify-between gap-3"
+                        className="p-3.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="text-xs font-bold text-[#14110D]">
+                          <div className="text-xs font-bold text-[#252321]">
                             {t.clientName} ({t.email})
                           </div>
                           <div className="text-[11px] text-[#5C5346] mt-0.5">
@@ -1477,7 +1489,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               );
                               triggerToast(`تم إغلاق تذكرة الدعم (${t.id}) ✓`);
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-[#14110D] text-[#C5A059] text-[11px] font-bold cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#8D4925] hover:bg-[#753b1d] text-white text-[11px] font-bold cursor-pointer"
                           >
                             تحديد كـ &quot;تم الحل&quot;
                           </button>
@@ -1552,7 +1564,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         >
                           <td className="p-4 font-bold text-[#252321]">
                             <div className="flex items-center gap-3">
-                              <div className="w-20 aspect-video rounded-lg overflow-hidden bg-[#252321] border border-[#B98A78]/40 shrink-0">
+                              <div className="w-20 aspect-video rounded-lg overflow-hidden bg-[#EDE6DA] border border-[#B98A78]/40 shrink-0">
                                 <ResilientImage
                                   src={article.coverImageUrl || ''}
                                   alt={article.title}
@@ -1665,7 +1677,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="text-xs font-bold text-[#8C8272]">
                     إجمالي الإيرادات الفعلية
                   </div>
-                  <div className="text-2xl font-extrabold text-[#14110D] mt-1">
+                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
                     ${metrics.totalRevenue}
                   </div>
                   <div className="text-[11px] text-[#6E6456] mt-1">
@@ -1678,7 +1690,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="text-xs font-bold text-[#8C8272]">
                     إجمالي طلبات العملاء المسجلة
                   </div>
-                  <div className="text-2xl font-extrabold text-[#14110D] mt-1">
+                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
                     {metrics.totalOrders}
                   </div>
                   <div className="text-[11px] text-[#6E6456] mt-1">
@@ -1690,7 +1702,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="text-xs font-bold text-[#8C8272]">
                     تذاكر البحث والتحقيق النَّسبي
                   </div>
-                  <div className="text-2xl font-extrabold text-[#14110D] mt-1">
+                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
                     {researchTicketsCount}
                   </div>
                   <div className="text-[11px] text-[#6E6456] mt-1">
@@ -1702,7 +1714,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="text-xs font-bold text-[#8C8272]">
                     أعضاء الفريق ومقالات المركز المعرفي
                   </div>
-                  <div className="text-2xl font-extrabold text-[#14110D] mt-1">
+                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
                     {staffList.length} أعضاء · {metrics.totalArticles} مقال
                   </div>
                   <div className="text-[11px] text-[#6E6456] mt-1">
@@ -1723,28 +1735,28 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 return (
                   <div
                     data-testid="executive-researcher-kpi-panel"
-                    className="bg-white rounded-3xl border-2 border-[#C5A059]/60 p-6 shadow-sm space-y-5"
+                    className="bg-white rounded-3xl border-2 border-[#B98A78]/50 p-6 shadow-sm space-y-5"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-4">
                       <div>
-                        <span className="px-3 py-1 rounded-full bg-[#14110D] text-[#C5A059] text-xs font-extrabold">
+                        <span className="px-3 py-1 rounded-full bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-xs font-extrabold">
                           📊 منظومة تقييم إنتاجية الباحثين والمكافآت الشهرية (KPI & Incentives)
                         </span>
-                        <h3 className="text-base sm:text-lg font-extrabold text-[#14110D] mt-2">
+                        <h3 className="text-base sm:text-lg font-extrabold text-[#252321] mt-2">
                           مؤشرات الأداء الحي لفريق التحقيق وربط شجرة آدم وسجل آدم برايم
                         </h3>
                       </div>
-                      <div className="px-4 py-2 rounded-2xl bg-emerald-950 text-amber-300 font-mono text-sm font-extrabold">
+                      <div className="px-4 py-2 rounded-2xl bg-[#D8755B]/15 border border-[#D8755B]/35 text-[#8D4925] font-mono text-sm font-extrabold">
                         🏆 الرصيد التراكمي للمكافآت: {liveKpi.totalXpScore} XP
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
                         <div className="text-xs font-bold text-[#6E6456]">
                           متوسط زمن إنجاز التذكرة (Avg Handling Time)
                         </div>
-                        <div className="text-2xl font-mono font-extrabold text-[#14110D]">
+                        <div className="text-2xl font-mono font-extrabold text-[#252321]">
                           {formatDurationMmSs(liveKpi.avgHandlingTimeSeconds)}
                         </div>
                         <div className="text-[11px] text-emerald-800 font-bold">
@@ -1752,7 +1764,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
                         <div className="text-xs font-bold text-[#6E6456]">
                           التذاكر المنجزة اليوم حسب الأولوية ({totalToday})
                         </div>
@@ -1769,7 +1781,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
                         <div className="text-xs font-bold text-[#6E6456]">
                           عُقد ألفا الموصولة بشجرة آدم
                         </div>
@@ -1781,11 +1793,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-[#F9F6F0] border border-[#E2DACB] p-4 space-y-1">
+                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
                         <div className="text-xs font-bold text-[#6E6456]">
                           المصادر الإضافية الموثقة في آدم برايم
                         </div>
-                        <div className="text-2xl font-mono font-extrabold text-indigo-950">
+                        <div className="text-2xl font-mono font-extrabold text-[#8D4925]">
                           {liveKpi.totalAdamPrimeSourcesVerified} مرجع
                         </div>
                         <div className="text-[11px] text-[#6E6456]">
@@ -1796,7 +1808,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {liveKpi.recentCompletedLog.length > 0 && (
                       <div className="rounded-2xl border border-[#E2DACB] overflow-hidden">
-                        <div className="bg-[#F9F6F0] px-4 py-2.5 border-b border-[#E2DACB] text-xs font-extrabold text-[#14110D]">
+                        <div className="bg-[#FAF6F0] px-4 py-2.5 border-b border-[#E2DACB] text-xs font-extrabold text-[#252321]">
                           سجل آخر التذاكر المنجزة وتقييم النقاط التحفيزية للباحثين
                         </div>
                         <div className="divide-y divide-[#E2DACB] text-xs">
@@ -1806,7 +1818,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 bg-white"
                             >
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#14110D] text-[#C5A059]">
+                                <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925]">
                                   {log.ticketId}
                                 </span>
                                 <span
@@ -1820,7 +1832,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                 >
                                   {log.priority}
                                 </span>
-                                <span className="font-extrabold text-[#14110D]">
+                                <span className="font-extrabold text-[#252321]">
                                   {log.familyName}
                                 </span>
                                 <span className="text-[#6E6456]">
@@ -1851,18 +1863,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           MODAL 1: Add & Invite New Staff Member (/Team)
          ======================================================================= */}
       {showAddStaffModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-[#C5A059]/40 max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-[#14110D] mb-1">
+        <div className="fixed inset-0 z-50 bg-[#252321]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-[#B98A78]/50 max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-[#252321] mb-1">
               إضافة عضو جديد في فريق العمل (/Team)
             </h3>
             <p className="text-xs text-[#6E6456] mb-4">
               سيتم تسجيل الحساب مباشرة في{' '}
-              <span className="font-bold text-[#14110D]">
+              <span className="font-bold text-[#252321]">
                 Firebase Authentication
               </span>{' '}
               وقاعدة بيانات{' '}
-              <span className="font-bold text-[#14110D]">Firestore</span>، وإرسال دعوة
+              <span className="font-bold text-[#252321]">Firestore</span>، وإرسال دعوة
               رسمية من{' '}
               <span dir="ltr" className="font-mono font-bold">
                 info@Juthori.com
@@ -1890,7 +1902,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     if (addStaffError) setAddStaffError(null);
                   }}
                   placeholder="مثال: الباحث كريم"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-bold text-[#14110D]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#252321]"
                 />
               </div>
 
@@ -1908,7 +1920,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     if (addStaffError) setAddStaffError(null);
                   }}
                   placeholder="member@juthori.com"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs text-[#14110D]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs text-[#252321]"
                 />
               </div>
 
@@ -1927,7 +1939,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     if (addStaffError) setAddStaffError(null);
                   }}
                   placeholder="Juthori@2026"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-mono text-[#14110D]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-mono text-[#252321]"
                 />
               </div>
 
@@ -1938,7 +1950,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <select
                   value={newStaffRole}
                   onChange={(e) => setNewStaffRole(e.target.value as TeamRoleType)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#F9F6F0] border border-[#E2DACB] text-xs font-bold text-[#14110D]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#252321]"
                 >
                   {ALL_TEAM_ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -1955,14 +1967,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     setAddStaffError(null);
                     setShowAddStaffModal(false);
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#F4F1EA] text-xs font-bold text-[#5C5346] cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#EDE6DA] text-xs font-bold text-[#252321] cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingStaff}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#14110D] text-[#C5A059] text-xs font-bold cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>
@@ -1979,11 +1991,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           MODAL 2: Manage Customer Order & Subscription Override
          ======================================================================= */}
       {selectedOrderForModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-[#C5A059]/40 max-w-lg w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-[#252321]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-[#B98A78]/50 max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#EFEAE0] pb-3">
               <div>
-                <h3 className="text-base font-bold text-[#14110D]">
+                <h3 className="text-base font-bold text-[#252321]">
                   إدارة حساب وطلب العميل: {selectedOrderForModal.fullName}
                 </h3>
                 <p className="text-xs text-[#6E6456]">
@@ -1993,7 +2005,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedOrderForModal(null)}
-                className="px-3 py-1 rounded-lg bg-[#F4F1EA] text-xs font-bold"
+                className="px-3 py-1 rounded-lg bg-[#EDE6DA] text-xs font-bold text-[#252321]"
               >
                 إغلاق
               </button>
@@ -2048,8 +2060,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     }}
                     className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer ${
                       selectedOrderForModal.accountStatus === tier.id
-                        ? 'bg-[#14110D] text-[#C5A059] border-[#C5A059]'
-                        : 'bg-[#F9F6F0] text-[#14110D] border-[#E2DACB]'
+                        ? 'bg-[#D8755B] text-white border-[#D8755B]'
+                        : 'bg-[#FAF6F0] text-[#252321] border-[#E2DACB]'
                     }`}
                   >
                     {tier.label}

@@ -4,6 +4,8 @@
   --font-sans: "Tajawal", "Cairo", system-ui, -apple-system, sans-serif;
   --font-display: "Cairo", "Tajawal", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-amiri: "Amiri", "Cairo", serif;
+  --font-ibm-arabic: "IBM Plex Sans Arabic", "Tajawal", sans-serif;
 
   --color-coral: #D8755B;
   --color-ivory: #F7F2E9;
@@ -23,6 +25,14 @@
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
+  }
+
+  .font-boslet-title {
+    font-family: var(--font-amiri);
+  }
+
+  .font-boslet-chain {
+    font-family: var(--font-ibm-arabic);
   }
 
   .tabular-nums {
