@@ -6586,7 +6586,11 @@ export function parsePort8090UniversalResponse(
 
   // Case B: Priority 1 — ADAM_MASTER_TREE from Port 8090
   if (
-    apiData.primary_source_of_truth === 'ADAM_MASTER_TREE' &&
+    (apiData.primary_source_of_truth === 'ADAM_MASTER_TREE' ||
+      apiData.primary_source_of_truth === 'TIER_1_ADAM_MASTER_TREE' ||
+      (extractedApiEvidence.length === 0 &&
+        Array.isArray(apiData.chain_nodes) &&
+        apiData.chain_nodes.length > 0)) &&
     Array.isArray(apiData.chain_nodes) &&
     apiData.chain_nodes.length > 0
   ) {
@@ -6634,7 +6638,9 @@ export function parsePort8090UniversalResponse(
       apiData.root_connection_5usd_tier?.subtribe_b2_name &&
       !String(apiData.root_connection_5usd_tier.subtribe_b2_name).includes('مقفل')
         ? String(apiData.root_connection_5usd_tier.subtribe_b2_name)
-        : enrichedChain.find((n) => n.code === 'B2' || n.code === 'B3')?.name ||
+        : enrichedChain.find((n) => n.code === 'B2' || n.code === 'B3' || n.code === 'B1')?.name ||
+          enrichedChain[1]?.name ||
+          form.branchName.trim() ||
           '';
 
     const rootB0 =
@@ -6642,7 +6648,9 @@ export function parsePort8090UniversalResponse(
       !String(apiData.root_connection_5usd_tier.mother_tribe_b0_name).includes('مقفل')
         ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
         : enrichedChain.find((n) => n.code === 'B0')?.name ||
-          '';
+          form.tribeName.trim() ||
+          enrichedChain[Math.min(3, Math.max(1, enrichedChain.length - 1))]?.name ||
+          rootB2;
 
     const adamNodeId = String(apiData.chain_nodes[0]?.node_id || '272887');
     const resolvedFamName = enrichedChain[0]?.name || displayFamilyName;
@@ -6693,6 +6701,7 @@ export function parsePort8090UniversalResponse(
       rootTribeCode: 'B0',
       rootSummaryLabel: `الجذر: ${rootB2} — ${rootB0}`,
       adamSpineNodes: enrichedChain,
+      full_stitched_lineage_for_researcher: enrichedChain,
       upperAncestors: enrichedChain.filter((n) => n.orderNumber > 6),
       capsules: rings,
       requiresBlindDisambiguation: false,

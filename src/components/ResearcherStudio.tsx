@@ -450,26 +450,46 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       params.branchName.trim() ||
       'غير محدد';
 
-    // Query live Adam Tree endpoint in parallel to detect all matching nodes in Adam Master Tree
-    fetch(`${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ query: targetQueryName, limit: 30 }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const incoming: any[] = Array.isArray(data.nodes)
-          ? data.nodes
-          : Array.isArray(data.data?.nodes)
-          ? data.data.nodes
-          : [];
-        if (incoming.length > 0) {
-          const sanitized = incoming.map((raw) =>
-            sanitizeAndNormalizeAdamNode({
+    const outerStrippedQuery = targetQueryName
+      .replace(/^(?:عائلة|اسرة|أسرة|قبيلة|عشيرة|فخذ|فرع|آل|ال|بيت|بنو|بني|البو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g, '')
+      .trim();
+    const kunyaStrippedQuery = outerStrippedQuery
+      .replace(/^(?:أبو|ابو|أبي|ابي|بو)\s+/g, '')
+      .trim();
+    const uniqueAdamQueries = Array.from(
+      new Set(
+        [targetQueryName, outerStrippedQuery, kunyaStrippedQuery].filter(
+          (q) => q && q !== 'غير محدد' && q.length >= 2
+        )
+      )
+    );
+
+    // Query live Adam Tree endpoint in parallel across prefix variants to detect all matching nodes in Adam Master Tree
+    Promise.all(
+      uniqueAdamQueries.map((qStr) =>
+        fetch(`${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ query: qStr, limit: 30 }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+      )
+    )
+      .then((responses) => {
+        const mergedById = new Map<string, AdamTreeInteractiveNode>();
+        responses.forEach((data) => {
+          if (!data) return;
+          const incoming: any[] = Array.isArray(data.nodes)
+            ? data.nodes
+            : Array.isArray(data.data?.nodes)
+            ? data.data.nodes
+            : [];
+          incoming.forEach((raw) => {
+            const sanitized = sanitizeAndNormalizeAdamNode({
               node_id: String(raw.node_id || raw.id || ''),
               name: String(raw.name || ''),
               arc_code: String(raw.arc_code || 'UNASSIGNED'),
@@ -486,9 +506,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               enriched_branches: Array.isArray(raw.enriched_branches)
                 ? raw.enriched_branches
                 : [],
-            })
-          );
-          setRemoteAdamMatchesForDirectSearch(sanitized);
+            });
+            if (sanitized.node_id && !mergedById.has(sanitized.node_id)) {
+              mergedById.set(sanitized.node_id, sanitized);
+            }
+          });
+        });
+        if (mergedById.size > 0) {
+          setRemoteAdamMatchesForDirectSearch(Array.from(mergedById.values()));
         }
       })
       .catch(() => {
@@ -7483,17 +7508,52 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 const hiddenIntermediateCount = Math.max(0, totalStitchedCount - 3);
 
                 // =============================================================
-                // COMPUTE CONTAINER 1: ADAM MASTER TREE MATCHES & CHAINS
+                // COMPUTE CONTAINER 1: ADAM MASTER TREE MATCHES, SPINE & BRIDGES
                 // =============================================================
+                const normalizeAndStripAdamSearchVariants = (raw: string) => {
+                  const cleaned = (raw || '')
+                    .replace(/\s*\(#\d+\)\s*$/, '')
+                    .replace(/^(?:عائلة|اسرة|أسرة|قبيلة|عشيرة|فخذ|فرع)\s+/g, '')
+                    .trim();
+                  const fullNorm = normalizeArabicForSearch(cleaned);
+                  const withoutOuterPrefix = normalizeArabicForSearch(
+                    cleaned
+                      .replace(
+                        /^(?:آل|ال|بيت|بنو|بني|البو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g,
+                        ''
+                      )
+                      .trim()
+                  );
+                  const withoutKunyaPrefix = normalizeArabicForSearch(
+                    cleaned
+                      .replace(
+                        /^(?:آل|ال|بيت|بنو|بني|البو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g,
+                        ''
+                      )
+                      .replace(/^(?:أبو|ابو|أبي|ابي|بو)\s+/g, '')
+                      .trim()
+                  );
+                  const stem = stemTribeToken(cleaned);
+                  return {
+                    cleaned,
+                    fullNorm,
+                    withoutOuterPrefix,
+                    withoutKunyaPrefix,
+                    stem,
+                  };
+                };
+
                 const cleanQueryName = (
                   directSearchFamilyName.trim() ||
+                  directSearchTribeName.trim() ||
+                  directSearchBranchName.trim() ||
                   directSearchResult.familyName ||
                   ''
                 )
                   .replace(/^عائلة\s+/, '')
                   .trim();
-                const normQueryName = normalizeArabicForSearch(cleanQueryName);
-                const stemQueryName = stemTribeToken(cleanQueryName);
+
+                const queryVars = normalizeAndStripAdamSearchVariants(cleanQueryName);
                 const isCompoundQueryName = /\s+(?:بن|ابن)\s+/.test(cleanQueryName);
 
                 const candidateAdamPoolMap = new Map<
@@ -7511,18 +7571,32 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   const cleanNodeTitle = (node.name || '')
                     .replace(/\s*\(#\d+\)\s*$/, '')
                     .trim();
-                  const normNodeTitle = normalizeArabicForSearch(cleanNodeTitle);
-                  const stemNodeTitle = stemTribeToken(cleanNodeTitle);
+                  const nodeVars = normalizeAndStripAdamSearchVariants(cleanNodeTitle);
 
                   const isExactNorm =
-                    Boolean(normQueryName) && normNodeTitle === normQueryName;
-                  const isExactStemMatch =
-                    !isCompoundQueryName &&
-                    stemQueryName.length >= 3 &&
-                    stemNodeTitle === stemQueryName &&
-                    !/\s+(?:بن|ابن)\s+/.test(cleanNodeTitle);
+                    Boolean(queryVars.fullNorm) &&
+                    nodeVars.fullNorm === queryVars.fullNorm;
 
-                  if (isExactNorm || isExactStemMatch) {
+                  const isOuterPrefixTolerantMatch =
+                    queryVars.withoutOuterPrefix.length >= 3 &&
+                    (nodeVars.fullNorm === queryVars.withoutOuterPrefix ||
+                      nodeVars.withoutOuterPrefix === queryVars.withoutOuterPrefix ||
+                      nodeVars.withoutOuterPrefix === queryVars.fullNorm);
+
+                  const isKunyaAndStemTolerantMatch =
+                    !isCompoundQueryName &&
+                    !/\s+(?:بن|ابن)\s+/.test(cleanNodeTitle) &&
+                    ((queryVars.withoutKunyaPrefix.length >= 3 &&
+                      (nodeVars.withoutOuterPrefix === queryVars.withoutKunyaPrefix ||
+                        nodeVars.withoutKunyaPrefix === queryVars.withoutKunyaPrefix)) ||
+                      (queryVars.stem.length >= 3 &&
+                        nodeVars.stem === queryVars.stem));
+
+                  if (
+                    isExactNorm ||
+                    isOuterPrefixTolerantMatch ||
+                    isKunyaAndStemTolerantMatch
+                  ) {
                     if (!candidateAdamPoolMap.has(node.node_id)) {
                       candidateAdamPoolMap.set(node.node_id, node);
                     }
@@ -7545,7 +7619,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   }
                 }
 
-                const adamMatchedCandidates = Array.from(
+                let adamMatchedCandidates = Array.from(
                   candidateAdamPoolMap.values()
                 ).map((node) => {
                   const chainAscending: AdamTreeInteractiveNode[] = [node];
@@ -7607,6 +7681,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     ancestorsOnly.find(
                       (a) => a.arc_code === 'B0' || a.arc_code === 'MT'
                     ) ||
+                    ancestorsOnly[Math.min(2, Math.max(0, ancestorsOnly.length - 1))] ||
                     ancestorsOnly[0] ||
                     node;
                   const subRootNode =
@@ -7618,6 +7693,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     ) ||
                     ancestorsOnly[0] ||
                     node;
+
+                  const parentPreviewStations = ancestorsOnly
+                    .slice(0, 3)
+                    .filter((st) => !st.name.includes('آدم'))
+                    .map((st) => st.name.replace(/\s*\(#\d+\)\s*$/, '').trim())
+                    .filter(Boolean);
 
                   const directChildNames = adamGraphNodes
                     .filter((c) => c.parent_id === node.node_id)
@@ -7636,18 +7717,341 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     ])
                   ).filter(Boolean);
 
+                  const resolvedMotherTribe = motherTribeNode.name.replace(
+                    /\s*\(#\d+\)\s*$/,
+                    ''
+                  );
+                  const resolvedSubRoot = subRootNode.name.replace(
+                    /\s*\(#\d+\)\s*$/,
+                    ''
+                  );
+
                   return {
                     node,
                     chainAscending,
-                    motherTribeName: motherTribeNode.name.replace(
-                      /\s*\(#\d+\)\s*$/,
-                      ''
-                    ),
-                    subRootName: subRootNode.name.replace(/\s*\(#\d+\)\s*$/, ''),
+                    motherTribeName: resolvedMotherTribe,
+                    subRootName: resolvedSubRoot,
+                    parentConnectionLabel:
+                      parentPreviewStations.length > 0
+                        ? parentPreviewStations.join(' ⬅️ ')
+                        : resolvedSubRoot || resolvedMotherTribe,
                     documentedBranches,
                     documentedLocations,
                   };
                 });
+
+                // Filter by entered Tribe / Branch when multiple Adam candidates exist
+                const enteredTribeFilter = directSearchTribeName.trim();
+                const enteredBranchFilter = directSearchBranchName.trim();
+                if (
+                  adamMatchedCandidates.length > 1 &&
+                  (enteredTribeFilter || enteredBranchFilter)
+                ) {
+                  const tribeFilterVars =
+                    normalizeAndStripAdamSearchVariants(enteredTribeFilter);
+                  const branchFilterVars =
+                    normalizeAndStripAdamSearchVariants(enteredBranchFilter);
+
+                  const filteredByInput = adamMatchedCandidates.filter((cand) =>
+                    cand.chainAscending.some((st) => {
+                      const stVars = normalizeAndStripAdamSearchVariants(st.name);
+                      const matchesTribe =
+                        Boolean(enteredTribeFilter) &&
+                        (stVars.fullNorm === tribeFilterVars.fullNorm ||
+                          stVars.withoutOuterPrefix ===
+                            tribeFilterVars.withoutOuterPrefix ||
+                          (tribeFilterVars.stem.length >= 3 &&
+                            stVars.stem === tribeFilterVars.stem));
+                      const matchesBranch =
+                        Boolean(enteredBranchFilter) &&
+                        (stVars.fullNorm === branchFilterVars.fullNorm ||
+                          stVars.withoutOuterPrefix ===
+                            branchFilterVars.withoutOuterPrefix ||
+                          (branchFilterVars.stem.length >= 3 &&
+                            stVars.stem === branchFilterVars.stem));
+                      return matchesTribe || matchesBranch;
+                    })
+                  );
+
+                  if (filteredByInput.length > 0) {
+                    adamMatchedCandidates = filteredByInput;
+                  }
+                }
+
+                // =============================================================
+                // UNIFICATION RULE: Synthesize Verified Adam Candidate from Final
+                // Spine when directSearchResult has a complete Adam Tree spine
+                // (e.g. «آل أبو معدية / العسران» from the 474,949-node Adam Tree)
+                // =============================================================
+                const resultSpineStations: UpperAncestorNode[] =
+                  directSearchResult.adamSpineNodes &&
+                  directSearchResult.adamSpineNodes.length > 1
+                    ? directSearchResult.adamSpineNodes
+                    : directSearchResult.full_stitched_lineage_for_researcher &&
+                      directSearchResult.full_stitched_lineage_for_researcher
+                        .length > 1
+                    ? directSearchResult.full_stitched_lineage_for_researcher
+                    : directSearchResult.upperAncestors &&
+                      directSearchResult.upperAncestors.length > 0
+                    ? [
+                        {
+                          id: directSearchResult.adamNodeId || 'adam-fe0',
+                          orderNumber: 1,
+                          name:
+                            directSearchResult.familyName ||
+                            cleanQueryName ||
+                            'العائلة',
+                          code: 'FE0',
+                          rankLabel: 'عقدة العائلة الموثقة',
+                          isCodedStation: true,
+                          region: directSearchResult.originRegion || '',
+                          eraNote: '',
+                          dataLakeSource: 'adam_tree',
+                        },
+                        ...directSearchResult.upperAncestors,
+                      ]
+                    : [];
+
+                const hasVerifiedSpineFromAdamTree =
+                  Boolean(directSearchResult.matched) &&
+                  resultSpineStations.length > 1 &&
+                  (directSearchResult.primary_source_of_truth ===
+                    'ADAM_MASTER_TREE' ||
+                    directSearchResult.priorityTierMatched ===
+                      'TIER_1_ADAM_MASTER_TREE' ||
+                    rawEvidenceList.length === 0 ||
+                    resultSpineStations.some(
+                      (s) => s.dataLakeSource === 'adam_tree'
+                    ));
+
+                if (hasVerifiedSpineFromAdamTree) {
+                  const synthesizedChain: AdamTreeInteractiveNode[] =
+                    resultSpineStations.map((st, idx) => ({
+                      node_id: String(
+                        idx === 0
+                          ? directSearchResult.adamNodeId ||
+                              st.id ||
+                              `ADAM-${idx + 1}`
+                          : st.id || `ADAM-ST-${idx + 1}`
+                      ),
+                      name: st.name.replace(/\s*\(#\d+\)\s*$/, '').trim(),
+                      arc_code:
+                        st.code ||
+                        (idx === 0
+                          ? 'FE0'
+                          : idx === 1
+                          ? 'B2'
+                          : st.name.includes('آدم')
+                          ? 'AD0'
+                          : 'UNASSIGNED'),
+                      representation:
+                        idx === 0
+                          ? 'FAMILY'
+                          : st.name.includes('آدم')
+                          ? 'INDIVIDUAL'
+                          : 'TRIBE',
+                      relation_nature: 'DIRECT_DESCENDANT',
+                      parent_id:
+                        idx < resultSpineStations.length - 1
+                          ? String(
+                              resultSpineStations[idx + 1]?.id ||
+                                `ADAM-ST-${idx + 2}`
+                            )
+                          : null,
+                      geo_footprint: st.region
+                        ? [st.region]
+                        : directSearchResult.originRegion
+                        ? [directSearchResult.originRegion]
+                        : [],
+                      enriched_sources:
+                        idx === 0 ? directSearchResult.verified_sources || [] : [],
+                      enriched_branches:
+                        idx === 0
+                          ? directSearchResult.sibling_branches_in_record || []
+                          : [],
+                    }));
+
+                  const startingNode = synthesizedChain[0];
+                  const synthAncestors = synthesizedChain.slice(1);
+                  const synthParentPreview = synthAncestors
+                    .slice(0, 3)
+                    .filter((st) => !st.name.includes('آدم'))
+                    .map((st) => st.name)
+                    .filter(Boolean);
+
+                  const synthSubRoot =
+                    (directSearchResult.rootBranchName &&
+                    !directSearchResult.rootBranchName.includes('مقفل')
+                      ? directSearchResult.rootBranchName
+                      : '') ||
+                    synthAncestors[0]?.name ||
+                    startingNode.name;
+
+                  const synthMotherTribe =
+                    (directSearchResult.rootTribeName &&
+                    !directSearchResult.rootTribeName.includes('مقفل')
+                      ? directSearchResult.rootTribeName
+                      : '') ||
+                    enteredTribeFilter ||
+                    synthAncestors[Math.min(2, Math.max(0, synthAncestors.length - 1))]
+                      ?.name ||
+                    synthSubRoot;
+
+                  const synthParentConnectionLabel =
+                    synthParentPreview.length > 0
+                      ? synthParentPreview.join(' ⬅️ ')
+                      : synthSubRoot !== synthMotherTribe
+                      ? `${synthSubRoot} ⬅️ ${synthMotherTribe}`
+                      : synthMotherTribe;
+
+                  const synthLocations = Array.from(
+                    new Set(
+                      [
+                        ...(directSearchResult.enrichedLocations || []),
+                        directSearchResult.originRegion || '',
+                        directSearchResult.matched_location || '',
+                      ].filter(Boolean)
+                    )
+                  );
+
+                  const synthBranches = Array.from(
+                    new Set([
+                      ...(directSearchResult.sibling_branches_in_record || []),
+                      ...(directSearchResult.siblingBranches || []),
+                    ])
+                  ).filter(Boolean);
+
+                  if (adamMatchedCandidates.length === 0) {
+                    adamMatchedCandidates = [
+                      {
+                        node: startingNode,
+                        chainAscending: synthesizedChain,
+                        motherTribeName: synthMotherTribe,
+                        subRootName: synthSubRoot,
+                        parentConnectionLabel: synthParentConnectionLabel,
+                        documentedBranches: synthBranches,
+                        documentedLocations: synthLocations,
+                      },
+                    ];
+                  } else if (
+                    adamMatchedCandidates.length === 1 &&
+                    synthesizedChain.length >
+                      adamMatchedCandidates[0].chainAscending.length
+                  ) {
+                    adamMatchedCandidates[0] = {
+                      ...adamMatchedCandidates[0],
+                      chainAscending: synthesizedChain,
+                      motherTribeName:
+                        synthMotherTribe ||
+                        adamMatchedCandidates[0].motherTribeName,
+                      subRootName:
+                        synthSubRoot || adamMatchedCandidates[0].subRootName,
+                      parentConnectionLabel:
+                        synthParentConnectionLabel ||
+                        adamMatchedCandidates[0].parentConnectionLabel,
+                    };
+                  }
+                }
+
+                // =============================================================
+                // CASE C: RESOLVE ADAM BRIDGE WHEN FAMILY IS IN RAW ALPHA SOURCES
+                // =============================================================
+                const resolvedAdamBridgeForContainer1 = (() => {
+                  if (directSearchResult.suggested_adam_bridge_for_researcher) {
+                    return directSearchResult.suggested_adam_bridge_for_researcher;
+                  }
+                  if (!directSearchResult.matched && rawEvidenceList.length === 0) {
+                    return null;
+                  }
+                  const computedBridge = buildSuggestedAdamBridgeForResearcher(
+                    cleanQueryName || directSearchResult.familyName,
+                    directSearchResult.rootBranchName,
+                    directSearchResult.rootTribeName,
+                    directSearchResult.adamNodeId
+                  );
+                  if (computedBridge && computedBridge.adam_node_name) {
+                    return computedBridge;
+                  }
+                  for (const st of finalStitchedStations.slice(1)) {
+                    const insp = inspectNameInAdamMasterTree(
+                      st.name,
+                      adamGraphNodes
+                    );
+                    if (insp.found && insp.matchedNode) {
+                      return {
+                        matched_station_name: st.name,
+                        adam_node_id: insp.matchedNode.node_id,
+                        adam_node_name: insp.matchedNode.name,
+                        adam_chain_preview: [
+                          insp.matchedNode,
+                          ...insp.ancestorsUpToAdam,
+                        ]
+                          .map((n) => n.name)
+                          .join(' ⬅️ '),
+                        confidence_label:
+                          'جسر التقاء مرصود مع شجرة آدم الكبرى عبر محطة النسب المشتركة',
+                      };
+                    }
+                  }
+                  return null;
+                })();
+
+                const bridgeUpperChainStations: string[] = (() => {
+                  if (!resolvedAdamBridgeForContainer1) return [];
+                  const bridgeNodeById =
+                    nodesById[resolvedAdamBridgeForContainer1.adam_node_id] ||
+                    MASTER_ADAM_NODES_MAP[
+                      resolvedAdamBridgeForContainer1.adam_node_id
+                    ];
+                  if (bridgeNodeById) {
+                    const chain: string[] = [
+                      bridgeNodeById.name.replace(/\s*\(#\d+\)\s*$/, ''),
+                    ];
+                    let currId = bridgeNodeById.parent_id;
+                    const seen = new Set<string>([bridgeNodeById.node_id]);
+                    let guard = 0;
+                    while (currId && !seen.has(currId) && guard < 80) {
+                      seen.add(currId);
+                      const p =
+                        nodesById[currId] || MASTER_ADAM_NODES_MAP[currId];
+                      if (!p) break;
+                      chain.push(p.name.replace(/\s*\(#\d+\)\s*$/, ''));
+                      currId = p.parent_id;
+                      guard++;
+                    }
+                    if (
+                      chain.length > 0 &&
+                      !chain[chain.length - 1].includes('آدم')
+                    ) {
+                      chain.push('آدم عليه السلام');
+                    }
+                    return chain;
+                  }
+                  const insp = inspectNameInAdamMasterTree(
+                    resolvedAdamBridgeForContainer1.adam_node_name,
+                    adamGraphNodes
+                  );
+                  if (insp.found && insp.matchedNode) {
+                    return [
+                      insp.matchedNode.name.replace(/\s*\(#\d+\)\s*$/, ''),
+                      ...insp.ancestorsUpToAdam.map((a) =>
+                        a.name.replace(/\s*\(#\d+\)\s*$/, '')
+                      ),
+                    ];
+                  }
+                  const previewParts = String(
+                    resolvedAdamBridgeForContainer1.adam_chain_preview || ''
+                  )
+                    .split(/(?:⬅️|<-|->|—|؛)/)
+                    .map((s) => s.replace(/^#\d+:\s*/, '').trim())
+                    .filter(Boolean);
+                  return previewParts.length > 0
+                    ? previewParts
+                    : [
+                        resolvedAdamBridgeForContainer1.adam_node_name,
+                        'آدم عليه السلام',
+                      ];
+                })();
 
                 const safeSelectedAdamIdx =
                   selectedAdamMatchIndex < adamMatchedCandidates.length
@@ -7659,8 +8063,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 // Smart Collapse behavior for Container 2:
                 // Collapsed automatically when matched in Adam Tree AND 0 pending raw Alpha records
                 const isServedFromAdamOnlyWithZeroAlpha =
-                  adamMatchedCandidates.length > 0 &&
-                  rawEvidenceList.length === 0;
+                  rawEvidenceList.length === 0 &&
+                  (adamMatchedCandidates.length > 0 ||
+                    hasVerifiedSpineFromAdamTree ||
+                    directSearchResult.primary_source_of_truth ===
+                      'ADAM_MASTER_TREE');
                 const isContainer2Expanded =
                   isRawBundleManualOverride !== null
                     ? isRawBundleManualOverride
@@ -7668,7 +8075,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 // Dynamic Final Result Source & Effective Result for Container 3
                 const isFinalResultFromAdamTree =
-                  adamMatchedCandidates.length > 0 &&
+                  (adamMatchedCandidates.length > 0 ||
+                    hasVerifiedSpineFromAdamTree) &&
                   (rawEvidenceList.length === 0 ||
                     directSearchResult.primary_source_of_truth ===
                       'ADAM_MASTER_TREE');
@@ -7768,8 +8176,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/60 text-[#F4D799] text-[10px] font-extrabold">
                                 الحزمة البصرية الأولى · الأولوية 1
                               </span>
-                              <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-emerald-100 text-[10px] font-bold">
-                                عُقد مرصودة في شجرة آدم: {adamMatchedCandidates.length}
+                              <span
+                                data-testid="adam-container-header-counter"
+                                className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-emerald-100 text-[10px] font-bold"
+                              >
+                                {adamMatchedCandidates.length === 1
+                                  ? 'عُقد مرصودة في شجرة آدم: 1 (مرتبطة وموثقة ✓)'
+                                  : adamMatchedCandidates.length > 1
+                                  ? `عُقد مرصودة في شجرة آدم: ${adamMatchedCandidates.length} (تعدد عُقد متشابهة)`
+                                  : resolvedAdamBridgeForContainer1
+                                  ? 'عُقد مرصودة في شجرة آدم: 1 (عقدة جسر التقاء 🔗)'
+                                  : 'عُقد مرصودة في شجرة آدم: 0'}
                               </span>
                             </div>
                             <h3 className="text-base sm:text-lg font-extrabold font-display text-white mt-1">
@@ -7780,7 +8197,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                         {adamMatchedCandidates.length === 1 && (
                           <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-300/60 text-emerald-100 text-xs font-extrabold">
-                            ✅ محسوم في شجرة آدم (تطابق وحيد مباشر — ينتقل للنتيجة النهائية للعميل مباشرة)
+                            ✅ تطابق مرجعي موثق ومرتبط في شجرة آدم الكبرى (SINGLE_ADAM_MATCH)
                           </span>
                         )}
                         {adamMatchedCandidates.length > 1 && (
@@ -7788,22 +8205,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             🔍 تعدد نتائج متشابهة في شجرة آدم ({adamMatchedCandidates.length} عُقد) — يتطلب سؤال تحقق
                           </span>
                         )}
+                        {adamMatchedCandidates.length === 0 &&
+                          resolvedAdamBridgeForContainer1 && (
+                            <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-[#C5A059] text-[#F4D799] text-xs font-extrabold">
+                              🔗 جسر التقاء مرصود مع شجرة آدم عبر العقدة: {resolvedAdamBridgeForContainer1.adam_node_name}
+                            </span>
+                          )}
                       </div>
 
-                      {/* CASE 1: 0 MATCHES IN ADAM MASTER TREE */}
-                      {adamMatchedCandidates.length === 0 && (
-                        <div
-                          data-testid="adam-container-zero-match"
-                          className="rounded-2xl bg-white/10 border border-[#C5A059]/40 px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-emerald-50"
-                        >
-                          <span className="text-base shrink-0">⚪</span>
-                          <span>
-                            ⚪ لا يوجد تطابق مباشر باسم العائلة في شجرة آدم حالياً — تم توجيه البوصلة آلياً لفحص وخياطة المصادر الخام (ألفا/بيتا) في الحزمة الثانية أدناه
-                          </span>
-                        </div>
-                      )}
-
-                      {/* CASE 2: SINGLE MATCH IN ADAM MASTER TREE (1 Match) */}
+                      {/* CASE A: SINGLE DIRECT OR LINKED MATCH IN ADAM MASTER TREE (1 Match, e.g., «آل أبو معدية / العسران») */}
                       {adamMatchedCandidates.length === 1 &&
                         activeAdamCandidate && (
                           <div
@@ -7811,35 +8221,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             className="rounded-2xl bg-white text-[#252321] border-2 border-[#C5A059] p-4 sm:p-5 space-y-4 shadow-sm"
                           >
                             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-3">
-                              <div className="flex flex-wrap items-center gap-2.5">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <span className="px-3 py-1 rounded-xl bg-emerald-700 text-white text-xs font-extrabold">
-                                  {activeAdamCandidate.node.name}
+                                  عقدة البداية: {activeAdamCandidate.node.name}
                                 </span>
-                                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] font-mono text-xs font-extrabold">
-                                  الكود الهيكلي:{' '}
-                                  {activeAdamCandidate.node.arc_code &&
-                                  activeAdamCandidate.node.arc_code !==
-                                    'UNASSIGNED'
-                                    ? activeAdamCandidate.node.arc_code
-                                    : 'FE0'}
-                                </span>
-                                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346] font-mono text-xs font-bold">
-                                  معرف العقدة: #{activeAdamCandidate.node.node_id}
+                                <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-extrabold">
+                                  نقطة الربط / الفرع الحاضن: {activeAdamCandidate.parentConnectionLabel}
                                 </span>
                                 <span className="px-2.5 py-1 rounded-lg bg-amber-50 border border-[#C5A059]/60 text-[#8D4925] text-xs font-extrabold">
                                   القبيلة الأم: {activeAdamCandidate.motherTribeName}
                                 </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346] font-mono text-xs font-bold">
+                                  معرف العقدة: #{activeAdamCandidate.node.node_id}
+                                </span>
                               </div>
 
                               <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
-                                ✅ محسوم في شجرة آدم (تطابق وحيد مباشر — ينتقل للنتيجة النهائية للعميل مباشرة)
+                                ✅ تطابق مرجعي موثق ومرتبط في شجرة آدم الكبرى (SINGLE_ADAM_MATCH)
                               </span>
                             </div>
 
                             {/* Full Connected Chain Up To Adam (AS) */}
                             <div className="space-y-2">
                               <div className="text-xs font-extrabold text-[#8D4925]">
-                                السلسلة الكاملة المتصلة حتى آدم عليه السلام ({activeAdamCandidate.chainAscending.length} محطة موثقة):
+                                شريط سلسلة الأجداد الكاملة في شجرة آدم من العائلة صعوداً حتى قمة السلسلة ({activeAdamCandidate.chainAscending.length} محطة موثقة):
                               </div>
                               <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF6F0] p-3.5 rounded-xl border border-[#E2DACB]">
                                 {activeAdamCandidate.chainAscending.map(
@@ -7884,8 +8289,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               </div>
                             </div>
 
-                            {/* Documented Locations & Branches */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                            {/* Documented Locations, Branches & Researcher Direct Retrieval Note */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                               <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 space-y-1">
                                 <span className="text-[11px] font-extrabold text-[#8D4925] block">
                                   📍 المواضع والنطاق الجغرافي الموثق:
@@ -7913,11 +8318,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     : 'عقدة طرفية موثقة مباشرة في عمود النسب'}
                                 </p>
                               </div>
+                              <div className="rounded-xl bg-emerald-50/70 border border-emerald-300 p-3 space-y-1">
+                                <span className="text-[11px] font-extrabold text-emerald-900 block">
+                                  💡 ملاحظة للباحث:
+                                </span>
+                                <p className="text-xs font-extrabold text-emerald-950">
+                                  تم استرجاع المسار مباشرة من شجرة آدم الكبرى دون الحاجة لأسئلة تحقق إضافية
+                                </p>
+                              </div>
                             </div>
                           </div>
                         )}
 
-                      {/* CASE 3: MULTIPLE SIMILAR MATCHES IN ADAM MASTER TREE (> 1 Matches) */}
+                      {/* CASE B: MULTIPLE SIMILAR MATCHES IN ADAM MASTER TREE (> 1 Matches) */}
                       {adamMatchedCandidates.length > 1 && (
                         <div
                           data-testid="adam-container-multiple-matches"
@@ -7930,7 +8343,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 📋 قائمة العُقد المتشابهة المرصودة في شجرة آدم ({adamMatchedCandidates.length} عُقد مطابقة للاسم):
                               </h4>
                               <span className="text-[11px] font-bold text-[#5C5346]">
-                                انقر على أي عقدة أو خيار في محاكي التحقق أدناه لمعاينة حسم المسار
+                                انقر على أي عقدة أو خيار في محاكي أسئلة التحقق في شجرة آدم أدناه لمعاينة حسم المسار
                               </span>
                             </div>
 
@@ -7988,10 +8401,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
                               <div className="flex items-center gap-2">
                                 <span className="px-3 py-1 rounded-full bg-[#0B241B] text-[#F4D799] text-xs font-extrabold">
-                                  🎯 محاكي أسئلة التحقق لنتائج شجرة آدم
+                                  🎯 محاكي أسئلة التحقق في شجرة آدم
                                 </span>
                                 <span className="text-xs font-bold text-[#5C5346]">
-                                  تفريق تفاعلي للعميل بين العُقد المتشابهة حسب القبيلة الأم والفرع الجامع والموضع
+                                  تفريق تفاعلي للعميل بين العُقد المتشابهة حسب القبيلة الأم والفرع الجامع والنطاق الجغرافي
                                 </span>
                               </div>
                               {activeAdamCandidate && (
@@ -8039,8 +8452,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                                     <div className="text-[11px] bg-white p-2 rounded-lg border border-[#E2DACB] text-emerald-950 font-bold">
                                       يحسم العمود إلى: {cand.node.name} ⬅️{' '}
-                                      {cand.subRootName} ⬅️ {cand.motherTribeName}{' '}
-                                      ⬅️ آدم عليه السلام
+                                      {cand.parentConnectionLabel} ⬅️ آدم عليه السلام
                                     </div>
                                   </button>
                                 );
@@ -8049,6 +8461,76 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           </div>
                         </div>
                       )}
+
+                      {/* CASE C: FAMILY IS IN RAW ALPHA PROJECTS WITH DETECTED ADAM BRIDGE (جسر التقاء مرصود مع شجرة آدم) */}
+                      {adamMatchedCandidates.length === 0 &&
+                        resolvedAdamBridgeForContainer1 && (
+                          <div
+                            data-testid="adam-container-bridge-match"
+                            className="rounded-2xl bg-white text-[#252321] border-2 border-[#C5A059] p-4 sm:p-5 space-y-3.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-3 py-1 rounded-xl bg-emerald-700 text-white text-xs font-extrabold">
+                                  🔗 جسر التقاء مرصود مع شجرة آدم عبر العقدة: {resolvedAdamBridgeForContainer1.adam_node_name}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346] font-mono text-xs font-bold">
+                                  معرف عقدة الجسر: #{resolvedAdamBridgeForContainer1.adam_node_id}
+                                </span>
+                                {resolvedAdamBridgeForContainer1.matched_station_name && (
+                                  <span className="px-2.5 py-1 rounded-lg bg-amber-50 border border-[#C5A059]/60 text-[#8D4925] text-xs font-extrabold">
+                                    محطة الالتقاء في سلسلة العائلة: {resolvedAdamBridgeForContainer1.matched_station_name}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
+                                جاهز للربط بعقدة شجرة آدم المعتمدة ✓
+                              </span>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="text-xs font-extrabold text-[#8D4925]">
+                                الامتداد العلوي الموثق في شجرة آدم الكبرى من عقدة الجسر ({resolvedAdamBridgeForContainer1.adam_node_name}) صعوداً حتى قمة السلسلة:
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF6F0] p-3 rounded-xl border border-[#E2DACB]">
+                                {bridgeUpperChainStations.map((stName, bIdx) => (
+                                  <React.Fragment key={`bridge-up-${bIdx}`}>
+                                    <span
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                                        bIdx === 0
+                                          ? 'bg-emerald-700 text-white border-emerald-800 font-extrabold'
+                                          : stName.includes('آدم')
+                                          ? 'bg-[#8D4925] text-white border-[#8D4925] font-extrabold'
+                                          : 'bg-white text-[#252321] border-[#E2DACB]'
+                                      }`}
+                                    >
+                                      {stName}
+                                    </span>
+                                    {bIdx < bridgeUpperChainStations.length - 1 && (
+                                      <span className="text-[#D8755B] text-xs font-bold">
+                                        ⬅️
+                                      </span>
+                                    )}
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      {/* FALLBACK ZERO MATCH: Only when 0 Adam matches AND 0 Adam Bridge */}
+                      {adamMatchedCandidates.length === 0 &&
+                        !resolvedAdamBridgeForContainer1 && (
+                          <div
+                            data-testid="adam-container-zero-match"
+                            className="rounded-2xl bg-white/10 border border-[#C5A059]/40 px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-emerald-50"
+                          >
+                            <span className="text-base shrink-0">⚪</span>
+                            <span>
+                              ⚪ لا يوجد تطابق مباشر باسم العائلة في شجرة آدم حالياً — تم توجيه البوصلة آلياً لفحص وخياطة المصادر الخام (ألفا/بيتا) في الحزمة الثانية أدناه
+                            </span>
+                          </div>
+                        )}
                     </div>
 
                     {/* =========================================================
@@ -8095,7 +8577,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               data-testid="raw-bundle-adam-served-badge"
                               className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold"
                             >
-                              ℹ️ المسار مخدوم ومكتمل من شجرة آدم (0 سجلات خام معلقة في ألفا) — انقر لعرض تفاصيل الفحص الخام
+                              ✓ المسار موثق بالكامل في شجرة آدم (الحزمة الأولى) — لا توجد سجلات خام معلقة في بحيرة ألفا لهذا الاسم
                             </span>
                           )}
                           <button
