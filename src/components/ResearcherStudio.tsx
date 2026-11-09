@@ -513,6 +513,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     });
   };
 
+  // UI/UX State for "مرصد جذوري | كشّاف الأنساب" in `ticket_inbox`
+  const [isQueueSidebarCollapsed, setIsQueueSidebarCollapsed] =
+    useState<boolean>(false);
+  const [activeTicketWorkflowStep, setActiveTicketWorkflowStep] = useState<
+    1 | 2 | 3 | 4
+  >(1);
+  const [showAllWorkflowStepsAtOnce, setShowAllWorkflowStepsAtOnce] =
+    useState<boolean>(false);
+
   const handleExecuteDirectSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (
@@ -1907,47 +1916,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       (c) => c.clusterId !== consensusWinner.clusterId
     );
 
-    const isBoslet = contextMode === 'direct_search';
-
     return (
       <div
         data-testid={`researcher-consensus-matrix-${contextMode}`}
-        className={
-          isBoslet
-            ? 'space-y-4 rounded-2xl border border-[#D4AF37]/45 bg-[#0B1F17]/95 p-5 shadow-md'
-            : 'space-y-4 rounded-2xl border border-stone-200 bg-[#FAF8F5] p-5'
-        }
+        className="space-y-4 rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-5 shadow-2xs"
       >
-        <div
-          className={`flex flex-wrap items-center justify-between gap-2 border-b pb-3 ${
-            isBoslet ? 'border-[#D4AF37]/30' : 'border-stone-200'
-          }`}
-        >
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
           <div>
-            <h4
-              className={`text-sm font-bold ${
-                isBoslet
-                  ? 'font-boslet-title text-[#D4AF37] text-base'
-                  : 'font-serif text-[#141414]'
-              }`}
-            >
+            <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
               خوارزمية التوافق والمقارنة بين المصادر المتعددة لاسم ({familyName})
             </h4>
-            <p
-              className={`text-xs mt-0.5 ${
-                isBoslet ? 'text-[#F7F2E9]/80' : 'text-stone-500'
-              }`}
-            >
+            <p className="text-xs mt-0.5 text-[#5C5346]">
               تحليل آلي لتقاطع حقلَي «نسب الأجداد» و«الفروع الأبناء» عبر ({safeEvidence.length}) سجلات مرصودة
             </p>
           </div>
-          <span
-            className={`px-3 py-1 rounded-xl text-xs font-bold border ${
-              isBoslet
-                ? 'bg-[#10B981]/15 border-[#10B981] text-[#10B981] font-boslet-chain'
-                : 'bg-emerald-100 border-emerald-300 text-emerald-950'
-            }`}
-          >
+          <span className="px-3 py-1 rounded-xl text-xs font-bold border bg-emerald-50 border-emerald-200 text-emerald-900">
             {clusters.length === 1
               ? 'مسار موحد في المصادر ✓'
               : `${clusters.length} مسارات مرصودة للمقارنة`}
@@ -1955,31 +1938,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         </div>
 
         {/* SECTION 1: 🌟 مسار التوافق المرجعي المرجّح (Consensus Cluster) */}
-        <div
-          className={`rounded-2xl border-2 p-4 space-y-3 ${
-            isBoslet
-              ? 'border-[#10B981] bg-[#0F291E] shadow-[0_0_20px_rgba(16,185,129,0.12)]'
-              : 'border-emerald-600/80 bg-emerald-50/60'
-          }`}
-        >
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/50 p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span
-                className={`text-sm font-extrabold ${
-                  isBoslet
-                    ? 'font-boslet-title text-[#10B981] text-base'
-                    : 'font-serif text-emerald-950'
-                }`}
-              >
+              <span className="text-sm sm:text-base font-extrabold font-display text-emerald-950">
                 🌟 مسار التوافق المرجعي المرجّح (Consensus Cluster)
               </span>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                  isBoslet
-                    ? 'bg-[#10B981] text-[#0B1F17] font-boslet-chain font-extrabold'
-                    : 'bg-emerald-700 text-white'
-                }`}
-              >
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-700 text-white">
                 مرجّح في عدة مصادر ({consensusWinner.sourcesCount} مراجع)
               </span>
             </div>
@@ -1994,7 +1959,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       ...directSearchResult.optionAResultOverride,
                     })
                   }
-                  className="px-3 py-1 rounded-xl bg-[#D4AF37] hover:bg-[#e3be42] text-[#0B1F17] text-[11px] font-extrabold cursor-pointer transition-colors"
+                  className="px-3 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-extrabold cursor-pointer transition-colors shadow-2xs"
                 >
                   عرض هذا المسار في العمود أعلاه
                 </button>
@@ -2002,107 +1967,41 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            <div
-              className={`rounded-xl p-2.5 border ${
-                isBoslet
-                  ? 'bg-[#0B1F17] border-[#D4AF37]/40'
-                  : 'bg-white border-emerald-200'
-              }`}
-            >
-              <span
-                className={`text-[11px] block ${
-                  isBoslet ? 'text-[#D4AF37]/85' : 'text-stone-500'
-                }`}
-              >
+            <div className="rounded-xl p-2.5 border bg-white border-[#E2DACB]">
+              <span className="text-[11px] block text-[#5C5346]">
                 الأصل / القبيلة الأم المرجّحة:
               </span>
-              <span
-                className={`font-extrabold ${
-                  isBoslet
-                    ? 'text-[#D4AF37] font-boslet-chain'
-                    : 'text-emerald-950'
-                }`}
-              >
+              <span className="font-extrabold text-[#8D4925]">
                 {consensusWinner.originTribeLabel}
               </span>
             </div>
-            <div
-              className={`rounded-xl p-2.5 border ${
-                isBoslet
-                  ? 'bg-[#0B1F17] border-[#D4AF37]/40'
-                  : 'bg-white border-emerald-200'
-              }`}
-            >
-              <span
-                className={`text-[11px] block ${
-                  isBoslet ? 'text-[#D4AF37]/85' : 'text-stone-500'
-                }`}
-              >
+            <div className="rounded-xl p-2.5 border bg-white border-[#E2DACB]">
+              <span className="text-[11px] block text-[#5C5346]">
                 عقدتا الجذر ($5):
               </span>
-              <span
-                className={`font-bold ${
-                  isBoslet
-                    ? 'text-[#10B981] font-boslet-chain'
-                    : 'text-stone-900'
-                }`}
-              >
+              <span className="font-bold text-emerald-900">
                 {consensusWinner.rootPreviewLabel}
               </span>
             </div>
-            <div
-              className={`rounded-xl p-2.5 border ${
-                isBoslet
-                  ? 'bg-[#0B1F17] border-[#D4AF37]/40'
-                  : 'bg-white border-emerald-200'
-              }`}
-            >
-              <span
-                className={`text-[11px] block ${
-                  isBoslet ? 'text-[#D4AF37]/85' : 'text-stone-500'
-                }`}
-              >
+            <div className="rounded-xl p-2.5 border bg-white border-[#E2DACB]">
+              <span className="text-[11px] block text-[#5C5346]">
                 النطاق الجغرافي المتوافق عليه:
               </span>
-              <span
-                className={`font-bold ${
-                  isBoslet ? 'text-[#F7F2E9]' : 'text-stone-900'
-                }`}
-              >
+              <span className="font-bold text-[#252321]">
                 {consensusWinner.geographicScope}
               </span>
             </div>
           </div>
 
-          <div
-            className={`rounded-xl p-3 border space-y-1.5 ${
-              isBoslet
-                ? 'bg-[#0B1F17] border-[#10B981]/45'
-                : 'bg-white border-emerald-200'
-            }`}
-          >
-            <div
-              className={`text-[11px] font-bold ${
-                isBoslet ? 'text-[#10B981]' : 'text-emerald-900'
-              }`}
-            >
+          <div className="rounded-xl p-3 border space-y-1.5 bg-white border-[#E2DACB]">
+            <div className="text-[11px] font-bold text-emerald-900">
               السلسلة الكاملة المتفق عليها والعُقد المشتركة ({consensusWinner.sharedNodes.join(' ، ')}):
             </div>
-            <p
-              className={`text-xs font-bold leading-relaxed ${
-                isBoslet
-                  ? 'text-[#F7F2E9] font-boslet-chain'
-                  : 'text-stone-800'
-              }`}
-            >
+            <p className="text-xs font-bold leading-relaxed text-[#252321]">
               {consensusWinner.fullChainNodes.join(' ⬅️ ')}
             </p>
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span
-                className={`text-[11px] font-bold ${
-                  isBoslet ? 'text-[#D4AF37]' : 'text-slate-700'
-                }`}
-              >
+              <span className="text-[11px] font-bold text-[#8D4925]">
                 توافق {consensusWinner.records.length} مصادر:
               </span>
               {consensusWinner.records.map((ev: CorroboratingAlphaEvidence, i: number) => {
@@ -2110,19 +2009,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 return (
                   <span
                     key={ev.alpha_id || i}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs ${
-                      isBoslet
-                        ? 'bg-[#0F291E] border-[#D4AF37]/50 text-[#D4AF37] font-boslet-chain'
-                        : 'bg-slate-100 border-slate-300 font-sans text-slate-700'
-                    }`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs bg-[#FAF6F0] border-[#B98A78]/40 font-sans text-[#252321]"
                   >
                     <span>{formatCompactSourceBracket(ev)}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${
-                        isBoslet
-                          ? 'bg-[#10B981]/15 border-[#10B981]/50 text-[#10B981]'
-                          : lakeBadge.colorClass
-                      }`}
+                      className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
                     >
                       {lakeBadge.tag}
                     </span>
@@ -2136,38 +2027,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         {/* SECTION 2: 📚 القائمة الكاملة لكافة المسارات والعناقيد المكتشفة للباحث (حتى المستبعدة من واجهة العميل) */}
         <div
           data-testid="researcher-all-discovered-clusters-list"
-          className={`rounded-2xl border p-4 space-y-3 ${
-            isBoslet
-              ? 'border-[#D4AF37]/50 bg-[#0F291E]/85'
-              : 'border-amber-300 bg-amber-50/50'
-          }`}
+          className="rounded-2xl border border-[#B98A78]/45 bg-[#EDE6DA]/45 p-4 space-y-3"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <span
-                className={`text-sm font-extrabold block ${
-                  isBoslet
-                    ? 'font-boslet-title text-[#D4AF37] text-base'
-                    : 'font-serif text-amber-950'
-                }`}
-              >
+              <span className="text-sm sm:text-base font-extrabold block font-display text-[#8D4925]">
                 📚 القائمة الكاملة لكافة المسارات والعناقيد المكتشفة في البيانات ({clusters.length} مسارات)
               </span>
-              <span
-                className={`text-[11px] ${
-                  isBoslet ? 'text-[#F7F2E9]/75' : 'text-stone-600'
-                }`}
-              >
+              <span className="text-[11px] text-[#5C5346]">
                 تُعرض جميع المسارات هنا للباحث لأغراض التدقيق الشامل، بينما يقتصر سؤال العميل في المحاكي أدناه على أقوى مسارين فقط (إضافة لخيار لا أعرف)
               </span>
             </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                isBoslet
-                  ? 'bg-[#D4AF37]/20 border border-[#D4AF37]/60 text-[#D4AF37] font-boslet-chain'
-                  : 'bg-amber-200/80 text-amber-950'
-              }`}
-            >
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925]">
               {competingClusters.length > 0
                 ? `${clusters.length} عناقيد إجمالية (منها ${competingClusters.length} مسارات موازية)`
                 : 'مسار موحد بدون مسارات متعارضة'}
@@ -2175,13 +2046,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           </div>
 
           {competingClusters.length === 0 ? (
-            <p
-              className={`text-xs rounded-xl p-3 border ${
-                isBoslet
-                  ? 'text-[#10B981] bg-[#0B1F17] border-[#10B981]/40 font-bold'
-                  : 'text-stone-600 bg-white border-amber-200'
-              }`}
-            >
+            <p className="text-xs rounded-xl p-3 border text-emerald-900 bg-white border-emerald-200 font-bold">
               جميع المصادر المرصودة لاسم ({familyName}) تتفق على مسار نسبي واحد ولا توجد روايات متعارضة في القاعدة.
             </p>
           ) : (
@@ -2193,53 +2058,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <div
                     key={comp.clusterId}
                     className={`rounded-xl p-3.5 border space-y-2 ${
-                      isBoslet
-                        ? clusterIdx === 0
-                          ? 'bg-[#0B1F17] border-[#10B981]'
-                          : 'bg-[#0B1F17] border-[#D4AF37]/50'
-                        : clusterIdx === 0
-                        ? 'bg-white border-emerald-400 bg-emerald-50/20'
-                        : 'bg-white border-amber-300'
+                      clusterIdx === 0
+                        ? 'bg-white border-emerald-300'
+                        : 'bg-white border-[#E2DACB]'
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${
-                            isBoslet
-                              ? 'bg-[#D4AF37] text-[#0B1F17] font-boslet-chain'
-                              : 'bg-stone-900 text-amber-300'
-                          }`}
-                        >
+                        <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-[#8D4925] text-white">
                           عنقود #{clusterIdx + 1}
                         </span>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-lg border text-xs font-extrabold ${
-                            isBoslet
-                              ? 'bg-[#D4AF37]/15 border-[#D4AF37]/60 text-[#D4AF37]'
-                              : 'bg-amber-100 border-amber-300 text-amber-950'
-                          }`}
-                        >
+                        <span className="px-2.5 py-0.5 rounded-lg border text-xs font-extrabold bg-[#FAF6F0] border-[#B98A78]/50 text-[#8D4925]">
                           مسار: {comp.originTribeLabel}
                         </span>
-                        <span
-                          className={`text-xs font-bold ${
-                            isBoslet
-                              ? 'text-[#10B981] font-boslet-chain'
-                              : 'text-stone-700'
-                          }`}
-                        >
+                        <span className="text-xs font-bold text-[#252321]">
                           الجذر ($5): {comp.rootPreviewLabel}
                         </span>
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            isBoslet
-                              ? isShownToCustomer
-                                ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/60'
-                                : 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40'
-                              : isShownToCustomer
-                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                              : 'bg-slate-100 text-slate-700 border-slate-300'
+                            isShownToCustomer
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                              : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB]'
                           }`}
                         >
                           {isShownToCustomer
@@ -2247,13 +2086,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             : '👁️ مرصود للباحث فقط (لا يُعرض للعميل لمنع التشتيت)'}
                         </span>
                         {chainCount > 6 && (
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              isBoslet
-                                ? 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40 font-boslet-chain'
-                                : 'bg-purple-100 text-purple-900'
-                            }`}
-                          >
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-[#8D4925] border border-[#B98A78]/40">
                             سلسلة طويلة ({chainCount} اسماً)
                           </span>
                         )}
@@ -2287,51 +2120,29 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               ...resolved,
                             });
                           }}
-                          className="px-3 py-1 rounded-xl bg-[#D4AF37] hover:bg-[#e3be42] text-[#0B1F17] text-[11px] font-extrabold cursor-pointer transition-colors"
+                          className="px-3 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-extrabold cursor-pointer transition-colors shadow-2xs"
                         >
                           معاينة مسار ({comp.originTribeLabel}) في العمود
                         </button>
                       )}
                     </div>
 
-                    <div
-                      className={`text-[11px] ${
-                        isBoslet ? 'text-[#F7F2E9]/85' : 'text-stone-600'
-                      }`}
-                    >
-                      <span
-                        className={`font-bold ${
-                          isBoslet ? 'text-[#D4AF37]' : 'text-stone-800'
-                        }`}
-                      >
+                    <div className="text-[11px] text-[#5C5346]">
+                      <span className="font-bold text-[#8D4925]">
                         النطاق الجغرافي:
                       </span>{' '}
                       {comp.geographicScope}
                     </div>
 
-                    <div
-                      className={`rounded-lg p-2.5 border text-xs leading-relaxed ${
-                        isBoslet
-                          ? 'bg-[#0F291E] border-[#D4AF37]/35 text-[#F7F2E9] font-boslet-chain'
-                          : 'bg-[#FAF8F5] border-stone-200 text-stone-800'
-                      }`}
-                    >
-                      <span
-                        className={`font-bold block mb-1 ${
-                          isBoslet ? 'text-[#D4AF37]' : 'text-[#B45309]'
-                        }`}
-                      >
+                    <div className="rounded-lg p-2.5 border text-xs leading-relaxed bg-[#FAF6F0] border-[#E2DACB] text-[#252321]">
+                      <span className="font-bold block mb-1 text-[#8D4925]">
                         كامل سلسلة نسب الأجداد في السجل ({chainCount} محطة):
                       </span>
                       {comp.fullChainNodes.join(' ⬅️ ')}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span
-                        className={`text-[11px] font-bold ${
-                          isBoslet ? 'text-[#D4AF37]' : 'text-slate-700'
-                        }`}
-                      >
+                      <span className="text-[11px] font-bold text-[#8D4925]">
                         توافق ({comp.records.length}) {comp.records.length === 1 ? 'مصدر' : 'مصادر'}:
                       </span>
                       {comp.records.map((ev: CorroboratingAlphaEvidence, idx: number) => {
@@ -2339,19 +2150,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         return (
                           <span
                             key={ev.alpha_id || idx}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs ${
-                              isBoslet
-                                ? 'bg-[#0F291E] border-[#D4AF37]/45 text-[#D4AF37] font-boslet-chain'
-                                : 'bg-slate-100 border-slate-300 font-sans text-slate-700'
-                            }`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border text-[11px] font-bold shadow-2xs bg-[#FAF6F0] border-[#B98A78]/40 font-sans text-[#252321]"
                           >
                             <span>{formatCompactSourceBracket(ev)}</span>
                             <span
-                              className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${
-                                isBoslet
-                                  ? 'bg-[#10B981]/15 border-[#10B981]/50 text-[#10B981]'
-                                  : lakeBadge.colorClass
-                              }`}
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
                             >
                               {lakeBadge.tag}
                             </span>
@@ -2982,33 +2785,33 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         data-testid="diagnostic-step5-secondary-sources-adam-prime-direct_search"
         className={`rounded-3xl transition-all duration-300 overflow-hidden ${
           isExpanded
-            ? 'border-2 border-[#D4AF37] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)] ring-1 ring-[#10B981]/30 space-y-4'
-            : 'border border-[#D4AF37]/40 bg-[#0B1F17]/90 hover:border-[#D4AF37]/80 px-5 py-4 shadow-md'
+            ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-4'
+            : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
         }`}
       >
         <div
           onClick={() => toggleBosletSection('step5')}
           className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
-            isExpanded ? 'border-b border-[#D4AF37]/30 pb-3.5' : ''
+            isExpanded ? 'border-b border-[#E2DACB] pb-3.5' : ''
           }`}
         >
           <div className="flex items-center gap-3">
             <span
-              className={`w-8 h-8 rounded-xl font-boslet-chain text-xs font-extrabold flex items-center justify-center shrink-0 transition-all ${
+              className={`w-8 h-8 rounded-xl font-mono text-xs font-extrabold flex items-center justify-center shrink-0 transition-all ${
                 isExpanded
-                  ? 'bg-[#D4AF37] text-[#0B1F17] shadow-[0_0_12px_rgba(212,175,55,0.4)]'
-                  : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/50'
+                  ? 'bg-[#D8755B] text-white shadow-2xs'
+                  : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
               }`}
             >
               5
             </span>
-            <h3 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+            <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
               القسم الخامس: المصادر الأخرى الخام المرصودة في الهامش
             </h3>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <span className="px-3 py-1 rounded-xl bg-[#0B1F17] border border-[#10B981]/50 text-[#10B981] font-boslet-chain text-xs font-bold">
+            <span className="px-3 py-1 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-xs font-bold">
               {extractedLeads.length === 0
                 ? '0 إحالات هامشية'
                 : `${extractedLeads.length} إحالة مرجعية`}
@@ -3019,10 +2822,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 e.stopPropagation();
                 toggleBosletSection('step5');
               }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                 isExpanded
-                  ? 'bg-[#D4AF37] text-[#0B1F17] border-[#D4AF37] shadow-xs'
-                  : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                  ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50 shadow-2xs'
+                  : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
               }`}
             >
               <span>{isExpanded ? 'طي القسم' : 'فتح وإبراز القسم'}</span>
@@ -3038,7 +2841,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         {isExpanded && (
           <>
             {extractedLeads.length === 0 ? (
-              <div className="rounded-xl bg-[#0B1F17] border border-[#D4AF37]/30 px-4 py-3 text-xs font-boslet-chain text-[#F7F2E9]/80">
+              <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] px-4 py-3 text-xs text-[#5C5346]">
                 لا توجد إحالات لمصادر أخرى خام في سجلات ({familyName}) الحالية.
               </div>
             ) : (
@@ -3051,35 +2854,35 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     <div
                       key={`${lead.linked_alpha_id}-${lIdx}`}
                       data-testid={`compact-other-source-pill-${lIdx}`}
-                      className="rounded-2xl bg-[#0B1F17] border border-[#D4AF37]/45 p-3.5 shadow-sm flex flex-col justify-between gap-2.5 hover:border-[#10B981]/60 transition-all"
+                      className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 shadow-2xs flex flex-col justify-between gap-2.5 hover:border-[#B98A78] transition-all"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <span className="text-xs font-extrabold font-boslet-title text-[#D4AF37]">
+                        <span className="text-xs font-extrabold font-display text-[#252321]">
                           📜 {lead.extracted_book_title || autoMatch.title}
                         </span>
-                        <div className="flex items-center gap-1.5 font-boslet-chain text-[11px] font-bold">
-                          <span className="px-2 py-0.5 rounded bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/45">
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold">
+                          <span className="px-2 py-0.5 rounded bg-white text-[#8D4925] border border-[#B98A78]/45">
                             ج: {lead.extracted_volume || '—'}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/45">
+                          <span className="px-2 py-0.5 rounded bg-white text-[#8D4925] border border-[#B98A78]/45">
                             ص: {lead.extracted_page || '—'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-2 border-t border-[#D4AF37]/20 font-boslet-chain">
-                        <span className="text-[#F7F2E9]/75">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-2 border-t border-[#E2DACB]">
+                        <span className="text-[#5C5346]">
                           السجل المرتبط:{' '}
-                          <strong className="text-[#F7F2E9]">
+                          <strong className="text-[#252321]">
                             {lead.linked_record_name || familyName}
                           </strong>
                         </span>
 
                         <span
-                          className={`px-2.5 py-0.5 rounded-md font-boslet-chain text-[10px] font-bold border ${
+                          className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
                             isVerified
-                              ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/50'
-                              : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40'
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                              : 'bg-white text-[#8D4925] border-[#B98A78]/45'
                           }`}
                         >
                           {isVerified
@@ -3113,7 +2916,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             ticket.familyName,
             ticket.corroboratingEvidence
           )
-        : [];
+        : ticket.copilotSources.map(
+            (cs, idx): CorroboratingAlphaEvidence => ({
+              alpha_id: `alpha-fallback-${idx}`,
+              record_name: ticket.familyName,
+              source_book: cs.bookCitation,
+              page: '—',
+              volume: `${idx + 1}`,
+              lineage_ancestors: `${ticket.familyName} ⬅️ ${ticket.subRootName} ⬅️ ${ticket.motherTribeName}`,
+              priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
+              is_consensus_winner: true,
+            })
+          );
 
     const diagnosticCtx =
       ticket.precomputed_diagnostic ||
@@ -3258,10 +3072,369 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       showToast(`🧩 تمت إضافة المحطة «${cleanName}» ككبسولة في سلسلة النسب!`);
     };
 
+    const hypotheses =
+      ticket.aiResearchHypotheses && ticket.aiResearchHypotheses.length > 0
+        ? ticket.aiResearchHypotheses
+        : buildAIResearchHypothesesForFamily(
+            ticket.familyName,
+            ticket.corroboratingEvidence || [],
+            ticket.suggestedAdamBridge
+          );
+
+    const branchFreq = new Map<string, number>();
+    const locationFreq = new Map<string, number>();
+    allTicketEvidence.forEach((ev) => {
+      const branches = (ev.child_branches || '')
+        .split(/[|،,؛]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      new Set(branches).forEach((b) => {
+        branchFreq.set(b, (branchFreq.get(b) || 0) + 1);
+      });
+      const locs = (ev.locations || '')
+        .split(/[|،,؛/]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      new Set(locs).forEach((loc) => {
+        locationFreq.set(loc, (locationFreq.get(loc) || 0) + 1);
+      });
+    });
+
+    const indexedEvidence = allTicketEvidence.map((ev, originalIdx) => ({
+      ev,
+      originalIdx,
+    }));
+    const winnerItems = indexedEvidence.filter(
+      (item) => item.ev.is_consensus_winner !== false
+    );
+    const competingItems = indexedEvidence.filter(
+      (item) => item.ev.is_consensus_winner === false
+    );
+
+    const activeBridgePreview =
+      appliedAdamBridgeByTicket[ticket.id] ||
+      ticket.suggestedAdamBridge?.adam_chain_preview ||
+      'طيء ⬅️ كهلان ⬅️ سبأ ⬅️ قحطان ⬅️ آدم عليه السلام';
+
+    const renderEvidenceCard = (
+      ev: CorroboratingAlphaEvidence,
+      idx: number
+    ) => {
+      const isIncluded = getTicketIncludedIndices(ticket).includes(idx);
+      const isPrimary = (primarySourceIndexByTicket[ticket.id] ?? 0) === idx;
+      const noteKey = `${ticket.id}-${idx}`;
+      const chainStations = splitAncestorsChain(ev.lineage_ancestors);
+      const displayChain =
+        chainStations.length > 0
+          ? chainStations
+          : [ticket.familyName, ticket.subRootName, ticket.motherTribeName];
+
+      const parsedBranches = (ev.child_branches || '')
+        .split(/[|،,؛]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const parsedLocations = (ev.locations || '')
+        .split(/[|،,؛/]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      return (
+        <div
+          key={ev.alpha_id || idx}
+          className={`rounded-2xl border p-4 transition-all ${
+            isPrimary
+              ? 'bg-[#FAF6F0] border-2 border-[#D8755B]'
+              : isIncluded
+              ? 'bg-white border-[#E2DACB]'
+              : 'bg-[#FAF8F5]/60 border-[#E2DACB] opacity-60'
+          }`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-[#E2DACB]">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-[#252321]">
+                  {idx + 1}. كتاب: {ev.source_book}
+                </span>
+                {(() => {
+                  const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                  return (
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                    >
+                      {lakeBadge.tag}
+                    </span>
+                  );
+                })()}
+                {(ev.volume || ev.page) && (
+                  <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/40 text-[#8D4925] font-mono text-[11px] font-bold">
+                    {[
+                      ev.volume ? `ج ${ev.volume}` : '',
+                      ev.page ? `ص ${ev.page}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' / ')}
+                  </span>
+                )}
+                {ev.consensus_badge && (
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200 text-[10px] font-bold">
+                    {ev.consensus_badge}
+                  </span>
+                )}
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    ev.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                      : 'bg-[#EDE6DA] text-[#5C5346]'
+                  }`}
+                >
+                  {ev.priority_tier === 'PRIORITY_1_COUNTRY_BOOK'
+                    ? 'كتاب دولة العميل - أولوية 1'
+                    : 'مرجع عام - أولوية 2'}
+                </span>
+                {(Boolean(ev.other_sources && ev.other_sources.trim()) ||
+                  (Array.isArray(ev.parsed_other_sources) &&
+                    ev.parsed_other_sources.length > 0)) && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-extrabold">
+                    ⚠️ إحالات لمصادر أخرى في الهامش (
+                    {ev.parsed_other_sources?.length || 1})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-[#B98A78]/50 bg-white text-[11px] font-bold text-[#252321] cursor-pointer hover:border-[#D8755B]">
+                <input
+                  type="checkbox"
+                  checked={isIncluded}
+                  onChange={() => toggleSourceInclusion(ticket, idx)}
+                  className="w-3.5 h-3.5 accent-[#D8755B] cursor-pointer"
+                />
+                <span>☑️ اعتماد هذا المصدر في توثيق العائلة</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleSetPrimaryNarrativeForTicket(ticket, idx, ev)
+                }
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                  isPrimary
+                    ? 'bg-[#D8755B] text-white shadow-2xs'
+                    : 'bg-white border border-[#B98A78]/50 text-[#252321] hover:border-[#D8755B]'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5" />
+                <span>
+                  {isPrimary
+                    ? '⭐ الرواية الأساسية المعتمدة لعمود العائلة ✓'
+                    : '⭐ تعيين كـ "الرواية الأساسية المعتمدة لعمود العائلة"'}
+                </span>
+              </button>
+
+              {!isPrimary && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSpliceNarrativeAbovePrimary(ticket, idx, ev)
+                  }
+                  className="px-3 py-1 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                >
+                  <GitMerge className="w-3.5 h-3.5" />
+                  <span>
+                    🔗 دمج/إلحاق أجداد هذه الرواية أعلى الرواية الأساسية
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {(parsedBranches.length > 0 || parsedLocations.length > 0) && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-[#FAF6F0] rounded-xl p-3 border border-[#E2DACB]">
+              {parsedBranches.length > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold text-[#5C5346] block mb-1">
+                    الفروع الأبناء المذكورة في السجل (child_branches):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedBranches.map((br, bIdx) => {
+                      const isShared = (branchFreq.get(br) || 0) >= 2;
+                      return (
+                        <span
+                          key={bIdx}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 ${
+                            isShared
+                              ? 'bg-emerald-50 border border-emerald-300 text-emerald-950'
+                              : 'bg-white border border-[#E2DACB] text-[#252321]'
+                          }`}
+                        >
+                          <span>{br}</span>
+                          {isShared && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-700 text-white">
+                              قرينة تقاطع مشتركة
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {parsedLocations.length > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold text-[#5C5346] block mb-1">
+                    المواطن والنطاق الجغرافي (locations):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedLocations.map((loc, lIdx) => {
+                      const isShared = (locationFreq.get(loc) || 0) >= 2;
+                      return (
+                        <span
+                          key={lIdx}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 ${
+                            isShared
+                              ? 'bg-amber-50 border border-[#B98A78]/50 text-[#8D4925]'
+                              : 'bg-white border border-[#E2DACB] text-[#252321]'
+                          }`}
+                        >
+                          <span>📍 {loc}</span>
+                          {isShared && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#8D4925] text-white">
+                              قرينة تقاطع مشتركة
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3">
+            <span className="text-[11px] font-bold text-[#5C5346] block mb-2">
+              سلسلة نسب الأجداد في هذا المصدر (انقر على أي جد لـ 🔍 فحص في شجرة آدم):
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {displayChain.map((nodeName: string, nodeIdx: number) => {
+                const isInspected =
+                  inlineChainInspection?.ticketId === ticket.id &&
+                  inlineChainInspection?.sourceIdx === idx &&
+                  inlineChainInspection?.queriedName === nodeName;
+                return (
+                  <React.Fragment key={nodeIdx}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleInspectChainNodeInAdam(ticket.id, idx, nodeName)
+                      }
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                        isInspected
+                          ? 'bg-[#D8755B] text-white border-[#D8755B]'
+                          : 'bg-white hover:bg-[#FAF6F0] text-[#252321] border-[#E2DACB]'
+                      }`}
+                    >
+                      <span>{nodeName}</span>
+                      <span
+                        className={`text-[10px] font-normal ${
+                          isInspected ? 'text-white/90' : 'text-[#8D4925]'
+                        }`}
+                      >
+                        🔍 فحص في شجرة آدم
+                      </span>
+                    </button>
+                    {nodeIdx < displayChain.length - 1 && (
+                      <span className="text-[#B98A78] text-xs font-bold">
+                        ⬅️
+                      </span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {inlineChainInspection &&
+            inlineChainInspection.ticketId === ticket.id &&
+            inlineChainInspection.sourceIdx === idx && (
+              <div
+                className={`mt-3 p-3.5 rounded-xl border text-xs ${
+                  inlineChainInspection.foundInAdam
+                    ? 'bg-emerald-50 text-emerald-950 border-emerald-300'
+                    : 'bg-amber-50 text-[#8D4925] border-[#B98A78]/50'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-bold">
+                    {inlineChainInspection.foundInAdam &&
+                    inlineChainInspection.matchedNode ? (
+                      <span>
+                        ✅ العقدة «{inlineChainInspection.queriedName}» مفهرسة
+                        وموجودة في شجرة آدم (الكود:{' '}
+                        {inlineChainInspection.matchedNode.arc_code} — المعرف:{' '}
+                        {inlineChainInspection.matchedNode.node_id})
+                      </span>
+                    ) : (
+                      <span>
+                        ⚠️ العقدة «{inlineChainInspection.queriedName}» غير
+                        مفهرسة بعد في شجرة آدم — جاهزة للإدراج والربط المباشر
+                      </span>
+                    )}
+                  </div>
+
+                  {inlineChainInspection.foundInAdam &&
+                    inlineChainInspection.matchedNode && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inlineChainInspection.matchedNode) {
+                            setSelectedAdamNodeId(
+                              inlineChainInspection.matchedNode.node_id
+                            );
+                            setActiveSubTab('adam_tree_explorer');
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold cursor-pointer"
+                      >
+                        🌳 فتح هذا السجل في تبويب شجرة آدم ↗
+                      </button>
+                    )}
+                </div>
+
+                {inlineChainInspection.foundInAdam &&
+                  inlineChainInspection.adamChainPreview.length > 0 && (
+                    <p className="text-[11px] text-emerald-900 mt-1.5 font-mono">
+                      الاتصال في شجرة آدم:{' '}
+                      {inlineChainInspection.adamChainPreview.join(' ⬅️ ')}
+                    </p>
+                  )}
+              </div>
+            )}
+
+          <div className="mt-3 pt-2 border-t border-[#E2DACB]">
+            <input
+              type="text"
+              value={sourceResearcherNotes[noteKey] || ''}
+              onChange={(e) =>
+                setSourceResearcherNotes((prev) => ({
+                  ...prev,
+                  [noteKey]: e.target.value,
+                }))
+              }
+              placeholder="ملاحظة الباحث التحقيقية على هذه الرواية (اختياري)..."
+              className="w-full px-3 py-1.5 rounded-lg border border-[#E2DACB] bg-white text-xs focus:outline-none focus:border-[#D8755B]"
+            />
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div
         data-testid="gamified-ticket-operations-workspace"
-        className="rounded-3xl border-2 border-[#141414] bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] p-5 sm:p-6 shadow-sm space-y-6"
+        className="rounded-3xl border border-[#E2DACB] bg-[#FAF6F0]/60 p-5 sm:p-6 shadow-2xs space-y-5 relative"
       >
         {/* =========================================================
             P3 STRATEGIC SELECTION WEIGHT & REASONS CARD (WHEN P3 TICKET)
@@ -3269,30 +3442,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         {ticket.p3StrategicMeta && (
           <div
             data-testid="p3-strategic-selection-card"
-            className="rounded-2xl border-2 border-emerald-600 bg-gradient-to-l from-emerald-950 via-emerald-900 to-stone-900 text-white p-4 space-y-2.5 shadow-xs"
+            className="rounded-2xl border border-emerald-300 bg-gradient-to-l from-emerald-50 via-[#FAF6F0] to-white text-[#252321] p-4 space-y-2 shadow-2xs"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-xl bg-amber-400 text-stone-950 font-mono text-xs font-extrabold shadow-2xs">
+                <span className="px-3 py-1 rounded-xl bg-emerald-700 text-white font-mono text-xs font-extrabold shadow-2xs">
                   [★ وزن استراتيجي: {ticket.p3StrategicMeta.strategic_score} نقطة]
                 </span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-bold">
+                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100/80 border border-emerald-300 text-emerald-950 text-xs font-bold">
                   🟢 أولوية 3 (P3): التعدين الاستباقي الذكي لعقد ألفا ذات الثقل المرجعي
                 </span>
               </div>
-              <span className="text-[11px] font-mono text-amber-300">
+              <span className="text-[11px] font-mono text-[#8D4925] font-bold">
                 Auto-Refill Mining Queue
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-stone-300 font-bold">
+              <span className="text-[#5C5346] font-bold">
                 أسباب الاختيار الذكي:
               </span>
               {ticket.p3StrategicMeta.why_selected_reasons.map((reason, rIdx) => (
                 <span
                   key={rIdx}
-                  className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-amber-200 font-bold text-[11px]"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] text-[#8D4925] font-bold text-[11px]"
                 >
                   • {reason}
                 </span>
@@ -3302,391 +3475,732 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         )}
 
         {/* =========================================================
-            PILLAR 1(A): EMBEDDED DIAGNOSTIC DRAWER (أكورديون/درج التشخيص الخوارزمي المدمج)
-            Reverse Auto-Hydrated Diagnostic Context inside Ticket Operations Room
+            QUEST PROGRESS BAR HEADER (0% -> 100%) + 4-STEP WORKFLOW TABS
         ========================================================= */}
-        <div
-          data-testid="embedded-diagnostic-drawer"
-          className="rounded-2xl border-2 border-amber-500/80 bg-gradient-to-l from-amber-50/90 via-[#FAF8F5] to-white overflow-hidden shadow-2xs"
-        >
-          <div
-            onClick={() => setIsDiagnosticDrawerOpen((prev) => !prev)}
-            className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-amber-50/60 transition-colors"
-          >
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-lg bg-[#141414] text-amber-300 text-[11px] font-extrabold">
-                  🔬 درج التشخيص الخوارزمي المدمج (Reverse Auto-Hydrated Diagnostic)
-                </span>
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-bold">
-                  مُغذّى آلياً دون مغادرة التذكرة ✓
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-stone-700 pt-0.5">
-                <span>
-                  المصادر الخام: <strong>{diagnosticCtx.rawSourcesCount}</strong>
-                </span>
-                <span>·</span>
-                <span>
-                  العمليات الخوارزمية:{' '}
-                  <strong>{diagnosticCtx.pipelineAuditBullets.length} مراحل</strong>
-                </span>
-                <span>·</span>
-                <span className="text-amber-950 font-extrabold">
-                  عقدتا الجذر: B2 ({diagnosticCtx.rootBranchB2}) ⬅️ B0 (
-                  {diagnosticCtx.rootTribeB0})
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              data-testid="toggle-embedded-diagnostic-drawer-btn"
-              className="px-3 py-1.5 rounded-xl bg-white border border-amber-400 text-amber-950 text-xs font-extrabold flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <span>
-                {isDiagnosticDrawerOpen
-                  ? 'طيّ درج التشخيص الفوري'
-                  : 'فتح درج التشخيص الفوري الكامل'}
-              </span>
-              {isDiagnosticDrawerOpen ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-
-          {isDiagnosticDrawerOpen && (
-            <div className="p-4 pt-0 border-t border-amber-200/80 space-y-4 bg-white/90">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-3">
-                {/* 1. Raw Sources Summary inside Drawer (5 cols) */}
-                <div className="lg:col-span-5 rounded-xl bg-[#FAF8F5] border border-stone-200 p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-extrabold text-[#141414]">
-                      1️⃣ ملخص المصادر الخام المرصودة ({allTicketEvidence.length})
-                    </h5>
-                    <span className="text-[10px] font-mono text-stone-500">
-                      Raw Sources
-                    </span>
-                  </div>
-                  {allTicketEvidence.length === 0 ? (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] font-bold text-amber-950">
-                      تذكرة عميل (P1) بدون تطابق مباشر في المعاجم الحالية — موجهة للتحقيق المعمق.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                      {allTicketEvidence.map((ev, eIdx) => {
-                        const lakeBadge = resolveResearcherDataLakeBadge(ev);
-                        const rawChainTokens = extractRawRecordAncestors(ev);
-                        return (
-                          <div
-                            key={ev.alpha_id || eIdx}
-                            className="rounded-xl bg-white border border-stone-200 p-2.5 space-y-1.5 shadow-2xs"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-1">
-                              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-800 text-[10px] font-bold">
-                                {formatAlphaReferenceBadge(ev)}
-                              </span>
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
-                              >
-                                {lakeBadge.tag}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-stone-800 font-bold leading-relaxed">
-                              {rawChainTokens.join(' ⬅️ ')}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. 8-Stage Pipeline Audit inside Drawer (7 cols) */}
-                <div className="lg:col-span-7 rounded-xl bg-amber-50/50 border border-amber-200 p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-extrabold text-amber-950">
-                      2️⃣ سجل العمليات الخوارزمية الـ 8 (8-Stage Pipeline Audit)
-                    </h5>
-                    <span className="px-2 py-0.5 rounded bg-amber-900 text-amber-100 font-mono text-[10px] font-bold">
-                      B2: {diagnosticCtx.rootBranchB2} ⬅️ B0: {diagnosticCtx.rootTribeB0}
-                    </span>
-                  </div>
-                  <ul className="space-y-1.5 text-[11px] text-stone-800 max-h-60 overflow-y-auto pr-1">
-                    {diagnosticCtx.pipelineAuditBullets.map((b, bIdx) => (
-                      <li
-                        key={bIdx}
-                        className="flex items-start gap-2 bg-white/90 rounded-lg px-2.5 py-1.5 border border-amber-200/70"
-                      >
-                        <span className="shrink-0">{b.icon}</span>
-                        <div>
-                          <strong className="text-amber-950">{b.title}:</strong>{' '}
-                          <span>{b.detail}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* =========================================================
-            QUEST PROGRESS BAR HEADER (0% -> 100%)
-        ========================================================= */}
-        <div className="rounded-2xl bg-[#141414] text-white p-4 sm:p-5 space-y-3 shadow-xs">
+        <div className="rounded-2xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 text-[#252321] p-4 sm:p-5 space-y-3.5 border border-[#B98A78]/45 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-stone-950 text-[11px] font-extrabold">
-                  🎮 غرفة عمليات التذكرة التفاعلية (1-Click Studio)
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#D8755B] text-white text-[11px] font-display font-extrabold">
+                  🧭 مرصد جذوري — غرفة عمليات التذكرة التفاعلية
                 </span>
-                <span className="text-xs text-stone-300 font-mono">
+                <span className="text-xs text-[#8D4925] font-mono font-bold">
                   {ticket.id}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-stone-800 border border-stone-600 text-amber-300 font-mono text-[11px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E2DACB] text-[#8D4925] font-mono text-[11px] font-bold">
                   ⏱️ زمن التذكرة النشطة: {formatDurationMmSs(activeTicketElapsedSeconds)}
                 </span>
               </div>
-              <h4 className="text-sm sm:text-base font-extrabold font-serif text-amber-300">
-                شريط إنجاز التذكرة (Quest Progress Bar): خطوات سريعة بنقرة واحدة لإغلاق التذكرة وتغذية شجرة آدم
+              <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+                شريط إنجاز التذكرة (Quest Progress Bar): 4 خطوات متسلسلة لحسم التذكرة وتغذية شجرة آدم
               </h4>
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAllWorkflowStepsAtOnce((prev) => !prev)}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA]/70 border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-bold cursor-pointer transition-all"
+              >
+                {showAllWorkflowStepsAtOnce
+                  ? '📑 وضع التبويبات المتسلسلة (4 مراحل)'
+                  : '📜 عرض كافة المراحل في صفحة واحدة'}
+              </button>
               <span
                 data-testid="quest-progress-percentage"
-                className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-stone-950 font-mono text-sm font-extrabold shadow-xs"
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-700 text-white font-mono text-sm font-extrabold shadow-2xs"
               >
                 {questProgressPercent}% مكتمل
               </span>
             </div>
           </div>
 
-          <div className="w-full h-3.5 rounded-full bg-stone-800 overflow-hidden p-0.5 border border-stone-700">
+          <div className="w-full h-3 rounded-full bg-[#EDE6DA] overflow-hidden p-0.5 border border-[#B98A78]/40">
             <div
-              className="h-full rounded-full bg-gradient-to-l from-emerald-400 via-amber-400 to-amber-500 transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-l from-emerald-600 via-[#D8755B] to-emerald-600 transition-all duration-500"
               style={{ width: `${questProgressPercent}%` }}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
-            <div
-              className={`rounded-xl px-3 py-2 border flex items-center justify-between ${
-                isBridgeConnected
-                  ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
-                  : 'bg-stone-900 border-stone-700 text-stone-300'
-              }`}
-            >
-              <span className="font-bold">
-                1️⃣ المحطة 1: باني السلسلة وجسر آدم
-              </span>
-              <span className="font-mono text-[11px] font-extrabold">
-                {isBridgeConnected ? '✅ مكتملة' : 'قيد الوصل'}
-              </span>
-            </div>
-
-            <div
-              className={`rounded-xl px-3 py-2 border flex items-center justify-between ${
-                isStation2Completed
-                  ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
-                  : 'bg-stone-900 border-stone-700 text-stone-300'
-              }`}
-            >
-              <span className="font-bold">
-                2️⃣ المحطة 2: إثراء العقدة والفروع
-              </span>
-              <span className="font-mono text-[11px] font-extrabold">
-                {isStation2Completed ? '✅ مكتملة' : 'جاهزة بنقرة'}
-              </span>
-            </div>
-
-            <div
-              className={`rounded-xl px-3 py-2 border flex items-center justify-between ${
-                isStation3Completed
-                  ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
-                  : 'bg-stone-900 border-stone-700 text-stone-300'
-              }`}
-            >
-              <span className="font-bold">
-                3️⃣ المحطة 3: توثيق المصادر الإضافية ({verifiedLeadsCount}/
-                {extractedLeads.length})
-              </span>
-              <span className="font-mono text-[11px] font-extrabold">
-                {isStation3Completed ? '✅ مكتملة' : 'بانتظار التوثيق'}
-              </span>
-            </div>
+          {/* 4-STEP SEQUENTIAL WORKFLOW TABS BAR */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+            {[
+              {
+                step: 1 as const,
+                title: '1️⃣ الفحص والأدلة المرجعية',
+                sub: `${allTicketEvidence.length} مصادر · كشّاف الأنساب`,
+                done: allTicketEvidence.length > 0,
+              },
+              {
+                step: 2 as const,
+                title: '2️⃣ هندسة العمود وجسر آدم',
+                sub: isBridgeConnected
+                  ? '✅ متصل بشجرة آدم'
+                  : `${liveNodes.length} محطات في السلسلة`,
+                done: isBridgeConnected,
+              },
+              {
+                step: 3 as const,
+                title: '3️⃣ إثراء العقدة والمصادر الهامشية',
+                sub: `إثراء (${activeSourceIndices.length}) · هامش (${verifiedLeadsCount}/${extractedLeads.length})`,
+                done: isStation2Completed && isStation3Completed,
+              },
+              {
+                step: 4 as const,
+                title: '4️⃣ المعاينة النهائية والاعتماد',
+                sub: 'معاينة العمود ومخرجات العميل',
+                done:
+                  ticket.status === 'CLOSED_AND_ENRICHED' ||
+                  ticket.status === 'merged_closed',
+              },
+            ].map((tabItem) => {
+              const isCurrent =
+                !showAllWorkflowStepsAtOnce &&
+                activeTicketWorkflowStep === tabItem.step;
+              return (
+                <button
+                  key={tabItem.step}
+                  type="button"
+                  data-testid={`workflow-tab-${tabItem.step}-btn`}
+                  onClick={() => {
+                    setShowAllWorkflowStepsAtOnce(false);
+                    setActiveTicketWorkflowStep(tabItem.step);
+                  }}
+                  className={`rounded-xl px-3.5 py-2.5 border text-right transition-all cursor-pointer flex flex-col justify-between gap-1 ${
+                    isCurrent
+                      ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-sm'
+                      : tabItem.done
+                      ? 'bg-emerald-50/80 border-emerald-300 text-[#252321] hover:border-[#D8755B]'
+                      : 'bg-white border-[#E2DACB] text-[#252321] hover:bg-[#FAF6F0] hover:border-[#B98A78]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-xs font-extrabold">
+                      {tabItem.title}
+                    </span>
+                    {tabItem.done && (
+                      <span
+                        className={`text-[10px] font-mono font-extrabold px-1.5 py-0.5 rounded ${
+                          isCurrent
+                            ? 'bg-white text-[#D8755B]'
+                            : 'bg-emerald-700 text-white'
+                        }`}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] ${
+                      isCurrent
+                        ? 'text-white/95 font-bold'
+                        : 'text-[#8D4925] font-medium'
+                    }`}
+                  >
+                    {tabItem.sub}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* =========================================================
-            STATION 1: المحطة 1 — باني السلسلة التفاعلي وجسر شجرة آدم
-        ========================================================= */}
+        {/* ===================================================================
+            WORKFLOW TAB 1: [1️⃣ الفحص والأدلة المرجعية]
+        =================================================================== */}
         <div
-          data-testid="workspace-station-1-lego-chain-builder"
-          className="rounded-2xl border-2 border-emerald-600/80 bg-emerald-50/30 p-4 sm:p-5 space-y-4"
+          data-testid="workflow-step-1-panel"
+          className={
+            activeTicketWorkflowStep === 1 || showAllWorkflowStepsAtOnce
+              ? 'block space-y-5'
+              : 'hidden'
+          }
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 pb-3">
-            <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 rounded-xl bg-emerald-800 text-white font-mono text-xs font-extrabold flex items-center justify-center">
-                1
-              </span>
-              <div>
-                <h5 className="text-sm font-extrabold font-serif text-emerald-950">
-                  المحطة 1: باني السلسلة التفاعلي وجسر شجرة آدم (Interactive Lego Chain Builder & Adam Bridge)
-                </h5>
-                <p className="text-[11px] text-stone-600">
-                  احذف أي شائبة بعلامة (×)، أو حرّك الكبسولات، أو اكتب اسم جد واضغط Enter، أو انقر على مقترحات البحيرة الثالثة لإضافتها بنقرة واحدة
-                </p>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded-xl bg-emerald-800 text-white text-xs font-bold">
-              {liveNodes.length} كبسولات في السلسلة
-            </span>
-          </div>
-
-          <div className="rounded-2xl bg-white border border-emerald-200 p-3.5 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {liveNodes.map((node, nIdx) => (
-                <React.Fragment key={node.id || nIdx}>
-                  <div
-                    data-testid={`lego-chain-chip-${nIdx}`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xs transition-all ${
-                      nIdx === 0
-                        ? 'bg-purple-50 border-purple-300 text-purple-950'
-                        : nIdx === liveNodes.length - 1
-                        ? 'bg-amber-50 border-amber-400 text-amber-950'
-                        : 'bg-[#FAF8F5] border-stone-300 text-stone-900'
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/10">
-                      {node.nodeCode || (nIdx === 0 ? 'FE0' : 'B1')}
+          {/* 1A: EMBEDDED DIAGNOSTIC DRAWER — كشّاف جذوري للأنساب */}
+          <div
+            data-testid="embedded-diagnostic-drawer"
+            className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] text-[#252321] overflow-hidden shadow-2xs"
+          >
+            <div
+              onClick={() => setIsDiagnosticDrawerOpen((prev) => !prev)}
+              className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-[#EDE6DA]/60 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-white p-0.5 border border-[#B98A78] shadow-2xs shrink-0 flex items-center justify-center overflow-hidden">
+                  <img
+                    src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
+                    alt="كشّاف جذوري للأنساب"
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-[#8D4925] text-white text-[11px] font-display font-extrabold">
+                      🧭 كشّاف جذوري للأنساب — درج التشخيص الخوارزمي المدمج (8-Stage Pipeline Audit)
                     </span>
-                    <span>{node.name}</span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] font-bold">
+                      مُغذّى آلياً دون مغادرة التذكرة ✓
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#5C5346] pt-0.5">
+                    <span>
+                      المصادر الخام: <strong className="text-[#8D4925]">{diagnosticCtx.rawSourcesCount}</strong>
+                    </span>
+                    <span>·</span>
+                    <span>
+                      العمليات الخوارزمية:{' '}
+                      <strong className="text-emerald-800">{diagnosticCtx.pipelineAuditBullets.length} مراحل</strong>
+                    </span>
+                    <span>·</span>
+                    <span className="text-[#8D4925] font-extrabold">
+                      عقدتا الجذر: B2 ({diagnosticCtx.rootBranchB2}) ⬅️ B0 (
+                      {diagnosticCtx.rootTribeB0})
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                    {nIdx > 0 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleMoveLivePreviewNode(ticket, nIdx, 'up')
-                        }
-                        className="px-1 rounded hover:bg-stone-200 text-stone-600 text-[11px] cursor-pointer"
-                        title="تقديم المحطة"
-                      >
-                        →
-                      </button>
-                    )}
-                    {nIdx < liveNodes.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleMoveLivePreviewNode(ticket, nIdx, 'down')
-                        }
-                        className="px-1 rounded hover:bg-stone-200 text-stone-600 text-[11px] cursor-pointer"
-                        title="تأخير المحطة"
-                      >
-                        ←
-                      </button>
-                    )}
+              <button
+                type="button"
+                data-testid="toggle-embedded-diagnostic-drawer-btn"
+                className="px-3.5 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <span>
+                  {isDiagnosticDrawerOpen
+                    ? 'طيّ كشّاف جذوري التشخيصي'
+                    : 'فتح كشّاف جذوري التشخيصي الكامل'}
+                </span>
+                {isDiagnosticDrawerOpen ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
 
-                    {liveNodes.length > 2 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoveLivePreviewNode(ticket, nIdx)
-                        }
-                        className="w-4 h-4 rounded-full bg-red-100 hover:bg-red-600 text-red-700 hover:text-white flex items-center justify-center text-[11px] font-extrabold cursor-pointer transition-colors"
-                        title="حذف هذه العقدة من السلسلة بنقرة واحدة"
-                      >
-                        ×
-                      </button>
+            {isDiagnosticDrawerOpen && (
+              <div className="p-4 pt-0 border-t border-[#E2DACB] space-y-4 bg-white">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-3">
+                  {/* 1. Raw Sources Summary inside Drawer (5 cols) */}
+                  <div className="lg:col-span-5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-extrabold font-display text-[#8D4925]">
+                        1️⃣ ملخص المصادر الخام المرصودة ({allTicketEvidence.length})
+                      </h5>
+                      <span className="text-[10px] font-mono text-[#5C5346] font-bold">
+                        Raw Sources
+                      </span>
+                    </div>
+                    {allTicketEvidence.length === 0 ? (
+                      <div className="rounded-lg bg-white border border-[#E2DACB] p-2.5 text-[11px] font-bold text-[#8D4925]">
+                        تذكرة عميل (P1) بدون تطابق مباشر في المعاجم الحالية — موجهة للتحقيق المعمق.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {allTicketEvidence.map((ev, eIdx) => {
+                          const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                          const rawChainTokens = extractRawRecordAncestors(ev);
+                          return (
+                            <div
+                              key={ev.alpha_id || eIdx}
+                              className="rounded-xl bg-white border border-[#E2DACB] p-2.5 space-y-1.5"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-1">
+                                <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-[10px] font-bold">
+                                  {formatAlphaReferenceBadge(ev)}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                >
+                                  {lakeBadge.tag}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#252321] font-bold leading-relaxed">
+                                {rawChainTokens.join(' ⬅️ ')}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
-                  {nIdx < liveNodes.length - 1 && (
-                    <span className="text-emerald-700 font-bold text-xs">
-                      ⬅️
-                    </span>
-                  )}
-                </React.Fragment>
-              ))}
 
-              <div className="inline-flex items-center gap-1">
-                <input
-                  type="text"
-                  value={quickAncestorInputByTicket[ticket.id] || ''}
-                  onChange={(e) =>
-                    setQuickAncestorInputByTicket((prev) => ({
-                      ...prev,
-                      [ticket.id]: e.target.value,
-                    }))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleQuickAddChipToChain(
-                        quickAncestorInputByTicket[ticket.id] || ''
-                      );
-                    }
-                  }}
-                  placeholder="+ اكتب اسم جد واضغط Enter..."
-                  className="px-3 py-1.5 rounded-xl border border-dashed border-emerald-500 bg-emerald-50/40 text-xs font-bold text-stone-900 focus:outline-none focus:border-emerald-700 w-48"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleQuickAddChipToChain(
-                      quickAncestorInputByTicket[ticket.id] || ''
-                    )
-                  }
-                  className="px-2.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer"
-                >
-                  إضافة
-                </button>
-              </div>
-            </div>
-
-            {lake3SuggestionNames.length > 0 && (
-              <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-bold text-stone-600">
-                  💡 مقترحات البحيرة الثالثة والروايات لإضافتها للسلسلة بنقرة واحدة:
-                </span>
-                {lake3SuggestionNames.map((sugName, sIdx) => (
-                  <button
-                    key={sIdx}
-                    type="button"
-                    onClick={() => handleQuickAddChipToChain(sugName)}
-                    className="px-2.5 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-950 text-[11px] font-bold cursor-pointer transition-all"
-                  >
-                    + {sugName}
-                  </button>
-                ))}
+                  {/* 2. 8-Stage Pipeline Audit inside Drawer (7 cols) */}
+                  <div className="lg:col-span-7 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-extrabold font-display text-[#8D4925]">
+                        2️⃣ سجل العمليات الخوارزمية الـ 8 (8-Stage Pipeline Audit)
+                      </h5>
+                      <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900 font-mono text-[10px] font-bold">
+                        B2: {diagnosticCtx.rootBranchB2} ⬅️ B0: {diagnosticCtx.rootTribeB0}
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5 text-[11px] text-[#252321] max-h-60 overflow-y-auto pr-1">
+                      {diagnosticCtx.pipelineAuditBullets.map((b, bIdx) => (
+                        <li
+                          key={bIdx}
+                          className="flex items-start gap-2 bg-white rounded-lg px-2.5 py-1.5 border border-[#E2DACB]"
+                        >
+                          <span className="shrink-0">{b.icon}</span>
+                          <div>
+                            <strong className="text-[#8D4925]">{b.title}:</strong>{' '}
+                            <span>{b.detail}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {ticket.suggestedAdamBridge && (
-            <div className="rounded-2xl bg-emerald-950 text-white p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-200 text-[10px] font-bold">
-                      جسر شجرة آدم المقترح آلياً
+          {/* 1B: AI Research Hypothesis Card */}
+          <div
+            data-testid="section1-ai-research-hypothesis-and-bridge"
+            className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 shadow-2xs space-y-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-bold">
+                  التحليل الاستدلالي الذكي للباحث
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#5C5346] text-[11px] font-bold">
+                  حصرياً لفريق التحقيق (غير معروض للعميل)
+                </span>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-[#8D4925]">
+                AI Research Hypothesis v11.1
+              </span>
+            </div>
+
+            <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+              🧠 التنبيه الاستدلالي الذكي وتحليل القرائن للباحث (AI Research Hypothesis)
+            </h4>
+
+            <div className="space-y-2">
+              {hypotheses.map((hyp, hIdx) => (
+                <div
+                  key={hIdx}
+                  className="rounded-xl bg-white border border-[#E2DACB] p-3.5 text-xs text-[#252321] leading-relaxed font-medium shadow-2xs"
+                >
+                  {hyp}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 1C: CONSENSUS WINNER & COMPETING PATHS COMPARISON */}
+          {renderConsensusAndCompetingPathsMatrix(
+            ticket.familyName,
+            ticket.corroboratingEvidence,
+            'ticket_inbox'
+          )}
+
+          {/* 1D: مصفوفة تفكيك ومقارنة المصادر والروايات */}
+          <div
+            data-testid="lake2-corroborating-alpha-sources"
+            className="space-y-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
+                  البحيرة 2 — معاجم ومشاريع ألفا
+                </span>
+                <h4 className="text-sm font-bold font-display text-[#252321] mt-1">
+                  📚 مصفوفة تفكيك ومقارنة المصادر والروايات (
+                  {allTicketEvidence.length} مصادر)
+                </h4>
+              </div>
+              <span className="px-3 py-1 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#8D4925]">
+                المصادر المعتمدة للتوثيق:{' '}
+                {getTicketIncludedIndices(ticket).length} من{' '}
+                {allTicketEvidence.length}
+              </span>
+            </div>
+
+            {/* GROUP 1: 🌟 مراجع مسار التوافق الأساسي */}
+            <div className="rounded-2xl border border-emerald-300 bg-emerald-50/40 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm font-extrabold font-display text-emerald-950">
+                  🌟 مراجع مسار التوافق الأساسي (is_consensus_winner: true)
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white text-[11px] font-bold">
+                  {winnerItems.length} مصادر متفقة
+                </span>
+              </div>
+              <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+                {winnerItems.map(({ ev, originalIdx }) =>
+                  renderEvidenceCard(ev, originalIdx)
+                )}
+              </div>
+            </div>
+
+            {/* GROUP 2: 📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق */}
+            <div className="rounded-2xl border border-[#B98A78]/45 bg-[#FAF6F0] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm font-extrabold font-display text-[#8D4925]">
+                  📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق (is_consensus_winner: false)
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#8D4925] text-[11px] font-bold">
+                  {competingItems.length} روايات موازية للمقارنة أو الدمج
+                </span>
+              </div>
+              {competingItems.length === 0 ? (
+                <p className="text-xs text-[#5C5346] bg-white rounded-xl p-3 border border-[#E2DACB]">
+                  جميع مصادر البحيرة 2 لاسم ({ticket.familyName}) تتفق على مسار التوافق الأساسي أعلاه ولا توجد روايات متشابهة متعارضة.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                  {competingItems.map(({ ev, originalIdx }) =>
+                    renderEvidenceCard(ev, originalIdx)
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 1E: روافد البحيرة الثالثة والمشاريع الخاصة */}
+          {ticket.lake3UnlinkedProjects &&
+            ticket.lake3UnlinkedProjects.length > 0 && (
+              <div
+                data-testid="lake3-unlinked-projects"
+                className="rounded-2xl border border-[#E2DACB] bg-[#FAF6F0] p-4 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#EDE6DA] text-[#5C5346] text-[11px] font-bold">
+                      روافد البحيرة الثالثة والمشاريع الخاصة
                     </span>
-                    <span className="font-mono text-[11px] text-amber-300 font-bold">
-                      العقدة #{ticket.suggestedAdamBridge.adam_node_id} (
-                      {ticket.suggestedAdamBridge.matched_station_name})
-                    </span>
+                    <h4 className="text-xs sm:text-sm font-bold font-display text-[#252321] mt-1">
+                      🗂️ سجلات استئناسية داعمة للباحث مع إمكانية إلحاقها بالمصادر المعتمدة
+                    </h4>
                   </div>
-                  <p className="text-xs font-mono text-stone-200">
-                    {liveNodes.map((n) => n.name).join(' ⬅️ ')} ⬅️{' '}
-                    <strong className="text-amber-300">
-                      {appliedAdamBridgeByTicket[ticket.id] ||
-                        ticket.suggestedAdamBridge.adam_chain_preview}
-                    </strong>
+                  <span className="px-2.5 py-0.5 rounded-lg bg-[#8D4925] text-white text-[11px] font-mono font-bold">
+                    {ticket.lake3UnlinkedProjects.length} سجلات
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5">
+                  {ticket.lake3UnlinkedProjects.map((rec) => {
+                    const isAttached = (
+                      includedLake3IdsByTicket[ticket.id] || []
+                    ).includes(rec.record_id);
+                    return (
+                      <div
+                        key={rec.record_id}
+                        className={`rounded-xl border p-3.5 space-y-1.5 transition-all ${
+                          isAttached
+                            ? 'bg-emerald-50/70 border-emerald-400'
+                            : 'bg-white border-[#E2DACB]'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-[#252321]">
+                              {rec.project_source}
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold border bg-purple-50 text-purple-900 border-purple-200">
+                              [مشاريع]
+                            </span>
+                            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#FAF6F0] text-[#5C5346]">
+                              {rec.family_or_tribe_name}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleLake3RecordInclusion(
+                                ticket.id,
+                                rec.record_id
+                              )
+                            }
+                            className={`px-3 py-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all ${
+                              isAttached
+                                ? 'bg-emerald-700 text-white'
+                                : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
+                            }`}
+                          >
+                            {isAttached
+                              ? '✓ تم الإلحاق بالمصادر المعتمدة'
+                              : '➕ إلحاق بالمصادر المعتمدة'}
+                          </button>
+                        </div>
+                        <p className="text-xs text-[#252321] leading-relaxed">
+                          {rec.snippet}
+                        </p>
+                        {rec.locations && (
+                          <p className="text-[11px] text-[#5C5346]">
+                            📍 المواضع المذكورة: {rec.locations}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+          {!showAllWorkflowStepsAtOnce && (
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveTicketWorkflowStep(2)}
+                className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-2"
+              >
+                <span>التالي: 2️⃣ هندسة العمود وجسر آدم ⬅️</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ===================================================================
+            WORKFLOW TAB 2: [2️⃣ هندسة العمود وجسر آدم]
+        =================================================================== */}
+        <div
+          data-testid="workflow-step-2-panel"
+          className={
+            activeTicketWorkflowStep === 2 || showAllWorkflowStepsAtOnce
+              ? 'block space-y-5'
+              : 'hidden'
+          }
+        >
+          <div
+            data-testid="workspace-station-1-lego-chain-builder"
+            className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-xl bg-[#D8755B] text-white font-mono text-xs font-extrabold flex items-center justify-center">
+                  2
+                </span>
+                <div>
+                  <h5 className="text-sm font-extrabold font-display text-[#252321]">
+                    ورشة هندسة عمود النسب الموحدة وجسر شجرة آدم (Interactive Lego Chain Builder & Arc Coding)
+                  </h5>
+                  <p className="text-[11px] text-[#5C5346]">
+                    عدّل اسم أي محطة أو كودها الهيكلي (FE0 / B2 / B1 / B0) ونوع الرابط (بن / من)، أو احذف أي شائبة بعلامة (×)، أو أضف محطات جديدة بنقرة واحدة
                   </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-xl bg-white border border-[#E2DACB] text-[#8D4925] text-xs font-bold">
+                  {liveNodes.length} محطات في السلسلة
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextNodes: ExtractableLineageNode[] = [
+                      ...liveNodes,
+                      {
+                        id: `node-manual-${Date.now()}`,
+                        name: 'جد / بطن جديد',
+                        nodeCode: 'B1',
+                        relationType: 'aan',
+                        region: ticket.locationLabel,
+                      },
+                    ];
+                    setLivePreviewNodesByTicket((prev) => ({
+                      ...prev,
+                      [ticket.id]: nextNodes,
+                    }));
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-xs font-bold cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ محطة جديدة</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Unified Interactive Chain Cards */}
+            <div className="rounded-2xl bg-white border border-[#E2DACB] p-4 space-y-3.5">
+              <div className="flex flex-wrap items-center gap-2">
+                {liveNodes.map((node, nIdx) => (
+                  <React.Fragment key={node.id || nIdx}>
+                    <div
+                      data-testid={`lego-chain-chip-${nIdx}`}
+                      className={`inline-flex flex-wrap items-center gap-1.5 p-2 rounded-2xl border text-xs font-bold shadow-2xs transition-all ${
+                        nIdx === 0
+                          ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                          : nIdx === liveNodes.length - 1
+                          ? 'bg-amber-50/80 border-[#B98A78] text-[#8D4925]'
+                          : 'bg-[#FAF6F0] border-[#E2DACB] text-[#252321]'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-[#8D4925] text-white font-mono text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {nIdx + 1}
+                      </span>
+
+                      <input
+                        type="text"
+                        value={node.name}
+                        onChange={(e) =>
+                          handleUpdateLivePreviewNode(ticket, nIdx, {
+                            name: e.target.value,
+                          })
+                        }
+                        className="px-2 py-1 rounded-lg border border-[#E2DACB] bg-white text-xs font-extrabold text-[#252321] w-28 sm:w-32 focus:outline-none focus:border-[#D8755B]"
+                      />
+
+                      <select
+                        value={node.nodeCode || (nIdx === 0 ? 'FE0' : 'B1')}
+                        onChange={(e) =>
+                          handleUpdateLivePreviewNode(ticket, nIdx, {
+                            nodeCode: e.target.value,
+                          })
+                        }
+                        className="px-1.5 py-1 rounded-lg border border-[#B98A78]/50 bg-[#FAF6F0] text-[#8D4925] font-mono text-[11px] font-bold cursor-pointer"
+                        title="الكود الهيكلي للمحطة"
+                      >
+                        {ARC_CODE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.value}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={node.relationType}
+                        onChange={(e) =>
+                          handleUpdateLivePreviewNode(ticket, nIdx, {
+                            relationType: e.target.value as 'bin' | 'aan',
+                          })
+                        }
+                        className="px-1.5 py-1 rounded-lg border border-[#E2DACB] bg-white text-[#252321] text-[11px] font-bold cursor-pointer"
+                        title="نوع الرابط النسبي"
+                      >
+                        <option value="bin">بن</option>
+                        <option value="aan">من</option>
+                      </select>
+
+                      {nIdx > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleMoveLivePreviewNode(ticket, nIdx, 'up')
+                          }
+                          className="px-1.5 py-0.5 rounded bg-[#EDE6DA] hover:bg-[#E2DACB] text-[#252321] text-[11px] cursor-pointer"
+                          title="تقديم المحطة"
+                        >
+                          →
+                        </button>
+                      )}
+                      {nIdx < liveNodes.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleMoveLivePreviewNode(ticket, nIdx, 'down')
+                          }
+                          className="px-1.5 py-0.5 rounded bg-[#EDE6DA] hover:bg-[#E2DACB] text-[#252321] text-[11px] cursor-pointer"
+                          title="تأخير المحطة"
+                        >
+                          ←
+                        </button>
+                      )}
+
+                      {liveNodes.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoveLivePreviewNode(ticket, nIdx)
+                          }
+                          className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-600 text-red-700 hover:text-white flex items-center justify-center text-xs font-extrabold cursor-pointer transition-colors"
+                          title="حذف هذه العقدة من السلسلة بنقرة واحدة"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    {nIdx < liveNodes.length - 1 && (
+                      <span className="text-[#D8755B] font-bold text-xs">
+                        ⬅️
+                      </span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* Quick Input & Lake 3 Suggestions Bar */}
+              <div className="pt-3 border-t border-[#E2DACB] flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={quickAncestorInputByTicket[ticket.id] || ''}
+                    onChange={(e) =>
+                      setQuickAncestorInputByTicket((prev) => ({
+                        ...prev,
+                        [ticket.id]: e.target.value,
+                      }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleQuickAddChipToChain(
+                          quickAncestorInputByTicket[ticket.id] || ''
+                        );
+                      }
+                    }}
+                    placeholder="+ اكتب اسم جد واضغط Enter لإدراجه في السلسلة..."
+                    className="px-3 py-1.5 rounded-xl border border-dashed border-[#B98A78] bg-[#FAF6F0] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#D8755B] w-64"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleQuickAddChipToChain(
+                        quickAncestorInputByTicket[ticket.id] || ''
+                      )
+                    }
+                    className="px-3 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer"
+                  >
+                    إدراج في السلسلة
+                  </button>
+                </div>
+
+                {lake3SuggestionNames.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-[#5C5346]">
+                      💡 مقترحات سريعة بنقرة واحدة:
+                    </span>
+                    {lake3SuggestionNames.map((sugName, sIdx) => (
+                      <button
+                        key={sIdx}
+                        type="button"
+                        onClick={() => handleQuickAddChipToChain(sugName)}
+                        className="px-2.5 py-0.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-bold cursor-pointer transition-all"
+                      >
+                        + {sugName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Unified Adam Tree Bridge & Instant Search Panel (Warm Heritage Theme) */}
+            <div
+              data-testid="lake1-suggested-adam-bridge"
+              className="rounded-2xl border border-emerald-300 bg-gradient-to-l from-emerald-50/80 via-[#FAF6F0] to-white text-[#252321] p-4 sm:p-5 shadow-2xs space-y-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-bold">
+                      البحيرة 1 — جسر شجرة آدم المقترح آلياً (ADAM_MASTER_TREE)
+                    </span>
+                    {ticket.suggestedAdamBridge && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#B98A78]/50 text-[#8D4925] font-mono text-[11px] font-bold">
+                        العقدة #{ticket.suggestedAdamBridge.adam_node_id} (
+                        {ticket.suggestedAdamBridge.matched_station_name}) ·{' '}
+                        {ticket.suggestedAdamBridge.confidence_label ||
+                          'تطابق آلي 98%'}
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-sm sm:text-base font-bold font-display text-[#252321]">
+                    🎯 جسر الالتقاء في شجرة آدم والاتصال الكامل حتى آدم عليه السلام
+                  </h4>
                 </div>
 
                 <button
@@ -3696,7 +4210,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     const bridgePreview =
                       appliedAdamBridgeByTicket[ticket.id] ||
                       ticket.suggestedAdamBridge?.adam_chain_preview ||
-                      '';
+                      activeBridgePreview;
                     setAppliedAdamBridgeByTicket((prev) => ({
                       ...prev,
                       [ticket.id]: bridgePreview,
@@ -3708,10 +4222,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       }) بشجرة آدم بنجاح! تقدّم شريط الإنجاز 🚀`
                     );
                   }}
-                  className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-sm ${
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs ${
                     isBridgeConnected
-                      ? 'bg-emerald-500 text-stone-950'
-                      : 'bg-amber-400 hover:bg-amber-300 text-stone-950'
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
                   }`}
                 >
                   <Sparkles className="w-4 h-4" />
@@ -3723,7 +4237,42 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </button>
               </div>
 
-              <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
+              {ticket.suggestedAdamBridge && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="rounded-xl bg-white border border-[#E2DACB] p-3">
+                    <span className="text-[#5C5346] block text-[11px]">
+                      المحطة المطابقة من عمود العائلة:
+                    </span>
+                    <span className="font-extrabold text-[#8D4925] text-sm">
+                      {ticket.suggestedAdamBridge.matched_station_name}
+                    </span>
+                  </div>
+
+                  <div className="sm:col-span-2 rounded-xl bg-white border border-[#E2DACB] p-3">
+                    <span className="text-[#5C5346] block text-[11px]">
+                      عقدة شجرة آدم المكتشفة وسلسلة اتصالها المباشر:
+                    </span>
+                    <span className="font-mono font-bold text-emerald-900 text-xs sm:text-sm">
+                      {ticket.suggestedAdamBridge.adam_node_id}:{' '}
+                      {ticket.suggestedAdamBridge.adam_chain_preview}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-xl bg-white border border-emerald-200 p-3 text-xs space-y-1">
+                <span className="text-emerald-900 font-bold block">
+                  الاتصال الكامل حتى آدم عليه السلام:
+                </span>
+                <p className="text-[#252321] font-mono leading-relaxed">
+                  {liveNodes.map((n) => n.name).join(' ⬅️ ')} ⬅️{' '}
+                  <strong className="text-[#8D4925]">
+                    {activeBridgePreview}
+                  </strong>
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-[#E2DACB] flex flex-wrap items-center gap-2">
                 <input
                   type="text"
                   value={quickAdamBridgeSearchByTicket[ticket.id] || ''}
@@ -3734,7 +4283,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     }))
                   }
                   placeholder="🔍 أو ابحث فورياً عن عقدة أخرى في شجرة آدم للربط المباشر..."
-                  className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-stone-400 text-xs focus:outline-none focus:border-amber-400 w-72"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-[#B98A78]/50 text-[#252321] placeholder:text-[#5C5346] text-xs focus:outline-none focus:border-[#D8755B] w-80"
                 />
                 {quickAdamMatches.map((mNode) => (
                   <button
@@ -3761,396 +4310,677 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         `🌳 تم ربط السلسلة بعقدة شجرة آدم: ${mNode.name} (#${mNode.node_id})!`
                       );
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-amber-400/20 hover:bg-amber-400/40 border border-amber-400/50 text-amber-200 text-[11px] font-bold cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/60 text-[#8D4925] text-[11px] font-bold cursor-pointer"
                   >
                     ⚡ ربط بـ {mNode.name} ({mNode.arc_code})
                   </button>
                 ))}
               </div>
             </div>
+          </div>
+
+          {!showAllWorkflowStepsAtOnce && (
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveTicketWorkflowStep(1)}
+                className="px-4 py-2 rounded-xl bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold cursor-pointer"
+              >
+                ➡️ السابق: 1️⃣ الفحص والأدلة المرجعية
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTicketWorkflowStep(3)}
+                className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-2"
+              >
+                <span>التالي: 3️⃣ إثراء العقدة والمصادر الهامشية ⬅️</span>
+              </button>
+            </div>
           )}
         </div>
 
-        {/* =========================================================
-            STATION 2: المحطة 2 — إثراء العقدة بالمصادر الأساسية والفروع والمواضع
-        ========================================================= */}
+        {/* ===================================================================
+            WORKFLOW TAB 3: [3️⃣ إثراء العقدة والمصادر الهامشية]
+        =================================================================== */}
         <div
-          data-testid="workspace-station-2-node-enrichment"
-          className="rounded-2xl border-2 border-amber-500/80 bg-amber-50/30 p-4 sm:p-5 space-y-4"
+          data-testid="workflow-step-3-panel"
+          className={
+            activeTicketWorkflowStep === 3 || showAllWorkflowStepsAtOnce
+              ? 'block space-y-5'
+              : 'hidden'
+          }
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 pb-3">
-            <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 rounded-xl bg-[#B45309] text-white font-mono text-xs font-extrabold flex items-center justify-center">
-                2
-              </span>
-              <div>
-                <h5 className="text-sm font-extrabold font-serif text-amber-950">
-                  المحطة 2: إثراء العقدة بالمصادر الأساسية والفروع والمواضع (1-Click Node Enrichment)
-                </h5>
-                <p className="text-[11px] text-stone-600">
-                  جميع المصادر الأساسية والفروع الأبناء والمواضع الجغرافية المستخرجة مفعّلة كأزرار سريعة (✓ Toggle Pills) وجاهزة للاعتماد بنقرة واحدة
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              data-testid="station2-approve-enrichment-btn"
-              onClick={() => {
-                setStation2ApprovedByTicket((prev) => ({
-                  ...prev,
-                  [ticket.id]: true,
-                }));
-                setEnrichmentBranchesInput(activeBranchPills.join('، '));
-                setEnrichmentLocationsInput(activeLocationPills.join('، '));
-                showToast(
-                  `✅ تم اعتماد إثراء العقدة بـ (${activeSourceIndices.length}) مصادر أساسية و(${activeBranchPills.length}) فروع و(${activeLocationPills.length}) مواضع جغرافية!`
-                );
-              }}
-              className={`px-4 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-2xs ${
-                isStation2Completed
-                  ? 'bg-emerald-700 text-white'
-                  : 'bg-[#B45309] hover:bg-[#92400E] text-white'
-              }`}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+            {/* RIGHT COLUMN (6 COLS): STATION 2 — 1-CLICK NODE ENRICHMENT + EXTRA ENRICHMENT INPUTS */}
+            <div
+              data-testid="workspace-station-2-node-enrichment"
+              className="xl:col-span-6 rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
             >
-              {isStation2Completed
-                ? '✓ تم اعتماد عناصر الإثراء للعقدة'
-                : '⚡ اعتماد كافة عناصر الإثراء المفعّلة بنقرة واحدة'}
-            </button>
-          </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-7 h-7 rounded-xl bg-[#D8755B] text-white font-mono text-xs font-extrabold flex items-center justify-center">
+                    3A
+                  </span>
+                  <div>
+                    <h5 className="text-sm font-extrabold font-display text-[#252321]">
+                      إثراء العقدة بالمصادر الأساسية والفروع والمواضع (1-Click Node Enrichment)
+                    </h5>
+                    <p className="text-[11px] text-[#5C5346]">
+                      فعّل أو ألغِ أي مصدر أو فرع أو موضع بنقرة واحدة، ثم اعتمد إثراء العقدة
+                    </p>
+                  </div>
+                </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="rounded-xl bg-white border border-amber-200 p-3 space-y-2">
-              <span className="text-xs font-extrabold text-stone-800 block">
-                📚 المصادر الأساسية ({activeSourceIndices.length}/
-                {allTicketEvidence.length}):
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {allTicketEvidence.map((ev, idx) => {
-                  const isSelected = activeSourceIndices.includes(idx);
-                  return (
-                    <button
-                      key={ev.alpha_id || idx}
-                      type="button"
-                      onClick={() => toggleSourceInclusion(ticket, idx)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-right ${
-                        isSelected
-                          ? 'bg-emerald-100 border-emerald-500 text-emerald-950'
-                          : 'bg-stone-50 border-stone-300 text-stone-500'
-                      }`}
-                    >
-                      {isSelected ? '✓ ' : '+ '}
-                      {formatCompactSourceBracket(ev)}
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  data-testid="station2-approve-enrichment-btn"
+                  onClick={() => {
+                    setStation2ApprovedByTicket((prev) => ({
+                      ...prev,
+                      [ticket.id]: true,
+                    }));
+                    setEnrichmentBranchesInput(activeBranchPills.join('، '));
+                    setEnrichmentLocationsInput(activeLocationPills.join('، '));
+                    showToast(
+                      `✅ تم اعتماد إثراء العقدة بـ (${activeSourceIndices.length}) مصادر أساسية و(${activeBranchPills.length}) فروع و(${activeLocationPills.length}) مواضع جغرافية!`
+                    );
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-2xs ${
+                    isStation2Completed
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
+                  }`}
+                >
+                  {isStation2Completed
+                    ? '✓ تم اعتماد عناصر الإثراء للعقدة'
+                    : '⚡ اعتماد كافة عناصر الإثراء المفعّلة بنقرة واحدة'}
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
+                  <span className="text-xs font-extrabold text-[#252321] block">
+                    📚 المصادر الأساسية ({activeSourceIndices.length}/
+                    {allTicketEvidence.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allTicketEvidence.map((ev, idx) => {
+                      const isSelected = activeSourceIndices.includes(idx);
+                      return (
+                        <button
+                          key={ev.alpha_id || idx}
+                          type="button"
+                          onClick={() => toggleSourceInclusion(ticket, idx)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-right ${
+                            isSelected
+                              ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+                              : 'bg-[#FAF6F0] border-[#E2DACB] text-[#5C5346]'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : '+ '}
+                          {formatCompactSourceBracket(ev)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
+                    <span className="text-xs font-extrabold text-[#252321] block">
+                      🌿 الفروع الأبناء المستخرجة ({activeBranchPills.length}):
+                    </span>
+                    {allCandidateBranches.length === 0 ? (
+                      <span className="text-[11px] text-[#5C5346] block">
+                        لا توجد فروع فرعية إضافية مسجلة في النص الخام
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {allCandidateBranches.map((br, bIdx) => {
+                          const isSelected = activeBranchPills.includes(br);
+                          return (
+                            <button
+                              key={bIdx}
+                              type="button"
+                              onClick={() => {
+                                const next = isSelected
+                                  ? activeBranchPills.filter(
+                                      (item) => item !== br
+                                    )
+                                  : [...activeBranchPills, br];
+                                setSelectedBranchPillsByTicket((prev) => ({
+                                  ...prev,
+                                  [ticket.id]: next,
+                                }));
+                                setEnrichmentBranchesInput(next.join('، '));
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+                                  : 'bg-[#FAF6F0] border-[#E2DACB] text-[#5C5346]'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : '+ '}
+                              {br}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
+                    <span className="text-xs font-extrabold text-[#252321] block">
+                      📍 المواضع الجغرافية ({activeLocationPills.length}):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allCandidateLocations.map((loc, lIdx) => {
+                        const isSelected = activeLocationPills.includes(loc);
+                        return (
+                          <button
+                            key={lIdx}
+                            type="button"
+                            onClick={() => {
+                              const next = isSelected
+                                ? activeLocationPills.filter(
+                                    (item) => item !== loc
+                                  )
+                                : [...activeLocationPills, loc];
+                              setSelectedLocationPillsByTicket((prev) => ({
+                                ...prev,
+                                [ticket.id]: next,
+                              }));
+                              setEnrichmentLocationsInput(next.join('، '));
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-amber-50 border-[#B98A78] text-[#8D4925]'
+                                : 'bg-[#FAF6F0] border-[#E2DACB] text-[#5C5346]'
+                            }`}
+                          >
+                            {isSelected ? '✓ 📍 ' : '+ 📍 '}
+                            {loc}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extra Enrichment Fields integrated directly into the right column */}
+                <div className="bg-white rounded-xl border border-[#E2DACB] p-3.5 space-y-2.5">
+                  <h5 className="text-xs font-extrabold text-[#252321]">
+                    ✍️ بيانات الإثراء الإضافية للسجل (فروع شقيقة، أعلام وشخصيات، انتشار جغرافي إضافي):
+                  </h5>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    <input
+                      type="text"
+                      value={enrichmentBranchesInput}
+                      onChange={(e) =>
+                        setEnrichmentBranchesInput(e.target.value)
+                      }
+                      placeholder="فروع شقيقة (مفصولة بفاصلة)..."
+                      className="px-3 py-2 rounded-xl border border-[#E2DACB] bg-[#FAF6F0] text-xs font-bold"
+                    />
+                    <input
+                      type="text"
+                      value={enrichmentNotablesInput}
+                      onChange={(e) =>
+                        setEnrichmentNotablesInput(e.target.value)
+                      }
+                      placeholder="أعلام وشخصيات بارزة..."
+                      className="px-3 py-2 rounded-xl border border-[#E2DACB] bg-[#FAF6F0] text-xs font-bold"
+                    />
+                    <input
+                      type="text"
+                      value={enrichmentLocationsInput}
+                      onChange={(e) =>
+                        setEnrichmentLocationsInput(e.target.value)
+                      }
+                      placeholder="الانتشار الجغرافي الإضافي..."
+                      className="px-3 py-2 rounded-xl border border-[#E2DACB] bg-[#FAF6F0] text-xs font-bold"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-xl bg-white border border-amber-200 p-3 space-y-2">
-              <span className="text-xs font-extrabold text-stone-800 block">
-                🌿 الفروع الأبناء المستخرجة ({activeBranchPills.length}):
-              </span>
-              {allCandidateBranches.length === 0 ? (
-                <span className="text-[11px] text-stone-500 block">
-                  لا توجد فروع فرعية إضافية مسجلة في النص الخام
+            {/* LEFT COLUMN (6 COLS): STATION 3 — SECONDARY SOURCES (other_sources) & ADAM PRIME SYNC */}
+            <div
+              data-testid="workspace-station-3-secondary-sources-adam-prime"
+              className="xl:col-span-6 rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-4 sm:p-5 space-y-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-7 h-7 rounded-xl bg-[#8D4925] text-white font-mono text-xs font-extrabold flex items-center justify-center">
+                    3B
+                  </span>
+                  <div>
+                    <h5 className="text-sm font-extrabold font-display text-[#252321]">
+                      توثيق المصادر الإضافية (other_sources) ومزامنة سجل آدم برايم الموحد
+                    </h5>
+                    <p className="text-[11px] text-[#5C5346]">
+                      مطابقة تلقائية ذكية مع معرف آدم برايم الموحد، مع اختيار سريع لسعر الإتاحة في محفظة العميل
+                    </p>
+                  </div>
+                </div>
+
+                <span className="px-3 py-1 rounded-xl bg-white border border-[#E2DACB] text-[#8D4925] text-xs font-bold">
+                  الموثق: {verifiedLeadsCount} من {extractedLeads.length}
                 </span>
+              </div>
+
+              {extractedLeads.length === 0 ? (
+                <div className="rounded-xl bg-white border border-emerald-200 p-4 text-xs font-bold text-emerald-900 flex items-center justify-between">
+                  <span>
+                    ✅ لا توجد إحالات هامشية معلقة في حقل (other_sources) لهذه التذكرة — هذا القسم مكتمل تلقائياً!
+                  </span>
+                </div>
               ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {allCandidateBranches.map((br, bIdx) => {
-                    const isSelected = activeBranchPills.includes(br);
+                <div className="grid grid-cols-1 gap-3">
+                  {extractedLeads.map((lead, lIdx) => {
+                    const leadKey = `ticket_inbox-${lead.linked_alpha_id}-${lIdx}`;
+                    const isVerified =
+                      lead.verification_status === 'VERIFIED_ADDON_SOURCE';
+                    const currentPrice =
+                      addonUnlockPricesByLeadKey[leadKey] ??
+                      lead.addon_unlock_price_usd ??
+                      2;
+                    const autoMatch = resolveAutoMatchedAdamPrimeSource(lead);
+                    const chosenId =
+                      selectedAdamPrimeIdByLeadKey[leadKey] ||
+                      autoMatch.source_id;
+                    const isSearchOpen = Boolean(
+                      openOneWordSearchByLeadKey[leadKey]
+                    );
+                    const oneWordQuery = (
+                      oneWordQueryByLeadKey[leadKey] || ''
+                    ).trim();
+                    const compactSearchMatches = oneWordQuery
+                      ? adamPrimeRegistryResults
+                          .filter(
+                            (r) =>
+                              normalizeArabic(r.title).includes(
+                                normalizeArabic(oneWordQuery)
+                              ) ||
+                              normalizeArabic(r.author || '').includes(
+                                normalizeArabic(oneWordQuery)
+                              )
+                          )
+                          .slice(0, 3)
+                      : [];
+
                     return (
-                      <button
-                        key={bIdx}
-                        type="button"
-                        onClick={() => {
-                          const next = isSelected
-                            ? activeBranchPills.filter((item) => item !== br)
-                            : [...activeBranchPills, br];
-                          setSelectedBranchPillsByTicket((prev) => ({
-                            ...prev,
-                            [ticket.id]: next,
-                          }));
-                          setEnrichmentBranchesInput(next.join('، '));
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-emerald-100 border-emerald-500 text-emerald-950'
-                            : 'bg-stone-50 border-stone-300 text-stone-500'
+                      <div
+                        key={leadKey}
+                        data-testid={`ticket-secondary-source-card-${lIdx}`}
+                        className={`rounded-2xl border p-4 transition-all space-y-3 ${
+                          isVerified
+                            ? 'bg-emerald-50/70 border-emerald-400 shadow-2xs'
+                            : 'bg-white border-[#E2DACB] hover:border-[#B98A78]'
                         }`}
                       >
-                        {isSelected ? '✓ ' : '+ '}
-                        {br}
-                      </button>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
+                              📘 {lead.extracted_book_title || autoMatch.title}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] font-mono text-xs font-bold">
+                              ج: {lead.extracted_volume || '—'}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] font-mono text-xs font-bold">
+                              ص: {lead.extracted_page || '—'}
+                            </span>
+                            <span className="text-xs text-[#5C5346]">
+                              للسجل:{' '}
+                              <strong className="text-[#252321]">
+                                {lead.linked_record_name || ticket.familyName}
+                              </strong>
+                            </span>
+                          </div>
+
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
+                              isVerified
+                                ? 'bg-emerald-700 text-white border-emerald-800'
+                                : 'bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/50'
+                            }`}
+                          >
+                            {isVerified
+                              ? `✅ موثق ومربوط بآدم برايم (${chosenId})`
+                              : `🏛️ مطابقة آدم برايم التلقائية: ${chosenId}`}
+                          </span>
+                        </div>
+
+                        {isSearchOpen && (
+                          <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-2.5 flex flex-wrap items-center gap-2">
+                            <input
+                              type="text"
+                              value={oneWordQueryByLeadKey[leadKey] || ''}
+                              onChange={(e) =>
+                                setOneWordQueryByLeadKey((prev) => ({
+                                  ...prev,
+                                  [leadKey]: e.target.value,
+                                }))
+                              }
+                              placeholder="ابحث بكلمة واحدة في آدم برايم (مثال: النويري، القلقشندي)..."
+                              className="px-3 py-1 rounded-lg border border-[#E2DACB] bg-white text-xs font-bold w-64"
+                            />
+                            {compactSearchMatches.map((reg) => (
+                              <button
+                                key={reg.source_id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAdamPrimeIdByLeadKey((prev) => ({
+                                    ...prev,
+                                    [leadKey]: reg.source_id,
+                                  }));
+                                  setOpenOneWordSearchByLeadKey((prev) => ({
+                                    ...prev,
+                                    [leadKey]: false,
+                                  }));
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-[#8D4925] text-white text-[11px] font-bold cursor-pointer"
+                              >
+                                اختيار [{reg.source_id}] {reg.title}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#E2DACB]">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-bold text-[#5C5346] ml-1">
+                              سعر الإتاحة في محفظة العميل:
+                            </span>
+                            {[
+                              { label: 'مجاني', value: 0 },
+                              { label: '$1', value: 1 },
+                              { label: '$2', value: 2 },
+                              { label: '$3', value: 3 },
+                            ].map((priceOpt) => {
+                              const isSelectedPrice =
+                                currentPrice === priceOpt.value;
+                              return (
+                                <button
+                                  key={priceOpt.value}
+                                  type="button"
+                                  onClick={() =>
+                                    setAddonUnlockPricesByLeadKey((prev) => ({
+                                      ...prev,
+                                      [leadKey]: priceOpt.value,
+                                    }))
+                                  }
+                                  className={`px-3 py-1 rounded-xl text-xs font-extrabold border cursor-pointer transition-all ${
+                                    isSelectedPrice
+                                      ? 'bg-[#D8755B] border-[#D8755B] text-white shadow-2xs'
+                                      : 'bg-[#FAF6F0] border-[#E2DACB] text-[#252321] hover:bg-[#EDE6DA]'
+                                  }`}
+                                >
+                                  {priceOpt.label}
+                                </button>
+                              );
+                            })}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenOneWordSearchByLeadKey((prev) => ({
+                                  ...prev,
+                                  [leadKey]: !prev[leadKey],
+                                }))
+                              }
+                              className="px-2.5 py-1 rounded-xl border border-[#E2DACB] bg-white hover:bg-[#FAF6F0] text-[11px] text-[#5C5346] font-bold cursor-pointer mr-1"
+                            >
+                              🔍 بحث بكلمة عند الحاجة
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={verifyingLeadKey === leadKey}
+                            onClick={() =>
+                              handleVerifyAndAttachOtherSourceLead(
+                                lead,
+                                leadKey,
+                                'ticket_inbox'
+                              )
+                            }
+                            data-testid={`verify-and-attach-btn-${lIdx}`}
+                            className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-1.5 ${
+                              isVerified
+                                ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                                : 'bg-[#8D4925] hover:bg-[#733A1D] text-white'
+                            }`}
+                          >
+                            <Sparkles className="w-4 h-4 shrink-0" />
+                            <span>
+                              {verifyingLeadKey === leadKey
+                                ? 'جارٍ التوثيق والمزامنة...'
+                                : isVerified
+                                ? `✅ موثق ومربوط بآدم برايم (${
+                                    currentPrice === 0
+                                      ? 'مجاني'
+                                      : `$${currentPrice}`
+                                  })`
+                                : '✨ توثيق في آدم برايم وإتاحة للعميل'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="rounded-xl bg-white border border-amber-200 p-3 space-y-2">
-              <span className="text-xs font-extrabold text-stone-800 block">
-                📍 المواضع الجغرافية ({activeLocationPills.length}):
+          {!showAllWorkflowStepsAtOnce && (
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveTicketWorkflowStep(2)}
+                className="px-4 py-2 rounded-xl bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold cursor-pointer"
+              >
+                ➡️ السابق: 2️⃣ هندسة العمود وجسر آدم
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTicketWorkflowStep(4)}
+                className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-2xs flex items-center gap-2"
+              >
+                <span>التالي: 4️⃣ المعاينة النهائية والاعتماد ⬅️</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ===================================================================
+            WORKFLOW TAB 4: [4️⃣ المعاينة النهائية والاعتماد]
+        =================================================================== */}
+        <div
+          data-testid="workflow-step-4-panel"
+          className={
+            activeTicketWorkflowStep === 4 || showAllWorkflowStepsAtOnce
+              ? 'block space-y-5'
+              : 'hidden'
+          }
+        >
+          <div
+            data-testid="section4-live-final-column-preview"
+            className="rounded-3xl border border-[#B98A78]/50 bg-white p-5 space-y-5 shadow-2xs"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-bold">
+                  المرحلة الرابعة — المعاينة النهائية وموجز الإنجاز قبل الإغلاق
+                </span>
+                <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321] mt-1">
+                  🧬 المعاينة النهائية لعمود النسب المدمج لعائلة ({ticket.familyName})
+                </h4>
+              </div>
+              {!showAllWorkflowStepsAtOnce && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTicketWorkflowStep(3)}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-[#252321] text-xs font-bold cursor-pointer"
+                >
+                  ➡️ العودة لتعديل الإثراء والمصادر
+                </button>
+              )}
+            </div>
+
+            {/* Quick Executive Summary of Completed Work in Ticket */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 space-y-1">
+                <span className="text-[#5C5346] text-[11px] block">
+                  محطات السلسلة المخيطة
+                </span>
+                <span className="text-base font-extrabold text-emerald-950 font-mono">
+                  {liveNodes.length} محطات موثقة
+                </span>
+              </div>
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-1">
+                <span className="text-[#5C5346] text-[11px] block">
+                  المراجع الأساسية المعتمدة
+                </span>
+                <span className="text-base font-extrabold text-[#8D4925] font-mono">
+                  {activeSourceIndices.length} من {allTicketEvidence.length} مراجع
+                </span>
+              </div>
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-1">
+                <span className="text-[#5C5346] text-[11px] block">
+                  الفروع والمواضع المفعّلة
+                </span>
+                <span className="text-base font-extrabold text-[#252321] font-mono">
+                  {activeBranchPills.length} فرع · {activeLocationPills.length} موضع
+                </span>
+              </div>
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-1">
+                <span className="text-[#5C5346] text-[11px] block">
+                  المصادر الهامشية (آدم برايم)
+                </span>
+                <span className="text-base font-extrabold text-[#8D4925] font-mono">
+                  {verifiedLeadsCount} من {extractedLeads.length} موثق
+                </span>
+              </div>
+            </div>
+
+            {/* Visual Connected Spine Summary up to Adam (Warm Heritage Theme) */}
+            <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/50 text-[#252321] p-4 space-y-2.5 shadow-2xs">
+              <span className="text-xs font-bold text-[#8D4925] block">
+                🔗 الشكل النهائي لعمود النسب المدمج حتى آدم عليه السلام (كما سيظهر للعميل فور الاعتماد):
               </span>
-              <div className="flex flex-wrap gap-1.5">
-                {allCandidateLocations.map((loc, lIdx) => {
-                  const isSelected = activeLocationPills.includes(loc);
-                  return (
-                    <button
-                      key={lIdx}
-                      type="button"
-                      onClick={() => {
-                        const next = isSelected
-                          ? activeLocationPills.filter((item) => item !== loc)
-                          : [...activeLocationPills, loc];
-                        setSelectedLocationPillsByTicket((prev) => ({
-                          ...prev,
-                          [ticket.id]: next,
-                        }));
-                        setEnrichmentLocationsInput(next.join('، '));
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-amber-100 border-amber-500 text-amber-950'
-                          : 'bg-stone-50 border-stone-300 text-stone-500'
-                      }`}
-                    >
-                      {isSelected ? '✓ 📍 ' : '+ 📍 '}
-                      {loc}
-                    </button>
-                  );
-                })}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                {liveNodes.map((n, i) => (
+                  <React.Fragment key={n.id || i}>
+                    <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] font-bold text-[#252321]">
+                      {n.name}{' '}
+                      <span className="font-mono text-[10px] text-[#8D4925]">
+                        ({n.nodeCode})
+                      </span>
+                    </span>
+                    <span className="text-[#D8755B] font-bold">⬅️</span>
+                  </React.Fragment>
+                ))}
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-mono text-xs font-bold">
+                  🌳 {activeBridgePreview}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* =========================================================
-            STATION 3: المحطة 3 — توثيق المصادر الإضافية (other_sources) ومزامنة سجل آدم برايم الموحد
-        ========================================================= */}
+        {/* ===================================================================
+            REQUIREMENT 5: STICKY ACTION FOOTER (شريط الإجراءات الحاسمة الثابت)
+        =================================================================== */}
         <div
-          data-testid="workspace-station-3-secondary-sources-adam-prime"
-          className="rounded-2xl border-2 border-indigo-600/80 bg-indigo-50/30 p-4 sm:p-5 space-y-4"
+          data-testid="sticky-ticket-action-footer"
+          className="sticky bottom-2 z-20 rounded-2xl border border-[#B98A78]/60 bg-[#FAF6F0]/95 backdrop-blur-md p-3.5 sm:p-4 shadow-md space-y-3"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-200 pb-3">
-            <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 rounded-xl bg-indigo-900 text-amber-300 font-mono text-xs font-extrabold flex items-center justify-center">
-                3
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-extrabold text-[#252321] flex items-center gap-1.5">
+              <span>⚡</span>
+              <span>
+                أزرار الإجراءات الحاسمة ومخرجاتها الفورية في Firebase وواجهة العميل:
               </span>
-              <div>
-                <h5 className="text-sm font-extrabold font-serif text-indigo-950">
-                  المحطة 3: توثيق المصادر الإضافية (other_sources) ومزامنة سجل آدم برايم الموحد
-                </h5>
-                <p className="text-[11px] text-stone-600">
-                  مطابقة تلقائية ذكية مع معرف آدم برايم الموحد، مع اختيار سريع لسعر الإتاحة في محفظة العميل وتوثيق فوري بضغطة زر واحدة
-                </p>
-              </div>
-            </div>
-
-            <span className="px-3 py-1 rounded-xl bg-indigo-900 text-amber-300 text-xs font-bold">
-              الموثق: {verifiedLeadsCount} من {extractedLeads.length}
+            </span>
+            <span className="text-[11px] font-mono font-bold text-[#8D4925]">
+              المرحلة النشطة: {activeTicketWorkflowStep} من 4
             </span>
           </div>
 
-          {extractedLeads.length === 0 ? (
-            <div className="rounded-xl bg-white border border-indigo-200 p-3.5 text-xs font-bold text-emerald-900 flex items-center justify-between">
-              <span>
-                ✅ لا توجد إحالات هامشية معلقة في حقل (other_sources) لهذه التذكرة — المحطة 3 مكتملة تلقائياً!
-              </span>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {extractedLeads.map((lead, lIdx) => {
-                const leadKey = `ticket_inbox-${lead.linked_alpha_id}-${lIdx}`;
-                const isVerified =
-                  lead.verification_status === 'VERIFIED_ADDON_SOURCE';
-                const currentPrice =
-                  addonUnlockPricesByLeadKey[leadKey] ??
-                  lead.addon_unlock_price_usd ??
-                  2;
-                const autoMatch = resolveAutoMatchedAdamPrimeSource(lead);
-                const chosenId =
-                  selectedAdamPrimeIdByLeadKey[leadKey] || autoMatch.source_id;
-                const isSearchOpen = Boolean(
-                  openOneWordSearchByLeadKey[leadKey]
-                );
-                const oneWordQuery = (
-                  oneWordQueryByLeadKey[leadKey] || ''
-                ).trim();
-                const compactSearchMatches = oneWordQuery
-                  ? adamPrimeRegistryResults
-                      .filter(
-                        (r) =>
-                          normalizeArabic(r.title).includes(
-                            normalizeArabic(oneWordQuery)
-                          ) ||
-                          normalizeArabic(r.author || '').includes(
-                            normalizeArabic(oneWordQuery)
-                          )
-                      )
-                      .slice(0, 3)
-                  : [];
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {/* ACTION 1 */}
+            <button
+              type="button"
+              onClick={() => handleActionAApproveAndLinkToAdam(ticket)}
+              className="p-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>✅ اعتماد الربط وتغذية شجرة آدم وإغلاق التذكرة</span>
+            </button>
 
-                return (
-                  <div
-                    key={leadKey}
-                    data-testid={`ticket-secondary-source-card-${lIdx}`}
-                    className={`rounded-2xl border-2 p-4 transition-all space-y-3 ${
-                      isVerified
-                        ? 'bg-emerald-50/80 border-emerald-500 shadow-2xs'
-                        : 'bg-white border-indigo-200 hover:border-indigo-400'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs sm:text-sm font-extrabold text-[#141414]">
-                          📘 {lead.extracted_book_title || autoMatch.title}
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-950 font-mono text-xs font-bold">
-                          ج: {lead.extracted_volume || '—'}
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-950 font-mono text-xs font-bold">
-                          ص: {lead.extracted_page || '—'}
-                        </span>
-                        <span className="text-xs text-stone-600">
-                          للسجل:{' '}
-                          <strong className="text-stone-900">
-                            {lead.linked_record_name || ticket.familyName}
-                          </strong>
-                        </span>
-                      </div>
+            {/* ACTION 2 */}
+            <button
+              type="button"
+              onClick={() => handleActionBEnrichExistingAdamNode(ticket)}
+              className="p-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span>✨ اعتماد إثراء المراجع والفروع فقط</span>
+            </button>
 
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
-                          isVerified
-                            ? 'bg-emerald-800 text-white border-emerald-900'
-                            : 'bg-indigo-100 text-indigo-950 border-indigo-300'
-                        }`}
-                      >
-                        {isVerified
-                          ? `✅ موثق ومربوط بآدم برايم (${chosenId})`
-                          : `🏛️ مطابقة آدم برايم التلقائية: ${chosenId}`}
-                      </span>
-                    </div>
+            {/* ACTION 3 */}
+            <button
+              type="button"
+              onClick={() => setShowClarificationBox((prev) => !prev)}
+              className="p-3 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#252321] border border-[#B98A78]/50 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4 shrink-0 text-[#8D4925]" />
+              <span>💬 طلب إيضاح أو وثيقة من العميل</span>
+            </button>
 
-                    {isSearchOpen && (
-                      <div className="rounded-xl bg-[#FAF8F5] border border-indigo-200 p-2.5 flex flex-wrap items-center gap-2">
-                        <input
-                          type="text"
-                          value={oneWordQueryByLeadKey[leadKey] || ''}
-                          onChange={(e) =>
-                            setOneWordQueryByLeadKey((prev) => ({
-                              ...prev,
-                              [leadKey]: e.target.value,
-                            }))
-                          }
-                          placeholder="ابحث بكلمة واحدة في آدم برايم (مثال: النويري، القلقشندي)..."
-                          className="px-3 py-1 rounded-lg border border-stone-300 bg-white text-xs font-bold w-64"
-                        />
-                        {compactSearchMatches.map((reg) => (
-                          <button
-                            key={reg.source_id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedAdamPrimeIdByLeadKey((prev) => ({
-                                ...prev,
-                                [leadKey]: reg.source_id,
-                              }));
-                              setOpenOneWordSearchByLeadKey((prev) => ({
-                                ...prev,
-                                [leadKey]: false,
-                              }));
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-900 text-amber-300 text-[11px] font-bold cursor-pointer"
-                          >
-                            اختيار [{reg.source_id}] {reg.title}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+            {/* ACTION 4 */}
+            <button
+              type="button"
+              onClick={() => handleActionDEscalateToAdamPrime(ticket)}
+              className="p-3 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+            >
+              <Cpu className="w-4 h-4 shrink-0" />
+              <span>🏛️ تصعيد التذكرة إلى جسر آدم برايم</span>
+            </button>
+          </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-stone-200/80">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-stone-600 ml-1">
-                          سعر الإتاحة في محفظة العميل:
-                        </span>
-                        {[
-                          { label: 'مجاني', value: 0 },
-                          { label: '$1', value: 1 },
-                          { label: '$2', value: 2 },
-                          { label: '$3', value: 3 },
-                        ].map((priceOpt) => {
-                          const isSelectedPrice =
-                            currentPrice === priceOpt.value;
-                          return (
-                            <button
-                              key={priceOpt.value}
-                              type="button"
-                              onClick={() =>
-                                setAddonUnlockPricesByLeadKey((prev) => ({
-                                  ...prev,
-                                  [leadKey]: priceOpt.value,
-                                }))
-                              }
-                              className={`px-3 py-1 rounded-xl text-xs font-extrabold border cursor-pointer transition-all ${
-                                isSelectedPrice
-                                  ? 'bg-amber-400 border-amber-600 text-stone-950 shadow-2xs'
-                                  : 'bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100'
-                              }`}
-                            >
-                              {priceOpt.label}
-                            </button>
-                          );
-                        })}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenOneWordSearchByLeadKey((prev) => ({
-                              ...prev,
-                              [leadKey]: !prev[leadKey],
-                            }))
-                          }
-                          className="px-2.5 py-1 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-[11px] text-stone-600 font-bold cursor-pointer mr-1"
-                        >
-                          🔍 بحث بكلمة عند الحاجة
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={verifyingLeadKey === leadKey}
-                        onClick={() =>
-                          handleVerifyAndAttachOtherSourceLead(
-                            lead,
-                            leadKey,
-                            'ticket_inbox'
-                          )
-                        }
-                        data-testid={`verify-and-attach-btn-${lIdx}`}
-                        className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-xs flex items-center gap-1.5 ${
-                          isVerified
-                            ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
-                            : 'bg-indigo-900 hover:bg-indigo-950 text-amber-300'
-                        }`}
-                      >
-                        <Sparkles className="w-4 h-4 shrink-0" />
-                        <span>
-                          {verifyingLeadKey === leadKey
-                            ? 'جارٍ التوثيق والمزامنة...'
-                            : isVerified
-                            ? `✅ موثق ومربوط بآدم برايم (${
-                                currentPrice === 0
-                                  ? 'مجاني'
-                                  : `$${currentPrice}`
-                              })`
-                            : '✨ توثيق في آدم برايم وإتاحة للعميل'}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* INLINE CLARIFICATION BOX FOR ACTION C */}
+          {showClarificationBox && (
+            <div className="pt-2 border-t border-[#E2DACB] space-y-2.5">
+              <label className="block text-xs font-bold text-[#252321]">
+                اكتب رسالة الاستيضاح التي ستصل فوراً إلى إشعارات العميل ({ticket.clientName}):
+              </label>
+              <textarea
+                rows={2}
+                value={clarificationMessage}
+                onChange={(e) => setClarificationMessage(e.target.value)}
+                placeholder="مثال: نرجو تزويدنا باسم الجد الرابع أو وثيقة المشجرة العائلية لحسم الالتقاء..."
+                className="w-full p-2.5 rounded-xl border border-[#E2DACB] bg-white text-xs"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowClarificationBox(false)}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DACB] text-xs font-bold cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleActionCRequestClarification(ticket)}
+                  className="px-4 py-1.5 rounded-xl bg-[#D8755B] text-white text-xs font-bold cursor-pointer"
+                >
+                  إرسال الاستفسار للعميل وتحديث التذكرة ✓
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -5901,22 +6731,44 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   return (
     <div
       dir="rtl"
-      className={`min-h-screen pb-16 transition-colors duration-300 ${
-        activeSubTab === 'direct_search'
-          ? 'bg-[#0B1F17] text-[#F7F2E9]'
-          : 'bg-[#F7F2E9] text-[#252321]'
-      }`}
+      className="min-h-screen pb-16 transition-colors duration-300 bg-[#F7F2E9] text-[#252321]"
     >
       {/* =====================================================================
-          3 CLEAN HORIZONTAL SUB-TABS BAR FOR RESEARCH STUDIO ONLY
-          (Hidden in standalone "إدارة شجرة آدم" and "بوصلة الأنساب" pages)
+          REQUIREMENT 1 & 2: COMPACT BRAND HEADER & 2 STREAMLINED SUB-TABS
+          «مرصد جذوري — غرفة عمليات الباحثين» | «كشّاف جذوري للأنساب»
+          (Harmonized with Homepage Warm Ivory & Terracotta Visual Identity)
       ===================================================================== */}
       {activeSubTab !== 'adam_tree_explorer' &&
         activeSubTab !== 'direct_search' &&
         activePortalSection !== 'adam_tree_management' &&
         activePortalSection !== 'direct_search_inspection' && (
-          <div className="bg-[#FAF6F0] border-b border-[#B98A78]/30 sticky top-0 z-30 shadow-xs">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-[#FAF6F0] border-b border-[#E2DACB] sticky top-0 z-30 shadow-2xs">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+              {/* Brand Identity: مرصد جذوري — غرفة عمليات الباحثين */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white p-0.5 border border-[#B98A78] shadow-2xs flex items-center justify-center shrink-0 overflow-hidden">
+                  <img
+                    src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
+                    alt="مرصد جذوري | كشّاف الأنساب"
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-display font-bold">
+                      مرصد جذوري | كشّاف الأنساب
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] font-bold">
+                      ✦ بيئة عمل مركّزة 4 مراحل
+                    </span>
+                  </div>
+                  <h1 className="text-sm sm:text-base font-extrabold font-display text-[#252321] mt-0.5">
+                    مرصد جذوري — غرفة عمليات الباحثين
+                  </h1>
+                </div>
+              </div>
+
+              {/* 2 Main Sub-Tabs Only (No duplicate Drag-and-Drop tab) */}
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -5924,19 +6776,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     setActiveSubTab('ticket_inbox');
                     onSelectPortalSection?.('research_studio');
                   }}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
                     activeSubTab === 'ticket_inbox'
                       ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'bg-[#F7F2E9] text-[#252321] hover:bg-[#EDE6DA] border border-[#B98A78]/35'
+                      : 'bg-white text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
                   }`}
                 >
                   <FileText className="w-4 h-4" />
-                  <span>📥 صندوق تذاكر العملاء</span>
+                  <span>🗂️ صندوق التذاكر وغرفة العمليات</span>
                   <span
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
                       activeSubTab === 'ticket_inbox'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-[#D8755B]/15 text-[#8D4925]'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/35'
                     }`}
                   >
                     {
@@ -5951,30 +6803,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setActiveSubTab('drag_drop_linker')}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeSubTab === 'drag_drop_linker'
-                      ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'bg-[#F7F2E9] text-[#252321] hover:bg-[#EDE6DA] border border-[#B98A78]/35'
-                  }`}
-                >
-                  <GitMerge className="w-4 h-4" />
-                  <span>🔗 الربط والسحب والإفلات</span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setActiveSubTab('adam_prime_bridge')}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
                     activeSubTab === 'adam_prime_bridge'
                       ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'bg-[#F7F2E9] text-[#252321] hover:bg-[#EDE6DA] border border-[#B98A78]/35'
+                      : 'bg-white text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
                   }`}
                 >
                   <Cpu className="w-4 h-4" />
-                  <span>🏛️ جسر آدم برايم</span>
+                  <span>🏛️ جسر آدم برايم (Adam Prime Bridge)</span>
                   {adamPrimeBundles.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-[#8D4925] text-white">
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
+                        activeSubTab === 'adam_prime_bridge'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                      }`}
+                    >
                       {adamPrimeBundles.length}
                     </span>
                   )}
@@ -5987,15 +6832,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       {/* TOAST FEEDBACK BANNER */}
       {toastBanner && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
-          <div className="bg-[#0B1F17] text-[#F7F2E9] border-2 border-[#10B981] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-md">
+          <div className="bg-emerald-50 text-emerald-950 border border-emerald-300 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-[#10B981] shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
               <p className="text-xs sm:text-sm font-bold">{toastBanner}</p>
             </div>
             <button
               type="button"
               onClick={() => setToastBanner(null)}
-              className="text-xs text-[#D4AF37] hover:text-white cursor-pointer font-bold"
+              className="text-xs text-[#8D4925] hover:text-[#252321] cursor-pointer font-bold"
             >
               إغلاق ✕
             </button>
@@ -6006,26 +6851,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
         {/* ===================================================================
             SUB-TAB 1: 🧭 بوصلة الأنساب (BOSLET AL-ANSAB™ — DIAGNOSTIC COMPASS)
-            Exclusive Palette:
-            - Royal Obsidian Green (#0B1F17)
-            - Aged Heritage Gold (#D4AF37)
-            - Luminous Cyber Emerald (#10B981)
-            Typography:
-            - Titles & Brand Name: Amiri / Cairo Bold (.font-boslet-title)
-            - Chains & Technical IDs: IBM Plex Sans Arabic (.font-boslet-chain)
+            Harmonized with Homepage Warm Ivory, Beige, Terracotta & Soft Emerald
         =================================================================== */}
         {activeSubTab === 'direct_search' && (
-          <div className="space-y-6 bg-[#0B1F17] text-[#F7F2E9] rounded-3xl p-4 sm:p-6">
+          <div className="space-y-6 bg-[#F7F2E9] text-[#252321]">
             {/* ===============================================================
                 OFFICIAL "بوصلة الأنساب" IDENTITY HEADER BANNER
-                (Modeled after the "إدارة شجرة آدم" Header Banner)
+                (Warm Ivory & Terracotta Heritage Theme)
             =============================================================== */}
             <div
               data-testid="boslet-alansab-identity-header"
-              className="bg-gradient-to-l from-[#0B1F17] via-[#0F291E] to-[#133326] text-[#F7F2E9] rounded-3xl p-5 sm:p-6 border-2 border-[#D4AF37] shadow-[0_16px_40px_rgba(0,0,0,0.65),0_0_28px_rgba(212,175,55,0.18)] flex flex-wrap items-center justify-between gap-5"
+              className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/80 text-[#252321] rounded-3xl p-5 sm:p-6 border border-[#B98A78]/50 shadow-xs flex flex-wrap items-center justify-between gap-5"
             >
               <div className="flex items-center gap-4 sm:gap-5">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#0B1F17] p-1 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-2 border-[#D4AF37] ring-2 ring-[#10B981]/40 shrink-0 flex items-center justify-center overflow-hidden">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1 shadow-sm border-2 border-[#D8755B]/70 shrink-0 flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
                     alt="بوصلة الأنساب"
@@ -6034,18 +6873,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-0.5 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] text-[#D4AF37] text-[11px] font-boslet-title font-bold tracking-wide">
+                    <span className="px-3 py-0.5 rounded-full bg-[#FAF6F0] border border-[#B98A78]/50 text-[#8D4925] text-[11px] font-display font-bold">
                       بوصلة الأنساب · الأداة المرجعية لفريق الباحثين
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#10B981]/15 border border-[#10B981] text-[#10B981] text-[11px] font-boslet-chain font-bold flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1">
                       <span>⚡</span>
                       <span>سرعة الاستجابة السيبرانية &lt; 150ms</span>
                     </span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold font-boslet-title mt-1.5 text-[#D4AF37] tracking-wide">
+                  <h2 className="text-xl sm:text-2xl font-extrabold font-display mt-1.5 text-[#252321]">
                     بوصلة الأنساب — منظومة الفحص التشخيصي وحسم المسارات النسبية
                   </h2>
-                  <p className="text-xs sm:text-sm font-boslet-chain text-[#F7F2E9]/85 mt-1">
+                  <p className="text-xs sm:text-sm text-[#5C5346] mt-1">
                     تتبع استقصائي للمصادر الخام وأمهات الكتب، ومنطق العنقدة والخياطة الطوبولوجية، وحسم التوافق السيبراني مع شجرة آدم للأجداد
                   </p>
                 </div>
@@ -6055,14 +6894,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <button
                   type="button"
                   onClick={() => setAllBosletSections(true)}
-                  className="px-3.5 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-[#0B1F17] text-xs font-boslet-chain font-extrabold transition-all cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
                 >
                   فتح وإبراز كافة الأقسام
                 </button>
                 <button
                   type="button"
                   onClick={() => setAllBosletSections(false)}
-                  className="px-3.5 py-2 rounded-xl bg-[#0B1F17] hover:bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/60 text-xs font-boslet-chain font-bold transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA]/70 text-[#8D4925] border border-[#B98A78]/50 text-xs font-bold transition-all cursor-pointer"
                 >
                   طي كافة الأقسام
                 </button>
@@ -6075,15 +6914,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             <div
               className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                 bosletExpandedSections.searchBox
-                  ? 'border-2 border-[#D4AF37] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)] ring-1 ring-[#10B981]/30 space-y-4'
-                  : 'border border-[#D4AF37]/40 bg-[#0B1F17]/90 hover:border-[#D4AF37]/80 px-5 py-4 shadow-md'
+                  ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-4'
+                  : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
               }`}
             >
               <div
                 onClick={() => toggleBosletSection('searchBox')}
                 className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
                   bosletExpandedSections.searchBox
-                    ? 'border-b border-[#D4AF37]/30 pb-3.5'
+                    ? 'border-b border-[#E2DACB] pb-3.5'
                     : ''
                 }`}
               >
@@ -6091,17 +6930,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
                       bosletExpandedSections.searchBox
-                        ? 'bg-[#D4AF37] text-[#0B1F17] shadow-[0_0_12px_rgba(212,175,55,0.4)]'
-                        : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/50'
+                        ? 'bg-[#D8755B] text-white shadow-2xs'
+                        : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
                     }`}
                   >
                     <Search className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold font-boslet-title text-[#D4AF37]">
+                    <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                       مدخلات الفحص والاستعلام المرجعي في بوصلة الأنساب
                     </h3>
-                    <p className="text-xs font-boslet-chain text-[#F7F2E9]/75 mt-0.5">
+                    <p className="text-xs text-[#5C5346] mt-0.5">
                       ابحث باسم العائلة أو القبيلة أو الفرع لتشغيل الفحص التشخيصي عبر بحيرات البيانات وشجرة آدم
                     </p>
                   </div>
@@ -6113,10 +6952,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     e.stopPropagation();
                     toggleBosletSection('searchBox');
                   }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     bosletExpandedSections.searchBox
-                      ? 'bg-[#D4AF37] text-[#0B1F17] border-[#D4AF37]'
-                      : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                      ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+                      : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
                   }`}
                 >
                   <span>
@@ -6135,10 +6974,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               {bosletExpandedSections.searchBox && (
                 <form
                   onSubmit={handleExecuteDirectSearch}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 bg-[#0B1F17] p-4 rounded-2xl border border-[#D4AF37]/40 font-boslet-chain"
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 bg-[#FAF6F0] p-4 rounded-2xl border border-[#E2DACB]"
                 >
                   <div>
-                    <label className="block text-[11px] font-bold text-[#D4AF37] mb-1">
+                    <label className="block text-[11px] font-bold text-[#8D4925] mb-1">
                       اسم العائلة / الشهرة (FE0)
                     </label>
                     <input
@@ -6146,12 +6985,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       value={directSearchFamilyName}
                       onChange={(e) => setDirectSearchFamilyName(e.target.value)}
                       placeholder="مثال: قدم، ال قحيم، بيت جنديل، آل مقيت..."
-                      className="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/50 bg-[#0F291E] text-[#F7F2E9] placeholder-[#F7F2E9]/40 text-xs font-bold focus:outline-none focus:border-[#10B981]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#E2DACB] bg-white text-[#252321] placeholder-[#5C5346]/60 text-xs font-bold focus:outline-none focus:border-[#D8755B]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[#D4AF37] mb-1">
+                    <label className="block text-[11px] font-bold text-[#8D4925] mb-1">
                       القبيلة (اختياري)
                     </label>
                     <input
@@ -6159,12 +6998,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       value={directSearchTribeName}
                       onChange={(e) => setDirectSearchTribeName(e.target.value)}
                       placeholder="مثال: قحطان، همدان، بني لام..."
-                      className="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/50 bg-[#0F291E] text-[#F7F2E9] placeholder-[#F7F2E9]/40 text-xs font-bold focus:outline-none focus:border-[#10B981]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#E2DACB] bg-white text-[#252321] placeholder-[#5C5346]/60 text-xs font-bold focus:outline-none focus:border-[#D8755B]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[#D4AF37] mb-1">
+                    <label className="block text-[11px] font-bold text-[#8D4925] mb-1">
                       الفخذ / الفرع (اختياري)
                     </label>
                     <input
@@ -6172,18 +7011,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       value={directSearchBranchName}
                       onChange={(e) => setDirectSearchBranchName(e.target.value)}
                       placeholder="مثال: حاشد، البلاسم، آل برمان..."
-                      className="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/50 bg-[#0F291E] text-[#F7F2E9] placeholder-[#F7F2E9]/40 text-xs font-bold focus:outline-none focus:border-[#10B981]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#E2DACB] bg-white text-[#252321] placeholder-[#5C5346]/60 text-xs font-bold focus:outline-none focus:border-[#D8755B]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[#D4AF37] mb-1">
+                    <label className="block text-[11px] font-bold text-[#8D4925] mb-1">
                       الدولة
                     </label>
                     <select
                       value={directSearchCountry}
                       onChange={(e) => setDirectSearchCountry(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/50 bg-[#0F291E] text-[#F7F2E9] text-xs font-bold focus:outline-none focus:border-[#10B981]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#E2DACB] bg-white text-[#252321] text-xs font-bold focus:outline-none focus:border-[#D8755B]"
                     >
                       <option value="غير محدد / كل الدول">
                         غير محدد / كل الدول
@@ -6197,7 +7036,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[#D4AF37] mb-1">
+                    <label className="block text-[11px] font-bold text-[#8D4925] mb-1">
                       الإقليم / المدينة (اختياري)
                     </label>
                     <input
@@ -6206,7 +7045,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       value={directSearchLocality}
                       onChange={(e) => setDirectSearchLocality(e.target.value)}
                       placeholder="مثال: العمارة، نجران، دير الزور..."
-                      className="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/50 bg-[#0F291E] text-[#F7F2E9] placeholder-[#F7F2E9]/40 text-xs font-bold focus:outline-none focus:border-[#10B981]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#E2DACB] bg-white text-[#252321] placeholder-[#5C5346]/60 text-xs font-bold focus:outline-none focus:border-[#D8755B]"
                     />
                     <datalist id="researcher-locality-datalist">
                       {ORIGIN_REGION_SUGGESTIONS.map((loc) => (
@@ -6218,7 +7057,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      className="w-full py-2.5 px-4 bg-[#10B981] hover:bg-[#10B981]/90 text-[#0B1F17] rounded-xl text-xs font-boslet-chain font-extrabold shadow-[0_0_16px_rgba(16,185,129,0.35)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl text-xs font-extrabold shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Search className="w-4 h-4" />
                       <span>فحص وتشخيص المسار</span>
@@ -6229,12 +7068,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             </div>
 
             {!directSearchResult ? (
-              <div className="rounded-3xl border-2 border-dashed border-[#D4AF37]/45 bg-[#0F291E]/70 p-10 text-center space-y-2">
-                <Search className="w-9 h-9 text-[#D4AF37] mx-auto mb-2" />
-                <p className="text-base font-bold font-boslet-title text-[#D4AF37]">
+              <div className="rounded-3xl border-2 border-dashed border-[#B98A78]/50 bg-[#FAF6F0] p-10 text-center space-y-2">
+                <Search className="w-9 h-9 text-[#D8755B] mx-auto mb-2" />
+                <p className="text-base font-bold font-display text-[#252321]">
                   أدخل اسم العائلة أو القبيلة واضغط على «فحص وتشخيص المسار» لتشغيل بوصلة الأنساب
                 </p>
-                <p className="text-xs font-boslet-chain text-[#F7F2E9]/75">
+                <p className="text-xs text-[#5C5346]">
                   ستظهر لك الأقسام المستقلة للمصادر الخام، ومحرك العنقدة والخياطة، والسلسلة المخيطة، ومحاكي التحقق قابلة للطي والإبراز
                 </p>
               </div>
@@ -6597,40 +7436,40 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       data-testid="diagnostic-step1-raw-sources"
                       className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                         bosletExpandedSections.step1
-                          ? 'border-2 border-[#D4AF37] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)] ring-1 ring-[#10B981]/30 space-y-4'
-                          : 'border border-[#D4AF37]/40 bg-[#0B1F17]/90 hover:border-[#D4AF37]/80 px-5 py-4 shadow-md'
+                          ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-4'
+                          : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
                       }`}
                     >
                       <div
                         onClick={() => toggleBosletSection('step1')}
                         className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
                           bosletExpandedSections.step1
-                            ? 'border-b border-[#D4AF37]/30 pb-3.5'
+                            ? 'border-b border-[#E2DACB] pb-3.5'
                             : ''
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`w-8 h-8 rounded-xl font-boslet-chain text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
+                            className={`w-8 h-8 rounded-xl font-mono text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
                               bosletExpandedSections.step1
-                                ? 'bg-[#D4AF37] text-[#0B1F17] shadow-[0_0_12px_rgba(212,175,55,0.4)]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/50'
+                                ? 'bg-[#D8755B] text-white shadow-2xs'
+                                : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
                             }`}
                           >
                             1
                           </span>
                           <div>
-                            <h3 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+                            <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                               القسم الأول: المصادر الخام المستخرجة من المعاجم وأمهات الكتب (Raw Sources)
                             </h3>
-                            <p className="text-xs font-boslet-chain text-[#F7F2E9]/75 mt-0.5">
+                            <p className="text-xs text-[#5C5346] mt-0.5">
                               عرض نص وسلسلة كل مصدر خام كما وردت في المعجم أو المخطوطة بشكل منفصل مع التوثيق المرجعي الدقيق وشارة بحيرة البيانات للباحث
                             </p>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2.5">
-                          <span className="px-3 py-1 rounded-xl bg-[#0B1F17] border border-[#D4AF37]/60 text-[#D4AF37] font-boslet-chain text-xs font-bold">
+                          <span className="px-3 py-1 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-xs font-bold">
                             إجمالي المصادر الخام المرصودة: {rawEvidenceList.length}
                           </span>
                           <button
@@ -6639,10 +7478,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               e.stopPropagation();
                               toggleBosletSection('step1');
                             }}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                               bosletExpandedSections.step1
-                                ? 'bg-[#D4AF37] text-[#0B1F17] border-[#D4AF37]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                                ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+                                : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
                             }`}
                           >
                             <span>
@@ -6662,7 +7501,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       {bosletExpandedSections.step1 && (
                         <>
                           {rawEvidenceList.length === 0 ? (
-                            <div className="rounded-2xl bg-[#0B1F17] border border-[#D4AF37]/50 p-4 text-xs font-boslet-chain font-bold text-[#D4AF37]">
+                            <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 text-xs font-bold text-[#8D4925]">
                               لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق
                             </div>
                           ) : (
@@ -6682,19 +7521,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 return (
                                   <div
                                     key={ev.alpha_id || idx}
-                                    className="rounded-2xl bg-[#0B1F17] border border-[#D4AF37]/45 p-4 shadow-md space-y-3 flex flex-col justify-between hover:border-[#10B981]/60 transition-all"
+                                    className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 shadow-2xs space-y-3 flex flex-col justify-between hover:border-[#B98A78] transition-all"
                                   >
                                     <div className="space-y-2.5">
                                       <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div className="flex items-center gap-1.5">
-                                          <span className="px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-[#0B1F17] font-boslet-chain text-[11px] font-extrabold">
+                                          <span className="px-2.5 py-0.5 rounded-lg bg-[#8D4925] text-white text-[11px] font-extrabold">
                                             المصدر الخام #{idx + 1}
                                           </span>
                                           <span
-                                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-boslet-chain font-bold border ${
+                                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                                               ev.is_consensus_winner !== false
-                                                ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/50'
-                                                : 'bg-[#D4AF37]/15 text-[#D4AF37] border-[#D4AF37]/50'
+                                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                                : 'bg-white text-[#8D4925] border-[#B98A78]/45'
                                             }`}
                                           >
                                             {ev.is_consensus_winner !== false
@@ -6703,27 +7542,26 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           </span>
                                         </div>
 
-                                        {/* Requirement 2(أ): Single Book/Page Badge + Single Data Lake Badge in Upper Card Header */}
                                         <div className="flex flex-wrap items-center gap-1.5">
                                           <span
                                             data-testid={`raw-source-ref-badge-${idx}`}
-                                            className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[#0F291E] border border-[#D4AF37]/50 text-[#D4AF37] text-[11px] font-boslet-chain font-bold shadow-2xs"
+                                            className="inline-flex items-center px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold shadow-2xs"
                                           >
                                             {refBadgeText}
                                           </span>
                                           <span
                                             data-testid={`raw-source-lake-badge-${idx}`}
-                                            className="px-2 py-0.5 rounded-md text-[11px] font-boslet-chain font-extrabold border bg-[#10B981]/15 text-[#10B981] border-[#10B981]/50"
+                                            className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${lakeBadge.colorClass}`}
                                           >
                                             {lakeBadge.tag}
                                           </span>
                                         </div>
                                       </div>
 
-                                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-boslet-chain text-[#F7F2E9]/75">
+                                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5C5346]">
                                         <div className="flex items-center gap-1.5">
                                           <span>اسم السجل في المعجم:</span>
-                                          <strong className="text-[#D4AF37]">
+                                          <strong className="text-[#252321]">
                                             {ev.record_name || directSearchResult.familyName}
                                           </strong>
                                         </div>
@@ -6732,7 +7570,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             ev.parsed_other_sources.length > 0)) && (
                                           <span
                                             data-testid={`raw-source-other-sources-badge-${idx}`}
-                                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] text-[#D4AF37] text-[10px] font-boslet-chain font-extrabold"
+                                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-extrabold"
                                           >
                                             <span>📜</span>
                                             <span>
@@ -6744,18 +7582,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       </div>
 
                                       {/* Requirement 2(ب): Single Sequential Capsule Chain Box */}
-                                      <div className="rounded-xl bg-[#0F291E] border border-[#D4AF37]/30 p-3 space-y-2">
-                                        <span className="text-[11px] font-boslet-chain font-bold text-[#D4AF37] block">
+                                      <div className="rounded-xl bg-white border border-[#E2DACB] p-3 space-y-2">
+                                        <span className="text-[11px] font-bold text-[#8D4925] block">
                                           السلسلة الخام كما وردت في المصدر:
                                         </span>
-                                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5 font-boslet-chain">
+                                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                                           {displayChainCapsules.map((tok, tIdx) => (
                                             <React.Fragment key={tIdx}>
-                                              <span className="px-2.5 py-1 rounded-lg bg-[#0B1F17] border border-[#D4AF37]/45 text-xs font-bold text-[#F7F2E9] shadow-2xs">
+                                              <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#252321] shadow-2xs">
                                                 {tok}
                                               </span>
                                               {tIdx < displayChainCapsules.length - 1 && (
-                                                <span className="text-[#10B981] font-bold text-xs">
+                                                <span className="text-[#D8755B] font-bold text-xs">
                                                   ⬅️
                                                 </span>
                                               )}
@@ -6765,20 +7603,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#D4AF37]/20 text-[11px] font-boslet-chain">
+                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2DACB] text-[11px]">
                                       <div>
-                                        <span className="text-[#F7F2E9]/65 block">
+                                        <span className="text-[#5C5346] block">
                                           الفروع الأبناء في المصدر:
                                         </span>
-                                        <span className="font-bold text-[#F7F2E9]">
+                                        <span className="font-bold text-[#252321]">
                                           {ev.child_branches || '—'}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="text-[#F7F2E9]/65 block">
+                                        <span className="text-[#5C5346] block">
                                           النطاق الجغرافي في المصدر:
                                         </span>
-                                        <span className="font-bold text-[#10B981]">
+                                        <span className="font-bold text-[#8D4925]">
                                           {ev.locations || directSearchResult.originCountry || '—'}
                                         </span>
                                       </div>
@@ -6800,40 +7638,40 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       data-testid="diagnostic-step2-stitching-logic"
                       className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                         bosletExpandedSections.step2
-                          ? 'border-2 border-[#D4AF37] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)] ring-1 ring-[#10B981]/30 space-y-4'
-                          : 'border border-[#D4AF37]/40 bg-[#0B1F17]/90 hover:border-[#D4AF37]/80 px-5 py-4 shadow-md'
+                          ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-4'
+                          : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
                       }`}
                     >
                       <div
                         onClick={() => toggleBosletSection('step2')}
                         className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
                           bosletExpandedSections.step2
-                            ? 'border-b border-[#D4AF37]/30 pb-3.5'
+                            ? 'border-b border-[#E2DACB] pb-3.5'
                             : ''
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`w-8 h-8 rounded-xl font-boslet-chain text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
+                            className={`w-8 h-8 rounded-xl font-mono text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
                               bosletExpandedSections.step2
-                                ? 'bg-[#D4AF37] text-[#0B1F17] shadow-[0_0_12px_rgba(212,175,55,0.4)]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/50'
+                                ? 'bg-[#D8755B] text-white shadow-2xs'
+                                : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
                             }`}
                           >
                             2
                           </span>
                           <div>
-                            <h3 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+                            <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                               القسم الثاني: محرك العنقدة والخياطة — السجل التشخيصي الكامل (Complete Automated Pipeline Audit)
                             </h3>
-                            <p className="text-xs font-boslet-chain text-[#F7F2E9]/75 mt-0.5">
+                            <p className="text-xs text-[#5C5346] mt-0.5">
                               توثيق تفصيلي لكافة العمليات الخوارزمية المطبقة فعلياً على السجلات المرصودة من التنظيف والتفكيك حتى اختيار عقدتي الجذر
                             </p>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2.5">
-                          <span className="px-3 py-1 rounded-xl bg-[#0B1F17] border border-[#10B981]/50 text-[#10B981] font-boslet-chain text-xs font-bold">
+                          <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-mono text-xs font-bold">
                             Complete Pipeline Audit (8 Stages)
                           </span>
                           <button
@@ -6842,10 +7680,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               e.stopPropagation();
                               toggleBosletSection('step2');
                             }}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                               bosletExpandedSections.step2
-                                ? 'bg-[#D4AF37] text-[#0B1F17] border-[#D4AF37]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                                ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+                                : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
                             }`}
                           >
                             <span>
@@ -6863,37 +7701,37 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       </div>
 
                       {bosletExpandedSections.step2 && (
-                        <div className="rounded-2xl bg-[#0B1F17] border border-[#D4AF37]/40 p-4 sm:p-5 shadow-inner font-boslet-chain">
+                        <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 sm:p-5">
                           {isDirectDeepResearchP1 ? (
-                            <ul className="space-y-3 text-xs sm:text-sm text-[#F7F2E9]">
+                            <ul className="space-y-3 text-xs sm:text-sm text-[#252321]">
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">⚓</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">المحاذاة الطوبولوجية:</strong>{' '}
+                                  <strong className="text-[#8D4925]">المحاذاة الطوبولوجية:</strong>{' '}
                                   لا توجد سلاسل خام مرصودة لاسم ({directSearchResult.familyName}) لإجراء محاذاة أو خياطة آلية.
                                 </div>
                               </li>
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🧬</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">قرينة التوافق:</strong>{' '}
+                                  <strong className="text-[#8D4925]">قرينة التوافق:</strong>{' '}
                                   0 عناقيد مطابقة في قواعد البيانات الحالية.
                                 </div>
                               </li>
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">⚠️</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">قرار التوجيه الآلي:</strong>{' '}
+                                  <strong className="text-[#8D4925]">قرار التوجيه الآلي:</strong>{' '}
                                   لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق (تذكرة P1).
                                 </div>
                               </li>
                             </ul>
                           ) : (
-                            <ul className="space-y-3 text-xs sm:text-sm text-[#F7F2E9]">
+                            <ul className="space-y-3 text-xs sm:text-sm text-[#252321]">
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🌿</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     إسناد الفرع للحاضنة الأم (Branch-to-Parent Attribution):
                                   </strong>{' '}
                                   {parentAttributionList.length > 0
@@ -6905,7 +7743,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🔗</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     تفكيك الأسماء المركبة (Compound Name Unrolling):
                                   </strong>{' '}
                                   {compoundUnrollList.length > 0
@@ -6917,7 +7755,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">👑</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     دمج الألقاب التاريخية المفصولة وتوحيد التصحيف (Detached Epithet & Title Fusion):
                                   </strong>{' '}
                                   {detachedEpithetExamplesList.length > 0
@@ -6929,7 +7767,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🔤</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     توحيد الرسم الإملائي والتصحيف المطبعي (Orthographic & OCR Normalization):
                                   </strong>{' '}
                                   {mergedVariantGroups.length > 0
@@ -6941,7 +7779,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">♻️</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     تنظيف التكرار الدائري ومقدمات الاختصار (Loop & Prefix Deduplication):
                                   </strong>{' '}
                                   {deduplicatedNodesList.length > 0
@@ -6953,7 +7791,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🧹</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     فلترة الشوائب الجغرافية والوصفية (Noise & Geo-Token Filtering):
                                   </strong>{' '}
                                   {filteredNoiseList.length > 0
@@ -6965,7 +7803,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🔄</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     إصلاح التمهيد المعكوس في التفريغ (Preamble Inversion Correction):
                                   </strong>{' '}
                                   {invertedPreambleExamples.length > 0
@@ -6977,7 +7815,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">⚓</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     المحاذاة الطوبولوجية بالارتكاز (Anchor-Based Topological Alignment):
                                   </strong>{' '}
                                   {sharedAnchorNames.length > 0
@@ -6989,7 +7827,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">🧬</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     قرينة التوافق الجغرافي والمرجعي (Geo & Book Priority Consensus):
                                   </strong>{' '}
                                   {primaryCluster
@@ -7005,10 +7843,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <li className="flex items-start gap-2.5 leading-relaxed">
                                 <span className="shrink-0">⚖️</span>
                                 <div>
-                                  <strong className="text-[#D4AF37]">
+                                  <strong className="text-[#8D4925]">
                                     معادلة الأوزان واختيار عقدتي الجذر للـ 5$ (Weighted 2-Root Selection):
                                   </strong>{' '}
-                                  تم اختيار عقدة الفرع الجامع (<strong className="text-[#10B981]">B2: {directSearchResult.rootBranchName}</strong>) وعقدة القبيلة الأم العليا (<strong className="text-[#D4AF37]">B0: {directSearchResult.rootTribeName}</strong>) بناءً على ثقل التكرار المرجعي والوزن القبلي، مع طيّ (<strong className="text-[#10B981]">🔒 +{hiddenIntermediateCount} في السلسلة</strong>) من المحطات الوسيطة داخل كبسولة عمود النسب.
+                                  تم اختيار عقدة الفرع الجامع (<strong className="text-emerald-800">B2: {directSearchResult.rootBranchName}</strong>) وعقدة القبيلة الأم العليا (<strong className="text-[#8D4925]">B0: {directSearchResult.rootTribeName}</strong>) بناءً على ثقل التكرار المرجعي والوزن القبلي، مع طيّ (<strong className="text-[#D8755B]">🔒 +{hiddenIntermediateCount} في السلسلة</strong>) من المحطات الوسيطة داخل كبسولة عمود النسب.
                                 </div>
                               </li>
                             </ul>
@@ -7026,40 +7864,40 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         data-testid="diagnostic-step3-final-stitched-chain"
                         className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                           bosletExpandedSections.step3
-                            ? 'border-2 border-[#10B981] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(16,185,129,0.2)] ring-1 ring-[#D4AF37]/40 space-y-4'
-                            : 'border border-[#10B981]/45 bg-[#0B1F17]/90 hover:border-[#10B981] px-5 py-4 shadow-md'
+                            ? 'border border-emerald-300 bg-white p-5 sm:p-6 shadow-xs space-y-4'
+                            : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-emerald-400 px-5 py-4 shadow-2xs'
                         }`}
                       >
                         <div
                           onClick={() => toggleBosletSection('step3')}
                           className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
                             bosletExpandedSections.step3
-                              ? 'border-b border-[#10B981]/30 pb-3.5'
+                              ? 'border-b border-[#E2DACB] pb-3.5'
                               : ''
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <span
-                              className={`w-8 h-8 rounded-xl font-boslet-chain text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
+                              className={`w-8 h-8 rounded-xl font-mono text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
                                 bosletExpandedSections.step3
-                                  ? 'bg-[#10B981] text-[#0B1F17] shadow-[0_0_14px_rgba(16,185,129,0.5)]'
-                                  : 'bg-[#0F291E] text-[#10B981] border border-[#10B981]/50'
+                                  ? 'bg-emerald-700 text-white shadow-2xs'
+                                  : 'bg-white text-emerald-800 border border-emerald-300'
                               }`}
                             >
                               3
                             </span>
                             <div>
-                              <h3 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+                              <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                                 القسم الثالث: النتيجة المجمعة والخياطة النهائية (Final Stitched Chain)
                               </h3>
-                              <p className="text-xs font-boslet-chain text-[#F7F2E9]/75 mt-0.5">
+                              <p className="text-xs text-[#5C5346] mt-0.5">
                                 عمود النسب النهائي المخيّط بعد دمج كافة المصادر المتوافقة ومحاذاة الأجداد من الأسفل إلى الأعلى
                               </p>
                             </div>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2.5">
-                            <span className="px-3 py-1 rounded-xl bg-[#10B981]/20 border border-[#10B981] text-[#10B981] font-boslet-chain text-xs font-extrabold">
+                            <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-extrabold">
                               {finalStitchedStations.length} محطة مخيطة وموثقة ✓
                             </span>
                             <button
@@ -7068,10 +7906,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 e.stopPropagation();
                                 toggleBosletSection('step3');
                               }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                                 bosletExpandedSections.step3
-                                  ? 'bg-[#10B981] text-[#0B1F17] border-[#10B981]'
-                                  : 'bg-[#0F291E] text-[#10B981] border-[#10B981]/40 hover:border-[#10B981]'
+                                  ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+                                  : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
                               }`}
                             >
                               <span>
@@ -7089,12 +7927,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         </div>
 
                         {bosletExpandedSections.step3 && (
-                          <div className="rounded-2xl bg-[#0B1F17] border border-[#D4AF37]/45 p-4 space-y-4 font-boslet-chain">
+                          <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-4">
                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                              <span className="font-bold text-[#F7F2E9]">
+                              <span className="font-bold text-[#252321]">
                                 تسلسل المحطات المخيطة (من العائلة FE0 صعوداً إلى الجذر الأعلى):
                               </span>
-                              <span className="text-[11px] font-bold text-[#D4AF37] bg-[#0F291E] px-3 py-1 rounded-lg border border-[#D4AF37]/50">
+                              <span className="text-[11px] font-bold text-[#8D4925] bg-white px-3 py-1 rounded-lg border border-[#B98A78]/45">
                                 الفرع الجامع (B2): {directSearchResult.rootBranchName} · القبيلة الأم (B0): {directSearchResult.rootTribeName}
                               </span>
                             </div>
@@ -7110,26 +7948,26 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 return (
                                   <React.Fragment key={node.id || nIdx}>
                                     <div
-                                      className={`px-3 py-2 rounded-xl border text-xs flex items-center gap-2 shadow-xs ${
+                                      className={`px-3 py-2 rounded-xl border text-xs flex items-center gap-2 shadow-2xs ${
                                         isFamily
-                                          ? 'bg-[#10B981]/20 border-[#10B981] text-[#F7F2E9] font-extrabold'
+                                          ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-extrabold'
                                           : isRoot
-                                          ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37] font-extrabold'
-                                          : 'bg-[#0F291E] border-[#D4AF37]/35 text-[#F7F2E9] font-bold'
+                                          ? 'bg-amber-50 border-[#B98A78] text-[#8D4925] font-extrabold'
+                                          : 'bg-white border-[#E2DACB] text-[#252321] font-bold'
                                       }`}
                                     >
-                                      <span className="text-[10px] font-boslet-chain px-1.5 py-0.5 rounded bg-[#0B1F17] text-[#D4AF37]">
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#EDE6DA] text-[#5C5346]">
                                         #{nIdx + 1}
                                       </span>
                                       <span>{node.name}</span>
                                       {node.code && (
-                                        <span className="text-[10px] font-boslet-chain px-1.5 py-0.5 rounded bg-[#0B1F17] border border-[#10B981]/50 text-[#10B981]">
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925]">
                                           {node.code}
                                         </span>
                                       )}
                                     </div>
                                     {nIdx < finalStitchedStations.length - 1 && (
-                                      <span className="text-[#10B981] font-bold text-xs">
+                                      <span className="text-[#D8755B] font-bold text-xs">
                                         ⬅️
                                       </span>
                                     )}
@@ -7141,14 +7979,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             {/* SUB-SECTION BELOW FINAL STITCHED CHAIN: المراجع المساهمة في هذا المسار */}
                             <div
                               data-testid="contributing-references-subsection"
-                              className="pt-3.5 border-t border-[#D4AF37]/25 space-y-2.5"
+                              className="pt-3.5 border-t border-[#E2DACB] space-y-2.5"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h4 className="text-xs font-extrabold font-boslet-title text-[#D4AF37] flex items-center gap-1.5">
+                                <h4 className="text-xs font-extrabold font-display text-[#8D4925] flex items-center gap-1.5">
                                   <span>📚</span>
                                   <span>المراجع المساهمة في هذا المسار</span>
                                 </h4>
-                                <span className="text-[11px] font-boslet-chain font-bold text-[#10B981] bg-[#0F291E] px-2.5 py-0.5 rounded-md border border-[#10B981]/40">
+                                <span className="text-[11px] font-bold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
                                   {contributingReferencesForStitchedPath.length}{' '}
                                   {contributingReferencesForStitchedPath.length === 1
                                     ? 'مرجع معتمد في الخياطة'
@@ -7163,10 +8001,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     return (
                                       <span
                                         key={refEv.alpha_id || rIdx}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0F291E] border border-[#D4AF37]/45 text-[#D4AF37] text-[11px] font-boslet-chain font-bold shadow-2xs"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-[#E2DACB] text-[#252321] text-[11px] font-bold shadow-2xs"
                                       >
                                         <span>{formatAlphaReferenceBadge(refEv)}</span>
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold border bg-[#10B981]/15 text-[#10B981] border-[#10B981]/50">
+                                        <span
+                                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
+                                        >
                                           {lakeBadge.tag}
                                         </span>
                                       </span>
@@ -7188,35 +8028,35 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       data-testid="diagnostic-step4-disambiguation-simulator"
                       className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                         bosletExpandedSections.step4
-                          ? 'border-2 border-[#D4AF37] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)] ring-1 ring-[#10B981]/30 space-y-5'
-                          : 'border border-[#D4AF37]/40 bg-[#0B1F17]/90 hover:border-[#D4AF37]/80 px-5 py-4 shadow-md'
+                          ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-5'
+                          : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
                       }`}
                     >
                       <div
                         onClick={() => toggleBosletSection('step4')}
                         className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
                           bosletExpandedSections.step4
-                            ? 'border-b border-[#D4AF37]/30 pb-3.5'
+                            ? 'border-b border-[#E2DACB] pb-3.5'
                             : ''
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`w-8 h-8 rounded-xl font-boslet-chain text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
+                            className={`w-8 h-8 rounded-xl font-mono text-sm font-extrabold flex items-center justify-center shrink-0 transition-all ${
                               bosletExpandedSections.step4
-                                ? 'bg-[#D4AF37] text-[#0B1F17] shadow-[0_0_12px_rgba(212,175,55,0.4)]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/50'
+                                ? 'bg-[#D8755B] text-white shadow-2xs'
+                                : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
                             }`}
                           >
                             4
                           </span>
                           <div>
-                            <h3 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+                            <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                               {isDirectDeepResearchP1
                                 ? 'القسم الرابع: التوجيه المباشر لتذكرة البحث المعمق (P1 Deep Research Routing)'
                                 : 'القسم الرابع: مصفوفة التوافق ومحاكي أسئلة التحقق للعميل (Disambiguation Simulator)'}
                             </h3>
-                            <p className="text-xs font-boslet-chain text-[#F7F2E9]/75 mt-0.5">
+                            <p className="text-xs text-[#5C5346] mt-0.5">
                               {isDirectDeepResearchP1
                                 ? 'عدم وجود مصادر خام مطابقة — إحالة مباشرة إلى مسار البحث المعمق (تذكرة بحث وتوثيق نشطة P1)'
                                 : hasCompetingDisambiguationPaths
@@ -7228,12 +8068,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                         <div className="flex flex-wrap items-center gap-2.5">
                           <span
-                            className={`px-3 py-1 rounded-xl text-xs font-boslet-chain font-bold border ${
+                            className={`px-3 py-1 rounded-xl text-xs font-bold border ${
                               isDirectDeepResearchP1
-                                ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]'
+                                ? 'bg-[#FAF6F0] border-[#B98A78]/50 text-[#8D4925]'
                                 : hasCompetingDisambiguationPaths
-                                ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]'
-                                : 'bg-[#10B981]/20 border-[#10B981] text-[#10B981]'
+                                ? 'bg-[#FAF6F0] border-[#B98A78]/50 text-[#8D4925]'
+                                : 'bg-emerald-50 border-emerald-200 text-emerald-900'
                             }`}
                           >
                             {isDirectDeepResearchP1
@@ -7248,10 +8088,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               e.stopPropagation();
                               toggleBosletSection('step4');
                             }}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                               bosletExpandedSections.step4
-                                ? 'bg-[#D4AF37] text-[#0B1F17] border-[#D4AF37]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                                ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+                                : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
                             }`}
                           >
                             <span>
@@ -7273,14 +8113,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           {isDirectDeepResearchP1 ? (
                             <div
                               data-testid="direct-deep-research-p1-card"
-                              className="p-5 rounded-2xl border-2 border-[#D4AF37] bg-[#0B1F17] space-y-3 shadow-md font-boslet-chain"
+                              className="p-5 rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] space-y-3 shadow-2xs"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="px-3 py-1 rounded-lg bg-[#D4AF37] text-[#0B1F17] text-xs font-extrabold">
+                                  <span className="px-3 py-1 rounded-lg bg-[#8D4925] text-white text-xs font-extrabold">
                                     المخرج (ب) · البحث المعمق
                                   </span>
-                                  <span className="px-2.5 py-1 rounded-lg bg-[#0F291E] border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-extrabold">
+                                  <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] text-[#8D4925] text-xs font-extrabold">
                                     تذكرة بحث وتوثيق نشطة P1
                                   </span>
                                 </div>
@@ -7295,23 +8135,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     setSelectedTicketId(newTkt.id);
                                     setActiveSubTab('ticket_inbox');
                                   }}
-                                  className="px-3.5 py-1.5 rounded-xl bg-[#10B981] hover:bg-[#10B981]/90 text-[#0B1F17] text-xs font-extrabold cursor-pointer transition-colors"
+                                  className="px-3.5 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold cursor-pointer transition-colors"
                                 >
                                   فتح كتذكرة بحث وتوثيق نشطة (P1) ←
                                 </button>
                               </div>
-                              <div className="rounded-xl bg-[#0F291E] p-4 border border-[#D4AF37]/40 space-y-1.5">
-                                <p className="text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                              <div className="rounded-xl bg-white p-4 border border-[#E2DACB] space-y-1.5">
+                                <p className="text-sm font-extrabold font-display text-[#8D4925]">
                                   لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق
                                 </p>
-                                <p className="text-xs text-[#F7F2E9]/85 leading-relaxed">
-                                  نظراً لعدم وجود سجلات خام أو عناقيد مطابقة لاسم ({directSearchResult.familyName}) في قواعد البيانات الحالية، لا يُعرض للعميل أي سؤال تحقق آلي ولا يُطالب بدفع $5، بل يتم توجيهه مباشرة إلى مسار <strong className="text-[#D4AF37]">«المخرج (ب) · البحث المعمق» (تذكرة بحث وتوثيق نشطة P1)</strong> ليتولى فريق الباحثين التحقيق في المخطوطات والأوقاف.
+                                <p className="text-xs text-[#252321] leading-relaxed">
+                                  نظراً لعدم وجود سجلات خام أو عناقيد مطابقة لاسم ({directSearchResult.familyName}) في قواعد البيانات الحالية، لا يُعرض للعميل أي سؤال تحقق آلي ولا يُطالب بدفع $5، بل يتم توجيهه مباشرة إلى مسار <strong className="text-[#8D4925]">«المخرج (ب) · البحث المعمق» (تذكرة بحث وتوثيق نشطة P1)</strong> ليتولى فريق الباحثين التحقيق في المخطوطات والأوقاف.
                                 </p>
                               </div>
                             </div>
                           ) : (
                             <>
-                              {/* Competing Paths Comparison Matrix (Styled in #0B1F17 / #D4AF37 / #10B981 when contextMode === 'direct_search') */}
                               {renderConsensusAndCompetingPathsMatrix(
                                 directSearchResult.familyName,
                                 rawEvidenceList,
@@ -7321,31 +8160,31 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               {!hasCompetingDisambiguationPaths ? (
                                 <div
                                   data-testid="sim-single-match-resolved"
-                                  className="rounded-2xl border-2 border-[#10B981] bg-[#0B1F17] p-5 space-y-3 shadow-md font-boslet-chain"
+                                  className="rounded-2xl border border-emerald-300 bg-emerald-50/40 p-5 space-y-3 shadow-2xs"
                                 >
                                   <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <span className="px-3 py-1 rounded-full bg-[#10B981] text-[#0B1F17] text-xs font-extrabold">
+                                    <span className="px-3 py-1 rounded-full bg-emerald-700 text-white text-xs font-extrabold">
                                       🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (SINGLE_MATCH)
                                     </span>
-                                    <span className="px-2.5 py-1 rounded-lg bg-[#0F291E] border border-[#10B981]/50 text-[#10B981] text-xs font-boslet-chain font-bold">
+                                    <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-900 text-xs font-mono font-bold">
                                       requires_disambiguation = false
                                     </span>
                                   </div>
-                                  <div className="rounded-xl bg-[#0F291E] border border-[#10B981]/40 p-4 space-y-2">
-                                    <p className="text-sm sm:text-base font-extrabold font-boslet-title text-[#10B981]">
+                                  <div className="rounded-xl bg-white border border-emerald-200 p-4 space-y-2">
+                                    <p className="text-sm sm:text-base font-extrabold font-display text-emerald-950">
                                       ✅ المسار محسوم آلياً بتوافق المراجع — لا يُعرض سؤال تحقق للعميل بل ينتقل مباشرة لبطاقة الجذر (5$)
                                     </p>
-                                    <p className="text-xs text-[#F7F2E9]/85 leading-relaxed">
-                                      بفضل توحيد الرسم الإملائي وتطابق الأجداد الوسيطين والنطاق الجغرافي ({primaryCluster?.geographicScope || directSearchResult.matched_location}) عبر ({primaryCluster?.sourcesCount || rawEvidenceList.length}) مراجع، تم دمج كافة السجلات في مسار توافق واحد (<strong className="text-[#D4AF37]">{directSearchResult.familyName} ⬅️ {directSearchResult.rootBranchName} ⬅️ {directSearchResult.rootTribeName}</strong>) وإسقاط سؤال التحقق الثنائي.
+                                    <p className="text-xs text-[#252321] leading-relaxed">
+                                      بفضل توحيد الرسم الإملائي وتطابق الأجداد الوسيطين والنطاق الجغرافي ({primaryCluster?.geographicScope || directSearchResult.matched_location}) عبر ({primaryCluster?.sourcesCount || rawEvidenceList.length}) مراجع، تم دمج كافة السجلات في مسار توافق واحد (<strong className="text-[#8D4925]">{directSearchResult.familyName} ⬅️ {directSearchResult.rootBranchName} ⬅️ {directSearchResult.rootTribeName}</strong>) وإسقاط سؤال التحقق الثنائي.
                                     </p>
                                   </div>
                                 </div>
                               ) : (
                                 /* Interactive Customer Verification Simulator when 2+ competing paths exist */
-                                <div className="rounded-2xl border-2 border-[#D4AF37] bg-[#0B1F17] p-5 space-y-4 font-boslet-chain">
-                                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D4AF37]/30 pb-3">
+                                <div className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-5 space-y-4">
+                                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <span className="px-3 py-1 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] text-[#D4AF37] text-xs font-extrabold">
+                                      <span className="px-3 py-1 rounded-full bg-white border border-[#B98A78]/50 text-[#8D4925] text-xs font-extrabold">
                                         🎯 محاكاة حية لما يراه العميل في الواجهة الأمامية (أقوى مسارين فقط + خيار لا أعرف)
                                       </span>
                                     </div>
@@ -7353,10 +8192,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => setDiagnosticSimStage(1)}
-                                        className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                                           diagnosticSimStage === 1
-                                            ? 'bg-[#D4AF37] text-[#0B1F17]'
-                                            : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/40'
+                                            ? 'bg-[#D8755B] text-white'
+                                            : 'bg-white text-[#8D4925] border border-[#E2DACB]'
                                         }`}
                                       >
                                         المرحلة 1: سؤال الأصل والقبيلة
@@ -7364,10 +8203,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => setDiagnosticSimStage(2)}
-                                        className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                                           diagnosticSimStage === 2
-                                            ? 'bg-[#D4AF37] text-[#0B1F17]'
-                                            : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/40'
+                                            ? 'bg-[#D8755B] text-white'
+                                            : 'bg-white text-[#8D4925] border border-[#E2DACB]'
                                         }`}
                                       >
                                         المرحلة 2: سؤال الجغرافيا والمواضع
@@ -7377,7 +8216,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                                   {diagnosticSimStage === 1 ? (
                                     <div className="space-y-3">
-                                      <div className="text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                                      <div className="text-sm font-extrabold font-display text-[#252321]">
                                         نص سؤال المرحلة 1 للعميل: «لتثبيت الجذر الصحيح لعائلة ({directSearchResult.familyName})، أيٌّ من هذين الأصلين يرتبط بأسرتكم؟»
                                       </div>
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -7448,24 +8287,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                               }}
                                               className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
                                                 isSelected
-                                                  ? 'bg-[#0F291E] border-[#10B981] shadow-[0_0_16px_rgba(16,185,129,0.25)]'
-                                                  : 'bg-[#0F291E]/70 border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                                                  ? 'bg-white border-emerald-500 shadow-xs'
+                                                  : 'bg-white/90 border-[#E2DACB] hover:border-[#B98A78]'
                                               }`}
                                             >
                                               <div className="flex items-center justify-between gap-2">
-                                                <span className="text-xs sm:text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                                                <span className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
                                                   🔘 الخيار #{oIdx + 1}: {opt.originTribeLabel || opt.title}
                                                 </span>
-                                                <span className="px-2 py-0.5 rounded-full bg-[#10B981]/20 border border-[#10B981]/50 text-[#10B981] text-[10px] font-bold">
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] font-bold">
                                                   {opt.badge}
                                                 </span>
                                               </div>
 
                                               <div
                                                 data-testid={`sim-stage1-option-sources-${oIdx}`}
-                                                className="rounded-lg bg-[#0B1F17] border border-[#D4AF37]/30 p-2.5 space-y-1.5"
+                                                className="rounded-lg bg-[#FAF6F0] border border-[#E2DACB] p-2.5 space-y-1.5"
                                               >
-                                                <div className="text-[11px] font-bold text-[#F7F2E9]/85 flex flex-wrap items-center gap-1.5">
+                                                <div className="text-[11px] font-bold text-[#5C5346] flex flex-wrap items-center gap-1.5">
                                                   <span>
                                                     توافق ({optSources.length}){' '}
                                                     {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
@@ -7475,11 +8314,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                                       extractBookVolPageFromEvidence(srcEv);
                                                     return (
                                                       <React.Fragment key={srcEv.alpha_id || sIdx}>
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#0F291E] border border-[#D4AF37]/45 text-[#D4AF37] text-[11px] font-boslet-chain font-bold">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-white border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
                                                           {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
                                                         </span>
                                                         {sIdx < optSources.length - 1 && (
-                                                          <span className="text-[#D4AF37] font-bold">،</span>
+                                                          <span className="text-[#8D4925] font-bold">،</span>
                                                         )}
                                                       </React.Fragment>
                                                     );
@@ -7487,12 +8326,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                                 </div>
                                               </div>
 
-                                              <div className="text-[11px] text-[#F7F2E9]/85 bg-[#0B1F17] p-2.5 rounded-lg border border-[#D4AF37]/25 space-y-1">
+                                              <div className="text-[11px] text-[#252321] bg-[#FAF6F0] p-2.5 rounded-lg border border-[#E2DACB] space-y-1">
                                                 <div>
-                                                  <strong className="text-[#D4AF37]">المسار الناتج:</strong>{' '}
+                                                  <strong className="text-[#8D4925]">المسار الناتج:</strong>{' '}
                                                   {fullStitchedChainForOpt}
                                                 </div>
-                                                <div className="text-[#10B981] font-bold">
+                                                <div className="text-emerald-900 font-bold">
                                                   <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
                                                   تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
                                                 </div>
@@ -7507,25 +8346,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             setDiagnosticSimChoice('not_sure_stage1');
                                             setDiagnosticSimStage(2);
                                           }}
-                                          className="p-3.5 rounded-xl border-2 border-dashed border-[#D4AF37] bg-[#0F291E]/70 hover:bg-[#0F291E] transition-all cursor-pointer space-y-2"
+                                          className="p-3.5 rounded-xl border-2 border-dashed border-[#B98A78] bg-white hover:bg-[#FAF6F0] transition-all cursor-pointer space-y-2"
                                         >
                                           <div className="flex items-center justify-between gap-2">
-                                            <span className="text-xs sm:text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                                            <span className="text-xs sm:text-sm font-extrabold font-display text-[#8D4925]">
                                               🔘 خيار: لا أعرف / لست متأكداً (الاحتكام للمواضع الجغرافية)
                                             </span>
-                                            <span className="px-2 py-0.5 rounded bg-[#0B1F17] border border-[#D4AF37]/50 text-[10px] font-boslet-chain font-bold text-[#D4AF37]">
+                                            <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/50 text-[10px] font-mono font-bold text-[#8D4925]">
                                               NEED_LOCATION_STEP
                                             </span>
                                           </div>
-                                          <div className="text-[11px] text-[#F7F2E9]/85 bg-[#0B1F17] p-2.5 rounded-lg border border-[#D4AF37]/30">
-                                            <strong className="text-[#10B981]">الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong className="text-[#D4AF37]">المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2 ←)
+                                          <div className="text-[11px] text-[#252321] bg-[#FAF6F0] p-2.5 rounded-lg border border-[#E2DACB]">
+                                            <strong className="text-emerald-900">الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong className="text-[#8D4925]">المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2 ←)
                                           </div>
                                         </div>
                                       </div>
                                     </div>
                                   ) : (
                                     <div className="space-y-3">
-                                      <div className="text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                                      <div className="text-sm font-extrabold font-display text-[#252321]">
                                         نص سؤال المرحلة 2 للعميل: «لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟»
                                       </div>
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -7598,24 +8437,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                               }}
                                               className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer space-y-2.5 ${
                                                 isSelected
-                                                  ? 'bg-[#0F291E] border-[#10B981] shadow-[0_0_16px_rgba(16,185,129,0.25)]'
-                                                  : 'bg-[#0F291E]/70 border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                                                  ? 'bg-white border-emerald-500 shadow-xs'
+                                                  : 'bg-white/90 border-[#E2DACB] hover:border-[#B98A78]'
                                               }`}
                                             >
                                               <div className="flex items-center justify-between gap-2">
-                                                <span className="text-xs sm:text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                                                <span className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
                                                   📍 الموضع الجغرافي #{oIdx + 1}: {opt.geographicScope}
                                                 </span>
-                                                <span className="px-2 py-0.5 rounded bg-[#10B981]/20 border border-[#10B981]/50 text-[#10B981] text-[10px] font-bold">
+                                                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] font-bold">
                                                   يحسم لصالح: {resultingTribe}
                                                 </span>
                                               </div>
 
                                               <div
                                                 data-testid={`sim-stage2-option-sources-${oIdx}`}
-                                                className="rounded-lg bg-[#0B1F17] border border-[#D4AF37]/30 p-2.5 space-y-1.5"
+                                                className="rounded-lg bg-[#FAF6F0] border border-[#E2DACB] p-2.5 space-y-1.5"
                                               >
-                                                <div className="text-[11px] font-bold text-[#F7F2E9]/85 flex flex-wrap items-center gap-1.5">
+                                                <div className="text-[11px] font-bold text-[#5C5346] flex flex-wrap items-center gap-1.5">
                                                   <span>
                                                     توافق ({optSources.length}){' '}
                                                     {optSources.length === 1 ? 'مصدر:' : 'مصادر:'}
@@ -7625,11 +8464,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                                       extractBookVolPageFromEvidence(srcEv);
                                                     return (
                                                       <React.Fragment key={srcEv.alpha_id || sIdx}>
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#0F291E] border border-[#D4AF37]/45 text-[#D4AF37] text-[11px] font-boslet-chain font-bold">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-white border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
                                                           {`[${parsedRef.book} - ج: ${parsedRef.volume || '1'} - ص: ${parsedRef.page || '—'}]`}
                                                         </span>
                                                         {sIdx < optSources.length - 1 && (
-                                                          <span className="text-[#D4AF37] font-bold">،</span>
+                                                          <span className="text-[#8D4925] font-bold">،</span>
                                                         )}
                                                       </React.Fragment>
                                                     );
@@ -7637,12 +8476,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                                 </div>
                                               </div>
 
-                                              <div className="text-[11px] text-[#F7F2E9]/85 bg-[#0B1F17] p-2.5 rounded-lg border border-[#D4AF37]/25 space-y-1">
+                                              <div className="text-[11px] text-[#252321] bg-[#FAF6F0] p-2.5 rounded-lg border border-[#E2DACB] space-y-1">
                                                 <div>
-                                                  <strong className="text-[#D4AF37]">المسار الناتج:</strong>{' '}
+                                                  <strong className="text-[#8D4925]">المسار الناتج:</strong>{' '}
                                                   {fullStitchedChainForOpt}
                                                 </div>
-                                                <div className="text-[#10B981] font-bold">
+                                                <div className="text-emerald-900 font-bold">
                                                   <strong>الخطوة التالية للعميل (المخرج أ):</strong>{' '}
                                                   تُغلق نافذة التحقق وتظهر له بطاقة الجذر المقفلة (🔒 الجذر · افتح الآن $5)
                                                 </div>
@@ -7658,22 +8497,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           }
                                           className={`p-3.5 rounded-xl border-2 border-dashed transition-all cursor-pointer space-y-2 ${
                                             diagnosticSimChoice === 'not_sure_escalate'
-                                              ? 'border-[#10B981] bg-[#0F291E]'
-                                              : 'border-[#D4AF37] bg-[#0F291E]/70 hover:bg-[#0F291E]'
+                                              ? 'border-emerald-500 bg-white'
+                                              : 'border-[#B98A78] bg-white/90 hover:bg-[#FAF6F0]'
                                           }`}
                                         >
                                           <div className="flex items-center justify-between gap-2">
-                                            <span className="text-xs sm:text-sm font-extrabold font-boslet-title text-[#D4AF37]">
+                                            <span className="text-xs sm:text-sm font-extrabold font-display text-[#8D4925]">
                                               🔘 خيار: لا أعرف / موضع آخر (فشل التحقق في المرحلتين)
                                             </span>
-                                            <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#0B1F17] text-[10px] font-bold">
+                                            <span className="px-2 py-0.5 rounded bg-[#8D4925] text-white text-[10px] font-bold">
                                               المخرج (ب) · البحث المعمق
                                             </span>
                                           </div>
-                                          <div className="text-[11px] text-[#F7F2E9]/85 bg-[#0B1F17] p-2.5 rounded-lg border border-[#D4AF37]/30 space-y-1">
+                                          <div className="text-[11px] text-[#252321] bg-[#FAF6F0] p-2.5 rounded-lg border border-[#E2DACB] space-y-1">
                                             <div>
-                                              <strong className="text-[#D4AF37]">الخطوة التالية للعميل (المخرج ب):</strong>{' '}
-                                              يتم نقل العميل فوراً إلى شاشة <strong className="text-[#10B981]">«البحث المعمق» (Deep Research)</strong> ليُطلب منه الاشتراك السنوي لفتح تذكرة بحث خاصة لدى الباحثين، دون مطالبته بدفع الـ $5 الخاصة بالجذر الآلي!
+                                              <strong className="text-[#8D4925]">الخطوة التالية للعميل (المخرج ب):</strong>{' '}
+                                              يتم نقل العميل فوراً إلى شاشة <strong className="text-emerald-900">«البحث المعمق» (Deep Research)</strong> ليُطلب منه الاشتراك السنوي لفتح تذكرة بحث خاصة لدى الباحثين، دون مطالبته بدفع الـ $5 الخاصة بالجذر الآلي!
                                             </div>
                                           </div>
                                         </div>
@@ -7700,18 +8539,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     {/* =========================================================
                         PROMINENT SMART TRANSFER BAR TO TICKET OPERATIONS ROOM
                     ========================================================= */}
-                    <div className="rounded-3xl border-2 border-[#D4AF37] bg-gradient-to-l from-[#0F291E] via-[#0B1F17] to-[#0F291E] text-[#F7F2E9] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)]">
+                    <div className="rounded-3xl border border-[#B98A78]/50 bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#0B1F17] text-[11px] font-boslet-chain font-extrabold">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[11px] font-extrabold">
                             غرفة عمليات التذكرة التفاعلية
                           </span>
-                          <span className="text-xs font-boslet-chain text-[#10B981] font-bold">
+                          <span className="text-xs text-emerald-900 font-bold">
                             نقل السلسلة المخيطة ({finalStitchedStations.length}{' '}
                             محطات) + جسر آدم + المصادر الإضافية
                           </span>
                         </div>
-                        <h4 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+                        <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                           هل اكتمل فحص مسار ({directSearchResult.familyName}) في بوصلة الأنساب؟ انقل المخرجات الآن لغرفة عمليات التذكرة للإثراء والتوثيق بنقرة واحدة
                         </h4>
                       </div>
@@ -7726,7 +8565,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           )
                         }
                         data-testid="floating-transfer-to-ticket-room-btn"
-                        className="px-5 py-2.5 rounded-2xl bg-[#10B981] hover:bg-[#10B981]/90 text-[#0B1F17] text-xs sm:text-sm font-boslet-chain font-extrabold cursor-pointer transition-all shadow-[0_0_18px_rgba(16,185,129,0.4)] flex items-center gap-2"
+                        className="px-5 py-2.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
                       >
                         <Sparkles className="w-4 h-4 shrink-0" />
                         <span>
@@ -7742,33 +8581,33 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     <div
                       className={`rounded-3xl transition-all duration-300 overflow-hidden ${
                         bosletExpandedSections.spinePreview
-                          ? 'border-2 border-[#D4AF37] bg-gradient-to-b from-[#0F291E] via-[#0B1F17] to-[#0B1F17] p-5 sm:p-6 shadow-[0_14px_38px_rgba(0,0,0,0.6),0_0_24px_rgba(212,175,55,0.16)] ring-1 ring-[#10B981]/30 space-y-4'
-                          : 'border border-[#D4AF37]/40 bg-[#0B1F17]/90 hover:border-[#D4AF37]/80 px-5 py-4 shadow-md'
+                          ? 'border border-[#B98A78]/50 bg-white p-5 sm:p-6 shadow-xs space-y-4'
+                          : 'border border-[#E2DACB] bg-[#FAF6F0] hover:border-[#B98A78]/60 px-5 py-4 shadow-2xs'
                       }`}
                     >
                       <div
                         onClick={() => toggleBosletSection('spinePreview')}
                         className={`flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none ${
                           bosletExpandedSections.spinePreview
-                            ? 'border-b border-[#D4AF37]/30 pb-3.5'
+                            ? 'border-b border-[#E2DACB] pb-3.5'
                             : ''
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`w-8 h-8 rounded-xl font-boslet-chain text-xs font-extrabold flex items-center justify-center shrink-0 transition-all ${
+                            className={`w-8 h-8 rounded-xl font-mono text-xs font-extrabold flex items-center justify-center shrink-0 transition-all ${
                               bosletExpandedSections.spinePreview
-                                ? 'bg-[#D4AF37] text-[#0B1F17] shadow-[0_0_12px_rgba(212,175,55,0.4)]'
-                                : 'bg-[#0F291E] text-[#D4AF37] border border-[#D4AF37]/50'
+                                ? 'bg-[#D8755B] text-white shadow-2xs'
+                                : 'bg-white text-[#8D4925] border border-[#B98A78]/50'
                             }`}
                           >
                             6
                           </span>
                           <div>
-                            <h3 className="text-sm sm:text-base font-extrabold font-boslet-title text-[#D4AF37]">
+                            <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                               معاينة عمود نسب عائلة ({directSearchResult.familyName}) الموثق
                             </h3>
-                            <p className="text-xs font-boslet-chain text-[#F7F2E9]/75 mt-0.5">
+                            <p className="text-xs text-[#5C5346] mt-0.5">
                               محاكاة بصرية لعمود النسب كما يظهر بعد ربط المحطات المخيطة بشجرة آدم للأجداد
                             </p>
                           </div>
@@ -7780,10 +8619,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             e.stopPropagation();
                             toggleBosletSection('spinePreview');
                           }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-boslet-chain font-bold border transition-all cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                             bosletExpandedSections.spinePreview
-                              ? 'bg-[#D4AF37] text-[#0B1F17] border-[#D4AF37]'
-                              : 'bg-[#0F291E] text-[#D4AF37] border-[#D4AF37]/40 hover:border-[#D4AF37]'
+                              ? 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+                              : 'bg-white text-[#8D4925] border-[#B98A78]/40 hover:bg-[#EDE6DA]/60'
                           }`}
                         >
                           <span>
@@ -7834,126 +8673,133 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         )}
 
         {/* ===================================================================
-            SUB-TAB 2: 📥 صندوق تذاكر العملاء (ANALYTICAL SOURCE CARDS & 4 ACTIONS)
+            SUB-TAB 2: 🗂️ صندوق التذاكر وغرفة العمليات (مرصد جذوري | كشّاف الأنساب)
+            Harmonized with Homepage Warm Ivory, Beige, Terracotta & Soft Emerald
         =================================================================== */}
         {activeSubTab === 'ticket_inbox' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* ===================================================================
-                PILLAR 3: RESEARCHER PRODUCTIVITY & KPI TELEMETRY BAR
+                1. COMPACT SINGLE-ROW KPI TELEMETRY BAR (Warm Heritage Theme)
             =================================================================== */}
             <div
               data-testid="researcher-kpi-telemetry-bar"
-              className="rounded-3xl border-2 border-[#141414] bg-gradient-to-l from-[#141414] via-stone-900 to-[#141414] text-white p-4 sm:p-5 shadow-md space-y-3"
+              className="rounded-2xl border border-[#B98A78]/45 bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] px-4 py-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2.5 text-xs"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-3 py-1 rounded-xl bg-amber-400 text-stone-950 font-mono text-xs font-extrabold">
-                    📊 مؤشرات إنتاجية الباحث والمكافآت (KPI Telemetry)
-                  </span>
-                  <span className="text-xs text-stone-300">
-                    متزامن حياً مع لوحة تقارير الإدارة العليا وتقييم المكافآت الشهرية
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    data-testid="kpi-xp-incentive-score"
-                    className="px-3.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-mono text-xs sm:text-sm font-extrabold"
-                  >
-                    🏆 نقاط الإنجاز والمكافآت: {kpiTelemetry.totalXpScore} XP
-                  </span>
-                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg bg-[#8D4925] text-white font-mono text-[11px] font-extrabold flex items-center gap-1.5">
+                  <span>📊 مؤشرات الإنتاجية (KPI)</span>
+                </span>
+
+                {/* XP Points */}
+                <span
+                  data-testid="kpi-xp-incentive-score"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-mono text-xs font-extrabold"
+                >
+                  🏆 نقاط الإنجاز والمكافآت: {kpiTelemetry.totalXpScore} XP
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {/* 1. Active Ticket Timer & Avg Handling Time */}
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
-                  <span className="text-stone-400 text-[11px] block">
-                    ⏱️ زمن التذكرة النشطة / متوسط الإنجاز
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB]">
+                  <span className="text-[#5C5346] text-[11px]">⏱️ النشطة:</span>
+                  <span
+                    data-testid="kpi-active-ticket-timer"
+                    className="font-mono font-extrabold text-[#8D4925]"
+                  >
+                    {formatDurationMmSs(activeTicketElapsedSeconds)}
                   </span>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span
-                      data-testid="kpi-active-ticket-timer"
-                      className="text-base sm:text-lg font-mono font-extrabold text-amber-300"
-                    >
-                      {formatDurationMmSs(activeTicketElapsedSeconds)}
-                    </span>
-                    <span className="text-[11px] font-mono text-stone-300">
-                      المتوسط: {formatDurationMmSs(kpiTelemetry.avgHandlingTimeSeconds)}
-                    </span>
-                  </div>
+                  <span className="text-[#5C5346] text-[10px] font-mono">
+                    (المتوسط: {formatDurationMmSs(kpiTelemetry.avgHandlingTimeSeconds)})
+                  </span>
                 </div>
 
                 {/* 2. Completed Tickets Today by Priority (P1 / P2 / P3) */}
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
-                  <span className="text-stone-400 text-[11px] block">
-                    ✅ المنجز اليوم حسب الأولوية (إجمالي:{' '}
-                    {kpiTelemetry.completedTodayP1 +
-                      kpiTelemetry.completedTodayP2 +
-                      kpiTelemetry.completedTodayP3}
-                    )
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] font-mono text-[11px] font-extrabold">
+                  <span className="text-[#5C5346] font-sans font-bold ml-1">
+                    ✅ المنجز اليوم ({kpiTelemetry.completedTodayP1 + kpiTelemetry.completedTodayP2 + kpiTelemetry.completedTodayP3}):
                   </span>
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5 font-mono text-[11px] font-extrabold">
-                    <span className="px-2 py-0.5 rounded bg-red-500/25 border border-red-400/40 text-red-200">
-                      P1: {kpiTelemetry.completedTodayP1}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-amber-500/25 border border-amber-400/40 text-amber-200">
-                      P2: {kpiTelemetry.completedTodayP2}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/40 text-emerald-200">
-                      P3: {kpiTelemetry.completedTodayP3}
-                    </span>
-                  </div>
+                  <span className="px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-red-900">
+                    P1: {kpiTelemetry.completedTodayP1}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[#8D4925]">
+                    P2: {kpiTelemetry.completedTodayP2}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900">
+                    P3: {kpiTelemetry.completedTodayP3}
+                  </span>
                 </div>
 
                 {/* 3. Total Alpha Nodes Bridged to Adam */}
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
-                  <span className="text-stone-400 text-[11px] block">
-                    🌳 عُقد ألفا الموصولة بشجرة آدم
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB]">
+                  <span className="text-[#5C5346] text-[11px]">🌳 عُقد ألفا الموصولة:</span>
+                  <span
+                    data-testid="kpi-alpha-nodes-bridged"
+                    className="font-mono font-extrabold text-emerald-900"
+                  >
+                    {kpiTelemetry.totalAlphaNodesBridged} عقدة موصولة
                   </span>
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      data-testid="kpi-alpha-nodes-bridged"
-                      className="text-base sm:text-lg font-mono font-extrabold text-emerald-300"
-                    >
-                      {kpiTelemetry.totalAlphaNodesBridged} عقدة موصولة
-                    </span>
-                  </div>
                 </div>
 
                 {/* 4. Total Addon Sources Verified in Adam Prime */}
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-3 space-y-1">
-                  <span className="text-stone-400 text-[11px] block">
-                    🏛️ مصادر إضافية موثقة في آدم برايم
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB]">
+                  <span className="text-[#5C5346] text-[11px]">🏛️ آدم برايم:</span>
+                  <span
+                    data-testid="kpi-adam-prime-sources-verified"
+                    className="font-mono font-extrabold text-[#8D4925]"
+                  >
+                    {kpiTelemetry.totalAdamPrimeSourcesVerified} مرجع موثق
                   </span>
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      data-testid="kpi-adam-prime-sources-verified"
-                      className="text-base sm:text-lg font-mono font-extrabold text-indigo-300"
-                    >
-                      {kpiTelemetry.totalAdamPrimeSourcesVerified} مرجع موثق
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
 
             {/* ===================================================================
-                PILLAR 2: 3-TIER PRIORITY QUEUE BAR (`P1 -> P2 -> P3 Auto-Refill Mining Queue`)
+                2. 3-TIER PRIORITY QUEUE BAR + SIDEBAR COLLAPSE TOGGLE
             =================================================================== */}
-            <div className="bg-white rounded-2xl border border-stone-200/90 p-4 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="bg-white rounded-2xl border border-[#E2DACB] p-3.5 flex flex-wrap items-center justify-between gap-2.5 shadow-2xs">
               <div className="flex flex-wrap items-center gap-2">
+                {/* Collapse / Expand Queue Sidebar Button */}
+                <button
+                  type="button"
+                  data-testid="toggle-queue-sidebar-btn"
+                  onClick={() => setIsQueueSidebarCollapsed((prev) => !prev)}
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    isQueueSidebarCollapsed
+                      ? 'bg-[#D8755B] text-white border-[#D8755B]'
+                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border-[#E2DACB]'
+                  }`}
+                  title={
+                    isQueueSidebarCollapsed
+                      ? 'إظهار طابور التذاكر الجانبي'
+                      : 'طيّ طابور التذاكر لتوسيع غرفة العمليات إلى كامل الشاشة (100% Width)'
+                  }
+                >
+                  <span>
+                    {isQueueSidebarCollapsed
+                      ? `إظهار الطابور ▶ (${filteredInboxTickets.length})`
+                      : 'طيّ الطابور ◀'}
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   data-testid="queue-filter-all-priority"
                   onClick={() => setInboxCategoryFilter('ALL_PRIORITY_SORTED')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
                     inboxCategoryFilter === 'ALL_PRIORITY_SORTED'
-                      ? 'bg-[#141414] text-amber-300 shadow-sm'
-                      : 'bg-[#FAF8F5] text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-[#D8755B] text-white shadow-sm'
+                      : 'bg-[#FAF6F0] text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
                   }`}
                 >
                   <span>⚡ الطابور الذكي المتسلسل (P1 ⬅️ P2 ⬅️ P3)</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-amber-500/20 text-amber-400">
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
+                      inboxCategoryFilter === 'ALL_PRIORITY_SORTED'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-white text-[#8D4925]'
+                    }`}
+                  >
                     {tickets.length}
                   </span>
                 </button>
@@ -7969,10 +8815,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
                     inboxCategoryFilter === 'P1_CLIENT_UNMATCHED' ||
                     inboxCategoryFilter === 'DIRECT_CUSTOMER_TICKETS'
-                      ? 'bg-red-900 text-white shadow-sm'
+                      ? 'bg-red-800 text-white shadow-sm'
                       : 'bg-red-50/70 text-red-950 hover:bg-red-100 border border-red-200'
                   }`}
                 >
@@ -7998,14 +8844,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
                     inboxCategoryFilter === 'P2_CLIENT_ADAM_BRIDGE'
-                      ? 'bg-amber-800 text-white shadow-sm'
-                      : 'bg-amber-50/80 text-amber-950 hover:bg-amber-100 border border-amber-200'
+                      ? 'bg-[#8D4925] text-white shadow-sm'
+                      : 'bg-amber-50/80 text-[#8D4925] hover:bg-amber-100 border border-[#B98A78]/40'
                   }`}
                 >
                   <span>🟡 P2: استكمال تسليم العملاء (جسر آدم)</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-amber-950">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/80 text-[#8D4925]">
                     {
                       tickets.filter(
                         (t) =>
@@ -8028,9 +8874,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     );
                     if (firstMatch) setSelectedTicketId(firstMatch.id);
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
                     inboxCategoryFilter === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-                      ? 'bg-emerald-900 text-white shadow-sm'
+                      ? 'bg-emerald-800 text-white shadow-sm'
                       : 'bg-emerald-50/80 text-emerald-950 hover:bg-emerald-100 border border-emerald-300'
                   }`}
                 >
@@ -8052,9 +8898,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 disabled={isGeneratingP3Batch}
                 onClick={() => handleAutoRefillNextP3Tickets(3)}
                 data-testid="auto-generate-p3-batch-btn"
-                className="px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-amber-300 text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
+                className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/50 text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
                 <span>
                   {isGeneratingP3Batch
                     ? 'جارٍ سحب تذاكر P3...'
@@ -8063,144 +8909,175 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* RIGHT COLUMN (4 COLS): TICKET LIST */}
-              <div className="lg:col-span-4 bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
-                <div className="p-4 bg-[#FAF8F5] border-b border-stone-200 flex items-center justify-between">
-                  <h3 className="text-sm font-bold font-serif text-[#141414]">
-                    طابور التذاكر البحثية ({filteredInboxTickets.length})
-                  </h3>
-                  <span className="text-[10px] font-mono font-bold text-stone-500">
-                    P1 ⬅️ P2 ⬅️ P3
-                  </span>
-                </div>
-
-                <div className="divide-y divide-stone-100 max-h-[750px] overflow-y-auto">
-                  {filteredInboxTickets.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-stone-500">
-                      لا توجد تذاكر حالياً ضمن هذا التصنيف.
+            {/* ===================================================================
+                3. MAIN GRID: STICKY COLLAPSIBLE QUEUE (RIGHT) + TICKET WORKBENCH (LEFT)
+            =================================================================== */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* RIGHT COLUMN (4 COLS WHEN EXPANDED): STICKY TICKET QUEUE SIDEBAR */}
+              {!isQueueSidebarCollapsed && (
+                <div
+                  data-testid="sticky-ticket-queue-sidebar"
+                  className="lg:col-span-4 bg-white rounded-3xl border border-[#E2DACB] shadow-2xs overflow-hidden lg:sticky lg:top-4 lg:max-h-[85vh] flex flex-col"
+                >
+                  <div className="p-3.5 bg-[#FAF6F0] text-[#252321] border-b border-[#E2DACB] flex items-center justify-between shrink-0">
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
+                        طابور التذاكر النشطة ({filteredInboxTickets.length})
+                      </h3>
+                      <span className="text-[10px] font-mono text-[#5C5346]">
+                        مرتب تلقائياً: P1 ⬅️ P2 ⬅️ P3
+                      </span>
                     </div>
-                  ) : (
-                    filteredInboxTickets.map((tkt) => {
-                      const isSelected = selectedTicket?.id === tkt.id;
-                      const isClosed =
-                        tkt.status === 'CLOSED_AND_ENRICHED' ||
-                        tkt.status === 'merged_closed';
-                      const tier = resolveTicketPriorityTier(tkt);
-                      const priorityBadge =
-                        tier === 'P1_CLIENT_UNMATCHED'
-                          ? {
-                              label: '🔴 P1 · طوارئ عميل',
-                              cls: 'bg-red-100 text-red-900 border border-red-300',
-                            }
-                          : tier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-                          ? {
-                              label: '🟢 P3 · تعدين ذكي',
-                              cls: 'bg-emerald-100 text-emerald-900 border border-emerald-300',
-                            }
-                          : {
-                              label: '🟡 P2 · جسر آدم للعميل',
-                              cls: 'bg-amber-100 text-amber-950 border border-amber-300',
-                            };
-                      return (
-                        <button
-                          key={tkt.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedTicketId(tkt.id);
-                            setInlineChainInspection(null);
-                          }}
-                          className={`w-full text-right p-4 transition-all cursor-pointer block ${
-                            isSelected
-                              ? 'bg-amber-50/80 border-r-4 border-r-[#B45309]'
-                              : 'hover:bg-stone-50'
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-stone-900 text-amber-300">
-                                {tkt.id}
-                              </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsQueueSidebarCollapsed(true)}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/45 text-[11px] font-extrabold transition-all cursor-pointer"
+                      title="طيّ طابور التذاكر لتوسيع غرفة العمليات"
+                    >
+                      طيّ الطابور ◀
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-[#E2DACB]/60 overflow-y-auto flex-1">
+                    {filteredInboxTickets.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-[#5C5346]">
+                        لا توجد تذاكر حالياً ضمن هذا التصنيف.
+                      </div>
+                    ) : (
+                      filteredInboxTickets.map((tkt) => {
+                        const isSelected = selectedTicket?.id === tkt.id;
+                        const isClosed =
+                          tkt.status === 'CLOSED_AND_ENRICHED' ||
+                          tkt.status === 'merged_closed';
+                        const tier = resolveTicketPriorityTier(tkt);
+                        const priorityBadge =
+                          tier === 'P1_CLIENT_UNMATCHED'
+                            ? {
+                                label: '🔴 P1 · طوارئ عميل',
+                                cls: 'bg-red-50 text-red-900 border border-red-200',
+                              }
+                            : tier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+                            ? {
+                                label: '🟢 P3 · تعدين ذكي',
+                                cls: 'bg-emerald-50 text-emerald-900 border border-emerald-200',
+                              }
+                            : {
+                                label: '🟡 P2 · جسر آدم للعميل',
+                                cls: 'bg-amber-50 text-[#8D4925] border border-[#B98A78]/40',
+                              };
+                        return (
+                          <button
+                            key={tkt.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTicketId(tkt.id);
+                              setInlineChainInspection(null);
+                            }}
+                            className={`w-full text-right p-3.5 transition-all cursor-pointer block ${
+                              isSelected
+                                ? 'bg-[#FAF6F0] border-r-4 border-r-[#D8755B]'
+                                : 'hover:bg-[#FAF6F0]/60'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#EDE6DA] text-[#8D4925]">
+                                  {tkt.id}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${priorityBadge.cls}`}
+                                >
+                                  {priorityBadge.label}
+                                </span>
+                              </div>
                               <span
-                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${priorityBadge.cls}`}
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                  isClosed
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : tkt.status === 'investigating'
+                                    ? 'bg-blue-50 text-blue-800'
+                                    : tkt.status === 'exported_adam_prime'
+                                    ? 'bg-purple-50 text-purple-800'
+                                    : 'bg-[#FAF6F0] text-[#5C5346]'
+                                }`}
                               >
-                                {priorityBadge.label}
-                              </span>
-                            </div>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                isClosed
-                                  ? 'bg-emerald-100 text-emerald-800'
+                                {isClosed
+                                  ? 'مكتملة ومعتمدة ✓'
                                   : tkt.status === 'investigating'
-                                  ? 'bg-blue-100 text-blue-800'
+                                  ? 'بانتظار إيضاح العميل'
                                   : tkt.status === 'exported_adam_prime'
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-stone-100 text-stone-800'
-                              }`}
-                            >
-                              {isClosed
-                                ? 'مكتملة ومعتمدة ✓'
-                                : tkt.status === 'investigating'
-                                ? 'بانتظار إيضاح العميل'
-                                : tkt.status === 'exported_adam_prime'
-                                ? 'مصعدة لآدم برايم'
-                                : 'مفتوحة للتحقيق'}
-                            </span>
-                          </div>
-
-                          <h4 className="text-xs font-bold text-[#141414] leading-snug mb-1">
-                            {tkt.title}
-                          </h4>
-
-                          {tkt.p3StrategicMeta && (
-                            <div className="mt-1.5 mb-1.5 flex flex-wrap items-center gap-1 text-[10px]">
-                              <span className="px-2 py-0.5 rounded bg-emerald-900 text-amber-300 font-mono font-extrabold">
-                                [★ وزن استراتيجي: {tkt.p3StrategicMeta.strategic_score} نقطة]
-                              </span>
-                              <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
-                                عمود ({tkt.p3StrategicMeta.chain_stations_count} محطات)
-                              </span>
-                              <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
-                                توافق ({tkt.p3StrategicMeta.corroborating_sources_count}) مراجع
+                                  ? 'مصعدة لآدم برايم'
+                                  : 'مفتوحة للتحقيق'}
                               </span>
                             </div>
-                          )}
 
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-500 mt-2">
-                            <span>المصدر: {tkt.clientName}</span>
-                            <span className="font-bold text-[#B45309]">
-                              {tkt.corroboratingEvidence?.length ||
-                                tkt.copilotSources.length}{' '}
-                              روايات مرصودة
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
+                            <h4 className="text-xs font-bold text-[#252321] leading-snug mb-1">
+                              {tkt.title}
+                            </h4>
+
+                            {tkt.p3StrategicMeta && (
+                              <div className="mt-1.5 mb-1.5 flex flex-wrap items-center gap-1 text-[10px]">
+                                <span className="px-2 py-0.5 rounded bg-emerald-700 text-white font-mono font-extrabold">
+                                  [★ وزن استراتيجي: {tkt.p3StrategicMeta.strategic_score} نقطة]
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
+                                  عمود ({tkt.p3StrategicMeta.chain_stations_count} محطات)
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-950 font-bold">
+                                  توافق ({tkt.p3StrategicMeta.corroborating_sources_count}) مراجع
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5C5346] mt-1.5">
+                              <span>المصدر: {tkt.clientName}</span>
+                              <span className="font-bold text-[#8D4925]">
+                                {tkt.corroboratingEvidence?.length ||
+                                  tkt.copilotSources.length}{' '}
+                                روايات مرصودة
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* LEFT COLUMN (8 COLS): THE 3 DATA LAKES WORKBENCH & RESEARCHER DECISIONS */}
-              <div className="lg:col-span-8 space-y-6">
+              {/* LEFT COLUMN (8 COLS OR 12 COLS FULL-WIDTH WHEN SIDEBAR COLLAPSED): ACTIVE TICKET OPERATIONS ROOM */}
+              <div
+                className={`${
+                  isQueueSidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-8'
+                } space-y-5 transition-all`}
+              >
                 {selectedTicket ? (
-                  <div className="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
-                    {/* TICKET HEADER */}
-                    <div className="bg-[#FAF8F5] border-b border-stone-200 p-6">
+                  <div className="bg-white rounded-3xl border border-[#E2DACB] shadow-2xs overflow-hidden">
+                    {/* COMPACT TICKET HEADER (Warm Heritage Theme) */}
+                    <div className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/75 text-[#252321] border-b border-[#E2DACB] p-4 sm:p-5">
                       <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2.5 py-1 rounded-md bg-stone-900 text-amber-300 font-mono text-xs font-bold">
+                          {isQueueSidebarCollapsed && (
+                            <button
+                              type="button"
+                              onClick={() => setIsQueueSidebarCollapsed(false)}
+                              className="px-2.5 py-1 rounded-lg bg-[#D8755B] text-white text-xs font-extrabold cursor-pointer flex items-center gap-1"
+                            >
+                              <span>إظهار الطابور ▶</span>
+                            </button>
+                          )}
+                          <span className="px-2.5 py-1 rounded-md bg-white border border-[#B98A78]/50 text-[#8D4925] font-mono text-xs font-bold">
                             {selectedTicket.id}
                           </span>
-                          <span className="px-2.5 py-1 rounded-md bg-white border border-stone-200 text-stone-700 text-xs font-bold">
-                            الموطن: {selectedTicket.locationLabel}
+                          <span className="px-2.5 py-1 rounded-md bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold">
+                            📍 الموطن: {selectedTicket.locationLabel}
                           </span>
                           <span
                             className={`px-2.5 py-1 rounded-md text-xs font-bold ${
                               selectedTicket.status === 'CLOSED_AND_ENRICHED' ||
                               selectedTicket.status === 'merged_closed'
-                                ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                                : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                                : 'bg-[#D8755B] text-white'
                             }`}
                           >
                             {selectedTicket.status === 'CLOSED_AND_ENRICHED' ||
@@ -8214,28 +9091,29 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           onClick={() =>
                             onSwitchToClientPreview(selectedTicket.familyName)
                           }
-                          className="px-3 py-1.5 rounded-xl bg-[#141414] hover:bg-stone-800 text-amber-300 text-xs font-bold cursor-pointer transition-all"
+                          className="px-3.5 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold cursor-pointer transition-all shadow-2xs"
                         >
                           معاينة لوحة العميل ({selectedTicket.familyName}) ↗
                         </button>
                       </div>
 
-                      <h3 className="text-lg font-bold font-serif text-[#141414]">
+                      <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
                         {selectedTicket.title}
                       </h3>
+
                       {selectedTicket.fullStitchedLineage &&
                         selectedTicket.fullStitchedLineage.length > 0 && (
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
-                            <span className="font-bold text-stone-600">
+                            <span className="font-bold text-[#5C5346]">
                               السلسلة المخيطة الكاملة للباحث:
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-bold">
+                            <span className="px-2 py-0.5 rounded bg-[#8D4925] text-white font-extrabold">
                               {selectedTicket.familyName} (FE0)
                             </span>
                             {selectedTicket.fullStitchedLineage.map((st, idx) => (
                               <React.Fragment key={st.id || idx}>
-                                <span className="text-stone-400 font-bold">⬅️</span>
-                                <span className="px-2 py-0.5 rounded bg-white border border-stone-300 text-stone-800 font-bold">
+                                <span className="text-[#D8755B] font-bold">⬅️</span>
+                                <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] text-[#252321] font-bold">
                                   {st.name} ({st.code})
                                 </span>
                               </React.Fragment>
@@ -8244,1110 +9122,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         )}
                     </div>
 
-                    <div className="p-6 space-y-6">
+                    <div className="p-4 sm:p-6 space-y-5">
                       {/* =====================================================
-                          GAMIFIED ALL-IN-ONE 3-STATION ACTION WORKSPACE
-                          (Quest Progress Bar + Station 1 Lego Chain + Station 2 Toggle Pills + Station 3 Adam Prime Sync)
+                          UNIFIED 4-STEP SEQUENTIAL WORKFLOW WORKSPACE + STICKY ACTION FOOTER
                       ===================================================== */}
                       {renderGamifiedTicketOperationsWorkspace(selectedTicket)}
-
-                      {/* =====================================================
-                          القسم 1: بطاقة "🧠 التنبيه الاستدلالي الذكي وتحليل القرائن للباحث (AI Research Hypothesis)"
-                          + بطاقة "🎯 جسر الالتقاء المقترح آلياً في شجرة آدم (suggested_adam_bridge_for_researcher)"
-                      ===================================================== */}
-                      {(() => {
-                        const hypotheses =
-                          selectedTicket.aiResearchHypotheses &&
-                          selectedTicket.aiResearchHypotheses.length > 0
-                            ? selectedTicket.aiResearchHypotheses
-                            : buildAIResearchHypothesesForFamily(
-                                selectedTicket.familyName,
-                                selectedTicket.corroboratingEvidence || [],
-                                selectedTicket.suggestedAdamBridge
-                              );
-
-                        return (
-                          <div
-                            data-testid="section1-ai-research-hypothesis-and-bridge"
-                            className="space-y-4"
-                          >
-                            {/* 1A: AI Research Hypothesis Card */}
-                            <div className="rounded-2xl border-2 border-amber-500/80 bg-gradient-to-l from-amber-50 via-[#FAF8F5] to-amber-50/70 p-5 shadow-2xs space-y-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2.5 py-0.5 rounded-full bg-amber-900 text-amber-200 text-[11px] font-bold">
-                                    القسم 1 — التحليل الاستدلالي الذكي للباحث
-                                  </span>
-                                  <span className="px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-950 text-[11px] font-bold">
-                                    حصرياً لفريق التحقيق (غير معروض للعميل)
-                                  </span>
-                                </div>
-                                <span className="text-[11px] font-mono font-bold text-[#B45309]">
-                                  AI Research Hypothesis v11.1
-                                </span>
-                              </div>
-
-                              <h4 className="text-sm sm:text-base font-extrabold font-serif text-[#141414]">
-                                🧠 التنبيه الاستدلالي الذكي وتحليل القرائن للباحث (AI Research Hypothesis)
-                              </h4>
-
-                              <div className="space-y-2">
-                                {hypotheses.map((hyp, hIdx) => (
-                                  <div
-                                    key={hIdx}
-                                    className="rounded-xl bg-white border border-amber-300/90 p-3.5 text-xs text-stone-800 leading-relaxed font-medium shadow-2xs"
-                                  >
-                                    {hyp}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* 1B: Suggested Adam Bridge Card */}
-                            {selectedTicket.suggestedAdamBridge && (
-                              <div
-                                data-testid="lake1-suggested-adam-bridge"
-                                className="rounded-2xl border-2 border-emerald-600 bg-gradient-to-l from-emerald-950 via-emerald-900 to-emerald-950 text-white p-5 shadow-md space-y-4"
-                              >
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                  <div className="space-y-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold">
-                                        البحيرة 1 — شجرة آدم (ADAM_MASTER_TREE)
-                                      </span>
-                                      <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 font-mono text-[11px] font-bold">
-                                        {selectedTicket.suggestedAdamBridge
-                                          .confidence_label || 'تطابق آلي 98%'}
-                                      </span>
-                                    </div>
-                                    <h4 className="text-base font-bold font-serif text-amber-300">
-                                      🎯 جسر الالتقاء المقترح آلياً في شجرة آدم (suggested_adam_bridge_for_researcher)
-                                    </h4>
-                                  </div>
-
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const bridgePreview =
-                                          selectedTicket.suggestedAdamBridge
-                                            ?.adam_chain_preview || '';
-                                        setAppliedAdamBridgeByTicket((prev) => ({
-                                          ...prev,
-                                          [selectedTicket.id]: bridgePreview,
-                                        }));
-                                        showToast(
-                                          `⚡ تم تطبيق جسر الالتقاء (${selectedTicket.suggestedAdamBridge?.matched_station_name} ⬅️ ${bridgePreview}) في معاينة العمود النهائي بالأسفل!`
-                                        );
-                                      }}
-                                      className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs font-extrabold shadow-sm cursor-pointer transition-all flex items-center gap-1.5"
-                                    >
-                                      <Sparkles className="w-3.5 h-3.5" />
-                                      <span>
-                                        ⚡ تطبيق هذا الربط في معاينة العمود النهائي
-                                      </span>
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                  <div className="rounded-xl bg-white/10 border border-white/15 p-3">
-                                    <span className="text-emerald-200/80 block text-[11px]">
-                                      المحطة المطابقة من عمود العائلة:
-                                    </span>
-                                    <span className="font-extrabold text-white text-sm">
-                                      {
-                                        selectedTicket.suggestedAdamBridge
-                                          .matched_station_name
-                                      }
-                                    </span>
-                                  </div>
-
-                                  <div className="sm:col-span-2 rounded-xl bg-white/10 border border-white/15 p-3">
-                                    <span className="text-emerald-200/80 block text-[11px]">
-                                      عقدة شجرة آدم المكتشفة وسلسلة اتصالها المباشر:
-                                    </span>
-                                    <span className="font-mono font-bold text-amber-300 text-xs sm:text-sm">
-                                      {
-                                        selectedTicket.suggestedAdamBridge
-                                          .adam_node_id
-                                      }
-                                      :{' '}
-                                      {
-                                        selectedTicket.suggestedAdamBridge
-                                          .adam_chain_preview
-                                      }
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="rounded-xl bg-black/25 border border-white/10 p-3 text-xs space-y-1">
-                                  <span className="text-emerald-300 font-bold block">
-                                    الاتصال الكامل حتى آدم عليه السلام:
-                                  </span>
-                                  <p className="text-stone-200 font-mono leading-relaxed">
-                                    {getLivePreviewNodesForTicket(selectedTicket)
-                                      .map((n) => n.name)
-                                      .join(' ⬅️ ')}{' '}
-                                    ⬅️{' '}
-                                    {
-                                      selectedTicket.suggestedAdamBridge
-                                        .adam_chain_preview
-                                    }
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      {/* RULE 4: CONSENSUS WINNER & COMPETING PATHS COMPARISON IN TICKET INBOX */}
-                      {renderConsensusAndCompetingPathsMatrix(
-                        selectedTicket.familyName,
-                        selectedTicket.corroboratingEvidence,
-                        'ticket_inbox'
-                      )}
-
-                      {/* =====================================================
-                          القسم 2: بطاقات المصادر التحليلية (مصفوفة تفكيك ومقارنة المصادر والروايات)
-                          Split into:
-                          1) 🌟 مراجع مسار التوافق الأساسي
-                          2) 📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق
-                      ===================================================== */}
-                      {(() => {
-                        const allTicketEvidence: CorroboratingAlphaEvidence[] =
-                          selectedTicket.corroboratingEvidence &&
-                          selectedTicket.corroboratingEvidence.length > 0
-                            ? tagConsensusWinnersOnEvidence(
-                                selectedTicket.familyName,
-                                selectedTicket.corroboratingEvidence
-                              )
-                            : selectedTicket.copilotSources.map(
-                                (cs, idx): CorroboratingAlphaEvidence => ({
-                                  alpha_id: `alpha-fallback-${idx}`,
-                                  record_name: selectedTicket.familyName,
-                                  source_book: cs.bookCitation,
-                                  page: '—',
-                                  volume: `${idx + 1}`,
-                                  lineage_ancestors: `${selectedTicket.familyName} ⬅️ ${selectedTicket.subRootName} ⬅️ ${selectedTicket.motherTribeName}`,
-                                  priority_tier: 'PRIORITY_1_COUNTRY_BOOK',
-                                  is_consensus_winner: true,
-                                })
-                              );
-
-                        // Compute shared child_branches and shared locations across 2+ sources for "قرينة تقاطع مشتركة" badges
-                        const branchFreq = new Map<string, number>();
-                        const locationFreq = new Map<string, number>();
-                        allTicketEvidence.forEach((ev) => {
-                          const branches = (ev.child_branches || '')
-                            .split(/[|،,؛]/)
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          new Set(branches).forEach((b) => {
-                            branchFreq.set(b, (branchFreq.get(b) || 0) + 1);
-                          });
-                          const locs = (ev.locations || '')
-                            .split(/[|،,؛/]/)
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          new Set(locs).forEach((loc) => {
-                            locationFreq.set(
-                              loc,
-                              (locationFreq.get(loc) || 0) + 1
-                            );
-                          });
-                        });
-
-                        const indexedEvidence = allTicketEvidence.map(
-                          (ev, originalIdx) => ({ ev, originalIdx })
-                        );
-                        const winnerItems = indexedEvidence.filter(
-                          (item) => item.ev.is_consensus_winner !== false
-                        );
-                        const competingItems = indexedEvidence.filter(
-                          (item) => item.ev.is_consensus_winner === false
-                        );
-
-                        const renderEvidenceCard = (
-                          ev: CorroboratingAlphaEvidence,
-                          idx: number
-                        ) => {
-                          const isIncluded =
-                            getTicketIncludedIndices(selectedTicket).includes(
-                              idx
-                            );
-                          const isPrimary =
-                            (primarySourceIndexByTicket[selectedTicket.id] ??
-                              0) === idx;
-                          const noteKey = `${selectedTicket.id}-${idx}`;
-                          const chainStations = splitAncestorsChain(
-                            ev.lineage_ancestors
-                          );
-                          const displayChain =
-                            chainStations.length > 0
-                              ? chainStations
-                              : [
-                                  selectedTicket.familyName,
-                                  selectedTicket.subRootName,
-                                  selectedTicket.motherTribeName,
-                                ];
-
-                          const parsedBranches = (ev.child_branches || '')
-                            .split(/[|،,؛]/)
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          const parsedLocations = (ev.locations || '')
-                            .split(/[|،,؛/]/)
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-
-                          return (
-                            <div
-                              key={ev.alpha_id || idx}
-                              className={`rounded-2xl border p-4 transition-all ${
-                                isPrimary
-                                  ? 'bg-amber-50/70 border-2 border-[#B45309]'
-                                  : isIncluded
-                                  ? 'bg-white border-stone-200'
-                                  : 'bg-stone-50/50 border-stone-200 opacity-60'
-                              }`}
-                            >
-                              {/* Source Header & 3 Researcher Controls */}
-                              <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-stone-200/80">
-                                <div className="space-y-1.5">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-bold text-[#141414]">
-                                      {idx + 1}. كتاب: {ev.source_book}
-                                    </span>
-                                    {(() => {
-                                      const lakeBadge =
-                                        resolveResearcherDataLakeBadge(ev);
-                                      return (
-                                        <span
-                                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${lakeBadge.colorClass}`}
-                                        >
-                                          {lakeBadge.tag}
-                                        </span>
-                                      );
-                                    })()}
-                                    {(ev.volume || ev.page) && (
-                                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono text-[11px] font-bold">
-                                        {[
-                                          ev.volume ? `ج ${ev.volume}` : '',
-                                          ev.page ? `ص ${ev.page}` : '',
-                                        ]
-                                          .filter(Boolean)
-                                          .join(' / ')}
-                                      </span>
-                                    )}
-                                    {ev.consensus_badge && (
-                                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-bold">
-                                        {ev.consensus_badge}
-                                      </span>
-                                    )}
-                                    <span
-                                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                        ev.priority_tier ===
-                                        'PRIORITY_1_COUNTRY_BOOK'
-                                          ? 'bg-emerald-100 text-emerald-900'
-                                          : 'bg-stone-200 text-stone-800'
-                                      }`}
-                                    >
-                                      {ev.priority_tier ===
-                                      'PRIORITY_1_COUNTRY_BOOK'
-                                        ? 'كتاب دولة العميل - أولوية 1'
-                                        : 'مرجع عام - أولوية 2'}
-                                    </span>
-                                    {(Boolean(ev.other_sources && ev.other_sources.trim()) ||
-                                      (Array.isArray(ev.parsed_other_sources) &&
-                                        ev.parsed_other_sources.length > 0)) && (
-                                      <span className="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-400 text-amber-950 text-[10px] font-extrabold">
-                                        ⚠️ إحالات لمصادر أخرى في الهامش (
-                                        {ev.parsed_other_sources?.length || 1})
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* 3 RESEARCHER DECISION CONTROLS ON EACH SOURCE CARD */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {/* Control 1: ☑️ اعتماد هذا المصدر في توثيق العائلة */}
-                                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-stone-300 bg-white text-[11px] font-bold text-stone-800 cursor-pointer hover:border-[#B45309]">
-                                    <input
-                                      type="checkbox"
-                                      checked={isIncluded}
-                                      onChange={() =>
-                                        toggleSourceInclusion(
-                                          selectedTicket,
-                                          idx
-                                        )
-                                      }
-                                      className="w-3.5 h-3.5 accent-[#B45309] cursor-pointer"
-                                    />
-                                    <span>
-                                      ☑️ اعتماد هذا المصدر في توثيق العائلة
-                                    </span>
-                                  </label>
-
-                                  {/* Control 2: ⭐ تعيين كـ "الرواية الأساسية المعتمدة لعمود العائلة" */}
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleSetPrimaryNarrativeForTicket(
-                                        selectedTicket,
-                                        idx,
-                                        ev
-                                      )
-                                    }
-                                    className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
-                                      isPrimary
-                                        ? 'bg-[#B45309] text-white shadow-2xs'
-                                        : 'bg-white border border-stone-300 text-stone-700 hover:border-[#B45309]'
-                                    }`}
-                                  >
-                                    <Star className="w-3.5 h-3.5" />
-                                    <span>
-                                      {isPrimary
-                                        ? '⭐ الرواية الأساسية المعتمدة لعمود العائلة ✓'
-                                        : '⭐ تعيين كـ "الرواية الأساسية المعتمدة لعمود العائلة"'}
-                                    </span>
-                                  </button>
-
-                                  {/* Control 3: 🔗 دمج/إلحاق أجداد هذه الرواية أعلى الرواية الأساسية */}
-                                  {!isPrimary && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleSpliceNarrativeAbovePrimary(
-                                          selectedTicket,
-                                          idx,
-                                          ev
-                                        )
-                                      }
-                                      className="px-3 py-1 rounded-xl bg-purple-900 hover:bg-purple-950 text-amber-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
-                                    >
-                                      <GitMerge className="w-3.5 h-3.5" />
-                                      <span>
-                                        🔗 دمج/إلحاق أجداد هذه الرواية أعلى الرواية الأساسية
-                                      </span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* CHILD BRANCHES & LOCATIONS WITH SHARED CLUE BADGES (قرينة تقاطع مشتركة) */}
-                              {(parsedBranches.length > 0 ||
-                                parsedLocations.length > 0) && (
-                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-[#FAF8F5] rounded-xl p-3 border border-stone-200/80">
-                                  {parsedBranches.length > 0 && (
-                                    <div>
-                                      <span className="text-[11px] font-bold text-stone-700 block mb-1">
-                                        الفروع الأبناء المذكورة في السجل (child_branches):
-                                      </span>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {parsedBranches.map((br, bIdx) => {
-                                          const isShared =
-                                            (branchFreq.get(br) || 0) >= 2;
-                                          return (
-                                            <span
-                                              key={bIdx}
-                                              className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 ${
-                                                isShared
-                                                  ? 'bg-emerald-100 border border-emerald-400 text-emerald-950'
-                                                  : 'bg-white border border-stone-200 text-stone-700'
-                                              }`}
-                                            >
-                                              <span>{br}</span>
-                                              {isShared && (
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-800 text-white">
-                                                  قرينة تقاطع مشتركة
-                                                </span>
-                                              )}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {parsedLocations.length > 0 && (
-                                    <div>
-                                      <span className="text-[11px] font-bold text-stone-700 block mb-1">
-                                        المواطن والنطاق الجغرافي (locations):
-                                      </span>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {parsedLocations.map((loc, lIdx) => {
-                                          const isShared =
-                                            (locationFreq.get(loc) || 0) >= 2;
-                                          return (
-                                            <span
-                                              key={lIdx}
-                                              className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 ${
-                                                isShared
-                                                  ? 'bg-amber-100 border border-amber-400 text-amber-950'
-                                                  : 'bg-white border border-stone-200 text-stone-700'
-                                              }`}
-                                            >
-                                              <span>📍 {loc}</span>
-                                              {isShared && (
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-800 text-white">
-                                                  قرينة تقاطع مشتركة
-                                                </span>
-                                              )}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* INTERACTIVE LINEAGE CHAIN BUTTONS (🔍 فحص في شجرة آدم) */}
-                              <div className="mt-3">
-                                <span className="text-[11px] font-bold text-stone-600 block mb-2">
-                                  سلسلة نسب الأجداد في هذا المصدر (انقر على أي جد لـ 🔍 فحص في شجرة آدم):
-                                </span>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {displayChain.map(
-                                    (nodeName: string, nodeIdx: number) => {
-                                      const isInspected =
-                                        inlineChainInspection?.ticketId ===
-                                          selectedTicket.id &&
-                                        inlineChainInspection?.sourceIdx ===
-                                          idx &&
-                                        inlineChainInspection?.queriedName ===
-                                          nodeName;
-                                      return (
-                                        <React.Fragment key={nodeIdx}>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              handleInspectChainNodeInAdam(
-                                                selectedTicket.id,
-                                                idx,
-                                                nodeName
-                                              )
-                                            }
-                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                              isInspected
-                                                ? 'bg-[#141414] text-amber-300 border-[#141414]'
-                                                : 'bg-white hover:bg-amber-50 text-stone-800 border-stone-300'
-                                            }`}
-                                          >
-                                            <span>{nodeName}</span>
-                                            <span className="text-[10px] text-[#B45309] font-normal">
-                                              🔍 فحص في شجرة آدم
-                                            </span>
-                                          </button>
-                                          {nodeIdx <
-                                            displayChain.length - 1 && (
-                                            <span className="text-stone-400 text-xs font-bold">
-                                              ⬅️
-                                            </span>
-                                          )}
-                                        </React.Fragment>
-                                      );
-                                    }
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* INLINE ADAM TREE INSPECTION RESULT */}
-                              {inlineChainInspection &&
-                                inlineChainInspection.ticketId ===
-                                  selectedTicket.id &&
-                                inlineChainInspection.sourceIdx === idx && (
-                                  <div
-                                    className={`mt-3 p-3.5 rounded-xl border text-xs ${
-                                      inlineChainInspection.foundInAdam
-                                        ? 'bg-emerald-950 text-emerald-100 border-emerald-700'
-                                        : 'bg-amber-950 text-amber-100 border-amber-700'
-                                    }`}
-                                  >
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div className="font-bold">
-                                        {inlineChainInspection.foundInAdam &&
-                                        inlineChainInspection.matchedNode ? (
-                                          <span>
-                                            ✅ العقدة «
-                                            {inlineChainInspection.queriedName}»
-                                            مفهرسة وموجودة في شجرة آدم (الكود:{' '}
-                                            {
-                                              inlineChainInspection.matchedNode
-                                                .arc_code
-                                            }{' '}
-                                            — المعرف:{' '}
-                                            {
-                                              inlineChainInspection.matchedNode
-                                                .node_id
-                                            }
-                                            )
-                                          </span>
-                                        ) : (
-                                          <span>
-                                            ⚠️ العقدة «
-                                            {inlineChainInspection.queriedName}»
-                                            غير مفهرسة بعد في شجرة آدم — جاهزة للإدراج والربط المباشر
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      {inlineChainInspection.foundInAdam &&
-                                        inlineChainInspection.matchedNode && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              if (
-                                                inlineChainInspection.matchedNode
-                                              ) {
-                                                setSelectedAdamNodeId(
-                                                  inlineChainInspection
-                                                    .matchedNode.node_id
-                                                );
-                                                setActiveSubTab(
-                                                  'adam_tree_explorer'
-                                                );
-                                              }
-                                            }}
-                                            className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
-                                          >
-                                            🌳 فتح هذا السجل في تبويب شجرة آدم ↗
-                                          </button>
-                                        )}
-                                    </div>
-
-                                    {inlineChainInspection.foundInAdam &&
-                                      inlineChainInspection.adamChainPreview
-                                        .length > 0 && (
-                                        <p className="text-[11px] text-emerald-200 mt-1.5 font-mono">
-                                          الاتصال في شجرة آدم:{' '}
-                                          {inlineChainInspection.adamChainPreview.join(
-                                            ' ⬅️ '
-                                          )}
-                                        </p>
-                                      )}
-                                  </div>
-                                )}
-
-                              {/* Researcher Note Input for this source */}
-                              <div className="mt-3 pt-2 border-t border-stone-200/60">
-                                <input
-                                  type="text"
-                                  value={sourceResearcherNotes[noteKey] || ''}
-                                  onChange={(e) =>
-                                    setSourceResearcherNotes((prev) => ({
-                                      ...prev,
-                                      [noteKey]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="ملاحظة الباحث التحقيقية على هذه الرواية (اختياري)..."
-                                  className="w-full px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs focus:outline-none focus:border-[#B45309]"
-                                />
-                              </div>
-                            </div>
-                          );
-                        };
-
-                        return (
-                          <div
-                            data-testid="lake2-corroborating-alpha-sources"
-                            className="space-y-5"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div>
-                                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-bold">
-                                  القسم 2 — البحيرة 2 (معاجم ومشاريع ألفا)
-                                </span>
-                                <h4 className="text-sm font-bold font-serif text-[#141414] mt-1">
-                                  📚 مصفوفة تفكيك ومقارنة المصادر والروايات (
-                                  {allTicketEvidence.length} مصادر)
-                                </h4>
-                              </div>
-                              <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900">
-                                المصادر المعتمدة للتوثيق:{' '}
-                                {getTicketIncludedIndices(selectedTicket).length}{' '}
-                                من {allTicketEvidence.length}
-                              </span>
-                            </div>
-
-                            {/* GROUP 1: 🌟 مراجع مسار التوافق الأساسي */}
-                            <div className="rounded-2xl border-2 border-emerald-500/80 bg-emerald-50/40 p-4 space-y-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-xs sm:text-sm font-extrabold font-serif text-emerald-950">
-                                  🌟 مراجع مسار التوافق الأساسي (is_consensus_winner: true)
-                                </span>
-                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white text-[11px] font-bold">
-                                  {winnerItems.length} مصادر متفقة
-                                </span>
-                              </div>
-                              <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
-                                {winnerItems.map(({ ev, originalIdx }) =>
-                                  renderEvidenceCard(ev, originalIdx)
-                                )}
-                              </div>
-                            </div>
-
-                            {/* GROUP 2: 📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق */}
-                            <div className="rounded-2xl border border-amber-300 bg-amber-50/40 p-4 space-y-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-xs sm:text-sm font-extrabold font-serif text-amber-950">
-                                  📚 روايات وسجلات أخرى لنفس الاسم للمقارنة والتحقيق (is_consensus_winner: false)
-                                </span>
-                                <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-950 text-[11px] font-bold">
-                                  {competingItems.length} روايات موازية للمقارنة أو الدمج
-                                </span>
-                              </div>
-                              {competingItems.length === 0 ? (
-                                <p className="text-xs text-stone-600 bg-white rounded-xl p-3 border border-amber-200">
-                                  جميع مصادر البحيرة 2 لاسم ({selectedTicket.familyName}) تتفق على مسار التوافق الأساسي أعلاه ولا توجد روايات متشابهة متعارضة.
-                                </p>
-                              ) : (
-                                <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-                                  {competingItems.map(({ ev, originalIdx }) =>
-                                    renderEvidenceCard(ev, originalIdx)
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* =====================================================
-                          القسم 3: قسم روافد البحيرة الثالثة والمشاريع الخاصة
-                          (lake3_unlinked_projects_for_researcher)
-                      ===================================================== */}
-                      {selectedTicket.lake3UnlinkedProjects &&
-                        selectedTicket.lake3UnlinkedProjects.length > 0 && (
-                          <div
-                            data-testid="lake3-unlinked-projects"
-                            className="rounded-2xl border border-stone-300 bg-[#FAF8F5] p-4 space-y-3"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div>
-                                <span className="px-2.5 py-0.5 rounded-full bg-stone-200 text-stone-800 text-[11px] font-bold">
-                                  القسم 3 — روافد البحيرة الثالثة والمشاريع الخاصة (lake3_unlinked_projects_for_researcher)
-                                </span>
-                                <h4 className="text-xs sm:text-sm font-bold font-serif text-[#141414] mt-1">
-                                  🗂️ سجلات استئناسية داعمة للباحث مع إمكانية إلحاقها بالمصادر المعتمدة
-                                </h4>
-                              </div>
-                              <span className="px-2.5 py-0.5 rounded-lg bg-stone-800 text-amber-300 text-[11px] font-mono font-bold">
-                                {selectedTicket.lake3UnlinkedProjects.length} سجلات
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-2.5">
-                              {selectedTicket.lake3UnlinkedProjects.map(
-                                (rec) => {
-                                  const isAttached = (
-                                    includedLake3IdsByTicket[
-                                      selectedTicket.id
-                                    ] || []
-                                  ).includes(rec.record_id);
-                                  return (
-                                    <div
-                                      key={rec.record_id}
-                                      className={`rounded-xl border p-3.5 space-y-1.5 transition-all ${
-                                        isAttached
-                                          ? 'bg-emerald-50/70 border-emerald-500'
-                                          : 'bg-white border-stone-200'
-                                      }`}
-                                    >
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <span className="text-xs font-bold text-[#141414]">
-                                            {rec.project_source}
-                                          </span>
-                                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold border bg-purple-100 text-purple-900 border-purple-300">
-                                            [مشاريع]
-                                          </span>
-                                          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700">
-                                            {rec.family_or_tribe_name}
-                                          </span>
-                                        </div>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            toggleLake3RecordInclusion(
-                                              selectedTicket.id,
-                                              rec.record_id
-                                            )
-                                          }
-                                          className={`px-3 py-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all ${
-                                            isAttached
-                                              ? 'bg-emerald-800 text-white'
-                                              : 'bg-stone-900 hover:bg-stone-800 text-amber-300'
-                                          }`}
-                                        >
-                                          {isAttached
-                                            ? '✓ تم الإلحاق بالمصادر المعتمدة'
-                                            : '➕ إلحاق بالمصادر المعتمدة'}
-                                        </button>
-                                      </div>
-                                      <p className="text-xs text-stone-700 leading-relaxed">
-                                        {rec.snippet}
-                                      </p>
-                                      {rec.locations && (
-                                        <p className="text-[11px] text-stone-500">
-                                          📍 المواضع المذكورة: {rec.locations}
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                }
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Station 3 inside Gamified Workspace above handles Secondary Sources & Adam Prime Unified Registry */}
-
-                      {/* =====================================================
-                          القسم 4: معاينة العمود النهائي ولوحة الإجراءات والمخرجات الحاسمة
-                          (Live Final Column Preview & Researcher Actions)
-                      ===================================================== */}
-                      {(() => {
-                        const liveNodes =
-                          getLivePreviewNodesForTicket(selectedTicket);
-                        const activeBridgePreview =
-                          appliedAdamBridgeByTicket[selectedTicket.id] ||
-                          selectedTicket.suggestedAdamBridge
-                            ?.adam_chain_preview ||
-                          'طيء ⬅️ كهلان ⬅️ سبأ ⬅️ قحطان ⬅️ آدم عليه السلام';
-
-                        return (
-                          <div
-                            data-testid="section4-live-final-column-preview"
-                            className="rounded-3xl border-2 border-[#141414] bg-gradient-to-b from-[#FAF8F5] to-white p-5 space-y-5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-3">
-                              <div>
-                                <span className="px-2.5 py-0.5 rounded-full bg-[#141414] text-amber-300 text-[11px] font-bold">
-                                  القسم 4 — معاينة العمود النهائي ولوحة الإجراءات الحاسمة
-                                </span>
-                                <h4 className="text-sm sm:text-base font-extrabold font-serif text-[#141414] mt-1">
-                                  🧬 معاينة حية لعمود النسب المدمج (Live Final Column Preview)
-                                </h4>
-                                <p className="text-xs text-stone-500">
-                                  يمكنك تعديل ترتيب أو اسم أو الكود الهيكلي (Arc Code) لأي عقدة قبل الاعتماد النهائي وتغذية شجرة آدم
-                                </p>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const nextNodes: ExtractableLineageNode[] = [
-                                    ...liveNodes,
-                                    {
-                                      id: `node-manual-${Date.now()}`,
-                                      name: 'جد / بطن جديد',
-                                      nodeCode: 'B1',
-                                      relationType: 'aan',
-                                      region: selectedTicket.locationLabel,
-                                    },
-                                  ];
-                                  setLivePreviewNodesByTicket((prev) => ({
-                                    ...prev,
-                                    [selectedTicket.id]: nextNodes,
-                                  }));
-                                }}
-                                className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-bold cursor-pointer flex items-center gap-1"
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>إضافة محطة وسيطة للعمود</span>
-                              </button>
-                            </div>
-
-                            {/* Editable Nodes List (Bottom-up or Sequential up to Adam Bridge) */}
-                            <div className="space-y-2.5">
-                              {liveNodes.map((node, nIdx) => (
-                                <div
-                                  key={node.id || nIdx}
-                                  className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white border border-stone-300 p-3 shadow-2xs"
-                                >
-                                  <div className="flex flex-wrap items-center gap-2 flex-1">
-                                    <span className="w-6 h-6 rounded-full bg-stone-900 text-amber-300 font-mono text-[11px] font-bold flex items-center justify-center">
-                                      {nIdx + 1}
-                                    </span>
-
-                                    <input
-                                      type="text"
-                                      value={node.name}
-                                      onChange={(e) =>
-                                        handleUpdateLivePreviewNode(
-                                          selectedTicket,
-                                          nIdx,
-                                          { name: e.target.value }
-                                        )
-                                      }
-                                      className="px-3 py-1.5 rounded-xl border border-stone-300 bg-[#FAF8F5] text-xs font-bold text-[#141414] min-w-[150px]"
-                                    />
-
-                                    <select
-                                      value={node.nodeCode}
-                                      onChange={(e) =>
-                                        handleUpdateLivePreviewNode(
-                                          selectedTicket,
-                                          nIdx,
-                                          { nodeCode: e.target.value }
-                                        )
-                                      }
-                                      className="px-2.5 py-1.5 rounded-xl border border-stone-300 bg-amber-50 text-amber-950 font-mono text-xs font-bold"
-                                    >
-                                      {ARC_CODE_OPTIONS.map((opt) => (
-                                        <option
-                                          key={opt.value}
-                                          value={opt.value}
-                                        >
-                                          {opt.label}
-                                        </option>
-                                      ))}
-                                    </select>
-
-                                    <select
-                                      value={node.relationType}
-                                      onChange={(e) =>
-                                        handleUpdateLivePreviewNode(
-                                          selectedTicket,
-                                          nIdx,
-                                          {
-                                            relationType: e.target.value as
-                                              | 'bin'
-                                              | 'aan',
-                                          }
-                                        )
-                                      }
-                                      className="px-2.5 py-1.5 rounded-xl border border-stone-300 bg-white text-stone-800 text-xs font-bold"
-                                    >
-                                      <option value="bin">الرابط: بن (مباشر)</option>
-                                      <option value="aan">الرابط: من (انتساب)</option>
-                                    </select>
-                                  </div>
-
-                                  <div className="flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleMoveLivePreviewNode(
-                                          selectedTicket,
-                                          nIdx,
-                                          'up'
-                                        )
-                                      }
-                                      disabled={nIdx === 0}
-                                      className="px-2 py-1 rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 disabled:opacity-40 text-xs font-bold cursor-pointer"
-                                      title="تحريك لأسفل السلسلة"
-                                    >
-                                      ↑
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleMoveLivePreviewNode(
-                                          selectedTicket,
-                                          nIdx,
-                                          'down'
-                                        )
-                                      }
-                                      disabled={nIdx === liveNodes.length - 1}
-                                      className="px-2 py-1 rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 disabled:opacity-40 text-xs font-bold cursor-pointer"
-                                      title="تحريك لأعلى السلسلة"
-                                    >
-                                      ↓
-                                    </button>
-                                    {liveNodes.length > 2 && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleRemoveLivePreviewNode(
-                                            selectedTicket,
-                                            nIdx
-                                          )
-                                        }
-                                        className="px-2 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold cursor-pointer"
-                                      >
-                                        حذف
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Visual Connected Spine Summary up to Adam */}
-                            <div className="rounded-2xl bg-emerald-950 text-white p-4 space-y-2">
-                              <span className="text-[11px] font-bold text-amber-300 block">
-                                🔗 الشكل النهائي لعمود النسب المدمج حتى آدم عليه السلام (كما سيظهر للعميل فور الاعتماد):
-                              </span>
-                              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                                {liveNodes.map((n, i) => (
-                                  <React.Fragment key={n.id || i}>
-                                    <span className="px-2.5 py-1 rounded-lg bg-white/15 border border-white/20 font-bold text-amber-200">
-                                      {n.name}{' '}
-                                      <span className="font-mono text-[10px] text-emerald-300">
-                                        ({n.nodeCode})
-                                      </span>
-                                    </span>
-                                    <span className="text-emerald-400 font-bold">
-                                      ⬅️
-                                    </span>
-                                  </React.Fragment>
-                                ))}
-                                <span className="px-2.5 py-1 rounded-lg bg-emerald-800/90 border border-emerald-500 font-mono text-xs font-bold text-white">
-                                  🌳 {activeBridgePreview}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* OPTIONAL ENRICHMENT FIELDS FOR ACTION B */}
-                            <div className="bg-[#FAF8F5] rounded-2xl border border-stone-200/80 p-4 space-y-3">
-                              <h5 className="text-xs font-bold text-stone-800">
-                                بيانات الإثراء الإضافية للسجل (الفروع الشقيقة، الأعلام، والمواطن):
-                              </h5>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <input
-                                  type="text"
-                                  value={enrichmentBranchesInput}
-                                  onChange={(e) =>
-                                    setEnrichmentBranchesInput(e.target.value)
-                                  }
-                                  placeholder="فروع شقيقة (مفصولة بفاصلة)..."
-                                  className="px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs"
-                                />
-                                <input
-                                  type="text"
-                                  value={enrichmentNotablesInput}
-                                  onChange={(e) =>
-                                    setEnrichmentNotablesInput(e.target.value)
-                                  }
-                                  placeholder="أعلام وشخصيات بارزة..."
-                                  className="px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs"
-                                />
-                                <input
-                                  type="text"
-                                  value={enrichmentLocationsInput}
-                                  onChange={(e) =>
-                                    setEnrichmentLocationsInput(e.target.value)
-                                  }
-                                  placeholder="الانتشار الجغرافي الإضافي..."
-                                  className="px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs"
-                                />
-                              </div>
-                            </div>
-
-                            {/* 4 OFFICIAL RESEARCHER DECISION ACTIONS */}
-                            <div className="border-t border-stone-200 pt-4 space-y-3">
-                              <h4 className="text-xs font-bold text-stone-700">
-                                أزرار الإجراءات الحاسمة ومخرجاتها الفورية في Firebase وواجهة العميل:
-                              </h4>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {/* ACTION 1 */}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleActionAApproveAndLinkToAdam(
-                                      selectedTicket
-                                    )
-                                  }
-                                  className="p-3.5 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-                                >
-                                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                                  <span>
-                                    ✅ اعتماد الربط وتغذية شجرة آدم وإغلاق التذكرة
-                                  </span>
-                                </button>
-
-                                {/* ACTION 2 */}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleActionBEnrichExistingAdamNode(
-                                      selectedTicket
-                                    )
-                                  }
-                                  className="p-3.5 rounded-2xl bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-                                >
-                                  <Sparkles className="w-4 h-4 shrink-0" />
-                                  <span>
-                                    ✨ اعتماد إثراء المراجع والفروع فقط (لعقدة موجودة مسبقاً في شجرة آدم)
-                                  </span>
-                                </button>
-
-                                {/* ACTION 3 */}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setShowClarificationBox((prev) => !prev)
-                                  }
-                                  className="p-3.5 rounded-2xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-                                >
-                                  <MessageSquare className="w-4 h-4 shrink-0" />
-                                  <span>💬 طلب إيضاح أو وثيقة من العميل</span>
-                                </button>
-
-                                {/* ACTION 4 */}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleActionDEscalateToAdamPrime(
-                                      selectedTicket
-                                    )
-                                  }
-                                  className="p-3.5 rounded-2xl bg-purple-900 hover:bg-purple-950 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-                                >
-                                  <Cpu className="w-4 h-4 shrink-0" />
-                                  <span>
-                                    🏛️ تصعيد التذكرة إلى جسر آدم برايم (Adam Prime)
-                                  </span>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                        {/* INLINE CLARIFICATION BOX FOR ACTION C */}
-                        {showClarificationBox && (
-                          <div className="mt-3 p-4 rounded-2xl bg-stone-100 border border-stone-300 space-y-3">
-                            <label className="block text-xs font-bold text-stone-800">
-                              اكتب رسالة الاستيضاح التي ستصل فوراً إلى إشعارات العميل ({selectedTicket.clientName}):
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={clarificationMessage}
-                              onChange={(e) =>
-                                setClarificationMessage(e.target.value)
-                              }
-                              placeholder="مثال: نرجو تزويدنا باسم الجد الرابع أو وثيقة المشجرة العائلية لحسم الالتقاء بين فرع البلاسم وآل نصيري..."
-                              className="w-full p-3 rounded-xl border border-stone-300 bg-white text-xs"
-                            />
-                            <div className="flex justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setShowClarificationBox(false)}
-                                className="px-3 py-1.5 rounded-xl bg-white border border-stone-300 text-xs font-bold cursor-pointer"
-                              >
-                                إلغاء
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleActionCRequestClarification(
-                                    selectedTicket
-                                  )
-                                }
-                                className="px-4 py-1.5 rounded-xl bg-[#B45309] text-white text-xs font-bold cursor-pointer"
-                              >
-                                إرسال الاستفسار للعميل وتحديث التذكرة ✓
-                              </button>
-                            </div>
-                          </div>
-                        )}
                     </div>
                   </div>
                 ) : null}

@@ -23,16 +23,12 @@
     scroll-behavior: smooth;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1, h2, h3, h4, .font-display, .font-serif, .font-boslet-title {
     font-family: var(--font-display);
   }
 
-  .font-boslet-title {
-    font-family: var(--font-amiri);
-  }
-
   .font-boslet-chain {
-    font-family: var(--font-ibm-arabic);
+    font-family: var(--font-sans);
   }
 
   .tabular-nums {
