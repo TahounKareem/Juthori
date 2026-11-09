@@ -6941,7 +6941,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         {activeSubTab === 'direct_search' && (
           <div className="space-y-6 bg-white text-[#252321]">
             {/* ===============================================================
-                OFFICIAL "بوصلة الأنساب" IDENTITY HEADER BANNER
+                OFFICIAL "بوصلة الجذور" IDENTITY HEADER BANNER
                 (Exact Same Dimensions & Structure as "شجرة آدم للأجداد" Header)
             =============================================================== */}
             <div
@@ -6952,21 +6952,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 p-1.5 shadow-lg border-2 border-[#C5A059] shrink-0 flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
-                    alt="بوصلة الأنساب"
+                    alt="بوصلة الجذور"
                     className="w-full h-full object-cover rounded-full"
                   />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/50 text-[#F4D799] text-[10px] font-extrabold tracking-wider">
-                      بوصلة الأنساب
+                      بوصلة الجذور
                     </span>
                   </div>
                   <h2 className="text-lg sm:text-xl font-bold font-serif mt-1 text-white">
-                    بوصلة الأنساب — منظومة الفحص التشخيصي وحسم المسارات النسبية
+                    بوصلة الجذور — منظومة البحث والفحص وحسم المسارات النسبية
                   </h2>
                   <p className="text-xs text-emerald-100/85 mt-0.5">
-                    تتبع استقصائي للمصادر الخام وأمهات الكتب، ومنطق العنقدة والخياطة الطوبولوجية، وحسم التوافق السيبراني مع شجرة آدم للأجداد
+                    تتبع استقصائي للمصادر التاريخية وأمهات الكتب، ومنطق الدمج وحسم التوافق لإثراء مع شجرة آدم للأجداد
                   </p>
                 </div>
               </div>
@@ -6990,7 +6990,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             </div>
 
             {/* ===============================================================
-                INDEPENDENT COLLAPSIBLE BOX 0: محرك استعلام بوصلة الأنساب
+                INDEPENDENT COLLAPSIBLE BOX 0: محرك استعلام بوصلة الجذور
             =============================================================== */}
             <div
               className={`rounded-3xl transition-all duration-300 overflow-hidden ${
@@ -7019,7 +7019,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   </div>
                   <div>
                     <h3 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-                      مدخلات الفحص والاستعلام المرجعي في بوصلة الأنساب
+                      مدخلات الفحص والاستعلام المرجعي في بوصلة الجذور
                     </h3>
                     <p className="text-xs text-[#5C5346] mt-0.5">
                       ابحث باسم العائلة أو القبيلة أو الفرع لتشغيل الفحص التشخيصي عبر بحيرات البيانات وشجرة آدم
@@ -7118,7 +7118,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-bold text-[#8D4925] mb-1">
-                      الإقليم / المدينة (اختياري)
+                      الموطن الأصلي
                     </label>
                     <input
                       type="text"
@@ -7141,7 +7141,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       className="w-full py-2.5 px-4 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl text-xs font-extrabold shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Search className="w-4 h-4" />
-                      <span>فحص وتشخيص المسار</span>
+                      <span>فحص مسار الجذر</span>
                     </button>
                   </div>
                 </form>
@@ -7152,7 +7152,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               <div className="rounded-3xl border-2 border-dashed border-[#B98A78]/50 bg-[#FAF6F0] p-10 text-center space-y-2">
                 <Search className="w-9 h-9 text-[#D8755B] mx-auto mb-2" />
                 <p className="text-base font-bold font-display text-[#252321]">
-                  أدخل اسم العائلة أو القبيلة واضغط على «فحص وتشخيص المسار» لتشغيل بوصلة الأنساب
+                  أدخل اسم العائلة أو القبيلة واضغط على «فحص مسار الجذر» لتشغيل بوصلة الجذور
                 </p>
                 <p className="text-xs text-[#5C5346]">
                   ستظهر لك الأقسام المستقلة للمصادر الخام، ومحرك العنقدة والخياطة، والسلسلة المخيطة، ومحاكي التحقق قابلة للطي والإبراز
@@ -8160,25 +8160,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 return (
                   <div className="space-y-8">
                     {/* =========================================================
-                        CONTAINER 1: [🌳 حزمة الأولوية 1 — نتائج البحث والتحقق في «شجرة آدم الكبرى»]
+                        CONTAINER 1: [🌳 فحص التطابق في شجرة آدم للأجداد]
+                        Unified Warm Heritage Background matching Container 2 & 3
                     ========================================================= */}
                     <div
                       data-testid="boslet-container1-adam-tree"
-                      className="rounded-3xl bg-gradient-to-l from-[#0B241B] via-[#113527] to-[#164231] border-2 border-[#C5A059] p-5 sm:p-6 shadow-md text-white space-y-4"
+                      className="rounded-3xl border-2 border-[#C5A059]/80 bg-[#FAF6F0]/70 p-5 sm:p-6 shadow-sm text-[#252321] space-y-4"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#C5A059]/35 pb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl bg-[#C5A059]/20 border border-[#C5A059] flex items-center justify-center text-xl shrink-0 shadow-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#E2DACB] pb-4">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-11 h-11 rounded-2xl bg-[#8D4925] text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
                             🌳
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/60 text-[#F4D799] text-[10px] font-extrabold">
-                                الحزمة البصرية الأولى · الأولوية 1
-                              </span>
                               <span
                                 data-testid="adam-container-header-counter"
-                                className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-emerald-100 text-[10px] font-bold"
+                                className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold"
                               >
                                 {adamMatchedCandidates.length === 1
                                   ? 'عُقد مرصودة في شجرة آدم: 1 (مرتبطة وموثقة ✓)'
@@ -8189,25 +8187,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   : 'عُقد مرصودة في شجرة آدم: 0'}
                               </span>
                             </div>
-                            <h3 className="text-base sm:text-lg font-extrabold font-display text-white mt-1">
-                              الأولوية 1: فحص التطابق في شجرة آدم الكبرى (البحيرة الأولى المعتمدة)
+                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] mt-1">
+                              فحص التطابق في شجرة آدم للأجداد
                             </h3>
                           </div>
                         </div>
 
                         {adamMatchedCandidates.length === 1 && (
-                          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-300/60 text-emerald-100 text-xs font-extrabold">
+                          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
                             ✅ تطابق مرجعي موثق ومرتبط في شجرة آدم الكبرى (SINGLE_ADAM_MATCH)
                           </span>
                         )}
                         {adamMatchedCandidates.length > 1 && (
-                          <span className="px-3.5 py-1.5 rounded-xl bg-[#C5A059]/30 border border-[#C5A059] text-[#F4D799] text-xs font-extrabold">
+                          <span className="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
                             🔍 تعدد نتائج متشابهة في شجرة آدم ({adamMatchedCandidates.length} عُقد) — يتطلب سؤال تحقق
                           </span>
                         )}
                         {adamMatchedCandidates.length === 0 &&
                           resolvedAdamBridgeForContainer1 && (
-                            <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-[#C5A059] text-[#F4D799] text-xs font-extrabold">
+                            <span className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
                               🔗 جسر التقاء مرصود مع شجرة آدم عبر العقدة: {resolvedAdamBridgeForContainer1.adam_node_name}
                             </span>
                           )}
@@ -8362,7 +8360,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                       <div className="flex items-center gap-2">
-                                        <span className="px-2 py-0.5 rounded bg-[#0B241B] text-[#F4D799] font-mono text-[11px] font-extrabold">
+                                        <span className="px-2 py-0.5 rounded bg-[#8D4925] text-white font-mono text-[11px] font-extrabold">
                                           #{cand.node.node_id}
                                         </span>
                                         <span className="text-xs sm:text-sm font-extrabold text-[#252321]">
@@ -8400,7 +8398,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
                               <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 rounded-full bg-[#0B241B] text-[#F4D799] text-xs font-extrabold">
+                                <span className="px-3 py-1 rounded-full bg-[#8D4925] text-white text-xs font-extrabold">
                                   🎯 محاكي أسئلة التحقق في شجرة آدم
                                 </span>
                                 <span className="text-xs font-bold text-[#5C5346]">
@@ -8523,18 +8521,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         !resolvedAdamBridgeForContainer1 && (
                           <div
                             data-testid="adam-container-zero-match"
-                            className="rounded-2xl bg-white/10 border border-[#C5A059]/40 px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-emerald-50"
+                            className="rounded-2xl bg-white border border-[#E2DACB] px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-[#252321] shadow-2xs"
                           >
                             <span className="text-base shrink-0">⚪</span>
                             <span>
-                              ⚪ لا يوجد تطابق مباشر باسم العائلة في شجرة آدم حالياً — تم توجيه البوصلة آلياً لفحص وخياطة المصادر الخام (ألفا/بيتا) في الحزمة الثانية أدناه
+                              ⚪ لا يوجد تطابق مباشر باسم العائلة في شجرة آدم حالياً — تم توجيه البوصلة آلياً لفحص باقي المصادر التاريخية الخاصة بالمشاريع
                             </span>
                           </div>
                         )}
                     </div>
 
                     {/* =========================================================
-                        CONTAINER 2: [📦 حزمة الأولوية 2 و3 — إطار فحص وخياطة المصادر الخام]
+                        CONTAINER 2: [📦 تحليل وهندسة المصادر التاريخية الخاصة بالمشاريع غير المربوطة بشجرة آدم للأجداد]
                         Unified Bordered Master Card wrapping Diagnostic Sections 1 to 5
                     ========================================================= */}
                     <div
@@ -8558,15 +8556,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 border border-[#B98A78] text-[#8D4925] text-[10px] font-extrabold">
-                                الحزمة البصرية الثانية · الأولوية 2 و3
-                              </span>
                               <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold">
                                 إجمالي السجلات الخام في ألفا: {rawEvidenceList.length}
                               </span>
                             </div>
                             <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] mt-1">
-                              حزمة تحليل وهندسة المصادر الخام (مشاريع ألفا والمخطوطات غير المربوطة — الأقسام التشخيصية 1 إلى 5)
+                              تحليل وهندسة المصادر التاريخية الخاصة بالمشاريع غير المربوطة بشجرة آدم للأجداد)
                             </h3>
                           </div>
                         </div>
@@ -8590,8 +8585,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           >
                             <span>
                               {isContainer2Expanded
-                                ? 'طي حزمة المصادر الخام'
-                                : 'فتح حزمة المصادر الخام (الأقسام 1 إلى 5)'}
+                                ? 'طي حزمة مصادر المشاريع'
+                                : 'فتح حزمة مصادر المشاريع'}
                             </span>
                             {isContainer2Expanded ? (
                               <ChevronUp className="w-4 h-4" />
@@ -9727,7 +9722,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 </span>
                               </div>
                               <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
-                                هل اكتمل فحص مسار ({directSearchResult.familyName}) في بوصلة الأنساب؟ انقل المخرجات الآن لغرفة عمليات التذكرة للإثراء والتوثيق بنقرة واحدة
+                                هل اكتمل فحص مسار ({directSearchResult.familyName}) في بوصلة الجذور؟ انقل المخرجات الآن لغرفة عمليات التذكرة للإثراء والتوثيق بنقرة واحدة
                               </h4>
                             </div>
 

@@ -971,9 +971,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     {
       id: 'direct_search_inspection',
       emoji: '🧭',
-      title: '🧭 بوصلة الأنساب',
+      title: '🧭 بوصلة الجذور',
       description:
-        'قسم البحث والفحص التشخيصي للمسارات، تتبع أمهات الكتب، وحسم التوافق السيبراني مع شجرة آدم الكبرى.',
+        'منظومة البحث والفحص وحسم المسارات النسبية، وتتبع المصادر التاريخية وأمهات الكتب لإثراء شجرة آدم للأجداد.',
       liveCounterLabel: 'محرك الفحص الثلاثي',
       liveCounterValue: 'جاهز < 150ms',
       accentBadge: 'الأداة المرجعية للباحثين',
@@ -1258,20 +1258,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col">
       {/* =====================================================================
           REQUIREMENT 1: TOP HEADER BAR (No Horizontal Section Tabs Bar)
-          Contains ONLY: Logo, User Name & Role, "🏠 بوابة القيادة الرئيسية" (when inside sub-panel),
-          "تحديث البيانات", "واجهة المنصة", and "خروج"
+          Unified Warm Heritage Ivory & Terracotta Visual Identity (Zero Black Backgrounds)
          ===================================================================== */}
-      <header className="sticky top-0 z-40 bg-[#141414] text-white border-b border-[#C5A059]/40 shadow-md">
+      <header className="sticky top-0 z-40 bg-[#FAF6F0]/95 backdrop-blur-md text-[#252321] border-b border-[#E2DACB] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" />
-            <span className="hidden md:inline-block h-6 w-px bg-white/20" />
-            <div className="flex items-center gap-2 bg-white/10 border border-[#C5A059]/45 px-3.5 py-1.5 rounded-xl">
-              <Crown className="w-4 h-4 text-[#C5A059]" />
+            <span className="hidden md:inline-block h-6 w-px bg-[#E2DACB]" />
+            <div className="flex items-center gap-2 bg-white border border-[#B98A78]/50 px-3.5 py-1.5 rounded-xl shadow-2xs">
+              <Crown className="w-4 h-4 text-[#D8755B]" />
               <div className="text-xs">
-                <span className="font-bold text-white">{loggedInMember.name}</span>
-                <span className="mx-1.5 text-[#C5A059]">·</span>
-                <span className="text-[#F4D799] font-bold">{loggedInMember.role}</span>
+                <span className="font-bold text-[#252321]">{loggedInMember.name}</span>
+                <span className="mx-1.5 text-[#D8755B]">·</span>
+                <span className="text-[#8D4925] font-extrabold">{loggedInMember.role}</span>
               </div>
             </div>
           </div>
@@ -1283,7 +1282,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 type="button"
                 data-testid="back-to-command-hub-btn"
                 onClick={() => setActiveTab('command_hub')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-l from-[#C5A059] to-[#D8755B] hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold shadow-xs transition cursor-pointer"
               >
                 <span>🏠 بوابة القيادة الرئيسية</span>
               </button>
@@ -1293,10 +1292,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               type="button"
               onClick={refreshAllFirebaseData}
               disabled={isLoadingData}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 text-[#F4D799] ${
+                className={`w-3.5 h-3.5 text-[#8D4925] ${
                   isLoadingData ? 'animate-spin' : ''
                 }`}
               />
@@ -1306,16 +1305,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             <button
               type="button"
               onClick={onBackToPlatform}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-[#F4D799] border border-[#C5A059]/40 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] text-xs font-bold text-[#8D4925] border border-[#B98A78]/50 shadow-2xs transition cursor-pointer"
             >
-              <ArrowRight className="w-3.5 h-3.5 text-[#C5A059]" />
+              <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
               <span>واجهة المنصة</span>
             </button>
 
             <button
               type="button"
               onClick={handleTeamLogout}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#D8755B]/25 hover:bg-[#D8755B]/40 text-xs font-bold text-white border border-[#D8755B]/50 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#D8755B]/15 text-xs font-bold text-[#8D4925] border border-[#D8755B]/50 transition cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5 text-[#D8755B]" />
               <span>خروج</span>
@@ -1344,32 +1343,32 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-welcome-banner"
-              className="rounded-3xl bg-gradient-to-l from-[#0B1F17] via-[#102C21] to-[#163B2C] border-2 border-[#C5A059] p-6 sm:p-8 text-white shadow-xl space-y-5 relative overflow-hidden"
+              className="rounded-3xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 border-2 border-[#E2DACB] p-6 sm:p-8 text-[#252321] shadow-sm space-y-5 relative overflow-hidden"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="px-3 py-1 rounded-full bg-[#C5A059]/25 border border-[#C5A059] text-[#F4D799] text-xs font-extrabold">
+                    <span className="px-3 py-1 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
                       👑 الصلاحية الرسمية: {roleDisplayBadgeLabel}
                     </span>
                     {isMaestroOrGeneralManager && previewRoleOverride && (
-                      <span className="px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400 text-emerald-100 text-xs font-extrabold">
+                      <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
                         وضع معاينة الصلاحية مفعّل
                       </span>
                     )}
                   </div>
 
-                  <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-white">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-[#252321]">
                     مرحباً بك، {loggedInMember.name}
                   </h1>
                 </div>
 
                 {/* REQUIREMENT 3: Fast Role Preview Selector for Maestro / General Manager Only */}
                 {isMaestroOrGeneralManager && (
-                  <div className="bg-white/10 backdrop-blur-xs border border-[#C5A059]/60 rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-2.5 shadow-sm">
+                  <div className="bg-white border border-[#B98A78]/50 rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-2.5 shadow-2xs">
                     <label
                       htmlFor="maestro-role-preview-select"
-                      className="text-xs font-extrabold text-[#F4D799] whitespace-nowrap"
+                      className="text-xs font-extrabold text-[#8D4925] whitespace-nowrap"
                     >
                       👁️ معاينة البوابة بصلاحية:
                     </label>
@@ -1383,7 +1382,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           val === 'المايسترو' ? null : val
                         );
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-[#0B1F17] text-white border border-[#C5A059]/70 text-xs font-extrabold focus:outline-none focus:border-[#F4D799] cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] text-[#252321] border border-[#E2DACB] text-xs font-extrabold focus:outline-none focus:border-[#D8755B] cursor-pointer"
                     >
                       <option value="المايسترو">المايسترو - كل اللوحات</option>
                       <option value="مدير البحوث">مدير البحوث</option>
@@ -1400,10 +1399,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
               {/* Security & Timestamp Fingerprint Bar */}
               <div className="flex flex-wrap items-center gap-3 pt-1">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-emerald-50">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E2DACB] text-xs font-bold text-[#5C5346]">
                   <span>🕒 آخر تسجيل دخول: {lastLoginTimestamp}</span>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-xs font-extrabold text-emerald-100">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs font-extrabold text-emerald-900">
                   <span>
                     🛡️ حالة الجلسة: نشطة ومرصودة (مؤشر الأداء اللحظي مفعّل 🟢)
                   </span>
@@ -1411,10 +1410,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               </div>
 
               {/* Dynamic Motivational & Surveillance Quote */}
-              <div className="rounded-2xl bg-black/25 border border-[#C5A059]/40 p-4 sm:p-5">
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/50 p-4 sm:p-5">
                 <p
                   data-testid="role-motivational-audit-quote"
-                  className="text-sm sm:text-base font-bold text-[#F4D799] leading-relaxed"
+                  className="text-sm sm:text-base font-bold text-[#8D4925] leading-relaxed"
                 >
                   &ldquo;{roleMotivationalAuditMessage[effectiveHubRole]}&rdquo;
                 </p>
