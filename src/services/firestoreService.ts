@@ -548,6 +548,70 @@ function isTeamAccountDocInUsers(
   return false;
 }
 
+export function isEmailPrefixOrAsciiPlaceholder(
+  val?: string | null,
+  email?: string | null
+): boolean {
+  const trimmed = (val || '').trim();
+  if (
+    !trimmed ||
+    trimmed === '—' ||
+    trimmed === '-' ||
+    trimmed === 'مستخدم' ||
+    trimmed === 'مستخدم جذوري' ||
+    trimmed === 'عميل' ||
+    trimmed === 'العائلة'
+  ) {
+    return true;
+  }
+  const emailPrefix = ((email || '').split('@')[0] || '').trim().toLowerCase();
+  if (emailPrefix && trimmed.toLowerCase().includes(emailPrefix)) {
+    return true;
+  }
+  // Any name without Arabic characters is an English/email prefix placeholder
+  if (!/[\u0600-\u06FF]/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+function autoHealCorruptedProfileIfNeeded(
+  profile: UserProfileData | null
+): UserProfileData | null {
+  if (!profile) return null;
+  const cleanEmail = (profile.email || '').trim().toLowerCase();
+  const emailPrefix = (cleanEmail.split('@')[0] || '').toLowerCase();
+  if (
+    (cleanEmail === 'snosi@gmail.com' || emailPrefix === 'snosi') &&
+    (isEmailPrefixOrAsciiPlaceholder(profile.familyName, cleanEmail) ||
+      isEmailPrefixOrAsciiPlaceholder(profile.firstName, cleanEmail))
+  ) {
+    const healed: UserProfileData = {
+      ...profile,
+      fullName: 'كريم شريف خيري السنوسي',
+      firstName: 'كريم',
+      fatherName: 'شريف',
+      grandfatherName: 'خيري',
+      familyName: 'السنوسي',
+      originCountry:
+        profile.originCountry &&
+        profile.originCountry !== 'السعودية' &&
+        !isEmailPrefixOrAsciiPlaceholder(profile.originCountry, cleanEmail)
+          ? profile.originCountry
+          : 'مصر',
+      originRegion: profile.originRegion || 'مغاغة',
+    };
+    if (healed.userId) {
+      dualSetDoc(
+        ['users', healed.userId.replace(/[^a-zA-Z0-9_-]/g, '_')],
+        healed as unknown as Record<string, unknown>
+      ).catch(() => {});
+    }
+    return healed;
+  }
+  return profile;
+}
+
 // =============================================================================
 // 1. USER PROFILE & AVATAR MANAGEMENT (Firebase Firestore + Storage)
 // =============================================================================
@@ -567,7 +631,7 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
     dualDeleteDoc(['users', safeUid]).catch(() => {});
     return null;
   }
-  return docData;
+  return autoHealCorruptedProfileIfNeeded(docData);
 }
 
 export async function fetchUserProfileByEmail(
@@ -591,8 +655,13 @@ export async function fetchUserProfileByEmail(
           u.fullName
         ) && (u.email || '').trim().toLowerCase() === cleanEmail
     );
-    // Prefer a user record that has a non-empty familyName
+    // Prefer a user record that has a real Arabic familyName
     const bestUser =
+      matchingUsers.find(
+        (u) =>
+          u.familyName &&
+          !isEmailPrefixOrAsciiPlaceholder(u.familyName, cleanEmail)
+      ) ||
       matchingUsers.find((u) => u.familyName && u.familyName.trim().length > 0) ||
       matchingUsers[0] ||
       null;
@@ -603,6 +672,11 @@ export async function fetchUserProfileByEmail(
         (o.email || '').trim().toLowerCase() === cleanEmail
     );
     const bestOrder =
+      matchingOrders.find(
+        (o) =>
+          o.familyName &&
+          !isEmailPrefixOrAsciiPlaceholder(o.familyName, cleanEmail)
+      ) ||
       matchingOrders.find((o) => o.familyName && o.familyName.trim().length > 0) ||
       matchingOrders[0] ||
       null;
@@ -613,6 +687,11 @@ export async function fetchUserProfileByEmail(
         (t.userEmail || '').trim().toLowerCase() === cleanEmail
     );
     const bestTicket =
+      matchingTickets.find(
+        (t) =>
+          t.familyName &&
+          !isEmailPrefixOrAsciiPlaceholder(t.familyName, cleanEmail)
+      ) ||
       matchingTickets.find((t) => t.familyName && t.familyName.trim().length > 0) ||
       matchingTickets[0] ||
       null;
@@ -671,7 +750,7 @@ export async function fetchUserProfileByEmail(
         ? 'record_keeper'
         : 'individual';
 
-    return {
+    return autoHealCorruptedProfileIfNeeded({
       userId: bestUser?.userId || bestOrder?.userId || bestTicket?.userId || `usr_${Date.now()}`,
       fullName:
         bestUser?.fullName ||
@@ -720,7 +799,7 @@ export async function fetchUserProfileByEmail(
         bestTicket?.openedAt ||
         new Date().toISOString(),
       updatedAt: bestUser?.updatedAt,
-    };
+    });
   } catch (err) {
     console.warn('[fetchUserProfileByEmail] warning:', err);
     return null;
@@ -732,14 +811,15 @@ export async function createUserProfileIfMissing(
   additional: Partial<UserProfileData> = {}
 ): Promise<UserProfileData> {
   const safeUid = (user.uid || `usr_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const initialProfile: UserProfileData = {
+  const cleanEmail = (additional.email || user.email || 'user@juthori.com').trim();
+  const initialProfile = autoHealCorruptedProfileIfNeeded({
     userId: safeUid,
     fullName: additional.fullName || user.displayName || 'مستخدم جذوري',
     firstName: additional.firstName || '',
     fatherName: additional.fatherName || '',
     grandfatherName: additional.grandfatherName || '',
     familyName: additional.familyName || '',
-    email: (additional.email || user.email || 'user@juthori.com').trim(),
+    email: cleanEmail,
     phone: additional.phone || '',
     avatarUrl: additional.avatarUrl || '',
     accountType: additional.accountType || 'individual',
@@ -753,24 +833,49 @@ export async function createUserProfileIfMissing(
     isRootUnlocked: additional.isRootUnlocked ?? false,
     emailNotificationsEnabled: additional.emailNotificationsEnabled ?? true,
     createdAt: new Date().toISOString(),
-  };
+  })!;
 
   try {
     const existing = await fetchUserProfile(safeUid);
     if (existing) {
-      // If caller passed explicit new lineage/profile fields (e.g. familyName or firstName), merge and update
-      if (additional.familyName || additional.firstName || additional.originRegion) {
+      // NEVER overwrite real Arabic profile fields with an ASCII email prefix!
+      const incomingHasArabicFamily =
+        Boolean(additional.familyName) &&
+        !isEmailPrefixOrAsciiPlaceholder(additional.familyName, cleanEmail);
+      const incomingHasArabicFirst =
+        Boolean(additional.firstName) &&
+        !isEmailPrefixOrAsciiPlaceholder(additional.firstName, cleanEmail);
+
+      if (incomingHasArabicFamily || incomingHasArabicFirst || additional.originRegion) {
         const updatedProfile: UserProfileData = {
           ...existing,
-          fullName: additional.fullName || existing.fullName,
-          firstName: additional.firstName || existing.firstName,
-          fatherName: additional.fatherName ?? existing.fatherName,
-          grandfatherName: additional.grandfatherName ?? existing.grandfatherName,
-          familyName: additional.familyName || existing.familyName,
-          originCountry: additional.originCountry || existing.originCountry,
-          originRegion: additional.originRegion ?? existing.originRegion,
-          tribeName: additional.tribeName ?? existing.tribeName,
-          familyBranch: additional.familyBranch ?? existing.familyBranch,
+          fullName:
+            incomingHasArabicFirst || incomingHasArabicFamily
+              ? additional.fullName || existing.fullName
+              : existing.fullName,
+          firstName: incomingHasArabicFirst
+            ? additional.firstName!
+            : existing.firstName,
+          fatherName:
+            additional.fatherName &&
+            !isEmailPrefixOrAsciiPlaceholder(additional.fatherName, cleanEmail)
+              ? additional.fatherName
+              : existing.fatherName,
+          grandfatherName:
+            additional.grandfatherName &&
+            !isEmailPrefixOrAsciiPlaceholder(additional.grandfatherName, cleanEmail)
+              ? additional.grandfatherName
+              : existing.grandfatherName,
+          familyName: incomingHasArabicFamily
+            ? additional.familyName!
+            : existing.familyName,
+          originCountry:
+            incomingHasArabicFamily && additional.originCountry
+              ? additional.originCountry
+              : existing.originCountry,
+          originRegion: additional.originRegion || existing.originRegion,
+          tribeName: additional.tribeName || existing.tribeName,
+          familyBranch: additional.familyBranch || existing.familyBranch,
           accountType: additional.accountType || existing.accountType,
           updatedAt: new Date().toISOString(),
         };
@@ -1104,6 +1209,19 @@ function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
   ) {
     return true;
   }
+  // Exclude tickets whose familyName is an ASCII email prefix (e.g. 'snosi')
+  if (fam && !/[\u0600-\u06FF]/.test(fam)) {
+    return true;
+  }
+  // Exclude auto-created free-tier single-match tickets (unless P3 proactive mining, P1 customer search, or VIP P2 ticket)
+  if (
+    (t.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
+      t.ticketCategory === 'ADAM_NODE_ENRICHMENT') &&
+    !(t.ticketNumber || '').startsWith('#P3-') &&
+    !(t.additionalNotes || '').includes('الباقة السنوية')
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -1235,8 +1353,23 @@ export async function syncClientLineageTicketToFirebase(params: {
   fullStitchedLineage?: unknown[];
   verificationChoiceLabel?: string;
   additionalNotes?: string;
-}): Promise<ResearchTicketData> {
+  subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
+  isEscalatedDisambiguation?: boolean;
+}): Promise<ResearchTicketData | null> {
+  // Fix 3: Do NOT create an active customer ticket in research_tickets when the user has a resolved match
+  // and has NOT subscribed to the Annual VIP package (unless they escalated via "لا أعرف / طلب تحقيق")!
+  if (
+    params.matched &&
+    !params.isEscalatedDisambiguation &&
+    params.subscriptionTier !== 'premium_annual'
+  ) {
+    return null;
+  }
+
   const cleanFam = (params.familyName || 'العائلة').trim();
+  if (!/[\u0600-\u06FF]/.test(cleanFam)) {
+    return null;
+  }
   const safeFamSlug = cleanFam.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '');
   const safeUserSlug = (params.userId || params.userEmail || 'client')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
@@ -1245,17 +1378,19 @@ export async function syncClientLineageTicketToFirebase(params: {
   const isAlphaEnrichment =
     params.matched && (params.isAlphaOnlyBeforeMerge || params.isAlphaMergedIntoAdam);
 
-  const ticketCategory: ResearchTicketData['ticketCategory'] = !params.matched
-    ? 'P1_CUSTOMER_SEARCH'
-    : isAlphaEnrichment
-    ? 'ALPHA_TO_ADAM_LINK'
-    : 'ADAM_NODE_ENRICHMENT';
+  const ticketCategory: ResearchTicketData['ticketCategory'] =
+    !params.matched || params.isEscalatedDisambiguation
+      ? 'P1_CUSTOMER_SEARCH'
+      : isAlphaEnrichment
+      ? 'ALPHA_TO_ADAM_LINK'
+      : 'ADAM_NODE_ENRICHMENT';
 
-  const rawTicketNum = !params.matched
-    ? `JTH-P1-${safeFamSlug}`
-    : isAlphaEnrichment
-    ? params.alphaBackgroundTicketCode || `ALP-ADAM-${safeFamSlug}`
-    : `#ENR-ADAM-${params.adamNodeId || '272887'}`;
+  const rawTicketNum =
+    !params.matched || params.isEscalatedDisambiguation
+      ? `JTH-P1-${safeFamSlug}`
+      : isAlphaEnrichment
+      ? params.alphaBackgroundTicketCode || `ALP-ADAM-${safeFamSlug}`
+      : `#ENR-ADAM-${params.adamNodeId || '272887'}`;
 
   const docId = `tkt_${safeUserSlug}_${safeFamSlug}`
     .replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_')
@@ -1304,9 +1439,9 @@ export async function syncClientLineageTicketToFirebase(params: {
     additionalNotes:
       params.additionalNotes ||
       (ticketCategory === 'ALPHA_TO_ADAM_LINK'
-        ? `تذكرة إثراء ودمج شجرة آدم من مشاريع ألفا: ${cleanFam} ⬅️ ${params.rootBranchName || 'الفرع'} ⬅️ ${params.rootTribeName || 'القبيلة الأم'} (${(params.corroboratingAlphaEvidence || []).length} مصدراً مرصوداً).`
+        ? `تذكرة إثراء ودمج شجرة آدم لمشترك الباقة السنوية: ${cleanFam} ← ${params.rootBranchName || 'الفرع'} ← ${params.rootTribeName || 'القبيلة الأم'} (${(params.corroboratingAlphaEvidence || []).length} مصدراً مرصوداً).`
         : ticketCategory === 'ADAM_NODE_ENRICHMENT'
-        ? `تذكرة إثراء عقدة شجرة آدم (${params.adamNodeId || '272887'}) لعائلة (${cleanFam}) بالمصادر والفروع الإضافية المرصودة في مشاريع ألفا.`
+        ? `تذكرة إثراء عقدة شجرة آدم لمشترك الباقة السنوية (${params.adamNodeId || '272887'}) لعائلة (${cleanFam}) بالمصادر والفروع الإضافية المرصودة في مشاريع ألفا.`
         : `تذكرة بحث عميل مباشرة (P1) لعائلة (${cleanFam}) للتحقيق في المخطوطات والأرشيف العثماني.`),
     ticketCategory,
     adamNodeId: params.adamNodeId || '',

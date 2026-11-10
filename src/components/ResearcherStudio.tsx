@@ -7754,6 +7754,52 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     documentedBranches,
                     documentedLocations,
                   };
+                }).filter((cand) => {
+                  // Exclude orphan / individual nodes (arc_code === 'UNASSIGNED') or synthetic 2-node chains (e.g. سنوسي ⬅️ علي ⬅️ آدم)
+                  // that do not connect to a real historical tribe or apex lineage in Adam Tree
+                  const nonAdamAncestors = cand.chainAscending
+                    .slice(1)
+                    .filter((st) => !st.name.includes('آدم'));
+                  const hasKnownApexOrTribe = cand.chainAscending.some((st) => {
+                    const cleanSt = st.name.replace(/\s*\(#\d+\)\s*$/, '').trim();
+                    return (
+                      st.arc_code === 'B0' ||
+                      st.arc_code === 'MT' ||
+                      st.arc_code === 'AD1' ||
+                      cleanSt.includes('عدنان') ||
+                      cleanSt.includes('قحطان') ||
+                      cleanSt.includes('مضر') ||
+                      cleanSt.includes('ربيعة') ||
+                      cleanSt.includes('كهلان') ||
+                      cleanSt.includes('حمير') ||
+                      cleanSt.includes('قيس') ||
+                      cleanSt.includes('سليم') ||
+                      cleanSt.includes('هوازن') ||
+                      cleanSt.includes('تميم') ||
+                      cleanSt.includes('الأزد') ||
+                      cleanSt.includes('طيء') ||
+                      cleanSt.includes('قريش') ||
+                      cleanSt.includes('هاشم') ||
+                      cleanSt.includes('بكر') ||
+                      cleanSt.includes('تغلب') ||
+                      cleanSt.includes('قضاعة') ||
+                      cleanSt.includes('همدان') ||
+                      cleanSt.includes('مذحج') ||
+                      cleanSt.includes('كندة')
+                    );
+                  });
+
+                  if (
+                    cand.node.arc_code === 'UNASSIGNED' &&
+                    nonAdamAncestors.length <= 1 &&
+                    !hasKnownApexOrTribe
+                  ) {
+                    return false;
+                  }
+                  if (nonAdamAncestors.length <= 1 && !hasKnownApexOrTribe) {
+                    return false;
+                  }
+                  return true;
                 });
 
                 // Filter by entered Tribe / Branch when multiple Adam candidates exist

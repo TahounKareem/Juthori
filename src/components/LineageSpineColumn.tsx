@@ -242,10 +242,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   const grandfatherName = cleanOptionalParentName(effectiveResult.grandfatherName);
 
   // Case 3: Unmatched family (or user selected "لا أعرف / موضع آخر" in Stage 2 verification)
+  // IMPORTANT: Never show "لم يظهر تطابق آلي" when effectiveResult.matched is true!
   const isUnmatchedCase =
-    !effectiveResult.matched ||
-    stateMode === DashboardStateMode.State3Unmatched ||
-    localResolvedOption === 'escalated_ticket';
+    !effectiveResult.matched || localResolvedOption === 'escalated_ticket';
 
   const spineNodes: UpperAncestorNode[] = React.useMemo(() => {
     const rawNodes =
@@ -399,7 +398,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               أمين السجل
             </div>
             <div className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
-              {result.clientName}
+              {effectiveResult.clientName || result.clientName}
             </div>
           </div>
         </div>
@@ -499,62 +498,108 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // 5A. THE $5 LOCKED ROOT PAYWALL CARD ("الجذر")
   // Shown in Case 1 & Case 2 before paying $5
   // ============================================================================
-  const renderLockedRoot5UsdCard = () => (
-    <div
-      data-testid="root-unlock-5usd-card"
-      onClick={onUnlockRoot5Usd}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onUnlockRoot5Usd();
-        }
-      }}
-      title="اضغط لفتح الجذر الآن مقابل $5 فقط"
-      className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A] border-2 border-[#D97706] hover:border-[#B45309] p-4 sm:p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group relative z-20 text-right overflow-hidden"
-    >
-      {/* Subtle golden shimmer aura */}
+  const renderLockedRoot5UsdCard = () => {
+    const locationParts = [
+      effectiveResult.originRegion,
+      effectiveResult.originCountry,
+    ].filter((part) => part && part !== 'غير محدد' && part !== '—');
+    const locationSuffix =
+      locationParts.length > 0 ? ` (موطن: ${locationParts.join(' / ')})` : '';
+    const stationsCount = Math.max(3, totalFamilySpineNodesCount);
+    const sourcesCount = Math.max(
+      1,
+      effectiveResult.verified_sources?.length || 1
+    );
+
+    return (
       <div
-        className="absolute -top-10 -left-10 w-32 h-32 rounded-full bg-[#F59E0B]/20 blur-xl pointer-events-none"
-        aria-hidden="true"
-      />
+        data-testid="root-unlock-5usd-card"
+        onClick={onUnlockRoot5Usd}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onUnlockRoot5Usd();
+          }
+        }}
+        title="اضغط لفتح جذر العائلة الموثق الآن مقابل $5 فقط"
+        className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A] border-2 border-[#D97706] hover:border-[#B45309] p-4 sm:p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group relative z-20 text-right overflow-hidden space-y-3.5"
+      >
+        {/* Subtle golden shimmer aura */}
+        <div
+          className="absolute -top-10 -left-10 w-32 h-32 rounded-full bg-[#F59E0B]/20 blur-xl pointer-events-none"
+          aria-hidden="true"
+        />
 
-      <div className="flex items-center justify-between gap-3.5 relative z-10">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <HeritageNodeAvatar eraOverride="major_tribe" size="lg" />
-          <div className="min-w-0 space-y-1">
-            <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321] group-hover:text-[#92400E] transition-colors">
-              الجذر
-            </h3>
-            <p className="text-xs sm:text-sm font-display font-bold text-[#78350F] leading-snug">
-              اكشف جذر عائلتك وتعرّف على الفرع الجامع والقبيلة الأم — افتح الجذر الآن مقابل $5 فقط
-            </p>
-          </div>
-        </div>
-
-        {/* Large, prominent, eye-catching golden lock icon */}
-        <div className="flex flex-col items-center gap-1.5 shrink-0">
-          <div className="relative flex items-center justify-center">
-            <span
-              className="absolute inset-0 rounded-full bg-[#F59E0B]/40 animate-ping"
-              style={{ animationDuration: '2.4s' }}
-              aria-hidden="true"
-            />
-            <span
-              aria-label="مقفل — اضغط للفتح مقابل $5"
-              className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#92400E] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-2xl sm:text-3xl shadow-md group-hover:scale-105 transition-transform"
-            >
-              🔒
+        {/* Top Verified Discovery Banner + Station/Source Count Badge */}
+        <div className="flex flex-wrap items-center justify-between gap-2 relative z-10">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#92400E] text-[#FEF3C7] text-[11px] font-display font-extrabold shadow-2xs">
+            <span>باقة الـ $5 — فتح الجذر المباشر</span>
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 border border-[#D97706]/50 text-[#78350F] text-[11px] font-display font-bold">
+            <span>
+              {stationsCount} محطة نسبية موثقة · {sourcesCount} مرجع تاريخي
             </span>
-          </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-[#92400E] group-hover:bg-[#78350F] text-[#FEF3C7] text-[11px] font-display font-extrabold shadow-2xs transition-colors whitespace-nowrap">
-            افتح الآن · $5
           </span>
         </div>
+
+        {/* Exciting Verified Root Heading */}
+        <div className="space-y-1 relative z-10">
+          <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#92400E] transition-colors leading-snug">
+            🎉 تم رصد وتوثيق جذر عائلة ({effectiveResult.familyName}) في أمهات المعاجم التاريخية{locationSuffix}
+          </h3>
+          <p className="text-xs font-display font-bold text-[#78350F] leading-relaxed">
+            اكشف الفرع الجامع والقبيلة الأم والمصدر التاريخي المعتمد لعائلتك بفتح الجذر الآن:
+          </p>
+        </div>
+
+        {/* Partially Blurred / Encrypted Root Nodes Preview (B0 + B2) */}
+        <div className="space-y-2 relative z-10">
+          <div className="rounded-xl bg-white/85 border border-[#D97706]/50 px-3.5 py-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] font-display font-extrabold text-[#92400E]">
+                الجذر · القبيلة الأم (B0)
+              </div>
+              <div className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
+                <span className="blur-[4px] select-none" aria-hidden="true">
+                  قبيلة بني سليم القيسية
+                </span>
+                <span className="text-[11px] font-bold text-[#B45309] bg-[#FEF3C7] px-2 py-0.5 rounded-md border border-[#F59E0B]/40">
+                  مشفر · يفتح بـ $5
+                </span>
+              </div>
+            </div>
+            <span className="text-base shrink-0">🔒</span>
+          </div>
+
+          <div className="rounded-xl bg-white/85 border border-[#D97706]/50 px-3.5 py-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] font-display font-extrabold text-[#92400E]">
+                الجذر · الفرع الجامع (B2)
+              </div>
+              <div className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
+                <span className="blur-[4px] select-none" aria-hidden="true">
+                  فرع العرفاء السعادي
+                </span>
+                <span className="text-[11px] font-bold text-[#B45309] bg-[#FEF3C7] px-2 py-0.5 rounded-md border border-[#F59E0B]/40">
+                  مشفر · يفتح بـ $5
+                </span>
+              </div>
+            </div>
+            <span className="text-base shrink-0">🔒</span>
+          </div>
+        </div>
+
+        {/* Prominent Direct Unlock CTA Button */}
+        <div className="pt-1 relative z-10">
+          <div className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#252321] via-[#3A2E28] to-[#252321] group-hover:from-[#92400E] group-hover:to-[#78350F] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all">
+            <span>🔓 افتح جذر العائلة الموثق الآن مقابل $5 فقط</span>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ============================================================================
   // 5B. LOCKED UPPER LINEAGE LAYER CARD (Visible ONLY after $5 Root is Unlocked)
@@ -729,6 +774,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
     // A) Root Nodes (الجذر — Sub-Branch or Mother Tribe)
     if (isRootNode) {
+      const rootSourceCitation =
+        effectiveResult.verifiedSourceCitation ||
+        effectiveResult.verified_sources?.[0] ||
+        '';
       return (
         <div
           key={node.id}
@@ -737,7 +786,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             isSelected
               ? 'border-[#D8755B] ring-2 ring-[#D8755B]/25'
               : 'border-[#E67E22]'
-          } py-3 px-4 shadow-xs text-right relative z-20 overflow-hidden cursor-pointer transition-all`}
+          } py-3 px-4 shadow-xs text-right relative z-20 overflow-hidden cursor-pointer transition-all space-y-2`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -760,6 +809,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               <span>جذر موثق</span>
             </span>
           </div>
+          {rootSourceCitation && (
+            <div className="pt-1.5 border-t border-[#E67E22]/25 flex items-center justify-between gap-2 text-[11px] font-display font-bold text-[#8D4925]">
+              <span className="truncate">📚 المصدر المعتمد: {rootSourceCitation}</span>
+            </div>
+          )}
         </div>
       );
     }

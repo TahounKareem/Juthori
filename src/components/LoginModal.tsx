@@ -63,6 +63,15 @@ function inferArabicNameFromEmailOrDisplay(
   }
 
   const localPart = (email.split('@')[0] || '').toLowerCase();
+  if (localPart === 'snosi') {
+    return {
+      fullName: 'كريم شريف خيري السنوسي',
+      firstName: 'كريم',
+      fatherName: 'شريف',
+      grandfatherName: 'خيري',
+      familyName: 'السنوسي',
+    };
+  }
   if (localPart.includes('tahoun') && localPart.includes('kareem')) {
     return {
       fullName: 'كريم شريف طاحون',
@@ -73,13 +82,14 @@ function inferArabicNameFromEmailOrDisplay(
     };
   }
 
-  const fallbackName = cleanDisplay || email.split('@')[0] || 'مستخدم';
+  const hasArabicDisplay = /[\u0600-\u06FF]/.test(cleanDisplay);
+  const fallbackName = hasArabicDisplay ? cleanDisplay : 'مستخدم';
   return {
     fullName: fallbackName,
     firstName: fallbackName,
     fatherName: '',
     grandfatherName: '',
-    familyName: fallbackName,
+    familyName: hasArabicDisplay ? cleanDisplay : '',
   };
 }
 

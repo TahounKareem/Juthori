@@ -671,29 +671,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         slaStatus: 'قيد العمل',
         nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
       }).catch(() => {});
-      syncClientLineageTicketToFirebase({
-        userId: activeUid,
-        userFullName: fullName,
-        userEmail,
-        userPhone: editPhone,
-        familyName: result.familyName,
-        originCountry: result.originCountry,
-        originRegion: result.originRegion,
-        rootBranchName: result.rootBranchName,
-        rootTribeName: result.rootTribeName,
-        matched: result.matched,
-        isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
-        isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
-        adamNodeId: result.adamNodeId,
-        alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
-        verifiedSources: result.verified_sources,
-        corroboratingAlphaEvidence:
-          result.corroborating_alpha_evidence_for_researcher,
-        siblingBranches: result.sibling_branches_in_record,
-        notablesInRecord: result.notables_in_record,
-        enrichedLocations: result.enrichedLocations,
-        adamSpineNodesCount: result.adamSpineNodes?.length || 1,
-      }).catch(() => {});
       appendActivity(
         `سداد ناجح (${invoiceNumber}) — فتح الجذر ($5)`,
         `تم الكشف عن الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName})`
@@ -760,6 +737,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         matched: result.matched,
         isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
         isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
+        subscriptionTier: 'premium_annual',
         adamNodeId: result.adamNodeId,
         alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
         verifiedSources: result.verified_sources,
@@ -943,34 +921,37 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       originRegion: merged.originRegion || editOriginRegion,
     }).catch(() => {});
 
-    // 2. Sync customer's verified lineage ticket to Firebase `research_tickets` (`إدارة البحوث`)
-    syncClientLineageTicketToFirebase({
-      userId: activeUid,
-      userFullName: fullName,
-      userEmail,
-      userPhone: editPhone,
-      familyName: merged.familyName,
-      originCountry: merged.originCountry,
-      originRegion: merged.originRegion,
-      rootBranchName: merged.rootBranchName,
-      rootTribeName: merged.rootTribeName,
-      matched: merged.matched,
-      isAlphaOnlyBeforeMerge: merged.isAlphaOnlyBeforeMerge,
-      isAlphaMergedIntoAdam: merged.isAlphaMergedIntoAdam,
-      adamNodeId: merged.adamNodeId,
-      alphaBackgroundTicketCode: merged.alphaBackgroundTicketCode,
-      verifiedSources: merged.verified_sources,
-      corroboratingAlphaEvidence:
-        merged.corroborating_alpha_evidence_for_researcher,
-      siblingBranches: merged.sibling_branches_in_record,
-      notablesInRecord: merged.notables_in_record,
-      enrichedLocations: merged.enrichedLocations,
-      adamSpineNodesCount: merged.adamSpineNodes?.length || 3,
-      adamSpineNodes: merged.adamSpineNodes,
-      fullStitchedLineage: merged.full_stitched_lineage_for_researcher,
-      verificationChoiceLabel: choiceLabel,
-      additionalNotes: `تم حسم سؤال التحقق المتدرج بواسطة العميل باختيار المسار القطعي: (${merged.familyName} ⬅️ ${merged.rootBranchName} ⬅️ ${merged.rootTribeName}) — النطاق الجغرافي: (${merged.originRegion || merged.originCountry}).`,
-    }).catch(() => {});
+    // 2. Sync customer's verified lineage ticket to Firebase `research_tickets` ONLY if Annual VIP
+    if (stateMode === DashboardStateMode.AnnualVip) {
+      syncClientLineageTicketToFirebase({
+        userId: activeUid,
+        userFullName: fullName,
+        userEmail,
+        userPhone: editPhone,
+        familyName: merged.familyName,
+        originCountry: merged.originCountry,
+        originRegion: merged.originRegion,
+        rootBranchName: merged.rootBranchName,
+        rootTribeName: merged.rootTribeName,
+        matched: merged.matched,
+        isAlphaOnlyBeforeMerge: merged.isAlphaOnlyBeforeMerge,
+        isAlphaMergedIntoAdam: merged.isAlphaMergedIntoAdam,
+        subscriptionTier: 'premium_annual',
+        adamNodeId: merged.adamNodeId,
+        alphaBackgroundTicketCode: merged.alphaBackgroundTicketCode,
+        verifiedSources: merged.verified_sources,
+        corroboratingAlphaEvidence:
+          merged.corroborating_alpha_evidence_for_researcher,
+        siblingBranches: merged.sibling_branches_in_record,
+        notablesInRecord: merged.notables_in_record,
+        enrichedLocations: merged.enrichedLocations,
+        adamSpineNodesCount: merged.adamSpineNodes?.length || 3,
+        adamSpineNodes: merged.adamSpineNodes,
+        fullStitchedLineage: merged.full_stitched_lineage_for_researcher,
+        verificationChoiceLabel: choiceLabel,
+        additionalNotes: `تم حسم سؤال التحقق المتدرج بواسطة العميل باختيار المسار القطعي: (${merged.familyName} ⬅️ ${merged.rootBranchName} ⬅️ ${merged.rootTribeName}) — النطاق الجغرافي: (${merged.originRegion || merged.originCountry}).`,
+      }).catch(() => {});
+    }
 
     // 3. Update customer order in Firebase `customer_orders`
     const orderDocId = `ORD-${activeUid.slice(-6).toUpperCase()}`;
@@ -1096,6 +1077,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       matched: false,
       isAlphaOnlyBeforeMerge: false,
       isAlphaMergedIntoAdam: false,
+      isEscalatedDisambiguation: true,
       verificationChoiceLabel: 'إحالة لتذكرة بحث متخصصة (لا أعرف / موضع آخر)',
       additionalNotes:
         result.disambiguationPathsSummaryForTicket ||
@@ -1118,7 +1100,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const availableCartItems: CartItem[] = [];
   if (
     !caps.isRootUnlocked &&
-    stateMode === DashboardStateMode.State2MatchedUnpaid &&
+    (stateMode === DashboardStateMode.State2MatchedUnpaid || result.matched) &&
     !result.requiresBlindDisambiguation
   ) {
     availableCartItems.push({
