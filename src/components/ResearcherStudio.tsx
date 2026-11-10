@@ -48,6 +48,7 @@ import {
   extractAllOtherSourceLeadsFromEvidence,
   extractBookVolPageFromEvidence,
   extractRawRecordAncestors,
+  filterEvidenceByFamilyAndStrictGeography,
   formatAlphaEvidenceCitation,
   formatAlphaReferenceBadge,
   formatCompactSourceBracket,
@@ -56,12 +57,15 @@ import {
   getVerifiedAddonSourcesForEvidence,
   inspectNameInAdamMasterTree,
   isAdamNodeStructurallyCoded,
+  isValidParsedOtherSourceLead,
+  matchFamilyName,
   matchesFlexibleArabicSearch,
   mergeDetachedHistoricalEpithets,
   mergeVerifiedAddonSourceLists,
   normalizeArabic,
   normalizeArabicForSearch,
   normalizeArabicStem,
+  normalizeLocalityTokenForMatching,
   parseOtherSourcesStringIntoLeads,
   resolveAdamTreeChildren,
   resolveDeterministicLineage,
@@ -71,6 +75,7 @@ import {
   searchJuthoriLineage,
   stemTribeToken,
   stitchLineageChains,
+  stripPrefixes,
   tagConsensusWinnersOnEvidence,
   verifyAndAttachSecondarySourceToAdamPrime,
 } from '../utils/lineageEngine';
@@ -725,12 +730,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       rawEvidenceInput.map((ev) => {
         const parsedRef = extractBookVolPageFromEvidence(ev);
         const parsedLeads =
-          Array.isArray(ev.parsed_other_sources) &&
-          ev.parsed_other_sources.length > 0
-            ? ev.parsed_other_sources
-            : ev.other_sources && ev.other_sources.trim()
+          ev.other_sources && ev.other_sources.trim()
             ? parseOtherSourcesStringIntoLeads(
                 ev.other_sources,
+                ev.alpha_id,
+                ev.record_name || cleanFam
+              )
+            : Array.isArray(ev.parsed_other_sources) &&
+              ev.parsed_other_sources.length > 0
+            ? parseOtherSourcesStringIntoLeads(
+                ev.parsed_other_sources
+                  .map((p) => p.raw_citation || p.extracted_book_title || '')
+                  .filter(Boolean)
+                  .join(' ؛ '),
                 ev.alpha_id,
                 ev.record_name || cleanFam
               )
@@ -740,7 +752,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           source_book: parsedRef.book || ev.source_book,
           volume: parsedRef.volume || ev.volume,
           page: parsedRef.page || ev.page,
-          parsed_other_sources: parsedLeads,
+          other_sources: parsedLeads.length > 0 ? ev.other_sources : null,
+          parsed_other_sources: parsedLeads.length > 0 ? parsedLeads : undefined,
         };
       })
     );
@@ -1113,7 +1126,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     const subRoot = diag.resolvedSubRoot;
     const motherTribe = diag.resolvedMotherTribe;
 
-    const resolvedBridge: SuggestedAdamBridgeForResearcher =
+    const resolvedBridge: SuggestedAdamBridgeForResearcher | undefined =
       res.suggested_adam_bridge_for_researcher ||
       buildSuggestedAdamBridgeForResearcher(
         cleanFam,
@@ -1149,7 +1162,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             res.originCountry || 'العراق'
           );
 
-    const suggestedAdamEntry = `${resolvedBridge.adam_node_id}: ${resolvedBridge.adam_chain_preview}`;
+    const suggestedAdamEntry = resolvedBridge
+      ? `${resolvedBridge.adam_node_id}: ${resolvedBridge.adam_chain_preview}`
+      : motherTribe || subRoot || cleanFam;
 
     const ticketId =
       customId ||
@@ -1165,7 +1180,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       priorityTier,
       precomputed_diagnostic: diag.precomputed,
       ticketCategory: category,
-      adamNodeId: res.adamNodeId || resolvedBridge.adam_node_id,
+      adamNodeId: res.adamNodeId || resolvedBridge?.adam_node_id,
       fullAdamSpineCount: resolvedStitchedLineage.length,
       fullAdamSpineStations: resolvedStitchedLineage.map((u) => u.name),
       title:
@@ -1222,12 +1237,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       suggestedAdamTarget: {
         confidencePercent: 98,
         entryNodeName: suggestedAdamEntry,
-        fullChainPreview: `${cleanFam} ← ${resolvedStitchedLineage
-          .map((n) => n.name)
-          .join(' ← ')} ← ${resolvedBridge.adam_chain_preview}`,
+        fullChainPreview: resolvedBridge
+          ? `${cleanFam} ← ${resolvedStitchedLineage
+              .map((n) => n.name)
+              .join(' ← ')} ← ${resolvedBridge.adam_chain_preview}`
+          : `${cleanFam} ← ${resolvedStitchedLineage
+              .map((n) => n.name)
+              .join(' ← ')}`,
         rationale:
-          resolvedBridge.confidence_label ||
-          `تقاطع موثق في شجرة آدم عند المحطة (${resolvedBridge.matched_station_name}).`,
+          resolvedBridge?.confidence_label ||
+          `تقاطع موثق عند المحطة (${
+            resolvedBridge?.matched_station_name || motherTribe || subRoot
+          }).`,
       },
       extractedNodes: diag.cleanExtractedNodes,
     };
@@ -1271,7 +1292,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     );
 
     const effectiveAdamNodeId =
-      cand.adamNodeId || resolvedBridge.adam_node_id || '';
+      cand.adamNodeId || resolvedBridge?.adam_node_id || '';
+    const chainPreviewFallback =
+      resolvedBridge?.adam_chain_preview ||
+      diag.resolvedMotherTribe ||
+      diag.resolvedSubRoot ||
+      cand.familyName;
 
     return {
       id: cand.ticketId,
@@ -1314,10 +1340,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       })),
       suggestedAdamTarget: {
         confidencePercent: 98,
-        entryNodeName: `${effectiveAdamNodeId}: ${resolvedBridge.adam_chain_preview}`,
+        entryNodeName: effectiveAdamNodeId
+          ? `${effectiveAdamNodeId}: ${chainPreviewFallback}`
+          : chainPreviewFallback,
         fullChainPreview: `${cand.familyName} ← ${stitchedNodes
           .map((n) => n.name)
-          .join(' ← ')} ← ${resolvedBridge.adam_chain_preview}`,
+          .join(' ← ')}${
+          resolvedBridge ? ` ← ${resolvedBridge.adam_chain_preview}` : ''
+        }`,
         rationale: `سجل حقيقي من قاعدة البيانات بوزن (${cand.strategicMeta.strategic_score} نقطة) جاهز للربط المباشر بشجرة آدم.`,
       },
       extractedNodes: diag.cleanExtractedNodes,
@@ -2892,7 +2922,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       finalStitchedStations[finalStitchedStations.length - 1]?.name ||
       '';
 
-    const resolvedBridge: SuggestedAdamBridgeForResearcher =
+    const resolvedBridge: SuggestedAdamBridgeForResearcher | undefined =
       res.suggested_adam_bridge_for_researcher ||
       buildSuggestedAdamBridgeForResearcher(
         cleanFam,
@@ -7270,10 +7300,33 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               (() => {
                 const extractedFromCurrent =
                   extractRawSourcesFromResult(directSearchResult);
-                const rawEvidenceList: CorroboratingAlphaEvidence[] =
+                const unfilteredRawEvidenceList: CorroboratingAlphaEvidence[] =
                   rawSources.length > 0
                     ? rawSources
                     : extractedFromCurrent;
+
+                const activeSearchFamilyForFilter =
+                  directSearchFamilyName.trim() ||
+                  directSearchResult.familyName ||
+                  '';
+                const activeSearchCountryForFilter =
+                  directSearchCountry &&
+                  directSearchCountry !== 'غير محدد / كل الدول'
+                    ? directSearchCountry.trim()
+                    : directSearchResult.originCountry &&
+                      !directSearchResult.originCountry.includes('غير محدد')
+                    ? directSearchResult.originCountry.trim()
+                    : '';
+                const activeSearchLocalityForFilter =
+                  directSearchLocality.trim() || '';
+
+                const rawEvidenceList: CorroboratingAlphaEvidence[] =
+                  filterEvidenceByFamilyAndStrictGeography(
+                    unfilteredRawEvidenceList,
+                    activeSearchFamilyForFilter,
+                    activeSearchCountryForFilter,
+                    activeSearchLocalityForFilter
+                  );
 
                 const diagnosticClusters: ConsensusClusterGroup[] =
                   rawEvidenceList.length === 0
@@ -7681,6 +7734,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     .trim();
                   const nodeVars = normalizeAndStripAdamSearchVariants(cleanNodeTitle);
 
+                  // Strict Guard against `(ات)` root collision (e.g. `عرفات` vs `عرف`)
+                  const queryCore = stripPrefixes(cleanQueryName);
+                  const nodeCore = stripPrefixes(cleanNodeTitle);
+                  if (queryCore.endsWith('ات') !== nodeCore.endsWith('ات')) {
+                    continue;
+                  }
+
                   const isExactNorm =
                     Boolean(queryVars.fullNorm) &&
                     nodeVars.fullNorm === queryVars.fullNorm;
@@ -7701,6 +7761,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         nodeVars.stem === queryVars.stem));
 
                   if (
+                    matchFamilyName(cleanNodeTitle, cleanQueryName) ||
                     isExactNorm ||
                     isOuterPrefixTolerantMatch ||
                     isKunyaAndStemTolerantMatch
@@ -7973,7 +8034,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     'ADAM_MASTER_TREE' ||
                     directSearchResult.priorityTierMatched ===
                       'TIER_1_ADAM_MASTER_TREE' ||
-                    rawEvidenceList.length === 0 ||
                     resultSpineStations.some(
                       (s) => s.dataLakeSource === 'adam_tree'
                     ));
@@ -8107,106 +8167,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   }
                 }
 
-                // =============================================================
-                // CASE C: RESOLVE ADAM BRIDGE WHEN FAMILY IS IN RAW ALPHA SOURCES
-                // =============================================================
-                const resolvedAdamBridgeForContainer1 = (() => {
-                  if (directSearchResult.suggested_adam_bridge_for_researcher) {
-                    return directSearchResult.suggested_adam_bridge_for_researcher;
-                  }
-                  if (!directSearchResult.matched && rawEvidenceList.length === 0) {
-                    return null;
-                  }
-                  const computedBridge = buildSuggestedAdamBridgeForResearcher(
-                    cleanQueryName || directSearchResult.familyName,
-                    directSearchResult.rootBranchName,
-                    directSearchResult.rootTribeName,
-                    directSearchResult.adamNodeId
-                  );
-                  if (computedBridge && computedBridge.adam_node_name) {
-                    return computedBridge;
-                  }
-                  for (const st of finalStitchedStations.slice(1)) {
-                    const insp = inspectNameInAdamMasterTree(
-                      st.name,
-                      adamGraphNodes
-                    );
-                    if (insp.found && insp.matchedNode) {
-                      return {
-                        matched_station_name: st.name,
-                        adam_node_id: insp.matchedNode.node_id,
-                        adam_node_name: insp.matchedNode.name,
-                        adam_chain_preview: [
-                          insp.matchedNode,
-                          ...insp.ancestorsUpToAdam,
-                        ]
-                          .map((n) => n.name)
-                          .join(' ⬅️ '),
-                        confidence_label:
-                          'جسر التقاء مرصود مع شجرة آدم الكبرى عبر محطة النسب المشتركة',
-                      };
-                    }
-                  }
-                  return null;
-                })();
-
-                const bridgeUpperChainStations: string[] = (() => {
-                  if (!resolvedAdamBridgeForContainer1) return [];
-                  const bridgeNodeById =
-                    nodesById[resolvedAdamBridgeForContainer1.adam_node_id] ||
-                    MASTER_ADAM_NODES_MAP[
-                      resolvedAdamBridgeForContainer1.adam_node_id
-                    ];
-                  if (bridgeNodeById) {
-                    const chain: string[] = [
-                      bridgeNodeById.name.replace(/\s*\(#\d+\)\s*$/, ''),
-                    ];
-                    let currId = bridgeNodeById.parent_id;
-                    const seen = new Set<string>([bridgeNodeById.node_id]);
-                    let guard = 0;
-                    while (currId && !seen.has(currId) && guard < 80) {
-                      seen.add(currId);
-                      const p =
-                        nodesById[currId] || MASTER_ADAM_NODES_MAP[currId];
-                      if (!p) break;
-                      chain.push(p.name.replace(/\s*\(#\d+\)\s*$/, ''));
-                      currId = p.parent_id;
-                      guard++;
-                    }
-                    if (
-                      chain.length > 0 &&
-                      !chain[chain.length - 1].includes('آدم')
-                    ) {
-                      chain.push('آدم عليه السلام');
-                    }
-                    return chain;
-                  }
-                  const insp = inspectNameInAdamMasterTree(
-                    resolvedAdamBridgeForContainer1.adam_node_name,
-                    adamGraphNodes
-                  );
-                  if (insp.found && insp.matchedNode) {
-                    return [
-                      insp.matchedNode.name.replace(/\s*\(#\d+\)\s*$/, ''),
-                      ...insp.ancestorsUpToAdam.map((a) =>
-                        a.name.replace(/\s*\(#\d+\)\s*$/, '')
-                      ),
-                    ];
-                  }
-                  const previewParts = String(
-                    resolvedAdamBridgeForContainer1.adam_chain_preview || ''
-                  )
-                    .split(/(?:⬅️|<-|->|—|؛)/)
-                    .map((s) => s.replace(/^#\d+:\s*/, '').trim())
-                    .filter(Boolean);
-                  return previewParts.length > 0
-                    ? previewParts
-                    : [
-                        resolvedAdamBridgeForContainer1.adam_node_name,
-                        'آدم عليه السلام',
-                      ];
-                })();
-
                 const safeSelectedAdamIdx =
                   selectedAdamMatchIndex < adamMatchedCandidates.length
                     ? selectedAdamMatchIndex
@@ -8215,7 +8175,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   adamMatchedCandidates[safeSelectedAdamIdx] || null;
 
                 // Check whether Adam Tree candidates match the entered locality / country and have valid tribal links
-                const enteredLocNorm = normalizeArabicForSearch(
+                const enteredLocNorm = normalizeLocalityTokenForMatching(
                   directSearchLocality.trim()
                 );
                 const enteredCountryNorm =
@@ -8233,20 +8193,26 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       (st) => st.geo_footprint || []
                     ),
                   ]
-                    .map((g) => normalizeArabicForSearch(g))
+                    .map((g) => normalizeLocalityTokenForMatching(g))
                     .filter(Boolean);
 
                   if (enteredLocNorm) {
-                    return allCandGeo.some(
-                      (g) =>
-                        g.includes(enteredLocNorm) || enteredLocNorm.includes(g)
+                    return (
+                      allCandGeo.length > 0 &&
+                      allCandGeo.some(
+                        (g) =>
+                          g.includes(enteredLocNorm) || enteredLocNorm.includes(g)
+                      )
                     );
                   }
                   if (enteredCountryNorm) {
-                    return allCandGeo.some(
-                      (g) =>
-                        g.includes(enteredCountryNorm) ||
-                        enteredCountryNorm.includes(g)
+                    return (
+                      allCandGeo.length > 0 &&
+                      allCandGeo.some(
+                        (g) =>
+                          g.includes(enteredCountryNorm) ||
+                          enteredCountryNorm.includes(g)
+                      )
                     );
                   }
                   return true;
@@ -8281,19 +8247,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   ((Boolean(enteredLocNorm) || Boolean(enteredCountryNorm)) &&
                     !hasAnyLocalityMatchingAdamCandidate);
 
-                // Requirement 1(c): Smart Auto-Collapse for Container 1 when there is no decisive locality-matched node in Adam Tree
-                // AND there are real work results in Container 2 (Alpha projects & raw sources)
-                const hasDecisiveLocalityMatchedAdamNode =
-                  adamMatchedCandidates.length === 1 &&
+                // Requirement 4: Auto-collapse Container 1 whenever there is no clear, confirmed match
+                // for the family or its original locality in Adam Tree!
+                const hasClearConfirmedAdamMatch =
+                  adamMatchedCandidates.length > 0 &&
                   hasAnyLocalityMatchingAdamCandidate &&
                   !hasInvalidOrUnlinkedTribeInAdamCandidates &&
-                  (rawEvidenceList.length === 0 ||
-                    directSearchResult.primary_source_of_truth ===
-                      'ADAM_MASTER_TREE');
+                  !isAdamSimulatorLockedForSearch;
 
-                const shouldAutoCollapseContainer1 =
-                  rawEvidenceList.length > 0 &&
-                  !hasDecisiveLocalityMatchedAdamNode;
+                const shouldAutoCollapseContainer1 = !hasClearConfirmedAdamMatch;
 
                 const isContainer1Expanded =
                   isAdamBundleManualOverride !== null
@@ -8537,23 +8499,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 data-testid="adam-container-header-counter"
                                 className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold"
                               >
-                                {adamMatchedCandidates.length === 1
+                                {hasClearConfirmedAdamMatch &&
+                                adamMatchedCandidates.length === 1
                                   ? 'عُقد مرصودة في شجرة آدم: 1 (مرتبطة وموثقة ✓)'
-                                  : adamMatchedCandidates.length > 1
+                                  : hasClearConfirmedAdamMatch &&
+                                    adamMatchedCandidates.length > 1
                                   ? `عُقد مرصودة في شجرة آدم: ${adamMatchedCandidates.length} (تعدد عُقد متشابهة)`
-                                  : resolvedAdamBridgeForContainer1
-                                  ? 'عُقد مرصودة في شجرة آدم: 1 (عقدة جسر التقاء 🔗)'
-                                  : 'عُقد مرصودة في شجرة آدم: 0'}
+                                  : 'لم يتم العثور على تطابق واضح للعائلة أو لموطنها الأصلي مع البيانات المسجلة في شجرة آدم للأجداد'}
                               </span>
-                              {shouldAutoCollapseContainer1 &&
-                                !isContainer1Expanded && (
-                                  <span
-                                    data-testid="adam-container-auto-collapsed-badge"
-                                    className="px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-[10px] font-extrabold"
-                                  >
-                                    مطوية تلقائياً — لا توجد عقدة مطابقة للموطن في شجرة آدم والعمل الفعلي في الحزمة الثانية
-                                  </span>
-                                )}
                             </div>
                             <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] mt-1">
                               فحص التطابق في شجرة آدم للأجداد
@@ -8562,30 +8515,26 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2.5">
-                          {adamMatchedCandidates.length === 1 &&
-                            !isAdamSimulatorLockedForSearch && (
+                          {hasClearConfirmedAdamMatch &&
+                            adamMatchedCandidates.length === 1 && (
                               <span className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
-                                ✅ تطابق مرجعي موثق ومرتبط في شجرة آدم الكبرى (SINGLE_ADAM_MATCH)
+                                ✅ تطابق مرجعي موثق ومرتبط في شجرة آدم للأجداد
                               </span>
                             )}
-                          {adamMatchedCandidates.length >= 1 &&
-                            isAdamSimulatorLockedForSearch && (
-                              <span className="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
-                                🔒 عُقد شجرة آدم ({adamMatchedCandidates.length}) غير مطابقة للموطن المدخل — يعتمد على الحزمة الثانية
-                              </span>
-                            )}
-                          {adamMatchedCandidates.length > 1 &&
-                            !isAdamSimulatorLockedForSearch && (
+                          {hasClearConfirmedAdamMatch &&
+                            adamMatchedCandidates.length > 1 && (
                               <span className="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
                                 🔍 تعدد نتائج متشابهة في شجرة آدم ({adamMatchedCandidates.length} عُقد) — يتطلب سؤال تحقق
                               </span>
                             )}
-                          {adamMatchedCandidates.length === 0 &&
-                            resolvedAdamBridgeForContainer1 && (
-                              <span className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
-                                🔗 جسر التقاء مرصود مع شجرة آدم عبر العقدة: {resolvedAdamBridgeForContainer1.adam_node_name}
-                              </span>
-                            )}
+                          {!hasClearConfirmedAdamMatch && (
+                            <span
+                              data-testid="adam-container-auto-collapsed-badge"
+                              className="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold"
+                            >
+                              لم يتم العثور على تطابق واضح للعائلة أو لموطنها الأصلي مع البيانات المسجلة في شجرة آدم للأجداد
+                            </span>
+                          )}
 
                           <button
                             type="button"
@@ -8893,79 +8842,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             </div>
                           )}
 
-                          {/* CASE C: FAMILY IS IN RAW ALPHA PROJECTS WITH DETECTED ADAM BRIDGE (جسر التقاء مرصود مع شجرة آدم) */}
-                          {adamMatchedCandidates.length === 0 &&
-                            resolvedAdamBridgeForContainer1 && (
-                              <div
-                                data-testid="adam-container-bridge-match"
-                                className="rounded-2xl bg-white text-[#252321] border-2 border-[#C5A059] p-4 sm:p-5 space-y-3.5 shadow-sm"
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2DACB] pb-3">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="px-3 py-1 rounded-xl bg-emerald-700 text-white text-xs font-extrabold">
-                                      🔗 جسر التقاء مرصود مع شجرة آدم عبر العقدة: {resolvedAdamBridgeForContainer1.adam_node_name}
-                                    </span>
-                                    <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346] font-mono text-xs font-bold">
-                                      معرف عقدة الجسر: #{resolvedAdamBridgeForContainer1.adam_node_id}
-                                    </span>
-                                    {resolvedAdamBridgeForContainer1.matched_station_name && (
-                                      <span className="px-2.5 py-1 rounded-lg bg-amber-50 border border-[#C5A059]/60 text-[#8D4925] text-xs font-extrabold">
-                                        محطة الالتقاء في سلسلة العائلة: {resolvedAdamBridgeForContainer1.matched_station_name}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
-                                    جاهز للربط بعقدة شجرة آدم المعتمدة ✓
-                                  </span>
-                                </div>
-
-                                <div className="space-y-2">
-                                  <div className="text-xs font-extrabold text-[#8D4925]">
-                                    الامتداد العلوي الموثق في شجرة آدم الكبرى من عقدة الجسر ({resolvedAdamBridgeForContainer1.adam_node_name}) صعوداً حتى قمة السلسلة:
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF6F0] p-3 rounded-xl border border-[#E2DACB]">
-                                    {bridgeUpperChainStations.map(
-                                      (stName, bIdx) => (
-                                        <React.Fragment key={`bridge-up-${bIdx}`}>
-                                          <span
-                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                                              bIdx === 0
-                                                ? 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059] font-extrabold'
-                                                : stName.includes('آدم')
-                                                ? 'bg-[#FAF6F0] text-[#8D4925] border-[#B98A78] font-extrabold'
-                                                : 'bg-white text-[#252321] border-[#E2DACB]'
-                                            }`}
-                                          >
-                                            {stName}
-                                          </span>
-                                          {bIdx <
-                                            bridgeUpperChainStations.length -
-                                              1 && (
-                                            <span className="text-[#B98A78] text-xs font-bold px-0.5">
-                                              ←
-                                            </span>
-                                          )}
-                                        </React.Fragment>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                          {/* FALLBACK ZERO MATCH: Only when 0 Adam matches AND 0 Adam Bridge */}
-                          {adamMatchedCandidates.length === 0 &&
-                            !resolvedAdamBridgeForContainer1 && (
-                              <div
-                                data-testid="adam-container-zero-match"
-                                className="rounded-2xl bg-white border border-[#E2DACB] px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-[#252321] shadow-2xs"
-                              >
-                                <span className="text-base shrink-0">⚪</span>
-                                <span>
-                                  ⚪ لا يوجد تطابق مباشر باسم العائلة في شجرة آدم حالياً — تم توجيه البوصلة آلياً لفحص باقي المصادر التاريخية الخاصة بالمشاريع
-                                </span>
-                              </div>
-                            )}
+                          {/* UNIFIED NO-CLEAR-MATCH NOTICE IN ADAM TREE (Zero technical terms or fake Bridge codes) */}
+                          {!hasClearConfirmedAdamMatch && (
+                            <div
+                              data-testid="adam-container-zero-match"
+                              className="rounded-2xl bg-white border border-[#E2DACB] px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-[#252321] shadow-2xs"
+                            >
+                              <span className="text-base shrink-0">⚪</span>
+                              <span>
+                                لم يتم العثور على تطابق واضح للعائلة أو لموطنها الأصلي مع البيانات المسجلة في شجرة آدم للأجداد
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -9111,8 +8999,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       {bosletExpandedSections.step1 && (
                         <>
                           {rawEvidenceList.length === 0 ? (
-                            <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 text-xs font-bold text-[#8D4925]">
-                              لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق
+                            <div
+                              data-testid="step1-no-matching-records-notice"
+                              className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 text-xs font-bold text-[#8D4925]"
+                            >
+                              {activeSearchLocalityForFilter
+                                ? `لا يوجد سجل مطابق للموطن الأصلي (${activeSearchLocalityForFilter}) في الدولة المحددة (${
+                                    activeSearchCountryForFilter || 'الدولة المحددة'
+                                  }) لعائلة (${
+                                    activeSearchFamilyForFilter ||
+                                    directSearchResult.familyName
+                                  }).`
+                                : activeSearchCountryForFilter
+                                ? `لا يوجد سجل مطابق لعائلة (${
+                                    activeSearchFamilyForFilter ||
+                                    directSearchResult.familyName
+                                  }) في الدولة المحددة (${activeSearchCountryForFilter}).`
+                                : 'لم يتم رصد مصادر خام مطابقة في قواعد البيانات الحالية، تم الإحالة للبحث المعمق'}
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -9128,6 +9031,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       ];
                                 const refBadgeText = formatAlphaReferenceBadge(ev);
                                 const lakeBadge = resolveResearcherDataLakeBadge(ev);
+                                const validCardOtherLeads =
+                                  Array.isArray(ev.parsed_other_sources) &&
+                                  ev.parsed_other_sources.length > 0
+                                    ? ev.parsed_other_sources.filter(
+                                        isValidParsedOtherSourceLead
+                                      )
+                                    : ev.other_sources
+                                    ? parseOtherSourcesStringIntoLeads(
+                                        ev.other_sources,
+                                        ev.alpha_id,
+                                        ev.record_name || directSearchResult.familyName
+                                      )
+                                    : [];
                                 return (
                                   <div
                                     key={ev.alpha_id || idx}
@@ -9175,9 +9091,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             {ev.record_name || directSearchResult.familyName}
                                           </strong>
                                         </div>
-                                        {(Boolean(ev.other_sources && ev.other_sources.trim()) ||
-                                          (Array.isArray(ev.parsed_other_sources) &&
-                                            ev.parsed_other_sources.length > 0)) && (
+                                        {validCardOtherLeads.length > 0 && (
                                           <span
                                             data-testid={`raw-source-other-sources-badge-${idx}`}
                                             className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-extrabold"
@@ -9185,7 +9099,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             <span>📜</span>
                                             <span>
                                               إحالات لمصادر أخرى في الهامش (
-                                              {ev.parsed_other_sources?.length || 1})
+                                              {validCardOtherLeads.length})
                                             </span>
                                           </span>
                                         )}
