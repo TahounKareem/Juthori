@@ -319,7 +319,8 @@ export interface ResearchTicketData {
     | 'ADAM_NODE_ENRICHMENT'
     | 'ALPHA_TO_ADAM_LINK'
     | 'P1_CUSTOMER_SEARCH'
-    | 'P3_PROACTIVE_MINING';
+    | 'P3_PROACTIVE_MINING'
+    | 'ASSIGNED_RESEARCH';
   adamNodeId?: string;
   alphaId?: string;
   status:
@@ -1500,7 +1501,8 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
     | 'ADAM_NODE_ENRICHMENT'
     | 'ALPHA_TO_ADAM_LINK'
     | 'P1_CUSTOMER_SEARCH'
-    | 'P3_PROACTIVE_MINING';
+    | 'P3_PROACTIVE_MINING'
+    | 'ASSIGNED_RESEARCH';
   familyName: string;
   subRootName: string;
   motherTribeName: string;
@@ -1508,6 +1510,8 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
   originRegion: string;
   clientName: string;
   userId?: string;
+  assignedResearcherId?: string;
+  assignedResearcherName?: string;
   verifiedSources: string[];
   corroboratingAlphaEvidence: unknown[];
   fullStitchedLineage?: unknown[];
@@ -1537,7 +1541,8 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
     matched: params.ticketCategory !== 'P1_CUSTOMER_SEARCH',
     isAlphaOnlyBeforeMerge:
       params.ticketCategory === 'P3_PROACTIVE_MINING' ||
-      params.ticketCategory === 'ALPHA_TO_ADAM_LINK',
+      params.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
+      params.ticketCategory === 'ASSIGNED_RESEARCH',
     verified_sources: params.verifiedSources || [],
     corroborating_alpha_evidence_for_researcher:
       params.corroboratingAlphaEvidence || [],
@@ -1545,6 +1550,9 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
     extractedNodes: params.extractedNodes || [],
     p3StrategicMeta: params.p3StrategicMeta || null,
     precomputed_diagnostic: params.precomputedDiagnostic || null,
+    assignedResearcherId: params.assignedResearcherId || existing?.assignedResearcherId || '',
+    assignedResearcherName:
+      params.assignedResearcherName || existing?.assignedResearcherName || '',
   };
 
   const record: ResearchTicketData = {
@@ -1563,13 +1571,17 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
     originRegion: params.originRegion || '',
     additionalNotes:
       params.additionalNotes ||
-      `تذكرة بحثية حقيقية مرتبطة بقاعدة البيانات (${cleanFam} ⬅️ ${params.subRootName} ⬅️ ${params.motherTribeName})`,
+      `تذكرة بحثية حقيقية مرتبطة بقاعدة البيانات (${cleanFam} ← ${params.subRootName} ← ${params.motherTribeName})`,
     ticketCategory: params.ticketCategory,
     adamNodeId: params.adamNodeId || '',
     alphaId: params.alphaId || '',
     status: existing?.status || 'pending_review',
+    assignedResearcherId:
+      params.assignedResearcherId || existing?.assignedResearcherId,
     assignedResearcherName:
-      existing?.assignedResearcherName || 'فريق التحقيق النَّسبي',
+      params.assignedResearcherName ||
+      existing?.assignedResearcherName ||
+      'فريق التحقيق النَّسبي',
     verifiedSources: (params.verifiedSources || []).join(' | '),
     studioPayloadJson: JSON.stringify(studioPayload),
     clientNotified: existing?.clientNotified ?? false,

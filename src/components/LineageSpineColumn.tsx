@@ -1548,15 +1548,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 💳 المحفظة: ${walletBalance.toFixed(2)}
               </span>
             )}
-            {isResearcherDirectPreview && onOpenAsResearcherTicket && (
-              <button
-                type="button"
-                onClick={onOpenAsResearcherTicket}
-                className="px-3.5 py-1.5 rounded-xl bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-display font-bold shadow-xs transition-all cursor-pointer"
-              >
-                📥 فتح كتذكرة عمل نشطة في صندوق التذاكر
-              </button>
-            )}
           </div>
         </div>
 

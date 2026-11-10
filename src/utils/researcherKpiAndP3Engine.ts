@@ -3,6 +3,7 @@ import { GERMAN_ENGINE_BASE_URL } from './lineageEngine';
 
 export type TicketPriorityTier =
   | 'P1_CLIENT_UNMATCHED'
+  | 'ASSIGNED_RESEARCH'
   | 'P2_CLIENT_ADAM_BRIDGE'
   | 'P3_PROACTIVE_ALPHA_ENRICHMENT';
 
