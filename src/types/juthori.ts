@@ -158,6 +158,11 @@ export interface VerifiedAddonSourceItem {
   verified_at?: string;
 }
 
+export type LocalityMatchStatus =
+  | 'EXPLICIT_LOCALITY_MATCH'
+  | 'EXPLICIT_COUNTRY_MATCH'
+  | 'UNSPECIFIED_NON_CONFLICTING_LOCALITY';
+
 export interface CorroboratingAlphaEvidence {
   alpha_id: string;
   record_name: string;
@@ -176,6 +181,8 @@ export interface CorroboratingAlphaEvidence {
   parsed_other_sources?: ParsedOtherSourceLead[];
   verified_addon_sources?: VerifiedAddonSourceItem[];
   data_lake_badge?: string | null;
+  locality_match_status?: LocalityMatchStatus;
+  locality_status_badge?: string | null;
 }
 
 export interface SuggestedAdamBridgeForResearcher {
@@ -227,6 +234,9 @@ export interface ConsensusClusterGroup {
   records: CorroboratingAlphaEvidence[];
   rootPreviewLabel: string;
   fullChainNodes: string[];
+  hasExplicitLocalityMatch?: boolean;
+  isUnspecifiedLocalityOnly?: boolean;
+  localityStatusBadge?: string;
 }
 
 export interface CheckoutOrderRequest {

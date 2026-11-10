@@ -32,9 +32,11 @@ import {
 } from '../types/juthori';
 import {
   AdamTreeInteractiveNode,
+  EXPLICIT_LOCALITY_WINNER_BADGE_TEXT,
   GERMAN_ENGINE_BASE_URL,
   MASTER_ADAM_NODES_MAP,
   ORIGIN_REGION_SUGGESTIONS,
+  UNSPECIFIED_LOCALITY_BADGE_TEXT,
   VALID_STRUCTURAL_ARC_CODES,
   buildAIResearchHypothesesForFamily,
   buildFullStitchedLineageForResearcher,
@@ -48,6 +50,7 @@ import {
   extractAllOtherSourceLeadsFromEvidence,
   extractBookVolPageFromEvidence,
   extractRawRecordAncestors,
+  extractSpecificLocalityTokens,
   filterEvidenceByFamilyAndStrictGeography,
   formatAlphaEvidenceCitation,
   formatAlphaReferenceBadge,
@@ -2289,13 +2292,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         {/* SECTION 1: مسار التوافق المرجعي المرجّح */}
         <div className="rounded-2xl border border-[#B98A78]/50 bg-white p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
                 مسار التوافق المرجعي المرجّح
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#8D4925] text-white">
                 مرجّح في ({consensusWinner.sourcesCount}) مراجع
               </span>
+              {consensusWinner.hasExplicitLocalityMatch && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 border border-emerald-300 text-emerald-900">
+                  {EXPLICIT_LOCALITY_WINNER_BADGE_TEXT}
+                </span>
+              )}
+              {consensusWinner.isUnspecifiedLocalityOnly && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346]">
+                  {UNSPECIFIED_LOCALITY_BADGE_TEXT}
+                </span>
+              )}
             </div>
 
             {contextMode === 'direct_search' &&
@@ -2366,6 +2379,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     >
                       {lakeBadge.tag}
                     </span>
+                    {ev.locality_match_status ===
+                      'UNSPECIFIED_NON_CONFLICTING_LOCALITY' && (
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#FAF6F0] border border-[#E2DACB] text-[#5C5346]">
+                        {UNSPECIFIED_LOCALITY_BADGE_TEXT}
+                      </span>
+                    )}
                   </span>
                 );
               })}
@@ -2399,7 +2418,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             <div className="space-y-3">
               {clusters.map((comp, clusterIdx) => {
                 const chainCount = comp.fullChainNodes.length;
-                const isShownToCustomer = clusterIdx < 2;
+                const isShownToCustomer =
+                  clusterIdx < 2 &&
+                  !(
+                    clusterIdx > 0 &&
+                    consensusWinner.hasExplicitLocalityMatch &&
+                    comp.isUnspecifiedLocalityOnly
+                  );
                 return (
                   <div
                     key={comp.clusterId}
@@ -2420,8 +2445,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <span className="text-xs font-bold text-[#252321]">
                           الجذر: {comp.rootPreviewLabel}
                         </span>
+                        {comp.hasExplicitLocalityMatch && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold border bg-emerald-50 text-emerald-900 border-emerald-300">
+                            {EXPLICIT_LOCALITY_WINNER_BADGE_TEXT}
+                          </span>
+                        )}
+                        {comp.isUnspecifiedLocalityOnly && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB]">
+                            {UNSPECIFIED_LOCALITY_BADGE_TEXT}
+                          </span>
+                        )}
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-white text-[#5C5346] border-[#E2DACB]">
-                          {isShownToCustomer
+                          {comp.isUnspecifiedLocalityOnly && clusterIdx > 0
+                            ? 'مسار مرجعي محتمل غير متعارض جغرافياً (مرصود للباحث)'
+                            : isShownToCustomer
                             ? `✓ الخيار #${clusterIdx + 1} للعميل`
                             : 'مرصود للباحث فقط'}
                         </span>
@@ -2493,6 +2530,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             >
                               {lakeBadge.tag}
                             </span>
+                            {ev.locality_match_status ===
+                              'UNSPECIFIED_NON_CONFLICTING_LOCALITY' && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-white border border-[#E2DACB] text-[#5C5346]">
+                                {UNSPECIFIED_LOCALITY_BADGE_TEXT}
+                              </span>
+                            )}
                           </span>
                         );
                       })}
@@ -3563,6 +3606,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 {ev.consensus_badge && (
                   <span className="px-2 py-0.5 rounded bg-[#FAF6F0] text-[#8D4925] border border-[#E2DACB] text-[10px] font-bold">
                     {ev.consensus_badge}
+                  </span>
+                )}
+                {(ev.locality_match_status ===
+                  'UNSPECIFIED_NON_CONFLICTING_LOCALITY' ||
+                  parsedLocations.length === 0) && (
+                  <span className="px-2 py-0.5 rounded bg-[#FAF6F0] text-[#5C5346] border border-[#E2DACB] text-[10px] font-bold">
+                    {UNSPECIFIED_LOCALITY_BADGE_TEXT}
                   </span>
                 )}
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EDE6DA] text-[#5C5346]">
@@ -7320,12 +7370,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 const activeSearchLocalityForFilter =
                   directSearchLocality.trim() || '';
 
-                const rawEvidenceList: CorroboratingAlphaEvidence[] =
+                const filteredEvidenceList: CorroboratingAlphaEvidence[] =
                   filterEvidenceByFamilyAndStrictGeography(
                     unfilteredRawEvidenceList,
                     activeSearchFamilyForFilter,
                     activeSearchCountryForFilter,
                     activeSearchLocalityForFilter
+                  );
+
+                const rawEvidenceList: CorroboratingAlphaEvidence[] =
+                  tagConsensusWinnersOnEvidence(
+                    directSearchResult.familyName,
+                    filteredEvidenceList
                   );
 
                 const diagnosticClusters: ConsensusClusterGroup[] =
@@ -7340,12 +7396,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   rawEvidenceList.length === 0 ||
                   diagnosticClusters.length === 0;
 
-                const hasCompetingDisambiguationPaths =
-                  !isDirectDeepResearchP1 && diagnosticClusters.length >= 2;
-
                 const primaryCluster =
                   diagnosticClusters.find((c) => c.isConsensusWinner) ||
                   diagnosticClusters[0];
+
+                // Rule 3: If `primaryCluster` is an Explicit Locality Match Winner (`hasExplicitLocalityMatch === true`),
+                // and all other clusters are unspecified-locality clusters (`isUnspecifiedLocalityOnly === true`),
+                // the Locality Match Winner resolves directly without forcing a customer disambiguation modal,
+                // while keeping the unspecified-locality clusters visible in the researcher's matrix!
+                const hasOtherExplicitCluster = diagnosticClusters
+                  .slice(1)
+                  .some((c) => !c.isUnspecifiedLocalityOnly);
+
+                const hasCompetingDisambiguationPaths =
+                  !isDirectDeepResearchP1 &&
+                  diagnosticClusters.length >= 2 &&
+                  (!primaryCluster?.hasExplicitLocalityMatch ||
+                    hasOtherExplicitCluster);
 
                 const activeOptionIndex =
                   diagnosticSimChoice === 'option_b'
@@ -9044,6 +9111,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                         ev.record_name || directSearchResult.familyName
                                       )
                                     : [];
+                                const isCardInWinningCluster =
+                                  primaryCluster?.records.some(
+                                    (r) => r.alpha_id === ev.alpha_id
+                                  ) ?? ev.is_consensus_winner !== false;
+                                const isUnspecifiedLocalityCard =
+                                  ev.locality_match_status ===
+                                    'UNSPECIFIED_NON_CONFLICTING_LOCALITY' ||
+                                  (extractSpecificLocalityTokens(
+                                    ev.locations,
+                                    activeSearchCountryForFilter
+                                  ).length === 0 &&
+                                    (!ev.locations ||
+                                      ev.locations.trim() === '' ||
+                                      ev.locations.trim() === '—' ||
+                                      ev.locations.includes('لم يُذكر موطن')));
+                                const isExplicitLocalityWinnerCard =
+                                  ev.locality_match_status ===
+                                  'EXPLICIT_LOCALITY_MATCH';
+
                                 return (
                                   <div
                                     key={ev.alpha_id || idx}
@@ -9051,21 +9137,39 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   >
                                     <div className="space-y-2.5">
                                       <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex flex-wrap items-center gap-1.5">
                                           <span className="px-2.5 py-0.5 rounded-lg bg-[#8D4925] text-white text-[11px] font-extrabold">
                                             المصدر الخام #{idx + 1}
                                           </span>
                                           <span
                                             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                                              ev.is_consensus_winner !== false
+                                              isCardInWinningCluster
                                                 ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                                                 : 'bg-white text-[#8D4925] border-[#B98A78]/45'
                                             }`}
                                           >
-                                            {ev.is_consensus_winner !== false
+                                            {isCardInWinningCluster
                                               ? 'ضمن عنقود التوافق الأساسي'
+                                              : isUnspecifiedLocalityCard
+                                              ? 'مسار مرجعي محتمل غير متعارض جغرافياً'
                                               : 'مسار منافس مستقل'}
                                           </span>
+                                          {isExplicitLocalityWinnerCard && (
+                                            <span
+                                              data-testid={`raw-source-locality-winner-badge-${idx}`}
+                                              className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-900 border border-emerald-300"
+                                            >
+                                              {EXPLICIT_LOCALITY_WINNER_BADGE_TEXT}
+                                            </span>
+                                          )}
+                                          {isUnspecifiedLocalityCard && (
+                                            <span
+                                              data-testid={`raw-source-unspecified-locality-badge-${idx}`}
+                                              className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-[#5C5346] border border-[#E2DACB]"
+                                            >
+                                              {UNSPECIFIED_LOCALITY_BADGE_TEXT}
+                                            </span>
+                                          )}
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-1.5">
@@ -9141,7 +9245,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           النطاق الجغرافي في المصدر:
                                         </span>
                                         <span className="font-bold text-[#8D4925]">
-                                          {ev.locations || directSearchResult.originCountry || '—'}
+                                          {isUnspecifiedLocalityCard
+                                            ? ev.locations &&
+                                              ev.locations.trim() &&
+                                              ev.locations.trim() !== '—' &&
+                                              !ev.locations.includes('لم يُذكر موطن')
+                                              ? `${ev.locations} · ${UNSPECIFIED_LOCALITY_BADGE_TEXT}`
+                                              : UNSPECIFIED_LOCALITY_BADGE_TEXT
+                                            : ev.locations || '—'}
                                         </span>
                                       </div>
                                     </div>

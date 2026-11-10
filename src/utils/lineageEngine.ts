@@ -5011,6 +5011,64 @@ const COUNTRY_FOREIGN_KEYWORDS_MAP: Record<string, string[]> = {
     'ميسان',
     'سوق الشيوخ',
   ],
+  تونس: [
+    'تونس',
+    'الكاف',
+    'صفاقس',
+    'سوسه',
+    'القيروان',
+    'بنزرت',
+    'قابس',
+    'توزر',
+    'قفصه',
+    'المنستير',
+  ],
+  الجزائر: [
+    'الجزائر',
+    'وهران',
+    'قسنطينه',
+    'تلمسان',
+    'عنابه',
+    'سطيف',
+    'بجايه',
+    'بسكره',
+    'ويزارت',
+  ],
+  المغرب: [
+    'المغرب',
+    'فاس',
+    'مكناس',
+    'مراكش',
+    'طنجه',
+    'تازا',
+    'وجده',
+    'الرباط',
+    'الدار البيضاء',
+    'تطوان',
+    'سلا',
+    'سوس',
+  ],
+  ليبيا: [
+    'ليبيا',
+    'طرابلس الغرب',
+    'بنغازي',
+    'مصراته',
+    'درنه',
+    'طبرق',
+    'الجبل الاخضر',
+    'فزان',
+    'سبها',
+    'جغبوب',
+    'اجدابيا',
+    'برقه',
+  ],
+  البحرين: [
+    'البحرين',
+    'اوال',
+    'المنامه',
+    'المحرق',
+    'دارين',
+  ],
 };
 
 const COUNTRY_SPECIFIC_BOOK_PATTERNS: Array<{
@@ -5019,22 +5077,97 @@ const COUNTRY_SPECIFIC_BOOK_PATTERNS: Array<{
 }> = [
   { bookKeywordNorm: 'قبائل مصر', countriesNorm: ['مصر'] },
   { bookKeywordNorm: 'تاريخ سيناء', countriesNorm: ['مصر'] },
+  { bookKeywordNorm: 'العائلات العربيه المصريه', countriesNorm: ['مصر'] },
+  { bookKeywordNorm: 'مفاتيح الاناره', countriesNorm: ['مصر'] },
   { bookKeywordNorm: 'بلدان اليمن', countriesNorm: ['اليمن'] },
   { bookKeywordNorm: 'قبائل اليمن', countriesNorm: ['اليمن'] },
+  { bookKeywordNorm: 'الالقاب اليمنيه', countriesNorm: ['اليمن'] },
+  { bookKeywordNorm: 'البلدان والقبائل اليمنيه', countriesNorm: ['اليمن'] },
   { bookKeywordNorm: 'بلدان حضرموت', countriesNorm: ['اليمن'] },
   { bookKeywordNorm: 'ادام القوت', countriesNorm: ['اليمن'] },
   { bookKeywordNorm: 'الصفه في تاريخ حضرموت', countriesNorm: ['اليمن'] },
   { bookKeywordNorm: 'العشائر في الاردن وفلسطين', countriesNorm: ['الاردن', 'فلسطين'] },
   { bookKeywordNorm: 'العشائر الفلسطينيه', countriesNorm: ['فلسطين', 'الاردن'] },
   { bookKeywordNorm: 'القبائل الاردنيه', countriesNorm: ['الاردن'] },
+  { bookKeywordNorm: 'عشائر الاردن', countriesNorm: ['الاردن'] },
   { bookKeywordNorm: 'العشائر العراقيه', countriesNorm: ['العراق'] },
   { bookKeywordNorm: 'قبائل العراق', countriesNorm: ['العراق'] },
+  { bookKeywordNorm: 'عشائر العراق', countriesNorm: ['العراق'] },
+  { bookKeywordNorm: 'العشائر الفراتيه', countriesNorm: ['سوريا', 'العراق'] },
   { bookKeywordNorm: 'قبائل المملكه العربيه السعوديه', countriesNorm: ['السعوديه'] },
   { bookKeywordNorm: 'اسر بريده', countriesNorm: ['السعوديه'] },
   { bookKeywordNorm: 'معجم اليمامه', countriesNorm: ['السعوديه'] },
+  { bookKeywordNorm: 'الاسر المتحضره في نجد', countriesNorm: ['السعوديه'] },
+  {
+    bookKeywordNorm: 'شبه الجزيره العربيه',
+    countriesNorm: ['السعوديه', 'الكويت', 'البحرين', 'قطر', 'الامارات', 'عمان', 'اليمن'],
+  },
   { bookKeywordNorm: 'الموسوعه اللبنانيه', countriesNorm: ['لبنان'] },
+  { bookKeywordNorm: 'قري ومدن لبنان', countriesNorm: ['لبنان'] },
+  { bookKeywordNorm: 'معجم اسر لبنان', countriesNorm: ['لبنان'] },
   { bookKeywordNorm: 'قبائل الشام', countriesNorm: ['سوريا', 'لبنان', 'الاردن', 'فلسطين'] },
+  { bookKeywordNorm: 'دواوير الجزائر', countriesNorm: ['الجزائر'] },
+  { bookKeywordNorm: 'قبائل الجزائر', countriesNorm: ['الجزائر'] },
+  { bookKeywordNorm: 'الاشراف في تونس', countriesNorm: ['تونس'] },
+  { bookKeywordNorm: 'تونس القديمه', countriesNorm: ['تونس'] },
+  { bookKeywordNorm: 'معلمه المغرب', countriesNorm: ['المغرب'] },
+  { bookKeywordNorm: 'قبائل المغرب', countriesNorm: ['المغرب'] },
+  { bookKeywordNorm: 'سكان ليبيا', countriesNorm: ['ليبيا'] },
+  { bookKeywordNorm: 'الانساب في ليبيا', countriesNorm: ['ليبيا'] },
+  { bookKeywordNorm: 'القبائل والانساب في السودان', countriesNorm: ['السودان'] },
 ];
+
+export const UNSPECIFIED_LOCALITY_BADGE_TEXT =
+  '⚪ لم يُذكر موطن جغرافي في المصدر (محتمل غير متعارض)';
+export const EXPLICIT_LOCALITY_WINNER_BADGE_TEXT =
+  '🎯 مطابق للموطن الأصلي (Locality Match Winner)';
+
+/**
+ * Extracts specific city/district/locality tokens from a record's `locations` string,
+ * ignoring empty placeholders (`—`, `-`, `غير محدد`) and tokens that are solely the matching country name (e.g., `مصر`).
+ * If this returns `[]`, then the record does NOT specify any conflicting city/locality (`Empty / Unspecified Locality`).
+ */
+export function extractSpecificLocalityTokens(
+  locationsRaw?: string | null,
+  targetCountry?: string | null
+): string[] {
+  if (!locationsRaw) return [];
+  const cleanCountryNorm = normalizeLocalityTokenForMatching(targetCountry || '');
+  const countryEquivalents = new Set<string>();
+  if (cleanCountryNorm) {
+    countryEquivalents.add(cleanCountryNorm);
+    if (cleanCountryNorm === 'مصر') {
+      countryEquivalents.add('الجمهوريه المصريه');
+      countryEquivalents.add('جمهوريه مصر العربيه');
+      countryEquivalents.add('جمهوريه مصر');
+      countryEquivalents.add('الديار المصريه');
+      countryEquivalents.add('القطر المصري');
+    } else if (cleanCountryNorm === 'السعوديه') {
+      countryEquivalents.add('المملكه العربيه السعوديه');
+    }
+  }
+
+  return locationsRaw
+    .split(/[|،؛,/]+/)
+    .map((s) => s.trim())
+    .filter((tok) => {
+      if (!tok || tok === '—' || tok === '-') return false;
+      const norm = normalizeLocalityTokenForMatching(tok);
+      if (
+        !norm ||
+        norm.includes('غير محدد') ||
+        norm.includes('غير مذكور') ||
+        norm.includes('مجهول') ||
+        norm.includes('لم يذكر موطن')
+      ) {
+        return false;
+      }
+      if (countryEquivalents.has(norm)) {
+        return false;
+      }
+      return true;
+    });
+}
 
 /**
  * Checks if a single `CorroboratingAlphaEvidence` record's `locations` matches the user's `originRegion` (`origin_locality`),
@@ -5072,9 +5205,9 @@ export function doesEvidenceRecordMatchLocality(
 
 /**
  * Checks if a single `CorroboratingAlphaEvidence` record is compatible with the specified `originCountry`:
- * - Rule 2(ب): If `originCountry` is specified (e.g., `مصر`), strictly forbids records belonging exclusively
- *   to foreign countries/cities (e.g., `اليمن`, `غزة`, `طولكرم`, `بر الياس`, `لبنان`, `الأردن`) or foreign country books
- *   (`مجموع بلدان اليمن`, `قاموس العشائر في الأردن وفلسطين`) whose `locations` do NOT mention `originCountry` or its localities.
+ * - Rule 1 & Rule 2: If `originCountry` is specified (e.g., `مصر`), strictly forbids records belonging exclusively
+ *   to foreign countries/cities (e.g., `اليمن`, `غزة`, `طولكرم`, `بر الياس`, `دير الزور`, `لبنان`, `الأردن`) or foreign regional books
+ *   (`مجموع بلدان اليمن`, `قاموس العشائر في الأردن وفلسطين`, `معجم قبائل ودواوير الجزائر`, etc.) whose `locations` do NOT mention `originCountry`.
  */
 export function doesEvidenceRecordMatchCountry(
   ev: CorroboratingAlphaEvidence,
@@ -5152,14 +5285,18 @@ export function doesEvidenceRecordMatchCountry(
 }
 
 /**
- * Enforces Requirement 1 & Requirement 2 on any array of `CorroboratingAlphaEvidence`:
- * 1) Filters out false `(ات)` root collisions (e.g. `عرف` / `العَرَف` / `العرف` when searching `عرفات`).
- * 2) Rule 2(أ) (Locality Priority & Isolation): If `originRegion` (`origin_locality`) is specified:
- *    - If 1+ records match `originRegion` in `locations`, returns ONLY those locality-matching records.
- *    - Rule 2(ج): If `originRegion` is specified and 0 records match `originRegion`, returns `[]` (clean unmatched state).
- * 3) Rule 2(ب) (Strict Country Isolation): If `originCountry` is specified (e.g. `مصر`), strictly excludes any record
- *    belonging to foreign countries/cities or foreign country-specific books, and if 1+ records explicitly match `originCountry`,
- *    keeps only records that match `originCountry`.
+ * Enforces the Forensic Geographic & Family Filtering Rules on any array of `CorroboratingAlphaEvidence`:
+ * 1) Family Name & Safe `(ات)` Match: Filters out false `(ات)` root collisions (e.g. `عرف` / `العَرَف` / `العرف` when searching `عرفات`).
+ * 2) Rule 1 (Never Exclude Empty / Unspecified Locality):
+ *    If a record has NO specific locality in `locations` (empty, `—`, or mentions ONLY the matching country name like `مصر` without
+ *    specifying another conflicting city/markaz) AND comes from a general book or target-country book (`!belongsToForeignCountry`),
+ *    it is KEPT and tagged with `⚪ لم يُذكر موطن جغرافي في المصدر (محتمل غير متعارض)`.
+ * 3) Rule 2 (Hard Exclusion):
+ *    Strictly excludes any record that explicitly specifies conflicting/different localities or foreign countries/regional books
+ *    (such as `غزة`, `طولكرم`, `بر الياس`, `دير الزور`, `اليمن`, or another specific city different from `originRegion`).
+ * 4) Rule 3 (Priority Ordering):
+ *    Records matching `originRegion` (`EXPLICIT_LOCALITY_MATCH`) take top priority (`Locality Match Winner`), followed by
+ *    `EXPLICIT_COUNTRY_MATCH`, followed by `UNSPECIFIED_NON_CONFLICTING_LOCALITY`.
  */
 export function filterEvidenceByFamilyAndStrictGeography(
   evidenceList: CorroboratingAlphaEvidence[],
@@ -5170,10 +5307,10 @@ export function filterEvidenceByFamilyAndStrictGeography(
   if (!Array.isArray(evidenceList) || evidenceList.length === 0) return [];
 
   // Step 1: Filter by genuine family name match (preventing `(ات)` root collision like `عرفات` vs `عرف`)
-  let filtered = evidenceList.filter((ev) =>
+  const familyMatched = evidenceList.filter((ev) =>
     doesEvidenceRecordMatchSearchedFamily(ev, displayFamilyName)
   );
-  if (filtered.length === 0) return [];
+  if (familyMatched.length === 0) return [];
 
   const cleanCountry = (originCountry || '').trim();
   const hasExplicitCountry =
@@ -5187,34 +5324,138 @@ export function filterEvidenceByFamilyAndStrictGeography(
     cleanLocality !== '—' &&
     !cleanLocality.includes('غير محدد');
 
-  // Step 2: Rule 2(ب) — Strict Country Isolation
-  if (hasExplicitCountry) {
-    // Remove all records that belong to foreign countries/cities or foreign country books
-    const nonForeign = filtered.filter(
-      (ev) => !doesEvidenceRecordMatchCountry(ev, cleanCountry).belongsToForeignCountry
-    );
-    const explicitlyMatchingCountry = nonForeign.filter(
-      (ev) =>
-        doesEvidenceRecordMatchCountry(ev, cleanCountry)
-          .matchesTargetCountryExplicitly ||
-        (hasExplicitLocality && doesEvidenceRecordMatchLocality(ev, cleanLocality))
-    );
-    // When country is specified, require explicit country/locality match so records without the country don't pollute results
-    filtered = explicitlyMatchingCountry;
-    if (filtered.length === 0) return [];
+  // Collect co-occurring parent governorate tokens & lineage stems from records that explicitly match `cleanLocality`
+  // (e.g., if `ALP_B_264f0ad878b8` matches `مغاغة` and also lists `المنيا` with lineage `العرفاء`, then `ALP_9550e68a47c5f6` in `المنيا` with `العرفاء` is co-located)
+  const explicitLocalityMatchedRecords = hasExplicitLocality
+    ? familyMatched.filter((ev) => doesEvidenceRecordMatchLocality(ev, cleanLocality))
+    : [];
+  const coLocatedGovernorateNorms = new Set<string>();
+  const explicitLocalityStems = new Set<string>();
+  const queryStem = normalizeArabicStem(displayFamilyName);
+
+  for (const mEv of explicitLocalityMatchedRecords) {
+    extractSpecificLocalityTokens(mEv.locations, cleanCountry).forEach((t) => {
+      const nt = normalizeLocalityTokenForMatching(t);
+      if (nt && nt.length >= 3) coLocatedGovernorateNorms.add(nt);
+    });
+    (mEv.lineage_ancestors || '')
+      .split(/[؛—⬅️>|]+/)
+      .map((s) => normalizeArabicStem(s.trim()))
+      .filter((st) => st && st !== queryStem && !isHighApexStopNode(st))
+      .forEach((st) => explicitLocalityStems.add(st));
   }
 
-  // Step 3: Rule 2(أ) & 2(ج) — Strict Original Locality (`origin_locality`) Isolation
-  if (hasExplicitLocality) {
-    const localityMatched = filtered.filter((ev) =>
-      doesEvidenceRecordMatchLocality(ev, cleanLocality)
+  const keptWithStatus: CorroboratingAlphaEvidence[] = [];
+
+  for (const ev of familyMatched) {
+    const matchesLocalityDirect =
+      hasExplicitLocality && doesEvidenceRecordMatchLocality(ev, cleanLocality);
+    const countryCheck = doesEvidenceRecordMatchCountry(ev, cleanCountry);
+    const specificLocalityTokens = extractSpecificLocalityTokens(
+      ev.locations,
+      cleanCountry
     );
-    // Rule 2(أ): If 1+ records match the entered locality, restrict exclusively to them!
-    // Rule 2(ج): If 0 records match the entered locality, return [] so no misleading records from other localities/countries are shown!
-    return localityMatched;
+    const isEmptyOrCountryOnlyLocality = specificLocalityTokens.length === 0;
+
+    // Hard Exclusion A: Foreign country in `locations` or foreign regional dictionary (unless it directly matches `cleanLocality`)
+    if (
+      hasExplicitCountry &&
+      countryCheck.belongsToForeignCountry &&
+      !matchesLocalityDirect
+    ) {
+      continue;
+    }
+
+    if (hasExplicitLocality) {
+      // Check if this record matches the explicit locality directly or shares a parent governorate + lineage stem with an explicit locality match
+      const sharesCoGovernorateAndLineage =
+        !matchesLocalityDirect &&
+        specificLocalityTokens.length > 0 &&
+        specificLocalityTokens.every((t) =>
+          coLocatedGovernorateNorms.has(normalizeLocalityTokenForMatching(t))
+        ) &&
+        (ev.lineage_ancestors || '')
+          .split(/[؛—⬅️>|]+/)
+          .some((s) => {
+            const st = normalizeArabicStem(s.trim());
+            return st && explicitLocalityStems.has(st);
+          });
+
+      if (matchesLocalityDirect || sharesCoGovernorateAndLineage) {
+        keptWithStatus.push({
+          ...ev,
+          locality_match_status: 'EXPLICIT_LOCALITY_MATCH',
+          locality_status_badge: EXPLICIT_LOCALITY_WINNER_BADGE_TEXT,
+        });
+        continue;
+      }
+
+      // Rule 1: Never exclude records with empty/unspecified locality (or country-only locality) from general or matching-country books!
+      if (isEmptyOrCountryOnlyLocality && !countryCheck.belongsToForeignCountry) {
+        keptWithStatus.push({
+          ...ev,
+          locality_match_status: 'UNSPECIFIED_NON_CONFLICTING_LOCALITY',
+          locality_status_badge: UNSPECIFIED_LOCALITY_BADGE_TEXT,
+        });
+        continue;
+      }
+
+      // Rule 2: Hard Exclude any record that explicitly specifies a different/conflicting locality!
+      continue;
+    }
+
+    if (hasExplicitCountry) {
+      if (isEmptyOrCountryOnlyLocality && !countryCheck.belongsToForeignCountry) {
+        const hasNoLocAtAll =
+          !ev.locations ||
+          ev.locations.trim() === '' ||
+          ev.locations.trim() === '—';
+        keptWithStatus.push({
+          ...ev,
+          locality_match_status: hasNoLocAtAll
+            ? 'UNSPECIFIED_NON_CONFLICTING_LOCALITY'
+            : 'EXPLICIT_COUNTRY_MATCH',
+          locality_status_badge: hasNoLocAtAll
+            ? UNSPECIFIED_LOCALITY_BADGE_TEXT
+            : ev.locality_status_badge,
+        });
+        continue;
+      }
+
+      if (countryCheck.matchesTargetCountryExplicitly) {
+        keptWithStatus.push({
+          ...ev,
+          locality_match_status: 'EXPLICIT_COUNTRY_MATCH',
+        });
+        continue;
+      }
+
+      // Specific localities mentioned that do NOT belong to `cleanCountry` -> Hard Exclude!
+      continue;
+    }
+
+    // Neither locality nor country specified: keep all family-matching records, tagging empty-locality records
+    if (isEmptyOrCountryOnlyLocality) {
+      keptWithStatus.push({
+        ...ev,
+        locality_match_status: 'UNSPECIFIED_NON_CONFLICTING_LOCALITY',
+        locality_status_badge: UNSPECIFIED_LOCALITY_BADGE_TEXT,
+      });
+    } else {
+      keptWithStatus.push(ev);
+    }
   }
 
-  return filtered;
+  // Rule 3: Sort strictly so EXPLICIT_LOCALITY_MATCH records come first (`Locality Match Winner`),
+  // followed by EXPLICIT_COUNTRY_MATCH, followed by UNSPECIFIED_NON_CONFLICTING_LOCALITY
+  const statusRank = (ev: CorroboratingAlphaEvidence): number => {
+    if (ev.locality_match_status === 'EXPLICIT_LOCALITY_MATCH') return 0;
+    if (ev.locality_match_status === 'EXPLICIT_COUNTRY_MATCH') return 1;
+    if (ev.locality_match_status === 'UNSPECIFIED_NON_CONFLICTING_LOCALITY') return 2;
+    return 1;
+  };
+
+  return keptWithStatus.sort((a, b) => statusRank(a) - statusRank(b));
 }
 
 /**
@@ -5308,7 +5549,14 @@ export function computeCrossSourceConsensusClusters(
     const evLocations = (ev.locations || '')
       .split(/[|،؛,]/)
       .map((s) => s.trim())
-      .filter(Boolean);
+      .filter(
+        (s) =>
+          Boolean(s) &&
+          s !== '—' &&
+          s !== '-' &&
+          !s.includes('غير محدد') &&
+          !s.includes('لم يُذكر موطن')
+      );
 
     // Try to find a compatible existing cluster obeying Rule 3 (Different Parent Record Guard + Immediate Sub-Root Guard + HIGH_APEX_STOP_LIST)
     let matchedCluster: RawCluster | undefined;
@@ -5382,7 +5630,8 @@ export function computeCrossSourceConsensusClusters(
         key: clusterKey,
         originTribeLabel: topNode,
         geographicScope:
-          evLocations.slice(0, 3).join(' / ') || 'غير محدد في المصدر',
+          evLocations.slice(0, 3).join(' / ') ||
+          UNSPECIFIED_LOCALITY_BADGE_TEXT,
         isChildBranchCluster: isChildMatch,
         parentRecordTitle,
         nonApexStemSet: nonApexStems,
@@ -5393,14 +5642,57 @@ export function computeCrossSourceConsensusClusters(
     }
   }
 
-  const sortedClusters = [...clusters].sort(
-    (a, b) => b.records.length - a.records.length
-  );
+  // Rule 3: Cluster Priority Ordering:
+  // 1) Clusters containing an explicit locality match (`EXPLICIT_LOCALITY_MATCH`) ALWAYS win #1 (`Locality Match Winner`).
+  // 2) Clusters with explicit locations/country come before clusters with only unspecified locations (`UNSPECIFIED_NON_CONFLICTING_LOCALITY`).
+  // 3) Within the same tier, sort by `records.length` descending.
+  const clusterGeoTier = (c: RawCluster): number => {
+    if (
+      c.records.some(
+        (r) => r.locality_match_status === 'EXPLICIT_LOCALITY_MATCH'
+      )
+    ) {
+      return 0;
+    }
+    const allUnspecified =
+      c.locationTokens.length === 0 ||
+      c.records.every(
+        (r) =>
+          r.locality_match_status === 'UNSPECIFIED_NON_CONFLICTING_LOCALITY'
+      );
+    if (!allUnspecified) return 1;
+    return 2;
+  };
+
+  const sortedClusters = [...clusters].sort((a, b) => {
+    const tierDiff = clusterGeoTier(a) - clusterGeoTier(b);
+    if (tierDiff !== 0) return tierDiff;
+    return b.records.length - a.records.length;
+  });
 
   const topCount = sortedClusters[0]?.records.length || 0;
+  const anyExplicitLocalityCluster = sortedClusters.some((c) =>
+    c.records.some(
+      (r) => r.locality_match_status === 'EXPLICIT_LOCALITY_MATCH'
+    )
+  );
 
   return sortedClusters.map((c, idx) => {
-    const isWinner = idx === 0 && topCount >= 2;
+    const hasExplicitLocalityMatch = c.records.some(
+      (r) => r.locality_match_status === 'EXPLICIT_LOCALITY_MATCH'
+    );
+    const isUnspecifiedLocalityOnly =
+      !hasExplicitLocalityMatch &&
+      (c.locationTokens.length === 0 ||
+        c.records.every(
+          (r) =>
+            r.locality_match_status === 'UNSPECIFIED_NON_CONFLICTING_LOCALITY'
+        ));
+    const isWinner =
+      idx === 0 &&
+      (topCount >= 2 ||
+        hasExplicitLocalityMatch ||
+        (!anyExplicitLocalityCluster && sortedClusters.length === 1));
     const cleanedDisplayNodes = cleanAndUnrollLineageChain(
       c.stitchedAncestors,
       familyName,
@@ -5428,7 +5720,9 @@ export function computeCrossSourceConsensusClusters(
       familyName;
     const finalOriginTribeLabel = dynamicTopOrigin;
     const finalGeoScope =
-      c.locationTokens.length > 0
+      isUnspecifiedLocalityOnly
+        ? UNSPECIFIED_LOCALITY_BADGE_TEXT
+        : c.locationTokens.length > 0
         ? c.locationTokens.slice(0, 3).join(' / ')
         : c.geographicScope;
 
@@ -5457,6 +5751,13 @@ export function computeCrossSourceConsensusClusters(
       records: c.records,
       rootPreviewLabel: rootPreview,
       fullChainNodes: chainTokens,
+      hasExplicitLocalityMatch,
+      isUnspecifiedLocalityOnly,
+      localityStatusBadge: hasExplicitLocalityMatch
+        ? EXPLICIT_LOCALITY_WINNER_BADGE_TEXT
+        : isUnspecifiedLocalityOnly
+        ? UNSPECIFIED_LOCALITY_BADGE_TEXT
+        : undefined,
     };
   });
 }
@@ -6257,18 +6558,43 @@ export function tagConsensusWinnersOnEvidence(
     (winningCluster?.records || []).map((r) => r.alpha_id)
   );
   const winningCount = winningCluster?.records.length || 1;
+  const isLocalityWinnerCluster = Boolean(
+    winningCluster?.hasExplicitLocalityMatch
+  );
 
   return evidenceList.map((ev) => {
-    const isWinner =
-      typeof ev.is_consensus_winner === 'boolean'
-        ? ev.is_consensus_winner
-        : winningIds.has(ev.alpha_id);
+    const isWinner = winningIds.has(ev.alpha_id);
+    const hasEmptyLocations =
+      extractSpecificLocalityTokens(ev.locations).length === 0 &&
+      (!ev.locations ||
+        ev.locations.trim() === '' ||
+        ev.locations.trim() === '—' ||
+        ev.locations.includes('لم يُذكر موطن'));
+    const localityStatus =
+      ev.locality_match_status ||
+      (hasEmptyLocations ? 'UNSPECIFIED_NON_CONFLICTING_LOCALITY' : undefined);
+    const localityBadge =
+      ev.locality_status_badge ||
+      (localityStatus === 'EXPLICIT_LOCALITY_MATCH'
+        ? EXPLICIT_LOCALITY_WINNER_BADGE_TEXT
+        : localityStatus === 'UNSPECIFIED_NON_CONFLICTING_LOCALITY'
+        ? UNSPECIFIED_LOCALITY_BADGE_TEXT
+        : undefined);
+
     return {
       ...ev,
       is_consensus_winner: isWinner,
+      locality_match_status: localityStatus,
+      locality_status_badge: localityBadge,
       consensus_badge:
-        ev.consensus_badge ||
-        (isWinner && winningCount >= 2 ? `توافق (${winningCount}) مصادر` : undefined),
+        isWinner && isLocalityWinnerCluster
+          ? winningCount >= 2
+            ? `🎯 مرجّح للموطن الأصلي · توافق (${winningCount}) مصادر`
+            : EXPLICIT_LOCALITY_WINNER_BADGE_TEXT
+          : localityStatus === 'UNSPECIFIED_NON_CONFLICTING_LOCALITY' && !isWinner
+          ? UNSPECIFIED_LOCALITY_BADGE_TEXT
+          : ev.consensus_badge ||
+            (isWinner && winningCount >= 2 ? `توافق (${winningCount}) مصادر` : undefined),
     };
   });
 }
@@ -7497,8 +7823,9 @@ export function parsePort8090UniversalResponse(
         ? computeCrossSourceConsensusClusters(displayFamilyName, rawDisambigEvidence)
         : [];
 
-    // Geographic Locality Tie-Breaker: If the customer specified an explicit locality (`originRegion`, e.g., `مغاغة`)
-    // or country (`originCountry`, e.g., `مصر`) that matches a specific cluster, prioritize & auto-resolve to that cluster!
+    // Geographic Locality Tie-Breaker: If the customer specified an explicit locality (`originRegion`, e.g., `أبو حماد` or `مغاغة`)
+    // or country (`originCountry`, e.g., `مصر`) that matches a specific cluster (`Locality Match Winner`),
+    // prioritize & auto-resolve to that cluster while preserving any non-conflicting unspecified-locality cluster for the researcher!
     const enteredRegionNorm = normalizeArabic(form.originRegion || '');
     const enteredCountryNorm = normalizeArabic(
       geoOntology.canonicalCountry || form.originCountry || ''
@@ -7510,6 +7837,8 @@ export function parsePort8090UniversalResponse(
           !enteredCountryNorm.includes('غير محدد')))
     ) {
       const clusterMatchesLocality = (c: ConsensusClusterGroup): number => {
+        if (c.hasExplicitLocalityMatch) return 200;
+        if (c.isUnspecifiedLocalityOnly) return 0;
         const geoText = normalizeArabic(
           `${c.geographicScope || ''} ${c.records
             .map((r) => `${r.locations || ''} ${r.source_book || ''}`)
@@ -7542,7 +7871,7 @@ export function parsePort8090UniversalResponse(
         scoredClusters[0].geoScore > 0 &&
         scoredClusters[0].geoScore > (scoredClusters[1]?.geoScore ?? 0)
       ) {
-        // Reorder disambigClusters so the geographically matched cluster is #1 and drop blind disambiguation
+        // Reorder disambigClusters so the Locality Match Winner is #1 and drop blind disambiguation
         disambigClusters.splice(
           0,
           disambigClusters.length,
@@ -7555,8 +7884,7 @@ export function parsePort8090UniversalResponse(
     }
 
     // Requirement 4(أ): If our clustering & orthographic/OCR normalization engine unified all records
-    // into a SINGLE consensus cluster (`disambigClusters.length === 1`, e.g., `بنو حاود` where `جُدّان` is an OCR typo of `حدان`
-    // and both share `غالب ⬅️ عثمان` in `السراة`), DROP `requires_disambiguation` and fall through to Case C (`SINGLE_MATCH`)!
+    // into a SINGLE consensus cluster (`disambigClusters.length === 1`), DROP `requires_disambiguation` and fall through to Case C (`SINGLE_MATCH`)!
     if (disambigClusters.length === 1 || !apiData.requires_disambiguation) {
       apiData.requires_disambiguation = false;
       apiData.primary_source_of_truth = 'ALPHA_PROJECTS_MULTI_SOURCE_AGGREGATED';
@@ -8145,25 +8473,88 @@ export function parsePort8090UniversalResponse(
           }
         : undefined;
 
-    // Parse Lake 3 (lake3_unlinked_projects_for_researcher)
+    // Parse Lake 3 (lake3_unlinked_projects_for_researcher):
+    // Keep general projects with empty locations (tagged with UNSPECIFIED_LOCALITY_BADGE_TEXT),
+    // while hard-excluding foreign regional books (e.g. `موسوعة قرى ومدن لبنان` when searching `مصر`)!
     const apiLake3Records: Lake3UnlinkedProjectRecord[] = Array.isArray(
       apiData.lake3_unlinked_projects_for_researcher
     )
-      ? apiData.lake3_unlinked_projects_for_researcher.map(
+      ? (() => {
+          const seenLake3Keys = new Set<string>();
+          const resultList: Lake3UnlinkedProjectRecord[] = [];
+          const activeCountryFilter = (form.originCountry || '').trim();
+          const activeLocalityFilter = (form.originRegion || '').trim();
+
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (rec: any, idx: number): Lake3UnlinkedProjectRecord => ({
-            record_id: String(rec.record_id || `LAKE3-LIVE-${idx + 1}`),
-            project_source: String(
-              rec.project_source || 'روافد المشاريع الإضافية (البحيرة 3)'
-            ),
-            family_or_tribe_name: String(
-              rec.family_or_tribe_name || displayFamilyName
-            ),
-            snippet: String(rec.snippet || rec.text || ''),
-            locations: rec.locations ? String(rec.locations) : String(matchedLocation),
-            notes: rec.notes ? String(rec.notes) : undefined,
-          })
-        )
+          apiData.lake3_unlinked_projects_for_researcher.forEach((rec: any, idx: number) => {
+            const projectSource = String(
+              rec.project_source ||
+                rec.source_project ||
+                'روافد المشاريع الإضافية (البحيرة 3)'
+            ).trim();
+            const familyOrTribe = String(
+              rec.family_or_tribe_name || rec.record_name || displayFamilyName
+            ).trim();
+            const rawSnippet = String(
+              rec.snippet || rec.lineage_text || rec.text || ''
+            ).trim();
+            const rawLoc = String(rec.locations || '').trim();
+
+            const syntheticEvForCheck: CorroboratingAlphaEvidence = {
+              alpha_id: `L3_${idx}`,
+              record_name: familyOrTribe,
+              source_book: projectSource,
+              locations: rawLoc || null,
+              priority_tier: 'PRIORITY_2_GENERAL_BOOK',
+            };
+
+            if (
+              activeCountryFilter &&
+              !activeCountryFilter.includes('غير محدد') &&
+              doesEvidenceRecordMatchCountry(
+                syntheticEvForCheck,
+                activeCountryFilter
+              ).belongsToForeignCountry
+            ) {
+              return;
+            }
+
+            const specLocs = extractSpecificLocalityTokens(
+              rawLoc,
+              activeCountryFilter
+            );
+            if (
+              activeLocalityFilter &&
+              activeLocalityFilter !== '—' &&
+              specLocs.length > 0 &&
+              !doesEvidenceRecordMatchLocality(
+                syntheticEvForCheck,
+                activeLocalityFilter
+              )
+            ) {
+              return;
+            }
+
+            const dedupKey = `${normalizeArabic(projectSource)}_${normalizeArabic(familyOrTribe)}_${normalizeArabic(rawSnippet)}_${normalizeArabic(rawLoc)}`;
+            if (seenLake3Keys.has(dedupKey)) return;
+            seenLake3Keys.add(dedupKey);
+
+            resultList.push({
+              record_id: String(rec.record_id || `LAKE3-LIVE-${resultList.length + 1}`),
+              project_source: projectSource,
+              family_or_tribe_name: familyOrTribe,
+              snippet:
+                rawSnippet ||
+                `ورود اسم (${familyOrTribe}) في (${projectSource})`,
+              locations:
+                specLocs.length === 0
+                  ? UNSPECIFIED_LOCALITY_BADGE_TEXT
+                  : rawLoc,
+              notes: rec.notes ? String(rec.notes) : undefined,
+            });
+          });
+          return resultList;
+        })()
       : buildLake3UnlinkedProjectsForResearcher(
           displayFamilyName,
           rootB0Name,
@@ -8608,8 +8999,7 @@ export async function searchJuthoriLineage(
     grandfather_name:
       cleanGrandfather && cleanGrandfather !== '—' ? cleanGrandfather : null,
     family_name: form.familyName.trim(),
-    country: explicitOriginCountry,
-    origin_country: explicitOriginCountry,
+    origin_country: explicitOriginCountry || 'غير محدد',
     origin_locality: explicitOriginLocality,
     optional_tribe: form.tribeName.trim() || null,
     optional_subtribe: form.branchName.trim() || null,
@@ -8636,100 +9026,102 @@ export async function searchJuthoriLineage(
   );
 
   // Helper: when the German server returns `requires_disambiguation: true` without
-  // `corroborating_alpha_evidence_for_researcher` or `alpha_evidence`, automatically fetch the resolved payloads
-  // for all valid `choice_id` options AND prefix variants in parallel so ALL matching records are populated!
+  // `corroborating_alpha_evidence_for_researcher` or `alpha_evidence`, or when `origin_locality` is set
+  // (where the upstream server might hide general-book records that have empty `locations`),
+  // automatically fetch the resolved payloads for all valid `choice_id` options AND prefix/un-localized variants in parallel!
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hydrateDisambiguationPayloadIfNeeded = async (rawPayload: any, endpointUrl: string, isProxy: boolean) => {
-    const existingEvidence = extractApiRawEvidenceItems(
-      rawPayload,
-      form.familyName.trim() || 'العائلة'
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fetchSinglePayload = async (bodyObj: Record<string, any>) => {
+      try {
+        const res = await fetch(endpointUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(bodyObj),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        return isProxy ? json?.data : json?.data || json;
+      } catch {
+        return null;
+      }
+    };
 
-    // Fetch prefix variants in parallel (`أولاد X` / bare `X`) so `أولاد عرفات` is always merged when searching `عرفات`
+    // Fetch prefix variants AND (when `explicitOriginLocality` is set) an un-localized probe (`origin_locality: null`)
+    // so general-book records with empty `locations` are never silently dropped before `filterEvidenceByFamilyAndStrictGeography`!
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let prefixVariantPayloads: any[] = [];
-    if (!disambiguationChoiceId && secondaryFamilyVariants.length > 0) {
-      try {
-        const variantResList = await Promise.all(
-          secondaryFamilyVariants.map(async (variantFamily) => {
-            try {
-              const vRes = await fetch(endpointUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Accept: 'application/json',
-                },
-                body: JSON.stringify({
-                  ...requestPayload,
-                  family_name: variantFamily,
-                }),
-              });
-              if (!vRes.ok) return null;
-              const vJson = await vRes.json();
-              return isProxy ? vJson?.data : vJson?.data || vJson;
-            } catch {
-              return null;
-            }
-          })
-        );
-        prefixVariantPayloads = variantResList.filter(
-          (r) => r && typeof r === 'object'
-        );
-      } catch {
-        // ignore secondary variant errors
+    if (!disambiguationChoiceId) {
+      const parallelBodies: Array<Record<string, unknown>> = [
+        ...secondaryFamilyVariants.map((variantFamily) => ({
+          ...requestPayload,
+          family_name: variantFamily,
+        })),
+        ...(explicitOriginLocality
+          ? [
+              {
+                ...requestPayload,
+                origin_locality: null,
+              },
+            ]
+          : []),
+      ];
+
+      if (parallelBodies.length > 0) {
+        try {
+          const variantResList = await Promise.all(
+            parallelBodies.map((b) => fetchSinglePayload(b))
+          );
+          prefixVariantPayloads = variantResList.filter(
+            (r) => r && typeof r === 'object'
+          );
+        } catch {
+          // ignore secondary variant errors
+        }
+      }
+    }
+
+    // Collect any `disambiguation_modal.options` across `rawPayload` and `prefixVariantPayloads`
+    const allDisambigChoiceIds = new Set<string>();
+    for (const candidatePayload of [rawPayload, ...prefixVariantPayloads]) {
+      if (
+        candidatePayload &&
+        Array.isArray(candidatePayload.disambiguation_modal?.options)
+      ) {
+        for (const o of candidatePayload.disambiguation_modal.options) {
+          const cid = String(o?.choice_id || '');
+          if (
+            cid &&
+            cid !== 'NEED_LOCATION_STEP' &&
+            cid !== 'NOT_SURE_ESCALATE_P1'
+          ) {
+            allDisambigChoiceIds.add(cid);
+          }
+        }
       }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let optionPayloads: any[] = [];
-    if (
-      !disambiguationChoiceId &&
-      rawPayload &&
-      rawPayload.requires_disambiguation === true &&
-      existingEvidence.length === 0 &&
-      Array.isArray(rawPayload.disambiguation_modal?.options)
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const validOptions = rawPayload.disambiguation_modal.options.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (o: any) =>
-          o?.choice_id &&
-          o.choice_id !== 'NEED_LOCATION_STEP' &&
-          o.choice_id !== 'NOT_SURE_ESCALATE_P1'
-      );
-      if (validOptions.length > 0) {
-        try {
-          const optionResponses = await Promise.all(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            validOptions.map(async (opt: any) => {
-              try {
-                const followUpRes = await fetch(endpointUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                  },
-                  body: JSON.stringify({
-                    ...requestPayload,
-                    disambiguation_choice_id: String(opt.choice_id),
-                  }),
-                });
-                if (!followUpRes.ok) return null;
-                const followUpJson = await followUpRes.json();
-                return isProxy
-                  ? followUpJson?.data
-                  : followUpJson?.data || followUpJson;
-              } catch {
-                return null;
-              }
+    if (!disambiguationChoiceId && allDisambigChoiceIds.size > 0) {
+      try {
+        const optionResponses = await Promise.all(
+          Array.from(allDisambigChoiceIds).map((cid) =>
+            fetchSinglePayload({
+              ...requestPayload,
+              origin_locality: null,
+              disambiguation_choice_id: cid,
             })
-          );
-          optionPayloads = optionResponses.filter(
-            (r) => r && typeof r === 'object'
-          );
-        } catch {
-          // Keep original rawPayload if follow-up probe fails
-        }
+          )
+        );
+        optionPayloads = optionResponses.filter(
+          (r) => r && typeof r === 'object'
+        );
+      } catch {
+        // Keep original rawPayload if follow-up probe fails
       }
     }
 
