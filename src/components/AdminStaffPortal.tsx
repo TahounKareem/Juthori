@@ -840,9 +840,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         {/* Top Bar */}
         <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between py-2">
           <div className="flex items-center gap-3">
-            <JuthoriLogo size="sm" />
+            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
             <span className="px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
-              بوابة فريق الإدارة والعمليات (/Team) · Firebase RBAC
+              بوابة الإدارة الرئيسية
             </span>
           </div>
 
@@ -995,7 +995,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       emoji: '🔬',
       title: '🔬 مرصد البحوث',
       description:
-        'غرفة عمليات التذاكر (P1/P2/P3) وإثراء الأنساب، خياطة الأعمدة النسبية، وتوثيق المصادر في آدم برايم.',
+        'غرفة عمليات التذاكر البحثية وتوثيق المصادر وإثراء شجرة آدم للأجداد.',
       liveCounterLabel: 'التذاكر النشطة بالمرصد',
       liveCounterValue: `${researchTicketsCount} تذكرة نشطة`,
       accentBadge: 'غرفة عمليات الباحثين',
@@ -1005,10 +1005,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       emoji: '🌳',
       title: '🌳 شجرة آدم للأجداد',
       description:
-        'إدارة وتصفح وتحرير الـ 474,949+ عقدة في شجرة آدم الكبرى للأجداد والقبائل والعائلات الموثقة.',
+        'تصفح وتحرير شجرة آدم للأجداد التي تعد قاعدة البيانات الأكثر شمولاً عن القبائل والعائلات في الوطن العربي.',
       liveCounterLabel: 'إجمالي العُقد الموثقة',
       liveCounterValue: '474,949+ عقدة',
-      accentBadge: 'البحيرة الأولى المعتمدة',
+      accentBadge: 'قاعدة البيانات الموثقة.',
       customLogoUrl:
         '/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png',
     },
@@ -1281,9 +1281,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       <header className="sticky top-0 z-40 bg-[#FAF6F0]/95 backdrop-blur-md text-[#252321] border-b border-[#E2DACB] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <JuthoriLogo size="sm" />
+            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
             <span className="hidden md:inline-block h-6 w-px bg-[#E2DACB]" />
-            <div className="flex items-center gap-2 bg-white border border-[#B98A78]/50 px-3.5 py-1.5 rounded-xl shadow-2xs">
+            <button
+              type="button"
+              data-testid="back-to-command-hub-btn"
+              onClick={() => setActiveTab('command_hub')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer ${
+                activeTab !== 'command_hub'
+                  ? 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
+                  : 'bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/50'
+              }`}
+            >
+              <span>بوابة الإدارة الرئيسية</span>
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-2 bg-white border border-[#B98A78]/50 px-3.5 py-2 rounded-xl shadow-2xs">
               <Crown className="w-4 h-4 text-[#D8755B]" />
               <div className="text-xs">
                 <span className="font-bold text-[#252321]">{loggedInMember.name}</span>
@@ -1291,43 +1306,6 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <span className="text-[#8D4925] font-extrabold">{loggedInMember.role}</span>
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Fast return button to the Command Hub when inside any sub-panel */}
-            {activeTab !== 'command_hub' && (
-              <button
-                type="button"
-                data-testid="back-to-command-hub-btn"
-                onClick={() => setActiveTab('command_hub')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold shadow-xs transition cursor-pointer"
-              >
-                <span>🏠 بوابة القيادة الرئيسية</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={refreshAllFirebaseData}
-              disabled={isLoadingData}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 text-[#8D4925] ${
-                  isLoadingData ? 'animate-spin' : ''
-                }`}
-              />
-              <span>تحديث البيانات</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onBackToPlatform}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] text-xs font-bold text-[#8D4925] border border-[#B98A78]/50 shadow-2xs transition cursor-pointer"
-            >
-              <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
-              <span>واجهة المنصة</span>
-            </button>
 
             <button
               type="button"
@@ -1415,42 +1393,33 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 )}
               </div>
 
-              {/* Timestamp Fingerprint Bar (Session status badge removed as requested) */}
+              {/* Timestamp Fingerprint Bar & Compact Wisdom Quote Box Side-by-Side */}
               <div className="flex flex-wrap items-center gap-3 pt-1">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#E2DACB] text-xs font-bold text-[#5C5346]">
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E2DACB] text-xs font-bold text-[#5C5346] shadow-2xs">
                   <span>🕒 آخر تسجيل دخول: {lastLoginTimestamp}</span>
                 </div>
-              </div>
 
-              {/* Dynamic Daily & Per-Login Work Wisdom Quote (365-Quote Library) */}
-              <div className="rounded-2xl bg-[#FAF6F0] border border-[#C5A059]/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="space-y-1.5">
-                  <div className="inline-flex items-center gap-2 text-[11px] font-extrabold text-[#8D4925]/80">
-                    <span>✨ إشراقة العمل والإتقان اليومية</span>
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#8D4925]">
-                      {activeWisdomQuote.quoteNumber} / {activeWisdomQuote.totalQuotes}
-                    </span>
-                  </div>
+                <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#C5A059]/60 shadow-2xs max-w-full">
                   <p
                     data-testid="role-motivational-audit-quote"
-                    className="text-sm sm:text-base font-extrabold text-[#8D4925] leading-relaxed"
+                    className="text-xs font-extrabold text-[#8D4925] leading-relaxed"
                   >
                     &ldquo;{activeWisdomQuote.quote}&rdquo;
                   </p>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextOffset = incrementWisdomLoginCounter();
-                    setWisdomLoginOffset(nextOffset);
-                  }}
-                  title="استعراض مقولة أخرى من مكتبة الحكم (365 مقولة)"
-                  className="self-start sm:self-center shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[11px] font-extrabold text-[#8D4925] transition cursor-pointer shadow-2xs"
-                >
-                  <RefreshCw className="w-3 h-3 text-[#D8755B]" />
-                  <span>حكمة جديدة</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextOffset = incrementWisdomLoginCounter();
+                      setWisdomLoginOffset(nextOffset);
+                    }}
+                    title="تحديث الحكمة"
+                    aria-label="تحديث الحكمة"
+                    className="shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] transition cursor-pointer shadow-2xs"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-[#D8755B]" />
+                  </button>
+                </div>
               </div>
             </div>
 

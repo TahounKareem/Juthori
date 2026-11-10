@@ -261,9 +261,20 @@ const ARC_CODE_OPTIONS: Array<{
 function splitAncestorsChain(raw?: string | null): string[] {
   if (!raw) return [];
   return raw
-    .split(/(?:؛|⬅️|<-|->|—|،|\||>)/)
+    .split(/(?:؛|⬅️|←|<-|->|—|،|\||>)/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function formatCleanTicketTitle(rawTitle?: string | null): string {
+  if (!rawTitle) return '';
+  return rawTitle
+    .replace(/^بحث\s+[إا]ستباقي\s*:\s*/u, '')
+    .replace(/^تذكرة\s+بحث\s+عميل\s+مباشرة\s*:\s*/u, '')
+    .replace(/^تذكرة\s+ربط\s+وإثراء\s+شجرة\s+آدم\s+من\s+مشاريع\s+ألفا\s*:\s*/u, 'وصل وإثراء ')
+    .replace(/^تذكرة\s+إثراء\s+عقدة\s+شجرة\s+آدم\s*/u, 'إثراء عقدة شجرة آدم ')
+    .replace(/⬅️/g, '←')
+    .trim();
 }
 
 export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
@@ -1098,10 +1109,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       fullAdamSpineStations: resolvedStitchedLineage.map((u) => u.name),
       title:
         category === 'ADAM_NODE_ENRICHMENT'
-          ? `تذكرة إثراء عقدة شجرة آدم (${cleanFam}) — ${evidenceList.length} روايات ومصادر رديفة`
+          ? `إثراء عقدة شجرة آدم (${cleanFam}) — ${evidenceList.length} روايات ومصادر رديفة`
           : category === 'ALPHA_TO_ADAM_LINK'
-          ? `تذكرة ربط وإثراء شجرة آدم من مشاريع ألفا: (${cleanFam} ⬅️ ${subRoot} ⬅️ ${motherTribe})`
-          : `تذكرة بحث عميل مباشرة: تحقيق وتوثيق عمود نسب (${cleanFam})`,
+          ? `وصل وإثراء (${cleanFam} ← ${subRoot} ← ${motherTribe}) بشجرة آدم`
+          : `تحقيق وتوثيق عمود نسب (${cleanFam})`,
       clientName: clientNameLabel,
       familyName: cleanFam,
       subRootName: subRoot,
@@ -1145,14 +1156,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               .map((src) => ({
                 project: 'مشاريع ألفا للمخطوطات العربية',
                 bookCitation: src,
-                extractedSnippet: `رواية موثقة لـ (${cleanFam}) ضمن (${subRoot} ⬅️ ${motherTribe})`,
+                extractedSnippet: `رواية موثقة لـ (${cleanFam}) ضمن (${subRoot} ← ${motherTribe})`,
               })),
       suggestedAdamTarget: {
         confidencePercent: 98,
         entryNodeName: suggestedAdamEntry,
-        fullChainPreview: `${cleanFam} ⬅️ ${resolvedStitchedLineage
+        fullChainPreview: `${cleanFam} ← ${resolvedStitchedLineage
           .map((n) => n.name)
-          .join(' ⬅️ ')} ⬅️ ${resolvedBridge.adam_chain_preview}`,
+          .join(' ← ')} ← ${resolvedBridge.adam_chain_preview}`,
         rationale:
           resolvedBridge.confidence_label ||
           `تقاطع موثق في شجرة آدم عند المحطة (${resolvedBridge.matched_station_name}).`,
@@ -1217,7 +1228,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       adamNodeId: effectiveAdamNodeId,
       fullAdamSpineCount: stitchedNodes.length,
       fullAdamSpineStations: stitchedNodes.map((u) => u.name),
-      title: `بحث إستباقي: وصل وإثراء (${cand.familyName} ⬅️ ${diag.resolvedSubRoot} ⬅️ ${diag.resolvedMotherTribe}) بشجرة آدم`,
+      title: `وصل وإثراء (${cand.familyName} ← ${diag.resolvedSubRoot} ← ${diag.resolvedMotherTribe}) بشجرة آدم`,
       clientName: 'قاعدة البيانات المركزية · إثراء استباقي',
       familyName: cand.familyName,
       subRootName: diag.resolvedSubRoot,
@@ -1243,9 +1254,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       suggestedAdamTarget: {
         confidencePercent: 98,
         entryNodeName: `${effectiveAdamNodeId}: ${resolvedBridge.adam_chain_preview}`,
-        fullChainPreview: `${cand.familyName} ⬅️ ${stitchedNodes
+        fullChainPreview: `${cand.familyName} ← ${stitchedNodes
           .map((n) => n.name)
-          .join(' ⬅️ ')} ⬅️ ${resolvedBridge.adam_chain_preview}`,
+          .join(' ← ')} ← ${resolvedBridge.adam_chain_preview}`,
         rationale: `سجل حقيقي من قاعدة البيانات بوزن (${cand.strategicMeta.strategic_score} نقطة) جاهز للربط المباشر بشجرة آدم.`,
       },
       extractedNodes: diag.cleanExtractedNodes,
@@ -1479,7 +1490,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             if (docItem.ticketCategory === 'P3_PROACTIVE_MINING') {
               built.priorityTier = 'P3_PROACTIVE_ALPHA_ENRICHMENT';
               built.queue = 'P3';
-              built.title = `بحث إستباقي: وصل وإثراء (${fam} ⬅️ ${built.subRootName} ⬅️ ${built.motherTribeName}) بشجرة آدم`;
+              built.title = `وصل وإثراء (${fam} ← ${built.subRootName} ← ${built.motherTribeName}) بشجرة آدم`;
               if (parsedPayload.p3StrategicMeta) {
                 built.p3StrategicMeta = parsedPayload.p3StrategicMeta;
               }
@@ -2028,9 +2039,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const handleInspectChainNodeInAdam = async (
     ticketId: string,
     sourceIdx: number,
-    nodeName: string
+    nodeName: string,
+    contextHintNames?: string[]
   ) => {
-    const localResult = inspectNameInAdamMasterTree(nodeName, adamGraphNodes);
+    const localResult = inspectNameInAdamMasterTree(
+      nodeName,
+      adamGraphNodes,
+      contextHintNames
+    );
     setInlineChainInspection({
       ticketId,
       sourceIdx,
@@ -2064,7 +2080,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           ? data.nodes
           : [];
         if (remoteNodes.length > 0 && !localResult.found) {
-          const firstMatch = remoteNodes[0];
+          const firstMatch = sanitizeAndNormalizeAdamNode({
+            node_id: String(remoteNodes[0].node_id || ''),
+            name: String(remoteNodes[0].name || nodeName),
+            parent_id: remoteNodes[0].parent_id
+              ? String(remoteNodes[0].parent_id)
+              : null,
+            parent_name: remoteNodes[0].parent_name,
+            arc_code: String(remoteNodes[0].arc_code || 'UNASSIGNED'),
+            representation: remoteNodes[0].representation || 'INDIVIDUAL',
+            relation_nature:
+              remoteNodes[0].relation_nature || 'DIRECT_DESCENDANT',
+            geo_footprint: remoteNodes[0].geo_footprint || [],
+            enriched_sources: remoteNodes[0].enriched_sources || [],
+            enriched_branches: remoteNodes[0].enriched_branches || [],
+          });
+          setNodesById((prev) => ({
+            ...prev,
+            [firstMatch.node_id]: firstMatch,
+          }));
           setInlineChainInspection({
             ticketId,
             sourceIdx,
@@ -2186,7 +2220,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               السلسلة الكاملة المتفق عليها ({consensusWinner.sharedNodes.join(' ، ')}):
             </div>
             <p className="text-xs font-bold leading-relaxed text-[#252321]">
-              {consensusWinner.fullChainNodes.join(' ⬅️ ')}
+              {consensusWinner.fullChainNodes.join(' ← ')}
             </p>
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="text-[11px] font-bold text-[#8D4925]">
@@ -2312,7 +2346,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       <span className="font-bold block mb-1 text-[#8D4925]">
                         سلسلة نسب الأجداد ({chainCount} محطة):
                       </span>
-                      {comp.fullChainNodes.join(' ⬅️ ')}
+                      {comp.fullChainNodes.join(' ← ')}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -3317,10 +3351,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       (item) => item.ev.is_consensus_winner === false
     );
 
-    const activeBridgePreview =
+    const activeBridgePreview = (
       appliedAdamBridgeByTicket[ticket.id] ||
       ticket.suggestedAdamBridge?.adam_chain_preview ||
-      'طيء ⬅️ كهلان ⬅️ سبأ ⬅️ قحطان ⬅️ آدم عليه السلام';
+      'طيء ← كهلان ← سبأ ← قحطان ← آدم عليه السلام'
+    ).replace(/⬅️/g, '←');
 
     const renderEvidenceCard = (
       ev: CorroboratingAlphaEvidence,
@@ -3520,31 +3555,45 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   inlineChainInspection?.ticketId === ticket.id &&
                   inlineChainInspection?.sourceIdx === idx &&
                   inlineChainInspection?.queriedName === nodeName;
+                const isAnalyzedRootNode = nodeIdx === 0;
                 return (
                   <React.Fragment key={nodeIdx}>
                     <button
                       type="button"
                       onClick={() =>
-                        handleInspectChainNodeInAdam(ticket.id, idx, nodeName)
+                        handleInspectChainNodeInAdam(
+                          ticket.id,
+                          idx,
+                          nodeName,
+                          [
+                            ...displayChain.slice(nodeIdx + 1),
+                            ticket.subRootName,
+                            ticket.motherTribeName,
+                          ].filter(Boolean)
+                        )
                       }
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
                         isInspected
-                          ? 'bg-[#D8755B] text-white border-[#D8755B]'
+                          ? 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059] ring-2 ring-[#C5A059]/40 shadow-2xs font-extrabold'
+                          : isAnalyzedRootNode
+                          ? 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059] hover:border-[#8D4925] font-extrabold'
                           : 'bg-white hover:bg-[#FAF6F0] text-[#252321] border-[#E2DACB]'
                       }`}
                     >
                       <span>{nodeName}</span>
                       <span
                         className={`text-[10px] font-normal ${
-                          isInspected ? 'text-white/90' : 'text-[#8D4925]'
+                          isInspected
+                            ? 'text-[#8D4925] font-bold'
+                            : 'text-[#8D4925]'
                         }`}
                       >
                         🔍 فحص
                       </span>
                     </button>
                     {nodeIdx < displayChain.length - 1 && (
-                      <span className="text-[#B98A78] text-xs font-bold">
-                        ⬅️
+                      <span className="text-[#B98A78] text-xs font-bold px-0.5">
+                        ←
                       </span>
                     )}
                   </React.Fragment>
@@ -3556,7 +3605,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           {inlineChainInspection &&
             inlineChainInspection.ticketId === ticket.id &&
             inlineChainInspection.sourceIdx === idx && (
-              <div className="mt-3 p-3.5 rounded-xl border text-xs bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/50">
+              <div className="mt-3 p-3.5 rounded-xl border text-xs bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-bold">
                     {inlineChainInspection.foundInAdam &&
@@ -3580,13 +3629,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         type="button"
                         onClick={() => {
                           if (inlineChainInspection.matchedNode) {
-                            setSelectedAdamNodeId(
-                              inlineChainInspection.matchedNode.node_id
+                            handleOpenNodeDirectlyInAdamExplorer(
+                              inlineChainInspection.matchedNode
                             );
-                            setActiveSubTab('adam_tree_explorer');
                           }
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-[#8D4925] hover:bg-[#733A1D] text-white text-[11px] font-bold cursor-pointer"
+                        className="px-3 py-1 rounded-lg bg-[#8D4925] hover:bg-[#733A1D] text-white text-[11px] font-bold cursor-pointer transition-all shadow-2xs"
                       >
                         فتح السجل في شجرة آدم ↗
                       </button>
@@ -3597,7 +3645,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   inlineChainInspection.adamChainPreview.length > 0 && (
                     <p className="text-[11px] text-[#252321] mt-1.5 font-mono">
                       الاتصال في شجرة آدم:{' '}
-                      {inlineChainInspection.adamChainPreview.join(' ⬅️ ')}
+                      {inlineChainInspection.adamChainPreview.join(' ← ')}
                     </p>
                   )}
               </div>
@@ -3773,7 +3821,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     </span>
                     <span>·</span>
                     <span className="text-[#8D4925] font-bold">
-                      عقدتا الجذر: {diagnosticCtx.rootBranchB2} ⬅️ {diagnosticCtx.rootTribeB0}
+                      عقدتا الجذر: {diagnosticCtx.rootBranchB2} ← {diagnosticCtx.rootTribeB0}
                     </span>
                   </div>
                 </div>
@@ -3832,7 +3880,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 </span>
                               </div>
                               <div className="text-[11px] text-[#252321] font-bold leading-relaxed">
-                                {rawChainTokens.join(' ⬅️ ')}
+                                {rawChainTokens.join(' ← ')}
                               </div>
                             </div>
                           );
@@ -3848,7 +3896,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         سجل خطوات المعالجة والتحقق
                       </h5>
                       <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] text-[#8D4925] font-mono text-[10px] font-bold">
-                        {diagnosticCtx.rootBranchB2} ⬅️ {diagnosticCtx.rootTribeB0}
+                        {diagnosticCtx.rootBranchB2} ← {diagnosticCtx.rootTribeB0}
                       </span>
                     </div>
                     <ul className="space-y-1.5 text-[11px] text-[#252321] max-h-60 overflow-y-auto pr-1">
@@ -4172,8 +4220,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       )}
                     </div>
                     {nIdx < liveNodes.length - 1 && (
-                      <span className="text-[#D8755B] font-bold text-xs">
-                        ⬅️
+                      <span className="text-[#B98A78] font-bold text-xs px-0.5">
+                        ←
                       </span>
                     )}
                   </React.Fragment>
@@ -4321,7 +4369,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   الاتصال الكامل حتى آدم عليه السلام:
                 </span>
                 <p className="text-[#252321] font-mono leading-relaxed">
-                  {liveNodes.map((n) => n.name).join(' ⬅️ ')} ⬅️{' '}
+                  {liveNodes.map((n) => n.name).join(' ← ')} ←{' '}
                   <strong className="text-[#8D4925]">
                     {activeBridgePreview}
                   </strong>
@@ -4353,7 +4401,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       const chainText = [
                         mNode.name,
                         ...inspected.ancestorsUpToAdam.map((a) => a.name),
-                      ].join(' ⬅️ ');
+                      ].join(' ← ');
                       setAppliedAdamBridgeByTicket((prev) => ({
                         ...prev,
                         [ticket.id]: chainText,
@@ -4856,16 +4904,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 {liveNodes.map((n, i) => (
                   <React.Fragment key={n.id || i}>
-                    <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E2DACB] font-bold text-[#252321]">
+                    <span
+                      className={`px-2.5 py-1 rounded-lg border font-bold ${
+                        i === 0
+                          ? 'bg-[#FAF6F0] border-[#C5A059] text-[#8D4925] font-extrabold'
+                          : 'bg-white border-[#E2DACB] text-[#252321]'
+                      }`}
+                    >
                       {n.name}{' '}
                       <span className="font-mono text-[10px] text-[#8D4925]">
                         ({n.nodeCode})
                       </span>
                     </span>
-                    <span className="text-[#D8755B] font-bold">⬅️</span>
+                    <span className="text-[#B98A78] font-bold px-0.5">←</span>
                   </React.Fragment>
                 ))}
-                <span className="px-2.5 py-1 rounded-lg bg-[#8D4925] text-white font-mono text-xs font-bold">
+                <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#C5A059] text-[#8D4925] font-mono text-xs font-extrabold">
                   🌳 {activeBridgePreview}
                 </span>
               </div>
@@ -5328,14 +5382,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         });
       }
 
-      // 2. Store authoritative server children list for this (nodeId, codedOnly) pair
-      setServerChildrenByKey((prev) => ({
-        ...prev,
-        [cacheKey]: parsedChildren.map((entry) => ({
-          node_id: entry.node.node_id,
-          skippedGenerations: entry.skippedGenerations,
-        })),
-      }));
+      // 2. Store authoritative server children list for this (nodeId, codedOnly) pair while preserving any local path links
+      setServerChildrenByKey((prev) => {
+        const existingList = prev[cacheKey] || [];
+        const merged = [...existingList];
+        const seenIds = new Set(existingList.map((e) => e.node_id));
+        for (const entry of parsedChildren) {
+          if (!seenIds.has(entry.node.node_id)) {
+            seenIds.add(entry.node.node_id);
+            merged.push({
+              node_id: entry.node.node_id,
+              skippedGenerations: entry.skippedGenerations,
+            });
+          }
+        }
+        return {
+          ...prev,
+          [cacheKey]: merged,
+        };
+      });
     } catch {
       // Fallback relies on MASTER_ADAM_NODES_MAP / nodesById
     }
@@ -5596,14 +5661,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             ? incoming.filter((n) => !isAdamNodeStructurallyCoded(n))
             : incoming;
 
-        setLiveSearchNodes(finalIncoming);
-        setLiveSearchTotals({
-          total: Number(data.filtered_total ?? finalIncoming.length),
-          coded: Number(
-            data.filtered_coded ??
-              finalIncoming.filter((n) => isAdamNodeStructurallyCoded(n)).length
-          ),
-        });
+        if (finalIncoming.length > 0) {
+          setLiveSearchNodes(finalIncoming);
+          setLiveSearchTotals({
+            total: Number(data.filtered_total ?? finalIncoming.length),
+            coded: Number(
+              data.filtered_coded ??
+                finalIncoming.filter((n) => isAdamNodeStructurallyCoded(n)).length
+            ),
+          });
+        } else {
+          // Fall back to local adamGraphNodes search when remote returns empty fallback
+          setLiveSearchNodes(null);
+          setLiveSearchTotals(null);
+        }
 
         if (incoming.length > 0) {
           setNodesById((prev) => {
@@ -5941,6 +6012,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const handleSelectNodeFromSearchResults = async (
     targetNode: AdamTreeInteractiveNode
   ) => {
+    setNodesById((prev) => ({
+      ...prev,
+      [targetNode.node_id]: {
+        ...(prev[targetNode.node_id] || {}),
+        ...targetNode,
+      },
+    }));
     setSelectedAdamNodeId(targetNode.node_id);
 
     // If codedOnlyTreeToggle is ON and the selected node is uncoded, turn off codedOnlyTreeToggle so it appears in the tree
@@ -5953,6 +6031,29 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
 
     let ancestors = getAncestorsChainForNode(targetNode);
+
+    // Inject local ancestor chain immediately so tree expands synchronously
+    if (ancestors.length > 0) {
+      const localPathTopDown = [...ancestors, targetNode];
+      setServerChildrenByKey((prev) => {
+        const next = { ...prev };
+        for (let i = 0; i < localPathTopDown.length - 1; i++) {
+          const pNode = localPathTopDown[i];
+          const cNode = localPathTopDown[i + 1];
+          for (const modeSuffix of ['coded', 'all']) {
+            const key = `${pNode.node_id}__${modeSuffix}`;
+            const existingList = next[key] || [];
+            if (!existingList.some((e) => e.node_id === cNode.node_id)) {
+              next[key] = [
+                ...existingList,
+                { node_id: cNode.node_id, skippedGenerations: 0 },
+              ];
+            }
+          }
+        }
+        return next;
+      });
+    }
 
     // Fetch live ancestor chain from German Engine so even deep nodes (out of 474,949) expand their full tree branch!
     try {
@@ -5993,6 +6094,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               })
             );
           }
+
+          setNodesById((prev) => {
+            const next = { ...prev };
+            for (const cNode of chainBottomUp) {
+              next[cNode.node_id] = {
+                ...(next[cNode.node_id] || {}),
+                ...cNode,
+              };
+            }
+            return next;
+          });
 
           ancestors = chainBottomUp.slice(1).reverse();
 
@@ -6053,6 +6165,24 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 180);
+  };
+
+  // Open a matched Adam node directly inside the Adam Tree view in the same page:
+  // 1) Populates & opens "🔍 البحث التفاعلي في شجرة آدم" with the direct search result
+  // 2) Expands & scrolls "🧭 المستكشف الشجري التفاعلي في شجرة آدم" on the exact node
+  // 3) Loads the node's full record in "⚙️ لوحة بيانات وتكويد السجل المختار (Node Coding Editor)"
+  const handleOpenNodeDirectlyInAdamExplorer = (
+    targetNode: AdamTreeInteractiveNode
+  ) => {
+    const cleanName = targetNode.name.replace(/\s*\(#\d+\)\s*$/, '').trim();
+    setIsAdamSearchPanelOpen(true);
+    setAdamSearchQuery(cleanName);
+    setAdamFatherQuery('');
+    setAdamArcFilter('');
+    setAdamRepFilter('');
+    setSearchUnderSelectedNodeOnly(false);
+    setActiveSubTab('adam_tree_explorer');
+    handleSelectNodeFromSearchResults(targetNode);
   };
 
   // Compute ancestor chain up to Adam (AS) for the selected node
@@ -6783,9 +6913,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           «مرصد جذوري — غرفة عمليات الباحثين» | «كشّاف جذوري للأنساب»
           (Harmonized with Homepage Warm Ivory & Terracotta Visual Identity)
       ===================================================================== */}
-      {activeSubTab !== 'adam_tree_explorer' &&
-        activeSubTab !== 'direct_search' &&
-        activePortalSection !== 'adam_tree_management' &&
+      {activePortalSection !== 'adam_tree_management' &&
         activePortalSection !== 'direct_search_inspection' && (
           <div className="bg-[#FAF6F0] border-b border-[#E2DACB] sticky top-0 z-30 shadow-2xs">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
@@ -8206,9 +8334,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       <span
                                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
                                           sIdx === 0
-                                            ? 'bg-emerald-700 text-white border-emerald-800 font-extrabold'
+                                            ? 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059] font-extrabold'
                                             : st.name.includes('آدم')
-                                            ? 'bg-[#8D4925] text-white border-[#8D4925] font-extrabold'
+                                            ? 'bg-[#FAF6F0] text-[#8D4925] border-[#B98A78] font-extrabold'
                                             : 'bg-white text-[#252321] border-[#E2DACB]'
                                         }`}
                                       >
@@ -8220,7 +8348,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             <span
                                               className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
                                                 sIdx === 0
-                                                  ? 'bg-white/20 text-white'
+                                                  ? 'bg-white text-[#8D4925] border border-[#C5A059]/60'
                                                   : 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/40'
                                               }`}
                                             >
@@ -8232,8 +8360,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                         activeAdamCandidate.chainAscending
                                           .length -
                                           1 && (
-                                        <span className="text-[#D8755B] text-xs font-bold">
-                                          ⬅️
+                                        <span className="text-[#B98A78] text-xs font-bold px-0.5">
+                                          ←
                                         </span>
                                       )}
                                     </React.Fragment>
@@ -8451,17 +8579,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     <span
                                       className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
                                         bIdx === 0
-                                          ? 'bg-emerald-700 text-white border-emerald-800 font-extrabold'
+                                          ? 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059] font-extrabold'
                                           : stName.includes('آدم')
-                                          ? 'bg-[#8D4925] text-white border-[#8D4925] font-extrabold'
+                                          ? 'bg-[#FAF6F0] text-[#8D4925] border-[#B98A78] font-extrabold'
                                           : 'bg-white text-[#252321] border-[#E2DACB]'
                                       }`}
                                     >
                                       {stName}
                                     </span>
                                     {bIdx < bridgeUpperChainStations.length - 1 && (
-                                      <span className="text-[#D8755B] text-xs font-bold">
-                                        ⬅️
+                                      <span className="text-[#B98A78] text-xs font-bold px-0.5">
+                                        ←
                                       </span>
                                     )}
                                   </React.Fragment>
@@ -10062,16 +10190,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     ) : (
                       filteredInboxTickets.map((tkt) => {
                         const isSelected = selectedTicket?.id === tkt.id;
-                        const isClosed =
-                          tkt.status === 'CLOSED_AND_ENRICHED' ||
-                          tkt.status === 'merged_closed';
                         const tier = resolveTicketPriorityTier(tkt);
-                        const tierLabel =
+                        const dotColorClass =
                           tier === 'P1_CLIENT_UNMATCHED'
-                            ? 'بحث عميل'
+                            ? 'bg-red-500 ring-2 ring-red-200'
                             : tier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
-                            ? 'بحث استباقي'
-                            : 'إثراء شجرة آدم';
+                            ? 'bg-emerald-500 ring-2 ring-emerald-200'
+                            : 'bg-amber-500 ring-2 ring-amber-200';
+                        const dotTitle =
+                          tier === 'P1_CLIENT_UNMATCHED'
+                            ? 'بحوث العملاء'
+                            : tier === 'P3_PROACTIVE_ALPHA_ENRICHMENT'
+                            ? 'بحوث إستباقية'
+                            : 'بحوث إثراء شجرة آدم';
 
                         return (
                           <button
@@ -10087,33 +10218,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 : 'hover:bg-[#FAF6F0]/60'
                             }`}
                           >
-                            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#E2DACB] text-[#8D4925]">
-                                  {tkt.id}
-                                </span>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-[#E2DACB] text-[#5C5346]">
-                                  {tierLabel}
-                                </span>
+                            <div className="flex items-start justify-between gap-2.5">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <span
+                                  className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${dotColorClass}`}
+                                  title={dotTitle}
+                                />
+                                <h4 className="text-xs font-bold text-[#252321] leading-relaxed">
+                                  {formatCleanTicketTitle(tkt.title)}
+                                </h4>
                               </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FAF6F0] text-[#8D4925]">
-                                {isClosed
-                                  ? 'معتمدة ✓'
-                                  : tkt.status === 'investigating'
-                                  ? 'بانتظار العميل'
-                                  : tkt.status === 'exported_adam_prime'
-                                  ? 'أُحيلت لآدم برايم'
-                                  : 'نشطة'}
-                              </span>
-                            </div>
-
-                            <h4 className="text-xs font-bold text-[#252321] leading-snug mb-1">
-                              {tkt.title}
-                            </h4>
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5C5346] mt-1.5">
-                              <span>{tkt.clientName}</span>
-                              <span className="font-bold text-[#8D4925]">
+                              <span className="shrink-0 text-[11px] font-bold text-[#8D4925] bg-[#FAF6F0] border border-[#E2DACB] px-2 py-0.5 rounded-md">
                                 {tkt.corroboratingEvidence?.length ||
                                   tkt.copilotSources.length}{' '}
                                 مصادر
@@ -10148,26 +10263,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               <span>إظهار تذاكر البحوث</span>
                             </button>
                           )}
-                          <span className="px-2.5 py-1 rounded-md bg-white border border-[#E2DACB] text-[#8D4925] font-mono text-xs font-bold">
-                            {selectedTicket.id}
-                          </span>
                           <span className="px-2.5 py-1 rounded-md bg-white border border-[#E2DACB] text-[#252321] text-xs font-bold">
                             📍 الموطن: {selectedTicket.locationLabel}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onSwitchToClientPreview(selectedTicket.familyName)
-                          }
-                          className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-xs font-extrabold cursor-pointer transition-all"
-                        >
-                          معاينة لوحة العميل ({selectedTicket.familyName}) ↗
-                        </button>
                       </div>
 
                       <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
-                        {selectedTicket.title}
+                        {formatCleanTicketTitle(selectedTicket.title)}
                       </h3>
 
                       {selectedTicket.fullStitchedLineage &&
@@ -10176,17 +10279,43 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             <span className="font-bold text-[#5C5346]">
                               السلسلة المخيطة:
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-[#8D4925] text-white font-extrabold">
-                              {selectedTicket.familyName} (FE0)
-                            </span>
-                            {selectedTicket.fullStitchedLineage.map((st, idx) => (
-                              <React.Fragment key={st.id || idx}>
-                                <span className="text-[#D8755B] font-bold">⬅️</span>
-                                <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] text-[#252321] font-bold">
-                                  {st.name} ({st.code})
-                                </span>
-                              </React.Fragment>
-                            ))}
+                            {(() => {
+                              const firstStation =
+                                selectedTicket.fullStitchedLineage[0];
+                              const isFirstStationSameAsFamily =
+                                firstStation &&
+                                normalizeArabic(firstStation.name) ===
+                                  normalizeArabic(selectedTicket.familyName);
+                              const stationsToRender = isFirstStationSameAsFamily
+                                ? selectedTicket.fullStitchedLineage
+                                : [
+                                    {
+                                      id: 'family-root-fe0',
+                                      name: selectedTicket.familyName,
+                                      code: 'FE0',
+                                    },
+                                    ...selectedTicket.fullStitchedLineage,
+                                  ];
+
+                              return stationsToRender.map((st, idx) => (
+                                <React.Fragment key={st.id || idx}>
+                                  {idx > 0 && (
+                                    <span className="text-[#B98A78] font-bold px-0.5">
+                                      ←
+                                    </span>
+                                  )}
+                                  <span
+                                    className={
+                                      idx === 0
+                                        ? 'px-2.5 py-0.5 rounded-md bg-[#FAF6F0] border border-[#C5A059] text-[#8D4925] font-extrabold shadow-2xs'
+                                        : 'px-2 py-0.5 rounded-md bg-white border border-[#E2DACB] text-[#252321] font-bold'
+                                    }
+                                  >
+                                    {st.name} ({st.code})
+                                  </span>
+                                </React.Fragment>
+                              ));
+                            })()}
                           </div>
                         )}
                     </div>
@@ -10204,9 +10333,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
                         لا توجد تذاكر بحثية نشطة حالياً في هذا التصنيف
                       </h3>
-                      <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed">
-                        يعرض المرصد التذاكر البحثية الحقيقية المسجلة في قاعدة البيانات فقط دون أي بيانات وهمية. يمكنك توليد دفعة تذاكر بحثية إستباقية مباشرة من قاعدة البيانات وحفظها في النظام.
-                      </p>
                     </div>
                     <div className="pt-1 flex justify-center">
                       <button

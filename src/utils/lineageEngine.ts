@@ -8515,7 +8515,81 @@ const MASTER_ADAM_NODES_LIST: AdamTreeInteractiveNode[] = [
     parent_name: 'كهلان',
     geo_footprint: ['السراة', 'عُمان', 'اليمن', 'الحجاز', 'الخليج العربي'],
     enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص330)', 'الإكليل للهمداني (ج2 ص90)'],
-    enriched_branches: ['قبيلة الدواسر', 'غسان', 'الأوس', 'الخزرج', 'غامد', 'زهران'],
+    enriched_branches: ['حارثة الغطريف', 'عمرو مزيقياء', 'ثعلبة بن عمرو', 'قبيلة الدواسر', 'غسان', 'الأوس', 'الخزرج', 'غامد', 'زهران'],
+  },
+  {
+    node_id: '5601',
+    name: 'حارثة الغطريف',
+    arc_code: 'B1',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '56',
+    parent_name: 'الأزد',
+    geo_footprint: ['مأرب', 'السراة', 'اليمن', 'الجزيرة العربية'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص331)', 'الإكليل للهمداني (ج2 ص92)'],
+    enriched_branches: ['عامر ماء السماء'],
+  },
+  {
+    node_id: '5602',
+    name: 'عامر ماء السماء',
+    arc_code: 'B1',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '5601',
+    parent_name: 'حارثة الغطريف',
+    geo_footprint: ['مأرب', 'اليمن', 'الحجاز', 'الشام'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص331)', 'سبائك الذهب — السويدي (ج1 ص44)'],
+    enriched_branches: ['عمرو مزيقياء'],
+  },
+  {
+    node_id: '5603',
+    name: 'عمرو مزيقياء',
+    arc_code: 'B1',
+    representation: 'INDIVIDUAL',
+    relation_nature: 'DIRECT',
+    parent_id: '5602',
+    parent_name: 'عامر ماء السماء',
+    geo_footprint: ['مأرب', 'الحجاز', 'يثرب', 'الشام', 'عُمان'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص331)', 'نهاية الأرب — القلقشندي (ج1 ص312)'],
+    enriched_branches: ['ثعلبة بن عمرو', 'حارثة بن عمرو', 'جفنة (غسان)'],
+    era_note: 'عمرو (مزيقياء) بن عامر ماء السماء الأزدي (#5603).',
+  },
+  {
+    node_id: '5604',
+    name: 'ثعلبة بن عمرو',
+    arc_code: 'B2',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT',
+    parent_id: '5603',
+    parent_name: 'عمرو مزيقياء',
+    geo_footprint: ['يثرب (المدينة المنورة)', 'الحجاز', 'السراة'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص332)', 'سبائك الذهب — السويدي (ج1 ص45)'],
+    enriched_branches: ['حارثة بن ثعلبة', 'الأوس', 'الخزرج'],
+    era_note: 'ثعلبة العنقاء بن عمرو مزيقياء من الأزد (#5604).',
+  },
+  {
+    node_id: '5605',
+    name: 'الأوس',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '5604',
+    parent_name: 'ثعلبة بن عمرو',
+    geo_footprint: ['المدينة المنورة', 'الحجاز'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص332)'],
+    enriched_branches: ['بنو عبد الأشهل', 'بنو عمرو بن عوف'],
+  },
+  {
+    node_id: '5606',
+    name: 'الخزرج',
+    arc_code: 'B0',
+    representation: 'TRIBE',
+    relation_nature: 'DIRECT_DESCENDANT',
+    parent_id: '5604',
+    parent_name: 'ثعلبة بن عمرو',
+    geo_footprint: ['المدينة المنورة', 'الحجاز'],
+    enriched_sources: ['جمهرة أنساب العرب — ابن حزم (ج1 ص346)'],
+    enriched_branches: ['بنو النجار', 'بنو ساعدة', 'بنو سلمة'],
   },
   {
     node_id: '5010',
@@ -9063,7 +9137,10 @@ export function resolveAdamTreeChildren(
 
 export function inspectNameInAdamMasterTree(
   rawQuery: string,
-  graphNodesOrMap?: AdamTreeInteractiveNode[] | Record<string, AdamTreeInteractiveNode>
+  graphNodesOrMap?:
+    | AdamTreeInteractiveNode[]
+    | Record<string, AdamTreeInteractiveNode>,
+  contextHintNames?: string[]
 ): {
   found: boolean;
   matchedNode: AdamTreeInteractiveNode | null;
@@ -9088,15 +9165,113 @@ export function inspectNameInAdamMasterTree(
     };
   }
 
-  const byId = allNodes.find((n) => n.node_id === cleanQuery);
-  const byExactNorm = allNodes.find(
-    (n) => normalizeArabicForSearch(n.name) === normQuery
-  );
-  const byFlexible = allNodes.find((n) =>
-    matchesFlexibleArabicSearch(n.name, cleanQuery)
-  );
+  const nodeById = new Map<string, AdamTreeInteractiveNode>();
+  allNodes.forEach((n) => nodeById.set(n.node_id, n));
 
-  const matchedNode = byId || byExactNorm || byFlexible || null;
+  const getAncestorsForCandidate = (
+    cand: AdamTreeInteractiveNode
+  ): AdamTreeInteractiveNode[] => {
+    const chain: AdamTreeInteractiveNode[] = [];
+    let curId = cand.parent_id;
+    const seen = new Set<string>([cand.node_id]);
+    while (curId && !seen.has(curId)) {
+      seen.add(curId);
+      const p = nodeById.get(curId);
+      if (!p) break;
+      chain.push(p);
+      curId = p.parent_id;
+    }
+    return chain;
+  };
+
+  const normHints = (contextHintNames || [])
+    .map((h) => normalizeArabicForSearch(h))
+    .filter((h) => h.length >= 2);
+
+  const compoundParts = cleanQuery
+    .split(/\s+(?:بن|ابن)\s+/)
+    .map((p) => normalizeArabicForSearch(p))
+    .filter(Boolean);
+
+  let bestNode: AdamTreeInteractiveNode | null = null;
+  let bestScore = -1;
+
+  for (const n of allNodes) {
+    if (n.node_id === cleanQuery) {
+      bestNode = n;
+      bestScore = 1000;
+      break;
+    }
+
+    const cleanNodeName = (n.name || '').replace(/\s*\(#\d+\)\s*$/, '').trim();
+    const normNode = normalizeArabicForSearch(cleanNodeName);
+    if (!normNode) continue;
+
+    const strippedNode = normalizeArabicForSearch(
+      cleanNodeName
+        .replace(/^(?:قبيلة|عشيرة|آل|ال|بنو|بني|بيت|فخذ|بطن)\s+/g, '')
+        .trim()
+    );
+    const strippedQuery = normalizeArabicForSearch(
+      cleanQuery
+        .replace(/^(?:قبيلة|عشيرة|آل|ال|بنو|بني|بيت|فخذ|بطن)\s+/g, '')
+        .trim()
+    );
+
+    const ancs = getAncestorsForCandidate(n);
+    const normParent = normalizeArabicForSearch(
+      n.parent_name || ancs[0]?.name || ''
+    );
+
+    let nameScore = 0;
+    if (normNode === normQuery || strippedNode === strippedQuery) {
+      nameScore = 100;
+    } else if (
+      compoundParts.length >= 2 &&
+      (normNode === compoundParts[0] || strippedNode === compoundParts[0]) &&
+      (normParent.includes(compoundParts[1]) ||
+        ancs.some((a) =>
+          normalizeArabicForSearch(a.name).includes(compoundParts[1])
+        ))
+    ) {
+      nameScore = 95;
+    } else if (
+      compoundParts.length === 1 &&
+      strippedQuery.length >= 3 &&
+      (normNode.startsWith(`${strippedQuery} `) ||
+        strippedNode.startsWith(`${strippedQuery} `))
+    ) {
+      nameScore = 70;
+    }
+
+    if (nameScore === 0) continue;
+
+    let contextBonus = 0;
+    if (normHints.length > 0) {
+      const ancNorms = [
+        normParent,
+        ...ancs.map((a) => normalizeArabicForSearch(a.name)),
+      ].filter(Boolean);
+      const matchingHintsCount = normHints.filter((h) =>
+        ancNorms.some((an) => an.includes(h) || h.includes(an))
+      ).length;
+      if (matchingHintsCount > 0) {
+        contextBonus += matchingHintsCount * 40;
+      } else if (nameScore < 95) {
+        // Reject partial prefix match if it belongs to a completely unrelated tribe!
+        continue;
+      }
+    }
+
+    const totalScore =
+      nameScore + contextBonus + (isAdamNodeStructurallyCoded(n) ? 10 : 0);
+    if (totalScore > bestScore) {
+      bestScore = totalScore;
+      bestNode = n;
+    }
+  }
+
+  const matchedNode = bestNode;
   if (!matchedNode) {
     return {
       found: false,
@@ -9106,21 +9281,7 @@ export function inspectNameInAdamMasterTree(
     };
   }
 
-  const nodeById = new Map<string, AdamTreeInteractiveNode>();
-  allNodes.forEach((n) => nodeById.set(n.node_id, n));
-
-  const ancestorsUpToAdam: AdamTreeInteractiveNode[] = [];
-  let cursorParentId = matchedNode.parent_id;
-  const visited = new Set<string>([matchedNode.node_id]);
-
-  while (cursorParentId && !visited.has(cursorParentId)) {
-    visited.add(cursorParentId);
-    const parentObj = nodeById.get(cursorParentId);
-    if (!parentObj) break;
-    ancestorsUpToAdam.push(parentObj);
-    cursorParentId = parentObj.parent_id;
-  }
-
+  const ancestorsUpToAdam = getAncestorsForCandidate(matchedNode);
   const directChildren = allNodes.filter(
     (n) => n.parent_id === matchedNode.node_id
   );
