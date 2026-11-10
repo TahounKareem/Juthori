@@ -8644,21 +8644,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             🌳
                           </div>
                           <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                data-testid="adam-container-header-counter"
-                                className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold"
-                              >
-                                {hasClearConfirmedAdamMatch &&
-                                adamMatchedCandidates.length === 1
-                                  ? 'عُقد مرصودة في شجرة آدم: 1 (مرتبطة وموثقة ✓)'
-                                  : hasClearConfirmedAdamMatch &&
-                                    adamMatchedCandidates.length > 1
-                                  ? `عُقد مرصودة في شجرة آدم: ${adamMatchedCandidates.length} (تعدد عُقد متشابهة)`
-                                  : 'لم يتم العثور على تطابق واضح للعائلة أو لموطنها الأصلي مع البيانات المسجلة في شجرة آدم للأجداد'}
-                              </span>
-                            </div>
-                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] mt-1">
+                            {hasClearConfirmedAdamMatch && (
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span
+                                  data-testid="adam-container-header-counter"
+                                  className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold"
+                                >
+                                  {adamMatchedCandidates.length === 1
+                                    ? 'عُقد مرصودة في شجرة آدم: 1 (مرتبطة وموثقة ✓)'
+                                    : `عُقد مرصودة في شجرة آدم: ${adamMatchedCandidates.length} (تعدد عُقد متشابهة)`}
+                                </span>
+                              </div>
+                            )}
+                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
                               فحص التطابق في شجرة آدم للأجداد
                             </h3>
                           </div>
@@ -8680,7 +8678,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           {!hasClearConfirmedAdamMatch && (
                             <span
                               data-testid="adam-container-auto-collapsed-badge"
-                              className="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold"
+                              className="px-3.5 py-1.5 rounded-xl bg-transparent border border-[#C5A059] text-[#8D4925] text-xs font-extrabold"
                             >
                               لم يتم العثور على تطابق واضح للعائلة أو لموطنها الأصلي مع البيانات المسجلة في شجرة آدم للأجداد
                             </span>
@@ -8991,25 +8989,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               </div>
                             </div>
                           )}
-
-                          {/* UNIFIED NO-CLEAR-MATCH NOTICE IN ADAM TREE (Zero technical terms or fake Bridge codes) */}
-                          {!hasClearConfirmedAdamMatch && (
-                            <div
-                              data-testid="adam-container-zero-match"
-                              className="rounded-2xl bg-white border border-[#E2DACB] px-4 py-3.5 flex items-center gap-3 text-xs sm:text-sm font-bold text-[#252321] shadow-2xs"
-                            >
-                              <span className="text-base shrink-0">⚪</span>
-                              <span>
-                                لم يتم العثور على تطابق واضح للعائلة أو لموطنها الأصلي مع البيانات المسجلة في شجرة آدم للأجداد
-                              </span>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
 
                     {/* =========================================================
-                        CONTAINER 2: [📦 تحليل وهندسة المصادر التاريخية الخاصة بالمشاريع غير المربوطة بشجرة آدم للأجداد]
+                        CONTAINER 2: [📦 تحليل المشاريع الغير مربوطة بشجرة آدم للأجداد]
                         Unified Bordered Master Card wrapping Diagnostic Sections 1 to 5
                     ========================================================= */}
                     <div
@@ -9032,13 +9017,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             📦
                           </div>
                           <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#E2DACB] text-[#5C5346] text-[10px] font-bold">
-                                إجمالي السجلات الخام في ألفا: {rawEvidenceList.length}
-                              </span>
-                            </div>
-                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] mt-1">
-                              تحليل وهندسة المصادر التاريخية الخاصة بالمشاريع غير المربوطة بشجرة آدم للأجداد)
+                            <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
+                              تحليل المشاريع الغير مربوطة بشجرة آدم للأجداد
                             </h3>
                           </div>
                         </div>
@@ -10327,27 +10307,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             👑
                           </div>
                           <div>
-                            {/* Dynamic Source of Result Badge */}
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 border border-[#C5A059] text-[#8D4925] text-[10px] font-extrabold">
-                                الحزمة البصرية الثالثة · المخرج النهائي
-                              </span>
-                              {isFinalResultFromAdamTree ? (
-                                <span
-                                  data-testid="final-result-source-badge"
-                                  className="px-3 py-0.5 rounded-full bg-emerald-700 text-white text-xs font-extrabold shadow-2xs"
-                                >
-                                  🌳 مصدر النتيجة النهائية: شجرة آدم الموحدة (تطابق معتمد)
-                                </span>
-                              ) : (
-                                <span
-                                  data-testid="final-result-source-badge"
-                                  className="px-3 py-0.5 rounded-full bg-[#D8755B] text-white text-xs font-extrabold shadow-2xs"
-                                >
-                                  ⚡ مصدر النتيجة النهائية: خياطة المصادر الخام (مشاريع ألفا — جاهز للربط بشجرة آدم)
-                                </span>
-                              )}
-                            </div>
                             <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321]">
                               النتيجة النهائية للفحص — معاينة بطاقة عمود النسب المعتمدة للعميل
                             </h3>
