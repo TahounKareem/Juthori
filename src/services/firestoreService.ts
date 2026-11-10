@@ -524,6 +524,25 @@ export const FOUNDING_MAESTRO_MEMBER: TeamMemberRecord = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
+export const DEFAULT_GENERAL_MANAGER_MEMBER: TeamMemberRecord = {
+  id: 'team_usr_hassan_alamri_adamresearchcenter_net',
+  name: 'حسن العامري',
+  email: 'hassan.alamri@adamresearchcenter.net',
+  passwordHash: '123456',
+  role: 'مدير عام',
+  status: 'نشط',
+  assignedTickets: 0,
+  completedTickets: 0,
+  avgCompletionTime: 'فوري',
+  permissions: [
+    'فتح كافة لوحات التحكم الخمس',
+    'إضافة ودعوة أعضاء الفريق عبر Resend',
+    'اعتماد إثراء ودمج شجرة آدم',
+    'إدارة الطلبات والمركز المعرفي والتقارير',
+  ],
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
 export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
   switch (role) {
     case 'المايسترو':
@@ -1951,11 +1970,33 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
 export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecord> {
   hasEnsuredMaestroInSession = true;
   try {
-    // Architectural Separation Rule: Founding Maestro belongs strictly to `team_members`, NEVER to `users` (which is strictly for Customers)
+    const existingGm = await dualGetDoc<TeamMemberRecord>([
+      'team_members',
+      DEFAULT_GENERAL_MANAGER_MEMBER.id,
+    ]);
+    const gmRecordToSave: TeamMemberRecord = existingGm?.email
+      ? {
+          ...existingGm,
+          id: DEFAULT_GENERAL_MANAGER_MEMBER.id,
+          role: existingGm.role || 'مدير عام',
+          status: 'نشط',
+          passwordHash: '123456',
+          permissions:
+            existingGm.permissions && existingGm.permissions.length > 0
+              ? existingGm.permissions
+              : DEFAULT_GENERAL_MANAGER_MEMBER.permissions,
+        }
+      : DEFAULT_GENERAL_MANAGER_MEMBER;
+
+    // Architectural Separation Rule: Founding Maestro & General Manager belong strictly to `team_members`, NEVER to `users` (which is strictly for Customers)
     await Promise.allSettled([
       dualSetDoc(
         ['team_members', FOUNDING_MAESTRO_MEMBER.id],
         FOUNDING_MAESTRO_MEMBER as unknown as Record<string, unknown>
+      ),
+      dualSetDoc(
+        ['team_members', DEFAULT_GENERAL_MANAGER_MEMBER.id],
+        gmRecordToSave as unknown as Record<string, unknown>
       ),
       dualDeleteDoc(['users', 'usr_maestro_kareem']),
     ]);
@@ -2089,6 +2130,35 @@ export async function authenticateTeamMemberInFirebase(
   ) {
     ensureFoundingMaestroInFirebase().catch(() => {});
     return { member: FOUNDING_MAESTRO_MEMBER };
+  }
+
+  // 1.B. Instant Fast-Path for General Manager (hassan.alamri@adamresearchcenter.net) with temporary password 123456
+  if (
+    cleanEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase() &&
+    cleanPass === '123456'
+  ) {
+    try {
+      const existingGm = await dualGetDoc<TeamMemberRecord>([
+        'team_members',
+        DEFAULT_GENERAL_MANAGER_MEMBER.id,
+      ]);
+      const resolvedGm: TeamMemberRecord = existingGm?.email
+        ? {
+            ...existingGm,
+            id: DEFAULT_GENERAL_MANAGER_MEMBER.id,
+            role: existingGm.role || 'مدير عام',
+            status: 'نشط',
+            passwordHash: '123456',
+          }
+        : DEFAULT_GENERAL_MANAGER_MEMBER;
+      dualSetDoc(
+        ['team_members', DEFAULT_GENERAL_MANAGER_MEMBER.id],
+        resolvedGm as unknown as Record<string, unknown>
+      ).catch(() => {});
+      return { member: resolvedGm };
+    } catch {
+      return { member: DEFAULT_GENERAL_MANAGER_MEMBER };
+    }
   }
 
   // 2. Fast Direct Canonical Doc Lookup (~80ms) with Collection Fallback
