@@ -14,11 +14,11 @@ import {
   DashboardAccessCapabilities,
   DashboardTab,
   LineageSearchResult,
-  VaultItem,
 } from '../types/juthori';
 import { ResilientImage } from './ResilientImage';
 import { JUTHORI_MEDIA } from '../assets/media';
 import { InteractiveFamilyTreeBuilder } from './InteractiveFamilyTreeBuilder';
+import { FamilyMemoryVaultView } from './FamilyMemoryVaultView';
 
 interface PremiumTabViewsProps {
   activeTab: DashboardTab;
@@ -57,28 +57,6 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   userAvatarUrl,
   userId,
 }) => {
-  // 2. My Vault (خزانتي) State
-  const [vaultItems, setVaultItems] = useState<VaultItem[]>([
-    {
-      id: 'v-1',
-      title: `صورة وثيقة مشجرة ${result.familyName} التاريخية`,
-      category: 'مخطوطة نسب',
-      year: '1362 هـ',
-      restored: true,
-      description: 'نسخة مصورة عالية الدقة محفوظة في خزانة الأسرة ومرتبطة بعمود النسب.',
-    },
-    {
-      id: 'v-2',
-      title: 'حجة استحكام ومكاتبة أسرية قديمة',
-      category: 'وثيقة عائلية',
-      year: '1384 هـ',
-      restored: false,
-      description: 'تتضمن أسماء أعيان الأسرة والشهود في سراة عبيدة.',
-    },
-  ]);
-  const [newVaultTitle, setNewVaultTitle] = useState('');
-  const [newVaultYear, setNewVaultYear] = useState('1405 هـ');
-
   // 3. My Site (موقعي) State
   const [siteSubdomain, setSiteSubdomain] = useState('almuqit');
   const [publishLineagePublic, setPublishLineagePublic] = useState(true);
@@ -226,132 +204,14 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   }
 
   if (activeTab === DashboardTab.MyVault) {
-    const handleAddVaultDoc = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!newVaultTitle.trim()) return;
-      const item: VaultItem = {
-        id: `v-${Date.now()}`,
-        title: newVaultTitle.trim(),
-        category: 'وثيقة عائلية',
-        year: newVaultYear || '1400 هـ',
-        restored: true,
-        description: 'وثيقة مضافة حديثاً ومحفوظة في الخزانة المشفرة للعائلة.',
-      };
-      setVaultItems((prev) => [item, ...prev]);
-      onLogActivity('أرشفة وثيقة في خزانتي', `حفظ «${item.title}»`);
-      setNewVaultTitle('');
-    };
-
-    const toggleRestore = (id: string) => {
-      setVaultItems((prev) =>
-        prev.map((v) => (v.id === id ? { ...v, restored: !v.restored } : v))
-      );
-    };
-
     return (
-      <div className="rounded-2xl bg-white border border-[#B98A78]/40 p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#B98A78]/25 pb-5">
-          <div>
-            <div className="text-xs font-semibold text-[#D8755B] mb-1">
-              خزانتي · أرشيف الوثائق والصور العائلية
-            </div>
-            <h2 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
-              خزانة ذاكرة {result.familyName} الرقمية
-            </h2>
-          </div>
-          <Archive className="w-6 h-6 text-[#D8755B]" aria-hidden="true" />
-        </div>
-
-        <form
-          onSubmit={handleAddVaultDoc}
-          className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/40 p-4 flex flex-col sm:flex-row gap-3 items-end"
-        >
-          <div className="flex-1 w-full">
-            <label
-              htmlFor="vault-doc-title"
-              className="block text-xs font-medium text-[#252321] mb-1"
-            >
-              عنوان الوثيقة أو الصورة التراثية
-            </label>
-            <input
-              id="vault-doc-title"
-              type="text"
-              value={newVaultTitle}
-              onChange={(e) => setNewVaultTitle(e.target.value)}
-              placeholder="مثال: رسالة خطية للجد حسن آل مقيت"
-              className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-sm text-[#252321]"
-            />
-          </div>
-          <div className="w-full sm:w-36">
-            <label
-              htmlFor="vault-doc-year"
-              className="block text-xs font-medium text-[#252321] mb-1"
-            >
-              تاريخ الوثيقة
-            </label>
-            <input
-              id="vault-doc-year"
-              type="text"
-              value={newVaultYear}
-              onChange={(e) => setNewVaultYear(e.target.value)}
-              className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3 py-2 text-sm text-[#252321] tabular-nums"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
-          >
-            + إيداع في الخزانة
-          </button>
-        </form>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {vaultItems.map((doc, idx) => (
-            <div
-              key={doc.id}
-              className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col justify-between"
-            >
-              <div>
-                <div className="aspect-[16/9] overflow-hidden relative">
-                  <ResilientImage
-                    src={
-                      idx % 2 === 0
-                        ? JUTHORI_MEDIA.manuscriptScroll
-                        : JUTHORI_MEDIA.memoryVault
-                    }
-                    alt={doc.title}
-                    className={`w-full h-full object-cover transition-all duration-200 ${
-                      doc.restored ? 'contrast-110 brightness-105' : 'sepia-[.35] opacity-90'
-                    }`}
-                  />
-                </div>
-                <div className="p-5">
-                  <div className="text-xs text-[#252321]/65 mb-1 tabular-nums">
-                    {doc.category} · {doc.year} ·{' '}
-                    {doc.restored ? 'مُرمَّمة رقمياً' : 'نسخة خام أصلية'}
-                  </div>
-                  <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
-                    {doc.title}
-                  </h3>
-                  <p className="text-xs text-[#252321]/75 leading-relaxed">
-                    {doc.description}
-                  </p>
-                </div>
-              </div>
-              <div className="px-5 pb-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => toggleRestore(doc.id)}
-                  className="px-3.5 py-1.5 rounded-lg bg-white border border-[#B98A78]/50 text-xs font-semibold text-[#252321] hover:border-[#D8755B] inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" aria-hidden="true" />
-                  <span>{doc.restored ? 'عرض النسخة الأصلية' : 'تفعيل ترميم الوثيقة'}</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <FamilyMemoryVaultView
+        result={result}
+        userId={userId}
+        userAvatarUrl={userAvatarUrl}
+        onLogActivity={onLogActivity}
+        onNavigateTab={onNavigateTab}
+      />
     );
   }
 

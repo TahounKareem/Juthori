@@ -11,12 +11,15 @@ import {
   FileSignature,
   FileText,
   Heart,
+  Link2,
   Lock,
   MapPin,
+  Paperclip,
   Plus,
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   Users,
   Wallet,
   X,
@@ -38,8 +41,15 @@ import {
   resolveNodeHistoricalEra,
 } from './HeritageNodeAvatar';
 import {
+  DEFAULT_STARTER_VAULT_FOLDERS,
+  FamilyVaultMediaItem,
+  VaultFolderRecord,
   fetchUserFamilyTreeFromFirebase,
+  fetchUserVaultArchive,
+  getTreeStorageKeyForVaultSync,
+  readVaultArchiveFromLocal,
   saveUserFamilyTreeToFirebase,
+  saveUserVaultArchive,
 } from '../services/firestoreService';
 
 export type ArabicHonorificTitle =
@@ -362,12 +372,203 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     );
   }, [userAvatarUrl]);
 
-  // Persist family tree nodes to Firebase whenever modified
+  // Persist family tree nodes to Firebase and sync with خزانتي (`juthori:tree-updated`) whenever modified
   useEffect(() => {
+    if (people.length > 0 && typeof window !== 'undefined') {
+      try {
+        const syncKey = getTreeStorageKeyForVaultSync(userId, result.familyName);
+        const summaryForVault = people.map((p) => ({
+          id: p.id,
+          fullName: `${p.firstName} ${p.familyName}`.trim(),
+          relationLabel: p.isRecordKeeper
+            ? 'أمين السجل'
+            : p.relationToTargetLabel || 'فرد في المشجرة',
+          gender: p.gender,
+          avatarDataUrl: p.photoUrl,
+          birthYear: p.birthDateValue,
+          isAlive: p.vitalStatus === 'living',
+        }));
+        window.localStorage.setItem(syncKey, JSON.stringify(summaryForVault));
+        window.dispatchEvent(new CustomEvent('juthori:tree-updated'));
+      } catch {
+        // Ignore storage error
+      }
+    }
     if (userId && people.length > 0) {
       saveUserFamilyTreeToFirebase(userId, result.familyName, people).catch(() => {});
     }
   }, [people, userId, result.familyName]);
+
+  // Two-Way Vault Sync (`خزانتي <-> شجرتي`)
+  const initialVault = useMemo(
+    () => readVaultArchiveFromLocal(userId, result.familyName),
+    [userId, result.familyName]
+  );
+  const [vaultFolders, setVaultFolders] = useState<VaultFolderRecord[]>(
+    initialVault.folders.length > 0
+      ? initialVault.folders
+      : DEFAULT_STARTER_VAULT_FOLDERS
+  );
+  const [vaultItems, setVaultItems] = useState<FamilyVaultMediaItem[]>(
+    initialVault.items
+  );
+  const [newPersonPendingVaultIds, setNewPersonPendingVaultIds] = useState<
+    string[]
+  >([]);
+  const [treeVaultUploadTitle, setTreeVaultUploadTitle] = useState('');
+  const [treeVaultUploadDate, setTreeVaultUploadDate] = useState(
+    new Date().getFullYear().toString()
+  );
+  const [treeVaultUploadFolderId, setTreeVaultUploadFolderId] =
+    useState('folder_ancestors');
+  const [isUploadingToVaultFromTree, setIsUploadingToVaultFromTree] =
+    useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchUserVaultArchive(userId, result.familyName).then((archive) => {
+      if (!mounted) return;
+      setVaultFolders(
+        archive.folders.length > 0
+          ? archive.folders
+          : DEFAULT_STARTER_VAULT_FOLDERS
+      );
+      setVaultItems(archive.items);
+    });
+    const onVaultUpdated = () => {
+      const latest = readVaultArchiveFromLocal(userId, result.familyName);
+      setVaultFolders(latest.folders);
+      setVaultItems(latest.items);
+    };
+    window.addEventListener('juthori:vault-updated', onVaultUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener('juthori:vault-updated', onVaultUpdated);
+    };
+  }, [userId, result.familyName]);
+
+  const handleToggleVaultItemForModalPerson = (itemId: string) => {
+    if (modalConfig?.mode === 'edit' && modalConfig.editPersonId) {
+      const personId = modalConfig.editPersonId;
+      const nextItems = vaultItems.map((it) => {
+        if (it.id !== itemId) return it;
+        const already = it.linkedPersonIds.includes(personId);
+        return {
+          ...it,
+          linkedPersonIds: already
+            ? it.linkedPersonIds.filter((id) => id !== personId)
+            : [...it.linkedPersonIds, personId],
+        };
+      });
+      setVaultItems(nextItems);
+      saveUserVaultArchive(userId, result.familyName, {
+        folders: vaultFolders,
+        items: nextItems,
+      }).catch(() => {});
+    } else {
+      setNewPersonPendingVaultIds((prev) =>
+        prev.includes(itemId)
+          ? prev.filter((id) => id !== itemId)
+          : [...prev, itemId]
+      );
+    }
+  };
+
+  const handleUploadFileDirectlyToVaultFromTree = (
+    fileList: FileList | null
+  ) => {
+    if (!fileList || fileList.length === 0) return;
+    const file = fileList[0];
+    setIsUploadingToVaultFromTree(true);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rawDataUrl = typeof reader.result === 'string' ? reader.result : '';
+      const finalizeUpload = (finalDataUrl: string) => {
+        const baseName = file.name.replace(/\.[^/.]+$/, '');
+        const isDoc =
+          file.type.includes('pdf') ||
+          /وثيقة|صك|حجة|عقد|شهادة|مخطوط/i.test(baseName);
+        const editPid =
+          modalConfig?.mode === 'edit' ? modalConfig.editPersonId : undefined;
+        const newItemId = `vault_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const newItem: FamilyVaultMediaItem = {
+          id: newItemId,
+          title:
+            treeVaultUploadTitle.trim() ||
+            baseName ||
+            `ملف ${formFirstName || 'الفرد'} في الخزانة`,
+          mediaType: isDoc ? 'document' : 'photo',
+          folderId:
+            treeVaultUploadFolderId ||
+            (isDoc ? 'folder_docs' : 'folder_ancestors'),
+          dateOrOccasion: treeVaultUploadDate.trim() || 'أرشيف المشجرة',
+          fileDataUrl: finalDataUrl,
+          fileName: file.name,
+          fileMimeType: file.type || 'image/jpeg',
+          linkedPersonIds: editPid ? [editPid] : [],
+          enhanced: false,
+          createdAt: new Date().toISOString(),
+        };
+
+        const nextItems = [newItem, ...vaultItems];
+        setVaultItems(nextItems);
+        saveUserVaultArchive(userId, result.familyName, {
+          folders: vaultFolders,
+          items: nextItems,
+        }).catch(() => {});
+
+        if (!editPid) {
+          setNewPersonPendingVaultIds((prev) => [...prev, newItemId]);
+        }
+
+        setTreeVaultUploadTitle('');
+        setIsUploadingToVaultFromTree(false);
+        onLogActivity(
+          'رفع ملف من شجرتي إلى خزانتي',
+          `إيداع «${newItem.title}» في الخزانة وربطه بـ «${formFirstName || 'الفرد'}»`
+        );
+      };
+
+      if (file.type.startsWith('image/')) {
+        const img = new Image();
+        img.onerror = () => finalizeUpload(rawDataUrl);
+        img.onload = () => {
+          try {
+            const maxDim = 1000;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h);
+              finalizeUpload(canvas.toDataURL('image/jpeg', 0.8));
+              return;
+            }
+          } catch {
+            // Fallback
+          }
+          finalizeUpload(rawDataUrl);
+        };
+        img.src = rawDataUrl;
+      } else {
+        finalizeUpload(rawDataUrl);
+      }
+    };
+    reader.onerror = () => setIsUploadingToVaultFromTree(false);
+    reader.readAsDataURL(file);
+  };
 
   // Display Depth Selector State (محدّد مدى العرض فوق الشجرة)
   const [spineDepth, setSpineDepth] = useState<TreeSpineDepthMode>(
@@ -1049,6 +1250,23 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       return finalList;
     });
 
+    if (newPersonPendingVaultIds.length > 0) {
+      const pendingSet = new Set(newPersonPendingVaultIds);
+      const updatedVaultItems = vaultItems.map((item) => {
+        if (!pendingSet.has(item.id)) return item;
+        const nextIds = item.linkedPersonIds.includes(newId)
+          ? item.linkedPersonIds
+          : [...item.linkedPersonIds, newId];
+        return { ...item, linkedPersonIds: nextIds };
+      });
+      setVaultItems(updatedVaultItems);
+      saveUserVaultArchive(userId, result.familyName, {
+        folders: vaultFolders,
+        items: updatedVaultItems,
+      }).catch(() => {});
+      setNewPersonPendingVaultIds([]);
+    }
+
     onLogActivity(
       'إضافة فرد جديد في شجرتي',
       `تمت إضافة «${cleanFirst} ${cleanFamily}»`
@@ -1627,6 +1845,29 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   {cleanMetaLine}
                 </div>
               )}
+
+              {/* 4. Linked Vault Media Badge (`📎 X ميديا`) */}
+              {(() => {
+                const personMediaCount = vaultItems.filter((vi) =>
+                  vi.linkedPersonIds.includes(person.id)
+                ).length;
+                if (personMediaCount === 0) return null;
+                return (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openEditPersonModal(person);
+                        setShowMoreBioSection(true);
+                      }}
+                      title="عرض الصور والوثائق المربوطة بهذا الفرد في خزانتي"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#D97706]/50 text-[#92400E] text-[10px] font-display font-extrabold cursor-pointer transition-colors"
+                    >
+                      <span>📎 {personMediaCount} ميديا</span>
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -2619,6 +2860,171 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   />
                 </div>
               )}
+
+              {/* ============================================================ */}
+              {/* TWO-WAY LINKED VAULT MEDIA SECTION (`📂 وثائق وصور هذا الفرد في خزانتي`) */}
+              {/* ============================================================ */}
+              {(() => {
+                const currentModalPersonId =
+                  modalConfig.mode === 'edit' ? modalConfig.editPersonId : null;
+                const linkedMediaForModalPerson = vaultItems.filter((vi) =>
+                  currentModalPersonId
+                    ? vi.linkedPersonIds.includes(currentModalPersonId)
+                    : newPersonPendingVaultIds.includes(vi.id)
+                );
+                const unlinkedMediaInVault = vaultItems.filter((vi) =>
+                  currentModalPersonId
+                    ? !vi.linkedPersonIds.includes(currentModalPersonId)
+                    : !newPersonPendingVaultIds.includes(vi.id)
+                );
+
+                return (
+                  <div
+                    data-testid="person-modal-vault-media-section"
+                    className="rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF6F0] to-[#F5E6C8]/45 border-2 border-[#D4AF37]/65 p-4 space-y-3.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-[#D8755B]" />
+                        <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                          📂 وثائق وصور هذا الفرد في خزانتي ({linkedMediaForModalPerson.length})
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white border border-[#D4AF37]/60 text-[#8D4925]">
+                        مزامنة ثنائية فورية مع «خزانتي»
+                      </span>
+                    </div>
+
+                    {/* Linked Photos & Documents List */}
+                    {linkedMediaForModalPerson.length === 0 ? (
+                      <div className="rounded-xl bg-white/85 border border-[#B98A78]/35 p-3 text-xs text-[#252321]/70">
+                        لا توجد صور أو وثائق مربوطة بهذا الفرد حالياً. يمكنك رفع صورة/وثيقة جديدة أدناه أو ربط ملف موجود من «خزانتي».
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {linkedMediaForModalPerson.map((media) => (
+                          <div
+                            key={media.id}
+                            className="rounded-xl bg-white border border-[#D4AF37]/60 p-2.5 flex items-center justify-between gap-2.5 shadow-2xs"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-11 h-11 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
+                                {media.fileDataUrl.startsWith('data:image') ? (
+                                  <img
+                                    src={media.fileDataUrl}
+                                    alt={media.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <FileText className="w-5 h-5 text-[#8D4925]" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                                  {media.title}
+                                </div>
+                                <div className="text-[10px] text-[#8D4925] font-semibold">
+                                  {media.mediaType === 'photo'
+                                    ? '📸 صورة'
+                                    : '📜 وثيقة'}{' '}
+                                  · {media.dateOrOccasion}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleToggleVaultItemForModalPerson(media.id)
+                              }
+                              title="فك ارتباط الملف عن هذا الفرد"
+                              className="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold shrink-0 cursor-pointer"
+                            >
+                              فك الربط
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Direct Upload from inside `شجرتي` to `خزانتي` */}
+                    <div className="rounded-xl bg-white border border-[#B98A78]/40 p-3 space-y-2.5">
+                      <div className="text-[11px] font-display font-bold text-[#8D4925]">
+                        + رفع صورة أو وثيقة جديدة لهذا الفرد (تُحفظ تلقائياً في خزانتي):
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input
+                          type="text"
+                          value={treeVaultUploadTitle}
+                          onChange={(e) =>
+                            setTreeVaultUploadTitle(e.target.value)
+                          }
+                          placeholder="عنوان الصورة أو الوثيقة..."
+                          className="px-3 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/45 text-xs text-[#252321]"
+                        />
+                        <select
+                          value={treeVaultUploadFolderId}
+                          onChange={(e) =>
+                            setTreeVaultUploadFolderId(e.target.value)
+                          }
+                          className="px-2.5 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/45 text-xs font-bold text-[#252321]"
+                        >
+                          {vaultFolders.map((vf) => (
+                            <option key={vf.id} value={vf.id}>
+                              {vf.icon} {vf.name}
+                            </option>
+                          ))}
+                        </select>
+                        <label className="px-3 py-1.5 rounded-lg bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>
+                            {isUploadingToVaultFromTree
+                              ? 'جاري الحفظ...'
+                              : 'اختيار ملف ورفعه'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              handleUploadFileDirectlyToVaultFromTree(
+                                e.target.files
+                              );
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Quick Picker to Link Existing Vault Items */}
+                    {unlinkedMediaInVault.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="text-[11px] font-display font-bold text-[#252321] flex items-center gap-1.5">
+                          <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                          <span>أو اربط ملفاً موجوداً مسبقاً في «خزانتي»:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {unlinkedMediaInVault.map((uv) => (
+                            <button
+                              key={uv.id}
+                              type="button"
+                              onClick={() =>
+                                handleToggleVaultItemForModalPerson(uv.id)
+                              }
+                              className="px-2.5 py-1 rounded-full bg-white hover:bg-[#252321] text-[#252321] hover:text-[#FEF3C7] border border-[#B98A78]/45 text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <span>
+                                {uv.mediaType === 'photo' ? '📸' : '📜'}
+                              </span>
+                              <span>+ {uv.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Collapsible Section: تحرير المزيد */}
               <div className="rounded-2xl border border-[#B98A78]/50 overflow-hidden">

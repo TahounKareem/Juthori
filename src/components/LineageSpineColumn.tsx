@@ -17,8 +17,11 @@ import {
 import {
   buildResolvedLineageFromDisambiguationOption,
   deduplicateNotablesWithOcrTolerance,
+  extractUnifiedVerifiedSourcesList,
   getDashboardCapabilities,
   getVerifiedAddonSourcesForEvidence,
+  isBannedMacroApexForRoot,
+  isHighApexStopNode,
   mergeVerifiedAddonSourceLists,
   resolveSpineConnectorLabel,
 } from '../utils/lineageEngine';
@@ -504,12 +507,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       effectiveResult.originCountry,
     ].filter((part) => part && part !== 'غير محدد' && part !== '—');
     const locationSuffix =
-      locationParts.length > 0 ? ` (موطن: ${locationParts.join(' / ')})` : '';
-    const stationsCount = Math.max(3, totalFamilySpineNodesCount);
-    const sourcesCount = Math.max(
-      1,
-      effectiveResult.verified_sources?.length || 1
-    );
+      locationParts.length > 0 ? ` (${locationParts.join(' / ')})` : '';
 
     return (
       <div
@@ -523,7 +521,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             onUnlockRoot5Usd();
           }
         }}
-        title="اضغط لفتح جذر العائلة الموثق الآن مقابل $5 فقط"
+        title="افتح جذر العائلة الموثق الآن ($5)"
         className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A] border-2 border-[#D97706] hover:border-[#B45309] p-4 sm:p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group relative z-20 text-right overflow-hidden space-y-3.5"
       >
         {/* Subtle golden shimmer aura */}
@@ -532,69 +530,51 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           aria-hidden="true"
         />
 
-        {/* Top Verified Discovery Banner + Station/Source Count Badge */}
-        <div className="flex flex-wrap items-center justify-between gap-2 relative z-10">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#92400E] text-[#FEF3C7] text-[11px] font-display font-extrabold shadow-2xs">
-            <span>باقة الـ $5 — فتح الجذر المباشر</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 border border-[#D97706]/50 text-[#78350F] text-[11px] font-display font-bold">
-            <span>
-              {stationsCount} محطة نسبية موثقة · {sourcesCount} مرجع تاريخي
-            </span>
+        {/* Single Calm Verification Badge */}
+        <div className="flex items-center justify-start relative z-10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 border border-[#D97706]/50 text-[#78350F] text-[11px] font-display font-bold shadow-2xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#D97706]" />
+            <span>سجل نسبي موثق في المعاجم التاريخية</span>
           </span>
         </div>
 
-        {/* Exciting Verified Root Heading */}
+        {/* Exciting Verified Root Heading + Simple Non-Technical Teaser */}
         <div className="space-y-1 relative z-10">
           <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#92400E] transition-colors leading-snug">
-            🎉 تم رصد وتوثيق جذر عائلة ({effectiveResult.familyName}) في أمهات المعاجم التاريخية{locationSuffix}
+            تم رصد وتوثيق جذر عائلة ({effectiveResult.familyName}) في أمهات المعاجم التاريخية{locationSuffix}
           </h3>
-          <p className="text-xs font-display font-bold text-[#78350F] leading-relaxed">
-            اكشف الفرع الجامع والقبيلة الأم والمصدر التاريخي المعتمد لعائلتك بفتح الجذر الآن:
+          <p className="text-xs font-medium text-[#78350F] leading-relaxed">
+            نقطة اتصال عائلتك بعمودها التاريخي الموثق جاهزة للكشف الفوري في سجلك الخاص.
           </p>
         </div>
 
-        {/* Partially Blurred / Encrypted Root Nodes Preview (B0 + B2) */}
-        <div className="space-y-2 relative z-10">
-          <div className="rounded-xl bg-white/85 border border-[#D97706]/50 px-3.5 py-2.5 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[10px] font-display font-extrabold text-[#92400E]">
-                الجذر · القبيلة الأم (B0)
+        {/* Single Unified Encrypted Root Preview Card with ONE Lock Icon and Blur */}
+        <div className="relative z-10">
+          <div className="rounded-xl bg-white/90 border border-[#D97706]/55 px-4 py-3 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="min-w-0 space-y-1">
+              <div className="text-[11px] font-display font-extrabold text-[#92400E]">
+                الجذر الموثق للعائلة
               </div>
-              <div className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                <span className="blur-[4px] select-none" aria-hidden="true">
-                  قبيلة بني سليم القيسية
-                </span>
-                <span className="text-[11px] font-bold text-[#B45309] bg-[#FEF3C7] px-2 py-0.5 rounded-md border border-[#F59E0B]/40">
-                  مشفر · يفتح بـ $5
-                </span>
+              <div
+                className="text-sm font-display font-extrabold text-[#252321] blur-[5px] select-none"
+                aria-hidden="true"
+              >
+                امتداد النسب الموثق في السجل التاريخي للأسرة
               </div>
             </div>
-            <span className="text-base shrink-0">🔒</span>
-          </div>
-
-          <div className="rounded-xl bg-white/85 border border-[#D97706]/50 px-3.5 py-2.5 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[10px] font-display font-extrabold text-[#92400E]">
-                الجذر · الفرع الجامع (B2)
-              </div>
-              <div className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                <span className="blur-[4px] select-none" aria-hidden="true">
-                  فرع العرفاء السعادي
-                </span>
-                <span className="text-[11px] font-bold text-[#B45309] bg-[#FEF3C7] px-2 py-0.5 rounded-md border border-[#F59E0B]/40">
-                  مشفر · يفتح بـ $5
-                </span>
-              </div>
-            </div>
-            <span className="text-base shrink-0">🔒</span>
+            <span
+              className="w-9 h-9 rounded-full bg-[#FEF3C7] border border-[#D97706]/50 flex items-center justify-center text-base shrink-0"
+              aria-hidden="true"
+            >
+              🔒
+            </span>
           </div>
         </div>
 
-        {/* Prominent Direct Unlock CTA Button */}
+        {/* Prominent Direct Unlock CTA Button (Price $5 mentioned ONLY once here, no extra lock icon) */}
         <div className="pt-1 relative z-10">
-          <div className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#252321] via-[#3A2E28] to-[#252321] group-hover:from-[#92400E] group-hover:to-[#78350F] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all">
-            <span>🔓 افتح جذر العائلة الموثق الآن مقابل $5 فقط</span>
+          <div className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#252321] via-[#3A2E28] to-[#252321] group-hover:from-[#92400E] group-hover:to-[#78350F] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold shadow-sm flex items-center justify-center transition-all">
+            <span>افتح جذر العائلة الموثق الآن ($5)</span>
           </div>
         </div>
       </div>
@@ -772,12 +752,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     const eraBadgeText = getHistoricalEraBadgeLabel(resolvedEra);
     const cleanTitle = getCleanSpineNodeName(node.name);
 
-    // A) Root Nodes (الجذر — Sub-Branch or Mother Tribe)
+    // A) Root Nodes (الجذر — Sub-Branch or Mother Tribe: clean unified badge without B0/B2 codes and without leaking source books in $5 tier)
     if (isRootNode) {
-      const rootSourceCitation =
-        effectiveResult.verifiedSourceCitation ||
-        effectiveResult.verified_sources?.[0] ||
-        '';
       return (
         <div
           key={node.id}
@@ -786,7 +762,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             isSelected
               ? 'border-[#D8755B] ring-2 ring-[#D8755B]/25'
               : 'border-[#E67E22]'
-          } py-3 px-4 shadow-xs text-right relative z-20 overflow-hidden cursor-pointer transition-all space-y-2`}
+          } py-3 px-4 shadow-xs text-right relative z-20 overflow-hidden cursor-pointer transition-all`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -809,11 +785,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               <span>جذر موثق</span>
             </span>
           </div>
-          {rootSourceCitation && (
-            <div className="pt-1.5 border-t border-[#E67E22]/25 flex items-center justify-between gap-2 text-[11px] font-display font-bold text-[#8D4925]">
-              <span className="truncate">📚 المصدر المعتمد: {rootSourceCitation}</span>
-            </div>
-          )}
         </div>
       );
     }
@@ -1274,6 +1245,112 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // - Immediately After $5 (if multiple candidate paths): 2-Stage Progressive Verification Card
   // - After $5 (Resolved): Unified 2-Node Root (B2 & B0) + Folded Intermediate Capsule (🔒 +1 في السلسلة / 🔒 +26 جدّاً في السلسلة)
   // ============================================================================
+  // Helper to resolve strictly the TWO root nodes (B2: الفرع الجامع, B0: القبيلة الأم) and the folded intermediate capsule between them for the $5 tier
+  const resolveStrictTwoRootStationsFor5UsdTier = () => {
+    const nodesAboveFamily = spineNodes.filter((n) => n.orderNumber > 1);
+    const nonMacroAboveFamily = nodesAboveFamily.filter(
+      (n) => !isBannedMacroApexForRoot(n.name) && !isHighApexStopNode(n.name)
+    );
+
+    const subRootCandidate =
+      nonMacroAboveFamily.find(
+        (n) => n.code === 'B2' || n.code === 'B1'
+      ) ||
+      nonMacroAboveFamily[0] ||
+      nodesAboveFamily[0];
+
+    const motherTribeCandidate =
+      nonMacroAboveFamily.find(
+        (n) =>
+          n.code === 'B0' &&
+          (!subRootCandidate || n.orderNumber > subRootCandidate.orderNumber)
+      ) ||
+      nonMacroAboveFamily
+        .slice()
+        .reverse()
+        .find(
+          (n) =>
+            !subRootCandidate || n.orderNumber > subRootCandidate.orderNumber
+        ) ||
+      nodesAboveFamily
+        .slice()
+        .reverse()
+        .find(
+          (n) =>
+            !subRootCandidate || n.orderNumber > subRootCandidate.orderNumber
+        ) ||
+      subRootCandidate;
+
+    const subRootStation: UpperAncestorNode | undefined = subRootCandidate
+      ? {
+          ...subRootCandidate,
+          code:
+            motherTribeCandidate &&
+            motherTribeCandidate.id !== subRootCandidate.id
+              ? 'B2'
+              : 'B0',
+        }
+      : undefined;
+
+    const motherTribeStation: UpperAncestorNode | undefined =
+      motherTribeCandidate
+        ? {
+            ...motherTribeCandidate,
+            code: 'B0',
+          }
+        : undefined;
+
+    const intermediateBetweenB2AndB0 =
+      subRootStation &&
+      motherTribeStation &&
+      motherTribeStation.orderNumber > subRootStation.orderNumber + 1
+        ? nodesAboveFamily.filter(
+            (n) =>
+              n.orderNumber > subRootStation.orderNumber &&
+              n.orderNumber < motherTribeStation.orderNumber
+          )
+        : [];
+
+    const existingCapsuleBetweenB2AndB0 = capsulesList.find(
+      (c) =>
+        subRootStation &&
+        motherTribeStation &&
+        c.ancestors.some(
+          (a) =>
+            a.orderNumber > subRootStation.orderNumber &&
+            a.orderNumber < motherTribeStation.orderNumber
+        )
+    );
+
+    const capsuleBetweenB2AndB0: AncestorCapsule | undefined =
+      existingCapsuleBetweenB2AndB0 ||
+      (intermediateBetweenB2AndB0.length > 0 &&
+      subRootStation &&
+      motherTribeStation
+        ? {
+            id: `strict-between-b2-b0-${subRootStation.id}`,
+            number: 1,
+            title: `حلقات الأجداد الوسيطين (بين ${subRootStation.name} و${motherTribeStation.name})`,
+            betweenFromOrder: subRootStation.orderNumber,
+            betweenToOrder: motherTribeStation.orderNumber,
+            betweenLabel: `بين ${subRootStation.name} و${motherTribeStation.name}`,
+            priceUsd:
+              intermediateBetweenB2AndB0.length >= 6
+                ? 4
+                : intermediateBetweenB2AndB0.length >= 4
+                ? 3
+                : 2,
+            ancestors: intermediateBetweenB2AndB0,
+          }
+        : undefined);
+
+    return {
+      subRootStation,
+      motherTribeStation,
+      capsuleBetweenB2AndB0,
+    };
+  };
+
   const renderAlphaOnlyBeforeMergeSpine = () => {
     // 1. Case A: If disambiguation is required, show the 2-Stage Progressive Verification Card FIRST for FREE (NEVER show the $5 paywall before verification!)
     if (isVerificationPending) {
@@ -1284,7 +1361,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
-    // 2. Outcome A (Resolved Match) or Case B (Single Direct Match): Now show the locked $5 Root card ("الجذر · افتح الآن $5")
+    // 2. Outcome A (Resolved Match) or Case B (Single Direct Match): Now show the locked $5 Root card
     if (!caps.isRootUnlocked) {
       return (
         <div className="space-y-2.5 relative z-20">
@@ -1293,6 +1370,58 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
+    // 3. Strictly enforce ONLY 2 unlocked root nodes (B2 & B0) + folded capsule between them when on the $5 Basic Tier (!caps.isVip && !isResearcherDirectPreview)
+    if (!caps.isVip && !isResearcherDirectPreview) {
+      const { subRootStation, motherTribeStation, capsuleBetweenB2AndB0 } =
+        resolveStrictTwoRootStationsFor5UsdTier();
+
+      return (
+        <div className="space-y-2.5 relative z-20">
+          {LOCKED_UPPER_LINEAGE_LAYERS.map((layerItem) => (
+            <React.Fragment key={layerItem.id}>
+              {renderLockedUpperLayerCard(
+                layerItem.label,
+                CASE_2_ALPHA_VIP_MARKETING_COPY,
+                layerItem.era,
+                onUpgradeAnnualVip,
+                layerItem.id
+              )}
+            </React.Fragment>
+          ))}
+          {renderConnectorBadge('من')}
+
+          <div className="space-y-2 relative z-20">
+            {motherTribeStation && renderAdamNodeCard(motherTribeStation)}
+
+            {capsuleBetweenB2AndB0 && (
+              <>
+                {renderConnectorBadge('من (سليل غير مباشر)')}
+                {renderCompactIntermediatePillBadge(capsuleBetweenB2AndB0)}
+              </>
+            )}
+
+            {motherTribeStation &&
+              subRootStation &&
+              subRootStation.id !== motherTribeStation.id && (
+                <>
+                  {renderConnectorBadge(
+                    capsuleBetweenB2AndB0
+                      ? 'من (سليل غير مباشر)'
+                      : resolveSpineConnectorLabel(
+                          subRootStation,
+                          motherTribeStation,
+                          false
+                        )
+                  )}
+                  {renderAdamNodeCard(subRootStation)}
+                </>
+              )}
+          </div>
+        </div>
+      );
+    }
+
+    // 4. Annual VIP or Researcher Direct Preview for Alpha Spine
     type AlphaSpineRenderEntry =
       | { kind: 'node'; node: UpperAncestorNode }
       | { kind: 'ringGroup'; ringGroup: AncestorCapsule };
@@ -1321,7 +1450,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             ascendingEntries.push({ kind: 'ringGroup', ringGroup: ringObj });
           }
         }
-      } else {
+      } else if (isResearcherDirectPreview) {
         ascendingEntries.push({ kind: 'node', node });
       }
     }
@@ -1330,27 +1459,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
     return (
       <div className="space-y-2.5 relative z-20">
-        {!caps.isVip ? (
-          <>
-            {LOCKED_UPPER_LINEAGE_LAYERS.map((layerItem) => (
-              <React.Fragment key={layerItem.id}>
-                {renderLockedUpperLayerCard(
-                  layerItem.label,
-                  CASE_2_ALPHA_VIP_MARKETING_COPY,
-                  layerItem.era,
-                  onUpgradeAnnualVip,
-                  layerItem.id
-                )}
-              </React.Fragment>
-            ))}
-            {renderConnectorBadge('من')}
-          </>
-        ) : (
-          <>
-            {renderAlphaVipPendingResearcherMergeCard()}
-            {renderConnectorBadge('من')}
-          </>
-        )}
+        {renderAlphaVipPendingResearcherMergeCard()}
+        {renderConnectorBadge('من')}
 
         <div className="space-y-2">
           {topToBottomAlphaEntries.map((entry, idx) => {
@@ -1395,7 +1505,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
-    // 2. Outcome A (Resolved Match) or Case B (Single Direct Match): Show the locked $5 Root card ("الجذر · افتح الآن $5")
+    // 2. Outcome A (Resolved Match) or Case B (Single Direct Match): Show the locked $5 Root card
     if (!caps.isRootUnlocked) {
       return (
         <div className="space-y-2.5 relative z-20">
@@ -1404,33 +1514,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
-    // Stage 2 ($5 Paid — Root Unlocked, Non-VIP): Show the 4 locked upper layers + Unified 2 Root Nodes (B2 & B0) + folded intermediate capsules below B0
-    const subRootStation =
-      spineNodes.find(
-        (n: UpperAncestorNode) => n.code === 'B2' || n.code === 'B1'
-      ) || spineNodes[1];
-    const motherTribeStation =
-      spineNodes.find((n: UpperAncestorNode) => n.code === 'B0') ||
-      spineNodes[2] ||
-      spineNodes[spineNodes.length - 1];
-
-    const capsuleBetweenB2AndB0 = capsulesList.find(
-      (c) =>
-        subRootStation &&
-        motherTribeStation &&
-        c.ancestors.some(
-          (a) =>
-            a.orderNumber > subRootStation.orderNumber &&
-            a.orderNumber < motherTribeStation.orderNumber
-        )
-    );
-    const capsuleBetweenFamilyAndB2 = capsulesList.find(
-      (c) =>
-        subRootStation &&
-        c.ancestors.some(
-          (a) => a.orderNumber > 1 && a.orderNumber < subRootStation.orderNumber
-        )
-    );
+    // Stage 2 ($5 Paid — Root Unlocked, Non-VIP): Show the 4 locked upper layers + Strictly 2 Root Nodes (B2 & B0) + folded intermediate capsule between them
+    const { subRootStation, motherTribeStation, capsuleBetweenB2AndB0 } =
+      resolveStrictTwoRootStationsFor5UsdTier();
 
     return (
       <div className="space-y-2.5 relative z-20">
@@ -1453,26 +1539,27 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
           {capsuleBetweenB2AndB0 && (
             <>
-              {renderConnectorBadge('من')}
+              {renderConnectorBadge('من (سليل غير مباشر)')}
               {renderCompactIntermediatePillBadge(capsuleBetweenB2AndB0)}
             </>
           )}
 
           {motherTribeStation &&
             subRootStation &&
-            subRootStation.id !== motherTribeStation.id &&
-            renderConnectorBadge('من')}
-
-          {subRootStation &&
-            subRootStation.id !== motherTribeStation?.id &&
-            renderAdamNodeCard(subRootStation)}
-
-          {capsuleBetweenFamilyAndB2 && (
-            <>
-              {renderConnectorBadge('من')}
-              {renderCompactIntermediatePillBadge(capsuleBetweenFamilyAndB2)}
-            </>
-          )}
+            subRootStation.id !== motherTribeStation.id && (
+              <>
+                {renderConnectorBadge(
+                  capsuleBetweenB2AndB0
+                    ? 'من (سليل غير مباشر)'
+                    : resolveSpineConnectorLabel(
+                        subRootStation,
+                        motherTribeStation,
+                        false
+                      )
+                )}
+                {renderAdamNodeCard(subRootStation)}
+              </>
+            )}
         </div>
       </div>
     );
@@ -1603,80 +1690,126 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         </div>
 
         {/* ======================================================== */}
-        {/* VERIFIED HISTORICAL SOURCES CARD                         */}
-        {/* Shown in Case 1 & Case 2 only after $5 Root is unlocked  */}
+        {/* VERIFIED HISTORICAL SOURCES SECTION                      */}
+        {/* Locked & Blurred in Free / $5 Basic; Unlocked in VIP     */}
         {/* ======================================================== */}
-        {!isUnmatchedCase && caps.isRootUnlocked && !isVerificationPending && (
+        {!isUnmatchedCase && !isVerificationPending && (
           <div className="mt-10 pt-6 border-t border-[#B98A78]/35 max-w-2xl mx-auto w-full relative z-20">
-            {!caps.isVip ? (
+            {!caps.isVip && !isResearcherDirectPreview ? (
               <div
-                onClick={onUpgradeAnnualVip}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onUpgradeAnnualVip();
-                  }
-                }}
-                className="rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F3E5AB]/75 border-2 border-[#D4AF37]/80 hover:border-[#D8755B] p-4 shadow-xs hover:shadow-md transition-all cursor-pointer group text-right flex items-center justify-between gap-4"
+                data-testid="locked-blurred-sources-section"
+                className="rounded-3xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F3E5AB]/75 border-2 border-[#D4AF37]/80 p-5 sm:p-6 shadow-xs text-right space-y-4"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8D4925] via-[#B98A78] to-[#D8755B] text-[#FAF6F0] border-2 border-[#F5D78E] flex items-center justify-center shrink-0 shadow-xs">
-                    <BookOpenCheck className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 space-y-1">
-                    <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors truncate">
-                      المصادر والمراجع التاريخية الموثقة لعائلة {effectiveResult.familyName}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#8D4925] leading-snug">
-                      {unifiedVipMarketingCopy}
-                    </p>
-                  </div>
-                </div>
-                <span
-                  aria-label="مقفل — اضغط للفتح"
-                  className="w-11 h-11 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#8D4925] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-xl shadow-sm group-hover:scale-105 transition-transform shrink-0"
-                >
-                  🔒
-                </span>
-              </div>
-            ) : (
-              <div className="rounded-3xl bg-white border-2 border-[#8D4925]/35 p-5 sm:p-6 shadow-xs text-right space-y-4">
-                <button
-                  type="button"
-                  onClick={() => setShowSourceDetails((prev) => !prev)}
-                  className="w-full flex items-center justify-between gap-4 text-right cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-[#8D4925] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#8D4925] via-[#B98A78] to-[#D8755B] text-[#FAF6F0] border-2 border-[#F5D78E] flex items-center justify-center shrink-0 shadow-xs">
                       <BookOpenCheck className="w-6 h-6" />
                     </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
-                          بطاقة المصادر والمراجع التاريخية المجمعة ({(effectiveResult.verified_sources?.length || effectiveResult.secondarySources?.length || 1)} مراجع)
-                        </h3>
-                      </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
+                        المصادر والمراجع التاريخية الموثقة ({Math.max(1, effectiveResult.verified_sources?.length || effectiveResult.secondarySources?.length || 1)} مراجع)
+                      </h3>
+                      <p className="text-xs font-semibold text-[#8D4925] mt-0.5">
+                        تم رصد وتوثيق المراجع التاريخية وأرقام الأجزاء والصفحات الخاصة بعائلة {effectiveResult.familyName}
+                      </p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-[#8D4925] px-3 py-1.5 rounded-xl bg-[#8D4925]/10 shrink-0">
-                    {showSourceDetails ? 'إخفاء التفاصيل ▲' : 'عرض التفاصيل ▼'}
+                  <span
+                    aria-label="مقفل"
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#8D4925] text-white border-2 border-[#FEF3C7] flex items-center justify-center text-lg shadow-sm shrink-0"
+                  >
+                    🔒
+                  </span>
+                </div>
+
+                {/* Blurred Preview of Source Items (Never leaks real book titles in DOM for non-VIP) */}
+                <div
+                  className="space-y-2 rounded-2xl bg-white/75 border border-[#D4AF37]/45 p-3.5 select-none pointer-events-none"
+                  aria-hidden="true"
+                >
+                  {Array.from({
+                    length: Math.min(
+                      3,
+                      Math.max(
+                        1,
+                        effectiveResult.verified_sources?.length ||
+                          effectiveResult.secondarySources?.length ||
+                          2
+                      )
+                    ),
+                  }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-3 bg-[#FAF6F0] px-3.5 py-2.5 rounded-xl border border-[#B98A78]/25"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-[#8D4925]/15 text-[#8D4925] text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-bold text-[#252321] blur-[5px]">
+                          معجم القبائل والأنساب التاريخية الموثق — المجلد {idx + 1} الصفحة ١٤٢
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-[#8D4925] blur-[4px] shrink-0">
+                        ج{idx + 1} / ص٢٤٠
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onUpgradeAnnualVip}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#252321] via-[#3A2E28] to-[#252321] hover:from-[#8D4925] hover:to-[#78350F] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 text-center leading-relaxed"
+                >
+                  <span>
+                    🔒 للاطلاع على أسماء الكتب والمخطوطات وأرقام الأجزاء والصفحات، رقِّ حسابك إلى الباقة السنوية (Premium)
                   </span>
                 </button>
+              </div>
+            ) : (
+              (() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const anyRes = effectiveResult as Record<string, any>;
+                const aggregatedSources = extractUnifiedVerifiedSourcesList({
+                  alphaEvidence:
+                    effectiveResult.corroborating_alpha_evidence_for_researcher ||
+                    effectiveResult.alpha_evidence,
+                  apiVerifiedSourcesList: anyRes.verified_sources_list,
+                  apiVerifiedSources: [
+                    ...(effectiveResult.verified_sources || []),
+                    ...(effectiveResult.secondarySources || []),
+                  ],
+                  fallbackCitation: effectiveResult.verifiedSourceCitation,
+                });
 
-                {showSourceDetails && (
-                  <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
-                    {/* Aggregated Verified Sources List (Books, Volumes & Pages) */}
-                    {(() => {
-                      const aggregatedSources =
-                        effectiveResult.verified_sources && effectiveResult.verified_sources.length > 0
-                          ? effectiveResult.verified_sources
-                          : effectiveResult.secondarySources && effectiveResult.secondarySources.length > 0
-                          ? effectiveResult.secondarySources
-                          : [effectiveResult.verifiedSourceCitation];
+                return (
+                  <div className="rounded-3xl bg-white border-2 border-[#8D4925]/35 p-5 sm:p-6 shadow-xs text-right space-y-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowSourceDetails((prev) => !prev)}
+                      className="w-full flex items-center justify-between gap-4 text-right cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-[#8D4925] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                          <BookOpenCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
+                              المصادر والمراجع التاريخية الموثقة ({aggregatedSources.length} مراجع)
+                            </h3>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-[#8D4925] px-3 py-1.5 rounded-xl bg-[#8D4925]/10 shrink-0">
+                        {showSourceDetails ? 'إخفاء التفاصيل ▲' : 'عرض التفاصيل ▼'}
+                      </span>
+                    </button>
 
-                      return (
+                    {showSourceDetails && (
+                      <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
+                        {/* Aggregated Verified Sources List (Books, Volumes & Pages) */}
                         <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="text-xs font-display font-extrabold text-[#8D4925]">
@@ -1686,22 +1819,26 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                               verified_sources ({aggregatedSources.length})
                             </span>
                           </div>
-                          <ul className="space-y-1.5 text-xs text-[#252321]/90">
-                            {aggregatedSources.map((src: string, i: number) => (
-                              <li
-                                key={i}
-                                className="flex items-start gap-2 bg-white px-3 py-2 rounded-xl border border-[#B98A78]/25 font-semibold"
-                              >
-                                <span className="w-5 h-5 rounded-full bg-[#8D4925]/15 text-[#8D4925] text-[10px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                  {i + 1}
-                                </span>
-                                <span className="leading-relaxed">{src}</span>
-                              </li>
-                            ))}
-                          </ul>
+                          {aggregatedSources.length > 0 ? (
+                            <ul className="space-y-1.5 text-xs text-[#252321]/90">
+                              {aggregatedSources.map((src: string, i: number) => (
+                                <li
+                                  key={i}
+                                  className="flex items-start gap-2 bg-white px-3 py-2 rounded-xl border border-[#B98A78]/25 font-semibold"
+                                >
+                                  <span className="w-5 h-5 rounded-full bg-[#8D4925]/15 text-[#8D4925] text-[10px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                    {i + 1}
+                                  </span>
+                                  <span className="leading-relaxed">{src}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-xs text-[#5C5346] bg-white px-3 py-2 rounded-xl border border-[#B98A78]/25 font-semibold">
+                              توثيق مرجعي معتمد في شجرة آدم للأجداد
+                            </div>
+                          )}
                         </div>
-                      );
-                    })()}
 
                     {/* ======================================================== */}
                     {/* VERIFIED ADDON SOURCES SUBSECTION (VERIFIED_ADDON_SOURCE) */}
@@ -1959,6 +2096,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   </div>
                 )}
               </div>
+                );
+              })()
             )}
           </div>
         )}

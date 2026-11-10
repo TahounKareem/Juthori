@@ -3064,3 +3064,314 @@ export async function resolveSupportTicketInFirebase(
   }
 }
 
+// =============================================================================
+// 11. FAMILY MEMORY VAULT (خزانتي) & TWO-WAY TREE LINKING (شجرتي <-> خزانتي)
+// =============================================================================
+export interface VaultFolderRecord {
+  id: string;
+  name: string;
+  icon: string;
+  colorTheme: 'amber' | 'terracotta' | 'emerald' | 'stone' | 'indigo' | 'rose';
+  description?: string;
+  createdAt: string;
+}
+
+export interface FamilyVaultMediaItem {
+  id: string;
+  title: string;
+  mediaType: 'photo' | 'document';
+  folderId: string;
+  dateOrOccasion: string;
+  description?: string;
+  fileDataUrl: string;
+  fileName?: string;
+  fileMimeType?: string;
+  linkedPersonIds: string[];
+  enhanced: boolean;
+  createdAt: string;
+}
+
+export interface FamilyVaultArchivePayload {
+  folders: VaultFolderRecord[];
+  items: FamilyVaultMediaItem[];
+  updatedAt: string;
+}
+
+export interface TreePersonSummaryForVault {
+  id: string;
+  fullName: string;
+  relationLabel: string;
+  gender: 'male' | 'female';
+  avatarDataUrl?: string;
+  birthYear?: string;
+  isAlive?: boolean;
+}
+
+export const DEFAULT_STARTER_VAULT_FOLDERS: VaultFolderRecord[] = [
+  {
+    id: 'folder_docs',
+    name: 'وثائق وصكوك',
+    icon: '📜',
+    colorTheme: 'amber',
+    description: 'حجج الاستحكام، الصكوك التاريخية، والمخطوطات العائلية',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'folder_ancestors',
+    name: 'صور الأجداد',
+    icon: '📸',
+    colorTheme: 'terracotta',
+    description: 'الصور الفوتوغرافية للأجداد والآباء وأفراد المشجرة',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'folder_homelands',
+    name: 'ديار ومواطن الأسرة',
+    icon: '🏡',
+    colorTheme: 'emerald',
+    description: 'صور المنازل القديمة، المزارع، والبلدات التاريخية للعائلة',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'folder_occasions',
+    name: 'شهادات ومناسبات',
+    icon: '🎖️',
+    colorTheme: 'stone',
+    description: 'الشهادات العلمية، الأوسمة، واللقاءات السنوية للأسرة',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
+function getVaultLocalStorageKey(userId?: string, familyName?: string): string {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeFam = (familyName || 'default').trim().replace(/\s+/g, '_');
+  return safeUid
+    ? `juthori_vault_v2_${safeUid}`
+    : `juthori_vault_v2_fam_${safeFam}`;
+}
+
+export function readVaultArchiveFromLocal(
+  userId?: string,
+  familyName?: string
+): FamilyVaultArchivePayload {
+  if (typeof window === 'undefined') {
+    return {
+      folders: DEFAULT_STARTER_VAULT_FOLDERS,
+      items: [],
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  const key = getVaultLocalStorageKey(userId, familyName);
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<FamilyVaultArchivePayload>;
+      const folders =
+        Array.isArray(parsed.folders) && parsed.folders.length > 0
+          ? parsed.folders
+          : DEFAULT_STARTER_VAULT_FOLDERS;
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      return {
+        folders,
+        items,
+        updatedAt: parsed.updatedAt || new Date().toISOString(),
+      };
+    }
+  } catch {
+    // Ignore parse error
+  }
+  return {
+    folders: DEFAULT_STARTER_VAULT_FOLDERS,
+    items: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchUserVaultArchive(
+  userId?: string,
+  familyName?: string
+): Promise<FamilyVaultArchivePayload> {
+  const localData = readVaultArchiveFromLocal(userId, familyName);
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeUid) {
+    return localData;
+  }
+
+  try {
+    const remoteDoc = await dualGetDoc<{
+      userId: string;
+      peopleJson: string;
+      updatedAt?: string;
+    }>(['users', safeUid, 'family_tree', 'vault_archive']);
+    if (remoteDoc && typeof remoteDoc.peopleJson === 'string') {
+      const parsed = JSON.parse(
+        remoteDoc.peopleJson
+      ) as Partial<FamilyVaultArchivePayload>;
+      if (parsed && (Array.isArray(parsed.items) || Array.isArray(parsed.folders))) {
+        const mergedPayload: FamilyVaultArchivePayload = {
+          folders:
+            Array.isArray(parsed.folders) && parsed.folders.length > 0
+              ? parsed.folders
+              : localData.folders,
+          items:
+            Array.isArray(parsed.items) &&
+            parsed.items.length >= localData.items.length
+              ? parsed.items
+              : localData.items,
+          updatedAt: parsed.updatedAt || localData.updatedAt,
+        };
+        if (typeof window !== 'undefined') {
+          try {
+            window.localStorage.setItem(
+              getVaultLocalStorageKey(userId, familyName),
+              JSON.stringify(mergedPayload)
+            );
+          } catch {
+            // Ignore quota
+          }
+        }
+        return mergedPayload;
+      }
+    }
+  } catch {
+    // Fallback to local
+  }
+
+  return localData;
+}
+
+export async function saveUserVaultArchive(
+  userId: string | undefined,
+  familyName: string | undefined,
+  payload: {
+    folders: VaultFolderRecord[];
+    items: FamilyVaultMediaItem[];
+  }
+): Promise<FamilyVaultArchivePayload> {
+  const record: FamilyVaultArchivePayload = {
+    folders:
+      payload.folders.length > 0
+        ? payload.folders
+        : DEFAULT_STARTER_VAULT_FOLDERS,
+    items: payload.items,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== 'undefined') {
+    const key = getVaultLocalStorageKey(userId, familyName);
+    try {
+      window.localStorage.setItem(key, JSON.stringify(record));
+    } catch {
+      // Ignore quota
+    }
+    window.dispatchEvent(
+      new CustomEvent('juthori:vault-updated', { detail: record })
+    );
+  }
+
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (safeUid) {
+    try {
+      const jsonStr = JSON.stringify(record);
+      if (jsonStr.length <= 480000) {
+        await dualSetDoc(['users', safeUid, 'family_tree', 'vault_archive'], {
+          userId: safeUid,
+          peopleJson: jsonStr,
+          updatedAt: record.updatedAt,
+        });
+      }
+    } catch {
+      // Ignore network/quota error
+    }
+  }
+
+  return record;
+}
+
+export function getTreeStorageKeyForVaultSync(
+  userId?: string,
+  familyName?: string
+): string {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeFam = (familyName || 'default').trim().replace(/\s+/g, '_');
+  return safeUid
+    ? `juthori_tree_nodes_v2_${safeUid}`
+    : `juthori_tree_nodes_v2_fam_${safeFam}`;
+}
+
+export function readSyncedTreePeopleList(
+  userId: string | undefined,
+  fallbackInfo: {
+    clientName: string;
+    fatherName?: string;
+    grandfatherName?: string;
+    familyName: string;
+    rootBranchName?: string;
+    rootTribeName?: string;
+    userAvatarUrl?: string;
+  }
+): TreePersonSummaryForVault[] {
+  const key = getTreeStorageKeyForVaultSync(userId, fallbackInfo.familyName);
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (p: any): TreePersonSummaryForVault => ({
+              id: String(p.id),
+              fullName: String(
+                p.fullName || `${p.firstName || ''} ${p.familyName || ''}`.trim()
+              ),
+              relationLabel: String(p.relationLabel || 'فرد في المشجرة'),
+              gender: p.gender === 'female' ? 'female' : 'male',
+              avatarDataUrl: p.avatarDataUrl || undefined,
+              birthYear: p.birthYear || undefined,
+              isAlive: p.isAlive !== false,
+            })
+          );
+        }
+      }
+    } catch {
+      // Ignore parse error
+    }
+  }
+
+  const cleanFather =
+    fallbackInfo.fatherName && fallbackInfo.fatherName !== '—'
+      ? fallbackInfo.fatherName.trim()
+      : 'الأب';
+  const cleanGrandfather =
+    fallbackInfo.grandfatherName && fallbackInfo.grandfatherName !== '—'
+      ? fallbackInfo.grandfatherName.trim()
+      : 'الجد';
+
+  return [
+    {
+      id: 'node-record-keeper',
+      fullName: `${fallbackInfo.clientName} ${fallbackInfo.familyName}`.trim(),
+      relationLabel: 'أمين السجل',
+      gender: 'male',
+      avatarDataUrl: fallbackInfo.userAvatarUrl,
+      isAlive: true,
+    },
+    {
+      id: 'node-auto-father',
+      fullName: `${cleanFather} ${fallbackInfo.familyName}`.trim(),
+      relationLabel: 'الأب المباشر',
+      gender: 'male',
+      isAlive: true,
+    },
+    {
+      id: 'node-auto-grandfather',
+      fullName: `${cleanGrandfather} ${fallbackInfo.familyName}`.trim(),
+      relationLabel: 'الجد الثاني',
+      gender: 'male',
+      isAlive: false,
+    },
+  ];
+}
+
+

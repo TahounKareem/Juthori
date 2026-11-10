@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   FileText,
   GitMerge,
   GripVertical,
+  Loader2,
   MessageSquare,
   Plus,
   Save,
@@ -51,6 +52,7 @@ import {
   extractBookVolPageFromEvidence,
   extractRawRecordAncestors,
   extractSpecificLocalityTokens,
+  extractUnifiedVerifiedSourcesList,
   filterEvidenceByFamilyAndStrictGeography,
   formatAlphaEvidenceCitation,
   formatAlphaReferenceBadge,
@@ -371,6 +373,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [createdAssignedTicketId, setCreatedAssignedTicketId] = useState<
     string | null
   >(null);
+  const [isDirectSearching, setIsDirectSearching] = useState<boolean>(false);
+  const directSearchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -521,8 +525,18 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     originCountry: string;
     originLocality: string;
   }) => {
+    // Cancel any previous in-flight search immediately so stale requests never block or overwrite
+    if (directSearchAbortRef.current) {
+      directSearchAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    directSearchAbortRef.current = abortController;
+
+    // Instant 0ms loading feedback
+    setIsDirectSearching(true);
     setRawSources([]);
     setRemoteAdamMatchesForDirectSearch([]);
+
     const targetQueryName =
       params.familyName.trim() ||
       params.tribeName.trim() ||
@@ -530,7 +544,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       'غير محدد';
 
     const outerStrippedQuery = targetQueryName
-      .replace(/^(?:عائلة|اسرة|أسرة|قبيلة|عشيرة|فخذ|فرع|آل|ال|بيت|بنو|بني|البو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g, '')
+      .replace(/^(?:عائلة|اسرة|أسرة|قبيلة|عشيرة|فخذ|فرع|آل|ال|بيت|بنو|بني|بنى|البو|ألبو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g, '')
       .trim();
     const kunyaStrippedQuery = outerStrippedQuery
       .replace(/^(?:أبو|ابو|أبي|ابي|بو)\s+/g, '')
@@ -543,8 +557,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       )
     );
 
-    // Query live Adam Tree endpoint in parallel across prefix variants to detect all matching nodes in Adam Master Tree
-    Promise.all(
+    // Execute live Adam Tree endpoint & Alpha Lake lineage search in full parallel
+    const adamSearchPromise = Promise.all(
       uniqueAdamQueries.map((qStr) =>
         fetch(`${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/search`, {
           method: 'POST',
@@ -553,12 +567,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             Accept: 'application/json',
           },
           body: JSON.stringify({ query: qStr, limit: 30 }),
+          signal: abortController.signal,
         })
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null)
       )
     )
       .then((responses) => {
+        if (abortController.signal.aborted) return;
         const mergedById = new Map<string, AdamTreeInteractiveNode>();
         responses.forEach((data) => {
           if (!data) return;
@@ -591,7 +607,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             }
           });
         });
-        if (mergedById.size > 0) {
+        if (mergedById.size > 0 && !abortController.signal.aborted) {
           setRemoteAdamMatchesForDirectSearch(Array.from(mergedById.values()));
         }
       })
@@ -599,33 +615,50 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         // Local Adam Master Tree nodes remain active
       });
 
-    searchJuthoriLineage({
-      accountType: AccountLegalType.Individual,
-      firstName: 'باحث',
-      fatherName: '—',
-      grandfatherName: '—',
-      familyName: targetQueryName,
-      originCountry:
-        params.originCountry === 'غير محدد / كل الدول'
-          ? ''
-          : params.originCountry,
-      originRegion: params.originLocality.trim(),
-      tribeName: params.tribeName.trim(),
-      branchName: params.branchName.trim(),
-      email: '',
-      password: '',
-      agreedToTerms: true,
-    })
+    const alphaLineagePromise = searchJuthoriLineage(
+      {
+        accountType: AccountLegalType.Individual,
+        firstName: 'باحث',
+        fatherName: '—',
+        grandfatherName: '—',
+        familyName: targetQueryName,
+        originCountry:
+          params.originCountry === 'غير محدد / كل الدول'
+            ? ''
+            : params.originCountry,
+        originRegion: params.originLocality.trim(),
+        tribeName: params.tribeName.trim(),
+        branchName: params.branchName.trim(),
+        email: '',
+        password: '',
+        agreedToTerms: true,
+      },
+      undefined,
+      undefined,
+      abortController.signal
+    )
       .then((liveRes) => {
+        if (abortController.signal.aborted) return;
         setDirectSearchResult(liveRes);
         const extracted = extractRawSourcesFromResult(liveRes);
         setRawSources(extracted);
+        setIsDirectSearching(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (abortController.signal.aborted || err?.name === 'AbortError') {
+          return;
+        }
         const unmatchedFallback = runDirectInspectionSearch(params);
         setDirectSearchResult(unmatchedFallback);
         setRawSources([]);
+        setIsDirectSearching(false);
       });
+
+    Promise.allSettled([adamSearchPromise, alphaLineagePromise]).then(() => {
+      if (!abortController.signal.aborted) {
+        setIsDirectSearching(false);
+      }
+    });
   };
 
   const [bosletExpandedSections, setBosletExpandedSections] = useState<{
@@ -5215,6 +5248,83 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     [nodesById]
   );
 
+  // Pre-indexed O(1) child names lookup & pre-normalized Adam Tree nodes index for instant Direct Search rendering
+  const adamChildrenByParentIdMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const n of adamGraphNodes) {
+      if (!n.parent_id) continue;
+      const list = map.get(n.parent_id);
+      if (list) {
+        list.push(n.name);
+      } else {
+        map.set(n.parent_id, [n.name]);
+      }
+    }
+    return map;
+  }, [adamGraphNodes]);
+
+  const preIndexedAdamRecords = useMemo(() => {
+    const seenNodeIds = new Set<string>();
+    const allNodes: AdamTreeInteractiveNode[] = [];
+    for (const n of adamGraphNodes) {
+      if (n && n.node_id && !seenNodeIds.has(n.node_id)) {
+        seenNodeIds.add(n.node_id);
+        allNodes.push(n);
+      }
+    }
+    for (const n of Object.values(MASTER_ADAM_NODES_MAP)) {
+      if (n && n.node_id && !seenNodeIds.has(n.node_id)) {
+        seenNodeIds.add(n.node_id);
+        allNodes.push(n);
+      }
+    }
+    for (const n of remoteAdamMatchesForDirectSearch) {
+      if (n && n.node_id && !seenNodeIds.has(n.node_id)) {
+        seenNodeIds.add(n.node_id);
+        allNodes.push(n);
+      }
+    }
+
+    return allNodes.map((node) => {
+      const cleanNodeTitle = (node.name || '')
+        .replace(/\s*\(#\d+\)\s*$/, '')
+        .trim();
+      const cleaned = cleanNodeTitle
+        .replace(/^(?:عائلة|اسرة|أسرة|قبيلة|عشيرة|فخذ|فرع)\s+/g, '')
+        .trim();
+      const fullNorm = normalizeArabicForSearch(cleaned);
+      const withoutOuterPrefix = normalizeArabicForSearch(
+        cleaned
+          .replace(
+            /^(?:آل|ال|بيت|بنو|بني|بنى|البو|ألبو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g,
+            ''
+          )
+          .trim()
+      );
+      const withoutKunyaPrefix = normalizeArabicForSearch(
+        cleaned
+          .replace(
+            /^(?:آل|ال|بيت|بنو|بني|بنى|البو|ألبو|ذوي|ذوو|أولاد|اولاد|عيال)\s+/g,
+            ''
+          )
+          .replace(/^(?:أبو|ابو|أبي|ابي|بو)\s+/g, '')
+          .trim()
+      );
+      const stem = stemTribeToken(cleaned);
+      const nodeCore = stripPrefixes(cleanNodeTitle);
+      return {
+        node,
+        cleanNodeTitle,
+        nodeCoreEndsWithAt: nodeCore.endsWith('ات'),
+        isCompoundNodeTitle: /\s+(?:بن|ابن)\s+/.test(cleanNodeTitle),
+        fullNorm,
+        withoutOuterPrefix,
+        withoutKunyaPrefix,
+        stem,
+      };
+    });
+  }, [adamGraphNodes, remoteAdamMatchesForDirectSearch]);
+
   const [adamTreeStats, setAdamTreeStats] = useState<{
     totalNodes: number;
     totalCodedNodes: number;
@@ -7326,10 +7436,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      className="w-full py-2.5 px-4 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl text-xs font-extrabold shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      disabled={isDirectSearching}
+                      data-testid="direct-search-submit-btn"
+                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-extrabold transition-all duration-150 flex items-center justify-center gap-2 ${
+                        isDirectSearching
+                          ? 'bg-gradient-to-l from-[#B45309] via-[#D97706] to-[#8D4925] text-white animate-pulse shadow-md ring-2 ring-[#C5A059]/70 cursor-wait'
+                          : 'bg-[#D8755B] hover:bg-[#c5644b] active:scale-[0.98] text-white shadow-2xs cursor-pointer'
+                      }`}
                     >
-                      <Search className="w-4 h-4" />
-                      <span>فحص مسار الجذر</span>
+                      {isDirectSearching ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                          <span>جاري فحص المسار...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 shrink-0" />
+                          <span>فحص مسار الجذر</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -7783,55 +7908,54 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 const queryVars = normalizeAndStripAdamSearchVariants(cleanQueryName);
                 const isCompoundQueryName = /\s+(?:بن|ابن)\s+/.test(cleanQueryName);
+                const queryCoreEndsWithAt = stripPrefixes(cleanQueryName).endsWith('ات');
 
                 const candidateAdamPoolMap = new Map<
                   string,
                   AdamTreeInteractiveNode
                 >();
-                const allKnownAdamNodes: AdamTreeInteractiveNode[] = [
-                  ...adamGraphNodes,
-                  ...Object.values(MASTER_ADAM_NODES_MAP),
-                  ...remoteAdamMatchesForDirectSearch,
-                ];
 
-                for (const node of allKnownAdamNodes) {
-                  if (!node || !node.node_id) continue;
-                  const cleanNodeTitle = (node.name || '')
-                    .replace(/\s*\(#\d+\)\s*$/, '')
-                    .trim();
-                  const nodeVars = normalizeAndStripAdamSearchVariants(cleanNodeTitle);
+                for (const indexed of preIndexedAdamRecords) {
+                  const {
+                    node,
+                    cleanNodeTitle,
+                    nodeCoreEndsWithAt,
+                    isCompoundNodeTitle,
+                    fullNorm,
+                    withoutOuterPrefix,
+                    withoutKunyaPrefix,
+                    stem,
+                  } = indexed;
 
                   // Strict Guard against `(ات)` root collision (e.g. `عرفات` vs `عرف`)
-                  const queryCore = stripPrefixes(cleanQueryName);
-                  const nodeCore = stripPrefixes(cleanNodeTitle);
-                  if (queryCore.endsWith('ات') !== nodeCore.endsWith('ات')) {
+                  if (queryCoreEndsWithAt !== nodeCoreEndsWithAt) {
                     continue;
                   }
 
                   const isExactNorm =
                     Boolean(queryVars.fullNorm) &&
-                    nodeVars.fullNorm === queryVars.fullNorm;
+                    fullNorm === queryVars.fullNorm;
 
                   const isOuterPrefixTolerantMatch =
                     queryVars.withoutOuterPrefix.length >= 3 &&
-                    (nodeVars.fullNorm === queryVars.withoutOuterPrefix ||
-                      nodeVars.withoutOuterPrefix === queryVars.withoutOuterPrefix ||
-                      nodeVars.withoutOuterPrefix === queryVars.fullNorm);
+                    (fullNorm === queryVars.withoutOuterPrefix ||
+                      withoutOuterPrefix === queryVars.withoutOuterPrefix ||
+                      withoutOuterPrefix === queryVars.fullNorm);
 
                   const isKunyaAndStemTolerantMatch =
                     !isCompoundQueryName &&
-                    !/\s+(?:بن|ابن)\s+/.test(cleanNodeTitle) &&
+                    !isCompoundNodeTitle &&
                     ((queryVars.withoutKunyaPrefix.length >= 3 &&
-                      (nodeVars.withoutOuterPrefix === queryVars.withoutKunyaPrefix ||
-                        nodeVars.withoutKunyaPrefix === queryVars.withoutKunyaPrefix)) ||
+                      (withoutOuterPrefix === queryVars.withoutKunyaPrefix ||
+                        withoutKunyaPrefix === queryVars.withoutKunyaPrefix)) ||
                       (queryVars.stem.length >= 3 &&
-                        nodeVars.stem === queryVars.stem));
+                        stem === queryVars.stem));
 
                   if (
-                    matchFamilyName(cleanNodeTitle, cleanQueryName) ||
                     isExactNorm ||
                     isOuterPrefixTolerantMatch ||
-                    isKunyaAndStemTolerantMatch
+                    isKunyaAndStemTolerantMatch ||
+                    matchFamilyName(cleanNodeTitle, cleanQueryName)
                   ) {
                     if (!candidateAdamPoolMap.has(node.node_id)) {
                       candidateAdamPoolMap.set(node.node_id, node);
@@ -7936,9 +8060,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     .map((st) => st.name.replace(/\s*\(#\d+\)\s*$/, '').trim())
                     .filter(Boolean);
 
-                  const directChildNames = adamGraphNodes
-                    .filter((c) => c.parent_id === node.node_id)
-                    .map((c) => c.name);
+                  const directChildNames =
+                    adamChildrenByParentIdMap.get(node.node_id) || [];
                   const documentedBranches = Array.from(
                     new Set([
                       ...(node.enriched_branches || []),
@@ -8351,6 +8474,27 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     directSearchResult.primary_source_of_truth ===
                       'ADAM_MASTER_TREE');
 
+                // Aggregate all contributing historical sources (Books, Volumes, Pages)
+                // across Container 2's stitched path, raw Alpha evidence, Adam Tree node enriched_sources, and server verified_sources_list
+                const effectiveEvidenceForSources =
+                  contributingReferencesForStitchedPath.length > 0
+                    ? contributingReferencesForStitchedPath
+                    : rawEvidenceList;
+
+                const unifiedFinalVerifiedSources =
+                  extractUnifiedVerifiedSourcesList({
+                    alphaEvidence: effectiveEvidenceForSources,
+                    nodeEnrichedSources:
+                      activeAdamCandidate?.node.enriched_sources,
+                    apiVerifiedSourcesList: (directSearchResult as any)
+                      .verified_sources_list,
+                    apiVerifiedSources: [
+                      ...(directSearchResult.verified_sources || []),
+                      ...(directSearchResult.secondarySources || []),
+                    ],
+                    fallbackCitation: directSearchResult.verifiedSourceCitation,
+                  });
+
                 const effectiveFinalResultForShowcase: LineageSearchResult =
                   activeAdamCandidate && isFinalResultFromAdamTree
                     ? {
@@ -8367,11 +8511,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         originRegion:
                           activeAdamCandidate.documentedLocations.join(' · ') ||
                           directSearchResult.originRegion,
-                        verified_sources:
-                          activeAdamCandidate.node.enriched_sources &&
-                          activeAdamCandidate.node.enriched_sources.length > 0
-                            ? activeAdamCandidate.node.enriched_sources
-                            : directSearchResult.verified_sources,
+                        verified_sources: unifiedFinalVerifiedSources,
+                        secondarySources: unifiedFinalVerifiedSources,
+                        corroborating_alpha_evidence_for_researcher:
+                          effectiveEvidenceForSources,
+                        alpha_evidence: effectiveEvidenceForSources,
                         sibling_branches_in_record:
                           activeAdamCandidate.documentedBranches.length > 0
                             ? activeAdamCandidate.documentedBranches
@@ -8425,117 +8569,56 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           })
                         ),
                       }
-                    : directSearchResult;
-
-                const currentSelectedManager =
-                  researchManagersList.find(
-                    (m) => m.id === selectedAssigneeManagerId
-                  ) ||
-                  researchManagersList[0] ||
-                  null;
+                    : {
+                        ...directSearchResult,
+                        verified_sources: unifiedFinalVerifiedSources,
+                        secondarySources: unifiedFinalVerifiedSources,
+                        corroborating_alpha_evidence_for_researcher:
+                          effectiveEvidenceForSources,
+                        alpha_evidence: effectiveEvidenceForSources,
+                      };
 
                 return (
                   <div className="space-y-8">
                     {/* =========================================================
-                        REQUIREMENT 2: MODERN TOP ACTION BAR FOR CREATING & ASSIGNING
-                        RESEARCH TICKET IN RESEARCH OBSERVATORY (مرصد البحوث)
+                        STANDALONE CENTERED TICKET CREATION BUTTON (NO SURROUNDING CARD/BOX)
                     ========================================================= */}
                     <div
                       data-testid="boslet-top-create-ticket-action-bar"
-                      className="rounded-3xl border-2 border-[#C5A059]/85 bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/90 p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-4"
+                      className="flex justify-center my-4"
                     >
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-[#C2410C] text-white flex items-center justify-center text-sm font-extrabold shadow-xs shrink-0">
-                          🟠
-                        </div>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-300 text-orange-900 text-[11px] font-extrabold">
-                              إحالة وإسناد لمخرجات بوصلة الجذور ({finalStitchedStations.length} محطة مخيطة · {rawEvidenceList.length} مصدر)
-                            </span>
-                          </div>
-                          <h4 className="text-sm sm:text-base font-extrabold font-display text-[#252321] mt-0.5">
-                            تحويل مخرجات فحص ({effectiveFinalResultForShowcase.familyName}) إلى تذكرة بحث مسندة في مرصد البحوث
-                          </h4>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3">
-                        {/* Smart Assignment Control (إسناد إلى مدير بحوث) */}
-                        <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-full border border-[#E2DACB] shadow-2xs">
-                          <span className="text-xs font-extrabold text-[#8D4925] whitespace-nowrap">
-                            إسناد إلى مدير بحوث:
-                          </span>
-                          {researchManagersList.length <= 1 ? (
-                            <span
-                              data-testid="auto-assigned-research-manager-badge"
-                              className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-300 text-orange-900 text-xs font-extrabold whitespace-nowrap"
-                            >
-                              إسناد تلقائي إلى:{' '}
-                              {currentSelectedManager?.name || 'كريم طاحون'}
-                            </span>
-                          ) : (
-                            <select
-                              value={
-                                selectedAssigneeManagerId ||
-                                currentSelectedManager?.id ||
-                                ''
-                              }
-                              onChange={(e) =>
-                                setSelectedAssigneeManagerId(e.target.value)
-                              }
-                              className="bg-[#FAF6F0] border border-[#C5A059]/60 text-[#252321] text-xs font-extrabold rounded-full px-3 py-1 focus:outline-none focus:border-[#C2410C] cursor-pointer"
-                            >
-                              {researchManagersList.map((mgr) => (
-                                <option key={mgr.id} value={mgr.id}>
-                                  {mgr.name} ({mgr.role})
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-
-                        {/* Pill/Rounded Modern Ticket Creation Button */}
-                        {!createdAssignedTicketId ? (
-                          <button
-                            type="button"
-                            data-testid="top-create-assigned-ticket-btn"
-                            onClick={() =>
-                              handleTransferDiagnosticToTicketRoom(
-                                effectiveFinalResultForShowcase,
-                                rawEvidenceList,
-                                finalStitchedStations
-                              )
-                            }
-                            className="px-5 py-2.5 rounded-full bg-gradient-to-l from-[#C2410C] via-[#D8755B] to-[#8D4925] hover:from-[#9A3412] hover:to-[#7C2D12] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-                          >
-                            <Plus className="w-4 h-4 shrink-0" />
-                            <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
-                          </button>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              data-testid="created-assigned-ticket-confirm-badge"
-                              className="px-4 py-2 rounded-full bg-emerald-700 text-white text-xs font-extrabold shadow-xs flex items-center gap-1.5"
-                            >
-                              <CheckCircle2 className="w-4 h-4 shrink-0" />
-                              <span>✓ تم إنشاء وإسناد التذكرة في مرصد البحوث</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setInboxCategoryFilter('ASSIGNED_RESEARCH');
-                                setSelectedTicketId(createdAssignedTicketId);
-                                setActiveSubTab('ticket_inbox');
-                                onSelectPortalSection?.('research_studio');
-                              }}
-                              className="px-4 py-2 rounded-full bg-orange-700 hover:bg-orange-800 text-white text-xs font-extrabold cursor-pointer transition-all shadow-2xs"
-                            >
-                              فتح التذكرة في مرصد البحوث ←
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      {!createdAssignedTicketId ? (
+                        <button
+                          type="button"
+                          data-testid="top-create-assigned-ticket-btn"
+                          onClick={() =>
+                            handleTransferDiagnosticToTicketRoom(
+                              effectiveFinalResultForShowcase,
+                              rawEvidenceList,
+                              finalStitchedStations
+                            )
+                          }
+                          className="px-6 py-2.5 rounded-full bg-gradient-to-l from-[#C2410C] via-[#D8755B] to-[#8D4925] hover:from-[#9A3412] hover:to-[#7C2D12] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4 shrink-0" />
+                          <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          data-testid="created-assigned-ticket-confirm-badge"
+                          onClick={() => {
+                            setInboxCategoryFilter('ASSIGNED_RESEARCH');
+                            setSelectedTicketId(createdAssignedTicketId);
+                            setActiveSubTab('ticket_inbox');
+                            onSelectPortalSection?.('research_studio');
+                          }}
+                          className="px-6 py-2.5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
+                        >
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>✓ تم إنشاء التذكرة في مرصد البحوث</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* =========================================================

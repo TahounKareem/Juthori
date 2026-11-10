@@ -1026,6 +1026,28 @@ export function buildIntermediateRingsForSpine(
     }
   }
 
+  // Fold any trailing uncoded nodes above the last coded station (e.g. macro-apexes above B0 like مضر / عدنان / قحطان)
+  // so they NEVER remain without a capsuleId or leak as a 3rd open node in the $5 tier!
+  if (currentGroup.length > 0 && lastCodedNode) {
+    const topTrailingNode = currentGroup[currentGroup.length - 1];
+    const ringId = currentGroup[0].capsuleId || `${customPrefix}-${ringNumber}`;
+    currentGroup.forEach((n) => {
+      n.capsuleId = ringId;
+    });
+    const priceUsd =
+      currentGroup.length >= 6 ? 4 : currentGroup.length >= 4 ? 3 : 2;
+    rings.push({
+      id: ringId,
+      number: ringNumber,
+      title: `حلقات الأجداد الأعلين ${ringNumber} (فوق ${lastCodedNode.name})`,
+      betweenFromOrder: lastCodedNode.orderNumber,
+      betweenToOrder: topTrailingNode.orderNumber,
+      betweenLabel: `فوق ${lastCodedNode.name} حتى ${topTrailingNode.name}`,
+      priceUsd,
+      ancestors: [...currentGroup],
+    });
+  }
+
   return rings;
 }
 
@@ -3606,10 +3628,14 @@ export function extractBookVolPageFromEvidence(
         source_book?: string;
         book_name?: string;
         book?: string;
+        source?: string;
+        reference_name?: string;
+        volume_number?: string | number | null;
         volume?: string | number | null;
+        part?: string | number | null;
         vol?: string | number | null;
-        page?: string | number | null;
         page_number?: string | number | null;
+        page?: string | number | null;
       }
     | string
 ): { book: string; volume: string; page: string } {
@@ -3632,22 +3658,30 @@ export function extractBookVolPageFromEvidence(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyEv = ev as Record<string, any>;
   const rawBook = String(
-    anyEv?.source_book || anyEv?.book_name || anyEv?.book || 'مرجع أنساب موثق'
+    anyEv?.source_book ||
+      anyEv?.book_name ||
+      anyEv?.book ||
+      anyEv?.source ||
+      anyEv?.reference_name ||
+      anyEv?.title ||
+      anyEv?.canonical_title ||
+      'مرجع أنساب موثق'
   ).trim();
+
+  const pickNonEmptyField = (val: unknown): string =>
+    val !== undefined && val !== null && String(val).trim() !== '' && String(val).trim() !== 'null'
+      ? String(val).trim()
+      : '';
+
   const explicitVol =
-    anyEv?.volume !== undefined && anyEv?.volume !== null && String(anyEv.volume).trim() !== ''
-      ? String(anyEv.volume).trim()
-      : anyEv?.vol !== undefined && anyEv?.vol !== null && String(anyEv.vol).trim() !== ''
-      ? String(anyEv.vol).trim()
-      : '';
+    pickNonEmptyField(anyEv?.volume_number) ||
+    pickNonEmptyField(anyEv?.volume) ||
+    pickNonEmptyField(anyEv?.part) ||
+    pickNonEmptyField(anyEv?.vol);
+
   const explicitPage =
-    anyEv?.page !== undefined && anyEv?.page !== null && String(anyEv.page).trim() !== ''
-      ? String(anyEv.page).trim()
-      : anyEv?.page_number !== undefined &&
-        anyEv?.page_number !== null &&
-        String(anyEv.page_number).trim() !== ''
-      ? String(anyEv.page_number).trim()
-      : '';
+    pickNonEmptyField(anyEv?.page_number) ||
+    pickNonEmptyField(anyEv?.page);
 
   const embeddedVolMatch = rawBook.match(/(?:ج|جزء)\s*[:：]?\s*([0-9٠-٩]+)/);
   const embeddedPageMatch = rawBook.match(
@@ -3669,12 +3703,93 @@ export function extractBookVolPageFromEvidence(
 /**
  * Formats a `CorroboratingAlphaEvidence` item into a clean Arabic bibliographic citation
  */
-export function formatAlphaEvidenceCitation(ev: CorroboratingAlphaEvidence): string {
+export function formatAlphaEvidenceCitation(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ev: CorroboratingAlphaEvidence | Record<string, any> | string
+): string {
   const { book, volume, page } = extractBookVolPageFromEvidence(ev);
-  const volPart = volume && volume !== '—' ? `ج${volume}` : '';
-  const pagePart = page && page !== '—' ? `ص${page}` : '';
+  const volPart = volume && volume !== '—' ? `ج${volume}` : 'ج1';
+  const pagePart = page ? `ص${page}` : 'ص—';
   const locBracket = [volPart, pagePart].filter(Boolean).join(' ');
   return locBracket ? `${book} (${locBracket})` : book;
+}
+
+/**
+ * Aggregates and deduplicates all contributing sources from:
+ * - Matching Alpha records (`alphaEvidence`)
+ * - Node enriched sources (`nodeEnrichedSources`)
+ * - Server `verified_sources_list` and `verified_sources`
+ * Reading all possible book/volume/page keys (`source_book || book_name || book || source || reference_name`,
+ * `volume_number || volume || part || '1'`, `page_number || page || '—'`).
+ */
+export function extractUnifiedVerifiedSourcesList(params: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  alphaEvidence?: Array<Partial<CorroboratingAlphaEvidence> | Record<string, any>>;
+  nodeEnrichedSources?: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  apiVerifiedSourcesList?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  apiVerifiedSources?: any[];
+  fallbackCitation?: string;
+}): string[] {
+  const results: string[] = [];
+  const seenKeys = new Set<string>();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const addItem = (item: any) => {
+    if (!item) return;
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      if (
+        !trimmed ||
+        trimmed.includes('🔒') ||
+        trimmed === '—' ||
+        trimmed === 'سجل مشاريع ألفا الموثق متعدد المصادر'
+      ) {
+        return;
+      }
+      const parsed = extractBookVolPageFromEvidence(trimmed);
+      const formatted = formatAlphaEvidenceCitation(parsed);
+      const dedupeKey = `${normalizeArabic(parsed.book)}_${parsed.volume || '1'}_${parsed.page || '—'}`;
+      if (!seenKeys.has(dedupeKey)) {
+        seenKeys.add(dedupeKey);
+        results.push(formatted);
+      }
+      return;
+    }
+    if (typeof item === 'object') {
+      const parsed = extractBookVolPageFromEvidence(item);
+      if (!parsed.book || parsed.book.includes('🔒')) return;
+      const formatted = formatAlphaEvidenceCitation(item);
+      const dedupeKey = `${normalizeArabic(parsed.book)}_${parsed.volume || '1'}_${parsed.page || '—'}`;
+      if (!seenKeys.has(dedupeKey)) {
+        seenKeys.add(dedupeKey);
+        results.push(formatted);
+      }
+    }
+  };
+
+  if (Array.isArray(params.alphaEvidence)) {
+    params.alphaEvidence.forEach(addItem);
+  }
+  if (Array.isArray(params.apiVerifiedSourcesList)) {
+    params.apiVerifiedSourcesList.forEach(addItem);
+  }
+  if (Array.isArray(params.apiVerifiedSources)) {
+    params.apiVerifiedSources.forEach(addItem);
+  }
+  if (Array.isArray(params.nodeEnrichedSources)) {
+    params.nodeEnrichedSources.forEach(addItem);
+  }
+  if (results.length === 0 && params.fallbackCitation) {
+    params.fallbackCitation
+      .split(/\s*\|\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach(addItem);
+  }
+
+  return results;
 }
 
 /**
@@ -3721,13 +3836,56 @@ export const HIGH_APEX_STOP_LIST: string[] = [
   'هاشم',
   'قريش',
   'عدنان',
+  'معد',
+  'نزار',
+  'مضر',
+  'إلياس',
+  'الياس',
+  'خندف',
+  'قيس',
   'قحطان',
+  'يعرب',
+  'سبأ',
+  'سبا',
   'همدان',
   'كهلان',
   'حمير',
-  'مضر',
+  'ربيعة',
   'ربيعه',
 ];
+
+/**
+ * قائمة الأجذام العليا العامة الممنوع اختيارها كعقدة ثانية (القبيلة الأم) في باقة الـ $5
+ * طالما توجد قبيلة أم صريحة قبلها في السلسلة (مثل بني سليم، جهينة، قيس عيلان، هذيل، حرب، الأزد، طيء، تميم، إلخ).
+ */
+export const BANNED_MACRO_APEX_FOR_ROOT_LIST: string[] = [
+  'عدنان',
+  'معد',
+  'نزار',
+  'مضر',
+  'إلياس',
+  'الياس',
+  'خندف',
+  'قحطان',
+  'يعرب',
+  'سبأ',
+  'سبا',
+  'كهلان',
+  'حمير',
+  'ربيعة',
+  'ربيعه',
+];
+
+export function isBannedMacroApexForRoot(name: string): boolean {
+  const norm = normalizeArabicToken(name, true);
+  const stem = normalizeArabicStem(name);
+  if (!norm && !stem) return false;
+  return BANNED_MACRO_APEX_FOR_ROOT_LIST.some((apex) => {
+    const apexNorm = normalizeArabicToken(apex, true);
+    const apexStem = normalizeArabicStem(apex);
+    return norm === apexNorm || stem === apexStem;
+  });
+}
 
 /**
  * Extracts the Researcher-Only Data Lake Badge (`[آدم]`, `[ألفا]`, or `[مشاريع]`)
@@ -5710,11 +5868,20 @@ export function computeCrossSourceConsensusClusters(
 
     const chainTokens = [subjectHeadStation, ...cleanedDisplayNodes];
 
-    const nonApexDisplayNodes = cleanedDisplayNodes.filter(
-      (n) => !isHighApexStopNode(n)
+    const nonMacroApexNodes = cleanedDisplayNodes.filter(
+      (n) => !isBannedMacroApexForRoot(n) && !isHighApexStopNode(n)
+    );
+    const weightedRoots = selectWeightedConsensusTwoRootNodes(
+      subjectHeadStation,
+      chainTokens.slice(1),
+      c.records,
+      c.isChildBranchCluster
+        ? { isChildBranchMatch: true, recordTitleNodeName: c.parentRecordTitle }
+        : undefined
     );
     const dynamicTopOrigin =
-      nonApexDisplayNodes[nonApexDisplayNodes.length - 1] ||
+      weightedRoots.rootB0Name ||
+      nonMacroApexNodes[nonMacroApexNodes.length - 1] ||
       cleanedDisplayNodes[cleanedDisplayNodes.length - 1] ||
       c.originTribeLabel ||
       familyName;
@@ -5726,14 +5893,6 @@ export function computeCrossSourceConsensusClusters(
         ? c.locationTokens.slice(0, 3).join(' / ')
         : c.geographicScope;
 
-    const weightedRoots = selectWeightedConsensusTwoRootNodes(
-      subjectHeadStation,
-      chainTokens.slice(1),
-      c.records,
-      c.isChildBranchCluster
-        ? { isChildBranchMatch: true, recordTitleNodeName: c.parentRecordTitle }
-        : undefined
-    );
     const rootPreview =
       weightedRoots.rootB2Name &&
       weightedRoots.rootB0Name &&
@@ -6191,15 +6350,20 @@ export function calculateAncestorNodeWeightScore(
     structuralScore += 28;
   }
 
-  // 3. Sub-Root (B2 at index 0) and Summit (B0 at top of chain) Anchor Bonuses
+  // 3. Sub-Root (B2 at index 0) and Mother Tribe Anchor Bonuses (excluding banned macro-apexes)
+  const isMacroApex = isBannedMacroApexForRoot(cleaned) || isHighApexStopNode(cleaned);
+  if (isMacroApex) {
+    return frequencyScore + structuralScore - 800;
+  }
+
   const isFirstSubRoot = indexInChain === 0;
   const isLastSummit = indexInChain === totalChainLength - 1;
   const positionBonus = isFirstSubRoot
-    ? 44
+    ? 48
     : isLastSummit
     ? 40
     : indexInChain === totalChainLength - 2
-    ? 18
+    ? 22
     : 0;
 
   return frequencyScore + structuralScore + positionBonus;
@@ -6207,15 +6371,14 @@ export function calculateAncestorNodeWeightScore(
 
 /**
  * Selects the 2 Root Nodes (`B2` and `B0`) from a list of ancestor tokens in ascending order
- * using the Weighted Consensus 2-Node Selection algorithm:
- * - Case A (`isChildBranchMatch` with `recordTitleNodeName`):
- *   Root Node 1 (`B2`) = `recordTitleNodeName` (عقدة السجل الأم نفسه)
- *   Root Node 2 (`B0`) = Highest-weighted node at the top of `lineage_ancestors` (القبيلة الأم)
- * - Case B (Match with the Record itself or a node in `lineage_ancestors`):
- *   Picks the 2 highest-weighted & most-repeated nodes across the sources while strictly preserving
- *   their ascending chronological order (`selectedB2Index < selectedB0Index`).
- * - Requirement 1(ب) Guard: Strictly forbids selecting any ancient macro-apex node from `HIGH_APEX_STOP_LIST`
- *   (such as `قحطان` or `عدنان`) as the Sub-Root / Branch (`B2`) in the middle or start of the chain.
+ * using the strict Weighted Consensus 2-Node Selection methodology (`selectTwoRootNodesByWeight`):
+ * - Node 1 (`B2` — الفرع الجامع / الفخذ القريب):
+ *   The immediate sub-root/branch directly following the family in the stitched chain (`index 0`),
+ *   or `recordTitleNodeName` when matched as a child branch.
+ * - Node 2 (`B0` — القبيلة الأم / الجذم الجامع):
+ *   The overarching Mother Tribe with the highest tribal weight and cross-source frequency in the chain (`idx > selectedB2Index`),
+ *   strictly forbidding general macro-apexes (`عدنان`, `معد`, `نزار`, `مضر`, `إلياس`, `خندف`, `قحطان`, `يعرب`, `سبأ`, `كهلان`, `حمير`)
+ *   whenever an explicit mother tribe exists before them in the chain (e.g., `بني سليم`, `جهينة`, `قيس عيلان`, `هذيل`, `حرب`, etc.).
  */
 export function selectWeightedConsensusTwoRootNodes(
   familyName: string,
@@ -6251,12 +6414,16 @@ export function selectWeightedConsensusTwoRootNodes(
 
   if (options?.isChildBranchMatch && options?.recordTitleNodeName) {
     // Score remaining ancestors to pick the highest-weighted Mother Tribe (B0)
-    // Strictly exclude HIGH_APEX_STOP_LIST nodes (`قحطان` / `عدنان`) when any non-apex ancestor exists
-    const hasNonApex = validAncestors.some((tok) => !isHighApexStopNode(tok));
+    // Strictly exclude BANNED_MACRO_APEX_FOR_ROOT_LIST (`عدنان`, `معد`, `نزار`, `مضر`, `إلياس`, `خندف`, `قحطان`, `يعرب`, `سبأ`, `كهلان`, `حمير`)
+    const hasNonMacroApex = validAncestors.some(
+      (tok) => !isBannedMacroApexForRoot(tok) && !isHighApexStopNode(tok)
+    );
     let bestB0Idx = validAncestors.length - 1;
     let bestB0Score = -Infinity;
     validAncestors.forEach((tok, idx) => {
-      if (hasNonApex && isHighApexStopNode(tok)) {
+      const isForbiddenApex =
+        isBannedMacroApexForRoot(tok) || isHighApexStopNode(tok);
+      if (hasNonMacroApex && isForbiddenApex) {
         return;
       }
       const sc = calculateAncestorNodeWeightScore(
@@ -6280,58 +6447,47 @@ export function selectWeightedConsensusTwoRootNodes(
 
   // Score all valid ancestors
   const scored = validAncestors.map((tok, idx) => {
-    const isApex = isHighApexStopNode(tok);
-    // Strict Guard: Any HIGH_APEX_STOP_LIST node (`قحطان`, `عدنان`) gets heavily penalized
-    // even at the summit of the chain so it is NEVER chosen as B2 or B0 for the customer's $5 Root Card!
+    const isApex =
+      isBannedMacroApexForRoot(tok) || isHighApexStopNode(tok);
     const baseScore = calculateAncestorNodeWeightScore(
       tok,
       idx,
       validAncestors.length,
       corroboratingRecords
     );
-    const adjustedScore = isApex ? baseScore - 500 : baseScore;
     return {
       tok,
       idx,
       isApex,
-      score: adjustedScore,
+      score: baseScore,
     };
   });
 
-  // 1. Pick B0 (Mother Tribe at the upper part/summit of the chain, strictly excluding `قحطان` / `عدنان` when non-apex tribes exist):
-  const nonApexB0Candidates = scored.filter(
-    (item) => item.idx >= 1 && !item.isApex
+  // 1. Node 1 (B2 — الفرع الجامع المباشر الذي يلي العائلة في سلسلة الربط):
+  // Always pick the first non-macro-apex node immediately following the family (`idx === 0`).
+  const firstImmediateNonApex =
+    scored.find((item) => !item.isApex) || scored[0];
+  const b2Item = firstImmediateNonApex;
+
+  // 2. Node 2 (B0 — القبيلة الأم ذات الوزن القبلي والتواتر الأعلى بعد الفرع الجامع):
+  // Strictly forbid general macro-apexes (`عدنان`, `معد`, `نزار`, `مضر`, `إلياس`, `خندف`, `قحطان`, `يعرب`, `سبأ`, `كهلان`, `حمير`)
+  // whenever any explicit tribe/ancestor exists after B2 (`idx > b2Item.idx && !item.isApex`).
+  const nonApexAfterB2 = scored.filter(
+    (item) => item.idx > b2Item.idx && !item.isApex
   );
-  const b0Candidates =
-    nonApexB0Candidates.length > 0
-      ? nonApexB0Candidates
-      : scored.filter((item) => !item.isApex && item.idx >= 0);
-  const sortedForB0 = [
-    ...(b0Candidates.length > 0 ? b0Candidates : scored),
-  ].sort((a, b) => {
+  const allAfterB2 = scored.filter((item) => item.idx > b2Item.idx);
+  const b0Pool =
+    nonApexAfterB2.length > 0
+      ? nonApexAfterB2
+      : allAfterB2.length > 0
+      ? allAfterB2
+      : [b2Item];
+
+  const sortedForB0 = [...b0Pool].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return b.idx - a.idx;
   });
-  const b0Item = sortedForB0[0] || scored[scored.length - 1];
-
-  // 2. Pick B2 (Sub-Root / Branch node below B0):
-  // STRICT RULE: B2 MUST have `idx < b0Item.idx` AND MUST NOT be in `HIGH_APEX_STOP_LIST` (`!item.isApex`)!
-  const b2Candidates = scored.filter(
-    (item) => item.idx < b0Item.idx && !item.isApex
-  );
-  const fallbackB2Candidates = scored.filter((item) => item.idx < b0Item.idx);
-  const effectiveB2Pool =
-    b2Candidates.length > 0
-      ? b2Candidates
-      : fallbackB2Candidates.length > 0
-      ? fallbackB2Candidates
-      : [scored[0]];
-
-  const sortedForB2 = [...effectiveB2Pool].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.idx - b.idx;
-  });
-  const b2Item = sortedForB2[0] || scored[0];
+  const b0Item = sortedForB0[0] || b2Item;
 
   return {
     selectedB2Index: b2Item.idx,
@@ -6340,6 +6496,8 @@ export function selectWeightedConsensusTwoRootNodes(
     rootB0Name: b0Item.tok,
   };
 }
+
+export const selectTwoRootNodesByWeight = selectWeightedConsensusTwoRootNodes;
 
 /**
  * Dynamically builds isolated Alpha spine nodes from a semicolon/dash-delimited
@@ -7947,6 +8105,14 @@ export function parsePort8090UniversalResponse(
           ? tagConsensusWinnersOnEvidence(displayFamilyName, rawDisambigEvidence)
           : [];
 
+      const disambigUnifiedSources = extractUnifiedVerifiedSourcesList({
+        alphaEvidence: taggedDisambigEvidence,
+        apiVerifiedSourcesList:
+          apiData.verified_sources_list || apiData.data?.verified_sources_list,
+        apiVerifiedSources:
+          apiData.verified_sources || apiData.data?.verified_sources,
+      });
+
       const baseDisambigResult: LineageSearchResult = {
         ...localFallback,
         matched: true,
@@ -7957,6 +8123,11 @@ export function parsePort8090UniversalResponse(
         requiresBlindDisambiguation: mappedOptions.length >= 2,
         disambiguation_stage: disambigStage,
         disambiguationOptions: mappedOptions,
+        verified_sources: disambigUnifiedSources,
+        secondarySources: disambigUnifiedSources,
+        verifiedSourceCitation:
+          disambigUnifiedSources.slice(0, 3).join(' | ') ||
+          'سجل مشاريع ألفا الموثق متعدد المصادر',
         alpha_evidence: taggedDisambigEvidence,
         corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
         consensusClusterGroups: disambigClusters,
@@ -8003,6 +8174,14 @@ export function parsePort8090UniversalResponse(
         requiresBlindDisambiguation: mappedOptions.length >= 2,
         disambiguation_stage: disambigStage,
         disambiguationOptions: mappedOptions,
+        verified_sources:
+          optA?.verified_sources && optA.verified_sources.length > 0
+            ? optA.verified_sources
+            : disambigUnifiedSources,
+        secondarySources:
+          optA?.verified_sources && optA.verified_sources.length > 0
+            ? optA.verified_sources
+            : disambigUnifiedSources,
         alpha_evidence: taggedDisambigEvidence,
         corroborating_alpha_evidence_for_researcher: taggedDisambigEvidence,
         consensusClusterGroups: disambigClusters,
@@ -8064,23 +8243,38 @@ export function parsePort8090UniversalResponse(
     const enrichedChain = enrichSpineNodesWithNeo4jRelations(rawChain);
     const rings = buildIntermediateRingsForSpine([...enrichedChain], 'live-adam-ring');
 
-    const rootB2 =
+    const nonMacroAdamChain = enrichedChain
+      .slice(1, Math.max(2, enrichedChain.length - 1))
+      .filter((n) => !isBannedMacroApexForRoot(n.name) && !isHighApexStopNode(n.name));
+
+    const apiCandidateB2 =
       apiData.root_connection_5usd_tier?.subtribe_b2_name &&
-      !String(apiData.root_connection_5usd_tier.subtribe_b2_name).includes('مقفل')
+      !String(apiData.root_connection_5usd_tier.subtribe_b2_name).includes('مقفل') &&
+      !isBannedMacroApexForRoot(String(apiData.root_connection_5usd_tier.subtribe_b2_name))
         ? String(apiData.root_connection_5usd_tier.subtribe_b2_name)
-        : enrichedChain.find((n) => n.code === 'B2' || n.code === 'B3' || n.code === 'B1')?.name ||
-          enrichedChain[1]?.name ||
-          form.branchName.trim() ||
-          '';
+        : '';
+
+    const apiCandidateB0 =
+      apiData.root_connection_5usd_tier?.mother_tribe_b0_name &&
+      !String(apiData.root_connection_5usd_tier.mother_tribe_b0_name).includes('مقفل') &&
+      !isBannedMacroApexForRoot(String(apiData.root_connection_5usd_tier.mother_tribe_b0_name))
+        ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
+        : '';
+
+    const rootB2 =
+      apiCandidateB2 ||
+      nonMacroAdamChain.find((n) => n.code === 'B2' || n.code === 'B3' || n.code === 'B1')?.name ||
+      nonMacroAdamChain[0]?.name ||
+      enrichedChain[1]?.name ||
+      form.branchName.trim() ||
+      '';
 
     const rootB0 =
-      apiData.root_connection_5usd_tier?.mother_tribe_b0_name &&
-      !String(apiData.root_connection_5usd_tier.mother_tribe_b0_name).includes('مقفل')
-        ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
-        : enrichedChain.find((n) => n.code === 'B0')?.name ||
-          form.tribeName.trim() ||
-          enrichedChain[Math.min(3, Math.max(1, enrichedChain.length - 1))]?.name ||
-          rootB2;
+      apiCandidateB0 ||
+      nonMacroAdamChain.find((n) => n.code === 'B0')?.name ||
+      form.tribeName.trim() ||
+      nonMacroAdamChain[Math.min(2, Math.max(0, nonMacroAdamChain.length - 1))]?.name ||
+      rootB2;
 
     const adamNodeId = String(apiData.chain_nodes[0]?.node_id || '272887');
     const resolvedFamName = enrichedChain[0]?.name || displayFamilyName;
@@ -8103,9 +8297,21 @@ export function parsePort8090UniversalResponse(
       adamNodeId
     );
 
-    const mergedVerifiedSources = Array.from(
-      new Set([...(parallelAgg.verified_sources || [])])
-    );
+    const nodeEnrichedSrcs = Array.isArray(
+      apiData.chain_nodes?.[0]?.enriched_sources
+    )
+      ? apiData.chain_nodes[0].enriched_sources.map(String)
+      : MASTER_ADAM_NODES_MAP[adamNodeId]?.enriched_sources || [];
+
+    const mergedVerifiedSources = extractUnifiedVerifiedSourcesList({
+      alphaEvidence: parallelAlphaEvidence,
+      nodeEnrichedSources: nodeEnrichedSrcs,
+      apiVerifiedSourcesList:
+        apiData.verified_sources_list || apiData.data?.verified_sources_list,
+      apiVerifiedSources:
+        apiData.verified_sources || apiData.data?.verified_sources,
+      fallbackCitation: parallelAgg.primaryCitation,
+    });
     const mergedSiblings = Array.from(
       new Set([...(parallelAgg.sibling_branches_in_record || [])])
     );
@@ -8194,15 +8400,14 @@ export function parsePort8090UniversalResponse(
       combinedEvidence
     );
 
-    const apiVerifiedSources: string[] = Array.isArray(apiData.verified_sources)
-      ? apiData.verified_sources.filter(
-          (s: unknown) => typeof s === 'string' && !s.includes('🔒')
-        )
-      : [];
-    const finalVerifiedSources =
-      apiVerifiedSources.length > agg.verified_sources.length
-        ? apiVerifiedSources
-        : agg.verified_sources;
+    const finalVerifiedSources = extractUnifiedVerifiedSourcesList({
+      alphaEvidence: combinedEvidence,
+      apiVerifiedSourcesList:
+        apiData.verified_sources_list || apiData.data?.verified_sources_list,
+      apiVerifiedSources:
+        apiData.verified_sources || apiData.data?.verified_sources,
+      fallbackCitation: agg.primaryCitation,
+    });
 
     const apiSiblings: string[] = Array.isArray(apiData.sibling_branches_in_record)
       ? apiData.sibling_branches_in_record.map(String)
@@ -8290,12 +8495,14 @@ export function parsePort8090UniversalResponse(
 
     const rawB2 =
       apiData.root_connection_5usd_tier?.subtribe_b2_name &&
-      !String(apiData.root_connection_5usd_tier.subtribe_b2_name).includes('مقفل')
+      !String(apiData.root_connection_5usd_tier.subtribe_b2_name).includes('مقفل') &&
+      !isBannedMacroApexForRoot(String(apiData.root_connection_5usd_tier.subtribe_b2_name))
         ? String(apiData.root_connection_5usd_tier.subtribe_b2_name)
         : '';
     const rawB0 =
       apiData.root_connection_5usd_tier?.mother_tribe_b0_name &&
-      !String(apiData.root_connection_5usd_tier.mother_tribe_b0_name).includes('مقفل')
+      !String(apiData.root_connection_5usd_tier.mother_tribe_b0_name).includes('مقفل') &&
+      !isBannedMacroApexForRoot(String(apiData.root_connection_5usd_tier.mother_tribe_b0_name))
         ? String(apiData.root_connection_5usd_tier.mother_tribe_b0_name)
         : '';
 
@@ -8310,7 +8517,7 @@ export function parsePort8090UniversalResponse(
 
     const rootB2Name =
       dynamicSpine.find((n) => n.code === 'B2')?.name ||
-      dynamicSpine[Math.max(1, dynamicSpine.length - 2)]?.name ||
+      dynamicSpine[1]?.name ||
       rawB2 ||
       displayFamilyName;
     const rootB0Name =
@@ -8318,7 +8525,7 @@ export function parsePort8090UniversalResponse(
       dynamicSpine
         .slice(1)
         .reverse()
-        .find((n) => !isHighApexStopNode(n.name))?.name ||
+        .find((n) => !isBannedMacroApexForRoot(n.name) && !isHighApexStopNode(n.name))?.name ||
       rawB0 ||
       rootB2Name;
 
@@ -8733,7 +8940,7 @@ export function buildResolvedLineageFromDisambiguationOption(
             orderNumber: 2,
             name: resolvedB2,
             code: 'B2',
-            rankLabel: 'الفرع الجامع الموثق (الجذر — B2)',
+            rankLabel: 'الفرع الجامع الموثق (الجذر)',
             isCodedStation: true,
             region: regionText,
             eraNote: `الفرع الجامع (${resolvedB2}) المتصل بقبيلة (${resolvedB0}).`,
@@ -8744,7 +8951,7 @@ export function buildResolvedLineageFromDisambiguationOption(
             orderNumber: 3,
             name: resolvedB0,
             code: 'B0',
-            rankLabel: 'القبيلة الأم الموثقة (الجذر — B0)',
+            rankLabel: 'القبيلة الأم الموثقة (الجذر)',
             isCodedStation: true,
             region: regionText,
             eraNote: `الجذم الجامع والقبيلة الأم (${resolvedB0}).`,
@@ -8974,7 +9181,8 @@ function applyDynamicClusterDisambiguation(
 export async function searchJuthoriLineage(
   form: RegistrationFormState,
   geo?: { ip_country: string; ip_city: string },
-  disambiguationChoiceId?: string
+  disambiguationChoiceId?: string,
+  externalSignal?: AbortSignal
 ): Promise<LineageSearchResult> {
   const geoOntology = resolveGeoAdministrativeOntology(
     form.originCountry,
@@ -9012,7 +9220,6 @@ export async function searchJuthoriLineage(
   };
 
   // Build prefix-expanded family name variants (e.g. searching `عرفات` also queries `أولاد عرفات`, and vice versa)
-  // so records stored under `أولاد X` or `آل X` or bare `X` in the database are 100% retrieved!
   const enteredFamilyTrimmed = form.familyName.trim();
   const bareFamilyCore = stripPrefixes(enteredFamilyTrimmed);
   const secondaryFamilyVariants = Array.from(
@@ -9025,14 +9232,20 @@ export async function searchJuthoriLineage(
     )
   );
 
-  // Helper: when the German server returns `requires_disambiguation: true` without
-  // `corroborating_alpha_evidence_for_researcher` or `alpha_evidence`, or when `origin_locality` is set
-  // (where the upstream server might hide general-book records that have empty `locations`),
-  // automatically fetch the resolved payloads for all valid `choice_id` options AND prefix/un-localized variants in parallel!
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hydrateDisambiguationPayloadIfNeeded = async (rawPayload: any, endpointUrl: string, isProxy: boolean) => {
+  // Fast parallel single-wave request runner (Primary + Prefix/Locality Variants in one parallel Promise.all)
+  const runParallelEndpointWave = async (
+    endpointUrl: string,
+    isProxy: boolean
+  ) => {
+    if (externalSignal?.aborted) return null;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fetchSinglePayload = async (bodyObj: Record<string, any>) => {
+      if (externalSignal?.aborted) return null;
+      const controller = new AbortController();
+      const onExternalAbort = () => controller.abort();
+      externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+      const timer = setTimeout(() => controller.abort(), 6500);
       try {
         const res = await fetch(endpointUrl, {
           method: 'POST',
@@ -9041,73 +9254,93 @@ export async function searchJuthoriLineage(
             Accept: 'application/json',
           },
           body: JSON.stringify(bodyObj),
+          signal: controller.signal,
         });
+        clearTimeout(timer);
+        externalSignal?.removeEventListener('abort', onExternalAbort);
         if (!res.ok) return null;
         const json = await res.json();
+        if (isProxy && json?.source !== 'live_german_engine') return null;
         return isProxy ? json?.data : json?.data || json;
       } catch {
+        clearTimeout(timer);
+        externalSignal?.removeEventListener('abort', onExternalAbort);
         return null;
       }
     };
 
-    // Fetch prefix variants AND (when `explicitOriginLocality` is set) an un-localized probe (`origin_locality: null`)
-    // so general-book records with empty `locations` are never silently dropped before `filterEvidenceByFamilyAndStrictGeography`!
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let prefixVariantPayloads: any[] = [];
-    if (!disambiguationChoiceId) {
-      const parallelBodies: Array<Record<string, unknown>> = [
-        ...secondaryFamilyVariants.map((variantFamily) => ({
-          ...requestPayload,
-          family_name: variantFamily,
-        })),
-        ...(explicitOriginLocality
-          ? [
-              {
-                ...requestPayload,
-                origin_locality: null,
-              },
-            ]
-          : []),
-      ];
+    const parallelBodies: Array<Record<string, unknown>> = [
+      requestPayload,
+      ...(!disambiguationChoiceId
+        ? [
+            ...secondaryFamilyVariants.map((variantFamily) => ({
+              ...requestPayload,
+              family_name: variantFamily,
+            })),
+            ...(explicitOriginLocality
+              ? [
+                  {
+                    ...requestPayload,
+                    origin_locality: null,
+                  },
+                ]
+              : []),
+          ]
+        : []),
+    ];
 
-      if (parallelBodies.length > 0) {
-        try {
-          const variantResList = await Promise.all(
-            parallelBodies.map((b) => fetchSinglePayload(b))
-          );
-          prefixVariantPayloads = variantResList.filter(
-            (r) => r && typeof r === 'object'
-          );
-        } catch {
-          // ignore secondary variant errors
-        }
+    const waveResults = await Promise.all(
+      parallelBodies.map((b) => fetchSinglePayload(b))
+    );
+
+    const rawPayload = waveResults[0];
+    const prefixVariantPayloads = waveResults
+      .slice(1)
+      .filter((r) => r && typeof r === 'object');
+
+    const basePayload =
+      rawPayload && typeof rawPayload === 'object'
+        ? rawPayload
+        : prefixVariantPayloads[0] || null;
+
+    if (!basePayload) return null;
+
+    // Check if initial wave already returned raw evidence records
+    const initialWaveHasEvidence = [basePayload, ...prefixVariantPayloads].some(
+      (p) => {
+        const ev =
+          p?.alpha_evidence ||
+          p?.corroborating_alpha_evidence_for_researcher ||
+          p?.raw_sources ||
+          [];
+        return Array.isArray(ev) && ev.length > 0;
       }
-    }
+    );
 
-    // Collect any `disambiguation_modal.options` across `rawPayload` and `prefixVariantPayloads`
-    const allDisambigChoiceIds = new Set<string>();
-    for (const candidatePayload of [rawPayload, ...prefixVariantPayloads]) {
-      if (
-        candidatePayload &&
-        Array.isArray(candidatePayload.disambiguation_modal?.options)
-      ) {
-        for (const o of candidatePayload.disambiguation_modal.options) {
-          const cid = String(o?.choice_id || '');
-          if (
-            cid &&
-            cid !== 'NEED_LOCATION_STEP' &&
-            cid !== 'NOT_SURE_ESCALATE_P1'
-          ) {
-            allDisambigChoiceIds.add(cid);
+    // Only fire optionPayloads if disambiguation options exist AND initial wave lacked raw evidence
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let optionPayloads: any[] = [];
+    if (!disambiguationChoiceId && !initialWaveHasEvidence) {
+      const allDisambigChoiceIds = new Set<string>();
+      for (const candidatePayload of [basePayload, ...prefixVariantPayloads]) {
+        if (
+          candidatePayload &&
+          Array.isArray(candidatePayload.disambiguation_modal?.options)
+        ) {
+          for (const o of candidatePayload.disambiguation_modal.options) {
+            const cid = String(o?.choice_id || '');
+            if (
+              cid &&
+              cid !== 'NEED_LOCATION_STEP' &&
+              cid !== 'NOT_SURE_ESCALATE_P1'
+            ) {
+              allDisambigChoiceIds.add(cid);
+            }
           }
         }
       }
-    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let optionPayloads: any[] = [];
-    if (!disambiguationChoiceId && allDisambigChoiceIds.size > 0) {
-      try {
+      if (allDisambigChoiceIds.size > 0) {
         const optionResponses = await Promise.all(
           Array.from(allDisambigChoiceIds).map((cid) =>
             fetchSinglePayload({
@@ -9120,13 +9353,11 @@ export async function searchJuthoriLineage(
         optionPayloads = optionResponses.filter(
           (r) => r && typeof r === 'object'
         );
-      } catch {
-        // Keep original rawPayload if follow-up probe fails
       }
     }
 
     const allPayloadsToMerge = [
-      rawPayload,
+      basePayload,
       ...optionPayloads,
       ...prefixVariantPayloads,
     ].filter((r) => r && typeof r === 'object');
@@ -9138,12 +9369,14 @@ export async function searchJuthoriLineage(
         const evArr =
           resObj.alpha_evidence ||
           resObj.corroborating_alpha_evidence_for_researcher ||
+          resObj.raw_sources ||
           [];
         if (Array.isArray(evArr)) {
           for (const item of evArr) {
+            const parsedRef = extractBookVolPageFromEvidence(item);
             const key = String(
               item?.alpha_id ||
-                `${item?.source_book || ''}_${item?.volume || ''}_${item?.page || ''}_${item?.record_name || ''}`
+                `${parsedRef.book}_${parsedRef.volume}_${parsedRef.page}_${item?.record_name || ''}`
             );
             if (!mergedEvidenceMap.has(key)) {
               mergedEvidenceMap.set(key, item);
@@ -9153,87 +9386,51 @@ export async function searchJuthoriLineage(
       }
       const allMergedEvidence = Array.from(mergedEvidenceMap.values());
       if (allMergedEvidence.length > 0) {
-        const primaryResolved = optionPayloads[0] || prefixVariantPayloads[0] || rawPayload;
+        const primaryResolved =
+          optionPayloads[0] || prefixVariantPayloads[0] || basePayload;
         return {
           ...primaryResolved,
-          ...rawPayload,
+          ...basePayload,
           alpha_evidence: allMergedEvidence,
           corroborating_alpha_evidence_for_researcher: allMergedEvidence,
           verified_sources:
-            rawPayload.verified_sources || primaryResolved.verified_sources,
+            basePayload.verified_sources || primaryResolved.verified_sources,
+          verified_sources_list:
+            basePayload.verified_sources_list ||
+            primaryResolved.verified_sources_list,
           full_stitched_lineage_for_researcher:
-            rawPayload.full_stitched_lineage_for_researcher ||
+            basePayload.full_stitched_lineage_for_researcher ||
             primaryResolved.full_stitched_lineage_for_researcher,
           root_connection_5usd_tier:
-            rawPayload.root_connection_5usd_tier ||
+            basePayload.root_connection_5usd_tier ||
             primaryResolved.root_connection_5usd_tier,
           background_researcher_ticket:
-            rawPayload.background_researcher_ticket ||
+            basePayload.background_researcher_ticket ||
             primaryResolved.background_researcher_ticket,
         };
       }
     }
 
-    return rawPayload;
+    return basePayload;
   };
 
-  // Attempt 1: Direct HTTPS call to German Engine Tunnel (https://yes-poems-tennessee-condo.trycloudflare.com/api/v1/juthori/lineage-search)
-  try {
-    const directController = new AbortController();
-    const directTimer = setTimeout(() => directController.abort(), 15000);
-    const directRes = await fetch(DIRECT_ENGINE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(requestPayload),
-      signal: directController.signal,
-    });
-    clearTimeout(directTimer);
+  // Attempt 1: Direct HTTPS call to German Engine Tunnel in a single parallel wave
+  const directHydrated = await runParallelEndpointWave(
+    DIRECT_ENGINE_URL,
+    false
+  );
+  if (directHydrated) {
+    return parsePort8090UniversalResponse(directHydrated, form);
+  }
 
-    if (directRes.ok) {
-      const directJson = await directRes.json();
-      const rawPayload = directJson?.data || directJson;
-      if (rawPayload && typeof rawPayload === 'object') {
-        const hydratedPayload = await hydrateDisambiguationPayloadIfNeeded(
-          rawPayload,
-          DIRECT_ENGINE_URL,
-          false
-        );
-        return parsePort8090UniversalResponse(hydratedPayload, form);
-      }
-    }
-  } catch {
-    // Proceed to Attempt 2 (server-side proxy)
+  if (externalSignal?.aborted) {
+    return resolveDeterministicLineage(form, 'neo4j_verified_graph');
   }
 
   // Attempt 2: Server-side proxy to German Engine
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    const proxyRes = await fetch(PROXY_ENGINE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestPayload),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-
-    if (proxyRes.ok) {
-      const json = await proxyRes.json();
-      if (json && json.source === 'live_german_engine' && json.data) {
-        const hydratedData = await hydrateDisambiguationPayloadIfNeeded(
-          json.data,
-          PROXY_ENGINE_URL,
-          true
-        );
-        const parsed = parsePort8090UniversalResponse(hydratedData, form);
-        return parsed;
-      }
-    }
-  } catch {
-    // Return clean unmatched Tier-4 state if both API routes are unreachable
+  const proxyHydrated = await runParallelEndpointWave(PROXY_ENGINE_URL, true);
+  if (proxyHydrated) {
+    return parsePort8090UniversalResponse(proxyHydrated, form);
   }
 
   return resolveDeterministicLineage(form, 'neo4j_verified_graph');
@@ -10661,6 +10858,30 @@ export function isAdamNodeStructurallyCoded(node: AdamTreeInteractiveNode): bool
   return VALID_STRUCTURAL_ARC_CODES.has(code);
 }
 
+const adamChildrenMapWeakCache = new WeakMap<
+  AdamTreeInteractiveNode[],
+  Map<string, AdamTreeInteractiveNode[]>
+>();
+
+function getOrBuildAdamChildrenMap(
+  allNodes: AdamTreeInteractiveNode[]
+): Map<string, AdamTreeInteractiveNode[]> {
+  const cached = adamChildrenMapWeakCache.get(allNodes);
+  if (cached) return cached;
+  const map = new Map<string, AdamTreeInteractiveNode[]>();
+  for (const n of allNodes) {
+    if (!n.parent_id) continue;
+    const bucket = map.get(n.parent_id);
+    if (bucket) {
+      bucket.push(n);
+    } else {
+      map.set(n.parent_id, [n]);
+    }
+  }
+  adamChildrenMapWeakCache.set(allNodes, map);
+  return map;
+}
+
 export function resolveAdamTreeChildren(
   parentId: string,
   allNodesOrMap: AdamTreeInteractiveNode[] | Record<string, AdamTreeInteractiveNode>,
@@ -10669,11 +10890,11 @@ export function resolveAdamTreeChildren(
   const allNodes: AdamTreeInteractiveNode[] = Array.isArray(allNodesOrMap)
     ? allNodesOrMap
     : Object.values(allNodesOrMap);
+  const childrenMap = getOrBuildAdamChildrenMap(allNodes);
 
   const deduplicateById = (
     items: Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }>
   ): Array<{ node: AdamTreeInteractiveNode; skippedGenerations: number }> => {
-    // Prefer higher numeric node_ids from the live German Neo4j engine over legacy low local seed IDs when two sibling nodes share the same canonical name
     const sorted = [...items].sort((a, b) => {
       const idA = Number(a.node?.node_id) || 0;
       const idB = Number(b.node?.node_id) || 0;
@@ -10697,7 +10918,7 @@ export function resolveAdamTreeChildren(
     return out;
   };
 
-  const direct = allNodes.filter((n) => n.parent_id === parentId);
+  const direct = childrenMap.get(parentId) || [];
   if (!codedOnly) {
     return deduplicateById(
       direct.map((node) => ({ node, skippedGenerations: 0 }))
@@ -10708,7 +10929,7 @@ export function resolveAdamTreeChildren(
   const visited = new Set<string>([parentId]);
 
   const traverseDown = (currentParentId: string, skippedCount: number) => {
-    const children = allNodes.filter((n) => n.parent_id === currentParentId);
+    const children = childrenMap.get(currentParentId) || [];
     for (const child of children) {
       if (visited.has(child.node_id)) continue;
       visited.add(child.node_id);
