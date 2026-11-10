@@ -215,6 +215,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [supportSent, setSupportSent] = useState(false);
   const [supportError, setSupportError] = useState('');
 
+  // Always start from the very top when opening any public page
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [activePublicPage]);
+
   useEffect(() => {
     const loadPublished = () => {
       fetchKnowledgeArticlesFromFirebase(true)

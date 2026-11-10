@@ -302,6 +302,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   };
 
   useEffect(() => {
+    fetchAllTeamMembersFromFirebase()
+      .then((fetched) => {
+        if (fetched && fetched.length > 0) {
+          setStaffList(fetched);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (loggedInMember) {
       refreshAllFirebaseData();
     }
@@ -334,6 +344,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
   const [articleModalTab, setArticleModalTab] = useState<'edit' | 'preview'>('edit');
   const [previewKnowledgeCenter, setPreviewKnowledgeCenter] = useState(false);
+
+  // Always start from the very top when opening any Admin tab or switching login/preview state
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [activeTab, loggedInMember, previewKnowledgeCenter]);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [articleTitle, setArticleTitle] = useState('');
   const [articleType, setArticleType] = useState<KnowledgeContentType>('مقال');
@@ -551,20 +570,61 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     }
   };
 
-  // Handle /Team Staff Login
+  // Handle /Team Staff Login — Immediate redirect to Command Hub without requiring refresh
   const handleTeamLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
-    if (!loginEmail.trim() || !loginPassword.trim()) {
+    const cleanEmail = loginEmail.trim().toLowerCase();
+    const cleanPass = loginPassword.trim();
+    if (!cleanEmail || !cleanPass) {
       setLoginError('يرجى إدخال البريد الإلكتروني وكلمة المرور الخاصة بفريق الإدارة.');
+      return;
+    }
+
+    const completeLoginRedirect = (authenticatedMember: TeamMemberRecord) => {
+      const nowStr = formatArabicLoginTimestamp();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(
+          TEAM_SESSION_KEY,
+          JSON.stringify(authenticatedMember)
+        );
+        localStorage.setItem(TEAM_LAST_LOGIN_TS_KEY, nowStr);
+      }
+      const nextQuoteOffset = incrementWisdomLoginCounter();
+      setWisdomLoginOffset(nextQuoteOffset);
+      setLastLoginTimestamp(nowStr);
+      setPreviewRoleOverride(null);
+      setPreviewKnowledgeCenter(false);
+      setActiveTab('command_hub');
+      setLoginPassword('');
+      setLoggedInMember(authenticatedMember);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    };
+
+    // 1. Instant in-memory check against pre-loaded staffList / Founding Maestro (< 5ms)
+    const cachedMatch = staffList.find(
+      (m) => m.email.trim().toLowerCase() === cleanEmail
+    );
+    if (
+      cachedMatch &&
+      cachedMatch.status === 'نشط' &&
+      (cachedMatch.passwordHash === cleanPass ||
+        (cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() &&
+          cleanPass === 'Kareem123@'))
+    ) {
+      completeLoginRedirect(cachedMatch);
       return;
     }
 
     setIsLoggingIn(true);
     try {
       const { member, error } = await authenticateTeamMemberInFirebase(
-        loginEmail,
-        loginPassword
+        cleanEmail,
+        cleanPass
       );
       if (!member || error) {
         setLoginError(error || 'بيانات الدخول غير صحيحة.');
@@ -572,17 +632,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         return;
       }
 
-      setLoggedInMember(member);
-      const nowStr = formatArabicLoginTimestamp();
-      setLastLoginTimestamp(nowStr);
-      setPreviewRoleOverride(null);
-      const nextQuoteOffset = incrementWisdomLoginCounter();
-      setWisdomLoginOffset(nextQuoteOffset);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(TEAM_SESSION_KEY, JSON.stringify(member));
-        localStorage.setItem(TEAM_LAST_LOGIN_TS_KEY, nowStr);
-      }
-      setActiveTab('command_hub');
+      completeLoginRedirect(member);
     } catch {
       setLoginError('تعذر الاتصال بخدمة المصادقة الإدارية.');
     } finally {
@@ -593,9 +643,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const handleTeamLogout = () => {
     setLoggedInMember(null);
     setPreviewRoleOverride(null);
+    setActiveTab('command_hub');
     setLoginPassword('');
+    setLoginError(null);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(TEAM_SESSION_KEY);
+      if (window.location.pathname.toLowerCase() !== '/team') {
+        window.history.replaceState({}, '', '/team');
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
   };
 
@@ -827,136 +883,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   }, [orders, knowledgeArticles, supportTickets, charterRequests]);
 
   // ===========================================================================
-  // RENDER 1: INDEPENDENT /Team LOGIN GATEWAY (When unauthenticated)
+  // DERIVED ROLE & RADAR METRICS (Computed unconditionally before early return)
   // ===========================================================================
-  if (!loggedInMember) {
-    return (
-      <div
-        dir="rtl"
-        className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col justify-between p-6 relative overflow-hidden"
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(216,117,91,0.12),transparent_65%)]" />
-
-        {/* Top Bar */}
-        <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
-            <span className="px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
-              بوابة الإدارة الرئيسية
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onBackToPlatform}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/45 text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
-          >
-            <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
-            <span>العودة لواجهة المنصة</span>
-          </button>
-        </header>
-
-        {/* Center Login Card */}
-        <main className="relative z-10 max-w-md w-full mx-auto my-auto py-8">
-          <div className="rounded-3xl bg-white border border-[#B98A78]/40 p-7 sm:p-8 shadow-xl">
-            <div className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 flex items-center justify-center text-[#D8755B] mb-5">
-              <Lock className="w-6 h-6" />
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-bold font-display text-[#252321]">
-              تسجيل دخول فريق العمل (/Team)
-            </h1>
-            <p className="text-xs text-[#6E6456] mt-1.5 leading-relaxed">
-              بوابة الإدارة والبحوث والتحرير المعرفي معزولة بالكامل عن واجهة العملاء وتخضع لصلاحيات الأدوار الخمسة في Firebase.
-            </p>
-
-            {loginError && (
-              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
-                {loginError}
-              </div>
-            )}
-
-            <form onSubmit={handleTeamLogin} className="mt-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                  البريد الإلكتروني الإداري
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    dir="ltr"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="name@adamresearchcenter.net"
-                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                  كلمة المرور
-                </label>
-                <div className="relative">
-                  <KeyRound className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    dir="ltr"
-                    required
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="w-full py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-bold text-sm shadow-md transition cursor-pointer disabled:opacity-50"
-              >
-                {isLoggingIn ? 'جاري التحقق من الصلاحيات...' : 'دخول بوابة الفريق (/Team)'}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-5 border-t border-[#EFEAE0]">
-              <div className="text-[11px] font-bold text-[#8D4925] mb-2">
-                الأدوار الإدارية المعتمدة في المنظومة:
-              </div>
-              <div className="flex flex-wrap gap-1.5 text-[10px] text-[#5C5346]">
-                {ALL_TEAM_ROLES.map((role) => (
-                  <span
-                    key={role}
-                    className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#E2DACB] font-bold"
-                  >
-                    {role}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </main>
-
-        <footer className="relative z-10 text-center text-[11px] text-[#6E6456] font-bold">
-          منصة جذوري للأنساب العربية الموثقة · منظومة الإدارة والعمليات المحمية (/Team)
-        </footer>
-      </div>
-    );
-  }
-
-  // ===========================================================================
-  // RENDER 2: AUTHENTICATED /Team PORTAL (Role-Based Command Hub & Launchpad)
-  // ===========================================================================
+  const currentMemberRole: TeamRoleType = loggedInMember?.role || 'المايسترو';
   const isMaestroOrGeneralManager =
-    loggedInMember.role === 'المايسترو' || loggedInMember.role === 'مدير عام';
+    currentMemberRole === 'المايسترو' || currentMemberRole === 'مدير عام';
 
   const effectiveHubRole: TeamRoleType =
     isMaestroOrGeneralManager && previewRoleOverride
       ? previewRoleOverride
-      : loggedInMember.role;
+      : currentMemberRole;
 
   const researcherKpi = loadResearcherKpiTelemetry();
   const completedResearchTicketsToday =
@@ -1271,6 +1207,132 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     publishedArticlesCount,
     draftArticlesCount,
   ]);
+
+  // ===========================================================================
+  // RENDER 1: INDEPENDENT /Team LOGIN GATEWAY (When unauthenticated)
+  // ===========================================================================
+  if (!loggedInMember) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col justify-between relative overflow-hidden"
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(216,117,91,0.12),transparent_65%)]" />
+
+        {/* Top Bar */}
+        <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between px-6 pt-6 py-2">
+          <div className="flex items-center gap-3">
+            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+            <span className="px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
+              بوابة الإدارة الرئيسية
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onBackToPlatform}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/45 text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
+          >
+            <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
+            <span>العودة لواجهة المنصة</span>
+          </button>
+        </header>
+
+        {/* Center Login Card */}
+        <main className="relative z-10 max-w-md w-full mx-auto my-auto px-6 py-8">
+          <div className="rounded-3xl bg-white border border-[#B98A78]/40 p-7 sm:p-8 shadow-xl">
+            <div className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 flex items-center justify-center text-[#D8755B] mb-5">
+              <Lock className="w-6 h-6" />
+            </div>
+
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-[#252321]">
+              تسجيل دخول فريق العمل
+            </h1>
+            <p className="text-xs text-[#6E6456] mt-1.5 leading-relaxed">
+              بوابة الإدارة والبحوث والتحرير
+            </p>
+
+            {loginError && (
+              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleTeamLogin} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                  البريد الإلكتروني الإداري
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    dir="ltr"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="name@adamresearchcenter.net"
+                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                  كلمة المرور
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    dir="ltr"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-bold text-sm shadow-md transition cursor-pointer disabled:opacity-50"
+              >
+                {isLoggingIn ? 'جاري التحقق من الصلاحيات...' : 'دخول بوابة الفريق (/Team)'}
+              </button>
+            </form>
+          </div>
+        </main>
+
+        {/* Quiet Editorial Footer (Matches Platform Homepage Footer) */}
+        <footer className="relative z-10 border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 w-full">
+          <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center text-center space-y-3.5">
+              <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+
+              <p className="text-sm sm:text-base font-display font-bold text-[#252321] pt-1">
+                ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
+              </p>
+
+              <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed font-sans">
+                تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
+              </p>
+
+              <p className="text-xs sm:text-sm text-[#252321]/75 font-sans" dir="rtl">
+                منصة الأنساب والإرث العائلي العربي — juthori.com
+              </p>
+
+              <p className="text-xs text-[#252321]/70 font-sans" dir="rtl">
+                جميع الحقوق محفوظة. جذوري © 2026
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col">
@@ -2483,6 +2545,31 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </div>
           )}
       </main>
+
+      {/* Quiet Editorial Footer (Matches Platform Homepage Footer) */}
+      <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 mt-auto">
+        <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center space-y-3.5">
+            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+
+            <p className="text-sm sm:text-base font-display font-bold text-[#252321] pt-1">
+              ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
+            </p>
+
+            <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed font-sans">
+              تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
+            </p>
+
+            <p className="text-xs sm:text-sm text-[#252321]/75 font-sans" dir="rtl">
+              منصة الأنساب والإرث العائلي العربي — juthori.com
+            </p>
+
+            <p className="text-xs text-[#252321]/70 font-sans" dir="rtl">
+              جميع الحقوق محفوظة. جذوري © 2026
+            </p>
+          </div>
+        </div>
+      </footer>
 
       {/* =======================================================================
           MODAL 1: Add & Invite New Staff Member (/Team)

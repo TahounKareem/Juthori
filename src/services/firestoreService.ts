@@ -1109,16 +1109,45 @@ function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
 
 export async function fetchAllResearchTicketsForStaff(): Promise<ResearchTicketData[]> {
   const all = await dualGetCollection<ResearchTicketData>('research_tickets');
+  const sortedAll = [...all].sort((a, b) =>
+    (b.updatedAt || b.openedAt || '').localeCompare(
+      a.updatedAt || a.openedAt || ''
+    )
+  );
+
   const validTickets: ResearchTicketData[] = [];
-  for (const t of all) {
+  const seenTicketKeys = new Set<string>();
+
+  for (const t of sortedAll) {
     if (isHardcodedOrDummyTicket(t)) {
       if (t?.id) {
         dualDeleteDoc(['research_tickets', t.id]).catch(() => {});
       }
       continue;
     }
+
+    const ticketNumKey = String(t.ticketNumber || t.id || '')
+      .trim()
+      .replace(/^#/, '')
+      .toLowerCase();
+    const docIdKey = String(t.id || '').trim().toLowerCase();
+
+    if (
+      (ticketNumKey && seenTicketKeys.has(ticketNumKey)) ||
+      (docIdKey && seenTicketKeys.has(docIdKey))
+    ) {
+      // Remove duplicate ticket document in background
+      if (t?.id) {
+        dualDeleteDoc(['research_tickets', t.id]).catch(() => {});
+      }
+      continue;
+    }
+
+    if (ticketNumKey) seenTicketKeys.add(ticketNumKey);
+    if (docIdKey) seenTicketKeys.add(docIdKey);
     validTickets.push(t);
   }
+
   return validTickets.sort((a, b) =>
     (b.openedAt || '').localeCompare(a.openedAt || '')
   );
@@ -1865,12 +1894,20 @@ export async function authenticateTeamMemberInFirebase(
     return { member: FOUNDING_MAESTRO_MEMBER };
   }
 
-  // 2. Fast Parallel Lookup for Team Members (~150ms)
+  // 2. Fast Direct Canonical Doc Lookup (~80ms) with Collection Fallback
   try {
-    const members = await fetchAllTeamMembersFromFirebase();
-    const matched = members.find(
-      (m) => m.email.trim().toLowerCase() === cleanEmail
-    );
+    const canonicalDocId = getTeamMemberDocIdByEmail(cleanEmail);
+    let matched = await dualGetDoc<TeamMemberRecord>([
+      'team_members',
+      canonicalDocId,
+    ]);
+
+    if (!matched || !matched.email) {
+      const members = await fetchAllTeamMembersFromFirebase();
+      matched =
+        members.find((m) => m.email.trim().toLowerCase() === cleanEmail) || null;
+    }
+
     if (!matched) {
       return {
         member: null,

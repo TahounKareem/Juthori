@@ -212,6 +212,15 @@ export function App() {
     };
   }, []);
 
+  // Reset scroll position to the very top whenever any top-level view or search screen changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [activeView, isSearching, searchStep]);
+
   // Persist active customer session in localStorage so page refresh or returning visitor stays on CustomerDashboard
   useEffect(() => {
     if (typeof window === 'undefined') return;

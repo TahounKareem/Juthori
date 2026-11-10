@@ -152,6 +152,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     setVerifiedResultOverride(null);
   }, [result.familyName]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [activeTab, stateMode]);
+
   const activeResult = verifiedResultOverride || result;
 
   // User Avatar Dropdown Menu State

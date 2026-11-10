@@ -309,6 +309,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
   }, [activePortalSection]);
 
+  // Always start from the very top when switching between Boslet Al-Juthor, Research Observatory, and Adam Tree
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [activeSubTab, activePortalSection]);
+
   const [toastBanner, setToastBanner] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastBanner(msg);
@@ -1521,7 +1530,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           hydratedList.push(built);
         }
 
-        setTickets(hydratedList);
+        // Strictly deduplicate hydrated tickets by normalized id so React never encounters duplicate keys
+        const uniqueHydratedList: ResearcherStudioTicket[] = [];
+        const seenHydratedIds = new Set<string>();
+        for (const item of hydratedList) {
+          const normKey = String(item.id || '')
+            .trim()
+            .replace(/^#/, '')
+            .toLowerCase();
+          if (!normKey || seenHydratedIds.has(normKey)) continue;
+          seenHydratedIds.add(normKey);
+          uniqueHydratedList.push(item);
+        }
+
+        setTickets(uniqueHydratedList);
       } catch (err) {
         console.warn('Firestore ticket sync warning:', err);
         if (isMounted) {
@@ -6908,95 +6930,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       dir="rtl"
       className="min-h-screen pb-16 transition-colors duration-300 bg-white text-[#252321]"
     >
-      {/* =====================================================================
-          REQUIREMENT 1 & 2: COMPACT BRAND HEADER & 2 STREAMLINED SUB-TABS
-          «مرصد جذوري — غرفة عمليات الباحثين» | «كشّاف جذوري للأنساب»
-          (Harmonized with Homepage Warm Ivory & Terracotta Visual Identity)
-      ===================================================================== */}
-      {activePortalSection !== 'adam_tree_management' &&
-        activePortalSection !== 'direct_search_inspection' && (
-          <div className="bg-[#FAF6F0] border-b border-[#E2DACB] sticky top-0 z-30 shadow-2xs">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
-              {/* Brand Identity: مرصد البحوث — غرفة عمليات الباحثين */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white p-0.5 border border-[#B98A78] shadow-2xs flex items-center justify-center shrink-0 overflow-hidden">
-                  <img
-                    src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
-                    alt="كشّاف الأنساب"
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#B98A78]/50 text-[#8D4925] text-[10px] font-display font-bold">
-                      كشّاف الأنساب
-                    </span>
-                  </div>
-                  <h1 className="text-sm sm:text-base font-extrabold font-display text-[#252321] mt-0.5">
-                    مرصد البحوث — غرفة عمليات الباحثين
-                  </h1>
-                </div>
-              </div>
-
-              {/* 2 Main Sub-Tabs Only */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSubTab('ticket_inbox');
-                    onSelectPortalSection?.('research_studio');
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeSubTab === 'ticket_inbox'
-                      ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'bg-white text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
-                  }`}
-                >
-                  <span>التذاكر البحثية</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
-                      activeSubTab === 'ticket_inbox'
-                        ? 'bg-white/25 text-white'
-                        : 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/35'
-                    }`}
-                  >
-                    {
-                      tickets.filter(
-                        (t) =>
-                          t.status !== 'CLOSED_AND_ENRICHED' &&
-                          t.status !== 'merged_closed'
-                      ).length
-                    }
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('adam_prime_bridge')}
-                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeSubTab === 'adam_prime_bridge'
-                      ? 'bg-[#D8755B] text-white shadow-sm'
-                      : 'bg-white text-[#252321] hover:bg-[#EDE6DA] border border-[#E2DACB]'
-                  }`}
-                >
-                  <span>جسر آدم برايم</span>
-                  {adamPrimeBundles.length > 0 && (
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
-                        activeSubTab === 'adam_prime_bridge'
-                          ? 'bg-white/25 text-white'
-                          : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E2DACB]'
-                      }`}
-                    >
-                      {adamPrimeBundles.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
       {/* TOAST FEEDBACK BANNER */}
       {toastBanner && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
@@ -7018,21 +6951,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
         {/* ===================================================================
-            SUB-TAB 1: 🧭 بوصلة الأنساب (BOSLET AL-ANSAB™ — DIAGNOSTIC COMPASS)
-            Clean White Page Background + Header Matching "شجرة آدم للأجداد"
+            SUB-TAB 1: 🧭 بوصلة الجذور (BOSLET AL-JUTHOR™ — DIAGNOSTIC COMPASS)
+            Unified Warm Heritage Header Banner Matching Platform Identity
         =================================================================== */}
         {activeSubTab === 'direct_search' && (
           <div className="space-y-6 bg-white text-[#252321]">
             {/* ===============================================================
                 OFFICIAL "بوصلة الجذور" IDENTITY HEADER BANNER
-                (Exact Same Dimensions & Structure as "شجرة آدم للأجداد" Header)
+                (Unified Platform Warm Heritage Ivory, Gold & Terracotta Identity)
             =============================================================== */}
             <div
               data-testid="boslet-alansab-identity-header"
-              className="bg-gradient-to-l from-[#0B241B] via-[#123A2B] to-[#194D39] text-white rounded-3xl p-5 border border-[#C5A059]/40 shadow-md flex flex-wrap items-center justify-between gap-4"
+              className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/80 text-[#252321] rounded-3xl p-5 border-2 border-[#C5A059]/70 shadow-sm flex flex-wrap items-center justify-between gap-4"
             >
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 p-1.5 shadow-lg border-2 border-[#C5A059] shrink-0 flex items-center justify-center overflow-hidden">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-sm border-2 border-[#C5A059] shrink-0 flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
                     alt="بوصلة الجذور"
@@ -7041,14 +6974,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/50 text-[#F4D799] text-[10px] font-extrabold tracking-wider">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#C5A059]/60 text-[#8D4925] text-[10px] font-extrabold tracking-wider">
                       بوصلة الجذور
                     </span>
                   </div>
-                  <h2 className="text-lg sm:text-xl font-bold font-serif mt-1 text-white">
+                  <h2 className="text-lg sm:text-xl font-extrabold font-display mt-1 text-[#252321]">
                     بوصلة الجذور — منظومة البحث والفحص وحسم المسارات النسبية
                   </h2>
-                  <p className="text-xs text-emerald-100/85 mt-0.5">
+                  <p className="text-xs text-[#5C5346] mt-0.5 font-medium">
                     تتبع استقصائي للمصادر التاريخية وأمهات الكتب، ومنطق الدمج وحسم التوافق لإثراء مع شجرة آدم للأجداد
                   </p>
                 </div>
@@ -7058,14 +6991,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <button
                   type="button"
                   onClick={() => setAllBosletSections(true)}
-                  className="px-3.5 py-2 rounded-xl bg-[#C5A059] hover:bg-[#b38e47] text-[#0B241B] text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
+                  className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
                 >
                   فتح وإبراز كافة الأقسام
                 </button>
                 <button
                   type="button"
                   onClick={() => setAllBosletSections(false)}
-                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-[#C5A059]/40 text-xs font-bold transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#C5A059]/50 text-xs font-bold transition-all cursor-pointer"
                 >
                   طي كافة الأقسام
                 </button>
@@ -9415,7 +9348,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                         );
                                       })
                                       .catch(() => {});
-                                    setTickets((prev) => [newTkt, ...prev]);
+                                    setTickets((prev) => [
+                                      newTkt,
+                                      ...prev.filter(
+                                        (existing) => existing.id !== newTkt.id
+                                      ),
+                                    ]);
                                     setSelectedTicketId(newTkt.id);
                                     setActiveSubTab('ticket_inbox');
                                   }}
@@ -9986,6 +9924,97 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         )}
 
         {/* ===================================================================
+            OFFICIAL "مرصد البحوث" IDENTITY HEADER BANNER
+            (Exact Same Dimensions, Layout & Unified Warm Heritage Colors as
+             "بوصلة الجذور" and "شجرة آدم للأجداد")
+        =================================================================== */}
+        {(activeSubTab === 'ticket_inbox' ||
+          activeSubTab === 'adam_prime_bridge') && (
+          <div
+            data-testid="research-observatory-identity-header"
+            className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/80 text-[#252321] rounded-3xl p-5 border-2 border-[#C5A059]/70 shadow-sm flex flex-wrap items-center justify-between gap-4 mb-6"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-sm border-2 border-[#C5A059] shrink-0 flex items-center justify-center overflow-hidden">
+                <img
+                  src="/assets/aistudio/Logo_Boslet_Alansab_8349b12d.jpg"
+                  alt="كشّاف الأنساب"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#C5A059]/60 text-[#8D4925] text-[10px] font-extrabold tracking-wider">
+                    كشّاف الأنساب
+                  </span>
+                </div>
+                <h2 className="text-lg sm:text-xl font-extrabold font-display mt-1 text-[#252321]">
+                  مرصد البحوث — غرفة عمليات الباحثين
+                </h2>
+                <p className="text-xs text-[#5C5346] mt-0.5 font-medium">
+                  غرفة عمليات التذاكر البحثية وتوثيق المصادر وإثراء شجرة آدم للأجداد.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSubTab('ticket_inbox');
+                  onSelectPortalSection?.('research_studio');
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeSubTab === 'ticket_inbox'
+                    ? 'bg-[#D8755B] text-white shadow-2xs'
+                    : 'bg-white text-[#8D4925] hover:bg-[#EDE6DA] border border-[#C5A059]/50'
+                }`}
+              >
+                <span>التذاكر البحثية</span>
+                <span
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                    activeSubTab === 'ticket_inbox'
+                      ? 'bg-white/25 text-white'
+                      : 'bg-[#FAF6F0] text-[#8D4925] border border-[#C5A059]/40'
+                  }`}
+                >
+                  {
+                    tickets.filter(
+                      (t) =>
+                        t.status !== 'CLOSED_AND_ENRICHED' &&
+                        t.status !== 'merged_closed'
+                    ).length
+                  }
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSubTab('adam_prime_bridge')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeSubTab === 'adam_prime_bridge'
+                    ? 'bg-[#D8755B] text-white shadow-2xs'
+                    : 'bg-white text-[#8D4925] hover:bg-[#EDE6DA] border border-[#C5A059]/50'
+                }`}
+              >
+                <span>جسر آدم برايم</span>
+                {adamPrimeBundles.length > 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
+                      activeSubTab === 'adam_prime_bridge'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-[#FAF6F0] text-[#8D4925] border border-[#C5A059]/40'
+                    }`}
+                  >
+                    {adamPrimeBundles.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================================
             SUB-TAB 2: التذاكر البحثية (مرصد البحوث — غرفة عمليات الباحثين)
             Unified Warm Heritage Ivory & Terracotta Visual Identity (KPI Bar Removed)
         =================================================================== */}
@@ -10188,7 +10217,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         لا توجد تذاكر بحثية حالياً ضمن هذا التصنيف.
                       </div>
                     ) : (
-                      filteredInboxTickets.map((tkt) => {
+                      filteredInboxTickets.map((tkt, tktIdx) => {
                         const isSelected = selectedTicket?.id === tkt.id;
                         const tier = resolveTicketPriorityTier(tkt);
                         const dotColorClass =
@@ -10206,7 +10235,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                         return (
                           <button
-                            key={tkt.id}
+                            key={`${tkt.id}-${tkt.firestoreDocId || tktIdx}`}
                             type="button"
                             onClick={() => {
                               setSelectedTicketId(tkt.id);
@@ -10358,10 +10387,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         =================================================================== */}
         {activeSubTab === 'adam_tree_explorer' && (
           <div className="space-y-6">
-            {/* Official شجرة آدم للأجداد Identity Banner */}
-            <div className="bg-gradient-to-l from-[#102A3F] via-[#173D5A] to-[#1E4E72] text-white rounded-3xl p-5 border border-[#C5A059]/40 shadow-md flex flex-wrap items-center justify-between gap-4">
+            {/* Official شجرة آدم للأجداد Identity Banner (Unified Platform Warm Heritage Identity) */}
+            <div
+              data-testid="adam-tree-identity-header"
+              className="bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/80 text-[#252321] rounded-3xl p-5 border-2 border-[#C5A059]/70 shadow-sm flex flex-wrap items-center justify-between gap-4"
+            >
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 p-1.5 shadow-lg border-2 border-[#C5A059] shrink-0 flex items-center justify-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-sm border-2 border-[#C5A059] shrink-0 flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/Adam-Ancestral-Tree-Logo.209224b_dd7396cf.png"
                     alt="شجرة آدم للأجداد"
@@ -10370,14 +10402,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#C5A059]/25 border border-[#C5A059]/50 text-[#F4D799] text-[10px] font-extrabold tracking-wider">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#FAF6F0] border border-[#C5A059]/60 text-[#8D4925] text-[10px] font-extrabold tracking-wider">
                       شجرة آدم للأجداد
                     </span>
                   </div>
-                  <h2 className="text-lg sm:text-xl font-bold font-serif mt-1 text-white">
+                  <h2 className="text-lg sm:text-xl font-extrabold font-display mt-1 text-[#252321]">
                     إدارة وعرض وتحرير شجرة آدم
                   </h2>
-                  <p className="text-xs text-sky-100/85 mt-0.5">
+                  <p className="text-xs text-[#5C5346] mt-0.5 font-medium">
                     قاعدة البيانات المركزية للقبائل والعائلات والأفراد ({adamTreeStats.totalNodes.toLocaleString('en-US')} عقدة موثقة)
                   </p>
                 </div>
@@ -10714,7 +10746,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           onClick={() => setTreeLayoutMode('VERTICAL')}
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
                             treeLayoutMode === 'VERTICAL'
-                              ? 'bg-[#173D5A] text-white shadow-2xs'
+                              ? 'bg-[#8D4925] text-white shadow-2xs'
                               : 'text-stone-700 hover:bg-stone-200/60'
                           }`}
                           title="الوضع الرأسي: نقاط البداية في الأعلى ومع فتح العقدة تفتح عقد الأبناء في الأسفل"
@@ -10726,7 +10758,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           onClick={() => setTreeLayoutMode('SIDE')}
                           className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
                             treeLayoutMode === 'SIDE'
-                              ? 'bg-[#173D5A] text-white shadow-2xs'
+                              ? 'bg-[#8D4925] text-white shadow-2xs'
                               : 'text-stone-700 hover:bg-stone-200/60'
                           }`}
                           title="الوضع الجانبي: شجرة متدرجة جانبياً"
@@ -11719,8 +11751,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 }}
                 className="px-3 py-2 rounded-xl border border-stone-300 bg-[#FAF8F5] text-xs font-bold"
               >
-                {tickets.map((t) => (
-                  <option key={t.id} value={t.id}>
+                {tickets.map((t, tIdx) => (
+                  <option key={`${t.id}-${t.firestoreDocId || tIdx}`} value={t.id}>
                     {t.id} — {t.familyName} ({t.subRootName} ⬅️{' '}
                     {t.motherTribeName})
                   </option>
