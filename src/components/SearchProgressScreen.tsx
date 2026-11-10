@@ -11,7 +11,10 @@ import {
   Loader2,
   CheckCircle2,
   KeyRound,
+  FileText,
+  X,
 } from 'lucide-react';
+import { TERMS_AND_PRIVACY_VERSION } from '../data/recordKeeperContractData';
 import {
   AccountLegalType,
   LineageSearchResult,
@@ -62,6 +65,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
   const [otpSentNotice, setOtpSentNotice] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -697,19 +701,40 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                   )}
                 </div>
 
-                {/* Terms Checkbox */}
-                <div className="pt-1">
-                  <label className="inline-flex items-start gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                      className="mt-1 w-4 h-4 accent-[#D8755B] rounded cursor-pointer"
-                    />
-                    <span className="text-xs text-[#252321]/85 leading-relaxed">
-                      أوافق على شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب وتوثيق السجلات في منصة جذوري
-                    </span>
-                  </label>
+                {/* Terms Checkbox + Official Audit Trail Registration Notice */}
+                <div className="pt-1 space-y-2">
+                  <div className="rounded-xl bg-white/80 border border-[#B98A78]/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <label className="inline-flex items-start gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
+                      />
+                      <span className="text-xs text-[#252321]/90 leading-relaxed">
+                        أوافق إلكترونياً على{' '}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowTermsModal(true);
+                          }}
+                          className="font-display font-bold text-[#D8755B] underline hover:text-[#8D4925] cursor-pointer"
+                        >
+                          شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب
+                        </button>{' '}
+                        في منصة جذوري، وأقرّ بتسجيل هذه الموافقة في سجل التدقيق الإلكتروني (Audit Trail) المرتبط بحسابي.
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowTermsModal(true)}
+                      className="self-start sm:self-center shrink-0 px-2.5 py-1 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/45 text-[11px] font-display font-bold text-[#8D4925] inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
+                      <span>قراءة البنود</span>
+                    </button>
+                  </div>
                   {formErrors.agreedToTerms && (
                     <p className="mt-1 text-xs text-red-700 font-medium">
                       {formErrors.agreedToTerms}
@@ -754,6 +779,92 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
       <footer className="border-t border-[#B98A78]/25 py-6 bg-[#EDE6DA]/50 text-center text-xs text-[#252321]/70">
         منصة جذوري الرقمية للأنساب والإرث العائلي العربي — جميع البيانات مشفرة ومحفوظة وفق معايير الخصوصية.
       </footer>
+
+      {/* Terms of Use & Privacy Policy Reader Modal */}
+      {showTermsModal && (
+        <div
+          dir="rtl"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/70 backdrop-blur-xs p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-2xl max-h-[88vh] rounded-3xl bg-[#F7F2E9] border-2 border-[#B98A78]/60 shadow-2xl flex flex-col overflow-hidden text-right">
+            <div className="bg-[#252321] text-white px-5 py-4 flex items-center justify-between gap-3 border-b border-[#D8755B]/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#D8755B]/20 border border-[#D8755B]/50 text-[#F3D299] flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-mono text-[#F3D299]">
+                    {TERMS_AND_PRIVACY_VERSION} · GeneaLab LLC (USA)
+                  </div>
+                  <h3 className="text-sm sm:text-base font-display font-extrabold">
+                    شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(false)}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer"
+                aria-label="إغلاق"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-[#252321]/90 leading-relaxed">
+              <div className="rounded-xl bg-white border border-[#B98A78]/40 p-4 space-y-2">
+                <div className="font-display font-bold text-[#252321]">
+                  1. الإطار القانوني وحفظ الخصوصية
+                </div>
+                <p>
+                  تُدار منصة «جذوري» (Juthori.com) بواسطة شركة جينيا لاب (GeneaLab LLC) المسجلة في الولايات المتحدة الأمريكية. تخضع جميع البيانات الشخصية والنسَبية المودعة في الحساب لمعايير التشفير وحماية الخصوصية، ولا يتم مشاركة بيانات التواصل الخاصة بالمستخدم مع أي أطراف خارجية.
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white border border-[#B98A78]/40 p-4 space-y-2">
+                <div className="font-display font-bold text-[#252321]">
+                  2. طبيعة نتائج البحث والتوثيق المرجعي
+                </div>
+                <p>
+                  تعتمد المنصة على المطابقة العلمية والأرشيفية مع أمهات كتب ومصادر الأنساب العربية المعتمدة وقاعدة بيانات «شجرة آدم للأجداد». يقرّ المستخدم بأن إنشاء الحساب يمنحه حق استعراض نتائج الفحص الأولي وحفظ اكتشافه باسمه في سجله الرقمي الخاص.
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white border border-[#B98A78]/40 p-4 space-y-2">
+                <div className="font-display font-bold text-[#252321]">
+                  3. التوثيق في سجل التدقيق الإلكتروني (Audit Trail)
+                </div>
+                <p>
+                  عند تسجيل البريد الإلكتروني وإنشاء الحساب، يقوم النظام آلياً بتسجيل موافقة المستخدم الإلكترونية، ورقم إصدار الشروط ({TERMS_AND_PRIVACY_VERSION})، والبصمة الزمنية، وعنوان البروتوكول (IP) في سجل التدقيق القانوني (Audit Trail) المرتبط بحساب المستخدم في قواعد البيانات لضمان الحجية والشفافية.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border-t border-[#B98A78]/35 px-5 py-3.5 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setAgreedToTerms(true);
+                  setShowTermsModal(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>أوافق على الشروط وسياسة الخصوصية</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#EDE6DA] text-[#252321] text-xs font-bold cursor-pointer"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -41,6 +41,7 @@ import {
   FOUNDING_MAESTRO_MEMBER,
   KnowledgeArticleRecord,
   KnowledgeContentType,
+  LegalAuditTrailEntry,
   SupportTicketRecord,
   TeamMemberRecord,
   TeamRoleType,
@@ -51,6 +52,7 @@ import {
   deleteKnowledgeArticleFromFirebase,
   deleteTeamMemberFromFirebase,
   fetchAllCustomerOrdersFromFirebase,
+  fetchAllLegalAuditTrailForStaff,
   fetchAllResearchTicketsForStaff,
   fetchAllTeamMembersFromFirebase,
   fetchCharterRequestsFromFirebase,
@@ -253,6 +255,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   ]);
   const [orders, setOrders] = useState<CustomerOrderRecord[]>([]);
   const [charterRequests, setCharterRequests] = useState<CharterRequestRecord[]>([]);
+  const [legalAuditTrailList, setLegalAuditTrailList] = useState<
+    LegalAuditTrailEntry[]
+  >([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicketRecord[]>([]);
   const [knowledgeArticles, setKnowledgeArticles] = useState<KnowledgeArticleRecord[]>(
     []
@@ -279,6 +284,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         fetchedSupport,
         fetchedArticles,
         fetchedResearchTickets,
+        fetchedAuditTrail,
       ] = await Promise.all([
         fetchAllTeamMembersFromFirebase(),
         fetchAllCustomerOrdersFromFirebase(),
@@ -286,6 +292,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         fetchSupportTicketsFromFirebase(),
         fetchKnowledgeArticlesFromFirebase(),
         fetchAllResearchTicketsForStaff(),
+        fetchAllLegalAuditTrailForStaff(),
       ]);
 
       setStaffList(fetchedStaff);
@@ -294,6 +301,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       setSupportTickets(fetchedSupport);
       setKnowledgeArticles(fetchedArticles);
       setResearchTicketsCount(fetchedResearchTickets.length);
+      setLegalAuditTrailList(fetchedAuditTrail);
     } catch (err) {
       console.warn('[AdminStaffPortal] refresh warning:', err);
     } finally {
@@ -2092,7 +2100,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             {req.clientName} — عائلة ({req.familyName})
                           </div>
                           <div className="text-[11px] text-[#6E6456] mt-0.5">
-                            {req.country} · رمز الميثاق: {req.charterCode}
+                            {req.country} · رمز الشهادة:{' '}
+                            <span className="font-mono font-bold text-[#252321]">
+                              {req.charterCode}
+                            </span>
+                            {req.contractVersion
+                              ? ` · الإصدار: ${req.contractVersion}`
+                              : ''}
+                            {req.ipAddress ? ` · IP: ${req.ipAddress}` : ''}
                           </div>
                         </div>
 
@@ -2780,6 +2795,69 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Customer Legal Audit Trail Section inside Manage Customer Modal */}
+            <div className="pt-3 border-t border-[#EFEAE0] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#252321]">
+                  سجل التدقيق القانوني والموافقات الإلكترونية (Audit Trail):
+                </span>
+                <span className="text-[11px] font-bold text-[#8D4925]">
+                  {selectedOrderForModal.legalRole === 'record_keeper'
+                    ? 'رب أسرة / أمين السجل ✓'
+                    : 'حساب فرد'}
+                </span>
+              </div>
+
+              {(() => {
+                const customerAudits = legalAuditTrailList.filter(
+                  (a) =>
+                    (selectedOrderForModal.userId &&
+                      a.userId === selectedOrderForModal.userId) ||
+                    (selectedOrderForModal.email &&
+                      a.userEmail?.toLowerCase() ===
+                        selectedOrderForModal.email.toLowerCase())
+                );
+                if (customerAudits.length === 0) {
+                  return (
+                    <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-[11px] text-[#6E6456]">
+                      موافقة شروط الاستخدام وسياسة الخصوصية مفعّلة عند إنشاء الحساب. لم يتم تسجيل شهادات إضافية بعد.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {customerAudits.map((aud) => (
+                      <div
+                        key={aud.id}
+                        className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-[11px] space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-[#252321]">
+                            {aud.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
+                              ? 'توقيع عقد أمين السجل (29 مادة)'
+                              : 'موافقة شروط الاستخدام وسياسة الخصوصية'}
+                          </span>
+                          <span
+                            dir="ltr"
+                            className="font-mono font-bold px-2 py-0.5 rounded bg-[#252321] text-[#F3D299]"
+                          >
+                            {aud.certificateCode}
+                          </span>
+                        </div>
+                        <div className="text-[#6E6456] flex flex-wrap items-center justify-between gap-2">
+                          <span>الإصدار: {aud.documentVersion}</span>
+                          <span dir="ltr">
+                            IP: {aud.ipAddress} ({aud.ipCountry})
+                          </span>
+                          <span>{aud.signedAtFormatted}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

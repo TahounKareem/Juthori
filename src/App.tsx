@@ -18,7 +18,9 @@ import {
   upsertCustomerOrderInFirebase,
   bootstrapJuthoriFirestoreDatabase,
   isEmailPrefixOrAsciiPlaceholder,
+  recordLegalAuditTrailInFirebase,
 } from './services/firestoreService';
+import { TERMS_AND_PRIVACY_VERSION } from './data/recordKeeperContractData';
 import {
   AccountLegalType,
   DashboardStateMode,
@@ -923,6 +925,8 @@ export function App() {
       .replace(/\s+/g, ' ')
       .trim();
 
+    const agreedIso = new Date().toISOString();
+
     await createUserProfileIfMissing(
       { uid: safeUid, email, displayName: fullName },
       {
@@ -941,8 +945,30 @@ export function App() {
         originRegion: form.originRegion,
         tribeName: form.tribeName,
         familyBranch: form.branchName,
+        agreedToTermsAndPrivacy: true,
+        termsAndPrivacyAgreedAt: agreedIso,
+        termsAndPrivacyVersion: TERMS_AND_PRIVACY_VERSION,
+        termsIpAddress: silentGeo.ip || '127.0.0.1',
       }
     );
+
+    recordLegalAuditTrailInFirebase({
+      userId: safeUid,
+      userEmail: email,
+      userFullName: fullName || form.familyName,
+      familyName: form.familyName,
+      eventType: 'TERMS_AND_PRIVACY_CONSENT',
+      documentTitle:
+        'شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب — منصة جذوري',
+      documentVersion: TERMS_AND_PRIVACY_VERSION,
+      consentStatement:
+        'أوافق إلكترونياً على شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب وتوثيق السجلات في منصة جذوري عند تسجيل البريد الإلكتروني وإنشاء الحساب.',
+      ipAddress: silentGeo.ip || '127.0.0.1',
+      ipCountry:
+        silentGeo.ip_country || form.originCountry || selectedPortalCountry || 'السعودية',
+      ipCity: silentGeo.ip_city || form.originRegion || '',
+      verificationMethod: 'email_registration',
+    }).catch(() => {});
 
     let effectiveMode = dashboardStateMode;
     let effectiveMatched = lineageResult.matched;
@@ -1145,6 +1171,8 @@ export function App() {
         user.displayName ||
         'مستخدم جذوري';
 
+      const agreedIso = new Date().toISOString();
+
       await createUserProfileIfMissing(
         { uid: user.uid, email: user.email, displayName: user.displayName || fullName },
         {
@@ -1164,8 +1192,30 @@ export function App() {
           originRegion: form.originRegion,
           tribeName: form.tribeName,
           familyBranch: form.branchName,
+          agreedToTermsAndPrivacy: true,
+          termsAndPrivacyAgreedAt: agreedIso,
+          termsAndPrivacyVersion: TERMS_AND_PRIVACY_VERSION,
+          termsIpAddress: silentGeo.ip || '127.0.0.1',
         }
       );
+
+      recordLegalAuditTrailInFirebase({
+        userId: user.uid,
+        userEmail: user.email || 'user@juthori.com',
+        userFullName: fullName,
+        familyName: form.familyName || 'جذوري',
+        eventType: 'TERMS_AND_PRIVACY_CONSENT',
+        documentTitle:
+          'شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب — منصة جذوري',
+        documentVersion: TERMS_AND_PRIVACY_VERSION,
+        consentStatement:
+          'أوافق إلكترونياً على شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب وتوثيق السجلات في منصة جذوري عند تسجيل الحساب عبر Google.',
+        ipAddress: silentGeo.ip || '127.0.0.1',
+        ipCountry:
+          silentGeo.ip_country || form.originCountry || selectedPortalCountry || 'السعودية',
+        ipCity: silentGeo.ip_city || form.originRegion || '',
+        verificationMethod: 'google_oauth',
+      }).catch(() => {});
 
       const ticketNum = lineageResult.alphaBackgroundTicketCode || '—';
 

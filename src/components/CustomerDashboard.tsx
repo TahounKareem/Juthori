@@ -29,13 +29,21 @@ import {
   createCharterRequestInFirebase,
   deleteUserAccountFromFirebase,
   executeWalletTransaction,
+  fetchUserLegalAuditTrailFromFirebase,
   fetchUserProfile,
   fetchUserProfileByEmail,
+  LegalAuditTrailEntry,
+  recordLegalAuditTrailInFirebase,
   syncClientLineageTicketToFirebase,
   updateUserProfile,
   uploadUserAvatarToFirebase,
   upsertCustomerOrderInFirebase,
 } from '../services/firestoreService';
+import {
+  RECORD_KEEPER_CONTRACT_METADATA,
+  RECORD_KEEPER_CONTRACT_VERSION,
+} from '../data/recordKeeperContractData';
+import { RecordKeeperContractModal } from './RecordKeeperContractModal';
 import {
   AccountLegalType,
   ActivityLogEntry,
@@ -168,6 +176,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   // Modals & Exclusive Utility Pages
   const [showCharterModal, setShowCharterModal] = useState(false);
+  const [userAuditTrail, setUserAuditTrail] = useState<LegalAuditTrailEntry[]>([]);
+  const [charterSignedBanner, setCharterSignedBanner] = useState<{
+    certificateCode: string;
+    signedAt: string;
+  } | null>(null);
   const [lockedTabPromptName, setLockedTabPromptName] = useState<string | null>(null);
   const [activeUtilityDrawer, setActiveUtilityDrawer] = useState<
     'profile' | 'settings' | 'cart' | 'notifications' | 'activity' | 'help' | null
@@ -242,6 +255,25 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           profile.unlockedCapsules.length > 0
         ) {
           setUnlockedCapsules(profile.unlockedCapsules);
+        }
+        if (
+          (profile.accountType === 'record_keeper' ||
+            profile.recordKeeperCharterSigned) &&
+          accountType !== AccountLegalType.RecordKeeper
+        ) {
+          onUpgradeAccountToRecordKeeper();
+        }
+      } catch {
+        // Non-blocking
+      }
+
+      try {
+        const auditLogs = await fetchUserLegalAuditTrailFromFirebase(
+          activeUid,
+          userEmail
+        );
+        if (!cancelled && auditLogs.length > 0) {
+          setUserAuditTrail(auditLogs);
         }
       } catch {
         // Non-blocking
@@ -801,30 +833,130 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     setActiveTab(tab.id);
   };
 
+  // Clicking "التوقيع الإلكتروني وتفعيل أمين السجل ✓" opens the full 29-Article Contract Modal
   const handleSignCharterAndOpenTree = () => {
-    const activeUid =
-      userId ||
-      auth.currentUser?.uid ||
-      `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-    onUpgradeAccountToRecordKeeper();
-    updateUserProfile(activeUid, {
-      accountType: 'record_keeper',
-    }).catch(() => {});
-    createCharterRequestInFirebase({
-      userId: activeUid,
-      clientName: `${result.clientName} ${result.familyName}`,
-      familyName: result.familyName,
-      email: userEmail,
-      country: result.originCountry,
-    }).catch(() => {});
-    setShowCharterModal(false);
-    setActiveUtilityDrawer(null);
-    setActiveTab(DashboardTab.MyTree);
-    appendActivity(
-      'التوقيع الإلكتروني على ميثاق أمين السجل',
-      'ترقية الصفة القانونية مجاناً من (فرد) إلى (رب أسرة - أمين السجل)'
-    );
+    setShowCharterModal(true);
   };
+
+  // Executed when the user checks the consent box and clicks "اعتماد التوقيع الإلكتروني وتفعيل أمين السجل الآن" inside RecordKeeperContractModal
+  const handleConfirmRecordKeeperContractSignature =
+    async (): Promise<LegalAuditTrailEntry> => {
+      const activeUid =
+        userId ||
+        auth.currentUser?.uid ||
+        `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+      const fullName = [
+        result.clientName,
+        result.fatherName,
+        result.grandfatherName,
+        result.familyName,
+      ]
+        .filter((s) => s && s !== '—')
+        .join(' ');
+      const orderRef = `ORD-${activeUid.slice(-6).toUpperCase()}`;
+
+      const auditEntry = await recordLegalAuditTrailInFirebase({
+        userId: activeUid,
+        userEmail: userEmail || 'user@juthori.com',
+        userFullName:
+          fullName || `${result.clientName} ${result.familyName}`.trim(),
+        familyName: result.familyName,
+        eventType: 'RECORD_KEEPER_CONTRACT_SIGNATURE',
+        documentTitle: `${RECORD_KEEPER_CONTRACT_METADATA.mainTitle} ${RECORD_KEEPER_CONTRACT_METADATA.subTitle}`,
+        documentVersion: RECORD_KEEPER_CONTRACT_VERSION,
+        consentStatement:
+          RECORD_KEEPER_CONTRACT_METADATA.finalConsentCheckboxLabel,
+        ipAddress: silentGeo?.ip || '127.0.0.1',
+        ipCountry: silentGeo?.ip_country || result.originCountry || 'السعودية',
+        ipCity: silentGeo?.ip_city || result.originRegion || '',
+        orderReference: orderRef,
+        verificationMethod: 'electronic_contract_signature',
+      });
+
+      onUpgradeAccountToRecordKeeper();
+
+      await updateUserProfile(activeUid, {
+        accountType: 'record_keeper',
+        recordKeeperCharterSigned: true,
+        recordKeeperCharterSignedAt: auditEntry.signedAtIso,
+        recordKeeperCharterCode: auditEntry.certificateCode,
+        recordKeeperContractVersion: RECORD_KEEPER_CONTRACT_VERSION,
+      }).catch(() => {});
+
+      await createCharterRequestInFirebase({
+        userId: activeUid,
+        clientName:
+          fullName || `${result.clientName} ${result.familyName}`.trim(),
+        familyName: result.familyName,
+        email: userEmail,
+        country: result.originCountry,
+        status: 'معتمد (شجرتي مفعّلة)',
+        charterCode: auditEntry.certificateCode,
+        contractVersion: RECORD_KEEPER_CONTRACT_VERSION,
+        ipAddress: auditEntry.ipAddress,
+        auditTrailId: auditEntry.id,
+      }).catch(() => {});
+
+      upsertCustomerOrderInFirebase({
+        id: orderRef,
+        userId: activeUid,
+        fullName:
+          fullName || `${result.clientName} ${result.familyName}`.trim(),
+        firstName: result.clientName,
+        fatherName: result.fatherName || '—',
+        grandfatherName: result.grandfatherName || '—',
+        familyName: result.familyName,
+        originCountry: result.originCountry,
+        originRegion: result.originRegion || editOriginRegion || 'غير محدد',
+        email: userEmail,
+        phone: editPhone || '—',
+        legalRole: 'record_keeper',
+        accountStatus:
+          stateMode === DashboardStateMode.AnnualVip
+            ? 'annual_vip'
+            : caps.isRootUnlocked
+            ? 'paid_5_root'
+            : 'free',
+        walletBalanceUsd: walletBalance,
+        paidRevenueUsd:
+          stateMode === DashboardStateMode.AnnualVip
+            ? 60
+            : caps.isRootUnlocked
+            ? 5
+            : 0,
+        matchStatus: !result.matched
+          ? 'open_research_ticket'
+          : result.isAlphaOnlyBeforeMerge
+          ? 'staged_3_nodes'
+          : 'auto_adam_full',
+        ticketId: result.alphaBackgroundTicketCode || '—',
+        ticketType: !result.matched
+          ? 'طلب عميل P1'
+          : result.isAlphaOnlyBeforeMerge
+          ? 'إثراء شجرة آدم P2'
+          : 'آلي مكتمل',
+        assignedResearcher: 'فريق التحقيق النَّسبي',
+        slaStatus: 'مكتملة وتمت تغذية شجرة آدم',
+        nodesCountLabel: `${result.adamSpineNodes?.length || 1} عقدة`,
+      }).catch(() => {});
+
+      setUserAuditTrail((prev) => [
+        auditEntry,
+        ...prev.filter((item) => item.id !== auditEntry.id),
+      ]);
+
+      setCharterSignedBanner({
+        certificateCode: auditEntry.certificateCode,
+        signedAt: auditEntry.signedAtFormatted,
+      });
+
+      appendActivity(
+        `التوقيع الإلكتروني الموثق على عقد أمين السجل (${auditEntry.certificateCode})`,
+        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «رب أسرة - أمين السجل» وتفعيل بناء شجرتي`
+      );
+
+      return auditEntry;
+    };
 
   const handleSelectVerificationPath = (
     optionId: 'option_a' | 'option_b' | 'option_c'
@@ -2112,21 +2244,124 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             )}
 
             {activeUtilityDrawer === 'activity' && (
-              <div className="space-y-2.5">
-                {activityLog.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 px-4 py-3 flex items-center justify-between gap-3 text-xs sm:text-sm"
-                  >
-                    <div>
-                      <strong className="text-[#252321]">{entry.action}:</strong>{' '}
-                      <span className="text-[#252321]/80">{entry.detail}</span>
+              <div className="space-y-6">
+                {/* Official Legal Audit Trail & Electronic Signatures Card */}
+                <div className="rounded-2xl bg-[#FAF6F0] border-2 border-[#D8755B]/45 p-5 sm:p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#B98A78]/30 pb-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0">
+                        <FileSignature className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                          سجل التدقيق القانوني والموافقات الإلكترونية (Audit Trail)
+                        </h3>
+                        <p className="text-xs text-[#252321]/70">
+                          توثيق رسمي مرتبط بحسابك في قواعد بيانات Firebase لعقود أمين السجل وشروط الاستخدام وسياسة الخصوصية
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-[#252321]/60 whitespace-nowrap text-xs">
-                      {entry.timestamp}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCharterModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <FileSignature className="w-3.5 h-3.5" />
+                      <span>
+                        {accountType === AccountLegalType.RecordKeeper
+                          ? 'استعراض العقد الموقّع وشهادة الإكمال'
+                          : 'قراءة وتوقيع عقد أمين السجل'}
+                      </span>
+                    </button>
                   </div>
-                ))}
+
+                  {userAuditTrail.length === 0 ? (
+                    <div className="rounded-xl bg-white border border-[#B98A78]/35 p-4 text-xs text-[#252321]/75 flex items-center justify-between gap-3">
+                      <span>
+                        لم يتم تسجيل شهادات توقيع إلكتروني إضافية بعد. يمكنك استعراض وتوقيع عقد أمين السجل لتفعيل بناء الشجرة.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {userAuditTrail.map((audit) => (
+                        <div
+                          key={audit.id}
+                          className="rounded-xl bg-white border border-[#B98A78]/40 p-4 space-y-2.5 shadow-2xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                                  audit.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
+                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                                    : 'bg-[#FAF6F0] border-[#B98A78]/50 text-[#8D4925]'
+                                }`}
+                              >
+                                {audit.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
+                                  ? 'عقد أمين السجل الموثّق ✓'
+                                  : 'موافقة شروط الاستخدام وسياسة الخصوصية ✓'}
+                              </span>
+                              <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                                {audit.documentTitle}
+                              </span>
+                            </div>
+                            <span
+                              dir="ltr"
+                              className="px-2.5 py-1 rounded-lg bg-[#252321] text-[#F3D299] font-mono text-[11px] font-bold"
+                            >
+                              {audit.certificateCode}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#252321]/80 leading-relaxed bg-[#F7F2E9]/70 rounded-lg p-2.5 border border-[#B98A78]/25">
+                            {audit.consentStatement}
+                          </p>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6E6456] pt-1">
+                            <span>
+                              الإصدار:{' '}
+                              <strong className="font-mono text-[#252321]">
+                                {audit.documentVersion}
+                              </strong>{' '}
+                              · البريد:{' '}
+                              <strong className="font-mono text-[#252321]">
+                                {audit.userEmail}
+                              </strong>
+                            </span>
+                            <span>
+                              عنوان IP:{' '}
+                              <strong className="font-mono text-[#252321]" dir="ltr">
+                                {audit.ipAddress}
+                              </strong>{' '}
+                              ({audit.ipCountry}) · التاريخ: {audit.signedAtFormatted}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Operational Activity Log */}
+                <div className="space-y-2.5">
+                  <div className="text-xs font-display font-bold text-[#8D4925]">
+                    السجل الزمني للعمليات في الحساب:
+                  </div>
+                  {activityLog.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 px-4 py-3 flex items-center justify-between gap-3 text-xs sm:text-sm"
+                    >
+                      <div>
+                        <strong className="text-[#252321]">{entry.action}:</strong>{' '}
+                        <span className="text-[#252321]/80">{entry.detail}</span>
+                      </div>
+                      <span className="text-[#252321]/60 whitespace-nowrap text-xs">
+                        {entry.timestamp}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -2177,27 +2412,68 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
           />
         ) : (
-          <PremiumTabViews
-            activeTab={activeTab}
-            result={activeResult}
-            accountType={accountType}
-            caps={caps}
-            onNavigateTab={(t) => {
-              const found = DASHBOARD_TABS.find((x) => x.id === t);
-              if (found) handleTabClick(found);
-            }}
-            onUnlockRoot5Usd={handleUnlockRoot5Usd}
-            onUpgradeAnnualVip={handleUpgradeAnnualVip}
-            onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
-            onLogActivity={appendActivity}
-            onSyncImmediateParents={onUpdateImmediateParents}
-            unlockedCapsules={unlockedCapsules}
-            onRequestUnlockCapsule={handleRequestUnlockCapsule}
-            onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
-            walletBalance={walletBalance}
-            userAvatarUrl={avatarUrl || undefined}
-            userId={userId || auth.currentUser?.uid}
-          />
+          <div className="space-y-4">
+            {activeTab === DashboardTab.MyTree && charterSignedBanner && (
+              <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-400 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm sm:text-base font-display font-extrabold text-emerald-950">
+                      تم اعتماد توقيعك الإلكتروني وتفعيل صلاحية «رب أسرة / أمين السجل» بنجاح ✓
+                    </div>
+                    <div className="text-xs text-emerald-900/85 mt-0.5">
+                      شهادة الإكمال في سجل التدقيق (Audit Trail):{' '}
+                      <strong className="font-mono" dir="ltr">
+                        {charterSignedBanner.certificateCode}
+                      </strong>{' '}
+                      · يمكنك الآن بناء وإدارة شجرة عائلة ({activeResult.familyName}) بحرية كاملة.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowCharterModal(true)}
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold cursor-pointer"
+                  >
+                    عرض العقد الموقّع
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCharterSignedBanner(null)}
+                    aria-label="إخفاء التنبيه"
+                    className="p-1.5 rounded-lg hover:bg-emerald-200/60 text-emerald-900 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <PremiumTabViews
+              activeTab={activeTab}
+              result={activeResult}
+              accountType={accountType}
+              caps={caps}
+              onNavigateTab={(t) => {
+                const found = DASHBOARD_TABS.find((x) => x.id === t);
+                if (found) handleTabClick(found);
+              }}
+              onUnlockRoot5Usd={handleUnlockRoot5Usd}
+              onUpgradeAnnualVip={handleUpgradeAnnualVip}
+              onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
+              onLogActivity={appendActivity}
+              onSyncImmediateParents={onUpdateImmediateParents}
+              unlockedCapsules={unlockedCapsules}
+              onRequestUnlockCapsule={handleRequestUnlockCapsule}
+              onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
+              walletBalance={walletBalance}
+              userAvatarUrl={avatarUrl || undefined}
+              userId={userId || auth.currentUser?.uid}
+            />
+          </div>
         )}
       </main>
 
@@ -2264,82 +2540,49 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </div>
       )}
 
-      {/* MODAL 2: Record Keeper Electronic Charter Modal */}
-      {showCharterModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/60 backdrop-blur-xs p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="charter-modal-title"
-        >
-          <div className="w-full max-w-lg rounded-2xl bg-[#F7F2E9] border border-[#D8755B]/50 p-6 sm:p-8 shadow-xl space-y-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#D8755B]/15 text-[#D8755B] flex items-center justify-center shrink-0">
-                <FileSignature className="w-6 h-6" aria-hidden="true" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCharterModal(false)}
-                aria-label="إغلاق نافذة ميثاق أمين السجل"
-                className="w-9 h-9 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <h3
-                id="charter-modal-title"
-                className="text-lg sm:text-xl font-display font-bold text-[#252321] leading-snug"
-              >
-                {accountType === AccountLegalType.RecordKeeper
-                  ? 'حالة ميثاق أمين السجل: مفعّل وموثّق إلكترونياً ✓'
-                  : 'ميثاق (رب الأسرة - أمين السجل) لترقية صلاحية بناء شجرة العائلة مجاناً'}
-              </h3>
-              <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                {accountType === AccountLegalType.RecordKeeper
-                  ? `حسابك معتمد حالياً بصفة «رب أسرة - أمين السجل» لعائلة (${result.familyName}) وتتمتع بصلاحية بناء وتحديث الشجرة التفاعلية.`
-                  : 'حسابك مسجّل حالياً بصفة «حساب فرد». يضمن عقد أمين السجل في منصة جذوري دقة التفرعات الأسرية المضافة ومنع انتحال الصفات العائلية.'}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-[#EDE6DA] border border-[#B98A78]/45 p-4 text-xs text-[#252321]/85 space-y-2 leading-relaxed">
-              <div className="font-display font-bold text-[#252321]">
-                بنود ميثاق أمين السجل الإلكتروني المختصرة:
-              </div>
-              <p>
-                1. أقرّ بصحة بيانات الأفراد والفروع الذين أضيفهم في شجرة أسرتي المباشرة على مسؤوليتي القانونية والأدبية.
-              </p>
-              <p>
-                2. ألتزم باحترام خصوصية الأحياء وعدم نشر بيانات حساسة دون موافقة أصحابها.
-              </p>
-              <p>
-                3. تخضع طلبات ربط الفروع العليا لمراجعة لجنة التحقيق النسبي في منصة جذوري.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
-              {accountType !== AccountLegalType.RecordKeeper && (
-                <button
-                  type="button"
-                  onClick={handleSignCharterAndOpenTree}
-                  className="flex-1 py-3 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                  <span>أوقّع إلكترونياً وترقية صلاحيتي مجاناً</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowCharterModal(false)}
-                className="py-3 px-4 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-sm font-semibold cursor-pointer"
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL 2: Dedicated Full 29-Article Record Keeper Contract Reader & Electronic Signature Module */}
+      <RecordKeeperContractModal
+        isOpen={showCharterModal}
+        onClose={() => setShowCharterModal(false)}
+        onProceedToMyTree={() => {
+          setShowCharterModal(false);
+          setActiveUtilityDrawer(null);
+          setActiveTab(DashboardTab.MyTree);
+        }}
+        onConfirmElectronicSignature={handleConfirmRecordKeeperContractSignature}
+        clientFullName={
+          [
+            result.clientName,
+            result.fatherName,
+            result.grandfatherName,
+            result.familyName,
+          ]
+            .filter((s) => s && s !== '—')
+            .join(' ') || `${result.clientName} ${result.familyName}`.trim()
+        }
+        familyName={result.familyName}
+        userEmail={userEmail}
+        userPhone={editPhone}
+        originCountry={result.originCountry}
+        originRegion={result.originRegion || editOriginRegion}
+        orderReference={`ORD-${(
+          userId ||
+          auth.currentUser?.uid ||
+          userEmail ||
+          'JTH2026'
+        )
+          .slice(-6)
+          .toUpperCase()}`}
+        ipAddress={silentGeo?.ip || '127.0.0.1'}
+        ipCountry={silentGeo?.ip_country || result.originCountry || 'السعودية'}
+        ipCity={silentGeo?.ip_city || result.originRegion || ''}
+        isAlreadySigned={accountType === AccountLegalType.RecordKeeper}
+        existingAuditEntry={
+          userAuditTrail.find(
+            (a) => a.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
+          ) || null
+        }
+      />
 
       {/* MODAL 3: Realistic 3-Step Checkout & Wallet Payment Modal */}
       <CheckoutModal

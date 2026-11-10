@@ -296,8 +296,43 @@ export interface UserProfileData {
   unlockedCapsules?: string[];
   isRootUnlocked?: boolean;
   emailNotificationsEnabled?: boolean;
+  agreedToTermsAndPrivacy?: boolean;
+  termsAndPrivacyAgreedAt?: string;
+  termsAndPrivacyVersion?: string;
+  termsIpAddress?: string;
+  recordKeeperCharterSigned?: boolean;
+  recordKeeperCharterSignedAt?: string;
+  recordKeeperCharterCode?: string;
+  recordKeeperContractVersion?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export type LegalAuditEventType =
+  | 'TERMS_AND_PRIVACY_CONSENT'
+  | 'RECORD_KEEPER_CONTRACT_SIGNATURE'
+  | 'ACCOUNT_REGISTRATION_CONSENT';
+
+export interface LegalAuditTrailEntry {
+  id: string;
+  userId: string;
+  userFullName: string;
+  familyName?: string;
+  userEmail: string;
+  eventType: LegalAuditEventType;
+  documentTitle: string;
+  documentVersion: string;
+  certificateCode: string;
+  orderReference?: string;
+  consentStatement: string;
+  ipAddress: string;
+  ipCountry?: string;
+  ipCity?: string;
+  userAgent: string;
+  signedAtIso: string;
+  signedAtFormatted: string;
+  verificationMethod: string;
+  status: 'COMPLETED_AND_SEALED';
 }
 
 export interface ResearchTicketData {
@@ -451,6 +486,9 @@ export interface CharterRequestRecord {
   country: string;
   submittedAt: string;
   charterCode: string;
+  contractVersion?: string;
+  ipAddress?: string;
+  auditTrailId?: string;
   status: 'بانتظار الاعتماد' | 'معتمد (شجرتي مفعّلة)';
 }
 
@@ -833,6 +871,18 @@ export async function createUserProfileIfMissing(
     walletBalance: additional.walletBalance ?? 0,
     isRootUnlocked: additional.isRootUnlocked ?? false,
     emailNotificationsEnabled: additional.emailNotificationsEnabled ?? true,
+    agreedToTermsAndPrivacy: additional.agreedToTermsAndPrivacy ?? true,
+    termsAndPrivacyAgreedAt:
+      additional.termsAndPrivacyAgreedAt || new Date().toISOString(),
+    termsAndPrivacyVersion:
+      additional.termsAndPrivacyVersion || 'V1_10 Nov_2026',
+    termsIpAddress: additional.termsIpAddress || '',
+    recordKeeperCharterSigned:
+      additional.recordKeeperCharterSigned ??
+      additional.accountType === 'record_keeper',
+    recordKeeperCharterSignedAt: additional.recordKeeperCharterSignedAt,
+    recordKeeperCharterCode: additional.recordKeeperCharterCode,
+    recordKeeperContractVersion: additional.recordKeeperContractVersion,
     createdAt: new Date().toISOString(),
   })!;
 
@@ -2712,7 +2762,10 @@ export async function createCharterRequestInFirebase(
     submittedAt: req.submittedAt || new Date().toLocaleDateString('ar-SA'),
     charterCode:
       req.charterCode || `JTH-CHR-${Math.floor(1000 + Math.random() * 9000)}`,
-    status: req.status || 'بانتظار الاعتماد',
+    contractVersion: req.contractVersion || 'V2_24 May_2026',
+    ipAddress: req.ipAddress || '',
+    auditTrailId: req.auditTrailId || '',
+    status: req.status || 'معتمد (شجرتي مفعّلة)',
     id,
   };
   await dualSetDoc(
@@ -2727,6 +2780,221 @@ export async function fetchCharterRequestsFromFirebase(): Promise<
 > {
   const list = await dualGetCollection<CharterRequestRecord>('charter_requests');
   return list.filter((c) => c.id !== 'chr_seed_01');
+}
+
+// =============================================================================
+// 10. ELECTRONIC SIGNATURE & LEGAL CONSENT AUDIT TRAIL (/users/{uid}/audit_trail & /audit_trail)
+// =============================================================================
+const LOCAL_AUDIT_TRAIL_STORAGE_KEY = 'juthori_legal_audit_trail_v1';
+
+function readLocalAuditTrailBackup(): LegalAuditTrailEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_AUDIT_TRAIL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as LegalAuditTrailEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalAuditTrailBackup(entries: LegalAuditTrailEntry[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      LOCAL_AUDIT_TRAIL_STORAGE_KEY,
+      JSON.stringify(entries.slice(0, 200))
+    );
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+export async function recordLegalAuditTrailInFirebase(params: {
+  userId: string;
+  userFullName: string;
+  familyName?: string;
+  userEmail: string;
+  eventType: LegalAuditEventType;
+  documentTitle: string;
+  documentVersion: string;
+  certificateCode?: string;
+  orderReference?: string;
+  consentStatement: string;
+  ipAddress?: string;
+  ipCountry?: string;
+  ipCity?: string;
+  verificationMethod?: string;
+}): Promise<LegalAuditTrailEntry> {
+  const safeUid = (params.userId || `usr_${Date.now()}`).replace(
+    /[^a-zA-Z0-9_-]/g,
+    '_'
+  );
+  const now = new Date();
+  const signedAtIso = now.toISOString();
+  const signedAtFormatted = `${now.toLocaleDateString('ar-SA')} — ${now.toLocaleTimeString(
+    'ar-SA',
+    { hour: '2-digit', minute: '2-digit', second: '2-digit' }
+  )}`;
+
+  const randSuffix = Math.floor(100000 + Math.random() * 900000);
+  const prefix =
+    params.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
+      ? 'JTH-CERT-RK'
+      : 'JTH-CERT-TOS';
+  const certificateCode = (params.certificateCode || `${prefix}-${randSuffix}`).slice(
+    0,
+    80
+  );
+  const auditId = `aud_${safeUid.slice(-16)}_${params.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE' ? 'rk' : 'tos'}_${now.getTime()}`.replace(
+    /[^a-zA-Z0-9_-]/g,
+    '_'
+  );
+
+  const userAgent =
+    typeof navigator !== 'undefined' && navigator.userAgent
+      ? navigator.userAgent.slice(0, 480)
+      : 'Juthori Web Client (ESIGN/UETA Compliant)';
+
+  const entry: LegalAuditTrailEntry = {
+    id: auditId,
+    userId: safeUid.slice(0, 128),
+    userFullName: (params.userFullName || 'عميل منصة جذوري').trim().slice(0, 150),
+    familyName: (params.familyName || '').trim().slice(0, 100),
+    userEmail: (params.userEmail || 'user@juthori.com').trim().slice(0, 120),
+    eventType: params.eventType,
+    documentTitle: params.documentTitle.trim().slice(0, 300),
+    documentVersion: params.documentVersion.trim().slice(0, 80),
+    certificateCode,
+    orderReference: (
+      params.orderReference || `ORD-${safeUid.slice(-6).toUpperCase()}`
+    ).slice(0, 80),
+    consentStatement: params.consentStatement.trim().slice(0, 1000),
+    ipAddress: (params.ipAddress || '127.0.0.1').trim().slice(0, 80),
+    ipCountry: (params.ipCountry || '').trim().slice(0, 80),
+    ipCity: (params.ipCity || '').trim().slice(0, 80),
+    userAgent,
+    signedAtIso,
+    signedAtFormatted,
+    verificationMethod: (
+      params.verificationMethod || 'مصادقة الحساب الإلكتروني عبر منصة جذوري'
+    ).slice(0, 120),
+    status: 'COMPLETED_AND_SEALED',
+  };
+
+  // 1. Save immediately in local backup for instant UI rendering
+  const existingLocal = readLocalAuditTrailBackup().filter(
+    (item) => item.id !== entry.id
+  );
+  writeLocalAuditTrailBackup([entry, ...existingLocal]);
+
+  // 2. Persist to user subcollection (/users/{uid}/audit_trail/{auditId}) AND central (/audit_trail/{auditId}) across both Firestore databases
+  await Promise.allSettled([
+    dualSetDoc(
+      ['users', safeUid, 'audit_trail', auditId],
+      entry as unknown as Record<string, unknown>
+    ),
+    dualSetDoc(
+      ['audit_trail', auditId],
+      entry as unknown as Record<string, unknown>
+    ),
+  ]);
+
+  return entry;
+}
+
+export async function fetchUserLegalAuditTrailFromFirebase(
+  userId: string,
+  userEmail?: string
+): Promise<LegalAuditTrailEntry[]> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanEmail = (userEmail || '').trim().toLowerCase();
+  const merged = new Map<string, LegalAuditTrailEntry>();
+
+  for (const item of readLocalAuditTrailBackup()) {
+    if (
+      (safeUid && item.userId === safeUid) ||
+      (cleanEmail && (item.userEmail || '').trim().toLowerCase() === cleanEmail)
+    ) {
+      merged.set(item.id, item);
+    }
+  }
+
+  if (safeUid) {
+    try {
+      const [primarySnap, mirrorSnap] = await Promise.allSettled([
+        withFastTimeout(
+          getDocs(collection(db, 'users', safeUid, 'audit_trail')),
+          2500
+        ),
+        withFastTimeout(
+          getDocs(collection(mirrorDb, 'users', safeUid, 'audit_trail')),
+          2500
+        ),
+      ]);
+      if (primarySnap.status === 'fulfilled') {
+        primarySnap.value.docs.forEach((d) => {
+          const item = d.data() as LegalAuditTrailEntry;
+          if (item && item.id) merged.set(item.id, item);
+        });
+      }
+      if (mirrorSnap.status === 'fulfilled') {
+        mirrorSnap.value.docs.forEach((d) => {
+          const item = d.data() as LegalAuditTrailEntry;
+          if (item && item.id && !merged.has(item.id)) {
+            merged.set(item.id, item);
+          }
+        });
+      }
+    } catch {
+      // Fallback to central collection below
+    }
+  }
+
+  try {
+    const centralList = await dualGetCollection<LegalAuditTrailEntry>(
+      'audit_trail',
+      2500
+    );
+    for (const item of centralList) {
+      if (
+        (safeUid && item.userId === safeUid) ||
+        (cleanEmail && (item.userEmail || '').trim().toLowerCase() === cleanEmail)
+      ) {
+        merged.set(item.id, item);
+      }
+    }
+  } catch {
+    // Ignore
+  }
+
+  return Array.from(merged.values()).sort((a, b) =>
+    (b.signedAtIso || '').localeCompare(a.signedAtIso || '')
+  );
+}
+
+export async function fetchAllLegalAuditTrailForStaff(): Promise<
+  LegalAuditTrailEntry[]
+> {
+  const merged = new Map<string, LegalAuditTrailEntry>();
+  for (const item of readLocalAuditTrailBackup()) {
+    if (item && item.id) merged.set(item.id, item);
+  }
+  try {
+    const remoteList = await dualGetCollection<LegalAuditTrailEntry>(
+      'audit_trail',
+      3000
+    );
+    for (const item of remoteList) {
+      if (item && item.id) merged.set(item.id, item);
+    }
+  } catch {
+    // Ignore
+  }
+  return Array.from(merged.values()).sort((a, b) =>
+    (b.signedAtIso || '').localeCompare(a.signedAtIso || '')
+  );
 }
 
 export async function approveCharterRequestInFirebase(

@@ -50,7 +50,30 @@ service cloud.firestore {
         && (!('isRootUnlocked' in data) || (data.isRootUnlocked is bool))
         && (!('emailNotificationsEnabled' in data) || (data.emailNotificationsEnabled is bool))
         && (!('paidRevenueUsd' in data) || (data.paidRevenueUsd is number && data.paidRevenueUsd >= 0))
-        && (!('unlockedCapsules' in data) || (data.unlockedCapsules is list && data.unlockedCapsules.size() <= 50));
+        && (!('unlockedCapsules' in data) || (data.unlockedCapsules is list && data.unlockedCapsules.size() <= 50))
+        && (!('agreedToTermsAndPrivacy' in data) || (data.agreedToTermsAndPrivacy is bool))
+        && (!('termsAndPrivacyAgreedAt' in data) || (data.termsAndPrivacyAgreedAt is string && data.termsAndPrivacyAgreedAt.size() <= 60))
+        && (!('termsAndPrivacyVersion' in data) || (data.termsAndPrivacyVersion is string && data.termsAndPrivacyVersion.size() <= 60))
+        && (!('termsIpAddress' in data) || (data.termsIpAddress is string && data.termsIpAddress.size() <= 80))
+        && (!('recordKeeperCharterSigned' in data) || (data.recordKeeperCharterSigned is bool))
+        && (!('recordKeeperCharterSignedAt' in data) || (data.recordKeeperCharterSignedAt is string && data.recordKeeperCharterSignedAt.size() <= 60))
+        && (!('recordKeeperCharterCode' in data) || (data.recordKeeperCharterCode is string && data.recordKeeperCharterCode.size() <= 80))
+        && (!('recordKeeperContractVersion' in data) || (data.recordKeeperContractVersion is string && data.recordKeeperContractVersion.size() <= 60));
+    }
+
+    function isValidAuditEntry(data) {
+      return data.keys().hasAll(['id', 'userId', 'userFullName', 'userEmail', 'eventType', 'documentTitle', 'documentVersion', 'certificateCode', 'consentStatement', 'signedAtIso', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.userFullName is string && data.userFullName.size() <= 150
+        && data.userEmail is string && data.userEmail.size() <= 120
+        && data.eventType in ['TERMS_AND_PRIVACY_CONSENT', 'RECORD_KEEPER_CONTRACT_SIGNATURE', 'ACCOUNT_REGISTRATION_CONSENT']
+        && data.documentTitle is string && data.documentTitle.size() <= 300
+        && data.documentVersion is string && data.documentVersion.size() <= 80
+        && data.certificateCode is string && data.certificateCode.size() <= 80
+        && data.consentStatement is string && data.consentStatement.size() <= 1000
+        && data.signedAtIso is string && data.signedAtIso.size() <= 60
+        && data.status == 'COMPLETED_AND_SEALED';
     }
 
     // =========================================================================
@@ -78,6 +101,21 @@ service cloud.firestore {
           && incoming().userId is string && incoming().userId.size() <= 128
           && incoming().peopleJson is string && incoming().peopleJson.size() <= 500000;
       }
+
+      match /audit_trail/{auditId} {
+        allow get, list: if true;
+        allow create, update: if isValidId(auditId) && isValidAuditEntry(incoming());
+        allow delete: if isValidId(auditId);
+      }
+    }
+
+    // =========================================================================
+    // 1B. CENTRAL AUDIT TRAIL (/audit_trail/{auditId})
+    // =========================================================================
+    match /audit_trail/{auditId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(auditId) && isValidAuditEntry(incoming());
+      allow delete: if isValidId(auditId);
     }
 
     // =========================================================================

@@ -109,6 +109,44 @@
           },
           "description": "IDs of unlocked intermediate ancestor capsules."
         },
+        "agreedToTermsAndPrivacy": {
+          "type": "boolean",
+          "description": "Whether the user agreed to Terms of Use and Privacy Policy upon registration."
+        },
+        "termsAndPrivacyAgreedAt": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO timestamp when Terms of Use and Privacy Policy were accepted."
+        },
+        "termsAndPrivacyVersion": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Version of Terms of Use and Privacy Policy accepted."
+        },
+        "termsIpAddress": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Client IP address captured when Terms & Privacy were accepted."
+        },
+        "recordKeeperCharterSigned": {
+          "type": "boolean",
+          "description": "Whether the Record Keeper Service Contract was electronically signed."
+        },
+        "recordKeeperCharterSignedAt": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO timestamp when the Record Keeper Service Contract was signed."
+        },
+        "recordKeeperCharterCode": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Unique Certificate of Completion / Charter ID."
+        },
+        "recordKeeperContractVersion": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Signed Record Keeper contract version (e.g. V2_24 May_2026)."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp of registration."
@@ -119,6 +157,109 @@
         }
       },
       "required": ["userId", "fullName", "email", "accountType", "subscriptionTier", "walletBalance", "createdAt"]
+    },
+    "LegalAuditTrailEntry": {
+      "title": "LegalAuditTrailEntry",
+      "description": "Immutable electronic signature, Terms/Privacy consent, and Certificate of Completion audit trail entry linked to a specific user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique audit trail entry ID."
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Associated user UID."
+        },
+        "userFullName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Full name of the signing user."
+        },
+        "familyName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Family name associated with the record."
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Registered email of the signing user."
+        },
+        "eventType": {
+          "type": "string",
+          "enum": ["TERMS_AND_PRIVACY_CONSENT", "RECORD_KEEPER_CONTRACT_SIGNATURE", "ACCOUNT_REGISTRATION_CONSENT"],
+          "description": "Type of legal consent or contract execution."
+        },
+        "documentTitle": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Title of the signed contract or policy."
+        },
+        "documentVersion": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Version identifier (e.g. V2_24 May_2026)."
+        },
+        "certificateCode": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Certificate of Completion / Audit reference code."
+        },
+        "orderReference": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Associated order or account reference ID."
+        },
+        "consentStatement": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Exact legal consent text accepted by the user."
+        },
+        "ipAddress": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Client IP address at time of consent."
+        },
+        "ipCountry": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Client country at time of consent."
+        },
+        "ipCity": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Client city at time of consent."
+        },
+        "userAgent": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Browser and OS user agent string."
+        },
+        "signedAtIso": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO 8601 UTC timestamp of signature."
+        },
+        "signedAtFormatted": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Human-readable localized timestamp."
+        },
+        "verificationMethod": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Authentication/verification method used (e.g. Email + Password / Google OAuth / Session Auth)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["COMPLETED_AND_SEALED"],
+          "description": "Completion status of the electronic record."
+        }
+      },
+      "required": ["id", "userId", "userFullName", "userEmail", "eventType", "documentTitle", "documentVersion", "certificateCode", "consentStatement", "signedAtIso", "status"]
     },
     "FamilyTreeDocument": {
       "title": "FamilyTreeDocument",
@@ -648,6 +789,14 @@
     "/users/{userId}/family_tree/{treeId}": {
       "schema": { "$ref": "entities/FamilyTreeDocument" },
       "description": "Subcollection storing interactive family tree data (شجرتي)."
+    },
+    "/users/{userId}/audit_trail/{auditId}": {
+      "schema": { "$ref": "entities/LegalAuditTrailEntry" },
+      "description": "Subcollection storing electronic signature, Terms/Privacy consent, and Certificate of Completion audit records for the user."
+    },
+    "/audit_trail/{auditId}": {
+      "schema": { "$ref": "entities/LegalAuditTrailEntry" },
+      "description": "Centralized audit trail collection of all user electronic signatures and legal consents."
     },
     "/customer_orders/{orderId}": {
       "schema": { "$ref": "entities/CustomerOrder" },
