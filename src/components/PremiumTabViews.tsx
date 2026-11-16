@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Archive,
   BookOpen,
   CheckCircle2,
   Globe,
   MessageSquarePlus,
-  Sparkles,
   ArrowLeft,
 } from 'lucide-react';
 import {
@@ -15,10 +13,12 @@ import {
   DashboardTab,
   LineageSearchResult,
 } from '../types/juthori';
-import { ResilientImage } from './ResilientImage';
-import { JUTHORI_MEDIA } from '../assets/media';
 import { InteractiveFamilyTreeBuilder } from './InteractiveFamilyTreeBuilder';
 import { FamilyMemoryVaultView } from './FamilyMemoryVaultView';
+import {
+  CustomerCommunityPostData,
+  CustomerSiteSettingsData,
+} from '../services/firestoreService';
 
 interface PremiumTabViewsProps {
   activeTab: DashboardTab;
@@ -37,6 +37,11 @@ interface PremiumTabViewsProps {
   walletBalance?: number;
   userAvatarUrl?: string;
   userId?: string;
+  userEmail?: string;
+  initialSiteSettings?: CustomerSiteSettingsData;
+  onSaveSiteSettings?: (settings: CustomerSiteSettingsData) => void;
+  initialCommunityPosts?: CustomerCommunityPostData[];
+  onSaveCommunityPosts?: (posts: CustomerCommunityPostData[]) => void;
 }
 
 export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
@@ -56,33 +61,63 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   walletBalance = 0,
   userAvatarUrl,
   userId,
+  userEmail,
+  initialSiteSettings,
+  onSaveSiteSettings,
+  initialCommunityPosts,
+  onSaveCommunityPosts,
 }) => {
+  const defaultSubdomain = (userEmail?.split('@')[0] || 'family')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '') || 'family';
+
   // 3. My Site (موقعي) State
-  const [siteSubdomain, setSiteSubdomain] = useState('almuqit');
-  const [publishLineagePublic, setPublishLineagePublic] = useState(true);
-  const [protectLivingMembers, setProtectLivingMembers] = useState(true);
+  const [siteSubdomain, setSiteSubdomain] = useState(
+    initialSiteSettings?.siteSubdomain || defaultSubdomain
+  );
+  const [publishLineagePublic, setPublishLineagePublic] = useState(
+    initialSiteSettings?.publishLineagePublic ?? true
+  );
+  const [protectLivingMembers, setProtectLivingMembers] = useState(
+    initialSiteSettings?.protectLivingMembers ?? true
+  );
   const [siteSavedBanner, setSiteSavedBanner] = useState(false);
 
-  // 4. My Community (مجتمعي) State
-  const [communityPosts, setCommunityPosts] = useState([
-    {
-      id: 'cp-1',
-      author: 'د. عبدالرحمن آل مقيت',
-      role: 'باحث في أنساب سراة عبيدة',
-      date: 'منذ يومين',
-      content:
-        'تمت مطابقة ثلاثة شواهد وثائقية إضافية تؤكد تفرعات آل برمان في سراة بني بشر كما وردت في مشجرة توفيق العزيز المقيت.',
-    },
-    {
-      id: 'cp-2',
-      author: 'سعيد بن محمد البشري',
-      role: 'عضو مجتمع بني بشر',
-      date: 'منذ 5 أيام',
-      content:
-        'نرحب بأبناء العمومة في مساحة التوثيق المشتركة لتبادل الوثائق والصور التاريخية المحفوظة لدى كبار السن.',
-    },
+  useEffect(() => {
+    if (initialSiteSettings) {
+      setSiteSubdomain(initialSiteSettings.siteSubdomain || defaultSubdomain);
+      setPublishLineagePublic(initialSiteSettings.publishLineagePublic ?? true);
+      setProtectLivingMembers(initialSiteSettings.protectLivingMembers ?? true);
+    }
+  }, [
+    initialSiteSettings?.siteSubdomain,
+    initialSiteSettings?.publishLineagePublic,
+    initialSiteSettings?.protectLivingMembers,
+    defaultSubdomain,
   ]);
+
+  // 4. My Community (مجتمعي) State
+  const [communityPosts, setCommunityPosts] = useState<CustomerCommunityPostData[]>(
+    initialCommunityPosts && initialCommunityPosts.length > 0
+      ? initialCommunityPosts
+      : [
+          {
+            id: 'cp-welcome-1',
+            author: `مجلس أسرة ${result.familyName}`,
+            role: 'مساحة التوثيق المشتركة',
+            date: 'مثبت',
+            text: `مرحباً بأبناء عمومة أسرة ${result.familyName} في مساحة التوثيق المشتركة لتبادل الوثائق والصور التاريخية المحفوظة لدى كبار السن.`,
+            likes: 1,
+          },
+        ]
+  );
   const [newPostText, setNewPostText] = useState('');
+
+  useEffect(() => {
+    if (initialCommunityPosts && initialCommunityPosts.length > 0) {
+      setCommunityPosts(initialCommunityPosts);
+    }
+  }, [initialCommunityPosts]);
 
   if (activeTab === DashboardTab.Home) {
     return (
@@ -199,6 +234,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         walletBalance={walletBalance}
         userAvatarUrl={userAvatarUrl}
         userId={userId}
+        userEmail={userEmail}
       />
     );
   }
@@ -208,6 +244,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
       <FamilyMemoryVaultView
         result={result}
         userId={userId}
+        userEmail={userEmail}
         userAvatarUrl={userAvatarUrl}
         onLogActivity={onLogActivity}
         onNavigateTab={onNavigateTab}
@@ -322,6 +359,11 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
             <button
               type="button"
               onClick={() => {
+                onSaveSiteSettings?.({
+                  siteSubdomain: siteSubdomain.trim() || defaultSubdomain,
+                  publishLineagePublic,
+                  protectLivingMembers,
+                });
                 setSiteSavedBanner(true);
                 onLogActivity(
                   'تحديث موقع العائلة',
@@ -335,7 +377,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
 
             {siteSavedBanner && (
               <p className="text-xs font-semibold text-[#D8755B]">
-                تم حفظ إعدادات بوابة https://{siteSubdomain}.juthori.com بنجاح.
+                تم حفظ إعدادات بوابة https://{siteSubdomain}.juthori.com في قاعدة البيانات بنجاح.
               </p>
             )}
           </div>
@@ -350,7 +392,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
             </h3>
             <p className="text-xs text-[#252321]/80 leading-relaxed">
               {publishLineagePublic
-                ? `النسب المتصل: ${result.rootSummaryLabel} صعوداً إلى مذحج وأدد.`
+                ? `النسب المتصل: ${result.rootSummaryLabel}.`
                 : 'عمود النسب مخصص للأعضاء المسجلين فقط.'}
             </p>
             <div className="text-xs text-[#252321]/70 pt-2 border-t border-[#B98A78]/30">
@@ -366,19 +408,22 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   const handleAddCommunityPost = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostText.trim()) return;
-    setCommunityPosts((prev) => [
+    const nextPosts: CustomerCommunityPostData[] = [
       {
         id: `cp-${Date.now()}`,
-        author: `${result.clientName} ${result.familyName}`,
+        author: `${result.clientName} ${result.familyName}`.trim(),
         role:
           accountType === AccountLegalType.RecordKeeper
             ? 'أمين سجل معتمد'
             : 'عضو العائلة',
-        date: 'الآن',
-        content: newPostText.trim(),
+        date: new Date().toLocaleDateString('ar-SA'),
+        text: newPostText.trim(),
+        likes: 1,
       },
-      ...prev,
-    ]);
+      ...communityPosts,
+    ];
+    setCommunityPosts(nextPosts);
+    onSaveCommunityPosts?.(nextPosts);
     onLogActivity('نشر مشاركة في مجتمعي', 'إضافة ملاحظة بحثية في مجتمع العائلة');
     setNewPostText('');
   };
@@ -430,7 +475,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
               </div>
               <span>{post.date}</span>
             </div>
-            <p className="text-sm text-[#252321]/85 leading-relaxed">{post.content}</p>
+            <p className="text-sm text-[#252321]/85 leading-relaxed">{post.text}</p>
           </article>
         ))}
       </div>

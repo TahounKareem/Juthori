@@ -294,8 +294,12 @@ export interface UserProfileData {
   walletBalance: number;
   paidRevenueUsd?: number;
   unlockedCapsules?: string[];
+  bridgedAncestors?: string[];
+  unlockedAddonSourceIds?: string[];
   isRootUnlocked?: boolean;
   emailNotificationsEnabled?: boolean;
+  emailNotificationsTicket?: boolean;
+  emailNotificationsTree?: boolean;
   agreedToTermsAndPrivacy?: boolean;
   termsAndPrivacyAgreedAt?: string;
   termsAndPrivacyVersion?: string;
@@ -574,6 +578,65 @@ export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
   }
 }
 
+export function isCorporateStaffEmail(email?: string | null): boolean {
+  const em = (email || '').trim().toLowerCase();
+  if (!em) return false;
+  if (
+    em.endsWith('@adamresearchcenter.net') ||
+    em === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() ||
+    em === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase() ||
+    em === 'hassan.almuqit@juthori.com' ||
+    em === 'client@juthori.com'
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function canonicalCustomerEmailUid(email?: string | null): string {
+  const em = (email || '').trim().toLowerCase();
+  if (!em || !em.includes('@') || isCorporateStaffEmail(em)) return '';
+  return `usr_email_${em.replace(/[^a-z0-9]/g, '_').slice(0, 96)}`;
+}
+
+export async function findTeamMemberByEmail(
+  email?: string | null
+): Promise<TeamMemberRecord | null> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail) return null;
+  if (cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()) {
+    return FOUNDING_MAESTRO_MEMBER;
+  }
+  if (cleanEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase()) {
+    return DEFAULT_GENERAL_MANAGER_MEMBER;
+  }
+  try {
+    const canonicalDocId = getTeamMemberDocIdByEmail(cleanEmail);
+    const directDoc = await dualGetDoc<TeamMemberRecord>([
+      'team_members',
+      canonicalDocId,
+    ]);
+    if (
+      directDoc &&
+      (directDoc.email || '').trim().toLowerCase() === cleanEmail &&
+      !LEGACY_DUMMY_TEAM_IDS.has(directDoc.id)
+    ) {
+      return directDoc;
+    }
+    const allMembers = await dualGetCollection<TeamMemberRecord>('team_members');
+    const matched = allMembers.find(
+      (m) =>
+        m &&
+        m.email &&
+        !LEGACY_DUMMY_TEAM_IDS.has(m.id) &&
+        m.email.trim().toLowerCase() === cleanEmail
+    );
+    return matched || null;
+  } catch {
+    return null;
+  }
+}
+
 function isTeamAccountDocInUsers(
   docId?: string,
   email?: string,
@@ -589,17 +652,15 @@ function isTeamAccountDocInUsers(
   ) {
     return true;
   }
-  if (
-    em === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() ||
-    em === 'hassan.almuqit@juthori.com' ||
-    em === 'client@juthori.com'
-  ) {
+  if (isCorporateStaffEmail(em)) {
     return true;
   }
   if (
     fn.includes('(المايسترو)') ||
     fn.includes('(مدير البحوث)') ||
-    fn.includes('(مدير عام)')
+    fn.includes('(مدير عام)') ||
+    fn.includes('(مدير إدارة الطلبات وخدمة العملاء)') ||
+    fn.includes('(مدير تحرير المركز المعرفي)')
   ) {
     return true;
   }
@@ -678,8 +739,8 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
   const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   if (isTeamAccountDocInUsers(safeUid)) return null;
   const docData = await dualGetDoc<UserProfileData>(['users', safeUid]);
+  if (!docData) return null;
   if (
-    docData &&
     isTeamAccountDocInUsers(
       docData.userId || safeUid,
       docData.email,
@@ -689,6 +750,13 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
     dualDeleteDoc(['users', safeUid]).catch(() => {});
     return null;
   }
+  if (docData.email) {
+    const teamMatch = await findTeamMemberByEmail(docData.email);
+    if (teamMatch) {
+      dualDeleteDoc(['users', safeUid]).catch(() => {});
+      return null;
+    }
+  }
   return autoHealCorruptedProfileIfNeeded(docData);
 }
 
@@ -696,7 +764,12 @@ export async function fetchUserProfileByEmail(
   email: string
 ): Promise<UserProfileData | null> {
   const cleanEmail = (email || '').trim().toLowerCase();
-  if (!cleanEmail) return null;
+  if (!cleanEmail || isCorporateStaffEmail(cleanEmail)) return null;
+
+  const teamMatch = await findTeamMemberByEmail(cleanEmail);
+  if (teamMatch) {
+    return null;
+  }
 
   try {
     const [allUsers, allOrders, allTickets] = await Promise.all([
@@ -846,11 +919,26 @@ export async function fetchUserProfileByEmail(
       subscriptionTier: resolvedTier,
       walletBalance:
         bestUser?.walletBalance ?? bestOrder?.walletBalanceUsd ?? 0,
+      paidRevenueUsd:
+        bestUser?.paidRevenueUsd ?? bestOrder?.paidRevenueUsd ?? undefined,
+      unlockedCapsules: bestUser?.unlockedCapsules,
+      bridgedAncestors: bestUser?.bridgedAncestors,
+      unlockedAddonSourceIds: bestUser?.unlockedAddonSourceIds,
       isRootUnlocked:
         Boolean(bestUser?.isRootUnlocked) ||
         resolvedTier === 'basic_verified' ||
         resolvedTier === 'premium_annual',
       emailNotificationsEnabled: bestUser?.emailNotificationsEnabled ?? true,
+      emailNotificationsTicket: bestUser?.emailNotificationsTicket ?? true,
+      emailNotificationsTree: bestUser?.emailNotificationsTree ?? true,
+      agreedToTermsAndPrivacy: bestUser?.agreedToTermsAndPrivacy,
+      termsAndPrivacyAgreedAt: bestUser?.termsAndPrivacyAgreedAt,
+      termsAndPrivacyVersion: bestUser?.termsAndPrivacyVersion,
+      termsIpAddress: bestUser?.termsIpAddress,
+      recordKeeperCharterSigned: bestUser?.recordKeeperCharterSigned,
+      recordKeeperCharterSignedAt: bestUser?.recordKeeperCharterSignedAt,
+      recordKeeperCharterCode: bestUser?.recordKeeperCharterCode,
+      recordKeeperContractVersion: bestUser?.recordKeeperContractVersion,
       createdAt:
         bestUser?.createdAt ||
         bestOrder?.createdAt ||
@@ -870,6 +958,18 @@ export async function createUserProfileIfMissing(
 ): Promise<UserProfileData> {
   const safeUid = (user.uid || `usr_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
   const cleanEmail = (additional.email || user.email || 'user@juthori.com').trim();
+
+  // Strict RBAC Isolation: NEVER allow corporate or /team staff accounts in `users`
+  if (
+    isTeamAccountDocInUsers(safeUid, cleanEmail, additional.fullName || user.displayName || '') ||
+    (await findTeamMemberByEmail(cleanEmail))
+  ) {
+    await dualDeleteDoc(['users', safeUid]).catch(() => {});
+    throw new Error(
+      'TEAM_ACCOUNT_ISOLATED: هذا البريد مسجل كحساب إداري في منظومة فريق العمل ولا يُسمح بتسجيله في بوابة العملاء.'
+    );
+  }
+
   const initialProfile = autoHealCorruptedProfileIfNeeded({
     userId: safeUid,
     fullName: additional.fullName || user.displayName || 'مستخدم جذوري',
@@ -888,8 +988,13 @@ export async function createUserProfileIfMissing(
     familyBranch: additional.familyBranch || '',
     subscriptionTier: additional.subscriptionTier || 'free',
     walletBalance: additional.walletBalance ?? 0,
+    unlockedCapsules: additional.unlockedCapsules,
+    bridgedAncestors: additional.bridgedAncestors,
+    unlockedAddonSourceIds: additional.unlockedAddonSourceIds,
     isRootUnlocked: additional.isRootUnlocked ?? false,
     emailNotificationsEnabled: additional.emailNotificationsEnabled ?? true,
+    emailNotificationsTicket: additional.emailNotificationsTicket ?? true,
+    emailNotificationsTree: additional.emailNotificationsTree ?? true,
     agreedToTermsAndPrivacy: additional.agreedToTermsAndPrivacy ?? true,
     termsAndPrivacyAgreedAt:
       additional.termsAndPrivacyAgreedAt || new Date().toISOString(),
@@ -975,6 +1080,14 @@ export async function updateUserProfile(
 ): Promise<void> {
   if (!userId) return;
   const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const candidateEmail = (updates.email || auth.currentUser?.email || '').trim();
+  if (
+    isTeamAccountDocInUsers(safeUid, candidateEmail, updates.fullName) ||
+    (candidateEmail && (await findTeamMemberByEmail(candidateEmail)))
+  ) {
+    await dualDeleteDoc(['users', safeUid]).catch(() => {});
+    return;
+  }
   const path = `users/${safeUid}`;
   try {
     const existingData = await dualGetDoc<UserProfileData>(['users', safeUid]);
@@ -982,11 +1095,19 @@ export async function updateUserProfile(
       await createUserProfileIfMissing(
         {
           uid: safeUid,
-          email: updates.email || auth.currentUser?.email || 'user@juthori.com',
+          email: candidateEmail || 'user@juthori.com',
           displayName: updates.fullName || 'مستخدم جذوري',
         },
         updates
       );
+      return;
+    }
+    if (
+      existingData.email &&
+      (isCorporateStaffEmail(existingData.email) ||
+        (await findTeamMemberByEmail(existingData.email)))
+    ) {
+      await dualDeleteDoc(['users', safeUid]).catch(() => {});
       return;
     }
     const merged: UserProfileData = {
@@ -1074,46 +1195,210 @@ export async function deleteUserAccountFromFirebase(userId: string): Promise<voi
 }
 
 // =============================================================================
-// 2. INTERACTIVE FAMILY TREE PERSISTENCE (شجرتي in Firebase)
+// 2. INTERACTIVE FAMILY TREE PERSISTENCE (شجرتي in Firebase + Local Cache)
 // =============================================================================
+const CHUNKED_AVATAR_PREFIX = '__CHUNKED_TREE_AVATAR__:';
+
+function getFullFamilyTreeLocalKeys(
+  userId?: string,
+  userEmail?: string,
+  familyName?: string
+): string[] {
+  const keys: string[] = [];
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const safeFam = (familyName || '').trim().replace(/\s+/g, '_');
+  if (safeUid) keys.push(`juthori_full_tree_v3_${safeUid}`);
+  if (emailUid && !keys.includes(`juthori_full_tree_v3_${emailUid}`)) {
+    keys.push(`juthori_full_tree_v3_${emailUid}`);
+  }
+  if (safeFam && !safeUid && !emailUid) {
+    keys.push(`juthori_full_tree_v3_fam_${safeFam}`);
+  }
+  return keys;
+}
+
+export function saveUserFamilyTreeToLocal(
+  userId: string | undefined,
+  familyName: string,
+  people: unknown[],
+  userEmail?: string
+): void {
+  if (typeof window === 'undefined' || !Array.isArray(people)) return;
+  const serialized = JSON.stringify({
+    familyName: familyName || 'العائلة',
+    people,
+    updatedAt: new Date().toISOString(),
+  });
+  for (const key of getFullFamilyTreeLocalKeys(userId, userEmail, familyName)) {
+    try {
+      window.localStorage.setItem(key, serialized);
+    } catch {
+      // Ignore storage quota
+    }
+  }
+}
+
+export function readUserFamilyTreeFromLocal<T = unknown>(
+  userId?: string,
+  userEmail?: string,
+  familyName?: string
+): T[] | null {
+  if (typeof window === 'undefined') return null;
+  for (const key of getFullFamilyTreeLocalKeys(userId, userEmail, familyName)) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as { familyName?: string; people?: T[] } | T[];
+      const list = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.people)
+        ? parsed.people
+        : null;
+      if (list && list.length > 0) {
+        return list;
+      }
+    } catch {
+      // Ignore parse error
+    }
+  }
+  return null;
+}
+
 export async function saveUserFamilyTreeToFirebase(
   userId: string,
   familyName: string,
-  people: unknown[]
-): Promise<void> {
-  if (!userId) return;
-  const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  people: unknown[],
+  userEmail?: string
+): Promise<boolean> {
+  saveUserFamilyTreeToLocal(userId, familyName, people, userEmail);
+
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const targetUids = Array.from(
+    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
+  );
+  if (targetUids.length === 0) return false;
+
   try {
-    await dualSetDoc(['users', safeUid, 'family_tree', 'main'], {
-      userId: safeUid,
-      familyName: familyName || 'العائلة',
-      peopleJson: JSON.stringify(people),
-      updatedAt: new Date().toISOString(),
-    });
+    const updatedAt = new Date().toISOString();
+    let peopleToSerialize = people as Array<Record<string, unknown>>;
+    let peopleJson = JSON.stringify(peopleToSerialize);
+    const avatarChunks: Array<{ docId: string; dataUrl: string }> = [];
+
+    // If tree JSON approaches Firestore's 950KB document ceiling (e.g. many base64 portraits),
+    // split large avatarDataUrl fields into dedicated sub-documents automatically.
+    if (peopleJson.length > 880000) {
+      peopleToSerialize = peopleToSerialize.map((node, idx) => {
+        const rawAvatar = typeof node?.avatarDataUrl === 'string' ? node.avatarDataUrl : '';
+        if (rawAvatar.length > 4096) {
+          const safePersonId = String(node.id || `p_${idx}`)
+            .replace(/[^a-zA-Z0-9_-]/g, '_')
+            .slice(0, 80);
+          const chunkDocId = `tree_avatar_${safePersonId}`;
+          avatarChunks.push({ docId: chunkDocId, dataUrl: rawAvatar });
+          return {
+            ...node,
+            avatarDataUrl: `${CHUNKED_AVATAR_PREFIX}${chunkDocId}`,
+          };
+        }
+        return node;
+      });
+      peopleJson = JSON.stringify(peopleToSerialize);
+    }
+
+    let wroteAny = false;
+    for (const uid of targetUids) {
+      for (const chunk of avatarChunks) {
+        if (chunk.dataUrl.length <= 920000) {
+          await dualSetDoc(['users', uid, 'family_tree', chunk.docId], {
+            userId: uid,
+            peopleJson: chunk.dataUrl,
+            updatedAt,
+          });
+        }
+      }
+      const res = await dualSetDoc(['users', uid, 'family_tree', 'main'], {
+        userId: uid,
+        familyName: familyName || 'العائلة',
+        peopleJson,
+        updatedAt,
+      });
+      if (res.primaryWritten || res.mirrorWritten) {
+        wroteAny = true;
+      }
+    }
+    return wroteAny;
   } catch (err) {
     console.warn('[saveUserFamilyTreeToFirebase] warning:', err);
+    return false;
   }
 }
 
 export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
-  userId: string
+  userId: string,
+  userEmail?: string,
+  familyName?: string
 ): Promise<T[] | null> {
-  if (!userId) return null;
-  const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  try {
-    const data = await dualGetDoc<{ peopleJson?: string }>([
-      'users',
-      safeUid,
-      'family_tree',
-      'main',
-    ]);
-    if (data?.peopleJson) {
-      return JSON.parse(data.peopleJson) as T[];
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const candidateUids = Array.from(
+    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
+  );
+
+  for (const uid of candidateUids) {
+    try {
+      const data = await dualGetDoc<{
+        peopleJson?: string;
+        familyName?: string;
+        updatedAt?: string;
+      }>(['users', uid, 'family_tree', 'main']);
+      if (data?.peopleJson) {
+        const parsed = JSON.parse(data.peopleJson) as Array<Record<string, unknown>>;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const rehydrated = await Promise.all(
+            parsed.map(async (node) => {
+              const avatarRef =
+                typeof node?.avatarDataUrl === 'string' ? node.avatarDataUrl : '';
+              if (avatarRef.startsWith(CHUNKED_AVATAR_PREFIX)) {
+                const chunkDocId = avatarRef.slice(CHUNKED_AVATAR_PREFIX.length);
+                const chunkDoc = await dualGetDoc<{ peopleJson?: string }>([
+                  'users',
+                  uid,
+                  'family_tree',
+                  chunkDocId,
+                ]);
+                if (chunkDoc?.peopleJson) {
+                  return { ...node, avatarDataUrl: chunkDoc.peopleJson };
+                }
+              }
+              return node;
+            })
+          );
+          saveUserFamilyTreeToLocal(
+            safeUid || uid,
+            familyName || data.familyName || 'العائلة',
+            rehydrated,
+            userEmail
+          );
+          // Backfill primary safeUid if loaded from emailUid
+          if (safeUid && uid !== safeUid) {
+            dualSetDoc(['users', safeUid, 'family_tree', 'main'], {
+              userId: safeUid,
+              familyName: familyName || data.familyName || 'العائلة',
+              peopleJson: data.peopleJson,
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            }).catch(() => {});
+          }
+          return rehydrated as unknown as T[];
+        }
+      }
+    } catch {
+      // Try next candidate UID
     }
-    return null;
-  } catch {
-    return null;
   }
+
+  return readUserFamilyTreeFromLocal<T>(userId, userEmail, familyName);
 }
 
 // =============================================================================
@@ -1703,9 +1988,26 @@ export async function executeWalletTransaction(
       newBalance = currentBalance - amount;
     }
 
-    if (userDoc) {
-      await updateUserProfile(safeUid, { walletBalance: newBalance });
-    }
+    await updateUserProfile(safeUid, { walletBalance: newBalance });
+
+    // Sync walletBalanceUsd on matching customer_orders in background
+    dualGetCollection<CustomerOrderRecord>('customer_orders')
+      .then((orders) => {
+        const userEmailLower = (userDoc?.email || auth.currentUser?.email || '')
+          .trim()
+          .toLowerCase();
+        for (const ord of orders) {
+          if (
+            ord.userId === safeUid ||
+            (userEmailLower && (ord.email || '').trim().toLowerCase() === userEmailLower)
+          ) {
+            updateCustomerOrderInFirebase(ord.id, { walletBalanceUsd: newBalance }).catch(
+              () => {}
+            );
+          }
+        }
+      })
+      .catch(() => {});
 
     const txRecord: WalletTransactionData = {
       id: txId,
@@ -1725,7 +2027,7 @@ export async function executeWalletTransaction(
     return { newBalance };
   } catch (error) {
     console.warn('[executeWalletTransaction] warning:', error);
-    return { newBalance: type === 'credit' ? amount : 0 };
+    throw error;
   }
 }
 
@@ -1739,17 +2041,12 @@ export async function processAnnualSubscriptionUpgrade(
     return { success: true, newBalance: bonusWalletCreditsUsd };
   }
   try {
-    const userDoc = await dualGetDoc<UserProfileData>(['users', safeUid]);
-    const currentBalance = userDoc ? (userDoc.walletBalance ?? 0) : 0;
-    const newBalance = currentBalance + bonusWalletCreditsUsd;
-
     await updateUserProfile(safeUid, {
       subscriptionTier: 'premium_annual',
       isRootUnlocked: true,
-      walletBalance: newBalance,
     });
 
-    await executeWalletTransaction(
+    const txRes = await executeWalletTransaction(
       safeUid,
       'credit',
       bonusWalletCreditsUsd,
@@ -1757,7 +2054,7 @@ export async function processAnnualSubscriptionUpgrade(
       'annual_subscription_bonus'
     );
 
-    return { success: true, newBalance };
+    return { success: true, newBalance: txRes.newBalance };
   } catch {
     return { success: true, newBalance: bonusWalletCreditsUsd };
   }
@@ -1934,7 +2231,7 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
       if (
         docId &&
         (isTeamAccountDocInUsers(docId, u.email, u.fullName) ||
-          (uEmail && teamEmails.has(uEmail) && docId.startsWith('team_')))
+          (uEmail && teamEmails.has(uEmail)))
       ) {
         deletePromises.push(dualDeleteDoc(['users', docId]));
       }
@@ -1952,8 +2249,7 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
       const oEmail = (o.email || '').trim().toLowerCase();
       if (
         docId &&
-        (oEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() ||
-          oEmail === 'hassan.almuqit@juthori.com')
+        (isCorporateStaffEmail(oEmail) || (oEmail && teamEmails.has(oEmail)))
       ) {
         deletePromises.push(dualDeleteDoc(['customer_orders', docId]));
       }
@@ -2176,6 +2472,14 @@ export async function authenticateTeamMemberInFirebase(
     }
 
     if (!matched) {
+      const existingCustomer = await fetchUserProfileByEmail(cleanEmail);
+      if (existingCustomer) {
+        return {
+          member: null,
+          error:
+            'هذا البريد الإلكتروني مسجل كحساب عميل في منصة جذوري، ولا يملك صلاحية الدخول لبوابة الإدارة (/Team). حسابات الإدارة وحسابات العملاء معزولة تماماً.',
+        };
+      }
       return {
         member: null,
         error: 'البريد الإلكتروني غير مسجل في منظومة فريق العمل (/Team).',
@@ -2219,6 +2523,14 @@ export async function addTeamMemberToFirebase(params: {
   if (rawPassword.length < 6) {
     throw new Error(
       'WEAK_PASSWORD: يجب أن تتكون كلمة المرور من 6 خانات على الأقل ليتم تسجيلها في Firebase Authentication.'
+    );
+  }
+
+  // 0. Enforce strict separation: block emails already belonging to a Customer account in `users`
+  const existingCustomerAccount = await fetchUserProfileByEmail(cleanEmail);
+  if (existingCustomerAccount) {
+    throw new Error(
+      `CUSTOMER_EMAIL_ISOLATED: البريد الإلكتروني (${params.email.trim()}) مسجل بالفعل كحساب عميل في المنصة. يرجى تخصيص بريد إداري مستقل لضمان العزل التام بين حسابات الإدارة وحسابات العملاء.`
     );
   }
 
@@ -3212,17 +3524,31 @@ export const DEFAULT_STARTER_VAULT_FOLDERS: VaultFolderRecord[] = [
   },
 ];
 
-function getVaultLocalStorageKey(userId?: string, familyName?: string): string {
+const CHUNKED_VAULT_MEDIA_PREFIX = '__CHUNKED_VAULT_MEDIA__:';
+
+function getVaultLocalStorageKeys(
+  userId?: string,
+  familyName?: string,
+  userEmail?: string
+): string[] {
+  const keys: string[] = [];
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
   const safeFam = (familyName || 'default').trim().replace(/\s+/g, '_');
-  return safeUid
-    ? `juthori_vault_v2_${safeUid}`
-    : `juthori_vault_v2_fam_${safeFam}`;
+  if (safeUid) keys.push(`juthori_vault_v2_${safeUid}`);
+  if (emailUid && !keys.includes(`juthori_vault_v2_${emailUid}`)) {
+    keys.push(`juthori_vault_v2_${emailUid}`);
+  }
+  if (!safeUid && !emailUid) {
+    keys.push(`juthori_vault_v2_fam_${safeFam}`);
+  }
+  return keys;
 }
 
 export function readVaultArchiveFromLocal(
   userId?: string,
-  familyName?: string
+  familyName?: string,
+  userEmail?: string
 ): FamilyVaultArchivePayload {
   if (typeof window === 'undefined') {
     return {
@@ -3231,24 +3557,25 @@ export function readVaultArchiveFromLocal(
       updatedAt: new Date().toISOString(),
     };
   }
-  const key = getVaultLocalStorageKey(userId, familyName);
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<FamilyVaultArchivePayload>;
-      const folders =
-        Array.isArray(parsed.folders) && parsed.folders.length > 0
-          ? parsed.folders
-          : DEFAULT_STARTER_VAULT_FOLDERS;
-      const items = Array.isArray(parsed.items) ? parsed.items : [];
-      return {
-        folders,
-        items,
-        updatedAt: parsed.updatedAt || new Date().toISOString(),
-      };
+  for (const key of getVaultLocalStorageKeys(userId, familyName, userEmail)) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<FamilyVaultArchivePayload>;
+        const folders =
+          Array.isArray(parsed.folders) && parsed.folders.length > 0
+            ? parsed.folders
+            : DEFAULT_STARTER_VAULT_FOLDERS;
+        const items = Array.isArray(parsed.items) ? parsed.items : [];
+        return {
+          folders,
+          items,
+          updatedAt: parsed.updatedAt || new Date().toISOString(),
+        };
+      }
+    } catch {
+      // Ignore parse error
     }
-  } catch {
-    // Ignore parse error
   }
   return {
     folders: DEFAULT_STARTER_VAULT_FOLDERS,
@@ -3259,52 +3586,80 @@ export function readVaultArchiveFromLocal(
 
 export async function fetchUserVaultArchive(
   userId?: string,
-  familyName?: string
+  familyName?: string,
+  userEmail?: string
 ): Promise<FamilyVaultArchivePayload> {
-  const localData = readVaultArchiveFromLocal(userId, familyName);
+  const localData = readVaultArchiveFromLocal(userId, familyName, userEmail);
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (!safeUid) {
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const candidateUids = Array.from(
+    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
+  );
+  if (candidateUids.length === 0) {
     return localData;
   }
 
-  try {
-    const remoteDoc = await dualGetDoc<{
-      userId: string;
-      peopleJson: string;
-      updatedAt?: string;
-    }>(['users', safeUid, 'family_tree', 'vault_archive']);
-    if (remoteDoc && typeof remoteDoc.peopleJson === 'string') {
-      const parsed = JSON.parse(
-        remoteDoc.peopleJson
-      ) as Partial<FamilyVaultArchivePayload>;
-      if (parsed && (Array.isArray(parsed.items) || Array.isArray(parsed.folders))) {
-        const mergedPayload: FamilyVaultArchivePayload = {
-          folders:
-            Array.isArray(parsed.folders) && parsed.folders.length > 0
-              ? parsed.folders
-              : localData.folders,
-          items:
-            Array.isArray(parsed.items) &&
-            parsed.items.length >= localData.items.length
-              ? parsed.items
-              : localData.items,
-          updatedAt: parsed.updatedAt || localData.updatedAt,
-        };
-        if (typeof window !== 'undefined') {
-          try {
-            window.localStorage.setItem(
-              getVaultLocalStorageKey(userId, familyName),
-              JSON.stringify(mergedPayload)
+  for (const uid of candidateUids) {
+    try {
+      const remoteDoc = await dualGetDoc<{
+        userId: string;
+        peopleJson: string;
+        updatedAt?: string;
+      }>(['users', uid, 'family_tree', 'vault_archive']);
+      if (remoteDoc && typeof remoteDoc.peopleJson === 'string') {
+        const parsed = JSON.parse(
+          remoteDoc.peopleJson
+        ) as Partial<FamilyVaultArchivePayload>;
+        if (parsed && (Array.isArray(parsed.items) || Array.isArray(parsed.folders))) {
+          let rehydratedItems = Array.isArray(parsed.items) ? parsed.items : [];
+          if (rehydratedItems.length > 0) {
+            rehydratedItems = await Promise.all(
+              rehydratedItems.map(async (item) => {
+                if (
+                  typeof item.fileDataUrl === 'string' &&
+                  item.fileDataUrl.startsWith(CHUNKED_VAULT_MEDIA_PREFIX)
+                ) {
+                  const chunkDocId = item.fileDataUrl.slice(
+                    CHUNKED_VAULT_MEDIA_PREFIX.length
+                  );
+                  const chunkDoc = await dualGetDoc<{ peopleJson?: string }>([
+                    'users',
+                    uid,
+                    'family_tree',
+                    chunkDocId,
+                  ]);
+                  if (chunkDoc?.peopleJson) {
+                    return { ...item, fileDataUrl: chunkDoc.peopleJson };
+                  }
+                }
+                return item;
+              })
             );
-          } catch {
-            // Ignore quota
           }
+
+          const mergedPayload: FamilyVaultArchivePayload = {
+            folders:
+              Array.isArray(parsed.folders) && parsed.folders.length > 0
+                ? parsed.folders
+                : localData.folders,
+            items: rehydratedItems,
+            updatedAt: parsed.updatedAt || localData.updatedAt,
+          };
+          if (typeof window !== 'undefined') {
+            for (const key of getVaultLocalStorageKeys(userId, familyName, userEmail)) {
+              try {
+                window.localStorage.setItem(key, JSON.stringify(mergedPayload));
+              } catch {
+                // Ignore quota
+              }
+            }
+          }
+          return mergedPayload;
         }
-        return mergedPayload;
       }
+    } catch {
+      // Try next candidate UID
     }
-  } catch {
-    // Fallback to local
   }
 
   return localData;
@@ -3316,7 +3671,8 @@ export async function saveUserVaultArchive(
   payload: {
     folders: VaultFolderRecord[];
     items: FamilyVaultMediaItem[];
-  }
+  },
+  userEmail?: string
 ): Promise<FamilyVaultArchivePayload> {
   const record: FamilyVaultArchivePayload = {
     folders:
@@ -3328,11 +3684,12 @@ export async function saveUserVaultArchive(
   };
 
   if (typeof window !== 'undefined') {
-    const key = getVaultLocalStorageKey(userId, familyName);
-    try {
-      window.localStorage.setItem(key, JSON.stringify(record));
-    } catch {
-      // Ignore quota
+    for (const key of getVaultLocalStorageKeys(userId, familyName, userEmail)) {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(record));
+      } catch {
+        // Ignore quota
+      }
     }
     window.dispatchEvent(
       new CustomEvent('juthori:vault-updated', { detail: record })
@@ -3340,22 +3697,220 @@ export async function saveUserVaultArchive(
   }
 
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (safeUid) {
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const targetUids = Array.from(
+    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
+  );
+  if (targetUids.length > 0) {
     try {
-      const jsonStr = JSON.stringify(record);
-      if (jsonStr.length <= 480000) {
-        await dualSetDoc(['users', safeUid, 'family_tree', 'vault_archive'], {
-          userId: safeUid,
-          peopleJson: jsonStr,
-          updatedAt: record.updatedAt,
+      let jsonStr = JSON.stringify(record);
+      const mediaChunks: Array<{ docId: string; dataUrl: string }> = [];
+
+      // If total vault archive exceeds 860KB, chunk heavy media files into separate sub-documents
+      if (jsonStr.length > 860000) {
+        const lightItems = record.items.map((item, idx) => {
+          if (typeof item.fileDataUrl === 'string' && item.fileDataUrl.length > 8192) {
+            const safeItemId = String(item.id || `m_${idx}`)
+              .replace(/[^a-zA-Z0-9_-]/g, '_')
+              .slice(0, 80);
+            const chunkDocId = `vault_media_${safeItemId}`;
+            mediaChunks.push({ docId: chunkDocId, dataUrl: item.fileDataUrl });
+            return {
+              ...item,
+              fileDataUrl: `${CHUNKED_VAULT_MEDIA_PREFIX}${chunkDocId}`,
+            };
+          }
+          return item;
+        });
+        jsonStr = JSON.stringify({
+          ...record,
+          items: lightItems,
         });
       }
-    } catch {
-      // Ignore network/quota error
+
+      for (const uid of targetUids) {
+        for (const chunk of mediaChunks) {
+          if (chunk.dataUrl.length <= 930000) {
+            await dualSetDoc(['users', uid, 'family_tree', chunk.docId], {
+              userId: uid,
+              familyName: familyName || 'العائلة',
+              peopleJson: chunk.dataUrl,
+              updatedAt: record.updatedAt,
+            });
+          }
+        }
+        if (jsonStr.length <= 940000) {
+          await dualSetDoc(['users', uid, 'family_tree', 'vault_archive'], {
+            userId: uid,
+            familyName: familyName || 'العائلة',
+            peopleJson: jsonStr,
+            updatedAt: record.updatedAt,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[saveUserVaultArchive] warning:', err);
     }
   }
 
   return record;
+}
+
+// =============================================================================
+// CUSTOMER DASHBOARD WORKSPACE PERSISTENCE (عمود نسبي + موقعي + مجتمعي + النشاط)
+// =============================================================================
+export interface CustomerSiteSettingsData {
+  siteSubdomain: string;
+  publishLineagePublic: boolean;
+  protectLivingMembers: boolean;
+}
+
+export interface CustomerCommunityPostData {
+  id: string;
+  author: string;
+  role: string;
+  date: string;
+  text: string;
+  likes: number;
+}
+
+export interface CustomerActivityLogEntry {
+  id: string;
+  title: string;
+  timestamp: string;
+  badge: string;
+}
+
+export interface CustomerDashboardWorkspaceData {
+  familyName?: string;
+  bridgedAncestors?: string[];
+  unlockedCapsules?: string[];
+  unlockedAddonSourceIds?: string[];
+  verifiedResultOverrideJson?: string | null;
+  siteSettings?: CustomerSiteSettingsData;
+  communityPosts?: CustomerCommunityPostData[];
+  activityLog?: CustomerActivityLogEntry[];
+  updatedAt: string;
+}
+
+function getWorkspaceLocalKeys(userId?: string, userEmail?: string): string[] {
+  const keys: string[] = [];
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  if (safeUid) keys.push(`juthori_workspace_v1_${safeUid}`);
+  if (emailUid && !keys.includes(`juthori_workspace_v1_${emailUid}`)) {
+    keys.push(`juthori_workspace_v1_${emailUid}`);
+  }
+  return keys;
+}
+
+export function readCustomerDashboardWorkspaceFromLocal(
+  userId?: string,
+  userEmail?: string
+): CustomerDashboardWorkspaceData | null {
+  if (typeof window === 'undefined') return null;
+  for (const key of getWorkspaceLocalKeys(userId, userEmail)) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        return JSON.parse(raw) as CustomerDashboardWorkspaceData;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return null;
+}
+
+export async function fetchCustomerDashboardWorkspace(
+  userId?: string,
+  userEmail?: string
+): Promise<CustomerDashboardWorkspaceData | null> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const candidateUids = Array.from(
+    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
+  );
+
+  for (const uid of candidateUids) {
+    try {
+      const remoteDoc = await dualGetDoc<{
+        userId: string;
+        peopleJson: string;
+        updatedAt?: string;
+      }>(['users', uid, 'family_tree', 'dashboard_workspace']);
+      if (remoteDoc?.peopleJson) {
+        const parsed = JSON.parse(
+          remoteDoc.peopleJson
+        ) as CustomerDashboardWorkspaceData;
+        if (parsed && typeof parsed === 'object') {
+          if (typeof window !== 'undefined') {
+            for (const key of getWorkspaceLocalKeys(userId, userEmail)) {
+              try {
+                window.localStorage.setItem(key, JSON.stringify(parsed));
+              } catch {
+                // Ignore
+              }
+            }
+          }
+          return parsed;
+        }
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  return readCustomerDashboardWorkspaceFromLocal(userId, userEmail);
+}
+
+export async function saveCustomerDashboardWorkspace(
+  userId: string | undefined,
+  userEmail: string | undefined,
+  updates: Partial<CustomerDashboardWorkspaceData>
+): Promise<void> {
+  const existing =
+    readCustomerDashboardWorkspaceFromLocal(userId, userEmail) || {
+      updatedAt: new Date().toISOString(),
+    };
+  const merged: CustomerDashboardWorkspaceData = {
+    ...existing,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== 'undefined') {
+    for (const key of getWorkspaceLocalKeys(userId, userEmail)) {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(merged));
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const targetUids = Array.from(
+    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
+  );
+  if (targetUids.length === 0) return;
+
+  try {
+    const jsonStr = JSON.stringify(merged);
+    if (jsonStr.length <= 920000) {
+      for (const uid of targetUids) {
+        await dualSetDoc(['users', uid, 'family_tree', 'dashboard_workspace'], {
+          userId: uid,
+          familyName: merged.familyName || 'العائلة',
+          peopleJson: jsonStr,
+          updatedAt: merged.updatedAt,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[saveCustomerDashboardWorkspace] warning:', err);
+  }
 }
 
 export function getTreeStorageKeyForVaultSync(

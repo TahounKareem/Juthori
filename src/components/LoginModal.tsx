@@ -6,12 +6,15 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   sendEmailVerification,
+  signOut,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import {
   createUserProfileIfMissing,
   fetchUserProfile,
   fetchUserProfileByEmail,
+  findTeamMemberByEmail,
+  isCorporateStaffEmail,
 } from '../services/firestoreService';
 import { AccountLegalType } from '../types/juthori';
 
@@ -109,6 +112,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   if (!isOpen) return null;
 
+  const checkStaffIsolationBlock = async (
+    candidateEmail: string
+  ): Promise<string | null> => {
+    const normalized = (candidateEmail || '').trim().toLowerCase();
+    if (!normalized) return null;
+    const teamMember = await findTeamMemberByEmail(normalized);
+    if (teamMember || isCorporateStaffEmail(normalized)) {
+      const roleNote = teamMember?.role ? ` بصلاحية «${teamMember.role}»` : '';
+      return `عذراً، هذا البريد الإلكتروني مسجل ضمن حسابات الإدارة وفريق العمل${roleNote}. يوجد فصل تام بين حسابات الإدارة وحسابات العملاء — يرجى الدخول عبر بوابة فريق العمل المخصصة (/team).`;
+    }
+    return null;
+  };
+
   // Google Sign-In with Popup
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -118,6 +134,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
       const cleanEmail = (user.email || '').trim();
+
+      const staffBlockMsg = await checkStaffIsolationBlock(cleanEmail);
+      if (staffBlockMsg) {
+        await signOut(auth).catch(() => {});
+        setError(staffBlockMsg);
+        return;
+      }
 
       const existingByEmail = cleanEmail
         ? await fetchUserProfileByEmail(cleanEmail)
@@ -219,6 +242,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError('');
     setResetNotice('');
     try {
+      const staffBlockMsg = await checkStaffIsolationBlock(cleanEmail);
+      if (staffBlockMsg) {
+        setError(staffBlockMsg);
+        return;
+      }
       await sendPasswordResetEmail(auth, cleanEmail);
       setResetNotice(
         `تم إرسال رابط إعادة تعيين كلمة المرور بنجاح إلى (${cleanEmail}). يرجى فتح بريدك الإلكتروني وتعيين كلمة المرور الجديدة ثم تسجيل الدخول هنا مباشرًة.`
@@ -245,6 +273,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setIsLoading(true);
     setError('');
     setResetNotice('');
+
+    // Strict Isolation Gate: Block any staff/admin account BEFORE calling Firebase Auth on the Customer Portal
+    const staffBlockMsg = await checkStaffIsolationBlock(cleanEmail);
+    if (staffBlockMsg) {
+      await signOut(auth).catch(() => {});
+      setError(staffBlockMsg);
+      setIsLoading(false);
+      return;
+    }
 
     let uid = '';
     let authDisplayName = '';

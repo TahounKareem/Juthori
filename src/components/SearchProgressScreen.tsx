@@ -22,6 +22,10 @@ import {
 } from '../types/juthori';
 import { JuthoriLogo } from './JuthoriLogo';
 import { validateStep2PreservationForm } from '../utils/lineageEngine';
+import {
+  findTeamMemberByEmail,
+  isCorporateStaffEmail,
+} from '../services/firestoreService';
 
 interface SearchProgressScreenProps {
   form: RegistrationFormState;
@@ -123,6 +127,16 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
       setFormErrors({ email: 'يرجى إدخال البريد الإلكتروني أولاً لإرسال رمز التحقق.' });
       return;
     }
+    if (
+      isCorporateStaffEmail(cleanEmail) ||
+      (await findTeamMemberByEmail(cleanEmail))
+    ) {
+      setFormErrors({
+        email:
+          'هذا البريد الإلكتروني مسجل ضمن حسابات الإدارة وفريق العمل (/team). يرجى استخدام بريد شخصي مستقل لحساب العميل.',
+      });
+      return;
+    }
     setFormErrors({});
     setIsSendingOtp(true);
     setOtpSentNotice(null);
@@ -186,6 +200,16 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
     setFormErrors({});
     setIsSaving(true);
     try {
+      const cleanEmail = email.trim();
+      const matchedStaff = await findTeamMemberByEmail(cleanEmail);
+      if (matchedStaff || isCorporateStaffEmail(cleanEmail)) {
+        setFormErrors({
+          email: `هذا البريد مسجل كحساب إداري${matchedStaff?.role ? ` (${matchedStaff.role})` : ''} في منظومة فريق العمل (/team)، ولا يُسمح باستخدامه في بوابة العملاء.`,
+        });
+        setIsSaving(false);
+        return;
+      }
+
       if (authMode === 'otp') {
         const matchesLocalOtp =
           Boolean(localGeneratedOtp) && secretValue === localGeneratedOtp;
@@ -195,7 +219,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                email: email.trim(),
+                email: cleanEmail,
                 code: secretValue,
               }),
             });
@@ -220,23 +244,31 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: email.trim(),
+            email: cleanEmail,
             clientName: `${form.firstName} ${form.familyName}`.trim(),
           }),
         }).catch(() => {});
       }
 
       await onCompletePreservation({
-        email: email.trim(),
+        email: cleanEmail,
         password: secretValue.length < 6 ? `${secretValue}Jth!` : secretValue,
         accountType: form.accountType,
         selectedDisambiguation: selectedDisambiguationOption,
       });
     } catch (err) {
-      console.warn('Preservation save notice:', err);
-      setFormErrors({
-        form: 'تعذر حفظ السجل. يرجى المحاولة مرة أخرى أو استخدام حساب Google.',
-      });
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('TEAM_ACCOUNT_ISOLATED')) {
+        setFormErrors({
+          email:
+            'هذا البريد مسجل كحساب إداري في منظومة فريق العمل (/team) ولا يُسمح بتسجيله كعميل.',
+        });
+      } else {
+        console.warn('Preservation save notice:', err);
+        setFormErrors({
+          form: 'تعذر حفظ السجل. يرجى المحاولة مرة أخرى أو استخدام حساب Google.',
+        });
+      }
     } finally {
       setIsSaving(false);
     }

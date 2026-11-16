@@ -17,16 +17,17 @@ import {
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import {
+  canonicalCustomerEmailUid,
   fetchUserProfile,
   fetchUserWalletTransactions,
   executeWalletTransaction,
-  processAnnualSubscriptionUpgrade,
   WalletTransactionData,
 } from '../services/firestoreService';
 import { LineageSearchResult } from '../types/juthori';
 
 interface WalletViewProps {
   result: LineageSearchResult;
+  userId?: string;
   userEmail: string;
   isVip: boolean;
   onUpgradeSuccess: () => void;
@@ -36,7 +37,7 @@ interface WalletViewProps {
 }
 
 export const WalletView: React.FC<WalletViewProps> = ({
-  result,
+  userId,
   userEmail,
   isVip,
   onUpgradeSuccess,
@@ -64,32 +65,43 @@ export const WalletView: React.FC<WalletViewProps> = ({
     onBalanceChange?.(nextVal);
   };
 
-  const currentUid = auth.currentUser?.uid || `guest_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const currentUid =
+    userId ||
+    auth.currentUser?.uid ||
+    canonicalCustomerEmailUid(userEmail) ||
+    `guest_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const loadWalletData = async () => {
     setIsLoading(true);
     try {
       const profile = await fetchUserProfile(currentUid);
-      if (profile && typeof profile.walletBalance === 'number' && typeof externalBalance !== 'number') {
+      const resolvedBalance =
+        profile && typeof profile.walletBalance === 'number'
+          ? profile.walletBalance
+          : typeof externalBalance === 'number'
+          ? externalBalance
+          : 0;
+      if (profile && typeof profile.walletBalance === 'number') {
         updateSharedBalance(profile.walletBalance);
       }
       const txs = await fetchUserWalletTransactions(currentUid);
       if (txs && txs.length > 0) {
         setTransactions(txs);
-      } else {
-        // Initial mock transaction for visual realism if ledger is clean
+      } else if (isVip && resolvedBalance > 0) {
         setTransactions([
           {
             id: 'tx-welcome-init',
             userId: currentUid,
             type: 'credit',
-            amount: 25,
+            amount: resolvedBalance,
             reason: 'رصيد محفظة ترحيبي مع ترقية الاشتراك السنوي بريميوم',
             referenceId: 'welcome_annual_bonus',
-            balanceAfter: 25,
+            balanceAfter: resolvedBalance,
             createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
           },
         ]);
+      } else {
+        setTransactions([]);
       }
     } catch (err) {
       console.warn('Failed to fetch wallet from Firestore, using state:', err);
@@ -115,14 +127,17 @@ export const WalletView: React.FC<WalletViewProps> = ({
 
     setIsProcessing(true);
     try {
-      await executeWalletTransaction(
+      const txRes = await executeWalletTransaction(
         currentUid,
         'debit',
         costUsd,
         `شراء خدمة: ${serviceName}`,
         `srv_${Date.now()}`
       );
-      const nextBalance = Math.max(0, balance - costUsd);
+      const nextBalance =
+        typeof txRes.newBalance === 'number'
+          ? txRes.newBalance
+          : Math.max(0, balance - costUsd);
       updateSharedBalance(nextBalance);
       const newTx: WalletTransactionData = {
         id: `tx_${Date.now()}`,
@@ -146,19 +161,20 @@ export const WalletView: React.FC<WalletViewProps> = ({
     }
   };
 
-  // Handle instant top-up simulation
+  // Handle instant top-up
   const handleTopUpWallet = async (amount: number) => {
     setIsProcessing(true);
     setActionErrorMessage(null);
     try {
-      await executeWalletTransaction(
+      const txRes = await executeWalletTransaction(
         currentUid,
         'credit',
         amount,
         `شحن رصيد إضافي في المحفظة عبر البطاقة`,
         `topup_${Date.now()}`
       );
-      const nextBalance = balance + amount;
+      const nextBalance =
+        typeof txRes.newBalance === 'number' ? txRes.newBalance : balance + amount;
       updateSharedBalance(nextBalance);
       const newTx: WalletTransactionData = {
         id: `tx_${Date.now()}`,
@@ -170,7 +186,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
         createdAt: new Date().toISOString(),
       };
       setTransactions((prev) => [newTx, ...prev]);
-      setActionSuccessMessage(`تم شحن المحفظة بنجاح بمبلغ $${amount}!`);
+      setActionSuccessMessage(`تم شحن المحفظة وحفظ الرصيد ($${nextBalance}) في قاعدة البيانات بنجاح!`);
       onLogActivity?.('شحن محفظة', `إيداع $${amount}`);
       setTimeout(() => setActionSuccessMessage(null), 4000);
     } catch (err) {

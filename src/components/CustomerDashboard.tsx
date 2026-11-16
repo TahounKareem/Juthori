@@ -26,14 +26,20 @@ import {
 import { updatePassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import {
+  canonicalCustomerEmailUid,
   createCharterRequestInFirebase,
+  CustomerCommunityPostData,
+  CustomerSiteSettingsData,
   deleteUserAccountFromFirebase,
   executeWalletTransaction,
+  fetchCustomerDashboardWorkspace,
   fetchUserLegalAuditTrailFromFirebase,
   fetchUserProfile,
   fetchUserProfileByEmail,
   LegalAuditTrailEntry,
+  readCustomerDashboardWorkspaceFromLocal,
   recordLegalAuditTrailInFirebase,
+  saveCustomerDashboardWorkspace,
   syncClientLineageTicketToFirebase,
   updateUserProfile,
   uploadUserAvatarToFirebase,
@@ -139,25 +145,86 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   onUpdateLineageResult,
   onDeleteAccount,
 }) => {
+  const resolvedCustomerUid =
+    userId ||
+    auth.currentUser?.uid ||
+    canonicalCustomerEmailUid(userEmail) ||
+    (userEmail ? `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}` : '');
+
+  const initialWorkspace = readCustomerDashboardWorkspaceFromLocal(
+    resolvedCustomerUid,
+    userEmail
+  );
+  const initialWorkspaceMatchesFamily =
+    !initialWorkspace?.familyName ||
+    !result.familyName ||
+    initialWorkspace.familyName.trim() === result.familyName.trim();
+
   const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Lineage);
-  const [bridgedAncestors, setBridgedAncestors] = useState<string[]>([]);
+  const [bridgedAncestors, setBridgedAncestors] = useState<string[]>(() =>
+    initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.bridgedAncestors)
+      ? initialWorkspace!.bridgedAncestors!
+      : []
+  );
   const [bilingualLabels, setBilingualLabels] = useState(false);
 
   // Wallet Balance & Unlocked Capsules (Stage 4 of Adam Tree)
   const [walletBalance, setWalletBalance] = useState<number>(
     stateMode === DashboardStateMode.AnnualVip ? 25 : 0
   );
-  const [unlockedCapsules, setUnlockedCapsules] = useState<string[]>([]);
+  const [unlockedCapsules, setUnlockedCapsules] = useState<string[]>(() =>
+    initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.unlockedCapsules)
+      ? initialWorkspace!.unlockedCapsules!
+      : []
+  );
   const [unlockedAddonSourceIds, setUnlockedAddonSourceIds] = useState<
     string[]
-  >([]);
+  >(() =>
+    initialWorkspaceMatchesFamily &&
+    Array.isArray(initialWorkspace?.unlockedAddonSourceIds)
+      ? initialWorkspace!.unlockedAddonSourceIds!
+      : []
+  );
   const [activeCheckoutOrder, setActiveCheckoutOrder] =
     useState<CheckoutOrderRequest | null>(null);
   const [verifiedResultOverride, setVerifiedResultOverride] =
-    useState<LineageSearchResult | null>(null);
+    useState<LineageSearchResult | null>(() => {
+      if (
+        initialWorkspaceMatchesFamily &&
+        initialWorkspace?.verifiedResultOverrideJson
+      ) {
+        try {
+          return JSON.parse(
+            initialWorkspace.verifiedResultOverrideJson
+          ) as LineageSearchResult;
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    });
+  const [siteSettings, setSiteSettings] = useState<
+    CustomerSiteSettingsData | undefined
+  >(() => initialWorkspace?.siteSettings);
+  const [communityPosts, setCommunityPosts] = useState<
+    CustomerCommunityPostData[] | undefined
+  >(() => initialWorkspace?.communityPosts);
 
+  const prevFamilyNameRef = useRef<string>((result.familyName || '').trim());
+  const isWorkspaceHydratedRef = useRef<boolean>(false);
+
+  // Only reset family-specific overrides when the user genuinely switches from one non-empty family to another
   useEffect(() => {
-    setVerifiedResultOverride(null);
+    const nextFam = (result.familyName || '').trim();
+    const prevFam = prevFamilyNameRef.current;
+    if (prevFam && nextFam && prevFam !== nextFam) {
+      setVerifiedResultOverride(null);
+      setUnlockedCapsules([]);
+      setBridgedAncestors([]);
+    }
+    if (nextFam) {
+      prevFamilyNameRef.current = nextFam;
+    }
   }, [result.familyName]);
 
   useEffect(() => {
@@ -232,39 +299,134 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     }
   }, [initialAvatarUrl]);
 
-  // Restore persisted walletBalance, unlockedCapsules, and subscription state from Firestore on mount
+  // Restore persisted walletBalance, unlockedCapsules, bridgedAncestors, addon sources, subscription state, and workspace from Firestore on mount
   useEffect(() => {
     let cancelled = false;
-    const activeUid =
-      userId ||
-      auth.currentUser?.uid ||
-      (userEmail ? `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}` : '');
+    const activeUid = resolvedCustomerUid;
 
     async function hydrateFromFirestore() {
       try {
-        const profile =
-          (activeUid ? await fetchUserProfile(activeUid) : null) ||
-          (userEmail ? await fetchUserProfileByEmail(userEmail) : null);
-        if (cancelled || !profile) return;
+        const [profile, workspace] = await Promise.all([
+          (activeUid ? fetchUserProfile(activeUid) : Promise.resolve(null)).then(
+            (p) => p || (userEmail ? fetchUserProfileByEmail(userEmail) : null)
+          ),
+          fetchCustomerDashboardWorkspace(activeUid, userEmail),
+        ]);
+        if (cancelled) return;
 
-        if (typeof profile.walletBalance === 'number') {
-          setWalletBalance(profile.walletBalance);
+        if (profile) {
+          if (typeof profile.walletBalance === 'number') {
+            setWalletBalance(profile.walletBalance);
+          }
+          if (
+            Array.isArray(profile.unlockedCapsules) &&
+            profile.unlockedCapsules.length > 0
+          ) {
+            setUnlockedCapsules(profile.unlockedCapsules);
+          }
+          if (
+            Array.isArray(profile.bridgedAncestors) &&
+            profile.bridgedAncestors.length > 0
+          ) {
+            setBridgedAncestors(profile.bridgedAncestors);
+          }
+          if (
+            Array.isArray(profile.unlockedAddonSourceIds) &&
+            profile.unlockedAddonSourceIds.length > 0
+          ) {
+            setUnlockedAddonSourceIds(profile.unlockedAddonSourceIds);
+          }
+          if (typeof profile.emailNotificationsTicket === 'boolean') {
+            setEmailNotificationsTicket(profile.emailNotificationsTicket);
+          }
+          if (typeof profile.emailNotificationsTree === 'boolean') {
+            setEmailNotificationsTree(profile.emailNotificationsTree);
+          }
+          if (
+            profile.subscriptionTier === 'premium_annual' &&
+            stateMode !== DashboardStateMode.AnnualVip
+          ) {
+            onChangeStateMode(DashboardStateMode.AnnualVip);
+          } else if (
+            (profile.subscriptionTier === 'basic_verified' ||
+              profile.isRootUnlocked) &&
+            stateMode === DashboardStateMode.State2MatchedUnpaid
+          ) {
+            onChangeStateMode(DashboardStateMode.State1Paid5Basic);
+          }
+          if (
+            (profile.accountType === 'record_keeper' ||
+              profile.recordKeeperCharterSigned) &&
+            accountType !== AccountLegalType.RecordKeeper
+          ) {
+            onUpgradeAccountToRecordKeeper();
+          }
         }
-        if (
-          Array.isArray(profile.unlockedCapsules) &&
-          profile.unlockedCapsules.length > 0
-        ) {
-          setUnlockedCapsules(profile.unlockedCapsules);
+
+        if (workspace) {
+          const sameFamily =
+            !workspace.familyName ||
+            !result.familyName ||
+            workspace.familyName.trim() === result.familyName.trim();
+          if (
+            sameFamily &&
+            Array.isArray(workspace.bridgedAncestors) &&
+            workspace.bridgedAncestors.length > 0
+          ) {
+            setBridgedAncestors(workspace.bridgedAncestors);
+          }
+          if (
+            sameFamily &&
+            Array.isArray(workspace.unlockedCapsules) &&
+            workspace.unlockedCapsules.length > 0
+          ) {
+            setUnlockedCapsules(workspace.unlockedCapsules);
+          }
+          if (
+            sameFamily &&
+            Array.isArray(workspace.unlockedAddonSourceIds) &&
+            workspace.unlockedAddonSourceIds.length > 0
+          ) {
+            setUnlockedAddonSourceIds(workspace.unlockedAddonSourceIds);
+          }
+          if (sameFamily && workspace.verifiedResultOverrideJson) {
+            try {
+              const parsedOverride = JSON.parse(
+                workspace.verifiedResultOverrideJson
+              ) as LineageSearchResult;
+              if (parsedOverride && parsedOverride.familyName) {
+                setVerifiedResultOverride(parsedOverride);
+              }
+            } catch {
+              // Ignore invalid JSON
+            }
+          }
+          if (workspace.siteSettings) {
+            setSiteSettings(workspace.siteSettings);
+          }
+          if (
+            Array.isArray(workspace.communityPosts) &&
+            workspace.communityPosts.length > 0
+          ) {
+            setCommunityPosts(workspace.communityPosts);
+          }
+          if (
+            Array.isArray(workspace.activityLog) &&
+            workspace.activityLog.length > 0
+          ) {
+            setActivityLog(
+              workspace.activityLog.map((entry) => ({
+                id: entry.id,
+                action: entry.badge || 'نشاط الحساب',
+                detail: entry.title,
+                timestamp: entry.timestamp,
+              }))
+            );
+          }
         }
-        if (
-          (profile.accountType === 'record_keeper' ||
-            profile.recordKeeperCharterSigned) &&
-          accountType !== AccountLegalType.RecordKeeper
-        ) {
-          onUpgradeAccountToRecordKeeper();
-        }
+        isWorkspaceHydratedRef.current = true;
       } catch {
-        // Non-blocking
+        isWorkspaceHydratedRef.current = true;
       }
 
       try {
@@ -284,7 +446,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [userId, userEmail]);
+  }, [resolvedCustomerUid, userEmail]);
 
   useEffect(() => {
     setEditFirstName(result.clientName || '');
@@ -361,16 +523,69 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const caps = getDashboardCapabilities(stateMode, accountType);
 
   const appendActivity = (action: string, detail: string) => {
-    setActivityLog((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        action,
-        detail,
-        timestamp: 'الآن',
-      },
-      ...prev,
-    ]);
+    const stamp = new Date().toLocaleString('ar-SA', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: 'numeric',
+      month: 'short',
+    });
+    setActivityLog((prev) => {
+      const next = [
+        {
+          id: `act-${Date.now()}`,
+          action,
+          detail,
+          timestamp: stamp,
+        },
+        ...prev,
+      ].slice(0, 40);
+      saveCustomerDashboardWorkspace(resolvedCustomerUid, userEmail, {
+        familyName: result.familyName,
+        activityLog: next.map((item) => ({
+          id: item.id,
+          badge: item.action,
+          title: item.detail,
+          timestamp: item.timestamp,
+        })),
+      }).catch(() => {});
+      return next;
+    });
   };
+
+  // Persist CustomerDashboard workspace state (عمود نسبي + موقعي + مجتمعي) to Firestore automatically
+  useEffect(() => {
+    if (!isWorkspaceHydratedRef.current) return;
+    saveCustomerDashboardWorkspace(resolvedCustomerUid, userEmail, {
+      familyName: activeResult.familyName || result.familyName,
+      bridgedAncestors,
+      unlockedCapsules,
+      unlockedAddonSourceIds,
+      verifiedResultOverrideJson: verifiedResultOverride
+        ? JSON.stringify(verifiedResultOverride)
+        : null,
+      siteSettings,
+      communityPosts,
+    }).catch(() => {});
+
+    if (resolvedCustomerUid) {
+      updateUserProfile(resolvedCustomerUid, {
+        bridgedAncestors: bridgedAncestors.slice(0, 100),
+        unlockedCapsules: unlockedCapsules.slice(0, 100),
+        unlockedAddonSourceIds: unlockedAddonSourceIds.slice(0, 200),
+      }).catch(() => {});
+    }
+  }, [
+    bridgedAncestors,
+    unlockedCapsules,
+    unlockedAddonSourceIds,
+    verifiedResultOverride,
+    siteSettings,
+    communityPosts,
+    resolvedCustomerUid,
+    userEmail,
+    activeResult.familyName,
+    result.familyName,
+  ]);
 
   // Avatar File Upload Handler -> Firebase Storage / Firestore
   const handleAvatarFileChange = async (
@@ -605,12 +820,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       auth.currentUser?.uid ||
       `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
-    if (walletBalance >= priceUsd) {
+      if (walletBalance >= priceUsd) {
       const nextBal = Math.max(0, walletBalance - priceUsd);
+      const nextAddons = Array.from(
+        new Set([...unlockedAddonSourceIds, addonKey, addon.source_id])
+      );
       setWalletBalance(nextBal);
-      setUnlockedAddonSourceIds((prev) => [...prev, addonKey, addon.source_id]);
+      setUnlockedAddonSourceIds(nextAddons);
       updateUserProfile(activeUid, {
         walletBalance: nextBal,
+        unlockedAddonSourceIds: nextAddons.slice(0, 200),
       }).catch(() => {});
       executeWalletTransaction(
         activeUid,
@@ -625,11 +844,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       );
     }
   };
-
-  // Reset unlocked capsules when switching families so intermediate rings start folded
-  useEffect(() => {
-    setUnlockedCapsules([]);
-  }, [result.familyName]);
 
   // Callback executed after Step 3 of CheckoutModal completes
   const handleConfirmCheckoutSuccess = (
@@ -2042,9 +2256,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           <input
                             type="checkbox"
                             checked={emailNotificationsTicket}
-                            onChange={(e) =>
-                              setEmailNotificationsTicket(e.target.checked)
-                            }
+                            onChange={(e) => {
+                              const nextVal = e.target.checked;
+                              setEmailNotificationsTicket(nextVal);
+                              if (resolvedCustomerUid) {
+                                updateUserProfile(resolvedCustomerUid, {
+                                  emailNotificationsTicket: nextVal,
+                                  emailNotificationsEnabled:
+                                    nextVal || emailNotificationsTree,
+                                }).catch(() => {});
+                              }
+                            }}
                             className="w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
                           />
                         </label>
@@ -2061,9 +2283,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           <input
                             type="checkbox"
                             checked={emailNotificationsTree}
-                            onChange={(e) =>
-                              setEmailNotificationsTree(e.target.checked)
-                            }
+                            onChange={(e) => {
+                              const nextVal = e.target.checked;
+                              setEmailNotificationsTree(nextVal);
+                              if (resolvedCustomerUid) {
+                                updateUserProfile(resolvedCustomerUid, {
+                                  emailNotificationsTree: nextVal,
+                                  emailNotificationsEnabled:
+                                    emailNotificationsTicket || nextVal,
+                                }).catch(() => {});
+                              }
+                            }}
                             className="w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
                           />
                         </label>
@@ -2177,29 +2407,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 <div className="pt-5 border-t border-[#B98A78]/30">
                   <WalletView
                     result={result}
+                    userId={resolvedCustomerUid}
                     userEmail={userEmail}
                     isVip={caps.isVip}
                     onUpgradeSuccess={handleUpgradeAnnualVip}
                     onLogActivity={appendActivity}
                     externalBalance={walletBalance}
                     onBalanceChange={(nextBal) => {
-                      const activeUid =
-                        userId ||
-                        auth.currentUser?.uid ||
-                        `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-                      const diff = nextBal - walletBalance;
                       setWalletBalance(nextBal);
-                      updateUserProfile(activeUid, {
-                        walletBalance: nextBal,
-                      }).catch(() => {});
-                      if (diff > 0) {
-                        executeWalletTransaction(
-                          activeUid,
-                          'credit',
-                          diff,
-                          'شحن رصيد المحفظة الرقمية',
-                          `topup_${Date.now()}`
-                        ).catch(() => {});
+                      if (resolvedCustomerUid) {
+                        updateUserProfile(resolvedCustomerUid, {
+                          walletBalance: nextBal,
+                        }).catch(() => {});
                       }
                     }}
                   />
@@ -2471,7 +2690,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
               walletBalance={walletBalance}
               userAvatarUrl={avatarUrl || undefined}
-              userId={userId || auth.currentUser?.uid}
+              userId={resolvedCustomerUid}
+              userEmail={userEmail}
+              initialSiteSettings={siteSettings}
+              onSaveSiteSettings={(nextSettings) => setSiteSettings(nextSettings)}
+              initialCommunityPosts={communityPosts}
+              onSaveCommunityPosts={(nextPosts) => setCommunityPosts(nextPosts)}
             />
           </div>
         )}

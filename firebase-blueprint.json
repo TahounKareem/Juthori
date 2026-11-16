@@ -109,6 +109,28 @@
           },
           "description": "IDs of unlocked intermediate ancestor capsules."
         },
+        "bridgedAncestors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Custom bridged ancestors added by the customer between family and root."
+        },
+        "unlockedAddonSourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Unlocked verified addon historical source IDs."
+        },
+        "emailNotificationsTicket": {
+          "type": "boolean",
+          "description": "Whether ticket update email notifications are enabled."
+        },
+        "emailNotificationsTree": {
+          "type": "boolean",
+          "description": "Whether family tree & vault email notifications are enabled."
+        },
         "agreedToTermsAndPrivacy": {
           "type": "boolean",
           "description": "Whether the user agreed to Terms of Use and Privacy Policy upon registration."
@@ -263,7 +285,7 @@
     },
     "FamilyTreeDocument": {
       "title": "FamilyTreeDocument",
-      "description": "Stores the interactive family tree nodes (شجرتي) for a customer.",
+      "description": "Stores the interactive family tree nodes (شجرتي), vault archive (خزانتي), and workspace preferences for a customer.",
       "type": "object",
       "properties": {
         "userId": {
@@ -278,15 +300,15 @@
         },
         "peopleJson": {
           "type": "string",
-          "maxLength": 500000,
-          "description": "Serialized interactive tree nodes."
+          "maxLength": 950000,
+          "description": "Serialized interactive tree nodes, vault archive, or workspace state."
         },
         "updatedAt": {
           "type": "string",
           "description": "Last modification timestamp."
         }
       },
-      "required": ["userId", "familyName", "peopleJson", "updatedAt"]
+      "required": ["userId", "peopleJson", "updatedAt"]
     },
     "CustomerOrder": {
       "title": "CustomerOrder",

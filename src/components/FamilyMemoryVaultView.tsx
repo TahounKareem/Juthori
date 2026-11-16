@@ -34,6 +34,7 @@ import {
 interface FamilyMemoryVaultViewProps {
   result: LineageSearchResult;
   userId?: string;
+  userEmail?: string;
   userAvatarUrl?: string;
   onLogActivity: (action: string, detail: string) => void;
   onNavigateTab?: (tab: DashboardTab) => void;
@@ -158,13 +159,14 @@ function compressImageFileToDataUrl(file: File): Promise<string> {
 export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   result,
   userId,
+  userEmail,
   userAvatarUrl,
   onLogActivity,
   onNavigateTab,
 }) => {
   const initialLocal = useMemo(
-    () => readVaultArchiveFromLocal(userId, result.familyName),
-    [userId, result.familyName]
+    () => readVaultArchiveFromLocal(userId, result.familyName, userEmail),
+    [userId, result.familyName, userEmail]
   );
 
   const [folders, setFolders] = useState<VaultFolderRecord[]>(
@@ -218,19 +220,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   // Sync from Firebase on mount or userId change
   useEffect(() => {
     let mounted = true;
-    fetchUserVaultArchive(userId, result.familyName).then((remoteData) => {
-      if (!mounted) return;
-      setFolders(
-        remoteData.folders.length > 0
-          ? remoteData.folders
-          : DEFAULT_STARTER_VAULT_FOLDERS
-      );
-      setItems(remoteData.items);
-    });
+    fetchUserVaultArchive(userId, result.familyName, userEmail).then(
+      (remoteData) => {
+        if (!mounted) return;
+        setFolders(
+          remoteData.folders.length > 0
+            ? remoteData.folders
+            : DEFAULT_STARTER_VAULT_FOLDERS
+        );
+        setItems(remoteData.items);
+      }
+    );
     return () => {
       mounted = false;
     };
-  }, [userId, result.familyName]);
+  }, [userId, result.familyName, userEmail]);
 
   // Listen to live updates from `شجرتي` (`juthori:vault-updated` and `juthori:tree-updated`)
   useEffect(() => {
@@ -249,7 +253,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     };
 
     const handleVaultUpdated = () => {
-      const latest = readVaultArchiveFromLocal(userId, result.familyName);
+      const latest = readVaultArchiveFromLocal(userId, result.familyName, userEmail);
       setFolders(latest.folders);
       setItems(latest.items);
     };
@@ -263,6 +267,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     };
   }, [
     userId,
+    userEmail,
     result.clientName,
     result.fatherName,
     result.grandfatherName,
@@ -278,10 +283,15 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   ) => {
     setFolders(nextFolders);
     setItems(nextItems);
-    saveUserVaultArchive(userId, result.familyName, {
-      folders: nextFolders,
-      items: nextItems,
-    }).catch(() => {});
+    saveUserVaultArchive(
+      userId,
+      result.familyName,
+      {
+        folders: nextFolders,
+        items: nextItems,
+      },
+      userEmail
+    ).catch(() => {});
   };
 
   // Handle dropped or selected files

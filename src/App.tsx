@@ -11,14 +11,16 @@ import { auth, googleProvider } from './services/firebase';
 import {
   fetchUserProfile,
   fetchUserProfileByEmail,
+  findTeamMemberByEmail,
+  isCorporateStaffEmail,
   updateUserProfile,
   createUserProfileIfMissing,
-  createResearchTicket,
   syncClientLineageTicketToFirebase,
   upsertCustomerOrderInFirebase,
   bootstrapJuthoriFirestoreDatabase,
   isEmailPrefixOrAsciiPlaceholder,
   recordLegalAuditTrailInFirebase,
+  canonicalCustomerEmailUid,
 } from './services/firestoreService';
 import { TERMS_AND_PRIVACY_VERSION } from './data/recordKeeperContractData';
 import {
@@ -90,11 +92,7 @@ function loadSavedCustomerSession(): SavedCustomerSession | null {
     const parsed = JSON.parse(raw) as SavedCustomerSession;
     if (parsed && parsed.isLoggedIn && parsed.lineageResult) {
       const em = (parsed.form?.email || '').trim().toLowerCase();
-      if (
-        em === 'hassan.almuqit@juthori.com' ||
-        em === 'kareem.tahoun@adamresearchcenter.net' ||
-        em === 'client@juthori.com'
-      ) {
+      if (isCorporateStaffEmail(em)) {
         localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
         return null;
       }
@@ -401,6 +399,27 @@ export function App() {
 
     (async () => {
       try {
+        // Strict RBAC Isolation: Purge any cached session belonging to a `/team` staff member
+        if (
+          cachedEmail &&
+          (isCorporateStaffEmail(cachedEmail) ||
+            Boolean(await findTeamMemberByEmail(cachedEmail)))
+        ) {
+          if (cancelled) return;
+          localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+          localStorage.removeItem('juthori_active_customer_session_v1');
+          if (!isTeamRouteInWindow()) {
+            signOut(auth).catch(() => {});
+            setHasActiveSession(false);
+            setUserId('');
+            setUserAvatarUrl('');
+            setSearchStep(1);
+            setPreviousPlatformView('landing');
+            setActiveView((curr) => (curr === 'staff_portal' ? curr : 'landing'));
+          }
+          return;
+        }
+
         const [byUid, byEmail] = await Promise.all([
           cachedUid ? fetchUserProfile(cachedUid) : Promise.resolve(null),
           cachedEmail ? fetchUserProfileByEmail(cachedEmail) : Promise.resolve(null),
@@ -459,15 +478,17 @@ export function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Ignore anonymous sessions or team/admin service accounts on customer frontend
+        // Strict RBAC Isolation: Block anonymous sessions AND ALL `/team` staff roles (المايسترو، مدير عام، مدير البحوث، إلخ) from entering Customer Portal
         const cleanUserEmail = (user.email || '').trim().toLowerCase();
-        if (
+        const isStaffMember =
           user.isAnonymous ||
-          cleanUserEmail === 'kareem.tahoun@adamresearchcenter.net'
-        ) {
+          isCorporateStaffEmail(cleanUserEmail) ||
+          Boolean(cleanUserEmail && (await findTeamMemberByEmail(cleanUserEmail)));
+
+        if (isStaffMember) {
+          localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+          localStorage.removeItem('juthori_active_customer_session_v1');
           if (!isTeamRouteInWindow()) {
-            localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
-            localStorage.removeItem('juthori_active_customer_session_v1');
             signOut(auth).catch(() => {});
             setHasActiveSession(false);
             setUserId('');
@@ -721,19 +742,28 @@ export function App() {
             }
 
             const resolvedCountry =
-              activeSearchForm.originCountry ||
+              (hasActiveArabicSearch ? activeSearchForm.originCountry : '') ||
               profile.originCountry ||
+              activeSearchForm.originCountry ||
               (isSnosiEmail ? 'مصر' : 'السعودية');
             const resolvedRegion =
-              activeSearchForm.originRegion ||
+              (hasActiveArabicSearch ? activeSearchForm.originRegion : '') ||
               profile.originRegion ||
+              activeSearchForm.originRegion ||
               (isSnosiEmail ? 'مغاغة' : '');
             const resolvedTribe =
-              activeSearchForm.tribeName || profile.tribeName || '';
+              (hasActiveArabicSearch ? activeSearchForm.tribeName : '') ||
+              profile.tribeName ||
+              activeSearchForm.tribeName ||
+              '';
             const resolvedBranch =
-              activeSearchForm.branchName || profile.familyBranch || '';
+              (hasActiveArabicSearch ? activeSearchForm.branchName : '') ||
+              profile.familyBranch ||
+              activeSearchForm.branchName ||
+              '';
             const resolvedAccountType =
-              profile.accountType === 'record_keeper'
+              profile.accountType === 'record_keeper' ||
+              profile.recordKeeperCharterSigned
                 ? AccountLegalType.RecordKeeper
                 : AccountLegalType.Individual;
 
@@ -902,18 +932,27 @@ export function App() {
     accountType: AccountLegalType;
     selectedDisambiguation?: 'option_a' | 'option_b' | 'not_sure_ticket';
   }) => {
+    const cleanRegEmail = email.trim();
+    if (
+      isCorporateStaffEmail(cleanRegEmail) ||
+      Boolean(await findTeamMemberByEmail(cleanRegEmail))
+    ) {
+      await signOut(auth).catch(() => {});
+      throw new Error('TEAM_ACCOUNT_ISOLATED');
+    }
+
     let uid = auth.currentUser?.uid || userId;
     if (!uid) {
       try {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await createUserWithEmailAndPassword(auth, cleanRegEmail, password);
         uid = cred.user.uid;
         sendEmailVerification(cred.user).catch(() => {});
       } catch {
         try {
-          const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+          const cred = await signInWithEmailAndPassword(auth, cleanRegEmail, password);
           uid = cred.user.uid;
         } catch {
-          uid = `usr_${Date.now()}`;
+          uid = canonicalCustomerEmailUid(cleanRegEmail) || `usr_${Date.now()}`;
         }
       }
     }
@@ -1159,6 +1198,14 @@ export function App() {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
+      const cleanGoogleEmail = (user.email || '').trim();
+      if (
+        isCorporateStaffEmail(cleanGoogleEmail) ||
+        Boolean(await findTeamMemberByEmail(cleanGoogleEmail))
+      ) {
+        await signOut(auth).catch(() => {});
+        return;
+      }
       setUserId(user.uid);
       if (user.photoURL) {
         setUserAvatarUrl(user.photoURL);
@@ -1344,7 +1391,17 @@ export function App() {
       ip_city: silentGeo.ip_city,
     })
       .then((liveRes) => {
-        setLineageResult(liveRes);
+        if (!liveRes) return;
+        setLineageResult({
+          ...liveRes,
+          clientName: payload.firstName || liveRes.clientName,
+          fatherName: payload.fatherName || liveRes.fatherName,
+          grandfatherName: payload.grandfatherName || liveRes.grandfatherName,
+          requiresBlindDisambiguation:
+            payload.tribeName || payload.branchName
+              ? false
+              : liveRes.requiresBlindDisambiguation,
+        });
         if (liveRes.matched) {
           setDashboardStateMode((currMode) =>
             currMode === DashboardStateMode.State3Unmatched
@@ -1619,7 +1676,7 @@ export function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
-  // Update immediate parents (Father & Grandfather) when added inline by the client
+  // Update immediate parents (Father & Grandfather) when added inline by the client and persist to Firestore
   const handleUpdateImmediateParents = (
     nextFatherName: string,
     nextGrandfatherName: string
@@ -1627,11 +1684,32 @@ export function App() {
     const cleanFather = nextFatherName.trim() === '—' ? '' : nextFatherName.trim();
     const cleanGrandfather =
       nextGrandfatherName.trim() === '—' ? '' : nextGrandfatherName.trim();
-    setForm((prev) => ({
-      ...prev,
-      fatherName: cleanFather,
-      grandfatherName: cleanGrandfather,
-    }));
+    setForm((prev) => {
+      const nextFullName = [
+        prev.firstName,
+        cleanFather,
+        cleanGrandfather,
+        prev.familyName,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const activeUid =
+        userId ||
+        auth.currentUser?.uid ||
+        canonicalCustomerEmailUid(prev.email);
+      if (activeUid) {
+        updateUserProfile(activeUid, {
+          fullName: nextFullName || undefined,
+          fatherName: cleanFather,
+          grandfatherName: cleanGrandfather,
+        }).catch(() => {});
+      }
+      return {
+        ...prev,
+        fatherName: cleanFather,
+        grandfatherName: cleanGrandfather,
+      };
+    });
     setLineageResult((prev) => ({
       ...prev,
       fatherName: cleanFather,

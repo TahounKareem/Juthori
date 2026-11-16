@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowUp,
   Camera,
@@ -12,10 +12,12 @@ import {
   FileText,
   Heart,
   Link2,
+  Loader2,
   Lock,
   MapPin,
   Paperclip,
   Plus,
+  Save,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -47,8 +49,10 @@ import {
   fetchUserFamilyTreeFromFirebase,
   fetchUserVaultArchive,
   getTreeStorageKeyForVaultSync,
+  readUserFamilyTreeFromLocal,
   readVaultArchiveFromLocal,
   saveUserFamilyTreeToFirebase,
+  saveUserFamilyTreeToLocal,
   saveUserVaultArchive,
 } from '../services/firestoreService';
 
@@ -148,6 +152,7 @@ interface InteractiveFamilyTreeBuilderProps {
   walletBalance?: number;
   userAvatarUrl?: string;
   userId?: string;
+  userEmail?: string;
 }
 
 const ARABIC_ORDINAL_GRANDFATHER: Record<number, string> = {
@@ -220,6 +225,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   onRequestUnlockAllCapsulesBundle,
   userAvatarUrl,
   userId,
+  userEmail,
 }) => {
   // Build initial tree nodes from registration data (Auto-Initialization)
   const buildInitialTree = (): InteractiveTreePerson[] => {
@@ -331,48 +337,107 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     return nodes;
   };
 
-  const [people, setPeople] = useState<InteractiveTreePerson[]>(buildInitialTree);
+  const [people, setPeople] = useState<InteractiveTreePerson[]>(() => {
+    const cached = readUserFamilyTreeFromLocal<InteractiveTreePerson>(
+      userId,
+      userEmail,
+      result.familyName
+    );
+    return cached && cached.length > 0 ? cached : buildInitialTree();
+  });
 
+  const isTreeHydratedRef = useRef<boolean>(false);
+  const skipNextAutoSaveRef = useRef<boolean>(false);
+  const [treeSaveState, setTreeSaveState] = useState<
+    'loading' | 'saving' | 'saved' | 'local_only'
+  >('loading');
+  const [lastSavedLabel, setLastSavedLabel] = useState<string>('');
+
+  // Hydrate saved tree from Firestore BEFORE enabling auto-save (prevents mount overwrite bug)
   useEffect(() => {
     let active = true;
-    if (userId) {
-      fetchUserFamilyTreeFromFirebase<InteractiveTreePerson>(userId)
-        .then((savedNodes) => {
-          if (!active) return;
-          if (savedNodes && Array.isArray(savedNodes) && savedNodes.length > 0) {
-            setPeople(
-              savedNodes.map((node) =>
-                node.isRecordKeeper && userAvatarUrl && !node.photoUrl
-                  ? { ...node, photoUrl: userAvatarUrl }
-                  : node
-              )
-            );
-          } else {
-            setPeople(buildInitialTree());
+    isTreeHydratedRef.current = false;
+    setTreeSaveState('loading');
+
+    const hydrateTree = async () => {
+      try {
+        const savedNodes =
+          await fetchUserFamilyTreeFromFirebase<InteractiveTreePerson>(
+            userId || '',
+            userEmail,
+            result.familyName
+          );
+        if (!active) return;
+
+        if (savedNodes && Array.isArray(savedNodes) && savedNodes.length > 0) {
+          skipNextAutoSaveRef.current = true;
+          setPeople(
+            savedNodes.map((node) =>
+              node.isRecordKeeper && userAvatarUrl && !node.photoUrl
+                ? { ...node, photoUrl: userAvatarUrl }
+                : node
+            )
+          );
+          isTreeHydratedRef.current = true;
+          setTreeSaveState('saved');
+          setLastSavedLabel(
+            new Date().toLocaleTimeString('ar-SA', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          );
+        } else {
+          const initialSeed = buildInitialTree();
+          skipNextAutoSaveRef.current = true;
+          setPeople(initialSeed);
+          isTreeHydratedRef.current = true;
+          const wrote = await saveUserFamilyTreeToFirebase(
+            userId || '',
+            result.familyName,
+            initialSeed,
+            userEmail
+          );
+          if (active) {
+            setTreeSaveState(wrote ? 'saved' : 'local_only');
           }
-        })
-        .catch(() => {
-          if (active) setPeople(buildInitialTree());
-        });
-    } else {
-      setPeople(buildInitialTree());
-    }
+        }
+      } catch {
+        if (!active) return;
+        const fallbackLocal = readUserFamilyTreeFromLocal<InteractiveTreePerson>(
+          userId,
+          userEmail,
+          result.familyName
+        );
+        skipNextAutoSaveRef.current = true;
+        setPeople(
+          fallbackLocal && fallbackLocal.length > 0
+            ? fallbackLocal
+            : buildInitialTree()
+        );
+        isTreeHydratedRef.current = true;
+        setTreeSaveState('local_only');
+      }
+    };
+
+    hydrateTree();
     return () => {
       active = false;
     };
-  }, [result.familyName, result.clientName, userId]);
+  }, [userId, userEmail, result.familyName]);
 
   // Sync Record Keeper photoUrl when user uploads a new profile avatar
   useEffect(() => {
     if (!userAvatarUrl) return;
     setPeople((prev) =>
       prev.map((node) =>
-        node.isRecordKeeper ? { ...node, photoUrl: userAvatarUrl } : node
+        node.isRecordKeeper && node.photoUrl !== userAvatarUrl
+          ? { ...node, photoUrl: userAvatarUrl }
+          : node
       )
     );
   }, [userAvatarUrl]);
 
-  // Persist family tree nodes to Firebase and sync with خزانتي (`juthori:tree-updated`) whenever modified
+  // Persist family tree nodes to Firebase + Local Cache and sync with خزانتي (`juthori:tree-updated`) whenever modified
   useEffect(() => {
     if (people.length > 0 && typeof window !== 'undefined') {
       try {
@@ -394,15 +459,70 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         // Ignore storage error
       }
     }
-    if (userId && people.length > 0) {
-      saveUserFamilyTreeToFirebase(userId, result.familyName, people).catch(() => {});
+
+    if (!isTreeHydratedRef.current || people.length === 0) {
+      return;
     }
-  }, [people, userId, result.familyName]);
+
+    saveUserFamilyTreeToLocal(userId, result.familyName, people, userEmail);
+
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    setTreeSaveState('saving');
+    saveUserFamilyTreeToFirebase(
+      userId || '',
+      result.familyName,
+      people,
+      userEmail
+    )
+      .then((wrote) => {
+        if (cancelled) return;
+        setTreeSaveState(wrote ? 'saved' : 'local_only');
+        setLastSavedLabel(
+          new Date().toLocaleTimeString('ar-SA', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setTreeSaveState('local_only');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [people, userId, userEmail, result.familyName]);
+
+  const handleManualSaveTree = async () => {
+    setTreeSaveState('saving');
+    const wrote = await saveUserFamilyTreeToFirebase(
+      userId || '',
+      result.familyName,
+      people,
+      userEmail
+    );
+    setTreeSaveState(wrote ? 'saved' : 'local_only');
+    setLastSavedLabel(
+      new Date().toLocaleTimeString('ar-SA', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    );
+    onLogActivity(
+      'حفظ مشجرة العائلة في قاعدة البيانات',
+      `تم حفظ ${people.length} فرداً في شجرة عائلة ${result.familyName}`
+    );
+  };
 
   // Two-Way Vault Sync (`خزانتي <-> شجرتي`)
   const initialVault = useMemo(
-    () => readVaultArchiveFromLocal(userId, result.familyName),
-    [userId, result.familyName]
+    () => readVaultArchiveFromLocal(userId, result.familyName, userEmail),
+    [userId, result.familyName, userEmail]
   );
   const [vaultFolders, setVaultFolders] = useState<VaultFolderRecord[]>(
     initialVault.folders.length > 0
@@ -426,7 +546,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   useEffect(() => {
     let mounted = true;
-    fetchUserVaultArchive(userId, result.familyName).then((archive) => {
+    fetchUserVaultArchive(userId, result.familyName, userEmail).then((archive) => {
       if (!mounted) return;
       setVaultFolders(
         archive.folders.length > 0
@@ -436,7 +556,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       setVaultItems(archive.items);
     });
     const onVaultUpdated = () => {
-      const latest = readVaultArchiveFromLocal(userId, result.familyName);
+      const latest = readVaultArchiveFromLocal(userId, result.familyName, userEmail);
       setVaultFolders(latest.folders);
       setVaultItems(latest.items);
     };
@@ -445,7 +565,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       mounted = false;
       window.removeEventListener('juthori:vault-updated', onVaultUpdated);
     };
-  }, [userId, result.familyName]);
+  }, [userId, result.familyName, userEmail]);
 
   const handleToggleVaultItemForModalPerson = (itemId: string) => {
     if (modalConfig?.mode === 'edit' && modalConfig.editPersonId) {
@@ -461,10 +581,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         };
       });
       setVaultItems(nextItems);
-      saveUserVaultArchive(userId, result.familyName, {
-        folders: vaultFolders,
-        items: nextItems,
-      }).catch(() => {});
+      saveUserVaultArchive(
+        userId,
+        result.familyName,
+        {
+          folders: vaultFolders,
+          items: nextItems,
+        },
+        userEmail
+      ).catch(() => {});
     } else {
       setNewPersonPendingVaultIds((prev) =>
         prev.includes(itemId)
@@ -513,10 +638,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
         const nextItems = [newItem, ...vaultItems];
         setVaultItems(nextItems);
-        saveUserVaultArchive(userId, result.familyName, {
-          folders: vaultFolders,
-          items: nextItems,
-        }).catch(() => {});
+        saveUserVaultArchive(
+          userId,
+          result.familyName,
+          {
+            folders: vaultFolders,
+            items: nextItems,
+          },
+          userEmail
+        ).catch(() => {});
 
         if (!editPid) {
           setNewPersonPendingVaultIds((prev) => [...prev, newItemId]);
@@ -2205,12 +2335,48 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {/* ==================================================================== */}
       <div className="rounded-3xl bg-white border border-[#B98A78]/45 p-4 sm:p-6 shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321]">
-            شجرة عائلة {result.familyName}
-          </h2>
+          <div className="space-y-1">
+            <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321]">
+              شجرة عائلة {result.familyName}
+            </h2>
+            <div className="flex items-center gap-2 text-xs font-medium text-[#252321]/70">
+              {treeSaveState === 'loading' || treeSaveState === 'saving' ? (
+                <span className="inline-flex items-center gap-1.5 text-[#8D4925]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D8755B]" />
+                  <span>
+                    {treeSaveState === 'loading'
+                      ? 'جاري استرجاع المشجرة من قاعدة البيانات...'
+                      : 'جاري حفظ التعديلات تلقائياً...'}
+                  </span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>
+                    محفوظة في قاعدة البيانات ({people.length} فرداً)
+                    {lastSavedLabel ? ` · آخر حفظ ${lastSavedLabel}` : ''}
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
 
-          {/* Toolbar Actions: Zoom + Export (Confusing privacy preview toggle removed) */}
+          {/* Toolbar Actions: Save + Zoom + Export */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
+              onClick={handleManualSaveTree}
+              className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+            >
+              {treeSaveState === 'saving' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>حفظ المشجرة</span>
+            </button>
+
             <div className="inline-flex items-center rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 p-1">
               <button
                 type="button"

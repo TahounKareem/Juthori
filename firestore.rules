@@ -49,8 +49,12 @@ service cloud.firestore {
         && (!('familyBranch' in data) || (data.familyBranch is string && data.familyBranch.size() <= 100))
         && (!('isRootUnlocked' in data) || (data.isRootUnlocked is bool))
         && (!('emailNotificationsEnabled' in data) || (data.emailNotificationsEnabled is bool))
+        && (!('emailNotificationsTicket' in data) || (data.emailNotificationsTicket is bool))
+        && (!('emailNotificationsTree' in data) || (data.emailNotificationsTree is bool))
         && (!('paidRevenueUsd' in data) || (data.paidRevenueUsd is number && data.paidRevenueUsd >= 0))
-        && (!('unlockedCapsules' in data) || (data.unlockedCapsules is list && data.unlockedCapsules.size() <= 50))
+        && (!('unlockedCapsules' in data) || (data.unlockedCapsules is list && data.unlockedCapsules.size() <= 100))
+        && (!('bridgedAncestors' in data) || (data.bridgedAncestors is list && data.bridgedAncestors.size() <= 100))
+        && (!('unlockedAddonSourceIds' in data) || (data.unlockedAddonSourceIds is list && data.unlockedAddonSourceIds.size() <= 200))
         && (!('agreedToTermsAndPrivacy' in data) || (data.agreedToTermsAndPrivacy is bool))
         && (!('termsAndPrivacyAgreedAt' in data) || (data.termsAndPrivacyAgreedAt is string && data.termsAndPrivacyAgreedAt.size() <= 60))
         && (!('termsAndPrivacyVersion' in data) || (data.termsAndPrivacyVersion is string && data.termsAndPrivacyVersion.size() <= 60))
@@ -97,9 +101,10 @@ service cloud.firestore {
 
       match /family_tree/{treeId} {
         allow get, list: if true;
-        allow create, update, delete: if isValidId(treeId)
+        allow create, update: if isValidId(treeId)
           && incoming().userId is string && incoming().userId.size() <= 128
-          && incoming().peopleJson is string && incoming().peopleJson.size() <= 500000;
+          && incoming().peopleJson is string && incoming().peopleJson.size() <= 950000;
+        allow delete: if isValidId(treeId);
       }
 
       match /audit_trail/{auditId} {
