@@ -20,7 +20,6 @@ import {
 import { AccountLegalType } from '../types/juthori';
 import {
   PendingLineageHandoffPayload,
-  PendingResearchTicketDraft,
   readPendingLineageHandoff,
   readPendingTicketDraft,
 } from '../utils/handoffStorage';
@@ -119,15 +118,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [resetNotice, setResetNotice] = useState('');
   const [pendingHandoff, setPendingHandoff] =
     useState<PendingLineageHandoffPayload | null>(null);
-  const [pendingTicket, setPendingTicket] =
-    useState<PendingResearchTicketDraft | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const handoff = readPendingLineageHandoff();
     const ticket = readPendingTicketDraft();
     setPendingHandoff(handoff);
-    setPendingTicket(ticket);
     if (!fullName.trim()) {
       const candidateFull =
         ticket?.fullName ||
@@ -670,7 +666,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </h2>
             <p className="text-xs text-[#252321]/70 mt-1">
               {isRegisterMode
-                ? 'أنشئ حسابك لحفظ شجرة عائلتك وتتبع تذاكر البحث الأرشيفي'
+                ? 'أنشئ حسابك لحفظ شجرة عائلتك واستعراض سجل نسبك الموثق'
                 : 'ادخل إلى لوحة تحكم عمود نسبك وسجل عائلتك الموثق'}
             </p>
           </div>
@@ -684,29 +680,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </button>
         </div>
 
-        {(pendingTicket || pendingHandoff) && (
+        {pendingHandoff && (
           <div className="mb-4 rounded-xl bg-[#252321] text-white border border-[#D8755B]/60 p-3.5 text-right flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#F3D299] shrink-0 mt-0.5" />
             <div className="space-y-0.5 text-[11px] leading-relaxed">
-              {pendingTicket ? (
-                <>
-                  <div className="font-display font-bold text-[#F3D299]">
-                    تذكرتك البحثية لعائلة ({pendingTicket.familyName}) جاهزة للفتح باسمك
-                  </div>
-                  <p className="text-white/80">
-                    بمجرد تسجيل الدخول أو إنشاء الحساب، ستُفتح لك نافذة التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بياناتك.
-                  </p>
-                </>
-              ) : pendingHandoff ? (
-                <>
-                  <div className="font-display font-bold text-[#F3D299]">
-                    سيتم ترحيل نتيجة فحص عائلة ({pendingHandoff.familyName}) تلقائياً لحسابك
-                  </div>
-                  <p className="text-white/80">
-                    ادخل أو أنشئ حسابك لتنتقل مباشرةً إلى تبويب «عمود نسبي» دون الحاجة لإعادة البحث.
-                  </p>
-                </>
-              ) : null}
+              <div className="font-display font-bold text-[#F3D299]">
+                سيتم ترحيل نتيجة فحص عائلة ({pendingHandoff.familyName}) تلقائياً لحسابك
+              </div>
+              <p className="text-white/80">
+                ادخل أو أنشئ حسابك لتنتقل مباشرةً إلى تبويب «عمود نسبي» دون الحاجة لإعادة البحث.
+              </p>
             </div>
           </div>
         )}

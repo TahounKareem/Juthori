@@ -264,10 +264,7 @@ export function App() {
     () => initialSession?.dashboardStateMode || DashboardStateMode.State2MatchedUnpaid
   );
   const [initialDashboardTab, setInitialDashboardTab] = useState<DashboardTab>(
-    () =>
-      readPendingTicketDraft()
-        ? DashboardTab.ResearchTickets
-        : DashboardTab.Lineage
+    DashboardTab.Lineage
   );
   const [pendingTicketDraftState, setPendingTicketDraftState] =
     useState<PendingResearchTicketDraft | null>(() => readPendingTicketDraft());
@@ -597,7 +594,7 @@ export function App() {
           const pendingDraft = readPendingTicketDraft();
           if (pendingDraft) {
             setPendingTicketDraftState(pendingDraft);
-            setInitialDashboardTab(DashboardTab.ResearchTickets);
+            setInitialDashboardTab(DashboardTab.Lineage);
           }
 
           const activeSearchForm = pendingHandoff
@@ -1150,15 +1147,13 @@ export function App() {
     document.body.scrollTop = 0;
   }, [activeView, searchStep]);
 
-  // Helper: route to Research Observatory if a pre-filled ticket draft is pending, else directly to Lineage Spine ("عمود نسبي")
+  // Helper: route directly to Lineage Spine ("عمود نسبي")
   const syncRoutingForPendingTicketOrLineage = () => {
     const draft = readPendingTicketDraft();
     if (draft) {
       setPendingTicketDraftState(draft);
-      setInitialDashboardTab(DashboardTab.ResearchTickets);
-    } else {
-      setInitialDashboardTab(DashboardTab.Lineage);
     }
+    setInitialDashboardTab(DashboardTab.Lineage);
   };
 
   // Step 1: Submit search from Landing Page -> launches intermediate Verification Screen (Step 2)
