@@ -17,6 +17,7 @@ import {
   LogOut,
   Mail,
   Phone,
+  Scroll,
   Send,
   Settings,
   ShieldAlert,
@@ -41,6 +42,7 @@ import {
   fetchUserLegalAuditTrailFromFirebase,
   fetchUserProfile,
   fetchUserProfileByEmail,
+  fetchUserResearchTickets,
   hydrateLineageResultFromSnapshot,
   LegalAuditTrailEntry,
   readCustomerDashboardWorkspaceFromLocal,
@@ -83,6 +85,7 @@ import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
 import { CheckoutExecutionResult, CheckoutModal } from './CheckoutModal';
 import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
+import { ResearchTicketsView } from './ResearchTicketsView';
 
 interface CustomerDashboardProps {
   stateMode: DashboardStateMode;
@@ -178,12 +181,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     initialWorkspace.familyName.trim() === result.familyName.trim();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() =>
-    initialTab && initialTab !== DashboardTab.ResearchTickets
+    initialTab &&
+    (initialTab !== DashboardTab.ResearchTickets ||
+      stateMode === DashboardStateMode.AnnualVip)
       ? initialTab
       : DashboardTab.Lineage
   );
   const [vaultPersonFilterId, setVaultPersonFilterId] =
     useState<string | null>(null);
+  const [hasCustomerResearchTicket, setHasCustomerResearchTicket] =
+    useState<boolean>(false);
+  const [hasResearcherReplyWaiting, setHasResearcherReplyWaiting] =
+    useState<boolean>(false);
 
   useEffect(() => {
     if (initialTicketDraft) {
@@ -192,10 +201,38 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   }, [initialTicketDraft, onClearInitialTicketDraft]);
 
   useEffect(() => {
-    if (initialTab && initialTab !== DashboardTab.ResearchTickets) {
+    if (
+      initialTab &&
+      (initialTab !== DashboardTab.ResearchTickets ||
+        stateMode === DashboardStateMode.AnnualVip)
+    ) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+  }, [initialTab, stateMode]);
+
+  useEffect(() => {
+    if (!resolvedCustomerUid && !userEmail) return;
+    let cancelled = false;
+    fetchUserResearchTickets(resolvedCustomerUid, userEmail)
+      .then((list) => {
+        if (cancelled) return;
+        const valid = Array.isArray(list) ? list : [];
+        setHasCustomerResearchTicket(valid.length > 0);
+        const waiting = valid.some((t) => {
+          if (t.status === 'NEEDS_INFO' || t.lifecycleStage === 'NEEDS_INFO') {
+            return true;
+          }
+          const msgs = t.messages || [];
+          const lastMsg = msgs[msgs.length - 1];
+          return Boolean(lastMsg && lastMsg.senderRole === 'researcher');
+        });
+        setHasResearcherReplyWaiting(waiting);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedCustomerUid, userEmail, stateMode]);
 
   const [bridgedAncestors, setBridgedAncestors] = useState<string[]>(() =>
     initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.bridgedAncestors)
@@ -1500,7 +1537,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           notablesInRecord: result.notables_in_record,
           enrichedLocations: result.enrichedLocations,
           adamSpineNodesCount: result.adamSpineNodes?.length || 1,
-        }).catch(() => {});
+        })
+          .then((created) => {
+            if (created) setHasCustomerResearchTicket(true);
+          })
+          .catch(() => {});
         appendActivity(
           `سداد ذري ناجح (${txRef}) — عضوية بريميوم السنوية ($60)`,
           `فتح المحطات الرئيسية في شجرة آدم والمصادر + رفع السعات وإيداع $${bonusWalletCreditUsd} رصيد هدية`
@@ -2221,6 +2262,38 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           </div>
                         </div>
                       </button>
+
+                      {caps.isVip && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setActiveUtilityDrawer(null);
+                            setActiveTab(DashboardTab.ResearchTickets);
+                          }}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
+                            <Scroll className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-display font-bold text-[#252321]">
+                                📜 مرصد البحوث ومراسلات النسب
+                              </span>
+                              {hasResearcherReplyWaiting && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950">
+                                  رد جديد
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[#252321]/65 truncate">
+                              متابعة حالة تحقيق النسب والرد على الباحثين
+                            </div>
+                          </div>
+                        </button>
+                      )}
                     </div>
 
                     {/* Logout Action at Bottom of Dropdown */}
@@ -2363,7 +2436,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             aria-label="تبويبات لوحة تحكم العميل"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth touch-pan-x py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0"
           >
-            {DASHBOARD_TABS.map((tab) => {
+            {[
+              ...DASHBOARD_TABS,
+              ...(caps.isVip && (!activeResult.matched || hasCustomerResearchTicket)
+                ? [
+                    {
+                      id: DashboardTab.ResearchTickets,
+                      label: 'مرصد البحوث',
+                      premium: true,
+                    },
+                  ]
+                : []),
+            ].map((tab) => {
               const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
               const isSelected = activeUtilityDrawer === null && activeTab === tab.id;
 
@@ -2399,6 +2483,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     />
                   )}
                   <span>{tab.label}</span>
+                  {tab.id === DashboardTab.ResearchTickets &&
+                    hasResearcherReplyWaiting &&
+                    !isSelected && (
+                      <span
+                        className="w-2 h-2 rounded-full bg-[#DC2626] shrink-0"
+                        title="توجد رسالة أو طلب استكمال بيانات من الباحث"
+                      />
+                    )}
                   {isLocked && (
                     <Lock
                       className="w-3.5 h-3.5 text-[#DC2626]/80"
@@ -3233,6 +3325,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         ترقية لبريميوم
                       </button>
                     )}
+                    {(n.id.startsWith('notif_') ||
+                      n.title.includes('مرصد البحوث') ||
+                      n.title.includes('تذكرة') ||
+                      n.title.includes('الباحث')) &&
+                      caps.isVip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveUtilityDrawer(null);
+                            setActiveTab(DashboardTab.ResearchTickets);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-xs font-display font-bold whitespace-nowrap cursor-pointer"
+                        >
+                          متابعة والرد على الباحث ←
+                        </button>
+                      )}
                   </div>
                 ))}
               </div>
@@ -3405,11 +3513,31 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               );
               if (treeTab) handleTabClick(treeTab);
             }}
+            onOpenResearchTicketsTab={() => {
+              setActiveUtilityDrawer(null);
+              setActiveTab(DashboardTab.ResearchTickets);
+            }}
             onResyncLineage={onResyncLineageFromEngine}
             isResyncingLineage={isResyncingLineage}
             userId={resolvedCustomerUid}
             onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
             onLogActivity={appendActivity}
+          />
+        ) : activeTab === DashboardTab.ResearchTickets ? (
+          <ResearchTicketsView
+            result={activeResult}
+            accountType={accountType}
+            userEmail={userEmail}
+            userId={resolvedCustomerUid}
+            userPhone={editPhone}
+            isVip={caps.isVip}
+            onRequestUpgradeVip={handleUpgradeAnnualVip}
+            onLogActivity={appendActivity}
+            onAdoptResolvedLineage={(enriched) => {
+              setVerifiedResultOverride(enriched);
+              onUpdateLineageResult?.(enriched);
+              setHasResearcherReplyWaiting(false);
+            }}
           />
         ) : (
           <div className="space-y-4">

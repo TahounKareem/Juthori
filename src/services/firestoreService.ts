@@ -2421,6 +2421,13 @@ export async function syncClientLineageTicketToFirebase(params: {
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 28);
 
+  // Deterministic ASCII hash for family name so Firestore document ID strictly matches `^[a-zA-Z0-9_\-#]+$` in firestore.rules
+  let famHashNum = 5381;
+  for (let i = 0; i < cleanFam.length; i += 1) {
+    famHashNum = ((famHashNum << 5) + famHashNum + cleanFam.charCodeAt(i)) >>> 0;
+  }
+  const famAsciiHash = famHashNum.toString(36);
+
   const isAlphaEnrichment =
     params.matched && (params.isAlphaOnlyBeforeMerge || params.isAlphaMergedIntoAdam);
 
@@ -2433,16 +2440,25 @@ export async function syncClientLineageTicketToFirebase(params: {
 
   const rawTicketNum =
     !params.matched || params.isEscalatedDisambiguation
-      ? `JTH-P1-${safeFamSlug}`
+      ? `JTH-P1-${famAsciiHash.toUpperCase()}`
       : isAlphaEnrichment
-      ? params.alphaBackgroundTicketCode || `ALP-ADAM-${safeFamSlug}`
+      ? params.alphaBackgroundTicketCode || `ALP-ADAM-${famAsciiHash.toUpperCase()}`
       : `#ENR-ADAM-${params.adamNodeId || '272887'}`;
 
-  const docId = `tkt_${safeUserSlug}_${safeFamSlug}`
+  const docId = `tkt_${safeUserSlug}_${famAsciiHash}`
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 80);
+
+  const legacyDocId = `tkt_${safeUserSlug}_${safeFamSlug}`
     .replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_')
     .slice(0, 80);
 
-  const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', docId]);
+  const existingPrimary = await dualGetDoc<ResearchTicketData>(['research_tickets', docId]);
+  const existingLegacy =
+    !existingPrimary && legacyDocId !== docId
+      ? await dualGetDoc<ResearchTicketData>(['research_tickets', legacyDocId])
+      : null;
+  const existing = existingPrimary || existingLegacy;
 
   const studioPayload = {
     familyName: cleanFam,
@@ -2468,21 +2484,23 @@ export async function syncClientLineageTicketToFirebase(params: {
   };
 
   const record: ResearchTicketData = {
+    ...(existing || {}),
     id: docId,
     ticketNumber: existing?.ticketNumber || rawTicketNum,
     userId: (params.userId || 'usr_client').replace(/[^a-zA-Z0-9_-]/g, '_'),
     userFullName: params.userFullName || cleanFam,
-    userEmail: params.userEmail || '',
-    userPhone: params.userPhone || '',
+    userEmail: params.userEmail || existing?.userEmail || '',
+    userPhone: params.userPhone || existing?.userPhone || '',
     familyName: cleanFam,
     targetAncestor: cleanFam,
-    tribeName: params.rootTribeName || '',
-    familyBranch: params.rootBranchName || '',
-    originCountry: params.originCountry || 'غير محدد',
-    originRegion: params.originRegion || '',
+    tribeName: params.rootTribeName || existing?.tribeName || '',
+    familyBranch: params.rootBranchName || existing?.familyBranch || '',
+    originCountry: params.originCountry || existing?.originCountry || 'غير محدد',
+    originRegion: params.originRegion || existing?.originRegion || '',
     verificationChoiceLabel:
       params.verificationChoiceLabel || existing?.verificationChoiceLabel || '',
     additionalNotes:
+      existing?.additionalNotes ||
       params.additionalNotes ||
       (ticketCategory === 'ALPHA_TO_ADAM_LINK'
         ? `تذكرة إثراء ودمج شجرة آدم لمشترك الباقة السنوية: ${cleanFam} ← ${params.rootBranchName || 'الفرع'} ← ${params.rootTribeName || 'القبيلة الأم'} (${(params.corroboratingAlphaEvidence || []).length} مصدراً مرصوداً).`
@@ -2490,11 +2508,16 @@ export async function syncClientLineageTicketToFirebase(params: {
         ? `تذكرة إثراء عقدة شجرة آدم لمشترك الباقة السنوية (${params.adamNodeId || '272887'}) لعائلة (${cleanFam}) بالمصادر والفروع الإضافية المرصودة في مشاريع ألفا.`
         : `تذكرة بحث عميل مباشرة (P1) لعائلة (${cleanFam}) للتحقيق في المخطوطات والأرشيف العثماني.`),
     ticketCategory,
-    adamNodeId: params.adamNodeId || '',
+    adamNodeId: params.adamNodeId || existing?.adamNodeId || '',
     status:
       existing?.status === 'CLOSED_AND_ENRICHED'
         ? 'CLOSED_AND_ENRICHED'
-        : existing?.status || 'pending_review',
+        : existing?.status || 'OPEN',
+    lifecycleStage: existing?.lifecycleStage || 'OPEN',
+    priorityTag: existing?.priorityTag,
+    attachments: existing?.attachments || [],
+    messages: existing?.messages || [],
+    resolutionPayload: existing?.resolutionPayload,
     assignedResearcherId: existing?.assignedResearcherId,
     assignedResearcherName:
       existing?.assignedResearcherName || 'فريق التحقيق النَّسبي',
@@ -2513,6 +2536,9 @@ export async function syncClientLineageTicketToFirebase(params: {
     ['research_tickets', docId],
     record as unknown as Record<string, unknown>
   );
+  if (existingLegacy && legacyDocId !== docId) {
+    dualDeleteDoc(['research_tickets', legacyDocId]).catch(() => {});
+  }
   return record;
 }
 

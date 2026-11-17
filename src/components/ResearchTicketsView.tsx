@@ -8,10 +8,7 @@ import {
   Send,
   Loader2,
   Scroll,
-  PlusCircle,
   ShieldCheck,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
   Paperclip,
   MapPin,
@@ -22,6 +19,7 @@ import {
   Image as ImageIcon,
   Check,
   GitMerge,
+  RefreshCw,
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import {
@@ -30,18 +28,15 @@ import {
   ResearchTicketAttachmentRef,
   ResearchTicketData,
   canonicalCustomerEmailUid,
-  createResearchTicket,
   fetchUserResearchTickets,
   fetchUserVaultArchive,
   readVaultArchiveFromLocal,
-  upsertCustomerOrderInFirebase,
 } from '../services/firestoreService';
 import {
   TICKET_LIFECYCLE_STAGES,
   appendMessageToResearchTicket,
   applyResolvedTicketToCustomerLineage,
   resolveTicketLifecycleStage,
-  updateTicketLifecycleAndResolutionByStaff,
 } from '../services/priority4Service';
 import {
   processMediaFileForUpload,
@@ -50,11 +45,8 @@ import {
 import { AccountLegalType, LineageSearchResult } from '../types/juthori';
 import {
   clearPendingTicketDraft,
-  getDefaultTicketReasonSummary,
   PendingResearchTicketDraft,
-  readPendingTicketDraft,
 } from '../utils/handoffStorage';
-import { ORIGIN_COUNTRY_OPTIONS } from '../data/arabCountries';
 
 interface ResearchTicketsViewProps {
   result: LineageSearchResult;
@@ -62,25 +54,21 @@ interface ResearchTicketsViewProps {
   userEmail: string;
   userId?: string;
   userPhone?: string;
+  isVip?: boolean;
+  onRequestUpgradeVip?: () => void;
   initialDraft?: PendingResearchTicketDraft | null;
   onConsumeDraft?: () => void;
   onLogActivity?: (action: string, detail: string) => void;
   onAdoptResolvedLineage?: (enrichedResult: LineageSearchResult) => void;
 }
 
-const TICKET_REASON_PRESETS: string[] = [
-  'استقصاء وتوثيق أسرة غير مدرجة في الفهرس الآلي',
-  'ترجيح فرع جغرافي وحسم تعدد المسارات النسبية المرصودة',
-  'تدقيق أرشيفي وتوثيق مرجعي متخصص لعمود النسب',
-  'مراجعة وتوثيق حجة شرعية أو مشجرة عائلية موروثة',
-];
-
 export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
   result,
   accountType = AccountLegalType.Individual,
   userEmail,
   userId,
-  userPhone = '',
+  isVip = false,
+  onRequestUpgradeVip,
   initialDraft,
   onConsumeDraft,
   onLogActivity,
@@ -89,12 +77,6 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
   const isFamilyRegistrar = accountType === AccountLegalType.RecordKeeper;
   const [tickets, setTickets] = useState<ResearchTicketData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [showNewTicketModal, setShowNewTicketModal] = useState(false);
-  const [showStaffAdminTool, setShowStaffAdminTool] = useState(false);
-  const [createdBannerTicketNumber, setCreatedBannerTicketNumber] = useState<
-    string | null
-  >(null);
   const [adoptedBannerMessage, setAdoptedBannerMessage] = useState<
     string | null
   >(null);
@@ -105,7 +87,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
     canonicalCustomerEmailUid(userEmail) ||
     `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
-  // Customer Vault items for 1-click ticket attachment without re-uploading
+  // Customer Vault items for 1-click reply attachment without re-uploading
   const [vaultItems, setVaultItems] = useState<FamilyVaultMediaItem[]>(() => {
     const local = readVaultArchiveFromLocal(
       currentUid,
@@ -114,9 +96,9 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
     );
     return local?.items || [];
   });
-  const [vaultPickerContext, setVaultPickerContext] = useState<
-    'new_ticket' | { ticketId: string } | null
-  >(null);
+  const [vaultPickerContext, setVaultPickerContext] = useState<{
+    ticketId: string;
+  } | null>(null);
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
 
   const buildDefaultFullName = () =>
@@ -130,43 +112,6 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
       .join(' ') ||
     result.familyName ||
     '';
-
-  // New Ticket Form State
-  const [targetAncestor, setTargetAncestor] = useState<string>(() =>
-    buildDefaultFullName()
-  );
-  const [familyName, setFamilyName] = useState<string>(
-    () => result.familyName || ''
-  );
-  const [originCountry, setOriginCountry] = useState<string>(
-    () => result.originCountry || 'السعودية'
-  );
-  const [originRegion, setOriginRegion] = useState<string>(
-    () => result.originRegion || ''
-  );
-  const [tribeName, setTribeName] = useState<string>(
-    () => result.rootTribeName || ''
-  );
-  const [familyBranch, setFamilyBranch] = useState<string>(
-    () => result.rootBranchName || ''
-  );
-  const [reasonSummary, setReasonSummary] = useState<string>(() =>
-    getDefaultTicketReasonSummary(
-      result.matched
-        ? result.requiresBlindDisambiguation
-          ? 'geographic_disambiguation'
-          : 'deep_archival_verification'
-        : 'unmatched_family',
-      result.familyName
-    )
-  );
-  const [notes, setNotes] = useState<string>('');
-  const [newTicketAttachments, setNewTicketAttachments] = useState<
-    ResearchTicketAttachmentRef[]
-  >([]);
-  const [isUploadingSmartFile, setIsUploadingSmartFile] = useState(false);
-  const [isPrefilledFromHandoff, setIsPrefilledFromHandoff] =
-    useState<boolean>(false);
 
   // Per-ticket interactive reply state
   const [replyDraftByTicket, setReplyDraftByTicket] = useState<
@@ -183,26 +128,6 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
   >(null);
   const [adoptingTicketId, setAdoptingTicketId] = useState<string | null>(null);
 
-  // Staff simulator state for end-to-end testing of all 5 stages + resolutionPayload
-  const [selectedTicketId, setSelectedTicketId] = useState<string>('');
-  const [simStage, setSimStage] =
-    useState<CanonicalTicketLifecycleStage>('RESOLVED');
-  const [researcherFindings, setResearcherFindings] = useState(
-    'تم التحقق من سلسلة النسب بالرجوع إلى وثائق الأوقاف وسجلات المحكمة الشرعية، وتبين اتصال الأسرة بالفرع الموثق أدناه.'
-  );
-  const [verifiedSources, setVerifiedSources] = useState(
-    'معجم قبائل العرب لعمر كحالة، ج3، ص812؛ سجلات ديوان الأوقاف لسنة 1248هـ.'
-  );
-  const [simRootBranch, setSimRootBranch] = useState<string>(
-    result.rootBranchName || 'آل برمان'
-  );
-  const [simRootTribe, setSimRootTribe] = useState<string>(
-    result.rootTribeName || 'بني بشر'
-  );
-  const [simCertifiedAncestor, setSimCertifiedAncestor] = useState<string>('');
-  const [simMessageToCustomer, setSimMessageToCustomer] = useState<string>('');
-  const [isResolving, setIsResolving] = useState(false);
-
   useEffect(() => {
     fetchUserVaultArchive(currentUid, result.familyName, userEmail)
       .then((archive) => {
@@ -213,35 +138,13 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
       .catch(() => {});
   }, [currentUid, result.familyName, userEmail]);
 
-  // Apply incoming pre-filled draft
+  // Clear any legacy pending draft without opening a manual creation modal
   useEffect(() => {
-    const activeDraft = initialDraft || readPendingTicketDraft();
-    if (!activeDraft) return;
-
-    setTargetAncestor(activeDraft.fullName || buildDefaultFullName());
-    setFamilyName(activeDraft.familyName || result.familyName || '');
-    setOriginCountry(
-      activeDraft.originCountry || result.originCountry || 'السعودية'
-    );
-    setOriginRegion(activeDraft.originRegion || result.originRegion || '');
-    setTribeName(activeDraft.tribeName || result.rootTribeName || '');
-    setFamilyBranch(activeDraft.familyBranch || result.rootBranchName || '');
-    setReasonSummary(
-      activeDraft.reasonSummary ||
-        getDefaultTicketReasonSummary(
-          activeDraft.reasonType,
-          activeDraft.familyName
-        )
-    );
-    if (activeDraft.additionalNotes) {
-      setNotes(activeDraft.additionalNotes);
-    }
-    setIsPrefilledFromHandoff(true);
-    setShowNewTicketModal(true);
-
     clearPendingTicketDraft();
-    onConsumeDraft?.();
-  }, [initialDraft]);
+    if (initialDraft) {
+      onConsumeDraft?.();
+    }
+  }, [initialDraft, onConsumeDraft]);
 
   const loadTickets = async () => {
     setIsLoading(true);
@@ -259,39 +162,13 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
     loadTickets();
   }, [currentUid, userEmail]);
 
-  const handleOpenFreshModal = () => {
-    setTargetAncestor(buildDefaultFullName());
-    setFamilyName(result.familyName || '');
-    setOriginCountry(result.originCountry || 'السعودية');
-    setOriginRegion(result.originRegion || '');
-    setTribeName(result.rootTribeName || '');
-    setFamilyBranch(result.rootBranchName || '');
-    setReasonSummary(
-      getDefaultTicketReasonSummary(
-        result.matched
-          ? result.requiresBlindDisambiguation
-            ? 'geographic_disambiguation'
-            : 'deep_archival_verification'
-          : 'unmatched_family',
-        result.familyName
-      )
-    );
-    setNewTicketAttachments([]);
-    setIsPrefilledFromHandoff(false);
-    setShowNewTicketModal(true);
-  };
-
-  // Smart Media Pipeline upload for New Ticket or Reply
+  // Smart Media Pipeline upload for Reply to Researcher
   const handleSmartUploadAttachment = async (
     file: File | undefined,
-    target: 'new_ticket' | { ticketId: string }
+    target: { ticketId: string }
   ) => {
     if (!file) return;
-    if (target === 'new_ticket') {
-      setIsUploadingSmartFile(true);
-    } else {
-      setUploadingReplyTicketId(target.ticketId);
-    }
+    setUploadingReplyTicketId(target.ticketId);
 
     try {
       const isDoc =
@@ -329,21 +206,16 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         dateOrOccasion: 'مرفق مباشر عبر المعالج الذكي',
       };
 
-      if (target === 'new_ticket') {
-        setNewTicketAttachments((prev) => [...prev, refItem].slice(0, 12));
-      } else {
-        setReplyAttachmentsByTicket((prev) => ({
-          ...prev,
-          [target.ticketId]: [
-            ...(prev[target.ticketId] || []),
-            refItem,
-          ].slice(0, 10),
-        }));
-      }
+      setReplyAttachmentsByTicket((prev) => ({
+        ...prev,
+        [target.ticketId]: [
+          ...(prev[target.ticketId] || []),
+          refItem,
+        ].slice(0, 10),
+      }));
     } catch {
       // Safe fallback
     } finally {
-      setIsUploadingSmartFile(false);
       setUploadingReplyTicketId(null);
     }
   };
@@ -369,141 +241,17 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
       dateOrOccasion: vaultItem.dateOrOccasion || 'محفوظ في خزانتي',
     };
 
-    if (vaultPickerContext === 'new_ticket') {
-      setNewTicketAttachments((prev) => {
-        const exists = prev.some((a) => a.vaultItemId === vaultItem.id);
-        return exists
-          ? prev.filter((a) => a.vaultItemId !== vaultItem.id)
-          : [...prev, mappedRef].slice(0, 12);
-      });
-    } else {
-      const tid = vaultPickerContext.ticketId;
-      setReplyAttachmentsByTicket((prev) => {
-        const current = prev[tid] || [];
-        const exists = current.some((a) => a.vaultItemId === vaultItem.id);
-        return {
-          ...prev,
-          [tid]: exists
-            ? current.filter((a) => a.vaultItemId !== vaultItem.id)
-            : [...current, mappedRef].slice(0, 10),
-        };
-      });
-    }
-  };
-
-  const handleCreateTicket = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanTarget = targetAncestor.trim() || familyName.trim();
-    if (!cleanTarget) return;
-
-    setIsCreating(true);
-    const cleanFam =
-      familyName.trim() ||
-      result.familyName ||
-      cleanTarget.split(/\s+/).slice(-1)[0] ||
-      'غير محدد';
-
-    const attachmentTitles = newTicketAttachments
-      .map((a) => a.title)
-      .join('، ');
-    const combinedNotes = [
-      reasonSummary.trim() ? `سبب التذكرة: ${reasonSummary.trim()}` : '',
-      originRegion.trim() ? `المدينة / المركز: ${originRegion.trim()}` : '',
-      attachmentTitles ? `مرفقات الخزانة/الوسائط: ${attachmentTitles}` : '',
-      notes.trim(),
-    ]
-      .filter(Boolean)
-      .join(' — ');
-
-    const nowIso = new Date().toISOString();
-    const initialMsgId = `msg_${Date.now()}_init`;
-
-    try {
-      const newTicket = await createResearchTicket({
-        userId: currentUid,
-        userFullName: cleanTarget,
-        userEmail,
-        userPhone: userPhone || undefined,
-        familyName: cleanFam,
-        targetAncestor: cleanTarget,
-        tribeName: tribeName.trim(),
-        familyBranch: familyBranch.trim(),
-        originCountry: originCountry.trim() || 'السعودية',
-        originRegion: originRegion.trim(),
-        verificationChoiceLabel: reasonSummary.trim(),
-        additionalNotes: combinedNotes,
-        ticketCategory: 'P1_CUSTOMER_SEARCH',
-        priorityTag: isFamilyRegistrar ? 'PRIORITY_REGISTRAR' : undefined,
-        lifecycleStage: 'OPEN',
-        customStatus: 'OPEN',
-        attachments: newTicketAttachments,
-        messages: [
-          {
-            id: initialMsgId,
-            ticketId: 'pending',
-            senderRole: 'customer',
-            senderId: currentUid,
-            senderName: cleanTarget,
-            body:
-              notes.trim() ||
-              reasonSummary.trim() ||
-              `طلب تحقيق وتوثيق نسبي لعائلة ${cleanFam}.`,
-            attachments:
-              newTicketAttachments.length > 0
-                ? newTicketAttachments
-                : undefined,
-            createdAt: nowIso,
-          },
-        ],
-      });
-
-      upsertCustomerOrderInFirebase({
-        id: `ORD-${currentUid.slice(-6).toUpperCase()}`,
-        userId: currentUid,
-        fullName: cleanTarget,
-        firstName: result.clientName || cleanTarget.split(' ')[0] || 'عميل',
-        fatherName: result.fatherName || '—',
-        grandfatherName: result.grandfatherName || '—',
-        familyName: cleanFam,
-        originCountry: originCountry.trim() || 'السعودية',
-        originRegion: originRegion.trim() || 'غير محدد',
-        email: userEmail,
-        phone: userPhone || '—',
-        legalRole: isFamilyRegistrar ? 'record_keeper' : 'individual',
-        accountStatus: 'free',
-        walletBalanceUsd: 0,
-        paidRevenueUsd: 0,
-        matchStatus: 'open_research_ticket',
-        ticketId: newTicket.ticketNumber,
-        ticketType: 'طلب عميل P1',
-        assignedResearcher: 'مفتوح بالمنصة للباحثين',
-        slaStatus: 'جديدة',
-        nodesCountLabel: isFamilyRegistrar
-          ? 'تذكرة بحث مفتوحة · PRIORITY_REGISTRAR'
-          : 'تذكرة بحث مفتوحة في مرصد البحوث',
-      }).catch(() => {});
-
-      setTickets((prev) => [
-        newTicket,
-        ...prev.filter((item) => item.id !== newTicket.id),
-      ]);
-      setCreatedBannerTicketNumber(newTicket.ticketNumber);
-      setShowNewTicketModal(false);
-      setIsPrefilledFromHandoff(false);
-      setNotes('');
-      setNewTicketAttachments([]);
-      clearPendingTicketDraft();
-      onLogActivity?.(
-        'إنشاء تذكرة بحثية في مرصد البحوث',
-        `تذكرة #${newTicket.ticketNumber} لعائلة (${cleanFam})${
-          isFamilyRegistrar ? ' بأولوية أمين السجل (PRIORITY_REGISTRAR)' : ''
-        }`
-      );
-    } catch (err) {
-      console.warn('Error creating ticket:', err);
-    } finally {
-      setIsCreating(false);
-    }
+    const tid = vaultPickerContext.ticketId;
+    setReplyAttachmentsByTicket((prev) => {
+      const current = prev[tid] || [];
+      const exists = current.some((a) => a.vaultItemId === vaultItem.id);
+      return {
+        ...prev,
+        [tid]: exists
+          ? current.filter((a) => a.vaultItemId !== vaultItem.id)
+          : [...current, mappedRef].slice(0, 10),
+      };
+    });
   };
 
   const handleSendCustomerReply = async (ticket: ResearchTicketData) => {
@@ -598,60 +346,6 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
     }
   };
 
-  const handleSimulateStaffUpdate = async () => {
-    if (!selectedTicketId) return;
-    setIsResolving(true);
-    try {
-      const updated = await updateTicketLifecycleAndResolutionByStaff({
-        ticketId: selectedTicketId,
-        stage: simStage,
-        researcherId: 'staff_dr_salman',
-        researcherName: 'د. سلمان العُمري',
-        messageBody:
-          simMessageToCustomer.trim() ||
-          (simStage === 'NEEDS_INFO'
-            ? 'يرجى تزويدنا بصورة الحجة الوقفية أو اسم الجد الرابع المسجل في وثائق الأسرة لاستكمال المطابقة.'
-            : undefined),
-        researchFindings:
-          simStage === 'RESOLVED' || simStage === 'CLOSED'
-            ? researcherFindings
-            : undefined,
-        verifiedSources:
-          simStage === 'RESOLVED' || simStage === 'CLOSED'
-            ? verifiedSources
-            : undefined,
-        resolutionPayload:
-          simStage === 'RESOLVED'
-            ? {
-                decisionTitle: 'قرار توثيق نسبي معتمد من مرصد البحوث',
-                verifiedRootBranch: simRootBranch.trim() || undefined,
-                verifiedRootTribe: simRootTribe.trim() || undefined,
-                certifiedAncestorName:
-                  simCertifiedAncestor.trim() || undefined,
-                certifiedAncestorRank: simCertifiedAncestor.trim()
-                  ? 'جد مرجعي معتمد بالمرصد'
-                  : undefined,
-                verifiedCitation: verifiedSources.trim(),
-                summaryNotes: researcherFindings.trim(),
-              }
-            : undefined,
-      });
-
-      if (updated) {
-        setTickets((prev) =>
-          prev.map((t) => (t.id === selectedTicketId ? updated : t))
-        );
-        setSimMessageToCustomer('');
-        onLogActivity?.(
-          'تحديث مرجعي لتذكرة بحثية',
-          `انتقال التذكرة #${updated.ticketNumber} إلى مرحلة (${simStage})`
-        );
-      }
-    } finally {
-      setIsResolving(false);
-    }
-  };
-
   const getStagePresentation = (stage: CanonicalTicketLifecycleStage) => {
     switch (stage) {
       case 'OPEN':
@@ -703,9 +397,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
   });
 
   const activeVaultSelectedIds = new Set(
-    (vaultPickerContext === 'new_ticket'
-      ? newTicketAttachments
-      : vaultPickerContext
+    (vaultPickerContext
       ? replyAttachmentsByTicket[vaultPickerContext.ticketId] || []
       : []
     )
@@ -715,33 +407,6 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
 
   return (
     <div className="space-y-6 text-[#252321]">
-      {/* Confirmation Banner after Submitting a Ticket */}
-      {createdBannerTicketNumber && (
-        <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-400 p-4 sm:p-5 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm sm:text-base font-display font-extrabold text-emerald-950">
-                تم إنشاء وحفظ تذكرتك البحثية رقم (#{createdBannerTicketNumber}) بنجاح ✓
-              </div>
-              <p className="text-xs text-emerald-900/85 mt-0.5">
-                تم ربط التذكرة بحسابك في السحابة وإحالتها إلى فريق الباحثين المختصين في مرصد البحوث.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreatedBannerTicketNumber(null)}
-            aria-label="إغلاق التنبيه"
-            className="p-1.5 rounded-lg hover:bg-emerald-200/60 text-emerald-900 cursor-pointer shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {adoptedBannerMessage && (
         <div className="rounded-2xl bg-[#FFFDF9] border-2 border-[#D4AF37] p-4 sm:p-5 flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
@@ -762,13 +427,13 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         </div>
       )}
 
-      {/* 1. Header Banner */}
+      {/* 1. Header Banner (Strictly Tracking & Replying — No Manual Ticket Creation) */}
       <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#D8755B]/15 text-[#D8755B] text-xs font-semibold">
               <Scroll className="w-3.5 h-3.5" />
-              <span>مرصد البحوث — دورة التحقيق والتوثيق الأرشيفي المتكاملة</span>
+              <span>متابعة طلب تحقيق النسب ومراسلات الباحثين</span>
             </div>
             {isFamilyRegistrar && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FEF3C7] border border-[#D4AF37] text-xs font-display font-bold text-[#8D4925]">
@@ -781,18 +446,18 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
             مرصد البحوث وتذاكر التحقيق الجينيالوجي
           </h2>
           <p className="text-xs sm:text-sm text-[#252321]/75 max-w-2xl leading-relaxed">
-            يتولى باحثونا الجينيالوجيون فحص سجلات الأوقاف والمخطوطات الأهلية وأمهات الكتب، مع إمكانية إرفاق وثائق خزانتك ومراسلة الباحث مباشرةً واعتماد النتيجة الموثقة في عمود نسبك ومشجرتك بنقرة واحدة.
+            هذه الصفحة مخصصة لمتابعة مراحل طلب تحقيق وتوثيق نسب عائلتك ضمن الاشتراك السنوي، والرد على استفسارات ومراسلات فريق الباحثين أو إرفاق وثائق مساندة من «خزانتي»، واعتماد النتيجة الموثقة فور صدورها.
           </p>
         </div>
 
         <button
           type="button"
-          data-testid="open-new-research-ticket-btn"
-          onClick={handleOpenFreshModal}
-          className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-xs"
+          onClick={loadTickets}
+          disabled={isLoading}
+          className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/45 text-xs sm:text-sm font-display font-bold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-2xs disabled:opacity-60"
         >
-          <PlusCircle className="w-4 h-4" />
-          <span>إنشاء تذكرة بحثية جديدة</span>
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <span>تحديث الحالة والمراسلات</span>
         </button>
       </div>
 
@@ -801,30 +466,31 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-12 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#D8755B] mb-3" />
           <p className="text-sm text-[#252321]/70">
-            جاري تحميل تذاكرك البحثية من قاعدة البيانات...
+            جاري تحميل حالة طلب تحقيق النسب ومراسلات الباحثين...
           </p>
         </div>
       ) : tickets.length === 0 ? (
         <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-8 text-center space-y-3.5">
-          <div className="w-12 h-12 rounded-full bg-[#EDE6DA] mx-auto flex items-center justify-center text-[#B98A78]">
+          <div className="w-12 h-12 rounded-full bg-[#EDE6DA] mx-auto flex items-center justify-center text-[#8D4925]">
             <Search className="w-6 h-6" />
           </div>
-          <h3 className="font-display font-bold text-base">
-            لا توجد تذاكر بحثية مسجلة تحت حسابك حتى الآن
+          <h3 className="font-display font-bold text-base text-[#252321]">
+            لا يوجد طلب تحقيق نسبي مفتوح تحت المتابعة حالياً
           </h3>
-          <p className="text-xs text-[#252321]/70 max-w-md mx-auto leading-relaxed">
-            يمكنك فتح تذكرة بحثية بضغطة واحدة معبأةً تلقائياً ببيانات عائلة ({result.familyName || 'أسرتك'}) مع إرفاق ما تشاء من وثائق «خزانتي».
+          <p className="text-xs text-[#252321]/75 max-w-lg mx-auto leading-relaxed">
+            {isVip
+              ? `يُفتح طلب التحقيق الأرشيفي تلقائياً من قِبل النظام عند الاشتراك في الباقة السنوية للعائلات التي تتطلب فحصاً وتحقيقاً في المخطوطات وأمهات الكتب، وتظهر هنا كافة المراسلات والتحديثات فور إحالتها من فريق الباحثين.`
+              : `تُفتح طلبات التحقيق النَّسبي المتخصص تلقائياً لمشتركي الباقة السنوية عندما تتطلب العائلة فحصاً وتوثيقاً من فريق الباحثين في أرشيف المخطوطات وأمهات الكتب.`}
           </p>
-          <button
-            type="button"
-            onClick={handleOpenFreshModal}
-            className="px-5 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-white text-xs font-display font-bold transition-colors cursor-pointer inline-flex items-center gap-2"
-          >
-            <FileText className="w-4 h-4 text-[#F3D299]" />
-            <span>
-              إنشاء تذكرة بحثية لعائلة ({result.familyName || 'أسرتي'}) الآن
-            </span>
-          </button>
+          {!isVip && onRequestUpgradeVip && (
+            <button
+              type="button"
+              onClick={onRequestUpgradeVip}
+              className="px-5 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-bold transition-colors cursor-pointer inline-flex items-center gap-2"
+            >
+              <span>الترقية إلى الباقة السنوية لتوثيق عمود النسب ←</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-5">
@@ -1309,448 +975,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         </div>
       )}
 
-      {/* 3. Back-Office Genealogist Simulator (End-to-End Lifecycle & Resolution Testing) */}
-      {tickets.length > 0 && (
-        <div className="rounded-2xl bg-[#EDE6DA]/60 border border-[#B98A78]/40 p-4 sm:p-5">
-          <button
-            type="button"
-            onClick={() => setShowStaffAdminTool(!showStaffAdminTool)}
-            className="w-full flex items-center justify-between text-xs font-bold text-[#252321] cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-[#D8755B]" />
-              <span>
-                بوابة محاكاة قرارات الباحث الجينيالوجي (اختبار مراحل التذكرة واعتماد النتيجة)
-              </span>
-            </div>
-            {showStaffAdminTool ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </button>
-
-          {showStaffAdminTool && (
-            <div className="mt-4 pt-3 border-t border-[#B98A78]/30 space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">
-                    اختر التذكرة:
-                  </label>
-                  <select
-                    value={selectedTicketId}
-                    onChange={(e) => setSelectedTicketId(e.target.value)}
-                    className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                  >
-                    <option value="">-- اختر التذكرة --</option>
-                    {tickets.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        #{t.ticketNumber} - {t.targetAncestor} (
-                        {resolveTicketLifecycleStage(t)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold mb-1">
-                    المرحلة المستهدفة:
-                  </label>
-                  <select
-                    value={simStage}
-                    onChange={(e) =>
-                      setSimStage(
-                        e.target.value as CanonicalTicketLifecycleStage
-                      )
-                    }
-                    className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                  >
-                    <option value="IN_REVIEW">IN_REVIEW — قيد الفحص المرجعي</option>
-                    <option value="NEEDS_INFO">NEEDS_INFO — طلب استكمال بيانات</option>
-                    <option value="RESOLVED">RESOLVED — اعتماد وتوثيق النتيجة</option>
-                    <option value="CLOSED">CLOSED — إغلاق التذكرة</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold mb-1">
-                    رسالة الباحث في خيط المراسلات:
-                  </label>
-                  <input
-                    type="text"
-                    value={simMessageToCustomer}
-                    onChange={(e) => setSimMessageToCustomer(e.target.value)}
-                    placeholder="رسالة اختيارية تظهر في المحادثة..."
-                    className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                  />
-                </div>
-              </div>
-
-              {simStage === 'RESOLVED' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white/70 p-3 rounded-xl border border-[#B98A78]/30">
-                  <div>
-                    <label className="block font-semibold mb-1">
-                      الفرع الموثق (verifiedRootBranch):
-                    </label>
-                    <input
-                      type="text"
-                      value={simRootBranch}
-                      onChange={(e) => setSimRootBranch(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1">
-                      القبيلة الأم الموثقة (verifiedRootTribe):
-                    </label>
-                    <input
-                      type="text"
-                      value={simRootTribe}
-                      onChange={(e) => setSimRootTribe(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1">
-                      عقدة جد مرجعي معتمد (اختياري):
-                    </label>
-                    <input
-                      type="text"
-                      value={simCertifiedAncestor}
-                      onChange={(e) => setSimCertifiedAncestor(e.target.value)}
-                      placeholder="مثال: الشريف أحمد بن حسن"
-                      className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block font-semibold mb-1">
-                      خلاصة التحقيق الأرشيفي:
-                    </label>
-                    <input
-                      type="text"
-                      value={researcherFindings}
-                      onChange={(e) => setResearcherFindings(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1">
-                      المصدر المرجعي المعتمد:
-                    </label>
-                    <input
-                      type="text"
-                      value={verifiedSources}
-                      onChange={(e) => setVerifiedSources(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#B98A78]/40 p-2 text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                disabled={isResolving || !selectedTicketId}
-                onClick={handleSimulateStaffUpdate}
-                className="py-2 px-4 rounded-xl bg-[#2E7D32] hover:bg-[#256629] text-white font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isResolving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4" />
-                )}
-                <span>حفظ قرار الباحث وإشعار العميل فوراً</span>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* MODAL 1: New Research Ticket Modal */}
-      {showNewTicketModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/65 backdrop-blur-xs p-4 overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="w-full max-w-xl rounded-2xl bg-[#F7F2E9] border-2 border-[#B98A78]/60 p-6 sm:p-7 shadow-2xl space-y-4 my-auto text-right">
-            <div className="flex items-center justify-between pb-3 border-b border-[#B98A78]/30">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-display font-bold text-[#D8755B]">
-                    مرصد البحوث · تذكرة تحقيق وتوثيق نسبي
-                  </span>
-                  {isFamilyRegistrar && (
-                    <span className="px-2 py-0.5 rounded bg-[#FEF3C7] border border-[#D4AF37] text-[10px] font-display font-bold text-[#8D4925]">
-                      PRIORITY_REGISTRAR
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
-                  إنشاء تذكرة بحثية جديدة في مرصد البحوث
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowNewTicketModal(false);
-                  setIsPrefilledFromHandoff(false);
-                }}
-                className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center text-[#252321] cursor-pointer"
-                aria-label="إغلاق النافذة"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {isPrefilledFromHandoff && (
-              <div className="rounded-xl bg-[#252321] text-white border border-[#D8755B]/60 p-3.5 flex items-start gap-2.5 text-xs">
-                <Sparkles className="w-4 h-4 text-[#F3D299] shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <strong className="text-[#F3D299] block">
-                    تمت تعبئة بيانات فحصك تلقائياً بالكامل ✓
-                  </strong>
-                  <span>
-                    راجع البيانات أدناه أو أرفق وثائق مساندة من «خزانتي»، ثم اضغط «إرسال التذكرة إلى مرصد البحوث».
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateTicket} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">
-                    الاسم الكامل وسلسلة الأجداد المدخلة *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={targetAncestor}
-                    onChange={(e) => setTargetAncestor(e.target.value)}
-                    placeholder="الاسم الأول، الأب، الجد، اللقب"
-                    className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">
-                    اسم العائلة / اللقب *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={familyName}
-                    onChange={(e) => setFamilyName(e.target.value)}
-                    placeholder="اسم العائلة أو الشهرة"
-                    className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">
-                    دولة الموطن الأصلي
-                  </label>
-                  <select
-                    value={originCountry}
-                    onChange={(e) => setOriginCountry(e.target.value)}
-                    className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                  >
-                    {ORIGIN_COUNTRY_OPTIONS.map((countryName) => (
-                      <option key={countryName} value={countryName}>
-                        {countryName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">
-                    المدينة / المركز / الإقليم التاريخي
-                  </label>
-                  <input
-                    type="text"
-                    value={originRegion}
-                    onChange={(e) => setOriginRegion(e.target.value)}
-                    placeholder="مثال: الزلفي، حوران، مغاغة، القصيم..."
-                    className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">
-                    القبيلة الأم (اختياري)
-                  </label>
-                  <input
-                    type="text"
-                    value={tribeName}
-                    onChange={(e) => setTribeName(e.target.value)}
-                    placeholder="إن كانت معروفة لديكم"
-                    className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">
-                    الفخذ أو الفرع (اختياري)
-                  </label>
-                  <input
-                    type="text"
-                    value={familyBranch}
-                    onChange={(e) => setFamilyBranch(e.target.value)}
-                    placeholder="إن كان معروفاً لديكم"
-                    className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">
-                  ملخص سبب التذكرة البحثية (مُعبأ تلقائياً)
-                </label>
-                <input
-                  type="text"
-                  list="juthori-ticket-reasons"
-                  value={reasonSummary}
-                  onChange={(e) => setReasonSummary(e.target.value)}
-                  className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs font-semibold text-[#8D4925] focus:outline-none focus:border-[#D8755B]"
-                />
-                <datalist id="juthori-ticket-reasons">
-                  {TICKET_REASON_PRESETS.map((preset) => (
-                    <option key={preset} value={preset} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">
-                  ملاحظات إضافية أو روايات عائلية ومواضع استقرار (اختياري):
-                </label>
-                <textarea
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="أضف أي تفاصيل يتوارثها كبار السن، أو أسماء قرى/أجداد تساعد الباحث في التوثيق..."
-                  className="w-full rounded-xl bg-white border border-[#B98A78]/50 p-2.5 text-xs focus:outline-none focus:border-[#D8755B]"
-                />
-              </div>
-
-              {/* Vault Quick-Attach + Smart Media Upload Box */}
-              <div className="rounded-xl bg-white border border-[#B98A78]/50 p-3.5 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-xs font-display font-bold text-[#252321] flex items-center gap-1.5">
-                    <Paperclip className="w-4 h-4 text-[#D8755B]" />
-                    <span>الوثائق والمرفقات المساندة للتذكرة</span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      data-testid="attach-from-vault-btn"
-                      onClick={() => setVaultPickerContext('new_ticket')}
-                      className="px-3 py-1.5 rounded-lg bg-[#252321] hover:bg-[#3a3633] text-[#F3D299] text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5 text-[#D8755B]" />
-                      <span>إرفاق وثائق مساندة من خزانتي</span>
-                    </button>
-
-                    <label className="px-3 py-1.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[11px] font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer">
-                      {isUploadingSmartFile ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D8755B]" />
-                      ) : (
-                        <ImageIcon className="w-3.5 h-3.5 text-[#D8755B]" />
-                      )}
-                      <span>رفع مرفق جديد</span>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf,.doc,.docx"
-                        onChange={(e) =>
-                          handleSmartUploadAttachment(
-                            e.target.files?.[0],
-                            'new_ticket'
-                          )
-                        }
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {newTicketAttachments.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {newTicketAttachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="inline-flex items-center gap-2 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/40 px-2.5 py-1.5"
-                      >
-                        {att.thumbnailUrl ? (
-                          <img
-                            src={att.thumbnailUrl}
-                            alt={att.title}
-                            className="w-7 h-7 rounded object-cover"
-                          />
-                        ) : (
-                          <FileText className="w-3.5 h-3.5 text-[#8D4925]" />
-                        )}
-                        <span className="text-[11px] font-bold text-[#252321] max-w-[150px] truncate">
-                          {att.title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewTicketAttachments((prev) =>
-                              prev.filter((x) => x.id !== att.id)
-                            )
-                          }
-                          className="text-[#8D4925] hover:text-red-600 cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-[#252321]/60">
-                    يمكنك اختيار وثائق محفوظة مسبقاً في «خزانتي» دون إعادة رفعها، أو رفع ملف جديد عبر خط الضغط الذكي.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex gap-2.5 pt-2">
-                <button
-                  type="submit"
-                  disabled={isCreating}
-                  className="flex-1 py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-display font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
-                >
-                  {isCreating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>جاري حفظ التذكرة وإرسالها للباحثين...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      <span>إرسال التذكرة إلى مرصد البحوث</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNewTicketModal(false);
-                    setIsPrefilledFromHandoff(false);
-                  }}
-                  className="py-3 px-4 rounded-xl bg-[#EDE6DA] text-[#252321] font-semibold cursor-pointer"
-                >
-                  إلغاء
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Vault Quick-Picker Modal («إرفاق وثائق مساندة من خزانتي») */}
+      {/* Vault Quick-Picker Modal («إرفاق وثائق مساندة من خزانتي») */}
       {vaultPickerContext !== null && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-[#252321]/70 backdrop-blur-xs p-4"

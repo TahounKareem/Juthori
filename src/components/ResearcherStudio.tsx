@@ -10,13 +10,18 @@ import {
   GripVertical,
   Loader2,
   MessageSquare,
+  Paperclip,
   Plus,
+  RefreshCw,
   Save,
   Search,
+  Send,
+  ShieldCheck,
   Sparkles,
   Star,
   TreePine,
   UploadCloud,
+  X,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -86,6 +91,10 @@ import {
 } from '../utils/lineageEngine';
 import { LineageSpineColumn } from './LineageSpineColumn';
 import {
+  CanonicalTicketLifecycleStage,
+  ResearchTicketAttachmentRef,
+  ResearchTicketMessageData,
+  ResearchTicketResolutionPayload,
   TeamMemberRecord,
   fetchAllResearchTicketsForStaff,
   fetchAllTeamMembersFromFirebase,
@@ -95,6 +104,12 @@ import {
   updateResearchTicketFullInFirebase,
   updateTicketStatus,
 } from '../services/firestoreService';
+import {
+  TICKET_LIFECYCLE_STAGES,
+  appendMessageToResearchTicket,
+  resolveTicketLifecycleStage,
+  updateTicketLifecycleAndResolutionByStaff,
+} from '../services/priority4Service';
 import {
   P3ProactiveCandidate,
   P3StrategicSelectionMeta,
@@ -170,6 +185,12 @@ export interface ResearcherStudioTicket {
   };
   extractedNodes: ExtractableLineageNode[];
   researcherNotes?: string;
+  clientPhone?: string;
+  lifecycleStage?: CanonicalTicketLifecycleStage;
+  priorityTag?: string;
+  messages?: ResearchTicketMessageData[];
+  attachments?: ResearchTicketAttachmentRef[];
+  resolutionPayload?: ResearchTicketResolutionPayload;
 }
 
 export interface AdamPrimeCompletedBundle {
@@ -220,6 +241,13 @@ interface ResearcherStudioProps {
   }) => void;
   onBackToClientDashboard: () => void;
   onSwitchToClientPreview: (familyName: string) => void;
+  activeStaffMember?: {
+    id: string;
+    name: string;
+    role: string;
+  };
+  initialFocusTicketId?: string | null;
+  onClearInitialFocusTicketId?: () => void;
 }
 
 type ResearcherStudioSubTab =
@@ -300,6 +328,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   isAlphaAlreadyMerged,
   onApproveAlphaMergeIntoAdam,
   onSwitchToClientPreview,
+  activeStaffMember,
+  initialFocusTicketId,
+  onClearInitialFocusTicketId,
 }) => {
   // =========================================================================
   // 5 HORIZONTAL SUB-TABS STATE (Synchronized with Top /Team Portal Section)
@@ -1459,13 +1490,23 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   // Initialize tickets strictly from real Firebase Firestore `research_tickets` (Zero Fake/Auto-Injected Tickets)
   const [tickets, setTickets] = useState<ResearcherStudioTicket[]>([]);
+  const [isRefreshingTickets, setIsRefreshingTickets] = useState(false);
+  const [staffReplyDraftByTicket, setStaffReplyDraftByTicket] = useState<
+    Record<string, string>
+  >({});
+  const [sendingStaffReplyTicketId, setSendingStaffReplyTicketId] = useState<
+    string | null
+  >(null);
+  const [updatingStageTicketId, setUpdatingStageTicketId] = useState<
+    string | null
+  >(null);
+  const [previewCustomerAttachment, setPreviewCustomerAttachment] =
+    useState<ResearchTicketAttachmentRef | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadRealTicketsFromDatabase = async () => {
-      try {
-        const firestoreDocs = await fetchAllResearchTicketsForStaff();
-        if (!isMounted) return;
+  const loadRealTicketsFromDatabase = async (showSpinner = false) => {
+    if (showSpinner) setIsRefreshingTickets(true);
+    try {
+      const firestoreDocs = await fetchAllResearchTicketsForStaff();
 
         const hydratedList: ResearcherStudioTicket[] = [];
         for (const docItem of (firestoreDocs || []) as any[]) {
@@ -1645,13 +1686,34 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
             built.researcherNotes = docItem.additionalNotes;
           }
 
+          built.firestoreDocId = docItem.id || built.firestoreDocId;
+          built.userId = docItem.userId || built.userId;
+          built.clientEmail = docItem.userEmail || built.clientEmail;
+          built.clientPhone = docItem.userPhone || built.clientPhone;
+          built.lifecycleStage = resolveTicketLifecycleStage(docItem);
+          built.priorityTag = docItem.priorityTag || undefined;
+          built.messages = Array.isArray(docItem.messages)
+            ? docItem.messages
+            : [];
+          built.attachments = Array.isArray(docItem.attachments)
+            ? docItem.attachments
+            : [];
+          built.resolutionPayload = docItem.resolutionPayload || undefined;
+
+          const upperStatus = String(docItem.status || '').toUpperCase();
           if (
             docItem.status === 'resolved' ||
             docItem.status === 'completed' ||
-            docItem.status === 'CLOSED_AND_ENRICHED'
+            docItem.status === 'CLOSED_AND_ENRICHED' ||
+            upperStatus === 'RESOLVED' ||
+            upperStatus === 'CLOSED'
           ) {
             built.status = 'CLOSED_AND_ENRICHED';
-          } else if (docItem.status === 'investigating') {
+          } else if (
+            docItem.status === 'investigating' ||
+            upperStatus === 'IN_REVIEW' ||
+            upperStatus === 'NEEDS_INFO'
+          ) {
             built.status = 'investigating';
           } else if (docItem.status === 'exported_adam_prime') {
             built.status = 'exported_adam_prime';
@@ -1676,15 +1738,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         setTickets(uniqueHydratedList);
       } catch (err) {
         console.warn('Firestore ticket sync warning:', err);
-        if (isMounted) {
-          setTickets([]);
-        }
+        setTickets([]);
+      } finally {
+        if (showSpinner) setIsRefreshingTickets(false);
       }
-    };
-    loadRealTicketsFromDatabase();
-    return () => {
-      isMounted = false;
-    };
+  };
+
+  useEffect(() => {
+    loadRealTicketsFromDatabase(false);
   }, [currentClientResult]);
 
   // =========================================================================
@@ -1692,6 +1753,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   // =========================================================================
   const [inboxCategoryFilter, setInboxCategoryFilter] = useState<
     | 'ALL_PRIORITY_SORTED'
+    | 'CUSTOMER_MESSAGES'
     | 'P1_CLIENT_UNMATCHED'
     | 'ASSIGNED_RESEARCH'
     | 'P2_CLIENT_ADAM_BRIDGE'
@@ -1699,6 +1761,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     | 'ALPHA_ADAM_ENRICHMENT'
     | 'DIRECT_CUSTOMER_TICKETS'
   >('ALL_PRIORITY_SORTED');
+
+  const hasCustomerCorrespondence = (t: ResearcherStudioTicket): boolean =>
+    Boolean(
+      (t.messages && t.messages.length > 0) ||
+        (t.attachments && t.attachments.length > 0) ||
+        t.lifecycleStage === 'NEEDS_INFO'
+    );
+
+  const hasPendingCustomerReply = (t: ResearcherStudioTicket): boolean => {
+    const msgs = t.messages || [];
+    if (msgs.length === 0) return false;
+    const lastMsg = msgs[msgs.length - 1];
+    return lastMsg?.senderRole === 'customer';
+  };
 
   const resolveTicketPriorityTier = (
     t: ResearcherStudioTicket
@@ -1720,6 +1796,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     const isClosed =
       t.status === 'CLOSED_AND_ENRICHED' || t.status === 'merged_closed';
     if (isClosed) return 99;
+    // Surface tickets with a fresh customer reply first!
+    if (hasPendingCustomerReply(t)) return 0;
     const tier = resolveTicketPriorityTier(t);
     if (tier === 'P1_CLIENT_UNMATCHED') return 1;
     if (tier === 'ASSIGNED_RESEARCH') return 2;
@@ -1739,6 +1817,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
     if (inboxCategoryFilter === 'ALL_PRIORITY_SORTED') {
       return sorted;
+    }
+    if (inboxCategoryFilter === 'CUSTOMER_MESSAGES') {
+      return sorted.filter((t) => hasCustomerCorrespondence(t));
     }
     if (
       inboxCategoryFilter === 'P1_CLIENT_UNMATCHED' ||
@@ -1772,6 +1853,22 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   }, [tickets, inboxCategoryFilter]);
 
   const [selectedTicketId, setSelectedTicketId] = useState<string>('');
+
+  useEffect(() => {
+    if (!initialFocusTicketId || tickets.length === 0) return;
+    const normTarget = initialFocusTicketId.replace(/^#/, '').trim().toLowerCase();
+    const matched = tickets.find(
+      (t) =>
+        t.id.replace(/^#/, '').trim().toLowerCase() === normTarget ||
+        (t.firestoreDocId || '').trim().toLowerCase() === normTarget
+    );
+    if (matched) {
+      setActiveSubTab('ticket_inbox');
+      setInboxCategoryFilter('ALL_PRIORITY_SORTED');
+      setSelectedTicketId(matched.id);
+      onClearInitialFocusTicketId?.();
+    }
+  }, [initialFocusTicketId, tickets, onClearInitialFocusTicketId]);
 
   useEffect(() => {
     if (
@@ -6917,11 +7014,39 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
 
     if (resolvedFirestoreDocId) {
+      const staffId = activeStaffMember?.id || 'staff_research_observatory';
+      const staffName =
+        activeStaffMember?.name ||
+        ticket.assignedResearcherName ||
+        'مدير البحوث — مرصد جذوري';
       await updateResearchTicketFullInFirebase(resolvedFirestoreDocId, {
-        status: 'CLOSED_AND_ENRICHED',
+        status: 'RESOLVED',
+        lifecycleStage: 'RESOLVED',
         adamNodeId: newAdamNodeId,
         verifiedSources: selectedCitations.join(' | '),
       });
+      await updateTicketLifecycleAndResolutionByStaff({
+        ticketId: resolvedFirestoreDocId,
+        stage: 'RESOLVED',
+        researcherId: staffId,
+        researcherName: staffName,
+        messageBody: `تم اعتماد وتوثيق ربط عائلة (${ticket.familyName}) بعمود نسبها التاريخي (${resolvedSubRoot} ⬅️ ${resolvedMotherTribe}) حتى آدم عليه السلام، ويمكنكم الآن اعتماده في سجلكم بنقرة واحدة.`,
+        researchFindings: `تم التحقق من سلسلة النسب واعتماد اتصال الأسرة بـ (${resolvedSubRoot}) من قبيلة (${resolvedMotherTribe}) وتوثيق (${selectedCitations.length}) مراجع تاريخية.`,
+        verifiedSources: selectedCitations.join(' | '),
+        resolutionPayload: {
+          decisionTitle: `قرار توثيق نسبي معتمد — عائلة ${ticket.familyName}`,
+          verifiedRootBranch: resolvedSubRoot,
+          verifiedRootTribe: resolvedMotherTribe,
+          certifiedAncestorName: liveNodes[0]?.name || undefined,
+          certifiedAncestorRank: liveNodes[0]?.nodeCode
+            ? `عقدة معتمدة (${liveNodes[0].nodeCode})`
+            : 'جد مرجعي معتمد بالمرصد',
+          verifiedCitation: selectedCitations.join(' | '),
+          summaryNotes: `تم ربط وتوثيق السلسلة (${liveNodes
+            .map((n) => n.name)
+            .join(' ⬅️ ')}) في شجرة آدم.`,
+        },
+      }).catch(() => {});
     }
     if (ticket.userId && ticket.userId !== 'system_proactive_miner') {
       await sendCustomerNotification({
@@ -7079,10 +7204,32 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }
 
     if (resolvedFirestoreDocIdB) {
+      const staffId = activeStaffMember?.id || 'staff_research_observatory';
+      const staffName =
+        activeStaffMember?.name ||
+        ticket.assignedResearcherName ||
+        'مدير البحوث — مرصد جذوري';
       await updateResearchTicketFullInFirebase(resolvedFirestoreDocIdB, {
-        status: 'CLOSED_AND_ENRICHED',
+        status: 'RESOLVED',
+        lifecycleStage: 'RESOLVED',
         verifiedSources: selectedCitations.join(' | '),
       });
+      await updateTicketLifecycleAndResolutionByStaff({
+        ticketId: resolvedFirestoreDocIdB,
+        stage: 'RESOLVED',
+        researcherId: staffId,
+        researcherName: staffName,
+        messageBody: `تم إثراء وتوثيق سجل عائلة (${ticket.familyName}) بالمراجع والفروع التاريخية الإضافية في شجرة آدم.`,
+        researchFindings: `تم تدقيق وإثراء عقدة (${ticket.familyName}) في شجرة آدم بعدد (${selectedCitations.length}) مصادر موثقة.`,
+        verifiedSources: selectedCitations.join(' | '),
+        resolutionPayload: {
+          decisionTitle: `قرار إثراء وتوثيق مرجعي — عائلة ${ticket.familyName}`,
+          verifiedRootBranch: ticket.subRootName || undefined,
+          verifiedRootTribe: ticket.motherTribeName || undefined,
+          verifiedCitation: selectedCitations.join(' | '),
+          summaryNotes: `تم اعتماد إثراء السجل بالمصادر والفروع التاريخية الموثقة.`,
+        },
+      }).catch(() => {});
     }
 
     recordKpiTicketCompletion(ticket, selectedCitations.length);
@@ -7094,6 +7241,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               ...t,
               firestoreDocId: resolvedFirestoreDocIdB,
               status: 'CLOSED_AND_ENRICHED' as const,
+              lifecycleStage: 'RESOLVED' as const,
             }
           : t
       );
@@ -7128,26 +7276,192 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     );
   };
 
-  // Action C: طلب إيضاح أو بيانات إضافية من العميل (تحديث حالة التذكرة وإشعار العميل)
+  // Direct Correspondence & Lifecycle Stage Actions from Research Manager / Researcher
+  const handleSendStaffCorrespondence = async (
+    ticket: ResearcherStudioTicket,
+    mode: 'reply_in_review' | 'request_needs_info'
+  ) => {
+    const docId = ticket.firestoreDocId || ticket.id;
+    const body = (staffReplyDraftByTicket[ticket.id] || '').trim();
+    if (!body || !docId) return;
+
+    const staffId = activeStaffMember?.id || 'staff_research_observatory';
+    const staffName =
+      activeStaffMember?.name ||
+      ticket.assignedResearcherName ||
+      'مدير البحوث — مرصد جذوري';
+    const targetStage: CanonicalTicketLifecycleStage =
+      mode === 'request_needs_info' ? 'NEEDS_INFO' : 'IN_REVIEW';
+
+    setSendingStaffReplyTicketId(ticket.id);
+    try {
+      const updatedDoc = await updateTicketLifecycleAndResolutionByStaff({
+        ticketId: docId,
+        stage: targetStage,
+        researcherId: staffId,
+        researcherName: staffName,
+        messageBody: body,
+      });
+
+      const fallbackMsg: ResearchTicketMessageData = {
+        id: `msg_${Date.now()}`,
+        ticketId: docId,
+        senderRole: 'researcher',
+        senderId: staffId,
+        senderName: staffName,
+        body,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (!updatedDoc) {
+        await appendMessageToResearchTicket({
+          ticketId: docId,
+          senderRole: 'researcher',
+          senderId: staffId,
+          senderName: staffName,
+          body,
+        });
+      }
+
+      if (ticket.userId && ticket.userId !== 'system_proactive_miner') {
+        await sendCustomerNotification({
+          userId: ticket.userId,
+          title:
+            targetStage === 'NEEDS_INFO'
+              ? `💬 طلب استكمال بيانات من الباحث حول عائلة (${ticket.familyName})`
+              : `📜 رد جديد من مرصد البحوث حول طلب عائلة (${ticket.familyName})`,
+          body,
+          category: 'ticket_update',
+          senderRole: 'researcher',
+        }).catch(() => {});
+      }
+
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === ticket.id
+            ? {
+                ...t,
+                status: 'investigating',
+                lifecycleStage: targetStage,
+                messages: updatedDoc?.messages || [
+                  ...(t.messages || []),
+                  fallbackMsg,
+                ],
+              }
+            : t
+        )
+      );
+      setStaffReplyDraftByTicket((prev) => ({ ...prev, [ticket.id]: '' }));
+      showToast(
+        targetStage === 'NEEDS_INFO'
+          ? `💬 تم إرسال طلب الاستيضاح للعميل (${ticket.clientName}) وتحويل التذكرة إلى «بانتظار رد العميل» ✓`
+          : `📜 تم إرسال رد الباحث وحفظه في سجل مراسلات العميل (${ticket.clientName}) ✓`
+      );
+    } finally {
+      setSendingStaffReplyTicketId(null);
+    }
+  };
+
+  const handleQuickUpdateTicketLifecycleStage = async (
+    ticket: ResearcherStudioTicket,
+    nextStage: CanonicalTicketLifecycleStage
+  ) => {
+    const docId = ticket.firestoreDocId || ticket.id;
+    if (!docId) return;
+    const staffId = activeStaffMember?.id || 'staff_research_observatory';
+    const staffName =
+      activeStaffMember?.name ||
+      ticket.assignedResearcherName ||
+      'مدير البحوث — مرصد جذوري';
+
+    setUpdatingStageTicketId(ticket.id);
+    try {
+      const updatedDoc = await updateTicketLifecycleAndResolutionByStaff({
+        ticketId: docId,
+        stage: nextStage,
+        researcherId: staffId,
+        researcherName: staffName,
+        resolutionPayload:
+          nextStage === 'RESOLVED'
+            ? ticket.resolutionPayload || {
+                decisionTitle: `قرار توثيق نسبي معتمد — عائلة ${ticket.familyName}`,
+                verifiedRootBranch: ticket.subRootName || undefined,
+                verifiedRootTribe: ticket.motherTribeName || undefined,
+                verifiedCitation: ticket.copilotSources
+                  .map((s) => s.bookCitation)
+                  .slice(0, 3)
+                  .join(' | '),
+                summaryNotes:
+                  ticket.researcherNotes ||
+                  `تم اعتماد نتيجة التحقيق النَّسبي لعائلة (${ticket.familyName}).`,
+              }
+            : undefined,
+      });
+
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === ticket.id
+            ? {
+                ...t,
+                lifecycleStage: nextStage,
+                status:
+                  nextStage === 'RESOLVED' || nextStage === 'CLOSED'
+                    ? 'CLOSED_AND_ENRICHED'
+                    : 'investigating',
+                resolutionPayload:
+                  updatedDoc?.resolutionPayload || t.resolutionPayload,
+              }
+            : t
+        )
+      );
+      showToast(`تم تحديث مرحلة التذكرة في حساب العميل إلى (${nextStage}) ✓`);
+    } finally {
+      setUpdatingStageTicketId(null);
+    }
+  };
+
+  // Action C: طلب إيضاح أو بيانات إضافية من العميل (تحديث حالة التذكرة وحفظ المراسلة وإشعار العميل)
   const handleActionCRequestClarification = async (
     ticket: ResearcherStudioTicket
   ) => {
-    if (!clarificationMessage.trim()) return;
+    const cleanBody = clarificationMessage.trim();
+    if (!cleanBody) return;
+    const staffId = activeStaffMember?.id || 'staff_research_observatory';
+    const staffName =
+      activeStaffMember?.name ||
+      ticket.assignedResearcherName ||
+      'مدير البحوث — مرصد جذوري';
+
+    let savedMessages: ResearchTicketMessageData[] | undefined;
     if (ticket.firestoreDocId) {
-      await updateTicketStatus(ticket.firestoreDocId, 'investigating');
-      await updateResearchTicketFullInFirebase(ticket.firestoreDocId, {
-        status: 'investigating',
+      const updatedDoc = await updateTicketLifecycleAndResolutionByStaff({
+        ticketId: ticket.firestoreDocId,
+        stage: 'NEEDS_INFO',
+        researcherId: staffId,
+        researcherName: staffName,
+        messageBody: cleanBody,
       });
+      savedMessages = updatedDoc?.messages;
     }
-    if (ticket.userId) {
+    if (ticket.userId && ticket.userId !== 'system_proactive_miner') {
       await sendCustomerNotification({
         userId: ticket.userId,
         title: `💬 استفسار تحقيقي من الباحث حول تذكرة عائلة (${ticket.familyName})`,
-        body: clarificationMessage.trim(),
+        body: cleanBody,
         category: 'ticket_update',
         senderRole: 'researcher',
       });
     }
+
+    const appendedLocalMsg: ResearchTicketMessageData = {
+      id: `msg_${Date.now()}`,
+      ticketId: ticket.firestoreDocId || ticket.id,
+      senderRole: 'researcher',
+      senderId: staffId,
+      senderName: staffName,
+      body: cleanBody,
+      createdAt: new Date().toISOString(),
+    };
 
     setTickets((prev) =>
       prev.map((t) =>
@@ -7155,7 +7469,9 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
           ? {
               ...t,
               status: 'investigating',
-              researcherNotes: clarificationMessage.trim(),
+              lifecycleStage: 'NEEDS_INFO',
+              researcherNotes: cleanBody,
+              messages: savedMessages || [...(t.messages || []), appendedLocalMsg],
             }
           : t
       )
@@ -7163,7 +7479,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     setShowClarificationBox(false);
     setClarificationMessage('');
     showToast(
-      `💬 تم تحديث حالة التذكرة إلى "قيد الاستيضاح" وإرسال إشعار فوري لحساب العميل (${ticket.clientName})!`
+      `💬 تم تحويل التذكرة إلى «بانتظار استكمال العميل» وحفظ الاستفسار في خيط مراسلات العميل (${ticket.clientName}) ✓`
     );
   };
 
@@ -10548,6 +10864,40 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 <button
                   type="button"
+                  data-testid="queue-filter-customer-messages"
+                  onClick={() => {
+                    setInboxCategoryFilter('CUSTOMER_MESSAGES');
+                    const firstMatch = tickets.find((t) =>
+                      hasCustomerCorrespondence(t)
+                    );
+                    if (firstMatch) setSelectedTicketId(firstMatch.id);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    inboxCategoryFilter === 'CUSTOMER_MESSAGES'
+                      ? 'bg-[#252321] text-[#F3D299] border-[#252321] shadow-2xs'
+                      : 'bg-[#FFFDF9] text-[#252321] hover:bg-[#EDE6DA] border-[#D4AF37]/60'
+                  }`}
+                >
+                  <span>💬 مراسلات ومرفقات العملاء</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${
+                      inboxCategoryFilter === 'CUSTOMER_MESSAGES'
+                        ? 'bg-white/20 text-[#F3D299]'
+                        : 'bg-amber-50 text-[#8D4925] border border-amber-300'
+                    }`}
+                  >
+                    {tickets.filter((t) => hasCustomerCorrespondence(t)).length}
+                  </span>
+                  {tickets.some((t) => hasPendingCustomerReply(t)) && (
+                    <span
+                      className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200"
+                      title="يوجد رد جديد من العميل بانتظار المراجعة"
+                    />
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   data-testid="queue-filter-assigned"
                   onClick={() => {
                     setInboxCategoryFilter('ASSIGNED_RESEARCH');
@@ -10677,17 +11027,33 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   data-testid="sticky-ticket-queue-sidebar"
                   className="lg:col-span-4 bg-white rounded-3xl border border-[#E2DACB] shadow-2xs overflow-hidden lg:sticky lg:top-4 lg:max-h-[85vh] flex flex-col"
                 >
-                  <div className="p-3.5 bg-[#FAF6F0] text-[#252321] border-b border-[#E2DACB] flex items-center justify-between shrink-0">
+                  <div className="p-3.5 bg-[#FAF6F0] text-[#252321] border-b border-[#E2DACB] flex items-center justify-between gap-2 shrink-0">
                     <h3 className="text-xs sm:text-sm font-extrabold font-display text-[#252321]">
                       تذاكر البحوث النشطة ({filteredInboxTickets.length})
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() => setIsQueueSidebarCollapsed(true)}
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-[11px] font-extrabold transition-all cursor-pointer"
-                    >
-                      طيّ تذاكر البحوث ◀
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => loadRealTicketsFromDatabase(true)}
+                        disabled={isRefreshingTickets}
+                        title="تحديث التذاكر ومراسلات العملاء من السحابة"
+                        className="px-2 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-[11px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 disabled:opacity-60"
+                      >
+                        <RefreshCw
+                          className={`w-3 h-3 ${
+                            isRefreshingTickets ? 'animate-spin' : ''
+                          }`}
+                        />
+                        <span>تحديث</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsQueueSidebarCollapsed(true)}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#E2DACB] text-[11px] font-extrabold transition-all cursor-pointer"
+                      >
+                        طيّ ◀
+                      </button>
+                    </div>
                   </div>
 
                   <div className="divide-y divide-[#E2DACB]/60 overflow-y-auto flex-1">
@@ -10716,6 +11082,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             ? 'بحوث استباقية'
                             : 'بحوث إثراء شجرة آدم';
 
+                        const msgCount = tkt.messages?.length || 0;
+                        const attCount = tkt.attachments?.length || 0;
+                        const customerReplied = hasPendingCustomerReply(tkt);
+                        const isCustomerTicket =
+                          Boolean(tkt.userId) &&
+                          tkt.userId !== 'system_proactive_miner';
+
                         return (
                           <button
                             key={`${tkt.id}-${tkt.firestoreDocId || tktIdx}`}
@@ -10740,16 +11113,48 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   <h4 className="text-xs font-bold text-[#252321] leading-relaxed">
                                     {formatCleanTicketTitle(tkt.title)}
                                   </h4>
-                                  {(tier === 'ASSIGNED_RESEARCH' ||
-                                    tkt.assignedResearcherName) && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 border border-orange-300 text-orange-900 text-[10px] font-extrabold">
-                                      <span>
-                                        👤 مسندة إلى:{' '}
-                                        {tkt.assignedResearcherName ||
-                                          'مدير البحوث'}
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {(tier === 'ASSIGNED_RESEARCH' ||
+                                      tkt.assignedResearcherName) && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 border border-orange-300 text-orange-900 text-[10px] font-extrabold">
+                                        <span>
+                                          👤 مسندة إلى:{' '}
+                                          {tkt.assignedResearcherName ||
+                                            'مدير البحوث'}
+                                        </span>
                                       </span>
-                                    </span>
-                                  )}
+                                    )}
+                                    {tkt.priorityTag === 'PRIORITY_REGISTRAR' && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FEF3C7] border border-[#D4AF37] text-[#8D4925] text-[10px] font-extrabold">
+                                        <span>أولوية أمين السجل</span>
+                                      </span>
+                                    )}
+                                    {customerReplied && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-400 text-emerald-950 text-[10px] font-extrabold">
+                                        <span>🔔 رد جديد من العميل ({msgCount})</span>
+                                      </span>
+                                    )}
+                                    {!customerReplied && msgCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-[10px] font-bold">
+                                        <span>💬 {msgCount} مراسلات</span>
+                                      </span>
+                                    )}
+                                    {tkt.lifecycleStage === 'NEEDS_INFO' && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-400 text-amber-950 text-[10px] font-bold">
+                                        <span>⏳ بانتظار رد العميل</span>
+                                      </span>
+                                    )}
+                                    {attCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-[#E2DACB] text-[#252321] text-[10px] font-bold">
+                                        <span>📎 {attCount} مرفقات</span>
+                                      </span>
+                                    )}
+                                    {isCustomerTicket && tkt.clientName && (
+                                      <span className="text-[10px] text-[#6E6456] font-semibold">
+                                        العميل: {tkt.clientName}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <span className="shrink-0 text-[11px] font-bold text-[#8D4925] bg-[#FAF6F0] border border-[#E2DACB] px-2 py-0.5 rounded-md">
@@ -10857,6 +11262,308 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     </div>
 
                     <div className="p-4 sm:p-6 space-y-5">
+                      {/* ==========================================================
+                          CUSTOMER CORRESPONDENCE, ATTACHMENTS & LIFECYCLE PANEL
+                          (For Research Manager & Assigned Researchers)
+                         ========================================================== */}
+                      {(Boolean(selectedTicket.firestoreDocId) &&
+                        selectedTicket.userId !== 'system_proactive_miner' &&
+                        (resolveTicketPriorityTier(selectedTicket) !==
+                          'P3_PROACTIVE_ALPHA_ENRICHMENT' ||
+                          hasCustomerCorrespondence(selectedTicket))) && (
+                        <div
+                          data-testid="staff-customer-correspondence-panel"
+                          className="rounded-2xl bg-[#FFFDF9] border-2 border-[#D4AF37]/70 p-4 sm:p-5 space-y-4 shadow-2xs"
+                        >
+                          {/* Panel Header + Quick Stage Switcher */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-3">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#252321] text-[#F3D299] text-xs font-display font-bold">
+                                  <MessageSquare className="w-3.5 h-3.5 text-[#D8755B]" />
+                                  <span>
+                                    سجل مراسلات العميل وإجراءات حالة التذكرة
+                                  </span>
+                                </span>
+                                {selectedTicket.priorityTag ===
+                                  'PRIORITY_REGISTRAR' && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FEF3C7] border border-[#D4AF37] text-[11px] font-bold text-[#8D4925]">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
+                                    <span>أولوية أمين السجل</span>
+                                  </span>
+                                )}
+                                {hasPendingCustomerReply(selectedTicket) && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-400 text-[11px] font-extrabold text-emerald-950">
+                                    <span>🔔 رد جديد من العميل بانتظار المراجعة</span>
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-[#5C5346]">
+                                العميل:{' '}
+                                <strong className="text-[#252321]">
+                                  {selectedTicket.clientName || 'مشترك الباقة السنوية'}
+                                </strong>
+                                {selectedTicket.clientEmail
+                                  ? ` · ${selectedTicket.clientEmail}`
+                                  : ''}
+                                {selectedTicket.clientPhone
+                                  ? ` · ${selectedTicket.clientPhone}`
+                                  : ''}{' '}
+                                · تتزامن كافة الردود وتغييرات الحالة فوراً مع صفحة «مرصد البحوث» في حساب العميل.
+                              </p>
+                            </div>
+
+                            {/* 5-Stage Quick Switcher for Research Manager & Researchers */}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {TICKET_LIFECYCLE_STAGES.map((stItem) => {
+                                const currentStage =
+                                  selectedTicket.lifecycleStage || 'OPEN';
+                                const isCurrent = currentStage === stItem.stage;
+                                return (
+                                  <button
+                                    key={stItem.stage}
+                                    type="button"
+                                    disabled={
+                                      updatingStageTicketId === selectedTicket.id
+                                    }
+                                    onClick={() =>
+                                      handleQuickUpdateTicketLifecycleStage(
+                                        selectedTicket,
+                                        stItem.stage
+                                      )
+                                    }
+                                    title={stItem.detailAr}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer disabled:opacity-50 ${
+                                      isCurrent
+                                        ? 'bg-[#D8755B] text-white border-[#D8755B] shadow-2xs'
+                                        : 'bg-white hover:bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB]'
+                                    }`}
+                                  >
+                                    {stItem.shortAr}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Customer Supporting Attachments (Vault & Uploaded Files) */}
+                          {selectedTicket.attachments &&
+                            selectedTicket.attachments.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="text-xs font-bold text-[#8D4925] flex items-center gap-1.5">
+                                  <Paperclip className="w-3.5 h-3.5 text-[#D8755B]" />
+                                  <span>
+                                    الوثائق والمشجرات المرفقة من العميل (
+                                    {selectedTicket.attachments.length}):
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedTicket.attachments.map((att) => {
+                                    const imgSrc =
+                                      att.fileUrl || att.thumbnailUrl || '';
+                                    return (
+                                      <button
+                                        key={att.id}
+                                        type="button"
+                                        onClick={() =>
+                                          setPreviewCustomerAttachment(att)
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#B98A78]/45 px-3 py-2 text-right transition-colors cursor-pointer shadow-2xs"
+                                      >
+                                        {imgSrc &&
+                                        (imgSrc.startsWith('data:image') ||
+                                          imgSrc.startsWith('https://')) ? (
+                                          <img
+                                            src={att.thumbnailUrl || imgSrc}
+                                            alt={att.title}
+                                            className="w-9 h-9 rounded-lg object-cover border border-[#E2DACB] shrink-0"
+                                          />
+                                        ) : (
+                                          <div className="w-9 h-9 rounded-lg bg-[#FAF6F0] flex items-center justify-center text-[#8D4925] shrink-0">
+                                            <FileText className="w-4 h-4" />
+                                          </div>
+                                        )}
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-bold text-[#252321] max-w-[180px] truncate">
+                                            {att.title}
+                                          </div>
+                                          <div className="text-[10px] text-[#8D4925]">
+                                            {att.sourceType === 'vault_ref'
+                                              ? 'مرفق من خزانة العميل · اضغط للمعاينة'
+                                              : 'مرفق مرفوع من العميل · اضغط للمعاينة'}
+                                          </div>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Chronological Correspondence Thread */}
+                          <div className="space-y-2">
+                            <div className="text-xs font-bold text-[#252321]">
+                              خيط المراسلات المتبادلة مع العميل (
+                              {selectedTicket.messages?.length || 0}):
+                            </div>
+                            {!selectedTicket.messages ||
+                            selectedTicket.messages.length === 0 ? (
+                              <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-xs text-[#6E6456]">
+                                لا توجد رسائل متبادلة بعد على هذه التذكرة. يمكنك إرسال استفسار أو طلب وثيقة إضافية من العميل أدناه، وسيظهر رده ومرفقاته هنا مباشرةً.
+                              </div>
+                            ) : (
+                              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                                {selectedTicket.messages.map((msg) => {
+                                  const isCustomerMsg =
+                                    msg.senderRole === 'customer';
+                                  return (
+                                    <div
+                                      key={msg.id}
+                                      className={`rounded-xl p-3 border text-xs space-y-1.5 ${
+                                        isCustomerMsg
+                                          ? 'bg-emerald-50/70 border-emerald-300 text-[#252321]'
+                                          : 'bg-[#FAF6F0] border-[#D8755B]/40 text-[#252321]'
+                                      }`}
+                                    >
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="font-extrabold flex items-center gap-1.5">
+                                          <span
+                                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                              isCustomerMsg
+                                                ? 'bg-emerald-700 text-white'
+                                                : 'bg-[#252321] text-[#F3D299]'
+                                            }`}
+                                          >
+                                            {isCustomerMsg
+                                              ? 'رد العميل'
+                                              : 'مرصد البحوث'}
+                                          </span>
+                                          <span>{msg.senderName}</span>
+                                        </span>
+                                        <span className="text-[11px] text-[#6E6456]">
+                                          {new Date(
+                                            msg.createdAt
+                                          ).toLocaleString('ar-SA', {
+                                            dateStyle: 'short',
+                                            timeStyle: 'short',
+                                          })}
+                                        </span>
+                                      </div>
+                                      <p className="leading-relaxed whitespace-pre-wrap">
+                                        {msg.body}
+                                      </p>
+                                      {msg.attachments &&
+                                        msg.attachments.length > 0 && (
+                                          <div className="flex flex-wrap gap-1.5 pt-1">
+                                            {msg.attachments.map((att) => (
+                                              <button
+                                                key={att.id}
+                                                type="button"
+                                                onClick={() =>
+                                                  setPreviewCustomerAttachment(
+                                                    att
+                                                  )
+                                                }
+                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/40 text-[11px] font-bold text-[#8D4925] hover:bg-[#EDE6DA] cursor-pointer"
+                                              >
+                                                <Paperclip className="w-3 h-3 text-[#D8755B]" />
+                                                <span>{att.title}</span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Researcher / Research Manager Reply Composer */}
+                          <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-2.5">
+                            <label className="block text-xs font-bold text-[#252321]">
+                              إرسال رد أو استفسار أرشيفي للعميل باسم (
+                              {activeStaffMember?.name ||
+                                selectedTicket.assignedResearcherName ||
+                                'مدير البحوث — مرصد جذوري'}
+                              ):
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={
+                                staffReplyDraftByTicket[selectedTicket.id] || ''
+                              }
+                              onChange={(e) =>
+                                setStaffReplyDraftByTicket((prev) => ({
+                                  ...prev,
+                                  [selectedTicket.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="اكتب ردك على استفسار العميل، أو اطلب منه تزويدك بصورة وثيقة/مشجرة من خزانته أو اسم جد وسيط..."
+                              className="w-full rounded-xl bg-white border border-[#B98A78]/45 p-2.5 text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                            />
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                disabled={
+                                  sendingStaffReplyTicketId ===
+                                    selectedTicket.id ||
+                                  !(
+                                    staffReplyDraftByTicket[
+                                      selectedTicket.id
+                                    ] || ''
+                                  ).trim()
+                                }
+                                onClick={() =>
+                                  handleSendStaffCorrespondence(
+                                    selectedTicket,
+                                    'request_needs_info'
+                                  )
+                                }
+                                className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                {sendingStaffReplyTicketId ===
+                                selectedTicket.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                )}
+                                <span>
+                                  طلب استكمال بيانات/وثائق من العميل (NEEDS_INFO)
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  sendingStaffReplyTicketId ===
+                                    selectedTicket.id ||
+                                  !(
+                                    staffReplyDraftByTicket[
+                                      selectedTicket.id
+                                    ] || ''
+                                  ).trim()
+                                }
+                                onClick={() =>
+                                  handleSendStaffCorrespondence(
+                                    selectedTicket,
+                                    'reply_in_review'
+                                  )
+                                }
+                                className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                {sendingStaffReplyTicketId ===
+                                selectedTicket.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Send className="w-3.5 h-3.5" />
+                                )}
+                                <span>إرسال رد ومتابعة الفحص (IN_REVIEW)</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {renderGamifiedTicketOperationsWorkspace(selectedTicket)}
                     </div>
                   </div>
@@ -10886,6 +11593,78 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Lightbox Preview Modal for Customer Supporting Attachments */}
+            {previewCustomerAttachment && (
+              <div
+                className="fixed inset-0 z-50 bg-[#252321]/75 backdrop-blur-xs flex items-center justify-center p-4"
+                role="dialog"
+                aria-modal="true"
+              >
+                <div className="bg-[#FAF6F0] rounded-3xl border-2 border-[#B98A78] max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 text-right">
+                  <div className="flex items-center justify-between border-b border-[#E2DACB] pb-3">
+                    <div>
+                      <div className="text-[11px] font-bold text-[#D8755B]">
+                        {previewCustomerAttachment.sourceType === 'vault_ref'
+                          ? 'وثيقة مساندة مرفقة من «خزانتي» الخاصة بالعميل'
+                          : 'وثيقة مساندة مرفوعة مباشرة من العميل'}
+                      </div>
+                      <h4 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                        {previewCustomerAttachment.title}
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewCustomerAttachment(null)}
+                      className="w-8 h-8 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] flex items-center justify-center text-[#252321] cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {(previewCustomerAttachment.fileUrl ||
+                    previewCustomerAttachment.thumbnailUrl) &&
+                  ((
+                    previewCustomerAttachment.fileUrl ||
+                    previewCustomerAttachment.thumbnailUrl ||
+                    ''
+                  ).startsWith('data:image') ||
+                    (
+                      previewCustomerAttachment.fileUrl ||
+                      previewCustomerAttachment.thumbnailUrl ||
+                      ''
+                    ).startsWith('https://')) ? (
+                    <div className="rounded-2xl bg-white border border-[#E2DACB] p-3 flex items-center justify-center max-h-[65vh] overflow-auto">
+                      <img
+                        src={
+                          previewCustomerAttachment.fileUrl ||
+                          previewCustomerAttachment.thumbnailUrl
+                        }
+                        alt={previewCustomerAttachment.title}
+                        className="max-h-[58vh] w-auto rounded-xl object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl bg-white border border-[#E2DACB] p-6 text-center space-y-2">
+                      <FileText className="w-8 h-8 text-[#8D4925] mx-auto" />
+                      <p className="text-xs text-[#5C5346]">
+                        {previewCustomerAttachment.dateOrOccasion ||
+                          'مرفق توثيقي مساند من العميل'}
+                      </p>
+                      {previewCustomerAttachment.fileUrl && (
+                        <a
+                          href={previewCustomerAttachment.fileUrl}
+                          download={previewCustomerAttachment.title}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#252321] text-[#FEF3C7] text-xs font-bold"
+                        >
+                          <span>تنزيل / استعراض الملف المرفق</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

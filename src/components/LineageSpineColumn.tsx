@@ -70,6 +70,7 @@ interface LineageSpineColumnProps {
       | 'deep_archival_verification'
   ) => void;
   userId?: string;
+  onOpenResearchTicketsTab?: () => void;
   onSignCharterAndEnableTree?: () => void;
   onLogActivity?: (action: string, detail: string) => void;
 }
@@ -160,6 +161,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   isResyncingLineage = false,
   onCreateResearchTicket,
   userId,
+  onOpenResearchTicketsTab,
   onSignCharterAndEnableTree,
   onLogActivity,
 }) => {
@@ -744,15 +746,26 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
         </div>
 
-        {onOpenMyTreeTab && (
-          <button
-            type="button"
-            onClick={onOpenMyTreeTab}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
-          >
-            ابدأ ببناء شجرة أسرتك القريبة في «شجرتي» ←
-          </button>
-        )}
+        <div className="space-y-2">
+          {onOpenResearchTicketsTab && (
+            <button
+              type="button"
+              onClick={onOpenResearchTicketsTab}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
+            >
+              متابعة حالة طلب التحقيق والرد على مراسلات الباحثين ←
+            </button>
+          )}
+          {onOpenMyTreeTab && (
+            <button
+              type="button"
+              onClick={onOpenMyTreeTab}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
+            >
+              ابدأ ببناء شجرة أسرتك القريبة في «شجرتي» ←
+            </button>
+          )}
+        </div>
       </div>
     );
   };

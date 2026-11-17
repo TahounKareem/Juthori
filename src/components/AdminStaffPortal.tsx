@@ -42,6 +42,7 @@ import {
   KnowledgeArticleRecord,
   KnowledgeContentType,
   LegalAuditTrailEntry,
+  ResearchTicketData,
   SupportTicketRecord,
   TeamMemberRecord,
   TeamRoleType,
@@ -68,6 +69,7 @@ import {
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResilientImage } from './ResilientImage';
 import { ResearcherStudio } from './ResearcherStudio';
+import { resolveTicketLifecycleStage } from '../services/priority4Service';
 import {
   KNOWLEDGE_BASE_SECTIONS,
   KnowledgeCenterView,
@@ -263,6 +265,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     []
   );
   const [researchTicketsCount, setResearchTicketsCount] = useState(0);
+  const [researchTicketsList, setResearchTicketsList] = useState<
+    ResearchTicketData[]
+  >([]);
+  const [focusedResearchTicketId, setFocusedResearchTicketId] = useState<
+    string | null
+  >(null);
 
   // Toast feedback
   const [toastBanner, setToastBanner] = useState<string | null>(null);
@@ -301,6 +309,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       setSupportTickets(fetchedSupport);
       setKnowledgeArticles(fetchedArticles);
       setResearchTicketsCount(fetchedResearchTickets.length);
+      setResearchTicketsList(fetchedResearchTickets);
       setLegalAuditTrailList(fetchedAuditTrail);
     } catch (err) {
       console.warn('[AdminStaffPortal] refresh warning:', err);
@@ -326,9 +335,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   }, [loggedInMember]);
 
   useEffect(() => {
-    if (loggedInMember && activeTab === 'command_hub') {
+    if (
+      loggedInMember &&
+      (activeTab === 'command_hub' || activeTab === 'orders_support')
+    ) {
       fetchAllResearchTicketsForStaff()
-        .then((list) => setResearchTicketsCount(list.length))
+        .then((list) => {
+          setResearchTicketsCount(list.length);
+          setResearchTicketsList(list);
+        })
         .catch(() => {});
     }
   }, [loggedInMember, activeTab]);
@@ -939,9 +954,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       emoji: '🔬',
       title: '🔬 مرصد البحوث',
       description:
-        'غرفة عمليات التذاكر البحثية وتوثيق المصادر وإثراء شجرة آدم للأجداد.',
-      liveCounterLabel: 'التذاكر النشطة بالمرصد',
-      liveCounterValue: `${researchTicketsCount} تذكرة نشطة`,
+        'غرفة عمليات التذاكر البحثية ومراسلات المشتركين وتوثيق المصادر وإثراء شجرة آدم للأجداد.',
+      liveCounterLabel: 'التذاكر ومراسلات العملاء',
+      liveCounterValue: (() => {
+        const pendingReplies = researchTicketsList.filter((t) => {
+          const msgs = t.messages || [];
+          const last = msgs[msgs.length - 1];
+          return Boolean(last && last.senderRole === 'customer');
+        }).length;
+        return pendingReplies > 0
+          ? `${researchTicketsCount} تذكرة · 🔔 ${pendingReplies} رد عميل`
+          : `${researchTicketsCount} تذكرة نشطة`;
+      })(),
       accentBadge: 'غرفة عمليات الباحثين',
     },
     {
@@ -1868,6 +1892,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     setActiveTab(sec);
                   }
                 }}
+                activeStaffMember={
+                  loggedInMember
+                    ? {
+                        id: loggedInMember.id,
+                        name: loggedInMember.name,
+                        role: loggedInMember.role,
+                      }
+                    : undefined
+                }
+                initialFocusTicketId={focusedResearchTicketId}
+                onClearInitialFocusTicketId={() =>
+                  setFocusedResearchTicketId(null)
+                }
                 currentFamilyName={currentClientResult.familyName}
                 currentClientResult={currentClientResult}
                 isAlphaAlreadyMerged={isAlphaAlreadyMerged}
@@ -2795,6 +2832,87 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Linked Research Ticket & Customer Correspondence Summary */}
+            <div className="pt-3 border-t border-[#EFEAE0] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#252321]">
+                  تذكرة التحقيق النَّسبي ومراسلات مرصد البحوث:
+                </span>
+              </div>
+              {(() => {
+                const linkedTicket = researchTicketsList.find(
+                  (t) =>
+                    (selectedOrderForModal.userId &&
+                      t.userId === selectedOrderForModal.userId) ||
+                    (selectedOrderForModal.email &&
+                      (t.userEmail || '').toLowerCase() ===
+                        selectedOrderForModal.email.toLowerCase()) ||
+                    (selectedOrderForModal.ticketId &&
+                      selectedOrderForModal.ticketId !== '—' &&
+                      (t.ticketNumber === selectedOrderForModal.ticketId ||
+                        t.id === selectedOrderForModal.ticketId))
+                );
+
+                if (!linkedTicket) {
+                  return (
+                    <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-[11px] text-[#6E6456]">
+                      لا توجد تذكرة تحقيق نسبي مفتوحة حالياً لهذا العميل في مرصد البحوث.
+                    </div>
+                  );
+                }
+
+                const stage = resolveTicketLifecycleStage(linkedTicket);
+                const msgs = linkedTicket.messages || [];
+                const lastMsg = msgs[msgs.length - 1];
+                const attCount = linkedTicket.attachments?.length || 0;
+
+                return (
+                  <div className="rounded-xl bg-[#FAF6F0] border border-[#D4AF37]/60 p-3.5 text-xs space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#252321] text-[#F3D299] text-[11px]">
+                        #{linkedTicket.ticketNumber}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] font-bold text-[#8D4925]">
+                          المرحلة: {stage}
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] font-bold text-[#252321]">
+                          💬 {msgs.length} مراسلات · 📎 {attCount} مرفقات
+                        </span>
+                      </div>
+                    </div>
+
+                    {lastMsg && (
+                      <div className="rounded-lg bg-white border border-[#E2DACB] p-2.5 text-[11px] text-[#252321]">
+                        <strong className="text-[#8D4925]">
+                          {lastMsg.senderRole === 'customer'
+                            ? `آخر رد من العميل (${lastMsg.senderName}): `
+                            : `آخر رد من الباحث (${lastMsg.senderName}): `}
+                        </strong>
+                        <span>{lastMsg.body}</span>
+                      </div>
+                    )}
+
+                    {allowedTabs.includes('research_studio') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const focusKey =
+                            linkedTicket.ticketNumber || linkedTicket.id;
+                          setSelectedOrderForModal(null);
+                          setFocusedResearchTicketId(focusKey);
+                          setActiveTab('research_studio');
+                        }}
+                        className="w-full py-2 px-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer transition-colors"
+                      >
+                        فتح التذكرة والرد على العميل في مرصد البحوث ←
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Customer Legal Audit Trail Section inside Manage Customer Modal */}
