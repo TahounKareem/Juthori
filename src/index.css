@@ -44,3 +44,114 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Strictly Scoped Family Microsite Heritage Themes (Zero Global Leakage) */
+[data-family-site-theme="golden_parchment"] {
+  --fs-bg: #FBF7EE;
+  --fs-surface: #FFFFFF;
+  --fs-surface-alt: #F3EBDC;
+  --fs-ink: #231F1C;
+  --fs-muted: #6B5E4F;
+  --fs-accent: #9E6B27;
+  --fs-accent-contrast: #FFFFFF;
+  --fs-border: rgba(158, 107, 39, 0.24);
+  --fs-hero-bg: #231F1C;
+  --fs-hero-ink: #FBF7EE;
+  --fs-gold: #D4AF6A;
+}
+
+[data-family-site-theme="diriyah_oasis"] {
+  --fs-bg: #F6EFE4;
+  --fs-surface: #FFFDF9;
+  --fs-surface-alt: #EBE0CF;
+  --fs-ink: #2A211B;
+  --fs-muted: #6E5A4C;
+  --fs-accent: #B85D3B;
+  --fs-accent-contrast: #FFFFFF;
+  --fs-border: rgba(184, 93, 59, 0.25);
+  --fs-hero-bg: #2C211B;
+  --fs-hero-ink: #F6EFE4;
+  --fs-gold: #DEB881;
+}
+
+[data-family-site-theme="andalusian_emerald"] {
+  --fs-bg: #F7F9F6;
+  --fs-surface: #FFFFFF;
+  --fs-surface-alt: #E7EFEA;
+  --fs-ink: #172822;
+  --fs-muted: #4E665D;
+  --fs-accent: #1F5C48;
+  --fs-accent-contrast: #FFFFFF;
+  --fs-border: rgba(31, 92, 72, 0.22);
+  --fs-hero-bg: #132A22;
+  --fs-hero-ink: #F4F8F5;
+  --fs-gold: #C8A96A;
+}
+
+[data-family-site-theme="sultanic_burgundy"] {
+  --fs-bg: #FAF5F3;
+  --fs-surface: #FFFFFF;
+  --fs-surface-alt: #F1E5E2;
+  --fs-ink: #29151A;
+  --fs-muted: #6D4E55;
+  --fs-accent: #7A2332;
+  --fs-accent-contrast: #FFFFFF;
+  --fs-border: rgba(122, 35, 50, 0.24);
+  --fs-hero-bg: #2B1218;
+  --fs-hero-ink: #FAF5F3;
+  --fs-gold: #DDB771;
+}
+
+[data-family-site-theme="classical_marble"] {
+  --fs-bg: #FAFAFA;
+  --fs-surface: #FFFFFF;
+  --fs-surface-alt: #F0F0EE;
+  --fs-ink: #18181B;
+  --fs-muted: #52525B;
+  --fs-accent: #27272A;
+  --fs-accent-contrast: #FFFFFF;
+  --fs-border: rgba(39, 39, 42, 0.16);
+  --fs-hero-bg: #18181B;
+  --fs-hero-ink: #FAFAFA;
+  --fs-gold: #A1A1AA;
+}
+
+.fs-canvas {
+  background-color: var(--fs-bg);
+  color: var(--fs-ink);
+}
+.fs-surface {
+  background-color: var(--fs-surface);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+.fs-surface-alt,
+.fs-muted-surface {
+  background-color: var(--fs-surface-alt);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+.fs-hero {
+  background-color: var(--fs-hero-bg);
+  color: var(--fs-hero-ink);
+}
+.fs-accent-btn,
+.fs-accent-bg {
+  background-color: var(--fs-accent);
+  color: var(--fs-accent-contrast);
+}
+.fs-accent-text {
+  color: var(--fs-accent);
+}
+.fs-muted-text,
+.fs-muted {
+  color: var(--fs-muted);
+}
+.fs-border {
+  border-color: var(--fs-border);
+}
+.fs-gold-text {
+  color: var(--fs-gold);
+}
+
+

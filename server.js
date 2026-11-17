@@ -37,9 +37,9 @@ function resolveGermanEngineBaseUrl(rawUrl) {
 }
 
 const JUTHORI_ENGINE_BASE_URL = resolveGermanEngineBaseUrl(
-  process.env.JUTHORI_ENGINE_URL
+  process.env.VITE_JUTHORI_API_URL
 );
-const JUTHORI_ENGINE_URL = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/lineage-search`;
+const JUTHORI_LINEAGE_SEARCH_URL = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/lineage-search`;
 const JUTHORI_CLOSE_TICKET_URL = `${JUTHORI_ENGINE_BASE_URL}/api/v1/juthori/researcher/close-enrichment-ticket`;
 
 // Server-side in-memory OTP store (keyed by normalized email)
@@ -265,7 +265,7 @@ app.post('/api/juthori/lineage-search', async (req, res) => {
   const timeout = setTimeout(() => controller.abort(), 6500);
 
   try {
-    const upstream = await fetch(JUTHORI_ENGINE_URL, {
+    const upstream = await fetch(JUTHORI_LINEAGE_SEARCH_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -621,6 +621,78 @@ app.post('/api/v1/juthori/adam-tree/update-node', handleAdamTreeUpdateNode);
 app.post('/api/juthori/adam-tree/update-node', handleAdamTreeUpdateNode);
 
 // 4. Resend API — Send Real OTP Verification Email
+// In-Memory Sliding-Window Rate Limiter for Email Endpoints (Max 5 requests / 10 minutes per IP or user)
+const EMAIL_RATE_LIMIT_MAX = 5;
+const EMAIL_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const emailRateLimitBuckets = new Map();
+
+function extractClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) {
+    return xff.split(',')[0].trim().slice(0, 80);
+  }
+  if (Array.isArray(xff) && xff.length > 0 && xff[0]) {
+    return String(xff[0]).split(',')[0].trim().slice(0, 80);
+  }
+  return String(req.ip || req.socket?.remoteAddress || 'unknown').slice(0, 80);
+}
+
+function enforceEmailRateLimit(req, res, actorIdentifier) {
+  const now = Date.now();
+  if (emailRateLimitBuckets.size > 2000) {
+    for (const [key, timestamps] of emailRateLimitBuckets.entries()) {
+      const active = timestamps.filter(
+        (ts) => now - ts < EMAIL_RATE_LIMIT_WINDOW_MS
+      );
+      if (active.length === 0) {
+        emailRateLimitBuckets.delete(key);
+      } else {
+        emailRateLimitBuckets.set(key, active);
+      }
+    }
+  }
+
+  const clientIp = extractClientIp(req);
+  const keysToCheck = [`ip:${clientIp}`];
+  const normalizedActor = String(actorIdentifier || '').trim().toLowerCase();
+  if (normalizedActor) {
+    keysToCheck.push(`user:${normalizedActor.slice(0, 120)}`);
+  }
+
+  for (const key of keysToCheck) {
+    const recent = (emailRateLimitBuckets.get(key) || []).filter(
+      (ts) => now - ts < EMAIL_RATE_LIMIT_WINDOW_MS
+    );
+    if (recent.length >= EMAIL_RATE_LIMIT_MAX) {
+      const oldest = recent[0] || now;
+      const maxRetrySeconds = Math.max(
+        1,
+        Math.ceil((EMAIL_RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000)
+      );
+      res.setHeader('Retry-After', String(maxRetrySeconds));
+      res.status(429).json({
+        ok: false,
+        sent: false,
+        dispatched: false,
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+        retryAfterSeconds: maxRetrySeconds,
+        diagnosticAr: `تم تجاوز الحد الأقصى لإرسال الرسائل البريدية (${EMAIL_RATE_LIMIT_MAX} طلبات خلال 10 دقائق) لحماية الخدمة. يرجى المحاولة مجدداً بعد ${Math.ceil(maxRetrySeconds / 60)} دقيقة.`,
+        error: `تم تجاوز الحد الأقصى لإرسال الرسائل البريدية (${EMAIL_RATE_LIMIT_MAX} طلبات خلال 10 دقائق).`,
+      });
+      return false;
+    }
+  }
+
+  for (const key of keysToCheck) {
+    const recent = (emailRateLimitBuckets.get(key) || []).filter(
+      (ts) => now - ts < EMAIL_RATE_LIMIT_WINDOW_MS
+    );
+    recent.push(now);
+    emailRateLimitBuckets.set(key, recent);
+  }
+  return true;
+}
+
 app.post('/api/juthori/auth/send-otp', async (req, res) => {
   const rawEmail = String(req.body?.email || '').trim().toLowerCase();
   const clientName = String(req.body?.clientName || 'عميلنا الكريم').trim();
@@ -628,6 +700,10 @@ app.post('/api/juthori/auth/send-otp', async (req, res) => {
 
   if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
     res.status(400).json({ error: 'يرجى إدخال بريد إلكتروني صحيح.' });
+    return;
+  }
+
+  if (!enforceEmailRateLimit(req, res, rawEmail)) {
     return;
   }
 
@@ -724,6 +800,244 @@ app.post('/api/juthori/auth/verify-otp', (req, res) => {
   res.json({ ok: true, valid: true });
 });
 
+app.post('/api/email/send-verification', async (req, res) => {
+  const rawEmail = String(req.body?.email || '').trim().toLowerCase();
+  const clientName = String(req.body?.clientName || 'عميلنا الكريم').trim();
+  const familyName = String(req.body?.familyName || '').trim();
+
+  if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+    res.status(400).json({
+      ok: false,
+      sent: false,
+      errorCode: 'INVALID_EMAIL',
+      diagnosticAr: 'يرجى إدخال عنوان بريد إلكتروني صحيح.',
+    });
+    return;
+  }
+
+  if (!enforceEmailRateLimit(req, res, rawEmail)) {
+    return;
+  }
+
+  const existing = activeOtpStore.get(rawEmail);
+  const now = Date.now();
+  if (existing?.lastSentAt && now - existing.lastSentAt < 55 * 1000) {
+    const waitSeconds = Math.max(
+      1,
+      Math.ceil((60 * 1000 - (now - existing.lastSentAt)) / 1000)
+    );
+    res.status(429).json({
+      ok: false,
+      sent: false,
+      cooldownSeconds: waitSeconds,
+      errorCode: 'COOLDOWN_ACTIVE',
+      diagnosticAr: `يرجى الانتظار ${waitSeconds} ثانية قبل طلب إرسال رمز توثيق جديد.`,
+    });
+    return;
+  }
+
+  const code = generateSixDigitOtp();
+  const ttlMs = 15 * 60 * 1000;
+  const html = `
+    <div dir="rtl" style="font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif; background-color: #F7F2E9; padding: 36px 20px; color: #252321;">
+      <div style="max-width: 560px; margin: 0 auto; background: #FFFFFF; border: 1px solid #B98A78; border-radius: 18px; padding: 32px;">
+        <h2 style="color: #252321; margin-top: 0;">رمز توثيق البريد الإلكتروني — منصة جذوري</h2>
+        <p style="font-size: 15px; line-height: 1.8;">مرحباً بك <strong>${clientName}${familyName ? ` (${familyName})` : ''}</strong>،</p>
+        <p style="font-size: 14px; line-height: 1.8;">لتوثيق بريدك الإلكتروني رسمياً في حسابك بمنصة جذوري، يرجى إدخال رمز التحقق المكون من 6 أرقام أدناه:</p>
+        <div style="margin: 24px 0; padding: 20px; background: #FAF6F0; border: 2px solid #D8755B; border-radius: 14px; text-align: center;">
+          <span dir="ltr" style="font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #252321;">${code}</span>
+        </div>
+        <p style="font-size: 12px; color: #666;">صلاحية هذا الرمز 15 دقيقة.</p>
+      </div>
+    </div>
+  `;
+
+  const result = await dispatchResendEmail({
+    to: rawEmail,
+    subject: `رمز توثيق بريدك الإلكتروني في منصة جذوري: ${code}`,
+    html,
+  });
+
+  if (result.dispatched) {
+    activeOtpStore.set(rawEmail, {
+      code,
+      expiresAt: now + ttlMs,
+      lastSentAt: now,
+    });
+    res.json({
+      ok: true,
+      sent: true,
+      provider: result.provider,
+      senderUsed: result.senderUsed,
+      expiresInMinutes: 15,
+    });
+    return;
+  }
+
+  const errStr = String(result.error || '').toLowerCase();
+  const isSandbox =
+    errStr.includes('only send testing emails') ||
+    errStr.includes('verify a domain') ||
+    errStr.includes('not verified');
+
+  res.status(200).json({
+    ok: false,
+    sent: false,
+    provider: result.provider,
+    errorCode: !process.env.RESEND_API_KEY
+      ? 'MISSING_RESEND_API_KEY'
+      : isSandbox
+      ? 'RESEND_SANDBOX_DOMAIN_UNVERIFIED'
+      : 'RESEND_DELIVERY_FAILED',
+    isSandboxRestriction: isSandbox,
+    diagnosticAr: !process.env.RESEND_API_KEY
+      ? 'مفتاح خدمة البريد (RESEND_API_KEY) غير مضبوط بعد في متغيرات بيئة الخادم.'
+      : isSandbox
+      ? 'رفض مزود البريد (Resend) الإرسال لهذا العنوان لأن النطاق التجريبي (onboarding@resend.dev) مقتصر على بريد مالك حساب Resend فقط حتى يتم توثيق نطاق (juthori.com).'
+      : 'تعذر تسليم رسالة التوثيق من خادم البريد الخارجي (Resend).',
+    rawError: result.error,
+  });
+});
+
+app.post('/api/email/verify-code', (req, res) => {
+  const rawEmail = String(req.body?.email || '').trim().toLowerCase();
+  const submittedCode = String(req.body?.code || '').trim();
+  if (!rawEmail || !/^\d{6}$/.test(submittedCode)) {
+    res.status(400).json({ ok: false, valid: false, message: 'يرجى إدخال الرمز المكون من 6 أرقام.' });
+    return;
+  }
+  const stored = activeOtpStore.get(rawEmail);
+  if (!stored) {
+    res.status(400).json({ ok: false, valid: false, message: 'لا يوجد رمز توثيق نشط لهذا البريد.' });
+    return;
+  }
+  if (Date.now() > stored.expiresAt) {
+    activeOtpStore.delete(rawEmail);
+    res.status(400).json({ ok: false, valid: false, message: 'انتهت صلاحية رمز التوثيق (15 دقيقة).' });
+    return;
+  }
+  if (stored.code !== submittedCode) {
+    res.status(400).json({ ok: false, valid: false, message: 'رمز التوثيق غير مطابق.' });
+    return;
+  }
+  activeOtpStore.delete(rawEmail);
+  res.json({ ok: true, valid: true, verifiedAt: new Date().toISOString() });
+});
+
+// 5C. Kinship Circle Luxury Invite & Direct 1-Click Privacy Opt-Out via Resend
+app.post('/api/email/send-family-invite', async (req, res) => {
+  const relativeEmail = String(
+    req.body?.relativeEmail || req.body?.toEmail || ''
+  )
+    .trim()
+    .toLowerCase();
+  const relativeName = String(req.body?.relativeName || 'ابن العم الكريم').trim();
+  const relationLabel = String(
+    req.body?.relationLabel || req.body?.kinshipRelation || 'فرد من العائلة'
+  ).trim();
+  const registrarName = String(
+    req.body?.registrarName ||
+      req.body?.inviterName ||
+      req.body?.ownerName ||
+      'أمين سجل العائلة'
+  ).trim();
+  const senderActorKey = String(
+    req.body?.ownerId || req.body?.ownerEmail || registrarName || ''
+  )
+    .trim()
+    .toLowerCase();
+  const familyName = String(req.body?.familyName || 'العائلة').trim();
+  const siteSlug = String(req.body?.siteSlug || '').trim().toLowerCase();
+  const referralCode = String(req.body?.referralCode || '').trim();
+  const inviteToken = String(req.body?.inviteToken || '').trim();
+  const originBase =
+    String(req.body?.originUrl || '').trim().replace(/\/+$/, '') ||
+    'https://Juthori.com';
+
+  if (!relativeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(relativeEmail)) {
+    res.status(400).json({
+      ok: false,
+      sent: false,
+      diagnosticAr: 'يرجى إدخال بريد إلكتروني صحيح للقريب المدعو.',
+    });
+    return;
+  }
+
+  if (!enforceEmailRateLimit(req, res, senderActorKey)) {
+    return;
+  }
+
+  const portalUrl =
+    String(req.body?.portalUrl || req.body?.siteUrl || '').trim() ||
+    (siteSlug
+      ? `${originBase}/${encodeURIComponent(siteSlug)}${
+          referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''
+        }`
+      : `${originBase}/${referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''}`);
+  const discoverUrl = `${originBase}/${
+    referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''
+  }`;
+  const optOutUrl =
+    String(req.body?.optOutUrl || '').trim() ||
+    `${originBase}/?optout=${encodeURIComponent(inviteToken || 'optout')}`;
+
+  const html = `
+    <div dir="rtl" style="font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif; background-color: #F7F2E9; padding: 36px 18px; color: #252321;">
+      <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border: 1px solid #B98A78; border-radius: 20px; overflow: hidden;">
+        <div style="background: #252321; color: #F7F2E9; padding: 28px 32px; border-bottom: 3px solid #D8755B;">
+          <div style="font-size: 12px; color: #E8C284; font-weight: bold; margin-bottom: 6px;">دعوة عائلية موثقة · منصة جذوري للأنساب والإرث العائلي</div>
+          <h2 style="margin: 0; font-size: 22px; color: #FFFFFF;">ديوان وبوابة عائلة ${familyName}</h2>
+        </div>
+        <div style="padding: 30px 32px; line-height: 1.85; font-size: 15px;">
+          <p style="margin: 0 0 14px 0;">الأستاذ الكريم / الكريمة <strong>${relativeName}</strong> حفظه الله،</p>
+          <p style="margin: 0 0 18px 0; color: #3D3835;">
+            يسعدنا إشعاركم بأن <strong>${registrarName}</strong> قد أضافكم بصفة (<strong>${relationLabel}</strong>) إلى دائرة العائلة الخاصة في بوابة <strong>أسرة ${familyName}</strong>، مما يتيح لكم تصفح مشجرة الأسرة المعاصرة، رواق الصور الأرشيفية، وأخبار ومناسبات العائلة، والمشاركة في إثرائها وتوثيق فروعها.
+          </p>
+          <div style="text-align: center; margin: 26px 0;">
+            <a href="${portalUrl}" style="display: inline-block; background: #D8755B; color: #FFFFFF; text-decoration: none; font-weight: bold; padding: 13px 28px; border-radius: 12px; font-size: 14px;">
+              الدخول إلى بوابة عائلة ${familyName} ←
+            </a>
+          </div>
+          <div style="background: #FAF6F0; border: 1px solid #E5D9C5; border-radius: 14px; padding: 18px 20px; margin: 22px 0;">
+            <div style="font-weight: bold; color: #8D4925; font-size: 13px; margin-bottom: 6px;">✦ اكتشف عمود نسبك الموثق وأنشئ سجل أسرتك الخاص</div>
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #4A4542;">
+              يمكنكم أيضاً إجراء الفحص الأولي المجاني لعمود نسبكم التاريخي الموثق بالمصادر وفتح مساحتكم الخاصة على منصة جذوري:
+            </p>
+            <a href="${discoverUrl}" style="color: #D8755B; font-weight: bold; font-size: 13px; text-decoration: underline;">
+              إجراء الفحص النسبي المجاني على جذوري
+            </a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #EDE6DA; margin: 24px 0 16px 0;" />
+          <p style="margin: 0; font-size: 12px; color: #6E6762; line-height: 1.7;">
+            <strong>ضمان الخصوصية وحرية الاختيار:</strong> أُرسلت هذه الدعوة بناءً على إدراج بريدكم ضمن دائرة الأقارب الخاصة بـ (${registrarName}). لإلغاء الإدراج وحذف بريدكم فوراً بضغطة واحدة ودون تسجيل دخول:
+            <a href="${optOutUrl}" style="color: #8D4925; font-weight: bold; text-decoration: underline;">إلغاء الإدراج وحذف بريدي فوراً (Opt-out)</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const result = await dispatchResendEmail({
+    to: relativeEmail,
+    subject: `دعوة خاصة من ${registrarName} للانضمام إلى بوابة عائلة ${familyName} — جذوري`,
+    html,
+  });
+
+  res.status(200).json({
+    ok: true,
+    sent: Boolean(result.dispatched),
+    deliveredViaResend: Boolean(result.dispatched),
+    provider: result.provider,
+    portalUrl,
+    optOutUrl,
+  });
+});
+
+app.get('/api/email/optout-invite', (req, res) => {
+  const token = String(req.query?.token || '').trim();
+  res.redirect(`/?optout=${encodeURIComponent(token || 'done')}`);
+});
+
 // 6. Send Official Team Invitation
 app.post('/api/juthori/team/send-invite', async (req, res) => {
   const targetEmail = String(req.body?.email || '').trim();
@@ -736,6 +1050,10 @@ app.post('/api/juthori/team/send-invite', async (req, res) => {
 
   if (!targetEmail || !targetName || !role) {
     res.status(400).json({ ok: false, error: 'بيانات الدعوة غير مكتملة.' });
+    return;
+  }
+
+  if (!enforceEmailRateLimit(req, res, invitedBy)) {
     return;
   }
 

@@ -26,6 +26,14 @@ import {
   findTeamMemberByEmail,
   isCorporateStaffEmail,
 } from '../services/firestoreService';
+import {
+  buildResearchTicketDraftFromSearch,
+  PendingResearchTicketDraft,
+  readPendingTicketDraft,
+  ResearchTicketReasonType,
+  savePendingTicketDraft,
+  updatePendingLineageHandoffDisambiguation,
+} from '../utils/handoffStorage';
 
 interface SearchProgressScreenProps {
   form: RegistrationFormState;
@@ -38,6 +46,7 @@ interface SearchProgressScreenProps {
   }) => Promise<void>;
   onGoogleSignInPreserve: () => Promise<void>;
   onBackToEdit: () => void;
+  onOpenLoginModal?: () => void;
 }
 
 export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
@@ -46,6 +55,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
   onCompletePreservation,
   onGoogleSignInPreserve,
   onBackToEdit,
+  onOpenLoginModal,
 }) => {
   // Labor Illusion Stages (4 stages over 3.6 seconds)
   const [progressPercent, setProgressPercent] = useState(0);
@@ -72,6 +82,10 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [pendingTicketDraft, setPendingTicketDraft] =
+    useState<PendingResearchTicketDraft | null>(() => readPendingTicketDraft());
+  const preservationCardRef = React.useRef<HTMLDivElement | null>(null);
+  const emailInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // 0. Mandatory Global Scroll-to-Top on mount and stage completion
   useEffect(() => {
@@ -113,12 +127,62 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
   }, []);
 
   const handleConfirmDisambiguationSelection = () => {
+    if (selectedDisambiguationOption) {
+      const matchedOpt =
+        selectedDisambiguationOption === 'option_a'
+          ? result.disambiguationOptions?.[0]
+          : selectedDisambiguationOption === 'option_b'
+          ? result.disambiguationOptions?.[1]
+          : undefined;
+      updatePendingLineageHandoffDisambiguation({
+        selectedDisambiguation: selectedDisambiguationOption,
+        disambiguationChoiceId:
+          matchedOpt?.choice_id || matchedOpt?.id || selectedDisambiguationOption,
+      });
+    }
     setDisambiguationResolved(true);
   };
 
   const handleNotSureDisambiguation = () => {
     setSelectedDisambiguationOption('not_sure_ticket');
+    updatePendingLineageHandoffDisambiguation({
+      selectedDisambiguation: 'not_sure_ticket',
+      disambiguationChoiceId: 'NOT_SURE_ESCALATE_P1',
+    });
     setDisambiguationResolved(true);
+  };
+
+  const handlePrepareGuestResearchTicket = (
+    reasonType: ResearchTicketReasonType,
+    openExistingLoginModal = false
+  ) => {
+    const draft = buildResearchTicketDraftFromSearch({
+      firstName: form.firstName || result.clientName,
+      fatherName: form.fatherName || result.fatherName,
+      grandfatherName: form.grandfatherName || result.grandfatherName,
+      familyName: form.familyName || result.familyName,
+      originCountry: form.originCountry || result.originCountry,
+      originRegion: form.originRegion || result.originRegion,
+      tribeName: form.tribeName,
+      familyBranch: form.branchName,
+      reasonType,
+    });
+    savePendingTicketDraft(draft);
+    setPendingTicketDraft(draft);
+    setDisambiguationResolved(true);
+
+    if (openExistingLoginModal && onOpenLoginModal) {
+      onOpenLoginModal();
+      return;
+    }
+
+    setTimeout(() => {
+      preservationCardRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      emailInputRef.current?.focus();
+    }, 80);
   };
 
   const handleSendRealOtpEmail = async () => {
@@ -491,14 +555,24 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                 <span>متابعة ←</span>
               </button>
 
-              {/* Quiet Secondary Button: لست متأكداً */}
-              <div className="text-center">
+              {/* Quiet Secondary Button: لست متأكداً / إنشاء تذكرة بحثية */}
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={handleNotSureDisambiguation}
                   className="px-4 py-2 rounded-lg text-xs font-medium text-[#252321]/65 hover:text-[#252321] hover:bg-[#EDE6DA]/60 transition-colors cursor-pointer"
                 >
                   لست متأكداً
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handlePrepareGuestResearchTicket('geographic_disambiguation')
+                  }
+                  className="px-4 py-2 rounded-lg text-xs font-display font-bold text-[#8D4925] bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/40 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
+                  <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
                 </button>
               </div>
             </div>
@@ -509,22 +583,34 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
             {isMatched ? (
               <div className="rounded-2xl border-2 border-[#D8755B]/60 bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] p-5 sm:p-6 shadow-xs text-right relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-2.5 h-full bg-[#D8755B]" />
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#D8755B] text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <Sparkles className="w-6 h-6" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#D8755B] text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+                        تم العثور على سجل نسبي موثق لعائلة ({form.familyName})
+                      </h2>
+                      <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
+                        أكمل حفظ حسابك بالأسفل للانتقال مباشرةً إلى تبويب «عمود نسبي» واستعراض النتيجة كاملةً.
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
-                      تم العثور على سجل نسبي موثق لعائلة ({form.familyName})
-                    </h2>
-                    <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                      أكمل حفظ حسابك بالأسفل للانتقال إلى لوحة التحكم واستعراض نتيجة البحث.
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePrepareGuestResearchTicket('deep_archival_verification')
+                    }
+                    className="self-start sm:self-center shrink-0 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA]/70 border border-[#B98A78]/50 text-[11px] font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
+                  </button>
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-5 sm:p-6 shadow-xs text-right relative overflow-hidden">
+              <div className="rounded-2xl border border-[#B98A78]/50 bg-[#FAF6F0] p-5 sm:p-6 shadow-xs text-right relative overflow-hidden space-y-4">
                 <div className="absolute top-0 right-0 w-2.5 h-full bg-[#D8755B]" />
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-[#252321] text-white flex items-center justify-center shrink-0 shadow-sm">
@@ -532,10 +618,62 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                   </div>
                   <div className="space-y-1.5">
                     <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
-                      تم تسجيل طلب البحث لعائلة ({form.familyName})
+                      لم يظهر تطابق آلي مباشر لعائلة ({form.familyName}) في الفهرس العام
                     </h2>
                     <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                      أكمل حفظ حسابك بالأسفل لمتابعة حالة الطلب في لوحة التحكم.
+                      يمكنك رفع طلب تحقيق وتوثيق متخصص في «مرصد البحوث» ببياناتك المدخلة كاملةً دون إعادة كتابتها، أو حفظ حسابك أدناه لمتابعة سجل أسرتك.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5 pr-0 sm:pr-16">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePrepareGuestResearchTicket(
+                        selectedDisambiguationOption === 'not_sure_ticket'
+                          ? 'geographic_disambiguation'
+                          : 'unmatched_family'
+                      )
+                    }
+                    className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-white text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-[#F3D299]" />
+                    <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
+                    <ArrowLeft className="w-4 h-4 text-[#F3D299]" />
+                  </button>
+                  {onOpenLoginModal && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handlePrepareGuestResearchTicket(
+                          selectedDisambiguationOption === 'not_sure_ticket'
+                            ? 'geographic_disambiguation'
+                            : 'unmatched_family',
+                          true
+                        )
+                      }
+                      className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[#252321] text-xs font-display font-bold transition-colors cursor-pointer"
+                    >
+                      لديك حساب مسبق؟ سجّل الدخول لفتح التذكرة فوراً
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Welcoming Handoff Banner when Guest Prepared a Research Ticket Draft */}
+            {pendingTicketDraft && (
+              <div className="rounded-2xl bg-gradient-to-l from-[#252321] to-[#36322E] text-white border border-[#D8755B]/60 p-4 sm:p-5 shadow-md flex items-start justify-between gap-3 text-right">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#D8755B]/25 border border-[#D8755B]/60 text-[#F3D299] flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs sm:text-sm font-display font-extrabold text-[#F3D299]">
+                      مرحباً بك — تم تجهيز مسودة تذكرتك البحثية لعائلة ({pendingTicketDraft.familyName}) بنجاح
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-white/85 leading-relaxed">
+                      بمجرد إتمام حفظ حسابك أو تسجيل الدخول أدناه، ستُفتح لك نافذة التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بياناتك المدخلة دون فقدان أي حرف.
                     </p>
                   </div>
                 </div>
@@ -543,14 +681,21 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
             )}
 
             {/* Card: تأكيد وحفظ الاكتشاف */}
-            <div className="bg-[#F7F2E9] border border-[#B98A78]/40 rounded-2xl p-6 sm:p-8 space-y-5">
+            <div
+              ref={preservationCardRef}
+              className="bg-[#F7F2E9] border border-[#B98A78]/40 rounded-2xl p-6 sm:p-8 space-y-5"
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#B98A78]/25 pb-4">
                 <div className="text-right">
                   <span className="text-xs font-display font-bold text-[#D8755B]">
-                    بطاقة تأكيد وحفظ الاكتشاف
+                    {pendingTicketDraft
+                      ? 'بوابة تفعيل الحساب وفتح التذكرة البحثية'
+                      : 'بطاقة تأكيد وحفظ الاكتشاف'}
                   </span>
                   <h3 className="text-base sm:text-lg font-display font-bold text-[#252321]">
-                    احفظ هذا الاكتشاف باسمك وانتقل فوراً إلى لوحة التحكم:
+                    {pendingTicketDraft
+                      ? 'أنشئ حسابك في ثوانٍ لتُفتح تذكرتك البحثية باسمك مباشرةً:'
+                      : 'احفظ هذا الاكتشاف باسمك وانتقل فوراً إلى لوحة التحكم:'}
                   </h3>
                 </div>
 
@@ -628,6 +773,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                     </label>
                     <div className="relative">
                       <input
+                        ref={emailInputRef}
                         id="gate-email"
                         type="email"
                         dir="ltr"

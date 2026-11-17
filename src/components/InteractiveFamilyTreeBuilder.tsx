@@ -2,9 +2,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowUp,
   Camera,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Copy,
   Crown,
   Download,
   Edit2,
@@ -22,6 +24,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserPlus,
   Users,
   Wallet,
   X,
@@ -54,7 +57,14 @@ import {
   saveUserFamilyTreeToFirebase,
   saveUserFamilyTreeToLocal,
   saveUserVaultArchive,
+  uploadTreeNodeAvatarWithFallback,
 } from '../services/firestoreService';
+import {
+  processMediaFileForUpload,
+  uploadMediaToCloudWithFallback,
+} from '../utils/mediaPipeline';
+import { OfficialBrandedExportModal } from './OfficialBrandedExportModal';
+import { ExportTreeMemberSummary } from '../utils/brandedExport';
 
 export type ArabicHonorificTitle =
   | 'بدون'
@@ -135,6 +145,12 @@ export interface InteractiveTreePerson {
   biography?: string;
   attachedDocName?: string;
   photoUrl?: string;
+  photoThumbnailUrl?: string;
+  photoStoragePath?: string;
+  /** True when imported from the certified lineage spine (`عمود نسبي`) */
+  isCertifiedReference?: boolean;
+  referenceSourceNodeId?: string;
+  referenceRankLabel?: string;
 }
 
 interface InteractiveFamilyTreeBuilderProps {
@@ -153,6 +169,11 @@ interface InteractiveFamilyTreeBuilderProps {
   userAvatarUrl?: string;
   userId?: string;
   userEmail?: string;
+  onOpenVaultForPerson?: (personId: string) => void;
+  onRequestReferenceCorrectionTicket?: (
+    personName: string,
+    referenceRank?: string
+  ) => void;
 }
 
 const ARABIC_ORDINAL_GRANDFATHER: Record<number, string> = {
@@ -226,6 +247,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   userAvatarUrl,
   userId,
   userEmail,
+  onOpenVaultForPerson,
+  onRequestReferenceCorrectionTicket,
 }) => {
   // Build initial tree nodes from registration data (Auto-Initialization)
   const buildInitialTree = (): InteractiveTreePerson[] => {
@@ -447,11 +470,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           fullName: `${p.firstName} ${p.familyName}`.trim(),
           relationLabel: p.isRecordKeeper
             ? 'أمين السجل'
+            : p.isCertifiedReference
+            ? p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق'
             : p.relationToTargetLabel || 'فرد في المشجرة',
           gender: p.gender,
-          avatarDataUrl: p.photoUrl,
+          avatarDataUrl: p.photoThumbnailUrl || p.photoUrl,
           birthYear: p.birthDateValue,
           isAlive: p.vitalStatus === 'living',
+          isCertifiedReference: Boolean(p.isCertifiedReference),
         }));
         window.localStorage.setItem(syncKey, JSON.stringify(summaryForVault));
         window.dispatchEvent(new CustomEvent('juthori:tree-updated'));
@@ -544,6 +570,34 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [isUploadingToVaultFromTree, setIsUploadingToVaultFromTree] =
     useState(false);
 
+  // Membership Quota Governance & Family Registrar Invite Link state
+  const [quotaUpgradePrompt, setQuotaUpgradePrompt] = useState<{
+    kind: 'tree_members' | 'vault_docs';
+    currentCount: number;
+    maxAllowed: number;
+  } | null>(null);
+  const [showInviteFamilyModal, setShowInviteFamilyModal] = useState(false);
+  const [inviteRoleMode, setInviteRoleMode] = useState<'contribute' | 'view'>(
+    'contribute'
+  );
+  const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+
+  const familyTreeShareId = useMemo(() => {
+    const uidPart = (userId || 'family').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const famSlug = encodeURIComponent((result.familyName || 'tree').trim());
+    return `${uidPart}__${famSlug}`;
+  }, [userId, result.familyName]);
+
+  const familyInviteUrl = useMemo(() => {
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'https://juthori.com';
+    return `${origin}/?inviteTree=${familyTreeShareId}&family=${encodeURIComponent(
+      result.familyName || ''
+    )}&role=${inviteRoleMode}`;
+  }, [familyTreeShareId, result.familyName, inviteRoleMode]);
+
   useEffect(() => {
     let mounted = true;
     fetchUserVaultArchive(userId, result.familyName, userEmail).then((archive) => {
@@ -599,105 +653,93 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
   };
 
-  const handleUploadFileDirectlyToVaultFromTree = (
+  const handleUploadFileDirectlyToVaultFromTree = async (
     fileList: FileList | null
   ) => {
     if (!fileList || fileList.length === 0) return;
+    if (
+      caps.maxVaultDocuments !== null &&
+      vaultItems.length + 1 > caps.maxVaultDocuments
+    ) {
+      setQuotaUpgradePrompt({
+        kind: 'vault_docs',
+        currentCount: vaultItems.length,
+        maxAllowed: caps.maxVaultDocuments,
+      });
+      return;
+    }
     const file = fileList[0];
     setIsUploadingToVaultFromTree(true);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const rawDataUrl = typeof reader.result === 'string' ? reader.result : '';
-      const finalizeUpload = (finalDataUrl: string) => {
-        const baseName = file.name.replace(/\.[^/.]+$/, '');
-        const isDoc =
-          file.type.includes('pdf') ||
-          /وثيقة|صك|حجة|عقد|شهادة|مخطوط/i.test(baseName);
-        const editPid =
-          modalConfig?.mode === 'edit' ? modalConfig.editPersonId : undefined;
-        const newItemId = `vault_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        const newItem: FamilyVaultMediaItem = {
-          id: newItemId,
-          title:
-            treeVaultUploadTitle.trim() ||
-            baseName ||
-            `ملف ${formFirstName || 'الفرد'} في الخزانة`,
-          mediaType: isDoc ? 'document' : 'photo',
-          folderId:
-            treeVaultUploadFolderId ||
-            (isDoc ? 'folder_docs' : 'folder_ancestors'),
-          dateOrOccasion: treeVaultUploadDate.trim() || 'أرشيف المشجرة',
-          fileDataUrl: finalDataUrl,
-          fileName: file.name,
-          fileMimeType: file.type || 'image/jpeg',
-          linkedPersonIds: editPid ? [editPid] : [],
-          enhanced: false,
-          createdAt: new Date().toISOString(),
-        };
+    try {
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      const isDoc =
+        file.type.includes('pdf') ||
+        /وثيقة|صك|حجة|عقد|شهادة|مخطوط/i.test(baseName);
+      const processed = await processMediaFileForUpload(
+        file,
+        isDoc ? 'vault_document' : 'vault_photo'
+      );
+      const editPid =
+        modalConfig?.mode === 'edit' ? modalConfig.editPersonId : undefined;
+      const newItemId = `vault_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const cloudRes = await uploadMediaToCloudWithFallback({
+        uid: userId,
+        category: 'vault',
+        itemId: newItemId,
+        mainDataUrl: processed.mainDataUrl,
+        thumbnailDataUrl: processed.thumbnailDataUrl,
+        mimeType: processed.mimeType,
+      });
 
-        const nextItems = [newItem, ...vaultItems];
-        setVaultItems(nextItems);
-        saveUserVaultArchive(
-          userId,
-          result.familyName,
-          {
-            folders: vaultFolders,
-            items: nextItems,
-          },
-          userEmail
-        ).catch(() => {});
-
-        if (!editPid) {
-          setNewPersonPendingVaultIds((prev) => [...prev, newItemId]);
-        }
-
-        setTreeVaultUploadTitle('');
-        setIsUploadingToVaultFromTree(false);
-        onLogActivity(
-          'رفع ملف من شجرتي إلى خزانتي',
-          `إيداع «${newItem.title}» في الخزانة وربطه بـ «${formFirstName || 'الفرد'}»`
-        );
+      const newItem: FamilyVaultMediaItem = {
+        id: newItemId,
+        title:
+          treeVaultUploadTitle.trim() ||
+          baseName ||
+          `ملف ${formFirstName || 'الفرد'} في الخزانة`,
+        mediaType: isDoc ? 'document' : 'photo',
+        folderId:
+          treeVaultUploadFolderId ||
+          (isDoc ? 'folder_docs' : 'folder_ancestors'),
+        dateOrOccasion: treeVaultUploadDate.trim() || 'أرشيف المشجرة',
+        fileDataUrl: cloudRes.url,
+        thumbnailDataUrl: cloudRes.thumbnailUrl || processed.thumbnailDataUrl,
+        storagePath: cloudRes.storagePath,
+        storageProvider: cloudRes.provider,
+        fileName: file.name,
+        fileMimeType: processed.mimeType || file.type || 'image/jpeg',
+        linkedPersonIds: editPid ? [editPid] : [],
+        enhanced: false,
+        createdAt: new Date().toISOString(),
       };
 
-      if (file.type.startsWith('image/')) {
-        const img = new Image();
-        img.onerror = () => finalizeUpload(rawDataUrl);
-        img.onload = () => {
-          try {
-            const maxDim = 1000;
-            let w = img.width;
-            let h = img.height;
-            if (w > maxDim || h > maxDim) {
-              if (w > h) {
-                h = Math.round((h * maxDim) / w);
-                w = maxDim;
-              } else {
-                w = Math.round((w * maxDim) / h);
-                h = maxDim;
-              }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, w, h);
-              finalizeUpload(canvas.toDataURL('image/jpeg', 0.8));
-              return;
-            }
-          } catch {
-            // Fallback
-          }
-          finalizeUpload(rawDataUrl);
-        };
-        img.src = rawDataUrl;
-      } else {
-        finalizeUpload(rawDataUrl);
+      const nextItems = [newItem, ...vaultItems];
+      setVaultItems(nextItems);
+      await saveUserVaultArchive(
+        userId,
+        result.familyName,
+        {
+          folders: vaultFolders,
+          items: nextItems,
+        },
+        userEmail
+      );
+
+      if (!editPid) {
+        setNewPersonPendingVaultIds((prev) => [...prev, newItemId]);
       }
-    };
-    reader.onerror = () => setIsUploadingToVaultFromTree(false);
-    reader.readAsDataURL(file);
+
+      setTreeVaultUploadTitle('');
+      onLogActivity(
+        'رفع ملف من شجرتي إلى خزانتي',
+        `إيداع «${newItem.title}» في الخزانة وربطه بـ «${formFirstName || 'الفرد'}»`
+      );
+    } catch {
+      // Safe no-op on unreadable file
+    } finally {
+      setIsUploadingToVaultFromTree(false);
+    }
   };
 
   // Display Depth Selector State (محدّد مدى العرض فوق الشجرة)
@@ -727,6 +769,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     null
   );
   const [customPhotoUrlInput, setCustomPhotoUrlInput] = useState('');
+  const [isUploadingNodeAvatar, setIsUploadingNodeAvatar] = useState(false);
+
+  // Safe Delete Confirmation Modal & Quick Vault Media Preview Modal
+  const [pendingDeletePrompt, setPendingDeletePrompt] = useState<{
+    person: InteractiveTreePerson;
+    linkedDocsCount: number;
+  } | null>(null);
+  const [quickVaultPreviewPersonId, setQuickVaultPreviewPersonId] = useState<
+    string | null
+  >(null);
+  const [showOfficialExportModal, setShowOfficialExportModal] = useState(false);
+  const [referenceSyncBanner, setReferenceSyncBanner] = useState<string | null>(
+    null
+  );
 
   // Canvas Zoom level
   const [zoomPercent, setZoomPercent] = useState(100);
@@ -1143,35 +1199,48 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     if (modalConfig.mode === 'edit' && modalConfig.editPersonId) {
       setPeople((prev) => {
-        const updated = prev.map((p) =>
-          p.id === modalConfig.editPersonId
-            ? {
-                ...p,
-                firstName: cleanFirst,
-                familyName: cleanFamily,
-                kunya: formKunya.trim(),
-                honorificTitle: formHonorific,
-                gender: formGender,
-                motherId: formMotherId || p.motherId,
-                vitalStatus: formVitalStatus,
-                birthPrecision: formBirthPrecision,
-                birthCalendar: formBirthCalendar,
-                birthDateValue: formBirthDate.trim(),
-                birthPlace: formBirthPlace.trim(),
-                deathDateValue:
-                  formVitalStatus === 'deceased' ? formDeathDate.trim() : undefined,
-                deathPlace:
-                  formVitalStatus === 'deceased' ? formDeathPlace.trim() : undefined,
-                femalePrivacyMasked:
-                  formGender === 'female' ? formFemalePrivacyMasked : false,
-                contactInfo:
-                  formVitalStatus === 'living' ? formContactInfo.trim() : undefined,
-                biography: formBiography.trim(),
-                attachedDocName: formAttachedDocName.trim() || undefined,
-                photoUrl: formPhotoUrl.trim() || p.photoUrl,
-              }
-            : p
-        );
+        const updated = prev.map((p) => {
+          if (p.id !== modalConfig.editPersonId) return p;
+          // Strictly protect certified reference nodes (`isCertifiedReference: true`) from
+          // manual name/gender/fatherId alteration while allowing biography, notes, photo, & media!
+          const safeFirstName = p.isCertifiedReference ? p.firstName : cleanFirst;
+          const safeFamilyName = p.isCertifiedReference
+            ? p.familyName
+            : cleanFamily;
+          const safeGender = p.isCertifiedReference ? p.gender : formGender;
+
+          return {
+            ...p,
+            firstName: safeFirstName,
+            familyName: safeFamilyName,
+            kunya: formKunya.trim(),
+            honorificTitle: formHonorific,
+            gender: safeGender,
+            motherId: formMotherId || p.motherId,
+            vitalStatus: p.isCertifiedReference ? 'deceased' : formVitalStatus,
+            birthPrecision: formBirthPrecision,
+            birthCalendar: formBirthCalendar,
+            birthDateValue: formBirthDate.trim(),
+            birthPlace: formBirthPlace.trim(),
+            deathDateValue:
+              formVitalStatus === 'deceased' || p.isCertifiedReference
+                ? formDeathDate.trim()
+                : undefined,
+            deathPlace:
+              formVitalStatus === 'deceased' || p.isCertifiedReference
+                ? formDeathPlace.trim()
+                : undefined,
+            femalePrivacyMasked:
+              safeGender === 'female' ? formFemalePrivacyMasked : false,
+            contactInfo:
+              formVitalStatus === 'living' && !p.isCertifiedReference
+                ? formContactInfo.trim()
+                : undefined,
+            biography: formBiography.trim(),
+            attachedDocName: formAttachedDocName.trim() || undefined,
+            photoUrl: formPhotoUrl.trim() || p.photoUrl,
+          };
+        });
 
         const rk = updated.find((u) => u.isRecordKeeper);
         const fNode = rk?.fatherId
@@ -1182,8 +1251,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           : undefined;
         if (onSyncImmediateParents) {
           onSyncImmediateParents(
-            fNode?.firstName || '',
-            gNode?.firstName || ''
+            fNode && !fNode.isCertifiedReference ? fNode.firstName : '',
+            gNode && !gNode.isCertifiedReference ? gNode.firstName : ''
           );
         }
 
@@ -1284,6 +1353,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       attachedDocName: formAttachedDocName.trim() || undefined,
       photoUrl: formPhotoUrl.trim() || undefined,
     };
+
+    // Tier Quota Check BEFORE mutating `people` — preserves all entered form fields!
+    const willCreateSharedFather =
+      (rel === 'brother' || rel === 'sister') && !target.fatherId;
+    const nodesToAddCount = willCreateSharedFather ? 2 : 1;
+    if (
+      caps.maxTreeMembers !== null &&
+      people.length + nodesToAddCount > caps.maxTreeMembers
+    ) {
+      setQuotaUpgradePrompt({
+        kind: 'tree_members',
+        currentCount: people.length,
+        maxAllowed: caps.maxTreeMembers,
+      });
+      return;
+    }
 
     setPeople((prev) => {
       let updated = [...prev];
@@ -1404,21 +1489,256 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setModalConfig(null);
   };
 
-  const handleDeleteNode = (person: InteractiveTreePerson) => {
-    if (person.isRecordKeeper) return;
-    setPeople((prev) =>
-      prev
-        .filter((p) => p.id !== person.id)
-        .map((p) => ({
-          ...p,
-          fatherId: p.fatherId === person.id ? undefined : p.fatherId,
-          motherId: p.motherId === person.id ? undefined : p.motherId,
-          spouseIds: p.spouseIds.filter((s) => s !== person.id),
-        }))
+  // ============================================================================
+  // PROTECTED LINEAGE-TO-TREE BRIDGE (`عمود نسبي` -> `مشجرتي`)
+  // ============================================================================
+  const unlockedCertifiedSpineSourceNodes = useMemo(() => {
+    if (!result.matched) return [] as UpperAncestorNode[];
+    if (!caps.isRootUnlocked && !caps.isVip) return [] as UpperAncestorNode[];
+
+    if (caps.isVip || caps.areUpperAncestorsUnlocked) {
+      return spineNodes.filter(
+        (n) =>
+          n.orderNumber > 1 &&
+          (result.isAlphaMergedIntoAdam ||
+            n.isCodedStation ||
+            !n.capsuleId ||
+            unlockedCapsules.includes(n.capsuleId))
+      );
+    }
+
+    // $5 Basic Tier: Sub-Branch (B2/B1) + Mother Tribe (B0)
+    const roots: UpperAncestorNode[] = [];
+    const subBranch = spineNodes.find(
+      (n) =>
+        n.orderNumber > 1 &&
+        (n.code === 'B2' ||
+          n.code === 'B1' ||
+          (result.rootBranchName && n.name.includes(result.rootBranchName)))
+    );
+    const motherTribe = spineNodes.find(
+      (n) =>
+        n.orderNumber > 1 &&
+        (n.code === 'B0' ||
+          (result.rootTribeName && n.name.includes(result.rootTribeName)))
+    );
+    if (subBranch) roots.push(subBranch);
+    if (motherTribe && motherTribe.id !== subBranch?.id) {
+      roots.push(motherTribe);
+    }
+    return roots;
+  }, [
+    result.matched,
+    result.isAlphaMergedIntoAdam,
+    result.rootBranchName,
+    result.rootTribeName,
+    caps.isRootUnlocked,
+    caps.isVip,
+    caps.areUpperAncestorsUnlocked,
+    spineNodes,
+    unlockedCapsules,
+  ]);
+
+  const importedCertifiedCount = useMemo(
+    () => people.filter((p) => p.isCertifiedReference).length,
+    [people]
+  );
+
+  const handleSyncCertifiedLineageIntoTree = () => {
+    if (!result.matched) {
+      setReferenceSyncBanner(
+        'سيتم تفعيل الاستيراد المرجعي فور اعتماد الباحثين لتذكرة عائلتك في مرصد البحوث.'
+      );
+      return;
+    }
+
+    if (!caps.isRootUnlocked && !caps.isVip) {
+      setDepthLockPrompt({
+        targetDepth: 'sub_branch',
+        label: 'الجذر المرجعي الموثق',
+        requireType: 'root_5_usd',
+      });
+      return;
+    }
+
+    if (unlockedCertifiedSpineSourceNodes.length === 0) {
+      setReferenceSyncBanner(
+        'جميع المحطات المفتوحة حالياً متصلة بالفعل بجذر مشجرتك.'
+      );
+      return;
+    }
+
+    setPeople((prev) => {
+      const existingCertifiedById = new Map<string, InteractiveTreePerson>();
+      for (const p of prev) {
+        if (p.isCertifiedReference) {
+          existingCertifiedById.set(p.id, p);
+        }
+      }
+
+      // Keep 100% of contemporary / user-added members untouched
+      const contemporaryNodes = prev.filter((p) => !p.isCertifiedReference);
+      const rk = contemporaryNodes.find((p) => p.isRecordKeeper) || contemporaryNodes[0];
+      if (!rk) return prev;
+
+      // Walk upward along contemporary spine only to find the highest non-reference ancestor
+      let highestContemporary = rk;
+      const visited = new Set<string>();
+      while (highestContemporary && !visited.has(highestContemporary.id)) {
+        visited.add(highestContemporary.id);
+        const nextFather = highestContemporary.fatherId
+          ? contemporaryNodes.find((c) => c.id === highestContemporary.fatherId)
+          : undefined;
+        if (!nextFather) break;
+        highestContemporary = nextFather;
+      }
+
+      const baseLevel = Math.max(highestContemporary.generationLevel, 3);
+
+      const stripPrefixes = (raw: string) =>
+        raw
+          .replace(/^(القبيلة الأم|الفرع الجامع|العائلة المباشرة)\s*:\s*/u, '')
+          .replace(/^(من قبيلة|قبيلة|قبائل|فرع|عائلة)\s+/u, '')
+          .trim();
+
+      const builtCertifiedNodes: InteractiveTreePerson[] =
+        unlockedCertifiedSpineSourceNodes.map((srcNode, idx) => {
+          const certId = `cert-ref-${srcNode.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+          const prevCert = existingCertifiedById.get(certId);
+          const nextUpperNode = unlockedCertifiedSpineSourceNodes[idx + 1];
+          const nextCertFatherId = nextUpperNode
+            ? `cert-ref-${nextUpperNode.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+            : undefined;
+          const eraBadge = getHistoricalEraBadgeLabel(
+            resolveNodeHistoricalEra(srcNode)
+          );
+          const rankLabel = srcNode.rankLabel || eraBadge || 'مرجع موثق';
+
+          return {
+            id: certId,
+            firstName: stripPrefixes(srcNode.name),
+            familyName: '',
+            kunya: prevCert?.kunya || '',
+            honorificTitle: prevCert?.honorificTitle || 'بدون',
+            gender: 'male',
+            generationLevel: baseLevel + idx + 1,
+            isDirectSpineLineage: true,
+            isCertifiedReference: true,
+            referenceSourceNodeId: srcNode.id,
+            referenceRankLabel: rankLabel,
+            relationToTargetLabel: rankLabel,
+            fatherId: nextCertFatherId,
+            motherId: prevCert?.motherId,
+            spouseIds: prevCert?.spouseIds || [],
+            vitalStatus: 'deceased',
+            birthPrecision: 'year_only',
+            birthCalendar: 'hijri',
+            birthDateValue: prevCert?.birthDateValue || '',
+            birthPlace:
+              prevCert?.birthPlace ||
+              srcNode.region ||
+              result.originRegion ||
+              result.originCountry,
+            deathDateValue: prevCert?.deathDateValue,
+            deathPlace: prevCert?.deathPlace,
+            femalePrivacyMasked: false,
+            biography:
+              prevCert?.biography ||
+              srcNode.eraNote ||
+              `عقدة مرجعية موثقة مستوردة من عمود نسب عائلة ${result.familyName}.`,
+            attachedDocName: prevCert?.attachedDocName,
+            photoUrl: prevCert?.photoUrl,
+            photoThumbnailUrl: prevCert?.photoThumbnailUrl,
+            photoStoragePath: prevCert?.photoStoragePath,
+          };
+        });
+
+      const lowestCertId = builtCertifiedNodes[0]?.id;
+      const rewiredContemporary = contemporaryNodes.map((c) =>
+        c.id === highestContemporary.id && lowestCertId
+          ? { ...c, fatherId: lowestCertId }
+          : c
+      );
+
+      return [...rewiredContemporary, ...builtCertifiedNodes];
+    });
+
+    setReferenceSyncBanner(
+      `تم ربط ومزامنة (${unlockedCertifiedSpineSourceNodes.length}) عقدة مرجعية موثقة كجذر علوي لمشجرتك بنجاح دون المساس بأي فرد معاصر ✓`
     );
     onLogActivity(
-      'حذف عقدة من شجرتي',
-      `تمت إزالة «${person.firstName} ${person.familyName}» من المشجرة`
+      'مزامنة عمود النسب الموثق مع مشجرتي',
+      `استيراد وربط (${unlockedCertifiedSpineSourceNodes.length}) عقدة مرجعية محمية فوق شجرة عائلة ${result.familyName}`
+    );
+  };
+
+  // ============================================================================
+  // SAFE NODE DELETION WITH GENTLE CONFIRMATION & ATOMIC VAULT ORPHAN CLEANUP
+  // ============================================================================
+  const handleDeleteNode = (person: InteractiveTreePerson) => {
+    // Strictly protect Record Keeper and Certified Reference nodes from manual deletion
+    if (person.isRecordKeeper || person.isCertifiedReference) return;
+
+    const linkedDocsCount = vaultItems.filter((vi) =>
+      vi.linkedPersonIds.includes(person.id)
+    ).length;
+
+    setPendingDeletePrompt({
+      person,
+      linkedDocsCount,
+    });
+  };
+
+  const handleConfirmDeleteNode = async () => {
+    if (!pendingDeletePrompt) return;
+    const { person, linkedDocsCount } = pendingDeletePrompt;
+    setPendingDeletePrompt(null);
+
+    if (person.isRecordKeeper || person.isCertifiedReference) return;
+
+    const nextPeople = people
+      .filter((p) => p.id !== person.id)
+      .map((p) => ({
+        ...p,
+        fatherId: p.fatherId === person.id ? undefined : p.fatherId,
+        motherId: p.motherId === person.id ? undefined : p.motherId,
+        spouseIds: p.spouseIds.filter((s) => s !== person.id),
+      }));
+
+    setPeople(nextPeople);
+
+    // Atomically scrub `person.id` from all vault items (`linkedPersonIds`) so zero Orphaned IDs remain
+    const hadAnyVaultReferences = vaultItems.some((vi) =>
+      vi.linkedPersonIds.includes(person.id)
+    );
+    if (hadAnyVaultReferences) {
+      const cleanedVaultItems = vaultItems.map((vi) =>
+        vi.linkedPersonIds.includes(person.id)
+          ? {
+              ...vi,
+              linkedPersonIds: vi.linkedPersonIds.filter(
+                (pid) => pid !== person.id
+              ),
+            }
+          : vi
+      );
+      setVaultItems(cleanedVaultItems);
+      await saveUserVaultArchive(
+        userId,
+        result.familyName,
+        {
+          folders: vaultFolders,
+          items: cleanedVaultItems,
+        },
+        userEmail
+      );
+    }
+
+    onLogActivity(
+      'حذف عقدة من شجرتي وتنظيف الروابط',
+      linkedDocsCount > 0
+        ? `تمت إزالة «${person.firstName} ${person.familyName}» وفك ارتباطه من (${linkedDocsCount}) وثائق مع بقاء الملفات محفوظة في خزانتي`
+        : `تمت إزالة «${person.firstName} ${person.familyName}» من المشجرة`
     );
   };
 
@@ -1458,97 +1778,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   };
 
   // ============================================================================
-  // ACCESS CONTROL GATE (Requires VIP + Record Keeper Legal Charter)
+  // TIER GOVERNANCE: All customers can access «شجرتي» within their tier quota:
+  // Free = 15, $5 Basic = 50, Annual VIP Individual = 250, Family Registrar = Unlimited
   // ============================================================================
-  if (!caps.isVip || accountType !== AccountLegalType.RecordKeeper) {
-    return (
-      <div className="rounded-3xl bg-white border-2 border-[#B98A78]/50 p-6 sm:p-10 shadow-sm text-right space-y-6">
-        <div className="max-w-2xl mx-auto text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#252321] text-[#D8755B] flex items-center justify-center mx-auto shadow-md">
-            <FileSignature className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl sm:text-3xl font-display font-extrabold text-[#252321]">
-            شجرة عائلة {result.familyName}
-          </h2>
-          <p className="text-xs sm:text-sm text-[#252321]/75 leading-relaxed">
-            يُفتح نظام بناء الشجرة التفاعلي للمشتركين في الباقة السنوية (بريميوم) والحاملين لصفة <strong>«رب أسرة / أمين السجل»</strong> بعد التوقيع الإلكتروني على ميثاق أمانة النسب.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-right pt-2">
-            <div
-              className={`rounded-2xl p-4 border-2 ${
-                caps.isVip
-                  ? 'bg-[#FAF6F0] border-[#8D4925]/40'
-                  : 'bg-[#FFF8F0] border-[#D8755B]'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-display font-bold text-[#252321]">
-                  1. الباقة السنوية الشاملة (VIP)
-                </span>
-                {caps.isVip ? (
-                  <span className="text-[11px] font-bold text-[#8D4925]">
-                    مفعّلة ✓
-                  </span>
-                ) : (
-                  <span className="text-[11px] font-bold text-[#D8755B]">
-                    مطلوبة ($60/سنة)
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#252321]/70 leading-relaxed mb-3">
-                تفتح المحطات الموثقة في عمود النسب + التبويبات الخمسة + رصيد محفظة $25 هدية.
-              </p>
-              {!caps.isVip && (
-                <button
-                  type="button"
-                  onClick={onUpgradeAnnualVip}
-                  className="w-full py-2 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
-                >
-                  ترقية للباقة السنوية الآن ($60)
-                </button>
-              )}
-            </div>
-
-            <div
-              className={`rounded-2xl p-4 border-2 ${
-                accountType === AccountLegalType.RecordKeeper
-                  ? 'bg-[#FAF6F0] border-[#8D4925]/40'
-                  : 'bg-[#FFF8F0] border-[#D8755B]'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-display font-bold text-[#252321]">
-                  2. ميثاق أمين السجل القانوني
-                </span>
-                {accountType === AccountLegalType.RecordKeeper ? (
-                  <span className="text-[11px] font-bold text-[#8D4925]">
-                    موقّع ✓
-                  </span>
-                ) : (
-                  <span className="text-[11px] font-bold text-[#D8755B]">
-                    مجاني · توقيع فوري
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#252321]/70 leading-relaxed mb-3">
-                إقرار بصحة البيانات المدخلة للأبناء والزوجات والأجداد في سجل الأسرة.
-              </p>
-              {accountType !== AccountLegalType.RecordKeeper && (
-                <button
-                  type="button"
-                  onClick={onSignCharterAndEnableTree}
-                  className="w-full py-2 px-4 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-white text-xs font-display font-bold cursor-pointer"
-                >
-                  التوقيع الإلكتروني وتفعيل أمين السجل ✓
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ============================================================================
   // NATURAL LINEAGE SPINE RENDERER ABOVE THE FAMILY TREE
@@ -1713,6 +1945,32 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   };
 
   const renderNaturalLineageSpineAboveTree = () => {
+    // If certified reference nodes are already imported as live protected tree cards,
+    // show a sleek unified connection badge instead of duplicating the same cards above the tree.
+    if (importedCertifiedCount > 0) {
+      return (
+        <div className="w-full max-w-[440px] mx-auto mb-3 flex flex-col items-center">
+          <div className="w-full rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FEF3C7]/45 to-[#FFF8EB] border-2 border-[#D4AF37] px-4 py-3 text-right flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <ShieldCheck className="w-4 h-4 text-[#8D4925] shrink-0" />
+              <div className="min-w-0">
+                <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                  السلسلة المرجعية موصولة كجذر علوي للمشجرة ({importedCertifiedCount} عُقد موثقة)
+                </div>
+                <div className="text-[10px] text-[#8D4925] font-semibold">
+                  يمكنك تفريع الأبناء أو إرفاق الوثائق والملاحظات لأي عقدة مرجعية أدناه
+                </div>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-[#252321] text-[#F3D299] text-[10px] font-display font-bold shrink-0">
+              مرجع محمي ✦
+            </span>
+          </div>
+          <div className="w-0.5 h-4 bg-[#8D4925]/55 mt-1" />
+        </div>
+      );
+    }
+
     // Determine max orderNumber to include based on spineDepth
     const targetMaxOrder =
       spineDepth === 'family'
@@ -1852,14 +2110,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const renderPersonCard = (person: InteractiveTreePerson) => {
     const isRadialOpen = radialTargetNodeId === person.id;
     const { mainName, kunyaOrTitle, isMaskedNow } = getCleanCardDisplay(person);
-    const isWithinFifthGrandfather = person.generationLevel <= 6;
-    const canAddParentsBranching = person.generationLevel < 6;
+    const isCertifiedRef = Boolean(person.isCertifiedReference);
+    const isWithinFifthGrandfather =
+      person.generationLevel <= 6 || isCertifiedRef;
+    const canAddParentsBranching = person.generationLevel < 6 && !isCertifiedRef;
     const hasFather = Boolean(person.fatherId && findPerson(person.fatherId));
     const hasMother = Boolean(person.motherId && findPerson(person.motherId));
 
     // Determine historical portrait role for HeritageNodeAvatar
     const avatarPersonRole =
-      person.generationLevel >= 4
+      person.generationLevel >= 4 || isCertifiedRef
         ? 'near_ancestor'
         : person.isRecordKeeper
         ? 'client'
@@ -1871,6 +2131,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     // Build clean single-line date / mercy text (Birth Year or "رحمه الله")
     const dateAndStatusParts: string[] = [];
+    if (isCertifiedRef && person.referenceRankLabel) {
+      dateAndStatusParts.push(person.referenceRankLabel);
+    }
     if (person.birthDateValue) {
       dateAndStatusParts.push(
         `${person.birthDateValue} ${
@@ -1878,21 +2141,34 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         }`
       );
     }
-    if (person.vitalStatus === 'deceased') {
+    if (person.vitalStatus === 'deceased' && !isCertifiedRef) {
       dateAndStatusParts.push('رحمه الله');
     }
     const cleanMetaLine = dateAndStatusParts.join(' · ');
 
+    // Collateral children attached to a non-spine card (so branches under branches also render!)
+    const nonSpineDirectChildren = !person.isDirectSpineLineage && !person.isRecordKeeper
+      ? people.filter(
+          (ch) =>
+            ch.id !== person.id &&
+            !ch.isDirectSpineLineage &&
+            (ch.fatherId === person.id || ch.motherId === person.id)
+        )
+      : [];
+
     return (
       <div
         key={person.id}
-        className={`relative group transition-all ${
+        data-testid={`tree-person-card-${person.id}`}
+        className={`relative group transition-all flex flex-col items-center ${
           isRadialOpen ? 'z-40' : 'z-10'
         }`}
       >
         <div
           className={`w-[245px] sm:w-[265px] rounded-2xl p-3.5 text-right transition-all shadow-sm relative ${
-            person.isRecordKeeper
+            isCertifiedRef
+              ? 'bg-gradient-to-br from-[#FFFDF9] via-[#FFFBEB] to-[#FEF3C7]/65 border-2 border-[#D4AF37] ring-2 ring-[#D4AF37]/20 shadow-md'
+              : person.isRecordKeeper
               ? 'bg-gradient-to-br from-[#FFFDF9] via-white to-[#FAF3E8] border-2 border-[#252321] ring-4 ring-[#D8755B]/20 shadow-md'
               : person.gender === 'female'
               ? 'bg-gradient-to-br from-[#FFFDFB] to-[#FAF3EE] border-2 border-[#B98A78]/70'
@@ -1901,27 +2177,40 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               : 'bg-white border-2 border-[#B98A78]/55 hover:border-[#8D4925]'
           }`}
         >
-          {/* Subtle Edit / Delete Actions in Top-Left Corner */}
+          {/* Subtle Top Badges & Edit / Delete Actions */}
           <div className="flex items-center justify-between gap-1 mb-2">
             <div>
-              {person.isRecordKeeper && (
+              {isCertifiedRef ? (
+                <span
+                  data-testid={`certified-reference-badge-${person.id}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#252321] text-[#F3D299] border border-[#D4AF37] text-[10px] font-display font-extrabold"
+                >
+                  <ShieldCheck className="w-3 h-3 text-[#F3D299]" />
+                  <span>مرجع موثق ✦</span>
+                </span>
+              ) : person.isRecordKeeper ? (
                 <span className="text-[10px] font-display font-bold text-[#8D4925]">
                   أمين السجل
                 </span>
-              )}
+              ) : null}
             </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => openEditPersonModal(person)}
-                title="تعديل بيانات الفرد"
+                title={
+                  isCertifiedRef
+                    ? 'عرض البطاقة المرجعية أو إرفاق وثائق وملاحظات'
+                    : 'تعديل بيانات الفرد'
+                }
                 className="w-6 h-6 rounded-lg bg-[#F7F2E9] hover:bg-[#D8755B] text-[#252321] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Edit2 className="w-3 h-3" />
               </button>
-              {!person.isRecordKeeper && (
+              {!person.isRecordKeeper && !isCertifiedRef && (
                 <button
                   type="button"
+                  data-testid={`delete-tree-node-btn-${person.id}`}
                   onClick={() => handleDeleteNode(person)}
                   title="حذف العقدة"
                   className="w-6 h-6 rounded-lg bg-[#F7F2E9] hover:bg-red-700 text-[#252321]/60 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
@@ -1938,7 +2227,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               <HeritageNodeAvatar
                 personRole={avatarPersonRole}
                 gender={person.gender}
-                customImageUrl={person.photoUrl}
+                customImageUrl={person.photoThumbnailUrl || person.photoUrl}
                 isPrivacyMasked={isMaskedNow}
                 size="md"
               />
@@ -1969,14 +2258,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 </div>
               )}
 
-              {/* 3. Birth Year or "رحمه الله" */}
+              {/* 3. Birth Year or Rank */}
               {cleanMetaLine && (
-                <div className="text-[11px] font-medium text-[#252321]/70 tabular-nums">
+                <div className="text-[11px] font-medium text-[#252321]/70 tabular-nums truncate">
                   {cleanMetaLine}
                 </div>
               )}
 
-              {/* 4. Linked Vault Media Badge (`📎 X ميديا`) */}
+              {/* 4. Interactive Linked Vault Media Badge (`📎 X وثائق/صور`) -> Opens Quick Vault Preview */}
               {(() => {
                 const personMediaCount = vaultItems.filter((vi) =>
                   vi.linkedPersonIds.includes(person.id)
@@ -1986,14 +2275,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   <div className="pt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        openEditPersonModal(person);
-                        setShowMoreBioSection(true);
-                      }}
-                      title="عرض الصور والوثائق المربوطة بهذا الفرد في خزانتي"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#D97706]/50 text-[#92400E] text-[10px] font-display font-extrabold cursor-pointer transition-colors"
+                      data-testid={`tree-card-vault-badge-${person.id}`}
+                      onClick={() => setQuickVaultPreviewPersonId(person.id)}
+                      title="معاينة سريعة للصور والوثائق المربوطة بهذا الفرد في خزانتي"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#D97706]/60 text-[#92400E] text-[10px] font-display font-extrabold cursor-pointer transition-colors shadow-2xs"
                     >
-                      <span>📎 {personMediaCount} ميديا</span>
+                      <span>📎 {personMediaCount} وثائق/صور</span>
                     </button>
                   </div>
                 );
@@ -2045,9 +2332,24 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </button>
             </div>
 
-            {/* 1. TOP: Father & Mother (within 5th Grandfather limit) OR Upper Ancestor */}
+            {/* 1. TOP: Father & Mother (Protected on Certified Reference Nodes!) */}
             <div className="space-y-1.5">
-              {canAddParentsBranching ? (
+              {isCertifiedRef ? (
+                <div className="space-y-1.5">
+                  <div className="py-1.5 px-2.5 rounded-xl bg-[#FEF3C7]/10 border border-[#D4AF37]/40 text-[#F3D299] text-[11px] font-bold text-center">
+                    الأب المرجعي محمي ضمن السند الموثق ✦
+                  </div>
+                  {!hasMother && (
+                    <button
+                      type="button"
+                      onClick={() => openAddRelativeModal(person, 'mother')}
+                      className="w-full py-1.5 px-2.5 rounded-xl bg-[#B98A78] hover:bg-[#a37462] text-white text-xs font-display font-bold text-center cursor-pointer"
+                    >
+                      + إضافة الأم
+                    </button>
+                  )}
+                </div>
+              ) : canAddParentsBranching ? (
                 <div className="grid grid-cols-2 gap-2">
                   {!hasFather ? (
                     <button
@@ -2098,25 +2400,41 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               )}
             </div>
 
-            {/* 2. RIGHT & LEFT: Siblings (Right) & Spouse/Partner (Left) */}
+            {/* 2. RIGHT & LEFT: Siblings (Contemporary) & Spouse/Partner */}
             {isWithinFifthGrandfather && (
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                <div className="space-y-1.5">
+                {!isCertifiedRef ? (
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openAddRelativeModal(person, 'brother')}
+                      className="w-full py-1.5 px-2 rounded-xl bg-white/12 hover:bg-[#D8755B] text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                    >
+                      + إضافة أخ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openAddRelativeModal(person, 'sister')}
+                      className="w-full py-1.5 px-2 rounded-xl bg-white/12 hover:bg-[#B98A78] text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                    >
+                      + إضافة أخت
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => openAddRelativeModal(person, 'brother')}
-                    className="w-full py-1.5 px-2 rounded-xl bg-white/12 hover:bg-[#D8755B] text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                    onClick={() => {
+                      setRadialTargetNodeId(null);
+                      onRequestReferenceCorrectionTicket?.(
+                        person.firstName,
+                        person.referenceRankLabel
+                      );
+                    }}
+                    className="w-full h-full min-h-[58px] rounded-xl bg-white/10 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/50 text-[#F3D299] text-[11px] font-display font-bold cursor-pointer transition-colors flex items-center justify-center px-2 text-center"
                   >
-                    + إضافة أخ
+                    <span>طلب تصحيح في مرصد البحوث</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => openAddRelativeModal(person, 'sister')}
-                    className="w-full py-1.5 px-2 rounded-xl bg-white/12 hover:bg-[#B98A78] text-white text-xs font-display font-bold cursor-pointer transition-colors"
-                  >
-                    + إضافة أخت
-                  </button>
-                </div>
+                )}
 
                 <div>
                   <button
@@ -2130,7 +2448,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </div>
             )}
 
-            {/* 3. BOTTOM: Son & Daughter */}
+            {/* 3. BOTTOM: Son & Daughter (Allowed on Certified Reference Nodes to add family branches!) */}
             {isWithinFifthGrandfather && (
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
                 <button
@@ -2138,7 +2456,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   onClick={() => openAddRelativeModal(person, 'son')}
                   className="py-2 px-2.5 rounded-xl bg-white/15 hover:bg-[#D8755B] text-white text-xs font-display font-bold text-center cursor-pointer transition-colors"
                 >
-                  + إضافة ابن
+                  {isCertifiedRef ? '+ إضافة ابن / فرع' : '+ إضافة ابن'}
                 </button>
                 <button
                   type="button"
@@ -2148,6 +2466,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   + إضافة ابنة
                 </button>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Nested Collateral Descendants under non-spine branch cards */}
+        {nonSpineDirectChildren.length > 0 && (
+          <div className="mt-4 pt-2 border-t border-dashed border-[#B98A78]/60 flex flex-wrap items-start justify-center gap-3">
+            {nonSpineDirectChildren.map((subChild) =>
+              renderPersonCard(subChild)
             )}
           </div>
         )}
@@ -2208,7 +2535,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // RENDER FULL GENERATION ROW (Node + Mother/Wives + Siblings)
   // ============================================================================
   const renderLineageGenerationBlock = (spineNode: InteractiveTreePerson) => {
-    const isAboveFifthGrandfather = spineNode.generationLevel >= 7;
     const motherNode = spineNode.motherId
       ? findPerson(spineNode.motherId)
       : undefined;
@@ -2234,14 +2560,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       >
         {spineNode.id === topMostDirectAncestor?.id &&
           spineNode.generationLevel < 6 &&
+          !spineNode.isCertifiedReference &&
           renderDashedParentPlaceholders(spineNode)}
 
-        {/* Horizontal Row: Siblings (Right) + Spine Node (Center) + Wives/Spouses (Left) */}
+        {/* Horizontal Row: Siblings / Collateral Branches (Right) + Spine Node (Center) + Wives/Spouses (Left) */}
         <div className="flex flex-wrap items-start justify-center gap-5 w-full">
-          {!isAboveFifthGrandfather && siblings.length > 0 && (
+          {siblings.length > 0 && (
             <div className="flex flex-wrap items-start justify-center gap-3 bg-[#FAF6F0]/90 border border-[#B98A78]/40 rounded-2xl p-3">
               <div className="w-full text-[10px] font-display font-bold text-[#8D4925] text-center mb-1">
-                الإخوة والأخوات ({siblings.length})
+                الإخوة والفروع الشقيقة ({siblings.length})
               </div>
               {siblings.map((sib) => renderPersonCard(sib))}
             </div>
@@ -2252,6 +2579,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             {renderPersonCard(spineNode)}
 
             {spineNode.generationLevel < 6 &&
+              !spineNode.isCertifiedReference &&
               spineNode.fatherId &&
               !motherNode && (
                 <button
@@ -2264,7 +2592,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               )}
           </div>
 
-          {!isAboveFifthGrandfather && wives.length > 0 && (
+          {wives.length > 0 && (
             <div className="flex flex-wrap items-start justify-center gap-3 bg-[#FFFDFB] border border-[#D8755B]/40 rounded-2xl p-3">
               <div className="w-full text-[10px] font-display font-bold text-[#D8755B] text-center mb-1 flex items-center justify-center gap-1">
                 <Heart className="w-3 h-3" />
@@ -2339,7 +2667,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321]">
               شجرة عائلة {result.familyName}
             </h2>
-            <div className="flex items-center gap-2 text-xs font-medium text-[#252321]/70">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#252321]/70">
               {treeSaveState === 'loading' || treeSaveState === 'saving' ? (
                 <span className="inline-flex items-center gap-1.5 text-[#8D4925]">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D8755B]" />
@@ -2358,11 +2686,37 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   </span>
                 </span>
               )}
+
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/45 text-[11px] font-display font-bold text-[#8D4925]">
+                <Users className="w-3 h-3 text-[#D8755B]" />
+                <span>
+                  السعة:{' '}
+                  {caps.maxTreeMembers !== null
+                    ? `${people.length} / ${caps.maxTreeMembers} فرداً`
+                    : `${people.length} · سعة مفتوحة (أمين السجل ✦)`}
+                </span>
+              </span>
             </div>
           </div>
 
-          {/* Toolbar Actions: Save + Zoom + Export */}
+          {/* Toolbar Actions: Family Invite + Save + Zoom + Export */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setCopiedInviteLink(false);
+                setShowInviteFamilyModal(true);
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors border ${
+                caps.canInviteFamilyContributors
+                  ? 'bg-[#FFFDF9] hover:bg-[#FAF6F0] text-[#8D4925] border-[#D4AF37]'
+                  : 'bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] border-[#B98A78]/50'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5 text-[#D8755B]" />
+              <span>دعوة أفراد العائلة</span>
+            </button>
+
             <button
               type="button"
               disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
@@ -2401,20 +2755,45 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
             <button
               type="button"
-              onClick={() => {
-                setExportedBanner(true);
-                onLogActivity(
-                  'تصدير مشجرة العائلة التفاعلية',
-                  `تصدير شجرة عائلة ${result.familyName} (${people.length} فرداً)`
-                );
-              }}
+              data-testid="sync-certified-lineage-to-tree-btn"
+              onClick={handleSyncCertifiedLineageIntoTree}
+              className="px-3.5 py-2 rounded-xl bg-[#FFFDF9] hover:bg-[#FEF3C7]/60 text-[#8D4925] border border-[#D4AF37] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#D8755B]" />
+              <span>
+                {importedCertifiedCount > 0
+                  ? `تحديث مزامنة عمود النسب (${importedCertifiedCount})`
+                  : 'استيراد عمود النسب كجذر للمشجرة'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="open-tree-official-export-btn"
+              onClick={() => setShowOfficialExportModal(true)}
               className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>تصدير المشجرة</span>
+              <Download className="w-3.5 h-3.5 text-[#F3D299]" />
+              <span>تصدير المشجرة الموثقة</span>
             </button>
           </div>
         </div>
+
+        {referenceSyncBanner && (
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-300 px-4 py-2.5 flex items-center justify-between gap-2 text-xs font-bold text-emerald-950">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{referenceSyncBanner}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReferenceSyncBanner(null)}
+              className="text-[11px] text-emerald-800 hover:underline cursor-pointer shrink-0"
+            >
+              إخفاء
+            </button>
+          </div>
+        )}
 
         {/* Display Depth Selector (محدّد مدى العرض: عرض الشجرة من أمين السجل وحتى:) */}
         <div className="pt-4 border-t border-[#B98A78]/25 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -2500,26 +2879,28 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           {renderNaturalLineageSpineAboveTree()}
 
           {/* ================================================================ */}
-          {/* B. CLEAN DASHED BUTTON ABOVE 5TH GRANDFATHER: "+ إضافة الجد الأعلى" */}
+          {/* B. CLEAN DASHED BUTTON ABOVE HIGHEST CONTEMPORARY ANCESTOR        */}
           {/* ================================================================ */}
-          <div className="mb-4 flex flex-col items-center">
-            <button
-              type="button"
-              onClick={() => {
-                if (!topMostDirectAncestor) return;
-                openAddRelativeModal(
-                  topMostDirectAncestor,
-                  topMostDirectAncestor.generationLevel >= 6
-                    ? 'vertical_ancestor'
-                    : 'father'
-                );
-              }}
-              className="px-6 py-2.5 rounded-2xl bg-[#FFFDF9] hover:bg-white border-2 border-dashed border-[#D8755B] text-xs sm:text-sm font-display font-extrabold text-[#252321] hover:text-[#D8755B] shadow-2xs transition-all cursor-pointer"
-            >
-              + إضافة الجد الأعلى
-            </button>
-            <div className="w-0.5 h-5 bg-[#8D4925]/45 mt-1" />
-          </div>
+          {!topMostDirectAncestor?.isCertifiedReference && (
+            <div className="mb-4 flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!topMostDirectAncestor) return;
+                  openAddRelativeModal(
+                    topMostDirectAncestor,
+                    topMostDirectAncestor.generationLevel >= 6
+                      ? 'vertical_ancestor'
+                      : 'father'
+                  );
+                }}
+                className="px-6 py-2.5 rounded-2xl bg-[#FFFDF9] hover:bg-white border-2 border-dashed border-[#D8755B] text-xs sm:text-sm font-display font-extrabold text-[#252321] hover:text-[#D8755B] shadow-2xs transition-all cursor-pointer"
+              >
+                + إضافة الجد الأعلى
+              </button>
+              <div className="w-0.5 h-5 bg-[#8D4925]/45 mt-1" />
+            </div>
+          )}
 
           {/* ================================================================ */}
           {/* C. GENERATIONS STACK (From Highest Added Ancestor down to Record Keeper) */}
@@ -2666,6 +3047,256 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       )}
 
       {/* ==================================================================== */}
+      {/* 2C. QUOTA UPGRADE MODAL (Zero Data Loss — preserves typed form data) */}
+      {/* ==================================================================== */}
+      {quotaUpgradePrompt && (
+        <div
+          className="fixed inset-0 z-[70] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            dir="rtl"
+            className="bg-white border-2 border-[#D4AF37] rounded-3xl max-w-lg w-full p-6 space-y-4 text-right shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-[#D8755B]" />
+                <h4 className="text-base font-display font-extrabold text-[#252321]">
+                  {quotaUpgradePrompt.kind === 'tree_members'
+                    ? 'وصلت إلى الحد الأقصى لأفراد الشجرة في باقتك الحالية'
+                    : 'وصلت إلى الحد الأقصى لوثائق الخزانة في باقتك الحالية'}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuotaUpgradePrompt(null)}
+                className="w-7 h-7 rounded-lg bg-[#F7F2E9] flex items-center justify-center text-[#252321] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 p-3.5 text-xs text-[#252321]/85 leading-relaxed space-y-1">
+              <div className="font-bold text-[#8D4925]">
+                الاستخدام الحالي: {quotaUpgradePrompt.currentCount} من أصل{' '}
+                {quotaUpgradePrompt.maxAllowed}{' '}
+                {quotaUpgradePrompt.kind === 'tree_members' ? 'فرداً' : 'ملفاً'}
+              </div>
+              <p>
+                اطمئن: جميع البيانات التي أدخلتها في النموذج محفوظة كما هي ولن تضيع عند الترقية.
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
+              {!caps.isRootUnlocked && onUnlockRoot5Usd && (
+                <div className="rounded-2xl bg-[#FFFDF9] border border-[#D8755B]/50 p-3.5 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-display font-extrabold text-[#252321]">
+                      الباقة الأساسية ($5 — فتح الجذر الموثق)
+                    </div>
+                    <div className="text-[11px] text-[#252321]/70">
+                      ترفع السعة إلى 50 فرداً في شجرتي + 20 وثيقة في خزانتي
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuotaUpgradePrompt(null);
+                      onUnlockRoot5Usd();
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold shrink-0 cursor-pointer"
+                  >
+                    ترقية ($5)
+                  </button>
+                </div>
+              )}
+
+              {!caps.isVip && (
+                <div className="rounded-2xl bg-[#FFFDF9] border border-[#8D4925]/45 p-3.5 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-display font-extrabold text-[#252321]">
+                      الباقة السنوية الشاملة — بريميوم ($60/سنة)
+                    </div>
+                    <div className="text-[11px] text-[#252321]/70">
+                      ترفع السعة إلى 250 فرداً + 100 وثيقة + فتح المصادر ونشر «موقعي»
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuotaUpgradePrompt(null);
+                      onUpgradeAnnualVip();
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold shrink-0 cursor-pointer"
+                  >
+                    ترقية VIP
+                  </button>
+                </div>
+              )}
+
+              {!caps.hasRegistrarBadge && (
+                <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] to-[#FEF3C7]/45 border border-[#D4AF37] p-3.5 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-display font-extrabold text-[#8D4925]">
+                      عضوية أمين سجل العائلة ✦
+                    </div>
+                    <div className="text-[11px] text-[#252321]/75">
+                      سعة مفتوحة غير محدودة للأفراد والوثائق + دعوة أفراد العائلة للمساهمة
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuotaUpgradePrompt(null);
+                      onSignCharterAndEnableTree();
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1c] text-white text-xs font-display font-bold shrink-0 cursor-pointer"
+                  >
+                    تفعيل أمين السجل
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* 2D. FAMILY REGISTRAR INVITE MODAL (دعوة أفراد العائلة للمساهمة/المعاينة) */}
+      {/* ==================================================================== */}
+      {showInviteFamilyModal && (
+        <div
+          className="fixed inset-0 z-[65] bg-[#252321]/60 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            dir="rtl"
+            className="bg-white border-2 border-[#B98A78] rounded-3xl max-w-lg w-full p-6 space-y-4 text-right shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-[#D8755B]" />
+                <h4 className="text-base font-display font-extrabold text-[#252321]">
+                  دعوة أفراد عائلة {result.familyName} للمساهمة أو المعاينة
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInviteFamilyModal(false)}
+                className="w-7 h-7 rounded-lg bg-[#F7F2E9] flex items-center justify-center text-[#252321] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {caps.canInviteFamilyContributors ? (
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FEF3C7] border border-[#D4AF37] text-xs font-display font-bold text-[#8D4925]">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
+                  <span>صلاحية أمين سجل العائلة مفعّلة ✦</span>
+                </div>
+
+                <p className="text-xs text-[#252321]/80 leading-relaxed">
+                  بصفتك <strong>أمين سجل عائلة {result.familyName}</strong>، يمكنك مشاركة هذا الرابط المخصص والمربوط بمعرّف شجرتك مع أبناء العمومة وأفراد الأسرة للمساهمة في إثراء الفروع أو معاينة المشجرة.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInviteRoleMode('contribute');
+                      setCopiedInviteLink(false);
+                    }}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-display font-bold cursor-pointer transition-colors ${
+                      inviteRoleMode === 'contribute'
+                        ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
+                        : 'bg-[#FAF6F0] text-[#252321] border-[#B98A78]/45'
+                    }`}
+                  >
+                    دعوة للمساهمة والإثراء
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInviteRoleMode('view');
+                      setCopiedInviteLink(false);
+                    }}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-display font-bold cursor-pointer transition-colors ${
+                      inviteRoleMode === 'view'
+                        ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
+                        : 'bg-[#FAF6F0] text-[#252321] border-[#B98A78]/45'
+                    }`}
+                  >
+                    دعوة للمعاينة فقط
+                  </button>
+                </div>
+
+                <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/50 p-3 flex items-center justify-between gap-2">
+                  <span
+                    dir="ltr"
+                    className="text-[11px] font-mono text-[#252321] truncate flex-1 select-all"
+                  >
+                    {familyInviteUrl}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(familyInviteUrl).catch(() => {});
+                      setCopiedInviteLink(true);
+                      onLogActivity(
+                        'نسخ رابط دعوة العائلة',
+                        `نسخ رابط دعوة (${inviteRoleMode === 'contribute' ? 'مساهمة' : 'معاينة'}) لشجرة عائلة ${result.familyName}`
+                      );
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  >
+                    {copiedInviteLink ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>تم النسخ ✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>نسخ الرابط</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
+                  ميزة <strong>«دعوة أفراد العائلة للمساهمة أو المعاينة»</strong> عبر رابط عائلي موحد هي إحدى صلاحيات الحوكمة المخصصة لحاملي صفة <strong>«أمين سجل العائلة»</strong>، وتشمل أيضاً سعة غير محدودة للأفراد والوثائق وأولوية قصوى في مرصد البحوث.
+                </p>
+                <div className="flex items-center justify-end gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteFamilyModal(false)}
+                    className="px-4 py-2 rounded-xl bg-[#F7F2E9] text-xs font-bold text-[#252321] cursor-pointer"
+                  >
+                    لاحقاً
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteFamilyModal(false);
+                      onSignCharterAndEnableTree();
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-extrabold cursor-pointer"
+                  >
+                    التوقيع وتفعيل أمين سجل العائلة ✦
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
       {/* 3. ARABIC GENEALOGY METADATA POPUP MODAL (النافذة المنبثقة الذكية)   */}
       {/* ==================================================================== */}
       {modalConfig && modalMeta && (
@@ -2699,79 +3330,141 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             </div>
 
             <form onSubmit={handleSavePersonModal} className="space-y-4">
-              {/* Gender Selection */}
-              <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1.5">
-                  الجنس:
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormGender('male');
-                      setFormFemalePrivacyMasked(false);
-                    }}
-                    className={`py-2.5 px-4 rounded-xl border text-xs font-display font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                      formGender === 'male'
-                        ? 'bg-[#252321] text-white border-[#252321] shadow-2xs'
-                        : 'bg-[#FAF6F0] text-[#252321]/75 border-[#B98A78]/45'
-                    }`}
-                  >
-                    <span>ذكر</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormGender('female');
-                      setFormFemalePrivacyMasked(true);
-                    }}
-                    className={`py-2.5 px-4 rounded-xl border text-xs font-display font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                      formGender === 'female'
-                        ? 'bg-[#8D4925] text-white border-[#8D4925] shadow-2xs'
-                        : 'bg-[#FAF6F0] text-[#252321]/75 border-[#B98A78]/45'
-                    }`}
-                  >
-                    <span>أنثى</span>
-                  </button>
-                </div>
-              </div>
+              {(() => {
+                const editingPerson =
+                  modalConfig.mode === 'edit' && modalConfig.editPersonId
+                    ? findPerson(modalConfig.editPersonId)
+                    : undefined;
+                const isEditingCertifiedRef = Boolean(
+                  editingPerson?.isCertifiedReference
+                );
 
-              {/* Arabic Name, Family Name, Kunya & Honorific Title */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-display font-bold text-[#252321] mb-1">
-                    الاسم الأول <span className="text-[#D8755B]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    autoFocus
-                    value={formFirstName}
-                    onChange={(e) => {
-                      setFormFirstName(e.target.value);
-                      if (formError) setFormError('');
-                    }}
-                    placeholder={
-                      formGender === 'female'
-                        ? 'مثال: نورة / فاطمة'
-                        : 'مثال: محمد / عبدالله'
-                    }
-                    className="w-full rounded-xl bg-[#FAF6F0] border border-[#B98A78]/60 px-3.5 py-2.5 text-sm text-[#252321] focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
+                return (
+                  <>
+                    {isEditingCertifiedRef && editingPerson && (
+                      <div
+                        data-testid="certified-node-protection-banner"
+                        className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FEF3C7]/60 to-[#FFF8EB] border-2 border-[#D4AF37] p-4 space-y-2.5"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <ShieldCheck className="w-5 h-5 text-[#8D4925] shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                              عقدة مرجعية محمية مستوردة من «عمود نسبي» ✦
+                            </div>
+                            <p className="text-xs text-[#252321]/80 leading-relaxed">
+                              الاسم المرجعي وسلسلة الأب محميان من التعديل اليدوي لضمان سلامة التوثيق التاريخي. يمكنك بحرية تامة إرفاق الوثائق والصور من «خزانتي» أو تدوين الملاحظات والسيرة أدناه.
+                            </p>
+                          </div>
+                        </div>
+                        {onRequestReferenceCorrectionTicket && (
+                          <div className="flex justify-end pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const refName = editingPerson.firstName;
+                                const refRank = editingPerson.referenceRankLabel;
+                                setModalConfig(null);
+                                onRequestReferenceCorrectionTicket(
+                                  refName,
+                                  refRank
+                                );
+                              }}
+                              className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>طلب تصحيح نسبي في مرصد البحوث ←</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                <div>
-                  <label className="block text-xs font-display font-bold text-[#252321] mb-1">
-                    اسم العائلة / الشهرة
-                  </label>
-                  <input
-                    type="text"
-                    value={formFamilyName}
-                    onChange={(e) => setFormFamilyName(e.target.value)}
-                    placeholder={result.familyName}
-                    className="w-full rounded-xl bg-[#FAF6F0] border border-[#B98A78]/60 px-3.5 py-2.5 text-sm text-[#252321] focus:outline-none focus:border-[#D8755B]"
-                  />
-                </div>
+                    {/* Gender Selection */}
+                    <div>
+                      <label className="block text-xs font-display font-bold text-[#252321] mb-1.5">
+                        الجنس:
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          disabled={isEditingCertifiedRef}
+                          onClick={() => {
+                            if (isEditingCertifiedRef) return;
+                            setFormGender('male');
+                            setFormFemalePrivacyMasked(false);
+                          }}
+                          className={`py-2.5 px-4 rounded-xl border text-xs font-display font-bold flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-65 disabled:cursor-not-allowed ${
+                            formGender === 'male'
+                              ? 'bg-[#252321] text-white border-[#252321] shadow-2xs'
+                              : 'bg-[#FAF6F0] text-[#252321]/75 border-[#B98A78]/45'
+                          }`}
+                        >
+                          <span>ذكر</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isEditingCertifiedRef}
+                          onClick={() => {
+                            if (isEditingCertifiedRef) return;
+                            setFormGender('female');
+                            setFormFemalePrivacyMasked(true);
+                          }}
+                          className={`py-2.5 px-4 rounded-xl border text-xs font-display font-bold flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-65 disabled:cursor-not-allowed ${
+                            formGender === 'female'
+                              ? 'bg-[#8D4925] text-white border-[#8D4925] shadow-2xs'
+                              : 'bg-[#FAF6F0] text-[#252321]/75 border-[#B98A78]/45'
+                          }`}
+                        >
+                          <span>أنثى</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Arabic Name, Family Name, Kunya & Honorific Title */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                          الاسم الأول <span className="text-[#D8755B]">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          readOnly={isEditingCertifiedRef}
+                          disabled={isEditingCertifiedRef}
+                          autoFocus={!isEditingCertifiedRef}
+                          value={formFirstName}
+                          onChange={(e) => {
+                            if (isEditingCertifiedRef) return;
+                            setFormFirstName(e.target.value);
+                            if (formError) setFormError('');
+                          }}
+                          placeholder={
+                            formGender === 'female'
+                              ? 'مثال: نورة / فاطمة'
+                              : 'مثال: محمد / عبدالله'
+                          }
+                          className="w-full rounded-xl bg-[#FAF6F0] disabled:bg-[#EDE6DA]/70 border border-[#B98A78]/60 px-3.5 py-2.5 text-sm text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                          اسم العائلة / الشهرة
+                        </label>
+                        <input
+                          type="text"
+                          readOnly={isEditingCertifiedRef}
+                          disabled={isEditingCertifiedRef}
+                          value={formFamilyName}
+                          onChange={(e) => {
+                            if (isEditingCertifiedRef) return;
+                            setFormFamilyName(e.target.value);
+                          }}
+                          placeholder={result.familyName}
+                          className="w-full rounded-xl bg-[#FAF6F0] disabled:bg-[#EDE6DA]/70 border border-[#B98A78]/60 px-3.5 py-2.5 text-sm text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                        />
+                      </div>
 
                 <div>
                   <label className="block text-xs font-display font-bold text-[#252321] mb-1">
@@ -3075,9 +3768,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div className="w-11 h-11 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
-                                {media.fileDataUrl.startsWith('data:image') ? (
+                                {media.mediaType === 'photo' ||
+                                (media.thumbnailDataUrl || media.fileDataUrl).startsWith(
+                                  'data:image'
+                                ) ? (
                                   <img
-                                    src={media.fileDataUrl}
+                                    src={media.thumbnailDataUrl || media.fileDataUrl}
                                     alt={media.title}
                                     className="w-full h-full object-cover"
                                   />
@@ -3284,13 +3980,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     : 'حفظ وإضافة للشجرة ✓'}
                 </button>
               </div>
+                  </>
+                );
+              })()}
             </form>
           </div>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* 4. CAMERA AVATAR PICKER MODAL (رفع صورة حقيقية أو استخدام البورتريه التراثي) */}
+      {/* 4. CAMERA AVATAR PICKER MODAL (رفع صورة مضغوطة ذكياً أو البورتريه التراثي) */}
       {/* ==================================================================== */}
       {photoPickerNodeId && (
         <div
@@ -3340,6 +4039,65 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </button>
             </div>
 
+            {/* Smart Compressed File Upload to `users/{uid}/tree_avatars/{personId}` */}
+            <div className="rounded-2xl bg-[#FFFDF9] border border-[#D4AF37]/60 p-3.5 space-y-2">
+              <div className="text-xs font-display font-bold text-[#252321]">
+                رفع صورة حقيقية من جهازك (ضغط WebP/JPEG ذكي وتخزين سحابي آمن):
+              </div>
+              <label className="w-full py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                {isUploadingNodeAvatar ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>جاري ضغط وحفظ الصورة...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    <span>اختيار صورة من الجهاز</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploadingNodeAvatar}
+                  className="hidden"
+                  onChange={async (e) => {
+                    const selected = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!selected || !photoPickerNodeId) return;
+                    setIsUploadingNodeAvatar(true);
+                    try {
+                      const uploaded = await uploadTreeNodeAvatarWithFallback(
+                        userId,
+                        photoPickerNodeId,
+                        selected
+                      );
+                      setPeople((prev) =>
+                        prev.map((p) =>
+                          p.id === photoPickerNodeId
+                            ? {
+                                ...p,
+                                photoUrl: uploaded.url,
+                                photoThumbnailUrl:
+                                  uploaded.thumbnailUrl || uploaded.url,
+                                photoStoragePath: uploaded.storagePath,
+                              }
+                            : p
+                        )
+                      );
+                      setPhotoPickerNodeId(null);
+                      onLogActivity(
+                        'تحديث صورة فرد في شجرتي',
+                        `تم ضغط وحفظ الصورة الشخصية للفرد بنجاح`
+                      );
+                    } finally {
+                      setIsUploadingNodeAvatar(false);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-[#252321] mb-1">
                 أو أدخل رابط الصورة الحقيقية للفرد (image_url):
@@ -3371,6 +4129,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         ? {
                             ...p,
                             photoUrl: customPhotoUrlInput.trim() || undefined,
+                            photoThumbnailUrl:
+                              customPhotoUrlInput.trim() || undefined,
                           }
                         : p
                     )
@@ -3385,6 +4145,233 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           </div>
         </div>
       )}
+
+      {/* ==================================================================== */}
+      {/* 5. GENTLE NODE DELETE CONFIRMATION & ORPHAN-LINK CLEANUP MODAL       */}
+      {/* ==================================================================== */}
+      {pendingDeletePrompt && (
+        <div
+          data-testid="gentle-delete-node-modal"
+          className="fixed inset-0 z-[75] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            dir="rtl"
+            className="bg-white border-2 border-[#D8755B] rounded-3xl max-w-md w-full p-6 space-y-4 text-right shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+              <h4 className="text-base font-display font-extrabold text-[#252321]">
+                تأكيد حذف الفرد من المشجرة
+              </h4>
+              <button
+                type="button"
+                onClick={() => setPendingDeletePrompt(null)}
+                className="w-7 h-7 rounded-lg bg-[#F7F2E9] flex items-center justify-center text-[#252321] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs sm:text-sm text-[#252321]/85 leading-relaxed">
+              هل تود إزالة{' '}
+              <strong>
+                «{pendingDeletePrompt.person.firstName}{' '}
+                {pendingDeletePrompt.person.familyName}»
+              </strong>{' '}
+              من مشجرة العائلة؟
+            </p>
+
+            {pendingDeletePrompt.linkedDocsCount > 0 && (
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#D4AF37] p-3.5 text-xs text-[#252321] leading-relaxed space-y-1">
+                <div className="font-display font-extrabold text-[#8D4925]">
+                  📎 تنبيه بخصوص الوثائق والصور المرتبطة ({pendingDeletePrompt.linkedDocsCount}):
+                </div>
+                <p>
+                  سيتم تلقائياً فك ارتباط هذا الفرد من ({pendingDeletePrompt.linkedDocsCount}) وثيقة/صورة لمنع أي روابط يتيمة، مع بقاء الوثائق والصور نفسها محفوظة بأمان تام داخل «خزانتي».
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingDeletePrompt(null)}
+                className="px-4 py-2 rounded-xl bg-[#F7F2E9] text-xs font-bold text-[#252321] cursor-pointer"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-delete-tree-node-btn"
+                onClick={handleConfirmDeleteNode}
+                className="px-5 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-display font-extrabold cursor-pointer"
+              >
+                تأكيد الحذف وفك الارتباط
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* 6. QUICK VAULT MEDIA PREVIEW MODAL ON TREE CARD (`معاينة سريعة`)     */}
+      {/* ==================================================================== */}
+      {quickVaultPreviewPersonId &&
+        (() => {
+          const previewPerson = findPerson(quickVaultPreviewPersonId);
+          if (!previewPerson) return null;
+          const personMediaList = vaultItems.filter((vi) =>
+            vi.linkedPersonIds.includes(previewPerson.id)
+          );
+
+          return (
+            <div
+              data-testid="tree-quick-vault-preview-modal"
+              className="fixed inset-0 z-[75] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div
+                dir="rtl"
+                className="bg-[#FFFDF9] border-2 border-[#D4AF37] rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 text-right shadow-2xl"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-[#B98A78]/30 pb-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-[#8D4925]">
+                      الأرشيف المرتبط في «خزانتي» ({personMediaList.length})
+                    </div>
+                    <h4 className="text-base font-display font-extrabold text-[#252321]">
+                      وثائق وصور «{previewPerson.firstName} {previewPerson.familyName}»
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuickVaultPreviewPersonId(null)}
+                    className="w-8 h-8 rounded-xl bg-[#F7F2E9] hover:bg-[#EDE6DA] flex items-center justify-center text-[#252321] cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto space-y-2.5 pr-0.5">
+                  {personMediaList.map((media) => {
+                    const thumbSrc = media.thumbnailDataUrl || media.fileDataUrl;
+                    const showImg =
+                      media.mediaType === 'photo' ||
+                      thumbSrc.startsWith('data:image');
+                    return (
+                      <div
+                        key={media.id}
+                        className="rounded-2xl bg-white border border-[#B98A78]/45 p-2.5 flex items-center justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
+                            {showImg ? (
+                              <img
+                                src={thumbSrc}
+                                alt={media.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <FileText className="w-5 h-5 text-[#8D4925]" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] truncate">
+                              {media.title}
+                            </div>
+                            <div className="text-[11px] text-[#8D4925] font-semibold">
+                              {media.mediaType === 'photo' ? '📸 صورة' : '📜 وثيقة'} ·{' '}
+                              {media.dateOrOccasion}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-3 border-t border-[#B98A78]/30 flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetP = previewPerson;
+                      setQuickVaultPreviewPersonId(null);
+                      openEditPersonModal(targetP);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                  >
+                    + ربط أو رفع ملف آخر
+                  </button>
+
+                  {onOpenVaultForPerson && (
+                    <button
+                      type="button"
+                      data-testid="jump-to-vault-filtered-by-person-btn"
+                      onClick={() => {
+                        const pid = previewPerson.id;
+                        setQuickVaultPreviewPersonId(null);
+                        onOpenVaultForPerson(pid);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold cursor-pointer transition-colors"
+                    >
+                      عرض وفلترة في خزانتي ←
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* ==================================================================== */}
+      {/* 7. OFFICIAL BRANDED EXPORT MODAL (PDF / HIGH-RES PNG)                */}
+      {/* ==================================================================== */}
+      <OfficialBrandedExportModal
+        isOpen={showOfficialExportModal}
+        onClose={() => setShowOfficialExportModal(false)}
+        exportKind="family_tree"
+        result={result}
+        accountType={accountType}
+        caps={caps}
+        userId={userId}
+        unlockedCapsules={unlockedCapsules}
+        treeMembers={people.map((p): ExportTreeMemberSummary => {
+          const disp = getCleanCardDisplay(p);
+          const metaBits: string[] = [];
+          if (p.birthDateValue) {
+            metaBits.push(
+              `${p.birthDateValue} ${p.birthCalendar === 'hijri' ? 'هـ' : 'م'}`
+            );
+          }
+          if (p.vitalStatus === 'deceased' && !p.isCertifiedReference) {
+            metaBits.push('رحمه الله');
+          }
+          return {
+            id: p.id,
+            displayName: disp.mainName,
+            relationLabel: p.isRecordKeeper
+              ? 'أمين السجل'
+              : p.isCertifiedReference
+              ? p.referenceRankLabel || 'مرجع موثق'
+              : p.relationToTargetLabel || 'فرد في المشجرة',
+            generationLevel: p.generationLevel,
+            metaLine: metaBits.join(' · '),
+            isRecordKeeper: p.isRecordKeeper,
+            isCertifiedReference: p.isCertifiedReference,
+          };
+        })}
+        onUnlockRoot5Usd={onUnlockRoot5Usd}
+        onUpgradeAnnualVip={onUpgradeAnnualVip}
+        onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+        onLogExport={(fmt, verId) =>
+          onLogActivity(
+            'تصدير مشجرة العائلة الموثقة',
+            `تصدير شجرة عائلة ${result.familyName} بصيغة (${fmt}) · معرّف التحقق ${verId}`
+          )
+        }
+      />
     </div>
   );
 };

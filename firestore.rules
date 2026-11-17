@@ -3,14 +3,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // GLOBAL CATCH-ALL DEFAULT DENY
+    // GLOBAL CATCH-ALL DEFAULT DENY (PILLAR 1 SAFETY NET)
     // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
 
     // =========================================================================
-    // REUSABLE SECURITY PRIMITIVES & IDENTITY HELPERS
+    // CORE ZERO-TRUST IDENTITY, RBAC ISOLATION & VALIDATION PRIMITIVES
     // =========================================================================
     function isSignedIn() {
       return request.auth != null;
@@ -24,18 +24,88 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
+    function existing() {
+      return resource.data;
     }
 
+    function isValidId(id) {
+      return id is string
+        && id.size() > 0
+        && id.size() <= 128
+        && id.matches('^[a-zA-Z0-9_\\-#]+$');
+    }
+
+    // Verified corporate staff token check (prevents unverified email spoofing; zero DB read cost for `list` rules)
+    function isVerifiedStaffEmail() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower().matches('.*@adamresearchcenter\\.net$');
+    }
+
+    // Trusted single-doc RBAC check against isolated `/team_members/{uid}` or verified corporate staff domain
+    function isStaffOrAdmin() {
+      return isSignedIn()
+        && (
+          exists(/databases/$(database)/documents/team_members/$(request.auth.uid))
+          || isVerifiedStaffEmail()
+        );
+    }
+
+    // Strict Isolation Wall: Block `/team` & corporate staff emails/IDs from ever entering `/users`
+    function isForbiddenStaffCustomerRecord(userId, email) {
+      return userId.matches('^team_.*')
+        || userId == 'usr_maestro_kareem'
+        || email.lower().matches('.*@adamresearchcenter\\.net$')
+        || email.lower() in [
+          'hassan.almuqit@juthori.com',
+          'client@juthori.com',
+          'kareem@juthori.com',
+          'info@juthori.com',
+          'admin@juthori.com'
+        ];
+    }
+
+    // Verify Record Keeper charter/account status from trusted `/users/{uid}` document
+    function isRecordKeeperUser(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        && (
+          get(/databases/$(database)/documents/users/$(uid)).data.accountType == 'record_keeper'
+          || (
+            'recordKeeperCharterSigned' in get(/databases/$(database)/documents/users/$(uid)).data
+            && get(/databases/$(database)/documents/users/$(uid)).data.recordKeeperCharterSigned == true
+          )
+        );
+    }
+
+    function isValidSlug(slug) {
+      return slug is string
+        && slug.size() >= 3
+        && slug.size() <= 60
+        && slug.matches('^[a-z0-9][a-z0-9\\-]*[a-z0-9]$')
+        && !(slug in [
+          'team', 'admin', 'login', 'signin', 'signup', 'register', 'logout',
+          'dashboard', 'api', 'wallet', 'support', 'help', 'knowledge', 'explorer',
+          'lineage', 'tree', 'vault', 'mysite', 'community', 'tickets', 'terms',
+          'privacy', 'charter', 'optout', 'ref', 'u', 'site', 'sites', 'assets',
+          'src', 'public', 'static'
+        ]);
+    }
+
+    // =========================================================================
+    // 1. CUSTOMER PROFILE & WALLET/TIER INTEGRITY HELPERS
+    // =========================================================================
     function isValidUserProfile(data) {
       return data.keys().hasAll(['userId', 'fullName', 'email', 'accountType', 'subscriptionTier', 'walletBalance', 'createdAt'])
-        && data.userId is string && data.userId.size() <= 128
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
         && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 150
-        && data.email is string && data.email.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 100
         && data.accountType in ['individual', 'record_keeper']
         && data.subscriptionTier in ['free', 'basic_verified', 'premium_annual']
         && data.walletBalance is number && data.walletBalance >= 0
+        && data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 60
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 60))
         && (!('firstName' in data) || (data.firstName is string && data.firstName.size() <= 60))
         && (!('fatherName' in data) || (data.fatherName is string && data.fatherName.size() <= 60))
         && (!('grandfatherName' in data) || (data.grandfatherName is string && data.grandfatherName.size() <= 60))
@@ -62,7 +132,174 @@ service cloud.firestore {
         && (!('recordKeeperCharterSigned' in data) || (data.recordKeeperCharterSigned is bool))
         && (!('recordKeeperCharterSignedAt' in data) || (data.recordKeeperCharterSignedAt is string && data.recordKeeperCharterSignedAt.size() <= 60))
         && (!('recordKeeperCharterCode' in data) || (data.recordKeeperCharterCode is string && data.recordKeeperCharterCode.size() <= 80))
-        && (!('recordKeeperContractVersion' in data) || (data.recordKeeperContractVersion is string && data.recordKeeperContractVersion.size() <= 60));
+        && (!('recordKeeperContractVersion' in data) || (data.recordKeeperContractVersion is string && data.recordKeeperContractVersion.size() <= 60))
+        && (!('disambiguationChoiceId' in data) || (data.disambiguationChoiceId is string && data.disambiguationChoiceId.size() <= 120))
+        && (!('verifiedLineageSnapshot' in data) || (data.verifiedLineageSnapshot is map))
+        && (!('lineageSnapshot' in data) || (data.lineageSnapshot is map))
+        && (!('emailVerified' in data) || (data.emailVerified is bool))
+        && (!('emailVerifiedAt' in data) || (data.emailVerifiedAt is string && data.emailVerifiedAt.size() <= 60))
+        && (!('publishedSiteSlug' in data) || (data.publishedSiteSlug is string && data.publishedSiteSlug.size() <= 80))
+        && (!('ownedSiteSlugs' in data) || (data.ownedSiteSlugs is list && data.ownedSiteSlugs.size() <= 50))
+        && (!('referralCode' in data) || (data.referralCode is string && data.referralCode.size() <= 32))
+        && (!('referredByUserId' in data) || (data.referredByUserId is string && data.referredByUserId.size() <= 128))
+        && (!('referredByCode' in data) || (data.referredByCode is string && data.referredByCode.size() <= 32))
+        && (!('referralRewardClaimed' in data) || (data.referralRewardClaimed is bool))
+        && (!('lastWalletTransactionId' in data) || (data.lastWalletTransactionId is string && data.lastWalletTransactionId.size() <= 60))
+        && (!('blockedUserIds' in data) || (data.blockedUserIds is list && data.blockedUserIds.size() <= 500))
+        && (!('blockedUsersMeta' in data) || (data.blockedUsersMeta is list && data.blockedUsersMeta.size() <= 500));
+    }
+
+    // Prevent swapping a verified email to a different unverified address
+    function isAuthorizedEmailMutation(data, prev) {
+      return data.email == prev.email
+        || (
+          (!('emailVerified' in prev) || prev.emailVerified == false)
+          && (
+            !('emailVerified' in data)
+            || data.emailVerified == false
+            || (
+              request.auth.token.email_verified == true
+              && request.auth.token.email != null
+              && data.email.lower() == request.auth.token.email.lower()
+            )
+          )
+        );
+    }
+
+    function isRootFlagUnchanged(data, prev) {
+      return (
+        (('isRootUnlocked' in data) ? data.isRootUnlocked : false)
+        == (('isRootUnlocked' in prev) ? prev.isRootUnlocked : false)
+      );
+    }
+
+    function isNonFinancialProfileUpdate(data, prev) {
+      return data.walletBalance == prev.walletBalance
+        && data.subscriptionTier == prev.subscriptionTier
+        && isRootFlagUnchanged(data, prev);
+    }
+
+    // Pillar 7 Atomicity Guarantee: Any walletBalance, subscriptionTier, or isRootUnlocked mutation
+    // MUST be paired in the SAME transaction with a newly created, mathematically matching `wallet_transactions` record!
+    function isLedgerBackedWalletOrTierUpdate(userId, data, prev) {
+      return 'lastWalletTransactionId' in data
+        && data.lastWalletTransactionId is string
+        && data.lastWalletTransactionId.size() > 0
+        && data.lastWalletTransactionId.size() <= 60
+        && (!('lastWalletTransactionId' in prev) || data.lastWalletTransactionId != prev.lastWalletTransactionId)
+        && !exists(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId))
+        && existsAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId))
+        && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.userId == userId
+        && math.abs(getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.balanceBefore - prev.walletBalance) < 0.02
+        && math.abs(getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.balanceAfter - data.walletBalance) < 0.02
+        && (
+          !(data.subscriptionTier == 'premium_annual' && prev.subscriptionTier != 'premium_annual')
+          || (
+            getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.type in ['UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR']
+            && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.amount >= 55
+          )
+        )
+        && (
+          !('isRootUnlocked' in data && data.isRootUnlocked == true && (!('isRootUnlocked' in prev) || prev.isRootUnlocked == false))
+          || (
+            getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.type in ['PURCHASE_ROOT_5USD', 'UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR']
+            && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.amount >= 5
+          )
+        );
+    }
+
+    // Allows invitee B's atomic `UPGRADE_ANNUAL_VIP` transaction to credit +$10 to referrer A's wallet exactly once
+    function isAtomicReferrerRewardCredit(referrerUid, data, prev) {
+      return isSignedIn()
+        && request.auth.uid != referrerUid
+        && data.diff(prev).affectedKeys().hasOnly(['walletBalance', 'lastWalletTransactionId', 'updatedAt'])
+        && math.abs(data.walletBalance - (prev.walletBalance + 10)) < 0.02
+        && 'lastWalletTransactionId' in data
+        && data.lastWalletTransactionId is string
+        && data.lastWalletTransactionId.size() > 0
+        && data.lastWalletTransactionId.size() <= 60
+        && !exists(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId))
+        && existsAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId))
+        && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.type == 'REFERRAL_REWARD'
+        && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.userId == referrerUid
+        && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.referredInviteeUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.amount == 10
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.referredByUserId == referrerUid
+        && (
+          !('referralRewardClaimed' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralRewardClaimed == false
+        )
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralRewardClaimed == true;
+    }
+
+    function isValidFamilyTreeDoc(data, ownerUid) {
+      return data.keys().hasAll(['userId', 'peopleJson', 'updatedAt'])
+        && data.userId == ownerUid
+        && data.peopleJson is string
+        && data.peopleJson.size() <= 950000
+        && data.updatedAt is string
+        && data.updatedAt.size() <= 60
+        && (!('familyName' in data) || (data.familyName is string && data.familyName.size() <= 100));
+    }
+
+    function isValidCustomerNotification(data, targetUid) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'body', 'category', 'isRead', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == targetUid
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 150
+        && data.body is string && data.body.size() > 0 && data.body.size() <= 1000
+        && data.category in ['ticket_update', 'feature_announcement', 'wallet_bonus', 'system_notice']
+        && data.isRead is bool
+        && data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    // =========================================================================
+    // 2. IMMUTABLE FINANCIAL LEDGER VALIDATORS (`wallet_transactions`)
+    // =========================================================================
+    function isMathematicallyConsistentLedger(data) {
+      return data.amount is number && data.amount >= 0
+        && data.balanceBefore is number && data.balanceBefore >= 0
+        && data.balanceAfter is number && data.balanceAfter >= 0
+        && (
+          (
+            data.type in ['TOPUP', 'REFERRAL_REWARD', 'credit']
+            && math.abs((data.balanceBefore + data.amount) - data.balanceAfter) < 0.02
+          )
+          || (
+            data.type in ['PURCHASE_ROOT_5USD', 'UNLOCK_CAPSULE', 'UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR', 'debit']
+            && data.balanceBefore >= data.amount - 0.02
+            && math.abs((data.balanceBefore - data.amount) - data.balanceAfter) < 0.02
+          )
+        );
+    }
+
+    function isValidWalletTransaction(data) {
+      return data.keys().hasAll(['userId', 'type', 'amount', 'balanceBefore', 'balanceAfter', 'createdAt'])
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
+        && data.type in ['TOPUP', 'PURCHASE_ROOT_5USD', 'UNLOCK_CAPSULE', 'UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR', 'REFERRAL_REWARD', 'credit', 'debit']
+        && isMathematicallyConsistentLedger(data)
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && (!('id' in data) || (data.id is string && data.id.size() <= 60))
+        && (!('transactionId' in data) || (data.transactionId is string && data.transactionId.size() <= 60))
+        && (!('direction' in data) || data.direction in ['credit', 'debit'])
+        && (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 120))
+        && (!('status' in data) || data.status in ['COMPLETED', 'PENDING', 'FAILED'])
+        && (!('descriptionAr' in data) || (data.descriptionAr is string && data.descriptionAr.size() <= 300))
+        && (!('reason' in data) || (data.reason is string && data.reason.size() <= 300))
+        && (!('referenceId' in data) || (data.referenceId is string && data.referenceId.size() <= 100))
+        && (!('referredInviteeUid' in data) || (data.referredInviteeUid is string && data.referredInviteeUid.size() <= 128));
+    }
+
+    function isValidReferralRewardCreation(data) {
+      return data.type == 'REFERRAL_REWARD'
+        && data.amount == 10
+        && 'referredInviteeUid' in data
+        && data.referredInviteeUid == request.auth.uid
+        && data.userId != request.auth.uid
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.referredByUserId == data.userId
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.referralRewardClaimed == true;
     }
 
     function isValidAuditEntry(data) {
@@ -81,117 +318,692 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // 1. END-USER COLLECTIONS (/users/{userId})
+    // 3. PUBLIC MICROSITES, COMMERCIAL PAYWALL GUARD & WHITELIST HELPERS
+    // =========================================================================
+    // Strictly forbid commercial upper lineage, Adam spine nodes, paid citations & raw PII on `public_sites`
+    function isValidPublicSite(data) {
+      return data.keys().hasAll(['siteSlug', 'ownerId', 'isPublished', 'familyName', 'privacyConfig', 'createdAt', 'updatedAt'])
+        && !('publishedLineageNodes' in data)
+        && !('verifiedSourceCitation' in data)
+        && !('adamSpineNodes' in data)
+        && !('upperAncestors' in data)
+        && !('verified_sources' in data)
+        && !('secondarySources' in data)
+        && !('verifiedAddonSources' in data)
+        && !('capsules' in data)
+        && !('contactInfo' in data)
+        && isValidSlug(data.siteSlug)
+        && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
+        && (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid == data.ownerId))
+        && data.isPublished is bool
+        && data.familyName is string && data.familyName.size() > 0 && data.familyName.size() <= 100
+        && (!('themeId' in data) || data.themeId in ['golden_parchment', 'diriyah_oasis', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
+        && (!('siteAccessMode' in data) || data.siteAccessMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
+        && (!('privacyMode' in data) || data.privacyMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
+        && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'FAMILY_PIN', 'PRIVATE_WHITELIST'])
+        && (!('whitelistedEmails' in data) || (data.whitelistedEmails is list && data.whitelistedEmails.size() <= 500))
+        && (!('bioTitle' in data) || (data.bioTitle is string && data.bioTitle.size() <= 200))
+        && (!('bioDescription' in data) || (data.bioDescription is string && data.bioDescription.size() <= 4000))
+        && data.privacyConfig is map
+        && (!('publishedTreeMembers' in data) || (data.publishedTreeMembers is list && data.publishedTreeMembers.size() <= 600))
+        && (!('publishedVaultItems' in data) || (data.publishedVaultItems is list && data.publishedVaultItems.size() <= 150))
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() <= 60;
+    }
+
+    function isSiteOwnerData(data) {
+      return isSignedIn()
+        && (
+          data.ownerId == request.auth.uid
+          || ('ownerUid' in data && data.ownerUid == request.auth.uid)
+        );
+    }
+
+    function isPublicOrUnlistedSite(data) {
+      return (
+          !('siteAccessMode' in data)
+          && !('privacyMode' in data)
+        )
+        || ('siteAccessMode' in data && data.siteAccessMode in ['PUBLIC', 'UNLISTED'])
+        || ('privacyMode' in data && data.privacyMode in ['PUBLIC', 'UNLISTED']);
+    }
+
+    function isWhitelistedViewer(data) {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email != null
+        && 'whitelistedEmails' in data
+        && data.whitelistedEmails is list
+        && request.auth.token.email.lower() in data.whitelistedEmails;
+    }
+
+    function isValidSiteDirectoryHeader(data, slug) {
+      return data.keys().hasOnly(['siteSlug', 'ownerId', 'ownerUid', 'familyName', 'isPublished', 'siteAccessMode', 'themeId', 'updatedAt'])
+        && data.siteSlug == slug
+        && data.ownerId == request.auth.uid
+        && (!('ownerUid' in data) || data.ownerUid == request.auth.uid)
+        && data.familyName is string && data.familyName.size() > 0 && data.familyName.size() <= 100
+        && data.isPublished is bool
+        && data.siteAccessMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST']
+        && (!('themeId' in data) || data.themeId in ['golden_parchment', 'diriyah_oasis', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
+        && data.updatedAt is string && data.updatedAt.size() <= 60;
+    }
+
+    // =========================================================================
+    // 4. ENRICHMENT, KINSHIP & RESEARCH TICKET VALIDATORS
+    // =========================================================================
+    function isValidKinshipCircle(data, ownerId) {
+      return data.keys().hasAll(['ownerId', 'members', 'updatedAt'])
+        && data.ownerId == ownerId
+        && (!('familyName' in data) || (data.familyName is string && data.familyName.size() <= 100))
+        && (!('siteSlug' in data) || (data.siteSlug is string && data.siteSlug.size() <= 60))
+        && data.members is list && data.members.size() <= 500
+        && data.updatedAt is string && data.updatedAt.size() <= 60;
+    }
+
+    function isValidEnrichmentRequest(data) {
+      return data.keys().hasAll(['id', 'siteSlug', 'ownerId', 'requesterName', 'requestType', 'status', 'createdAt'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && isValidSlug(data.siteSlug)
+        && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
+        && (!('targetOwnerUid' in data) || (data.targetOwnerUid is string && data.targetOwnerUid == data.ownerId))
+        && (!('requesterUid' in data) || (data.requesterUid is string && data.requesterUid.size() <= 128))
+        && data.requesterName is string && data.requesterName.size() > 0 && data.requesterName.size() <= 140
+        && (!('requesterEmail' in data) || (data.requesterEmail is string && data.requesterEmail.size() <= 120))
+        && data.requestType in ['ADD_TREE_MEMBER', 'CORRECTION_NOTE', 'VAULT_MEDIA']
+        && data.status in ['PENDING_REGISTRAR_APPROVAL', 'APPROVED_AND_MERGED', 'PENDING', 'APPROVED', 'REJECTED']
+        && (!('proposedNotes' in data) || (data.proposedNotes is string && data.proposedNotes.size() <= 2000))
+        && (!('mediaDataOrUrl' in data) || (data.mediaDataOrUrl is string && data.mediaDataOrUrl.size() <= 450000))
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && (!('reviewedAt' in data) || (data.reviewedAt is string && data.reviewedAt.size() <= 60));
+    }
+
+    function isEnrichmentOwner(data) {
+      return isSignedIn()
+        && (
+          data.ownerId == request.auth.uid
+          || ('targetOwnerUid' in data && data.targetOwnerUid == request.auth.uid)
+        );
+    }
+
+    function isEnrichmentRequester(data) {
+      return isSignedIn()
+        && 'requesterUid' in data
+        && data.requesterUid == request.auth.uid;
+    }
+
+    function isAuthorizedEnrichmentCreator(data) {
+      return (
+          isSignedIn()
+          && (!('requesterUid' in data) || data.requesterUid == request.auth.uid)
+        )
+        || (
+          !('requesterUid' in data)
+          && 'requesterEmail' in data
+          && data.requesterEmail is string && data.requesterEmail.size() > 0 && data.requesterEmail.size() <= 120
+          && exists(/databases/$(database)/documents/public_sites/$(data.siteSlug))
+          && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.isPublished == true
+          && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.ownerId == data.ownerId
+          && 'whitelistedEmails' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data
+          && data.requesterEmail.lower() in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.whitelistedEmails
+        );
+    }
+
+    function isValidSiteAccessRequest(data) {
+      return data.keys().hasAll(['id', 'siteSlug', 'ownerId', 'visitorName', 'visitorEmail', 'status', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && isValidSlug(data.siteSlug)
+        && data.ownerId is string && data.ownerId.size() <= 128
+        && data.visitorName is string && data.visitorName.size() > 0 && data.visitorName.size() <= 140
+        && data.visitorEmail is string && data.visitorEmail.size() > 0 && data.visitorEmail.size() <= 120
+        && data.status in ['PENDING', 'APPROVED', 'REJECTED']
+        && data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    function isValidSiteGuestbookEntry(data) {
+      return data.keys().hasAll(['id', 'siteSlug', 'ownerId', 'authorName', 'message', 'status', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && isValidSlug(data.siteSlug)
+        && data.ownerId is string && data.ownerId.size() <= 128
+        && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 140
+        && data.message is string && data.message.size() > 0 && data.message.size() <= 1500
+        && data.status in ['PENDING', 'APPROVED', 'HIDDEN']
+        && data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    function isValidResearchTicket(data) {
+      return data.keys().hasAll(['userId', 'targetAncestor', 'status', 'openedAt'])
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
+        && data.targetAncestor is string && data.targetAncestor.size() > 0 && data.targetAncestor.size() <= 200
+        && data.status in ['OPEN', 'IN_REVIEW', 'NEEDS_INFO', 'RESOLVED', 'CLOSED', 'pending_review', 'investigating', 'lineage_found', 'completed', 'no_records_found', 'CLOSED_AND_ENRICHED', 'exported_adam_prime']
+        && data.openedAt is string && data.openedAt.size() <= 60
+        && (!('lifecycleStage' in data) || data.lifecycleStage in ['OPEN', 'IN_REVIEW', 'NEEDS_INFO', 'RESOLVED', 'CLOSED'])
+        && (!('priorityTag' in data) || (data.priorityTag is string && data.priorityTag.size() <= 60))
+        && (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 30))
+        && (!('messages' in data) || (data.messages is list && data.messages.size() <= 100))
+        && (!('resolutionPayload' in data) || (data.resolutionPayload is map));
+    }
+
+    // Prevents customers from inventing or altering researcher resolutionPayload or findings
+    function isCustomerResolutionPayloadProtected(data, prev) {
+      return (
+          !('resolutionPayload' in data) && !('resolutionPayload' in prev)
+        )
+        || (
+          'resolutionPayload' in prev
+          && 'resolutionPayload' in data
+          && data.resolutionPayload is map
+          && prev.resolutionPayload is map
+          && data.resolutionPayload.diff(prev.resolutionPayload).affectedKeys().hasOnly(['appliedByCustomerAt'])
+          && (
+            !('appliedByCustomerAt' in data.resolutionPayload)
+            || (data.resolutionPayload.appliedByCustomerAt is string && data.resolutionPayload.appliedByCustomerAt.size() <= 60)
+          )
+        );
+    }
+
+    function isCustomerResearcherFieldsUntouched(data, prev) {
+      return (
+          (!('researchFindings' in data) && !('researchFindings' in prev))
+          || ('researchFindings' in prev && 'researchFindings' in data && data.researchFindings == prev.researchFindings)
+        )
+        && (
+          (!('verifiedSources' in data) && !('verifiedSources' in prev))
+          || ('verifiedSources' in prev && 'verifiedSources' in data && data.verifiedSources == prev.verifiedSources)
+        )
+        && (
+          (!('assignedResearcherId' in data) && !('assignedResearcherId' in prev))
+          || ('assignedResearcherId' in prev && 'assignedResearcherId' in data && data.assignedResearcherId == prev.assignedResearcherId)
+        );
+    }
+
+    function isValidTicketMessage(data, parentTicketId) {
+      return data.keys().hasAll(['id', 'ticketId', 'senderRole', 'senderId', 'senderName', 'body', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ticketId', 'senderRole', 'senderId', 'senderName', 'body', 'attachments', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.ticketId == parentTicketId
+        && data.senderRole in ['customer', 'researcher', 'system']
+        && data.senderId is string && data.senderId.size() <= 128
+        && data.senderName is string && data.senderName.size() <= 150
+        && data.body is string && data.body.size() > 0 && data.body.size() <= 3000
+        && (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 20))
+        && data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    // =========================================================================
+    // MATCH 1: CUSTOMERS (/users/{userId}) & PRIVATE SUBCOLLECTIONS
     // =========================================================================
     match /users/{userId} {
-      allow get, list: if true;
-      allow create, update: if isValidId(userId) && isValidUserProfile(incoming());
-      allow delete: if isValidId(userId) && (isOwner(userId) || true);
+      allow get: if isValidId(userId) && (isOwner(userId) || isStaffOrAdmin());
+      allow list: if isOwner(userId) || isVerifiedStaffEmail();
 
-      match /wallet_transactions/{txId} {
-        allow get, list: if true;
-        allow create, update: if isValidId(txId);
-        allow delete: if isValidId(txId);
-      }
+      allow create: if isValidId(userId)
+        && isSignedIn()
+        && isValidUserProfile(incoming())
+        && incoming().userId == userId
+        && !isForbiddenStaffCustomerRecord(userId, incoming().email)
+        && (
+          (
+            isOwner(userId)
+            && incoming().walletBalance == 0
+            && incoming().subscriptionTier == 'free'
+            && (!('isRootUnlocked' in incoming()) || incoming().isRootUnlocked == false)
+          )
+          || isStaffOrAdmin()
+        );
 
-      match /notifications/{notifId} {
-        allow get, list: if true;
-        allow create, update, delete: if isValidId(notifId);
-      }
+      allow update: if isValidId(userId)
+        && isSignedIn()
+        && isValidUserProfile(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && !isForbiddenStaffCustomerRecord(userId, incoming().email)
+        && isAuthorizedEmailMutation(incoming(), existing())
+        && (
+          (
+            isOwner(userId)
+            && (
+              isNonFinancialProfileUpdate(incoming(), existing())
+              || isLedgerBackedWalletOrTierUpdate(userId, incoming(), existing())
+            )
+          )
+          || isAtomicReferrerRewardCredit(userId, incoming(), existing())
+          || isStaffOrAdmin()
+        );
 
+      allow delete: if isValidId(userId) && (isOwner(userId) || isStaffOrAdmin());
+
+      // Customer's Private Interactive Tree & Chunked Vault (`vault_meta`, `vault_chunk_*`)
       match /family_tree/{treeId} {
-        allow get, list: if true;
-        allow create, update: if isValidId(treeId)
-          && incoming().userId is string && incoming().userId.size() <= 128
-          && incoming().peopleJson is string && incoming().peopleJson.size() <= 950000;
-        allow delete: if isValidId(treeId);
+        allow get: if isValidId(userId) && isValidId(treeId) && (isOwner(userId) || isStaffOrAdmin());
+        allow list: if isOwner(userId) || isVerifiedStaffEmail();
+        allow create, update: if isValidId(userId)
+          && isValidId(treeId)
+          && (isOwner(userId) || isStaffOrAdmin())
+          && isValidFamilyTreeDoc(incoming(), userId);
+        allow delete: if isValidId(userId) && isValidId(treeId) && (isOwner(userId) || isStaffOrAdmin());
       }
 
+      // Immutable Per-Customer Financial Ledger Mirror
+      match /wallet_transactions/{txId} {
+        allow get: if isValidId(userId) && isValidId(txId) && (isOwner(userId) || isStaffOrAdmin());
+        allow list: if isOwner(userId) || isVerifiedStaffEmail();
+        allow create: if isValidId(userId)
+          && isValidId(txId)
+          && isSignedIn()
+          && isValidWalletTransaction(incoming())
+          && incoming().userId == userId
+          && (
+            isOwner(userId)
+            || isValidReferralRewardCreation(incoming())
+            || isStaffOrAdmin()
+          );
+        allow update, delete: if false;
+      }
+
+      // Customer Notifications
+      match /notifications/{notifId} {
+        allow get: if isValidId(userId) && isValidId(notifId) && (isOwner(userId) || isStaffOrAdmin());
+        allow list: if isOwner(userId) || isVerifiedStaffEmail();
+        allow create: if isValidId(userId)
+          && isValidId(notifId)
+          && isSignedIn()
+          && isValidCustomerNotification(incoming(), userId);
+        allow update: if isValidId(userId)
+          && isValidId(notifId)
+          && (isOwner(userId) || isStaffOrAdmin())
+          && isValidCustomerNotification(incoming(), userId)
+          && incoming().userId == existing().userId;
+        allow delete: if isValidId(userId) && isValidId(notifId) && (isOwner(userId) || isStaffOrAdmin());
+      }
+
+      // Sealed Legal Consent & Charter Audit Trail
       match /audit_trail/{auditId} {
-        allow get, list: if true;
-        allow create, update: if isValidId(auditId) && isValidAuditEntry(incoming());
-        allow delete: if isValidId(auditId);
+        allow get: if isValidId(userId) && isValidId(auditId) && (isOwner(userId) || isStaffOrAdmin());
+        allow list: if isOwner(userId) || isVerifiedStaffEmail();
+        allow create: if isValidId(userId)
+          && isValidId(auditId)
+          && isOwner(userId)
+          && isValidAuditEntry(incoming())
+          && incoming().userId == userId;
+        allow update, delete: if false;
       }
     }
 
     // =========================================================================
-    // 1B. CENTRAL AUDIT TRAIL (/audit_trail/{auditId})
+    // MATCH 2: CENTRAL FINANCIAL LEDGER (/wallet_transactions/{txnId}) — IMMUTABLE
+    // =========================================================================
+    match /wallet_transactions/{txnId} {
+      allow get: if isValidId(txnId)
+        && isSignedIn()
+        && (existing().userId == request.auth.uid || isStaffOrAdmin());
+      allow list: if isSignedIn()
+        && (existing().userId == request.auth.uid || isVerifiedStaffEmail());
+      allow create: if isValidId(txnId)
+        && isSignedIn()
+        && isValidWalletTransaction(incoming())
+        && (
+          incoming().userId == request.auth.uid
+          || isValidReferralRewardCreation(incoming())
+          || isStaffOrAdmin()
+        );
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // MATCH 3: CENTRAL LEGAL AUDIT TRAIL (/audit_trail/{auditId}) — IMMUTABLE
     // =========================================================================
     match /audit_trail/{auditId} {
-      allow get, list: if true;
-      allow create, update: if isValidId(auditId) && isValidAuditEntry(incoming());
-      allow delete: if isValidId(auditId);
+      allow get: if isValidId(auditId)
+        && isSignedIn()
+        && (existing().userId == request.auth.uid || isStaffOrAdmin());
+      allow list: if isSignedIn()
+        && (existing().userId == request.auth.uid || isVerifiedStaffEmail());
+      allow create: if isValidId(auditId)
+        && isSignedIn()
+        && incoming().userId == request.auth.uid
+        && isValidAuditEntry(incoming());
+      allow update, delete: if false;
     }
 
     // =========================================================================
-    // 2. CUSTOMER ORDERS (/customer_orders/{orderId})
+    // MATCH 4: FAMILY MICROSITES (/public_sites/{siteSlug}) & ZERO-PII DIRECTORY
     // =========================================================================
-    match /customer_orders/{orderId} {
-      allow get, list: if true;
-      allow create, update: if isValidId(orderId)
-        && incoming().fullName is string && incoming().fullName.size() <= 150
-        && incoming().familyName is string && incoming().familyName.size() <= 80;
-      allow delete: if isValidId(orderId);
+    match /public_sites/{siteSlug} {
+      allow get: if isValidSlug(siteSlug)
+        && (
+          (existing().isPublished == true && isPublicOrUnlistedSite(existing()))
+          || (existing().isPublished == true && isWhitelistedViewer(existing()))
+          || isSiteOwnerData(existing())
+          || isStaffOrAdmin()
+        );
+
+      allow list: if (existing().isPublished == true && isPublicOrUnlistedSite(existing()))
+        || (existing().isPublished == true && isWhitelistedViewer(existing()))
+        || isSiteOwnerData(existing())
+        || isVerifiedStaffEmail();
+
+      allow create: if isValidSlug(siteSlug)
+        && isSignedIn()
+        && isValidPublicSite(incoming())
+        && incoming().siteSlug == siteSlug
+        && isSiteOwnerData(incoming())
+        && isRecordKeeperUser(request.auth.uid);
+
+      allow update: if isValidSlug(siteSlug)
+        && isSignedIn()
+        && isValidPublicSite(incoming())
+        && incoming().siteSlug == siteSlug
+        && incoming().ownerId == existing().ownerId
+        && isSiteOwnerData(existing())
+        && isRecordKeeperUser(request.auth.uid);
+
+      allow delete: if isValidSlug(siteSlug)
+        && isSignedIn()
+        && (
+          (isSiteOwnerData(existing()) && isRecordKeeperUser(request.auth.uid))
+          || isStaffOrAdmin()
+        );
+    }
+
+    match /public_site_directory/{siteSlug} {
+      allow get: if isValidSlug(siteSlug);
+      allow list: if existing().isPublished == true || isSiteOwnerData(existing()) || isVerifiedStaffEmail();
+      allow create: if isValidSlug(siteSlug)
+        && isSignedIn()
+        && isValidSiteDirectoryHeader(incoming(), siteSlug)
+        && isRecordKeeperUser(request.auth.uid);
+      allow update: if isValidSlug(siteSlug)
+        && isSignedIn()
+        && isValidSiteDirectoryHeader(incoming(), siteSlug)
+        && existing().ownerId == request.auth.uid
+        && isRecordKeeperUser(request.auth.uid);
+      allow delete: if isValidSlug(siteSlug)
+        && isSignedIn()
+        && (existing().ownerId == request.auth.uid || isStaffOrAdmin());
     }
 
     // =========================================================================
-    // 3. RESEARCH TICKETS (/research_tickets/{ticketId})
+    // MATCH 5: PRIVATE KINSHIP CIRCLE & ENRICHMENT INBOX (`مجتمعي`)
+    // =========================================================================
+    match /kinship_circles/{ownerId} {
+      allow get: if isValidId(ownerId) && (isOwner(ownerId) || isStaffOrAdmin());
+      allow list: if isOwner(ownerId) || isVerifiedStaffEmail();
+      allow create, update: if isValidId(ownerId)
+        && isOwner(ownerId)
+        && isValidKinshipCircle(incoming(), ownerId)
+        && isRecordKeeperUser(request.auth.uid);
+      allow delete: if isValidId(ownerId) && (isOwner(ownerId) || isStaffOrAdmin());
+    }
+
+    match /enrichment_requests/{requestId} {
+      allow get: if isValidId(requestId)
+        && isSignedIn()
+        && (isEnrichmentOwner(existing()) || isEnrichmentRequester(existing()) || isStaffOrAdmin());
+
+      allow list: if isSignedIn()
+        && (isEnrichmentOwner(existing()) || isEnrichmentRequester(existing()) || isVerifiedStaffEmail());
+
+      allow create: if isValidId(requestId)
+        && isValidEnrichmentRequest(incoming())
+        && incoming().id == requestId
+        && incoming().status in ['PENDING_REGISTRAR_APPROVAL', 'PENDING']
+        && isAuthorizedEnrichmentCreator(incoming());
+
+      allow update: if isValidId(requestId)
+        && isSignedIn()
+        && isEnrichmentOwner(existing())
+        && isRecordKeeperUser(request.auth.uid)
+        && isValidEnrichmentRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().siteSlug == existing().siteSlug
+        && incoming().status in ['APPROVED_AND_MERGED', 'APPROVED', 'REJECTED'];
+
+      allow delete: if isValidId(requestId)
+        && isSignedIn()
+        && (isEnrichmentOwner(existing()) || isStaffOrAdmin());
+    }
+
+    match /tree_enrichment_requests/{requestId} {
+      allow get: if isValidId(requestId)
+        && isSignedIn()
+        && (isEnrichmentOwner(existing()) || isEnrichmentRequester(existing()) || isStaffOrAdmin());
+
+      allow list: if isSignedIn()
+        && (isEnrichmentOwner(existing()) || isEnrichmentRequester(existing()) || isVerifiedStaffEmail());
+
+      allow create: if isValidId(requestId)
+        && isValidEnrichmentRequest(incoming())
+        && incoming().id == requestId
+        && incoming().status in ['PENDING_REGISTRAR_APPROVAL', 'PENDING']
+        && isAuthorizedEnrichmentCreator(incoming());
+
+      allow update: if isValidId(requestId)
+        && isSignedIn()
+        && isEnrichmentOwner(existing())
+        && isRecordKeeperUser(request.auth.uid)
+        && isValidEnrichmentRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().siteSlug == existing().siteSlug
+        && incoming().status in ['APPROVED_AND_MERGED', 'APPROVED', 'REJECTED'];
+
+      allow delete: if isValidId(requestId)
+        && isSignedIn()
+        && (isEnrichmentOwner(existing()) || isStaffOrAdmin());
+    }
+
+    match /site_access_requests/{requestId} {
+      allow get: if isValidId(requestId)
+        && isSignedIn()
+        && (existing().ownerId == request.auth.uid || isStaffOrAdmin());
+      allow list: if isSignedIn()
+        && (existing().ownerId == request.auth.uid || isVerifiedStaffEmail());
+      allow create: if isValidId(requestId)
+        && isValidSiteAccessRequest(incoming())
+        && incoming().id == requestId
+        && incoming().status == 'PENDING';
+      allow update: if isValidId(requestId)
+        && isSignedIn()
+        && existing().ownerId == request.auth.uid
+        && isRecordKeeperUser(request.auth.uid)
+        && isValidSiteAccessRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId;
+      allow delete: if isValidId(requestId)
+        && isSignedIn()
+        && (existing().ownerId == request.auth.uid || isStaffOrAdmin());
+    }
+
+    match /site_guestbook/{entryId} {
+      allow get, list: if existing().status == 'APPROVED'
+        || (isSignedIn() && existing().ownerId == request.auth.uid)
+        || isVerifiedStaffEmail();
+      allow create: if isValidId(entryId)
+        && isValidSiteGuestbookEntry(incoming())
+        && incoming().id == entryId
+        && incoming().status == 'PENDING';
+      allow update, delete: if isValidId(entryId)
+        && isSignedIn()
+        && existing().ownerId == request.auth.uid
+        && isRecordKeeperUser(request.auth.uid);
+    }
+
+    match /referral_codes/{code} {
+      allow get: if isValidId(code) && isSignedIn();
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isVerifiedStaffEmail());
+      allow create: if isValidId(code)
+        && isSignedIn()
+        && incoming().code == code
+        && incoming().ownerId == request.auth.uid
+        && incoming().invitees is list
+        && incoming().invitees.size() <= 350;
+      allow update: if isValidId(code)
+        && isSignedIn()
+        && incoming().code == existing().code
+        && incoming().ownerId == existing().ownerId
+        && incoming().invitees is list
+        && incoming().invitees.size() <= 350
+        && incoming().diff(existing()).affectedKeys().hasOnly(['invitees', 'totalEarnedUsd', 'ownerName', 'familyName', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // MATCH 6: RESEARCH OBSERVATORY TICKETS (/research_tickets/{ticketId})
     // =========================================================================
     match /research_tickets/{ticketId} {
-      allow get, list: if true;
-      allow create, update: if isValidId(ticketId)
-        && incoming().targetAncestor is string && incoming().targetAncestor.size() <= 200;
-      allow delete: if isValidId(ticketId);
+      allow get: if isValidId(ticketId)
+        && isSignedIn()
+        && (existing().userId == request.auth.uid || isStaffOrAdmin());
+
+      allow list: if isSignedIn()
+        && (existing().userId == request.auth.uid || isVerifiedStaffEmail());
+
+      allow create: if isValidId(ticketId)
+        && isSignedIn()
+        && isValidResearchTicket(incoming())
+        && (
+          (
+            incoming().userId == request.auth.uid
+            && !('resolutionPayload' in incoming())
+            && !('researchFindings' in incoming())
+          )
+          || isStaffOrAdmin()
+        );
+
+      allow update: if isValidId(ticketId)
+        && isSignedIn()
+        && isValidResearchTicket(incoming())
+        && incoming().userId == existing().userId
+        && (
+          (
+            existing().userId == request.auth.uid
+            && isCustomerResolutionPayloadProtected(incoming(), existing())
+            && isCustomerResearcherFieldsUntouched(incoming(), existing())
+          )
+          || isStaffOrAdmin()
+        );
+
+      allow delete: if isValidId(ticketId) && isStaffOrAdmin();
+
+      match /messages/{messageId} {
+        allow get: if isValidId(ticketId)
+          && isValidId(messageId)
+          && isSignedIn()
+          && (
+            get(/databases/$(database)/documents/research_tickets/$(ticketId)).data.userId == request.auth.uid
+            || isStaffOrAdmin()
+          );
+
+        allow list: if isSignedIn()
+          && (
+            existing().senderId == request.auth.uid
+            || isVerifiedStaffEmail()
+          );
+
+        allow create: if isValidId(ticketId)
+          && isValidId(messageId)
+          && isSignedIn()
+          && isValidTicketMessage(incoming(), ticketId)
+          && (
+            (
+              incoming().senderRole == 'customer'
+              && incoming().senderId == request.auth.uid
+              && get(/databases/$(database)/documents/research_tickets/$(ticketId)).data.userId == request.auth.uid
+            )
+            || isStaffOrAdmin()
+          );
+
+        allow update, delete: if false;
+      }
     }
 
     // =========================================================================
-    // 4. ISOLATED /Team RBAC ACCOUNTS (/team_members/{memberId})
+    // MATCH 7: CUSTOMER ORDERS, /TEAM RBAC, KNOWLEDGE CENTER & SUPPORT
     // =========================================================================
+    match /customer_orders/{orderId} {
+      allow get: if isValidId(orderId)
+        && isSignedIn()
+        && (('userId' in existing() && existing().userId == request.auth.uid) || isStaffOrAdmin());
+      allow list: if isSignedIn()
+        && (('userId' in existing() && existing().userId == request.auth.uid) || isVerifiedStaffEmail());
+      allow create: if isValidId(orderId)
+        && isSignedIn()
+        && (('userId' in incoming() && incoming().userId == request.auth.uid) || isStaffOrAdmin())
+        && incoming().fullName is string && incoming().fullName.size() <= 150
+        && incoming().familyName is string && incoming().familyName.size() <= 80;
+      allow update: if isValidId(orderId)
+        && isSignedIn()
+        && (
+          (
+            'userId' in existing()
+            && existing().userId == request.auth.uid
+            && incoming().userId == existing().userId
+          )
+          || isStaffOrAdmin()
+        )
+        && incoming().fullName is string && incoming().fullName.size() <= 150
+        && incoming().familyName is string && incoming().familyName.size() <= 80;
+      allow delete: if isValidId(orderId) && isStaffOrAdmin();
+    }
+
     match /team_members/{memberId} {
-      allow get, list: if true;
+      allow get: if isValidId(memberId) && (isOwner(memberId) || isStaffOrAdmin());
+      allow list: if isVerifiedStaffEmail();
       allow create, update: if isValidId(memberId)
+        && isStaffOrAdmin()
         && incoming().name is string && incoming().name.size() <= 120
         && incoming().email is string && incoming().email.size() <= 120
         && incoming().role in ['المايسترو', 'مدير عام', 'مدير البحوث', 'مدير إدارة الطلبات وخدمة العملاء', 'مدير تحرير المركز المعرفي'];
-      allow delete: if isValidId(memberId);
+      allow delete: if isValidId(memberId) && isStaffOrAdmin();
     }
 
-    // =========================================================================
-    // 5. KNOWLEDGE CENTER ARTICLES (/knowledge_articles/{articleId})
-    // =========================================================================
     match /knowledge_articles/{articleId} {
-      allow get, list: if true;
+      allow get, list: if existing().status == 'published' || isVerifiedStaffEmail();
       allow create, update: if isValidId(articleId)
+        && isStaffOrAdmin()
         && incoming().title is string && incoming().title.size() <= 500
         && (!('summary' in incoming()) || (incoming().summary is string && incoming().summary.size() <= 5000))
         && (!('content' in incoming()) || (incoming().content is string && incoming().content.size() <= 950000))
         && (!('coverImageUrl' in incoming()) || (incoming().coverImageUrl is string && incoming().coverImageUrl.size() <= 700000));
-      allow delete: if isValidId(articleId);
+      allow delete: if isValidId(articleId) && isStaffOrAdmin();
     }
 
-    // =========================================================================
-    // 6. NEWSLETTER SUBSCRIBERS (/newsletter_subscribers/{subId})
-    // =========================================================================
     match /newsletter_subscribers/{subId} {
-      allow get, list: if true;
-      allow create, update, delete: if isValidId(subId);
+      allow get: if isValidId(subId) && isStaffOrAdmin();
+      allow list: if isVerifiedStaffEmail();
+      allow create: if isValidId(subId)
+        && incoming().keys().hasAll(['email'])
+        && incoming().email is string
+        && incoming().email.size() > 3
+        && incoming().email.size() <= 120;
+      allow update: if false;
+      allow delete: if isValidId(subId) && isStaffOrAdmin();
     }
 
-    // =========================================================================
-    // 7. CHARTER REQUESTS & SUPPORT TICKETS
-    // =========================================================================
     match /charter_requests/{requestId} {
-      allow get, list: if true;
-      allow create, update, delete: if isValidId(requestId);
+      allow get: if isValidId(requestId)
+        && isSignedIn()
+        && (('userId' in existing() && existing().userId == request.auth.uid) || isStaffOrAdmin());
+      allow list: if isSignedIn()
+        && (('userId' in existing() && existing().userId == request.auth.uid) || isVerifiedStaffEmail());
+      allow create: if isValidId(requestId) && isSignedIn();
+      allow update, delete: if isValidId(requestId) && isStaffOrAdmin();
     }
 
     match /support_tickets/{ticketId} {
-      allow get, list: if true;
-      allow create, update, delete: if isValidId(ticketId);
+      allow get: if isValidId(ticketId) && isStaffOrAdmin();
+      allow list: if isVerifiedStaffEmail();
+      allow create: if isValidId(ticketId)
+        && isSignedIn()
+        && incoming().email is string && incoming().email.size() <= 120
+        && incoming().subject is string && incoming().subject.size() <= 300;
+      allow update, delete: if isValidId(ticketId) && isStaffOrAdmin();
     }
 
     match /test/{docId} {
-      allow read: if true;
+      allow get: if docId == 'connection';
     }
   }
 }

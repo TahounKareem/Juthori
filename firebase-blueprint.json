@@ -169,6 +169,69 @@
           "maxLength": 60,
           "description": "Signed Record Keeper contract version (e.g. V2_24 May_2026)."
         },
+        "disambiguationChoiceId": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Selected geographic or branch disambiguation choice ID from the initial lineage search."
+        },
+        "verifiedLineageSnapshot": {
+          "type": "object",
+          "description": "Structured native map snapshot of the customer's verified lineage search result for instant rendering in CustomerDashboard."
+        },
+        "lineageSnapshot": {
+          "type": "object",
+          "description": "Structured native map alias of the customer's lineage snapshot."
+        },
+        "emailVerified": {
+          "type": "boolean",
+          "description": "Whether the customer's email address has been verified via Google OAuth or 6-digit OTP."
+        },
+        "emailVerifiedAt": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO timestamp when the customer's email address was verified."
+        },
+        "publishedSiteSlug": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Primary active family microsite slug owned by this Record Keeper."
+        },
+        "ownedSiteSlugs": {
+          "type": "array",
+          "description": "All unique family microsite slugs owned and managed by this Record Keeper."
+        },
+        "referralCode": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Deterministic referral code (JTH-XXXXX) for the $10 atomic referral engine."
+        },
+        "referredByUserId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the inviter who referred this customer."
+        },
+        "referredByCode": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Referral code captured at signup."
+        },
+        "referralRewardClaimed": {
+          "type": "boolean",
+          "description": "Idempotency flag ensuring the $10 referral reward is paid at most once on first annual subscription."
+        },
+        "lastWalletTransactionId": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ID of the atomic wallet_transactions ledger entry paired with the latest walletBalance or tier mutation."
+        },
+        "blockedUserIds": {
+          "type": "array",
+          "description": "List of blocked UIDs."
+        },
+        "blockedUsersMeta": {
+          "type": "array",
+          "description": "Display metadata for blocked users."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp of registration."
@@ -460,6 +523,11 @@
           "maxLength": 30,
           "description": "Customer contact phone."
         },
+        "familyName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Family or clan surname of the customer."
+        },
         "targetAncestor": {
           "type": "string",
           "maxLength": 200,
@@ -480,6 +548,16 @@
           "maxLength": 60,
           "description": "Country of origin."
         },
+        "originRegion": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "City, province, or ancestral region."
+        },
+        "verificationChoiceLabel": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Summary of the reason or verification path selected for the ticket."
+        },
         "additionalNotes": {
           "type": "string",
           "maxLength": 2000,
@@ -487,8 +565,13 @@
         },
         "status": {
           "type": "string",
-          "enum": ["pending_review", "investigating", "lineage_found", "completed", "no_records_found", "CLOSED_AND_ENRICHED"],
+          "enum": ["OPEN", "IN_REVIEW", "NEEDS_INFO", "RESOLVED", "CLOSED", "pending_review", "investigating", "lineage_found", "completed", "no_records_found", "CLOSED_AND_ENRICHED", "exported_adam_prime"],
           "description": "Current lifecycle status of genealogical research."
+        },
+        "lifecycleStage": {
+          "type": "string",
+          "enum": ["OPEN", "IN_REVIEW", "NEEDS_INFO", "RESOLVED", "CLOSED"],
+          "description": "Normalized 5-stage ticket lifecycle status."
         },
         "assignedResearcherId": {
           "type": "string",
@@ -515,9 +598,32 @@
           "maxLength": 100000,
           "description": "Serialized ResearcherStudioTicket payload if applicable."
         },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "Supporting documents attached from Family Vault or smart media pipeline."
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "Interactive clarification messages between customer and researcher."
+        },
+        "resolutionPayload": {
+          "type": "object",
+          "description": "Structured verified lineage decision ready for 1-click customer adoption into Spine and Tree."
+        },
         "clientNotified": {
           "type": "boolean",
           "description": "Whether notification has been dispatched to the client."
+        },
+        "priorityTag": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Priority classification tag such as PRIORITY_REGISTRAR for Family Record Keepers."
         },
         "openedAt": {
           "type": "string",
@@ -534,50 +640,294 @@
       },
       "required": ["id", "ticketNumber", "userId", "userFullName", "targetAncestor", "status", "openedAt"]
     },
+    "ResearchTicketMessage": {
+      "title": "ResearchTicketMessage",
+      "description": "Interactive message or clarification attachment inside a research ticket thread.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketId": { "type": "string", "maxLength": 128 },
+        "senderRole": { "type": "string", "enum": ["customer", "researcher", "system"] },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 150 },
+        "body": { "type": "string", "maxLength": 3000 },
+        "attachments": { "type": "array", "items": { "type": "object" } },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "ticketId", "senderRole", "senderId", "senderName", "body", "createdAt"]
+    },
+    "PublicMicrosite": {
+      "title": "PublicMicrosite",
+      "description": "Filtered Mirror family microsite (commercial upper lineage and certified reference nodes strictly stripped) with 5 scoped heritage themes, dual privacy matrix, 4 female policies, and 12 agile CMS modules.",
+      "type": "object",
+      "properties": {
+        "siteSlug": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9\\-]{1,58}[a-z0-9]$",
+          "maxLength": 60,
+          "description": "Clean root URL slug (Juthori.com/{FamilySlug})."
+        },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "ownerUid": { "type": "string", "maxLength": 128 },
+        "ownerEmail": { "type": "string", "maxLength": 120 },
+        "ownerDisplayName": { "type": "string", "maxLength": 150 },
+        "ownerReferralCode": { "type": "string", "maxLength": 32 },
+        "isPublished": { "type": "boolean" },
+        "siteAccessMode": {
+          "type": "string",
+          "enum": ["PUBLIC", "UNLISTED", "PRIVATE_WHITELIST"]
+        },
+        "privacyMode": {
+          "type": "string",
+          "enum": ["PUBLIC", "UNLISTED", "PRIVATE_WHITELIST"]
+        },
+        "whitelistedEmails": { "type": "array" },
+        "themeId": {
+          "type": "string",
+          "enum": ["golden_parchment", "diriyah_oasis", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
+        },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "siteTitle": { "type": "string", "maxLength": 200 },
+        "siteTagline": { "type": "string", "maxLength": 300 },
+        "originCountry": { "type": "string", "maxLength": 80 },
+        "originRegion": { "type": "string", "maxLength": 120 },
+        "isRegistrarCertified": { "type": "boolean" },
+        "membershipLabel": { "type": "string", "maxLength": 120 },
+        "bioTitle": { "type": "string", "maxLength": 200 },
+        "bioDescription": { "type": "string", "maxLength": 4000 },
+        "accessGateMode": {
+          "type": "string",
+          "enum": ["PUBLIC_INDEXABLE", "UNLISTED_LINK", "FAMILY_PIN", "PRIVATE_WHITELIST"]
+        },
+        "familyPinCode": { "type": "string", "maxLength": 20 },
+        "whitelistEmails": { "type": "array" },
+        "privacyConfig": { "type": "object" },
+        "sectionPrivacyMap": { "type": "object" },
+        "femalePrivacyPolicy": {
+          "type": "string",
+          "enum": ["FULL_DISPLAY", "COUNT_ONLY_SYMBOL", "FIRST_NAME_FAMILY_ONLY", "PUBLIC_INITIALS_FAMILY_FULL"]
+        },
+        "watermarkEnabled": { "type": "boolean" },
+        "watermarkText": { "type": "string", "maxLength": 160 },
+        "publishedTreeMembers": { "type": "array" },
+        "publishedVaultItems": { "type": "array" },
+        "notablesModule": { "type": "array" },
+        "newsEventsModule": { "type": "array" },
+        "diwanCouncilModule": { "type": "object" },
+        "newbornsGraduatesModule": { "type": "array" },
+        "HistoricalTimelineModule": { "type": "array" },
+        "familyEndowmentModule": { "type": "object" },
+        "oralNarrativesModule": { "type": "array" },
+        "branchesDirectoryModule": { "type": "array" },
+        "memoryGuardiansLeaderboard": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["siteSlug", "ownerId", "isPublished", "familyName", "privacyConfig", "createdAt", "updatedAt"]
+    },
+    "KinshipCircle": {
+      "title": "KinshipCircle",
+      "description": "Private kinship circle managed by the Family Record Keeper with authorized relatives and opt-out tokens.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "ownerEmail": { "type": "string", "maxLength": 120 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "activeSiteSlug": { "type": "string", "maxLength": 60 },
+        "members": { "type": "array" },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["ownerId", "familyName", "members", "updatedAt"]
+    },
+    "EnrichmentRequest": {
+      "title": "EnrichmentRequest",
+      "description": "Closed-loop family enrichment submission from a family microsite visitor/relative into the Record Keeper's inbox.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "siteSlug": { "type": "string", "maxLength": 60 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "targetOwnerUid": { "type": "string", "maxLength": 128 },
+        "requesterUid": { "type": "string", "maxLength": 128 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "requesterName": { "type": "string", "maxLength": 140 },
+        "requesterEmail": { "type": "string", "maxLength": 120 },
+        "kinshipRelation": { "type": "string", "maxLength": 120 },
+        "requestType": {
+          "type": "string",
+          "enum": ["ADD_TREE_MEMBER", "CORRECTION_NOTE", "VAULT_MEDIA"]
+        },
+        "targetPersonId": { "type": "string", "maxLength": 128 },
+        "targetPersonName": { "type": "string", "maxLength": 160 },
+        "proposedFirstName": { "type": "string", "maxLength": 80 },
+        "proposedGender": { "type": "string", "enum": ["male", "female"] },
+        "proposedVitalStatus": { "type": "string", "enum": ["living", "deceased"] },
+        "proposedBirthYear": { "type": "string", "maxLength": 40 },
+        "proposedBirthPlace": { "type": "string", "maxLength": 120 },
+        "proposedNotes": { "type": "string", "maxLength": 2000 },
+        "mediaTitle": { "type": "string", "maxLength": 200 },
+        "mediaType": { "type": "string", "enum": ["photo", "document"] },
+        "mediaDateOrOccasion": { "type": "string", "maxLength": 100 },
+        "mediaDataOrUrl": { "type": "string", "maxLength": 450000 },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING_REGISTRAR_APPROVAL", "APPROVED_AND_MERGED", "PENDING", "APPROVED", "REJECTED"]
+        },
+        "reviewerNote": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "reviewedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "siteSlug", "ownerId", "requesterName", "requestType", "status", "createdAt"]
+    },
+    "PublicSiteDirectoryHeader": {
+      "title": "PublicSiteDirectoryHeader",
+      "description": "Zero-PII slug existence and access-mode header enabling PRIVATE_WHITELIST portals to display an access request gate without exposing private site data.",
+      "type": "object",
+      "properties": {
+        "siteSlug": { "type": "string", "maxLength": 60 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "ownerUid": { "type": "string", "maxLength": 128 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "isPublished": { "type": "boolean" },
+        "siteAccessMode": {
+          "type": "string",
+          "enum": ["PUBLIC", "UNLISTED", "PRIVATE_WHITELIST"]
+        },
+        "themeId": {
+          "type": "string",
+          "enum": ["golden_parchment", "diriyah_oasis", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
+        },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["siteSlug", "ownerId", "familyName", "isPublished", "siteAccessMode", "updatedAt"]
+    },
+    "SiteAccessRequest": {
+      "title": "SiteAccessRequest",
+      "description": "Access request submitted on a PRIVATE_WHITELIST family microsite for Record Keeper approval.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "siteSlug": { "type": "string", "maxLength": 60 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "requesterName": { "type": "string", "maxLength": 140 },
+        "requesterEmail": { "type": "string", "maxLength": 120 },
+        "kinshipNote": { "type": "string", "maxLength": 600 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "reviewedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "siteSlug", "ownerId", "requesterName", "requesterEmail", "status", "createdAt"]
+    },
+    "SiteGuestbookEntry": {
+      "title": "SiteGuestbookEntry",
+      "description": "Moderated guestbook entry for a family microsite (published only after Record Keeper approval).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "siteSlug": { "type": "string", "maxLength": 60 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 140 },
+        "authorRelation": { "type": "string", "maxLength": 120 },
+        "message": { "type": "string", "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "HIDDEN"] },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "siteSlug", "ownerId", "authorName", "message", "status", "createdAt"]
+    },
+    "ReferralCodeIndex": {
+      "title": "ReferralCodeIndex",
+      "description": "Lookup index mapping a deterministic referral code (JTH-XXXXX) to its owner UID and invitee ledger.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 32 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "ownerName": { "type": "string", "maxLength": 150 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "invitees": { "type": "array" },
+        "totalEarnedUsd": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["code", "ownerId", "updatedAt"]
+    },
     "WalletTransaction": {
       "title": "WalletTransaction",
-      "description": "Financial ledger entry for user wallet balance changes.",
+      "description": "Atomic financial ledger entry for customer wallet top-ups, $5 root purchases, capsule unlocks, package/registrar upgrades, and $10 referral rewards.",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Unique transaction ID."
+          "description": "Unique transaction ID (matches transactionId)."
+        },
+        "transactionId": {
+          "type": "string",
+          "pattern": "^TXN-[0-9]{8}-[A-Z0-9]{5}$",
+          "description": "Formatted unique financial reference ID (TXN-YYYYMMDD-XXXXX)."
         },
         "userId": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "UID of user."
+          "description": "UID of the customer."
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Email address of the customer."
         },
         "type": {
           "type": "string",
+          "enum": ["TOPUP", "PURCHASE_ROOT_5USD", "UNLOCK_CAPSULE", "UPGRADE_ANNUAL_VIP", "UPGRADE_REGISTRAR", "REFERRAL_REWARD", "credit", "debit"],
+          "description": "Structured financial operation type."
+        },
+        "direction": {
+          "type": "string",
           "enum": ["credit", "debit"],
-          "description": "Credit or Debit."
+          "description": "Ledger direction (credit or debit)."
         },
         "amount": {
           "type": "number",
-          "description": "Amount in USD."
+          "description": "Transaction amount in USD."
+        },
+        "balanceBefore": {
+          "type": "number",
+          "description": "Customer wallet balance immediately before this transaction."
+        },
+        "balanceAfter": {
+          "type": "number",
+          "description": "Customer wallet balance immediately after this transaction."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["COMPLETED", "PENDING", "FAILED"],
+          "description": "Execution status of the financial transaction."
+        },
+        "descriptionAr": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Clear Arabic description of the financial transaction."
         },
         "reason": {
           "type": "string",
-          "maxLength": 200,
-          "description": "Description of transaction."
+          "maxLength": 300,
+          "description": "Backward-compatible description field."
         },
         "referenceId": {
           "type": "string",
           "maxLength": 100,
-          "description": "Reference ID."
+          "description": "Associated order or feature reference ID."
         },
-        "balanceAfter": {
-          "type": "number",
-          "description": "User wallet balance after this transaction."
+        "referredInviteeUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the upgrading invitee who triggered the atomic $10 referral reward."
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp of the transaction."
+          "description": "ISO timestamp of the transaction."
         }
       },
-      "required": ["id", "userId", "type", "amount", "reason", "balanceAfter", "createdAt"]
+      "required": ["id", "transactionId", "userId", "type", "amount", "balanceBefore", "balanceAfter", "status", "descriptionAr", "createdAt"]
     },
     "CustomerNotification": {
       "title": "CustomerNotification",
@@ -820,6 +1170,10 @@
       "schema": { "$ref": "entities/LegalAuditTrailEntry" },
       "description": "Centralized audit trail collection of all user electronic signatures and legal consents."
     },
+    "/wallet_transactions/{txId}": {
+      "schema": { "$ref": "entities/WalletTransaction" },
+      "description": "Centralized structured financial ledger of all customer wallet top-ups, root unlocks, capsule purchases, and membership upgrades."
+    },
     "/customer_orders/{orderId}": {
       "schema": { "$ref": "entities/CustomerOrder" },
       "description": "Real customer orders and lineage search records managed in /Team."
@@ -827,6 +1181,42 @@
     "/research_tickets/{ticketId}": {
       "schema": { "$ref": "entities/ResearchTicket" },
       "description": "Genealogical research and enrichment tickets."
+    },
+    "/research_tickets/{ticketId}/messages/{messageId}": {
+      "schema": { "$ref": "entities/ResearchTicketMessage" },
+      "description": "Interactive message thread inside a research ticket."
+    },
+    "/public_sites/{siteSlug}": {
+      "schema": { "$ref": "entities/PublicMicrosite" },
+      "description": "Filtered Mirror family microsites strictly isolated from private lineage and reference sources."
+    },
+    "/public_site_directory/{siteSlug}": {
+      "schema": { "$ref": "entities/PublicSiteDirectoryHeader" },
+      "description": "Zero-PII slug existence and access-mode directory header for PRIVATE_WHITELIST portals."
+    },
+    "/kinship_circles/{ownerId}": {
+      "schema": { "$ref": "entities/KinshipCircle" },
+      "description": "Private kinship circle of authorized family relatives managed by the Record Keeper."
+    },
+    "/enrichment_requests/{requestId}": {
+      "schema": { "$ref": "entities/EnrichmentRequest" },
+      "description": "Closed-loop enrichment requests submitted from family microsites into the Record Keeper's inbox."
+    },
+    "/tree_enrichment_requests/{requestId}": {
+      "schema": { "$ref": "entities/EnrichmentRequest" },
+      "description": "Mirrored enrichment requests collection path guarded identically for Record Keeper review."
+    },
+    "/site_access_requests/{requestId}": {
+      "schema": { "$ref": "entities/SiteAccessRequest" },
+      "description": "Access requests for PRIVATE_WHITELIST family microsites."
+    },
+    "/site_guestbook/{entryId}": {
+      "schema": { "$ref": "entities/SiteGuestbookEntry" },
+      "description": "Moderated guestbook entries for family microsites."
+    },
+    "/referral_codes/{code}": {
+      "schema": { "$ref": "entities/ReferralCodeIndex" },
+      "description": "Deterministic referral code registry for the atomic $10 referral reward engine."
     },
     "/team_members/{memberId}": {
       "schema": { "$ref": "entities/TeamMember" },

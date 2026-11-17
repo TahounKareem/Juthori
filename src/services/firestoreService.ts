@@ -9,6 +9,7 @@ import {
   getDocs,
   orderBy,
   limit,
+  runTransaction,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
@@ -22,12 +23,32 @@ import {
   db,
   mirrorDb,
   auth,
+  mirrorAuth,
   provisionerAuth,
   mirrorProvisionerAuth,
   storage,
   handleFirestoreError,
   OperationType,
 } from './firebase';
+import {
+  DashboardStateMode,
+  LineageSearchResult,
+  StructuredWalletTxType,
+  WalletTransactionStatus,
+} from '../types/juthori';
+import {
+  processMediaFileForUpload,
+  uploadMediaToCloudWithFallback,
+} from '../utils/mediaPipeline';
+import {
+  REFERRAL_REWARD_USD,
+  FamilySiteThemeId,
+  buildDeterministicReferralCode,
+  clearPendingReferralCode,
+  readPendingReferralCode,
+} from '../config/referralAndSiteConfig';
+
+export { buildDeterministicReferralCode };
 
 // Recursively remove undefined fields before passing objects to Firestore setDoc()
 function sanitizeFirestoreData<T>(input: T): T {
@@ -308,8 +329,260 @@ export interface UserProfileData {
   recordKeeperCharterSignedAt?: string;
   recordKeeperCharterCode?: string;
   recordKeeperContractVersion?: string;
+  disambiguationChoiceId?: string;
+  verifiedLineageSnapshot?: VerifiedLineageSnapshotData;
+  lineageSnapshot?: VerifiedLineageSnapshotData;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string;
+  publishedSiteSlug?: string;
+  ownedSiteSlugs?: string[];
+  referralCode?: string;
+  referredByUserId?: string;
+  referredByCode?: string;
+  referralRewardClaimed?: boolean;
+  lastWalletTransactionId?: string;
+  blockedUserIds?: string[];
+  blockedUsersMeta?: Array<{
+    userId: string;
+    name: string;
+    blockedAt: string;
+  }>;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface ReferralInviteeSummary {
+  userId: string;
+  fullName: string;
+  status: 'REGISTERED_FREE' | 'SUBSCRIBED_PAID';
+  rewardUsd?: number;
+  createdAt: string;
+  upgradedAt?: string;
+}
+
+export interface ReferralCodeIndexDoc {
+  code: string;
+  ownerId: string;
+  ownerName?: string;
+  familyName?: string;
+  invitees: ReferralInviteeSummary[];
+  totalEarnedUsd: number;
+  updatedAt: string;
+}
+
+/**
+ * Compact, native Firestore map representation of the customer's verified lineage result
+ * (excludes heavy researcher-only raw lakes so `users/{userId}` stays lightweight and fast).
+ */
+export interface VerifiedLineageSnapshotData {
+  matched: boolean;
+  engineSource: LineageSearchResult['engineSource'];
+  primary_source_of_truth?: LineageSearchResult['primary_source_of_truth'];
+  priorityTierMatched?: LineageSearchResult['priorityTierMatched'];
+  clientName: string;
+  fatherName: string;
+  grandfatherName: string;
+  familyName: string;
+  familyCode?: string;
+  adamNodeId?: string;
+  originCountry: string;
+  originRegion: string;
+  resolvedGeoOntologyLabel?: string;
+  matched_location?: string;
+  enrichedLocations?: string[];
+  sibling_branches_in_record?: string[];
+  notables_in_record?: string[];
+  rootBranchName: string;
+  rootBranchCode: string;
+  rootTribeName: string;
+  rootTribeCode: string;
+  rootSummaryLabel: string;
+  adamSpineNodes?: LineageSearchResult['adamSpineNodes'];
+  capsules: LineageSearchResult['capsules'];
+  requiresBlindDisambiguation?: boolean;
+  disambiguation_stage?: LineageSearchResult['disambiguation_stage'];
+  disambiguationOptions?: LineageSearchResult['disambiguationOptions'];
+  disambiguationChoiceId?: string;
+  isAlphaOnlyBeforeMerge?: boolean;
+  isAlphaMergedIntoAdam?: boolean;
+  isAdamNodeEnrichedWithAlpha?: boolean;
+  alphaParallelSource?: LineageSearchResult['alphaParallelSource'];
+  alphaBackgroundTicketCode?: string;
+  verifiedSourceCitation: string;
+  verified_sources?: LineageSearchResult['verified_sources'];
+  secondarySources?: string[];
+  verifiedAddonSources?: LineageSearchResult['verifiedAddonSources'];
+  historicalRegion: string;
+  conflictingNarrativesNote: string;
+  confidenceLabel: string;
+  recommendedInitialState: DashboardStateMode;
+  syncedAt: string;
+}
+
+export function buildVerifiedLineageSnapshot(
+  result: LineageSearchResult,
+  disambiguationChoiceId?: string
+): VerifiedLineageSnapshotData {
+  const compactOptions = Array.isArray(result.disambiguationOptions)
+    ? result.disambiguationOptions.slice(0, 8).map((opt) => ({
+        id: opt.id,
+        choice_id: opt.choice_id,
+        badge: opt.badge,
+        title: opt.title,
+        originTribeLabel: opt.originTribeLabel,
+        geographicScope: opt.geographicScope || '',
+        nearBranchHint: opt.nearBranchHint || '',
+        isConsensusWinner: opt.isConsensusWinner,
+        consensusBadge: opt.consensusBadge,
+        sourcesCount: opt.sourcesCount,
+      }))
+    : undefined;
+
+  const rawSnapshot: VerifiedLineageSnapshotData = {
+    matched: Boolean(result.matched),
+    engineSource: result.engineSource || 'neo4j_verified_graph',
+    primary_source_of_truth: result.primary_source_of_truth,
+    priorityTierMatched: result.priorityTierMatched,
+    clientName: result.clientName || '',
+    fatherName: result.fatherName || '',
+    grandfatherName: result.grandfatherName || '',
+    familyName: result.familyName || '',
+    familyCode: result.familyCode,
+    adamNodeId: result.adamNodeId,
+    originCountry: result.originCountry || 'السعودية',
+    originRegion: result.originRegion || '',
+    resolvedGeoOntologyLabel: result.resolvedGeoOntologyLabel,
+    matched_location: result.matched_location,
+    enrichedLocations: Array.isArray(result.enrichedLocations)
+      ? result.enrichedLocations.slice(0, 25)
+      : undefined,
+    sibling_branches_in_record: Array.isArray(result.sibling_branches_in_record)
+      ? result.sibling_branches_in_record.slice(0, 25)
+      : undefined,
+    notables_in_record: Array.isArray(result.notables_in_record)
+      ? result.notables_in_record.slice(0, 25)
+      : undefined,
+    rootBranchName: result.rootBranchName || '',
+    rootBranchCode: result.rootBranchCode || '',
+    rootTribeName: result.rootTribeName || '',
+    rootTribeCode: result.rootTribeCode || '',
+    rootSummaryLabel: result.rootSummaryLabel || '',
+    adamSpineNodes: Array.isArray(result.adamSpineNodes)
+      ? result.adamSpineNodes.slice(0, 45)
+      : undefined,
+    capsules: Array.isArray(result.capsules) ? result.capsules.slice(0, 35) : [],
+    requiresBlindDisambiguation: Boolean(result.requiresBlindDisambiguation),
+    disambiguation_stage: result.disambiguation_stage,
+    disambiguationOptions: compactOptions,
+    disambiguationChoiceId: disambiguationChoiceId || undefined,
+    isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
+    isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
+    isAdamNodeEnrichedWithAlpha: result.isAdamNodeEnrichedWithAlpha,
+    alphaParallelSource: result.alphaParallelSource,
+    alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
+    verifiedSourceCitation: result.verifiedSourceCitation || '',
+    verified_sources: Array.isArray(result.verified_sources)
+      ? result.verified_sources.slice(0, 20)
+      : undefined,
+    secondarySources: Array.isArray(result.secondarySources)
+      ? result.secondarySources.slice(0, 20)
+      : undefined,
+    verifiedAddonSources: Array.isArray(result.verifiedAddonSources)
+      ? result.verifiedAddonSources.slice(0, 20)
+      : undefined,
+    historicalRegion: result.historicalRegion || '',
+    conflictingNarrativesNote: result.conflictingNarrativesNote || '',
+    confidenceLabel: result.confidenceLabel || '',
+    recommendedInitialState:
+      result.recommendedInitialState ||
+      (result.matched
+        ? DashboardStateMode.State2MatchedUnpaid
+        : DashboardStateMode.State3Unmatched),
+    syncedAt: new Date().toISOString(),
+  };
+
+  return sanitizeFirestoreData(rawSnapshot);
+}
+
+export function hydrateLineageResultFromSnapshot(
+  snapshot?: VerifiedLineageSnapshotData | null,
+  profileOverrides?: Partial<
+    Pick<
+      UserProfileData,
+      | 'firstName'
+      | 'fatherName'
+      | 'grandfatherName'
+      | 'familyName'
+      | 'originCountry'
+      | 'originRegion'
+    >
+  >
+): LineageSearchResult | null {
+  if (!snapshot || typeof snapshot !== 'object' || !snapshot.familyName) {
+    return null;
+  }
+
+  const spineNodes = Array.isArray(snapshot.adamSpineNodes)
+    ? snapshot.adamSpineNodes
+    : [];
+
+  return {
+    matched: Boolean(snapshot.matched),
+    engineSource: snapshot.engineSource || 'neo4j_verified_graph',
+    primary_source_of_truth: snapshot.primary_source_of_truth,
+    priorityTierMatched: snapshot.priorityTierMatched,
+    clientName:
+      profileOverrides?.firstName || snapshot.clientName || '',
+    fatherName:
+      profileOverrides?.fatherName || snapshot.fatherName || '',
+    grandfatherName:
+      profileOverrides?.grandfatherName || snapshot.grandfatherName || '',
+    familyName:
+      profileOverrides?.familyName || snapshot.familyName || '',
+    familyCode: snapshot.familyCode || '',
+    adamNodeId: snapshot.adamNodeId,
+    originCountry:
+      profileOverrides?.originCountry || snapshot.originCountry || 'السعودية',
+    originRegion:
+      profileOverrides?.originRegion ?? snapshot.originRegion ?? '',
+    resolvedGeoOntologyLabel: snapshot.resolvedGeoOntologyLabel,
+    matched_location: snapshot.matched_location,
+    enrichedLocations: snapshot.enrichedLocations,
+    sibling_branches_in_record: snapshot.sibling_branches_in_record,
+    notables_in_record: snapshot.notables_in_record,
+    rootBranchName: snapshot.rootBranchName || '',
+    rootBranchCode: snapshot.rootBranchCode || '',
+    rootTribeName: snapshot.rootTribeName || '',
+    rootTribeCode: snapshot.rootTribeCode || '',
+    rootSummaryLabel: snapshot.rootSummaryLabel || '',
+    upperAncestors: spineNodes,
+    adamSpineNodes: spineNodes,
+    capsules: Array.isArray(snapshot.capsules) ? snapshot.capsules : [],
+    requiresBlindDisambiguation: Boolean(snapshot.requiresBlindDisambiguation),
+    disambiguation_stage: snapshot.disambiguation_stage,
+    disambiguationOptions: Array.isArray(snapshot.disambiguationOptions)
+      ? snapshot.disambiguationOptions
+      : [],
+    isAlphaOnlyBeforeMerge: snapshot.isAlphaOnlyBeforeMerge,
+    isAlphaMergedIntoAdam: snapshot.isAlphaMergedIntoAdam,
+    isAdamNodeEnrichedWithAlpha: snapshot.isAdamNodeEnrichedWithAlpha,
+    alphaParallelSource: snapshot.alphaParallelSource,
+    alphaBackgroundTicketCode: snapshot.alphaBackgroundTicketCode,
+    verifiedSourceCitation: snapshot.verifiedSourceCitation || '',
+    verified_sources: snapshot.verified_sources,
+    secondarySources: Array.isArray(snapshot.secondarySources)
+      ? snapshot.secondarySources
+      : [],
+    verifiedAddonSources: snapshot.verifiedAddonSources,
+    historicalRegion: snapshot.historicalRegion || '',
+    conflictingNarrativesNote: snapshot.conflictingNarrativesNote || '',
+    confidenceLabel: snapshot.confidenceLabel || '',
+    recommendedInitialState:
+      snapshot.recommendedInitialState ||
+      (snapshot.matched
+        ? DashboardStateMode.State2MatchedUnpaid
+        : DashboardStateMode.State3Unmatched),
+  };
 }
 
 export type LegalAuditEventType =
@@ -339,6 +612,46 @@ export interface LegalAuditTrailEntry {
   status: 'COMPLETED_AND_SEALED';
 }
 
+export interface ResearchTicketAttachmentRef {
+  id: string;
+  title: string;
+  mediaType: 'photo' | 'document';
+  sourceType: 'vault_ref' | 'direct_upload';
+  vaultItemId?: string;
+  thumbnailUrl?: string;
+  fileUrl?: string;
+  dateOrOccasion?: string;
+}
+
+export interface ResearchTicketMessageData {
+  id: string;
+  ticketId: string;
+  senderRole: 'customer' | 'researcher' | 'system';
+  senderId: string;
+  senderName: string;
+  body: string;
+  attachments?: ResearchTicketAttachmentRef[];
+  createdAt: string;
+}
+
+export interface ResearchTicketResolutionPayload {
+  decisionTitle: string;
+  verifiedRootBranch?: string;
+  verifiedRootTribe?: string;
+  verifiedCitation?: string;
+  certifiedAncestorName?: string;
+  certifiedAncestorRank?: string;
+  summaryNotes?: string;
+  appliedByCustomerAt?: string;
+}
+
+export type CanonicalTicketLifecycleStage =
+  | 'OPEN'
+  | 'IN_REVIEW'
+  | 'NEEDS_INFO'
+  | 'RESOLVED'
+  | 'CLOSED';
+
 export interface ResearchTicketData {
   id: string;
   ticketNumber: string;
@@ -363,6 +676,7 @@ export interface ResearchTicketData {
   adamNodeId?: string;
   alphaId?: string;
   status:
+    | CanonicalTicketLifecycleStage
     | 'pending_review'
     | 'investigating'
     | 'lineage_found'
@@ -370,12 +684,17 @@ export interface ResearchTicketData {
     | 'no_records_found'
     | 'CLOSED_AND_ENRICHED'
     | 'exported_adam_prime';
+  lifecycleStage?: CanonicalTicketLifecycleStage;
   assignedResearcherId?: string;
   assignedResearcherName?: string;
   researchFindings?: string;
   verifiedSources?: string;
   studioPayloadJson?: string;
+  attachments?: ResearchTicketAttachmentRef[];
+  messages?: ResearchTicketMessageData[];
+  resolutionPayload?: ResearchTicketResolutionPayload;
   clientNotified?: boolean;
+  priorityTag?: 'PRIORITY_REGISTRAR' | string;
   openedAt: string;
   createdAt?: string;
   resolvedAt?: string;
@@ -384,12 +703,19 @@ export interface ResearchTicketData {
 
 export interface WalletTransactionData {
   id: string;
+  transactionId?: string;
   userId: string;
-  type: 'credit' | 'debit';
+  userEmail?: string;
+  type: StructuredWalletTxType | 'credit' | 'debit';
+  direction?: 'credit' | 'debit';
   amount: number;
+  balanceBefore?: number;
+  balanceAfter: number;
+  status?: WalletTransactionStatus;
+  descriptionAr?: string;
   reason: string;
   referenceId?: string;
-  balanceAfter: number;
+  referredInviteeUid?: string;
   createdAt: string;
 }
 
@@ -771,6 +1097,25 @@ export async function fetchUserProfileByEmail(
     return null;
   }
 
+  // Fast O(1) owner self-lookup compatible with Zero-Trust rules (`isOwner(userId)`)
+  if (
+    auth.currentUser?.uid &&
+    (auth.currentUser.email || '').trim().toLowerCase() === cleanEmail
+  ) {
+    const directSelf = await fetchUserProfile(auth.currentUser.uid);
+    if (directSelf) {
+      return directSelf;
+    }
+  }
+
+  const canonicalUid = canonicalCustomerEmailUid(cleanEmail);
+  if (canonicalUid) {
+    const byCanonical = await fetchUserProfile(canonicalUid);
+    if (byCanonical) {
+      return byCanonical;
+    }
+  }
+
   try {
     const [allUsers, allOrders, allTickets] = await Promise.all([
       dualGetCollection<UserProfileData & { id?: string }>('users'),
@@ -939,6 +1284,13 @@ export async function fetchUserProfileByEmail(
       recordKeeperCharterSignedAt: bestUser?.recordKeeperCharterSignedAt,
       recordKeeperCharterCode: bestUser?.recordKeeperCharterCode,
       recordKeeperContractVersion: bestUser?.recordKeeperContractVersion,
+      disambiguationChoiceId: bestUser?.disambiguationChoiceId,
+      verifiedLineageSnapshot:
+        bestUser?.verifiedLineageSnapshot || bestUser?.lineageSnapshot,
+      lineageSnapshot:
+        bestUser?.lineageSnapshot || bestUser?.verifiedLineageSnapshot,
+      emailVerified: bestUser?.emailVerified,
+      emailVerifiedAt: bestUser?.emailVerifiedAt,
       createdAt:
         bestUser?.createdAt ||
         bestOrder?.createdAt ||
@@ -969,6 +1321,9 @@ export async function createUserProfileIfMissing(
       'TEAM_ACCOUNT_ISOLATED: هذا البريد مسجل كحساب إداري في منظومة فريق العمل ولا يُسمح بتسجيله في بوابة العملاء.'
     );
   }
+
+  const deterministicRefCode =
+    additional.referralCode || buildDeterministicReferralCode(safeUid);
 
   const initialProfile = autoHealCorruptedProfileIfNeeded({
     userId: safeUid,
@@ -1007,12 +1362,23 @@ export async function createUserProfileIfMissing(
     recordKeeperCharterSignedAt: additional.recordKeeperCharterSignedAt,
     recordKeeperCharterCode: additional.recordKeeperCharterCode,
     recordKeeperContractVersion: additional.recordKeeperContractVersion,
+    disambiguationChoiceId: additional.disambiguationChoiceId,
+    verifiedLineageSnapshot:
+      additional.verifiedLineageSnapshot || additional.lineageSnapshot,
+    lineageSnapshot:
+      additional.lineageSnapshot || additional.verifiedLineageSnapshot,
+    emailVerified: additional.emailVerified ?? false,
+    emailVerifiedAt: additional.emailVerifiedAt,
+    referralCode: deterministicRefCode,
+    referralRewardClaimed: false,
     createdAt: new Date().toISOString(),
   })!;
 
   try {
     const existing = await fetchUserProfile(safeUid);
     if (existing) {
+      const ensuredRefCode =
+        existing.referralCode || buildDeterministicReferralCode(safeUid);
       // NEVER overwrite real Arabic profile fields with an ASCII email prefix!
       const incomingHasArabicFamily =
         Boolean(additional.familyName) &&
@@ -1020,10 +1386,22 @@ export async function createUserProfileIfMissing(
       const incomingHasArabicFirst =
         Boolean(additional.firstName) &&
         !isEmailPrefixOrAsciiPlaceholder(additional.firstName, cleanEmail);
+      const incomingSnapshot =
+        additional.verifiedLineageSnapshot || additional.lineageSnapshot;
+      const shouldPromoteEmailVerified =
+        additional.emailVerified === true && !existing.emailVerified;
 
-      if (incomingHasArabicFamily || incomingHasArabicFirst || additional.originRegion) {
+      if (
+        incomingHasArabicFamily ||
+        incomingHasArabicFirst ||
+        additional.originRegion ||
+        incomingSnapshot ||
+        shouldPromoteEmailVerified ||
+        !existing.referralCode
+      ) {
         const updatedProfile: UserProfileData = {
           ...existing,
+          referralCode: ensuredRefCode,
           fullName:
             incomingHasArabicFirst || incomingHasArabicFamily
               ? additional.fullName || existing.fullName
@@ -1052,6 +1430,22 @@ export async function createUserProfileIfMissing(
           tribeName: additional.tribeName || existing.tribeName,
           familyBranch: additional.familyBranch || existing.familyBranch,
           accountType: additional.accountType || existing.accountType,
+          disambiguationChoiceId:
+            additional.disambiguationChoiceId || existing.disambiguationChoiceId,
+          verifiedLineageSnapshot:
+            existing.verifiedLineageSnapshot ||
+            existing.lineageSnapshot ||
+            incomingSnapshot,
+          lineageSnapshot:
+            existing.lineageSnapshot ||
+            existing.verifiedLineageSnapshot ||
+            incomingSnapshot,
+          emailVerified:
+            additional.emailVerified === true ? true : existing.emailVerified,
+          emailVerifiedAt:
+            additional.emailVerified === true
+              ? additional.emailVerifiedAt || existing.emailVerifiedAt || new Date().toISOString()
+              : existing.emailVerifiedAt,
           updatedAt: new Date().toISOString(),
         };
         await dualSetDoc(
@@ -1062,6 +1456,74 @@ export async function createUserProfileIfMissing(
       }
       return existing;
     }
+
+    // New customer account: bind `?ref={code}` if present (zero $ reward on free signup)
+    const pendingRefCode = (
+      additional.referredByCode ||
+      readPendingReferralCode() ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+
+    if (pendingRefCode && pendingRefCode !== deterministicRefCode) {
+      try {
+        const referrerIndex = await dualGetDoc<ReferralCodeIndexDoc>([
+          'referral_codes',
+          pendingRefCode,
+        ]);
+        if (referrerIndex && referrerIndex.ownerId && referrerIndex.ownerId !== safeUid) {
+          initialProfile.referredByUserId = referrerIndex.ownerId;
+          initialProfile.referredByCode = pendingRefCode;
+          initialProfile.referralRewardClaimed = false;
+
+          const prevInvitees: ReferralInviteeSummary[] = Array.isArray(
+            referrerIndex.invitees
+          )
+            ? referrerIndex.invitees
+            : [];
+          if (!prevInvitees.some((inv) => inv.userId === safeUid)) {
+            const addedEntry: ReferralInviteeSummary = {
+              userId: safeUid,
+              fullName: initialProfile.fullName || 'عضو مدعو',
+              status: 'REGISTERED_FREE' as const,
+              createdAt: initialProfile.createdAt,
+            };
+            const nextInvitees = [...prevInvitees, addedEntry].slice(-300);
+            await dualSetDoc(['referral_codes', pendingRefCode], {
+              ...referrerIndex,
+              invitees: nextInvitees,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          clearPendingReferralCode();
+        }
+      } catch {
+        // Non-blocking referral binding
+      }
+    }
+
+    // Ensure the new customer's own deterministic referral code index exists in Firestore
+    dualGetDoc<ReferralCodeIndexDoc>(['referral_codes', deterministicRefCode])
+      .then((existingIdx) => {
+        if (!existingIdx) {
+          const idxDoc: ReferralCodeIndexDoc = {
+            code: deterministicRefCode,
+            ownerId: safeUid,
+            ownerName: initialProfile.fullName,
+            familyName: initialProfile.familyName || '',
+            invitees: [],
+            totalEarnedUsd: 0,
+            updatedAt: new Date().toISOString(),
+          };
+          return dualSetDoc(
+            ['referral_codes', deterministicRefCode],
+            idxDoc as unknown as Record<string, unknown>
+          );
+        }
+        return undefined;
+      })
+      .catch(() => {});
 
     await dualSetDoc(
       ['users', safeUid],
@@ -1129,51 +1591,47 @@ export async function uploadUserAvatarToFirebase(
 ): Promise<string> {
   const safeUid = (userId || `usr_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
 
-  const toCompactDataUrl = (inputFile: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 280;
-          let width = img.width;
-          let height = img.height;
-          if (width > height && width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.84));
-          } else {
-            resolve(String(reader.result || ''));
-          }
-        };
-        img.onerror = () => resolve(String(reader.result || ''));
-        img.src = String(reader.result || '');
-      };
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(inputFile);
-    });
-
   let finalAvatarUrl = '';
   try {
-    const storageRef = ref(storage, `avatars/${safeUid}/avatar_${Date.now()}`);
+    const processed = await processMediaFileForUpload(file, 'avatar');
+    const uploaded = await uploadMediaToCloudWithFallback({
+      uid: safeUid,
+      category: 'profile_avatars',
+      itemId: `avatar_${Date.now()}`,
+      mainDataUrl: processed.mainDataUrl,
+      thumbnailDataUrl: processed.thumbnailDataUrl,
+      mimeType: processed.mimeType,
+    });
+    finalAvatarUrl = uploaded.url;
+  } catch {
+    const storageRef = ref(storage, `users/${safeUid}/profile_avatars/avatar_${Date.now()}`);
     await uploadBytes(storageRef, file);
     finalAvatarUrl = await getDownloadURL(storageRef);
-  } catch {
-    finalAvatarUrl = await toCompactDataUrl(file);
   }
 
   await updateUserProfile(safeUid, { avatarUrl: finalAvatarUrl });
   return finalAvatarUrl;
+}
+
+export async function uploadTreeNodeAvatarWithFallback(
+  userId: string | undefined,
+  personId: string,
+  file: File
+): Promise<{
+  url: string;
+  thumbnailUrl?: string;
+  storagePath?: string;
+  provider: 'firebase_storage' | 'firestore_chunked';
+}> {
+  const processed = await processMediaFileForUpload(file, 'avatar');
+  return uploadMediaToCloudWithFallback({
+    uid: userId,
+    category: 'tree_avatars',
+    itemId: `${personId}_${Date.now()}`,
+    mainDataUrl: processed.mainDataUrl,
+    thumbnailDataUrl: processed.thumbnailDataUrl,
+    mimeType: processed.mimeType,
+  });
 }
 
 export async function deleteUserAccountFromFirebase(userId: string): Promise<void> {
@@ -1282,30 +1740,37 @@ export async function saveUserFamilyTreeToFirebase(
 
   try {
     const updatedAt = new Date().toISOString();
-    let peopleToSerialize = people as Array<Record<string, unknown>>;
-    let peopleJson = JSON.stringify(peopleToSerialize);
     const avatarChunks: Array<{ docId: string; dataUrl: string }> = [];
 
-    // If tree JSON approaches Firestore's 950KB document ceiling (e.g. many base64 portraits),
-    // split large avatarDataUrl fields into dedicated sub-documents automatically.
-    if (peopleJson.length > 880000) {
-      peopleToSerialize = peopleToSerialize.map((node, idx) => {
-        const rawAvatar = typeof node?.avatarDataUrl === 'string' ? node.avatarDataUrl : '';
-        if (rawAvatar.length > 4096) {
-          const safePersonId = String(node.id || `p_${idx}`)
-            .replace(/[^a-zA-Z0-9_-]/g, '_')
-            .slice(0, 80);
+    // Offload inline base64 node portraits (`photoUrl` or `avatarDataUrl` > 8KB) into dedicated
+    // Firestore sub-documents when Firebase Storage fallback was used, keeping `main` fast & < 1MB.
+    const peopleToSerialize = (people as Array<Record<string, unknown>>).map(
+      (node, idx) => {
+        const safePersonId = String(node.id || `p_${idx}`)
+          .replace(/[^a-zA-Z0-9_-]/g, '_')
+          .slice(0, 80);
+        const nextNode: Record<string, unknown> = { ...node };
+
+        const rawPhoto =
+          typeof node?.photoUrl === 'string' ? node.photoUrl : '';
+        if (rawPhoto.startsWith('data:') && rawPhoto.length > 8192) {
+          const chunkDocId = `tree_photo_${safePersonId}`;
+          avatarChunks.push({ docId: chunkDocId, dataUrl: rawPhoto });
+          nextNode.photoUrl = `${CHUNKED_AVATAR_PREFIX}${chunkDocId}`;
+        }
+
+        const rawAvatar =
+          typeof node?.avatarDataUrl === 'string' ? node.avatarDataUrl : '';
+        if (rawAvatar.startsWith('data:') && rawAvatar.length > 8192) {
           const chunkDocId = `tree_avatar_${safePersonId}`;
           avatarChunks.push({ docId: chunkDocId, dataUrl: rawAvatar });
-          return {
-            ...node,
-            avatarDataUrl: `${CHUNKED_AVATAR_PREFIX}${chunkDocId}`,
-          };
+          nextNode.avatarDataUrl = `${CHUNKED_AVATAR_PREFIX}${chunkDocId}`;
         }
-        return node;
-      });
-      peopleJson = JSON.stringify(peopleToSerialize);
-    }
+
+        return nextNode;
+      }
+    );
+    const peopleJson = JSON.stringify(peopleToSerialize);
 
     let wroteAny = false;
     for (const uid of targetUids) {
@@ -1358,6 +1823,23 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
         if (Array.isArray(parsed) && parsed.length > 0) {
           const rehydrated = await Promise.all(
             parsed.map(async (node) => {
+              const nextNode: Record<string, unknown> = { ...node };
+
+              const photoRef =
+                typeof node?.photoUrl === 'string' ? node.photoUrl : '';
+              if (photoRef.startsWith(CHUNKED_AVATAR_PREFIX)) {
+                const chunkDocId = photoRef.slice(CHUNKED_AVATAR_PREFIX.length);
+                const chunkDoc = await dualGetDoc<{ peopleJson?: string }>([
+                  'users',
+                  uid,
+                  'family_tree',
+                  chunkDocId,
+                ]);
+                if (chunkDoc?.peopleJson) {
+                  nextNode.photoUrl = chunkDoc.peopleJson;
+                }
+              }
+
               const avatarRef =
                 typeof node?.avatarDataUrl === 'string' ? node.avatarDataUrl : '';
               if (avatarRef.startsWith(CHUNKED_AVATAR_PREFIX)) {
@@ -1369,10 +1851,11 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
                   chunkDocId,
                 ]);
                 if (chunkDoc?.peopleJson) {
-                  return { ...node, avatarDataUrl: chunkDoc.peopleJson };
+                  nextNode.avatarDataUrl = chunkDoc.peopleJson;
                 }
               }
-              return node;
+
+              return nextNode;
             })
           );
           saveUserFamilyTreeToLocal(
@@ -1472,15 +1955,27 @@ export async function createResearchTicket(
     userFullName: params.userFullName || 'عميل منصة جذوري',
     userEmail: params.userEmail || '',
     userPhone: params.userPhone || '',
-    targetAncestor: params.targetAncestor || 'غير محدد',
+    familyName: params.familyName || '',
+    targetAncestor: params.targetAncestor || params.familyName || 'غير محدد',
     tribeName: params.tribeName || '',
     familyBranch: params.familyBranch || '',
     originCountry: params.originCountry || '',
+    originRegion: params.originRegion || '',
+    verificationChoiceLabel: params.verificationChoiceLabel || '',
     additionalNotes: params.additionalNotes || '',
     ticketCategory: params.ticketCategory || 'P1_CUSTOMER_SEARCH',
     adamNodeId: params.adamNodeId || '',
     studioPayloadJson: params.studioPayloadJson || '',
-    status: params.customStatus || 'pending_review',
+    priorityTag: params.priorityTag,
+    attachments: Array.isArray(params.attachments)
+      ? params.attachments.slice(0, 25)
+      : undefined,
+    messages: Array.isArray(params.messages)
+      ? params.messages.slice(0, 80)
+      : undefined,
+    resolutionPayload: params.resolutionPayload,
+    lifecycleStage: params.lifecycleStage || 'OPEN',
+    status: params.customStatus || 'OPEN',
     openedAt: new Date().toISOString(),
   };
 
@@ -1496,28 +1991,76 @@ export async function createResearchTicket(
   }
 }
 
-export async function fetchUserResearchTickets(userId: string): Promise<ResearchTicketData[]> {
-  if (!userId) return [];
-  const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  try {
-    const qSimple = query(
-      collection(db, 'research_tickets'),
-      where('userId', '==', safeUid)
+export async function fetchUserResearchTickets(
+  userId: string,
+  userEmail?: string
+): Promise<ResearchTicketData[]> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanEmail = (userEmail || '').trim().toLowerCase();
+  if (!safeUid && !cleanEmail) return [];
+
+  const all = await dualGetCollection<ResearchTicketData>('research_tickets');
+  const matchedFromDual = all.filter((t) => {
+    if (!t || t.id === 'ticket_seed_1042') return false;
+    const matchUid = Boolean(safeUid) && t.userId === safeUid;
+    const matchEmail =
+      Boolean(cleanEmail) && (t.userEmail || '').trim().toLowerCase() === cleanEmail;
+    return matchUid || matchEmail;
+  });
+
+  if (matchedFromDual.length > 0) {
+    return matchedFromDual.sort((a, b) =>
+      (b.openedAt || '').localeCompare(a.openedAt || '')
     );
-    const snap = await getDocs(qSimple);
-    if (!snap.empty) {
-      return snap.docs
-        .map((d) => d.data() as ResearchTicketData)
-        .filter((t) => t.id !== 'ticket_seed_1042')
-        .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
+  }
+
+  if (!safeUid) return [];
+  try {
+    const [primarySnap, mirrorSnap] = await Promise.allSettled([
+      withFastTimeout(
+        getDocs(
+          query(collection(db, 'research_tickets'), where('userId', '==', safeUid))
+        ),
+        2800
+      ),
+      withFastTimeout(
+        getDocs(
+          query(
+            collection(mirrorDb, 'research_tickets'),
+            where('userId', '==', safeUid)
+          )
+        ),
+        2800
+      ),
+    ]);
+
+    const scopedMap = new Map<string, ResearchTicketData>();
+    if (mirrorSnap.status === 'fulfilled') {
+      mirrorSnap.value.docs.forEach((d) => {
+        const item = d.data() as ResearchTicketData;
+        if (item && item.id !== 'ticket_seed_1042') {
+          scopedMap.set(item.id || d.id, item);
+        }
+      });
+    }
+    if (primarySnap.status === 'fulfilled') {
+      primarySnap.value.docs.forEach((d) => {
+        const item = d.data() as ResearchTicketData;
+        if (item && item.id !== 'ticket_seed_1042') {
+          scopedMap.set(item.id || d.id, item);
+        }
+      });
+    }
+
+    if (scopedMap.size > 0) {
+      return Array.from(scopedMap.values()).sort((a, b) =>
+        (b.openedAt || '').localeCompare(a.openedAt || '')
+      );
     }
   } catch {
-    // Fallback to dualGetCollection below
+    // Ignore query fallback error
   }
-  const all = await dualGetCollection<ResearchTicketData>('research_tickets');
-  return all
-    .filter((t) => t.userId === safeUid && t.id !== 'ticket_seed_1042')
-    .sort((a, b) => (b.openedAt || '').localeCompare(a.openedAt || ''));
+  return [];
 }
 
 const HARDCODED_TICKET_IDS_TO_IGNORE = new Set([
@@ -1967,94 +2510,611 @@ export async function executeWalletTransaction(
   amount: number,
   reason: string,
   referenceId?: string
-): Promise<{ newBalance: number }> {
-  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (!safeUid) {
-    return { newBalance: type === 'credit' ? amount : 0 };
+): Promise<{ newBalance: number; transactionId?: string }> {
+  const res = await executeAtomicWalletOperation({
+    userId,
+    operationType: type === 'credit' ? 'TOPUP' : 'UNLOCK_CAPSULE',
+    amountUsd: amount,
+    paymentMethod: type === 'credit' ? 'external' : 'wallet',
+    descriptionAr: reason,
+    referenceId,
+    skipFeatureIdempotency: true,
+  });
+
+  if (res.status === 'INSUFFICIENT_FUNDS') {
+    throw new Error(
+      `رصيد المحفظة غير كافٍ لإتمام هذه المعاملة (المبلغ المتبقي: $${(
+        res.shortfallUsd ?? amount
+      ).toFixed(2)}).`
+    );
   }
-  const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
-  try {
-    const userDoc = await dualGetDoc<UserProfileData>(['users', safeUid]);
-    const currentBalance = userDoc ? (userDoc.walletBalance ?? 0) : 0;
+  return {
+    newBalance: res.balanceAfter,
+    transactionId: res.transactionId,
+  };
+}
 
-    let newBalance = currentBalance;
-    if (type === 'credit') {
-      newBalance = currentBalance + amount;
-    } else {
-      if (currentBalance < amount) {
-        throw new Error('رصيد المحفظة غير كافٍ لإتمام هذه المعاملة.');
+/**
+ * Generates a unique, human-readable financial transaction reference ID:
+ * Format: `TXN-YYYYMMDD-XXXXX` (e.g. `TXN-20261116-A9F4K`)
+ */
+export function generateWalletTransactionId(): string {
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for (let i = 0; i < 5; i += 1) {
+    suffix += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+  }
+  return `TXN-${yyyy}${mm}${dd}-${suffix}`;
+}
+
+export interface AtomicWalletOperationParams {
+  userId: string;
+  userEmail?: string;
+  userFullName?: string;
+  operationType: StructuredWalletTxType;
+  amountUsd: number;
+  paymentMethod?: 'wallet' | 'external';
+  descriptionAr: string;
+  referenceId?: string;
+  targetCapsuleIds?: string[];
+  targetAddonSourceId?: string;
+  bonusWalletCreditUsd?: number;
+  charterSignatureMeta?: {
+    signedAt: string;
+    charterCode: string;
+    contractVersion: string;
+  };
+  skipFeatureIdempotency?: boolean;
+}
+
+export interface AtomicWalletOperationResult {
+  status: 'COMPLETED' | 'ALREADY_OWNED' | 'INSUFFICIENT_FUNDS';
+  alreadyUnlocked?: boolean;
+  transactionId?: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  shortfallUsd?: number;
+  updatedProfile?: UserProfileData;
+  transactionRecord?: WalletTransactionData;
+}
+
+/**
+ * Executes all wallet top-ups, deductions, $5 root unlocks, capsule/addon unlocks,
+ * Annual VIP upgrades, and Family Registrar upgrades atomically inside Firestore `runTransaction`.
+ */
+export async function executeAtomicWalletOperation(
+  params: AtomicWalletOperationParams
+): Promise<AtomicWalletOperationResult> {
+  const safeUid = (params.userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanAmount = Math.max(0, Number((params.amountUsd || 0).toFixed(2)));
+  const paymentMethod = params.paymentMethod || 'wallet';
+  const transactionId = generateWalletTransactionId();
+  const nowIso = new Date().toISOString();
+
+  if (!safeUid) {
+    const fallbackAfter =
+      params.operationType === 'TOPUP' ? cleanAmount : 0;
+    return {
+      status: 'COMPLETED',
+      transactionId,
+      balanceBefore: 0,
+      balanceAfter: fallbackAfter,
+    };
+  }
+
+  const runOnFirestoreInstance = async (
+    targetDb: typeof db
+  ): Promise<AtomicWalletOperationResult> => {
+    let syncedReferrerMirrorPayload: {
+      referrerUid: string;
+      updatedReferrerDoc: UserProfileData;
+      refTxId: string;
+      refTxRecord: WalletTransactionData;
+      refCode?: string;
+      updatedRefIndex?: ReferralCodeIndexDoc;
+    } | null = null;
+
+    const runResult = await runTransaction(targetDb, async (tx) => {
+      const userRef = doc(targetDb, 'users', safeUid);
+      const snap = await tx.get(userRef);
+      const liveUser: UserProfileData = snap.exists()
+        ? (snap.data() as UserProfileData)
+        : {
+            userId: safeUid,
+            fullName: params.userFullName || 'مستخدم جذوري',
+            email: params.userEmail || auth.currentUser?.email || 'user@juthori.com',
+            accountType: 'individual',
+            subscriptionTier: 'free',
+            walletBalance: 0,
+            isRootUnlocked: false,
+            createdAt: nowIso,
+          };
+
+      // Pre-read referrer & referral_codes BEFORE any writes (Firestore transaction invariant)
+      const candidateReferrerUid =
+        params.operationType === 'UPGRADE_ANNUAL_VIP' &&
+        liveUser.referredByUserId &&
+        liveUser.referredByUserId !== safeUid &&
+        !liveUser.referralRewardClaimed
+          ? liveUser.referredByUserId.replace(/[^a-zA-Z0-9_-]/g, '_')
+          : null;
+      const candidateRefCode =
+        candidateReferrerUid && liveUser.referredByCode
+          ? liveUser.referredByCode.trim().toUpperCase()
+          : null;
+
+      const referrerRef = candidateReferrerUid
+        ? doc(targetDb, 'users', candidateReferrerUid)
+        : null;
+      const refCodeRef = candidateRefCode
+        ? doc(targetDb, 'referral_codes', candidateRefCode)
+        : null;
+
+      const [referrerSnap, refCodeSnap] = await Promise.all([
+        referrerRef ? tx.get(referrerRef) : Promise.resolve(null),
+        refCodeRef ? tx.get(refCodeRef) : Promise.resolve(null),
+      ]);
+
+      const balanceBefore = Math.max(
+        0,
+        Number((liveUser.walletBalance ?? 0).toFixed(2))
+      );
+      const liveCapsules = Array.isArray(liveUser.unlockedCapsules)
+        ? liveUser.unlockedCapsules
+        : [];
+      const liveAddons = Array.isArray(liveUser.unlockedAddonSourceIds)
+        ? liveUser.unlockedAddonSourceIds
+        : [];
+
+      // (b) Strict Idempotency Check BEFORE any cent is deducted
+      if (!params.skipFeatureIdempotency) {
+        if (params.operationType === 'PURCHASE_ROOT_5USD') {
+          if (
+            liveUser.isRootUnlocked === true ||
+            liveUser.subscriptionTier === 'basic_verified' ||
+            liveUser.subscriptionTier === 'premium_annual'
+          ) {
+            return {
+              status: 'ALREADY_OWNED' as const,
+              alreadyUnlocked: true,
+              balanceBefore,
+              balanceAfter: balanceBefore,
+              updatedProfile: liveUser,
+            };
+          }
+        } else if (params.operationType === 'UNLOCK_CAPSULE') {
+          if (
+            params.targetAddonSourceId &&
+            liveAddons.includes(params.targetAddonSourceId)
+          ) {
+            return {
+              status: 'ALREADY_OWNED' as const,
+              alreadyUnlocked: true,
+              balanceBefore,
+              balanceAfter: balanceBefore,
+              updatedProfile: liveUser,
+            };
+          }
+          if (
+            params.targetCapsuleIds &&
+            params.targetCapsuleIds.length > 0 &&
+            params.targetCapsuleIds.every((cid) => liveCapsules.includes(cid))
+          ) {
+            return {
+              status: 'ALREADY_OWNED' as const,
+              alreadyUnlocked: true,
+              balanceBefore,
+              balanceAfter: balanceBefore,
+              updatedProfile: liveUser,
+            };
+          }
+        } else if (params.operationType === 'UPGRADE_ANNUAL_VIP') {
+          if (liveUser.subscriptionTier === 'premium_annual') {
+            return {
+              status: 'ALREADY_OWNED' as const,
+              alreadyUnlocked: true,
+              balanceBefore,
+              balanceAfter: balanceBefore,
+              updatedProfile: liveUser,
+            };
+          }
+        } else if (params.operationType === 'UPGRADE_REGISTRAR') {
+          if (
+            liveUser.accountType === 'record_keeper' &&
+            liveUser.recordKeeperCharterSigned === true
+          ) {
+            return {
+              status: 'ALREADY_OWNED' as const,
+              alreadyUnlocked: true,
+              balanceBefore,
+              balanceAfter: balanceBefore,
+              updatedProfile: liveUser,
+            };
+          }
+        }
       }
-      newBalance = currentBalance - amount;
+
+      // (c) Live Sufficient Balance Check when paying from wallet
+      let balanceAfter = balanceBefore;
+      if (params.operationType === 'TOPUP' || params.operationType === 'REFERRAL_REWARD') {
+        balanceAfter = Number((balanceBefore + cleanAmount).toFixed(2));
+      } else if (paymentMethod === 'wallet' && cleanAmount > 0) {
+        if (balanceBefore < cleanAmount) {
+          const shortfallUsd = Number((cleanAmount - balanceBefore).toFixed(2));
+          return {
+            status: 'INSUFFICIENT_FUNDS' as const,
+            shortfallUsd,
+            balanceBefore,
+            balanceAfter: balanceBefore,
+            updatedProfile: liveUser,
+          };
+        }
+        balanceAfter = Number(
+          (
+            balanceBefore -
+            cleanAmount +
+            (params.bonusWalletCreditUsd || 0)
+          ).toFixed(2)
+        );
+      } else {
+        balanceAfter = Number(
+          (balanceBefore + (params.bonusWalletCreditUsd || 0)).toFixed(2)
+        );
+      }
+
+      // (d) Compute updated package/feature state + atomic financial ledger record
+      const nextCapsules = params.targetCapsuleIds?.length
+        ? Array.from(new Set([...liveCapsules, ...params.targetCapsuleIds]))
+        : liveCapsules;
+
+      const nextAddons = params.targetAddonSourceId
+        ? Array.from(new Set([...liveAddons, params.targetAddonSourceId]))
+        : liveAddons;
+
+      let nextSubscriptionTier = liveUser.subscriptionTier;
+      let nextRootUnlocked = Boolean(liveUser.isRootUnlocked);
+      let nextAccountType = liveUser.accountType;
+
+      if (params.operationType === 'PURCHASE_ROOT_5USD') {
+        nextRootUnlocked = true;
+        if (nextSubscriptionTier === 'free') {
+          nextSubscriptionTier = 'basic_verified';
+        }
+      } else if (params.operationType === 'UPGRADE_ANNUAL_VIP') {
+        nextRootUnlocked = true;
+        nextSubscriptionTier = 'premium_annual';
+      } else if (params.operationType === 'UPGRADE_REGISTRAR') {
+        nextAccountType = 'record_keeper';
+      }
+
+      const prevRevenue = Number(liveUser.paidRevenueUsd ?? 0);
+      const addedRevenue =
+        params.operationType === 'TOPUP' || params.operationType === 'REFERRAL_REWARD'
+          ? 0
+          : cleanAmount;
+      const nextRevenue = Number((prevRevenue + addedRevenue).toFixed(2));
+
+      const resolvedEmail = (
+        params.userEmail ||
+        liveUser.email ||
+        auth.currentUser?.email ||
+        'user@juthori.com'
+      ).trim();
+
+      const willCreditReferrer = Boolean(
+        candidateReferrerUid && referrerSnap && referrerSnap.exists()
+      );
+
+      const updatedUserDoc: UserProfileData = sanitizeFirestoreData({
+        ...liveUser,
+        userId: safeUid,
+        email: resolvedEmail,
+        accountType: nextAccountType,
+        subscriptionTier: nextSubscriptionTier,
+        isRootUnlocked: nextRootUnlocked,
+        walletBalance: balanceAfter,
+        paidRevenueUsd: nextRevenue,
+        referralCode:
+          liveUser.referralCode || buildDeterministicReferralCode(safeUid),
+        referralRewardClaimed: willCreditReferrer
+          ? true
+          : liveUser.referralRewardClaimed,
+        unlockedCapsules: nextCapsules.length > 0 ? nextCapsules : liveUser.unlockedCapsules,
+        unlockedAddonSourceIds:
+          nextAddons.length > 0 ? nextAddons : liveUser.unlockedAddonSourceIds,
+        recordKeeperCharterSigned:
+          params.operationType === 'UPGRADE_REGISTRAR'
+            ? true
+            : liveUser.recordKeeperCharterSigned,
+        recordKeeperCharterSignedAt:
+          params.charterSignatureMeta?.signedAt ||
+          liveUser.recordKeeperCharterSignedAt,
+        recordKeeperCharterCode:
+          params.charterSignatureMeta?.charterCode ||
+          liveUser.recordKeeperCharterCode,
+        recordKeeperContractVersion:
+          params.charterSignatureMeta?.contractVersion ||
+          liveUser.recordKeeperContractVersion,
+        lastWalletTransactionId: transactionId,
+        updatedAt: nowIso,
+      });
+
+      const direction: 'credit' | 'debit' =
+        params.operationType === 'TOPUP' || params.operationType === 'REFERRAL_REWARD'
+          ? 'credit'
+          : 'debit';
+
+      const txRecord: WalletTransactionData = sanitizeFirestoreData({
+        id: transactionId,
+        transactionId,
+        userId: safeUid,
+        userEmail: resolvedEmail,
+        type: params.operationType,
+        direction,
+        amount: cleanAmount,
+        balanceBefore,
+        balanceAfter,
+        status: 'COMPLETED',
+        descriptionAr: params.descriptionAr,
+        reason: params.descriptionAr,
+        referenceId: params.referenceId || transactionId,
+        createdAt: nowIso,
+      });
+
+      tx.set(userRef, updatedUserDoc as unknown as Record<string, unknown>);
+      tx.set(
+        doc(targetDb, 'wallet_transactions', transactionId),
+        txRecord as unknown as Record<string, unknown>
+      );
+      tx.set(
+        doc(targetDb, 'users', safeUid, 'wallet_transactions', transactionId),
+        txRecord as unknown as Record<string, unknown>
+      );
+
+      // (e) Atomic $10 REFERRAL_REWARD payout to the inviter inside the SAME transaction
+      if (willCreditReferrer && referrerRef && referrerSnap && candidateReferrerUid) {
+        const refData = referrerSnap.data() as UserProfileData;
+        const refBefore = Math.max(
+          0,
+          Number((refData.walletBalance ?? 0).toFixed(2))
+        );
+        const refAfter = Number((refBefore + REFERRAL_REWARD_USD).toFixed(2));
+        const refTxId = generateWalletTransactionId();
+        const refRewardDesc = `مكافأة إحالة عائلية ($${REFERRAL_REWARD_USD}) عند اشتراك (${
+          liveUser.fullName || 'عضو مدعو'
+        }) في الباقة السنوية`;
+
+        const updatedReferrerDoc: UserProfileData = sanitizeFirestoreData({
+          ...refData,
+          walletBalance: refAfter,
+          lastWalletTransactionId: refTxId,
+          updatedAt: nowIso,
+        });
+
+        const refTxRecord: WalletTransactionData = sanitizeFirestoreData({
+          id: refTxId,
+          transactionId: refTxId,
+          userId: candidateReferrerUid,
+          userEmail: refData.email || 'referrer@juthori.com',
+          type: 'REFERRAL_REWARD',
+          direction: 'credit',
+          amount: REFERRAL_REWARD_USD,
+          balanceBefore: refBefore,
+          balanceAfter: refAfter,
+          status: 'COMPLETED',
+          descriptionAr: refRewardDesc,
+          reason: refRewardDesc,
+          referenceId: `REF-${safeUid}`,
+          referredInviteeUid: safeUid,
+          createdAt: nowIso,
+        });
+
+        tx.set(
+          referrerRef,
+          updatedReferrerDoc as unknown as Record<string, unknown>
+        );
+        tx.set(
+          doc(targetDb, 'wallet_transactions', refTxId),
+          refTxRecord as unknown as Record<string, unknown>
+        );
+        tx.set(
+          doc(targetDb, 'users', candidateReferrerUid, 'wallet_transactions', refTxId),
+          refTxRecord as unknown as Record<string, unknown>
+        );
+
+        let updatedRefIndex: ReferralCodeIndexDoc | undefined;
+        if (refCodeRef && candidateRefCode) {
+          const existingIdx: ReferralCodeIndexDoc =
+            refCodeSnap && refCodeSnap.exists()
+              ? (refCodeSnap.data() as ReferralCodeIndexDoc)
+              : {
+                  code: candidateRefCode,
+                  ownerId: candidateReferrerUid,
+                  ownerName: refData.fullName,
+                  familyName: refData.familyName || '',
+                  invitees: [],
+                  totalEarnedUsd: 0,
+                  updatedAt: nowIso,
+                };
+          const prevList = Array.isArray(existingIdx.invitees)
+            ? existingIdx.invitees
+            : [];
+          const hadEntry = prevList.some((item) => item.userId === safeUid);
+          const nextInvitees: ReferralInviteeSummary[] = hadEntry
+            ? prevList.map((item) =>
+                item.userId === safeUid
+                  ? {
+                      ...item,
+                      status: 'SUBSCRIBED_PAID' as const,
+                      rewardUsd: REFERRAL_REWARD_USD,
+                      upgradedAt: nowIso,
+                    }
+                  : item
+              )
+            : [
+                ...prevList,
+                {
+                  userId: safeUid,
+                  fullName: liveUser.fullName || 'عضو مدعو',
+                  status: 'SUBSCRIBED_PAID' as const,
+                  rewardUsd: REFERRAL_REWARD_USD,
+                  createdAt: liveUser.createdAt || nowIso,
+                  upgradedAt: nowIso,
+                },
+              ];
+          updatedRefIndex = sanitizeFirestoreData({
+            ...existingIdx,
+            invitees: nextInvitees.slice(-300),
+            totalEarnedUsd: Number(
+              ((existingIdx.totalEarnedUsd || 0) + REFERRAL_REWARD_USD).toFixed(2)
+            ),
+            updatedAt: nowIso,
+          });
+          tx.set(
+            refCodeRef,
+            updatedRefIndex as unknown as Record<string, unknown>
+          );
+        }
+
+        syncedReferrerMirrorPayload = {
+          referrerUid: candidateReferrerUid,
+          updatedReferrerDoc,
+          refTxId,
+          refTxRecord,
+          refCode: candidateRefCode || undefined,
+          updatedRefIndex,
+        };
+      }
+
+      return {
+        status: 'COMPLETED' as const,
+        transactionId,
+        balanceBefore,
+        balanceAfter,
+        updatedProfile: updatedUserDoc,
+        transactionRecord: txRecord,
+      };
+    });
+
+    if (syncedReferrerMirrorPayload) {
+      const rp = syncedReferrerMirrorPayload as {
+        referrerUid: string;
+        updatedReferrerDoc: UserProfileData;
+        refTxId: string;
+        refTxRecord: WalletTransactionData;
+        refCode?: string;
+        updatedRefIndex?: ReferralCodeIndexDoc;
+      };
+      Promise.allSettled([
+        setDoc(
+          doc(mirrorDb, 'users', rp.referrerUid),
+          sanitizeFirestoreData(rp.updatedReferrerDoc as unknown as Record<string, unknown>)
+        ),
+        setDoc(
+          doc(mirrorDb, 'wallet_transactions', rp.refTxId),
+          sanitizeFirestoreData(rp.refTxRecord as unknown as Record<string, unknown>)
+        ),
+        setDoc(
+          doc(mirrorDb, 'users', rp.referrerUid, 'wallet_transactions', rp.refTxId),
+          sanitizeFirestoreData(rp.refTxRecord as unknown as Record<string, unknown>)
+        ),
+        ...(rp.refCode && rp.updatedRefIndex
+          ? [
+              setDoc(
+                doc(mirrorDb, 'referral_codes', rp.refCode),
+                sanitizeFirestoreData(rp.updatedRefIndex as unknown as Record<string, unknown>)
+              ),
+            ]
+          : []),
+      ]).catch(() => {});
+
+      sendCustomerNotification({
+        userId: rp.referrerUid,
+        title: `مكافأة إحالة عائلية (+$${REFERRAL_REWARD_USD}) أُضيفت لمحفظتك ✦`,
+        body:
+          rp.refTxRecord.descriptionAr ||
+          `تم إيداع مكافأة إحالة بقيمة +$${REFERRAL_REWARD_USD} في محفظتك.`,
+        category: 'wallet_bonus',
+        senderRole: 'system',
+      }).catch(() => {});
     }
 
-    await updateUserProfile(safeUid, { walletBalance: newBalance });
+    return runResult;
+  };
 
-    // Sync walletBalanceUsd on matching customer_orders in background
+  let txResult: AtomicWalletOperationResult;
+  try {
+    txResult = await withFastTimeout(runOnFirestoreInstance(db), 6000);
+    // Commit atomic mirror transaction in background so Zero-Trust `getAfter` ledger rules pass on mirrorDb too
+    if (txResult.status === 'COMPLETED') {
+      runOnFirestoreInstance(mirrorDb).catch(() => {});
+    }
+  } catch (primaryErr) {
+    console.warn('[executeAtomicWalletOperation] primary db fallback to mirrorDb:', primaryErr);
+    txResult = await runOnFirestoreInstance(mirrorDb);
+  }
+
+  // Background sync to customer_orders so /team Operations Hub sees live wallet & tier immediately
+  if (txResult.status === 'COMPLETED' && txResult.updatedProfile) {
+    const prof = txResult.updatedProfile;
     dualGetCollection<CustomerOrderRecord>('customer_orders')
       .then((orders) => {
-        const userEmailLower = (userDoc?.email || auth.currentUser?.email || '')
-          .trim()
-          .toLowerCase();
+        const emailLower = (prof.email || '').trim().toLowerCase();
+        const mappedStatus: CustomerOrderRecord['accountStatus'] =
+          prof.subscriptionTier === 'premium_annual'
+            ? 'annual_vip'
+            : prof.isRootUnlocked || prof.subscriptionTier === 'basic_verified'
+            ? 'paid_5_root'
+            : 'free';
         for (const ord of orders) {
           if (
             ord.userId === safeUid ||
-            (userEmailLower && (ord.email || '').trim().toLowerCase() === userEmailLower)
+            (emailLower && (ord.email || '').trim().toLowerCase() === emailLower)
           ) {
-            updateCustomerOrderInFirebase(ord.id, { walletBalanceUsd: newBalance }).catch(
-              () => {}
-            );
+            updateCustomerOrderInFirebase(ord.id, {
+              walletBalanceUsd: prof.walletBalance,
+              paidRevenueUsd: prof.paidRevenueUsd ?? ord.paidRevenueUsd,
+              accountStatus: mappedStatus,
+              legalRole: prof.accountType,
+            }).catch(() => {});
           }
         }
       })
       .catch(() => {});
-
-    const txRecord: WalletTransactionData = {
-      id: txId,
-      userId: safeUid,
-      type,
-      amount,
-      reason,
-      referenceId: referenceId || 'manual',
-      balanceAfter: newBalance,
-      createdAt: new Date().toISOString(),
-    };
-    await dualSetDoc(
-      ['users', safeUid, 'wallet_transactions', txId],
-      txRecord as unknown as Record<string, unknown>
-    );
-
-    return { newBalance };
-  } catch (error) {
-    console.warn('[executeWalletTransaction] warning:', error);
-    throw error;
   }
+
+  return txResult;
 }
 
 export async function processAnnualSubscriptionUpgrade(
   userId: string,
   planPriceUsd: number = 60,
   bonusWalletCreditsUsd: number = 25
-): Promise<{ success: boolean; newBalance: number }> {
+): Promise<{ success: boolean; newBalance: number; transactionId?: string }> {
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   if (!safeUid) {
     return { success: true, newBalance: bonusWalletCreditsUsd };
   }
   try {
-    await updateUserProfile(safeUid, {
-      subscriptionTier: 'premium_annual',
-      isRootUnlocked: true,
+    const res = await executeAtomicWalletOperation({
+      userId: safeUid,
+      operationType: 'UPGRADE_ANNUAL_VIP',
+      amountUsd: planPriceUsd,
+      paymentMethod: 'external',
+      bonusWalletCreditUsd: bonusWalletCreditsUsd,
+      descriptionAr: `ترقية إلى الباقة السنوية بريميوم ($${planPriceUsd}/سنة) شاملة رصيد محفظة ترحيبي ($${bonusWalletCreditsUsd})`,
+      referenceId: 'annual_vip_upgrade',
     });
-
-    const txRes = await executeWalletTransaction(
-      safeUid,
-      'credit',
-      bonusWalletCreditsUsd,
-      `رصيد محفظة ترحيبي مع الاشتراك السنوي بريميوم ($${planPriceUsd}/سنة)`,
-      'annual_subscription_bonus'
-    );
-
-    return { success: true, newBalance: txRes.newBalance };
+    return {
+      success: true,
+      newBalance: res.balanceAfter,
+      transactionId: res.transactionId,
+    };
   } catch {
     return { success: true, newBalance: bonusWalletCreditsUsd };
   }
@@ -2065,24 +3125,84 @@ export async function fetchUserWalletTransactions(
 ): Promise<WalletTransactionData[]> {
   if (!userId) return [];
   const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const deduped = new Map<string, WalletTransactionData>();
+
+  const collectDocs = (docsList: WalletTransactionData[]) => {
+    for (const item of docsList) {
+      if (!item) continue;
+      const key = item.transactionId || item.id;
+      if (key && !deduped.has(key)) {
+        deduped.set(key, item);
+      }
+    }
+  };
+
   try {
-    const q = query(
-      collection(db, 'users', safeUid, 'wallet_transactions'),
-      orderBy('createdAt', 'desc'),
-      limit(20)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      return snap.docs.map((d) => d.data() as WalletTransactionData);
+    const [centralSnap, userSubSnap] = await Promise.allSettled([
+      withFastTimeout(
+        getDocs(
+          query(
+            collection(db, 'wallet_transactions'),
+            where('userId', '==', safeUid)
+          )
+        ),
+        3000
+      ),
+      withFastTimeout(
+        getDocs(
+          query(
+            collection(db, 'users', safeUid, 'wallet_transactions'),
+            orderBy('createdAt', 'desc'),
+            limit(40)
+          )
+        ),
+        3000
+      ),
+    ]);
+
+    if (centralSnap.status === 'fulfilled' && !centralSnap.value.empty) {
+      collectDocs(
+        centralSnap.value.docs.map((d) => d.data() as WalletTransactionData)
+      );
+    }
+    if (userSubSnap.status === 'fulfilled' && !userSubSnap.value.empty) {
+      collectDocs(
+        userSubSnap.value.docs.map((d) => d.data() as WalletTransactionData)
+      );
+    }
+
+    if (deduped.size > 0) {
+      return Array.from(deduped.values())
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+        .slice(0, 40);
     }
   } catch {
     // Fallback to mirrorDb below
   }
+
   try {
-    const snap = await getDocs(collection(mirrorDb, 'users', safeUid, 'wallet_transactions'));
-    return snap.docs
-      .map((d) => d.data() as WalletTransactionData)
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const [mirrorCentral, mirrorSub] = await Promise.allSettled([
+      getDocs(
+        query(
+          collection(mirrorDb, 'wallet_transactions'),
+          where('userId', '==', safeUid)
+        )
+      ),
+      getDocs(collection(mirrorDb, 'users', safeUid, 'wallet_transactions')),
+    ]);
+    if (mirrorCentral.status === 'fulfilled') {
+      collectDocs(
+        mirrorCentral.value.docs.map((d) => d.data() as WalletTransactionData)
+      );
+    }
+    if (mirrorSub.status === 'fulfilled') {
+      collectDocs(
+        mirrorSub.value.docs.map((d) => d.data() as WalletTransactionData)
+      );
+    }
+    return Array.from(deduped.values())
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      .slice(0, 40);
   } catch {
     return [];
   }
@@ -2329,6 +3449,12 @@ export async function bootstrapJuthoriFirestoreDatabase(): Promise<{
       'charter_requests',
       'support_tickets',
       'newsletter_subscribers',
+      'public_sites',
+      'kinship_circles',
+      'enrichment_requests',
+      'site_access_requests',
+      'site_guestbook',
+      'referral_codes',
     ];
     await Promise.allSettled(
       targetCollections.map((col) => dualGetCollection<{ id?: string; userId?: string }>(col))
@@ -2417,6 +3543,47 @@ export async function authenticateTeamMemberInFirebase(
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = password.trim();
 
+  const syncIsolatedStaffMirrorSession = async (
+    staffEmail: string,
+    staffPassword: string,
+    staffRecord: TeamMemberRecord
+  ) => {
+    try {
+      const authPass =
+        staffPassword.length >= 6 ? staffPassword : staffPassword.padEnd(6, '0');
+      let mirrorUid = mirrorAuth.currentUser?.uid;
+      if (
+        !mirrorUid ||
+        (mirrorAuth.currentUser?.email || '').trim().toLowerCase() !== staffEmail
+      ) {
+        try {
+          const cred = await withFastTimeout(
+            signInWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
+            2500
+          );
+          mirrorUid = cred.user.uid;
+        } catch {
+          const cred = await withFastTimeout(
+            createUserWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
+            2500
+          );
+          mirrorUid = cred.user.uid;
+        }
+      }
+      if (mirrorUid) {
+        await setDoc(
+          doc(mirrorDb, 'team_members', mirrorUid),
+          sanitizeFirestoreData({
+            ...staffRecord,
+            id: mirrorUid,
+          } as unknown as Record<string, unknown>)
+        ).catch(() => {});
+      }
+    } catch {
+      // Non-blocking mirror staff auth sync
+    }
+  };
+
   // 1. Instant Fast-Path for Founding Maestro (< 10ms)
   // IMPORTANT: Never call signInWithEmailAndPassword on the primary customer `auth` instance here,
   // so logging into `/Team` never logs the customer portal in as "كريم طاحون"!
@@ -2425,6 +3592,11 @@ export async function authenticateTeamMemberInFirebase(
     (cleanPass === FOUNDING_MAESTRO_MEMBER.passwordHash || cleanPass === 'Kareem123@')
   ) {
     ensureFoundingMaestroInFirebase().catch(() => {});
+    syncIsolatedStaffMirrorSession(
+      cleanEmail,
+      FOUNDING_MAESTRO_MEMBER.passwordHash,
+      FOUNDING_MAESTRO_MEMBER
+    ).catch(() => {});
     return { member: FOUNDING_MAESTRO_MEMBER };
   }
 
@@ -2451,6 +3623,9 @@ export async function authenticateTeamMemberInFirebase(
         ['team_members', DEFAULT_GENERAL_MANAGER_MEMBER.id],
         resolvedGm as unknown as Record<string, unknown>
       ).catch(() => {});
+      syncIsolatedStaffMirrorSession(cleanEmail, '123456', resolvedGm).catch(
+        () => {}
+      );
       return { member: resolvedGm };
     } catch {
       return { member: DEFAULT_GENERAL_MANAGER_MEMBER };
@@ -2498,6 +3673,7 @@ export async function authenticateTeamMemberInFirebase(
       };
     }
 
+    syncIsolatedStaffMirrorSession(cleanEmail, cleanPass, matched).catch(() => {});
     return { member: matched };
   } catch {
     return {
@@ -3466,10 +4642,14 @@ export interface FamilyVaultMediaItem {
   dateOrOccasion: string;
   description?: string;
   fileDataUrl: string;
+  thumbnailDataUrl?: string;
+  storagePath?: string;
+  storageProvider?: 'firebase_storage' | 'firestore_chunked';
   fileName?: string;
   fileMimeType?: string;
   linkedPersonIds: string[];
   enhanced: boolean;
+  aiRestoredEnhanced?: boolean;
   createdAt: string;
 }
 
@@ -3487,6 +4667,7 @@ export interface TreePersonSummaryForVault {
   avatarDataUrl?: string;
   birthYear?: string;
   isAlive?: boolean;
+  isCertifiedReference?: boolean;
 }
 
 export const DEFAULT_STARTER_VAULT_FOLDERS: VaultFolderRecord[] = [
@@ -3703,30 +4884,33 @@ export async function saveUserVaultArchive(
   );
   if (targetUids.length > 0) {
     try {
-      let jsonStr = JSON.stringify(record);
       const mediaChunks: Array<{ docId: string; dataUrl: string }> = [];
 
-      // If total vault archive exceeds 860KB, chunk heavy media files into separate sub-documents
-      if (jsonStr.length > 860000) {
-        const lightItems = record.items.map((item, idx) => {
-          if (typeof item.fileDataUrl === 'string' && item.fileDataUrl.length > 8192) {
-            const safeItemId = String(item.id || `m_${idx}`)
-              .replace(/[^a-zA-Z0-9_-]/g, '_')
-              .slice(0, 80);
-            const chunkDocId = `vault_media_${safeItemId}`;
-            mediaChunks.push({ docId: chunkDocId, dataUrl: item.fileDataUrl });
-            return {
-              ...item,
-              fileDataUrl: `${CHUNKED_VAULT_MEDIA_PREFIX}${chunkDocId}`,
-            };
-          }
-          return item;
-        });
-        jsonStr = JSON.stringify({
-          ...record,
-          items: lightItems,
-        });
-      }
+      // Proactively offload inline base64 media (`fileDataUrl` > 12KB) into dedicated chunk documents
+      // whenever Firebase Storage was not used, keeping `vault_archive` index lightweight & under 1MB.
+      const lightItems = record.items.map((item, idx) => {
+        if (
+          typeof item.fileDataUrl === 'string' &&
+          item.fileDataUrl.startsWith('data:') &&
+          item.fileDataUrl.length > 12288
+        ) {
+          const safeItemId = String(item.id || `m_${idx}`)
+            .replace(/[^a-zA-Z0-9_-]/g, '_')
+            .slice(0, 80);
+          const chunkDocId = `vault_media_${safeItemId}`;
+          mediaChunks.push({ docId: chunkDocId, dataUrl: item.fileDataUrl });
+          return {
+            ...item,
+            fileDataUrl: `${CHUNKED_VAULT_MEDIA_PREFIX}${chunkDocId}`,
+          };
+        }
+        return item;
+      });
+
+      const jsonStr = JSON.stringify({
+        ...record,
+        items: lightItems,
+      });
 
       for (const uid of targetUids) {
         for (const chunk of mediaChunks) {
@@ -3763,6 +4947,39 @@ export interface CustomerSiteSettingsData {
   siteSubdomain: string;
   publishLineagePublic: boolean;
   protectLivingMembers: boolean;
+  isPublished?: boolean;
+  themeId?: FamilySiteThemeId;
+  siteAccessMode?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE_WHITELIST';
+  emblemTag?: string;
+  siteTitle?: string;
+  siteTagline?: string;
+  bioTitle?: string;
+  bioDescription?: string;
+  showBio?: boolean;
+  showVerifiedLineage?: boolean;
+  showFamilyTree?: boolean;
+  hideLivingNamesForGuests?: boolean;
+  hideLivingBirthDates?: boolean;
+  femaleDisplayPolicy?:
+    | 'SHOW_ALL'
+    | 'SYMBOLIC_TITLE'
+    | 'FAMILY_CIRCLE_ONLY'
+    | 'HIDE_ALL';
+  startRootPersonId?: string;
+  excludedBranchRootIds?: string[];
+  selectedFolderIds?: string[];
+  selectedVaultItemIds?: string[];
+  enableDynamicWatermark?: boolean;
+  cmsModulesJson?: string;
+  accessGateMode?: 'PUBLIC_INDEXABLE' | 'UNLISTED_LINK' | 'FAMILY_PIN' | 'PRIVATE_WHITELIST';
+  familyPinCode?: string;
+  femalePrivacyPolicy?:
+    | 'FULL_DISPLAY'
+    | 'COUNT_ONLY_SYMBOL'
+    | 'FIRST_NAME_FAMILY_ONLY'
+    | 'PUBLIC_INITIALS_FAMILY_FULL';
+  watermarkEnabled?: boolean;
+  watermarkText?: string;
 }
 
 export interface CustomerCommunityPostData {
@@ -3789,6 +5006,12 @@ export interface CustomerDashboardWorkspaceData {
   verifiedResultOverrideJson?: string | null;
   siteSettings?: CustomerSiteSettingsData;
   communityPosts?: CustomerCommunityPostData[];
+  blockedUserIds?: string[];
+  blockedUsersMeta?: Array<{
+    userId: string;
+    name: string;
+    blockedAt: string;
+  }>;
   activityLog?: CustomerActivityLogEntry[];
   updatedAt: string;
 }
@@ -3952,9 +5175,10 @@ export function readSyncedTreePeopleList(
               ),
               relationLabel: String(p.relationLabel || 'فرد في المشجرة'),
               gender: p.gender === 'female' ? 'female' : 'male',
-              avatarDataUrl: p.avatarDataUrl || undefined,
+               avatarDataUrl: p.avatarDataUrl || undefined,
               birthYear: p.birthYear || undefined,
               isAlive: p.isAlive !== false,
+              isCertifiedReference: Boolean(p.isCertifiedReference),
             })
           );
         }
@@ -3962,6 +5186,34 @@ export function readSyncedTreePeopleList(
     } catch {
       // Ignore parse error
     }
+  }
+
+  // Also check full local family tree cache if `juthori_tree_nodes_v2_` wasn't written yet
+  const localFullTree = readUserFamilyTreeFromLocal<Record<string, unknown>>(
+    userId,
+    undefined,
+    fallbackInfo.familyName
+  );
+  if (localFullTree && localFullTree.length > 0) {
+    return localFullTree.map((p): TreePersonSummaryForVault => ({
+      id: String(p.id || ''),
+      fullName: `${String(p.firstName || '')} ${String(p.familyName || '')}`.trim(),
+      relationLabel: p.isRecordKeeper
+        ? 'أمين السجل'
+        : p.isCertifiedReference
+        ? String(p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق')
+        : String(p.relationToTargetLabel || 'فرد في المشجرة'),
+      gender: p.gender === 'female' ? 'female' : 'male',
+      avatarDataUrl:
+        typeof p.photoThumbnailUrl === 'string' && p.photoThumbnailUrl
+          ? p.photoThumbnailUrl
+          : typeof p.photoUrl === 'string'
+          ? p.photoUrl
+          : undefined,
+      birthYear: typeof p.birthDateValue === 'string' ? p.birthDateValue : undefined,
+      isAlive: p.vitalStatus !== 'deceased',
+      isCertifiedReference: Boolean(p.isCertifiedReference),
+    }));
   }
 
   const cleanFather =
@@ -3997,6 +5249,71 @@ export function readSyncedTreePeopleList(
       isAlive: false,
     },
   ];
+}
+
+/**
+ * Hydrates live family tree members directly from Firestore (`family_tree/main`)
+ * and updates the local Vault sync list so `خزانتي` always resolves up-to-date names
+ * dynamically by `personId` across sessions and devices.
+ */
+export async function syncLiveTreePeopleForVault(
+  userId: string | undefined,
+  userEmail: string | undefined,
+  fallbackInfo: {
+    clientName: string;
+    fatherName?: string;
+    grandfatherName?: string;
+    familyName: string;
+    rootBranchName?: string;
+    rootTribeName?: string;
+    userAvatarUrl?: string;
+  }
+): Promise<TreePersonSummaryForVault[]> {
+  if (userId || userEmail) {
+    try {
+      const remoteNodes = await fetchUserFamilyTreeFromFirebase<
+        Record<string, unknown>
+      >(userId || '', userEmail, fallbackInfo.familyName);
+      if (remoteNodes && remoteNodes.length > 0) {
+        const summaries: TreePersonSummaryForVault[] = remoteNodes.map((p) => ({
+          id: String(p.id || ''),
+          fullName: `${String(p.firstName || '')} ${String(p.familyName || '')}`.trim(),
+          relationLabel: p.isRecordKeeper
+            ? 'أمين السجل'
+            : p.isCertifiedReference
+            ? String(p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق')
+            : String(p.relationToTargetLabel || 'فرد في المشجرة'),
+          gender: p.gender === 'female' ? 'female' : 'male',
+          avatarDataUrl:
+            typeof p.photoThumbnailUrl === 'string' && p.photoThumbnailUrl
+              ? p.photoThumbnailUrl
+              : typeof p.photoUrl === 'string'
+              ? p.photoUrl
+              : undefined,
+          birthYear:
+            typeof p.birthDateValue === 'string' ? p.birthDateValue : undefined,
+          isAlive: p.vitalStatus !== 'deceased',
+          isCertifiedReference: Boolean(p.isCertifiedReference),
+        }));
+
+        if (typeof window !== 'undefined') {
+          try {
+            const syncKey = getTreeStorageKeyForVaultSync(
+              userId,
+              fallbackInfo.familyName
+            );
+            window.localStorage.setItem(syncKey, JSON.stringify(summaries));
+          } catch {
+            // Ignore storage quota
+          }
+        }
+        return summaries;
+      }
+    } catch {
+      // Fallback to local
+    }
+  }
+  return readSyncedTreePeopleList(userId, fallbackInfo);
 }
 
 

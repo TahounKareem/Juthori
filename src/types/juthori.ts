@@ -318,6 +318,22 @@ export interface LineageSearchResult {
   recommendedInitialState: DashboardStateMode;
 }
 
+export type MembershipTierGovernanceKey =
+  | 'free'
+  | 'basic_5usd'
+  | 'annual_vip'
+  | 'registrar';
+
+export type StructuredWalletTxType =
+  | 'TOPUP'
+  | 'PURCHASE_ROOT_5USD'
+  | 'UNLOCK_CAPSULE'
+  | 'UPGRADE_ANNUAL_VIP'
+  | 'UPGRADE_REGISTRAR'
+  | 'REFERRAL_REWARD';
+
+export type WalletTransactionStatus = 'COMPLETED' | 'PENDING' | 'FAILED';
+
 export interface DashboardAccessCapabilities {
   isVip: boolean;
   isMatched: boolean;
@@ -328,6 +344,13 @@ export interface DashboardAccessCapabilities {
   canAccessTreeDirectly: boolean;
   requiresCharterUpgradeForTree: boolean;
   tierHeaderTitle: string;
+  membershipTierKey: MembershipTierGovernanceKey;
+  maxTreeMembers: number | null;
+  maxVaultDocuments: number | null;
+  canPublishPublicSite: boolean;
+  canInviteFamilyContributors: boolean;
+  hasRegistrarBadge: boolean;
+  hasPriorityResearchObservatory: boolean;
 }
 
 export interface CartItem {

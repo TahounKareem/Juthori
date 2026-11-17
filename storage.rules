@@ -1,0 +1,47 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // =========================================================================
+    // GLOBAL DEFAULT DENY — ZERO PUBLIC BUCKET ENUMERATION OR UNSCOPED WRITES
+    // =========================================================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // HELPERS: IDENTITY, ALLOWED HERITAGE MEDIA TYPES & 15MB SIZE CAP
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isFolderOwner(userId) {
+      return isSignedIn()
+        && userId.size() > 0
+        && userId.size() <= 128
+        && request.auth.uid == userId;
+    }
+
+    function isAllowedVaultPayload() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 15 * 1024 * 1024
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('^(image/.*|application/pdf|audio/.*)$');
+    }
+
+    // =========================================================================
+    // ISOLATED CUSTOMER VAULT & AVATAR STORAGE (/users/{userId}/**)
+    // Covers:
+    // - /users/{userId}/vault/{fileName}
+    // - /users/{userId}/tree_avatars/{fileName}
+    // - /users/{userId}/profile_avatars/{fileName}
+    // =========================================================================
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isFolderOwner(userId);
+      allow create, update: if isFolderOwner(userId) && isAllowedVaultPayload();
+      allow delete: if isFolderOwner(userId) && request.resource == null;
+    }
+  }
+}

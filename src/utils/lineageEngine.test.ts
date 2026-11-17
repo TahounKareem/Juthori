@@ -92,138 +92,34 @@ test('validateStep2PreservationForm validates email, password, and terms', () =>
   assert.equal(validCheck.valid, true);
 });
 
-test('Preset 1 (آل مقيت) & Preset 2 (الابو معيط - دير الزور) & Preset 3 (خابور بدون دولة) & Preset 4 (آل سنجر)', () => {
-  // Preset 1: Adam Tree 40 nodes (حسن آل مقيت)
-  const preset1 = resolveDeterministicLineage({
+test('resolveDeterministicLineage resolves verified Awlad Arafat record and clean P1 unmatched fallback without mock data', () => {
+  const verifiedArafat = resolveDeterministicLineage({
     ...baseValidForm,
-    ...FOUNDER_PRESETS[0].values,
+    firstName: 'أحمد',
+    familyName: 'أولاد عرفات',
+    originCountry: 'مصر',
+    originRegion: 'أبو حماد',
+    tribeName: '',
+    branchName: '',
   });
-  assert.equal(preset1.matched, true);
-  assert.equal(preset1.familyCode, 'FE0');
-  assert.equal(preset1.rootBranchCode, 'B2');
-  assert.equal(preset1.rootTribeCode, 'B0');
-  assert.equal(preset1.recommendedInitialState, DashboardStateMode.State2MatchedUnpaid);
-  assert.ok(preset1.verifiedSourceCitation.includes('توفيق العزيز المقيت'));
+  assert.equal(verifiedArafat.matched, true);
+  assert.equal(
+    verifiedArafat.recommendedInitialState,
+    DashboardStateMode.State2MatchedUnpaid
+  );
+  assert.ok(verifiedArafat.verifiedSourceCitation.includes('معجم قبائل مصر'));
 
-  // Preset 2: Alpha Compound Branch (كريم الابو معيط - دير الزور) -> Strictly 3 Alpha nodes before merge
-  const preset2 = resolveDeterministicLineage({
-    ...baseValidForm,
-    ...FOUNDER_PRESETS[1].values,
-  });
-  assert.equal(preset2.matched, true);
-  assert.equal(preset2.isAlphaOnlyBeforeMerge, true);
-  assert.equal(preset2.adamSpineNodes.length, 3);
-  assert.equal(preset2.rootBranchName, 'قبيلة خابور');
-  assert.equal(preset2.rootTribeName, 'قبيلة العقيدات');
-  assert.deepEqual(preset2.siblingBranches, ['الابو حليحل', 'الابو عمرو']);
-
-  // Preset 3: Binary Disambiguation (عائلة خابور بدون تحديد دولة أو قبيلة)
-  const preset3 = resolveDeterministicLineage({
-    ...baseValidForm,
-    ...FOUNDER_PRESETS[2].values,
-  });
-  assert.equal(preset3.matched, true);
-  assert.equal(preset3.requiresBlindDisambiguation, true);
-  assert.ok(preset3.optionAResultOverride);
-  assert.ok(preset3.optionBResultOverride);
-
-  // Preset 4: Unmatched (خالد آل سنجر) -> State 3 Unmatched Research Queue with strictly 1 isolated node
-  const preset4 = resolveDeterministicLineage({
+  // Offline unverified families cleanly route to State 3 Unmatched Research Queue (zero mock data)
+  const unmatchedPreset = resolveDeterministicLineage({
     ...baseValidForm,
     ...FOUNDER_PRESETS[3].values,
   });
-  assert.equal(preset4.matched, false);
-  assert.equal(preset4.recommendedInitialState, DashboardStateMode.State3Unmatched);
-  assert.equal(preset4.adamSpineNodes.length, 1);
-
-  // Distinct Adam Tree & Alpha family node counts verification
-  // 1) آل قاسم (نجران - ID: 249230 — 47 عقدة)
-  const qasimNajran47 = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'آل قاسم',
-    tribeName: 'يام',
-    branchName: 'القطعان',
-    originCountry: 'السعودية',
-    originRegion: 'نجران',
-  });
-  assert.equal(qasimNajran47.adamSpineNodes.length, 47);
-  assert.equal(qasimNajran47.adamSpineNodes[0].id, '249230');
-  assert.equal(qasimNajran47.adamSpineNodes[1].name, 'آل مليح');
-
-  // 2) آل قاسم (فرع المودحي - ID: 189691 — 36 عقدة)
-  const qasimMawdahi36 = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'آل قاسم',
-    tribeName: 'المودحي',
-    branchName: 'آل امداثر',
-    originCountry: 'السعودية',
-  });
-  assert.equal(qasimMawdahi36.adamSpineNodes.length, 36);
-  assert.equal(qasimMawdahi36.adamSpineNodes[0].id, '189691');
-  assert.equal(qasimMawdahi36.adamSpineNodes[1].name, 'آل سلمان');
-
-  // 3) آل قاسم بدون تحديد نجران -> سؤال الحسم الثنائي
-  const qasimDisambig = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'آل قاسم',
-    tribeName: '',
-    branchName: '',
-    originCountry: '',
-    originRegion: '',
-  });
-  assert.equal(qasimDisambig.requiresBlindDisambiguation, true);
-  assert.equal(qasimDisambig.optionAResultOverride?.adamSpineNodes?.length, 47);
-  assert.equal(qasimDisambig.optionBResultOverride?.adamSpineNodes?.length, 36);
-
-  // 4) الخابور (شبه الجزيرة العربية - ID: 232718 — 43 عقدة)
-  const khabourAnazzah43 = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'الخابور',
-    tribeName: 'عنزة',
-    branchName: 'السميحان',
-    originCountry: 'السعودية',
-  });
-  assert.equal(khabourAnazzah43.adamSpineNodes.length, 43);
-  assert.equal(khabourAnazzah43.adamSpineNodes[0].id, '232718');
-  assert.equal(khabourAnazzah43.adamSpineNodes[1].name, 'السميحان');
-  assert.equal(khabourAnazzah43.adamSpineNodes[2].name, 'الدبجان');
+  assert.equal(unmatchedPreset.matched, false);
   assert.equal(
-    khabourAnazzah43.adamSpineNodes.some((n) => n.name.includes('عايض')),
-    false
+    unmatchedPreset.recommendedInitialState,
+    DashboardStateMode.State3Unmatched
   );
-
-  // 5) الأوضاح / آل محجم -> 5 عُقد فقط في مشاريع ألفا
-  const awdah5 = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'آل محجم',
-    tribeName: 'شمر',
-    branchName: 'الأوضاح',
-    originCountry: 'السعودية',
-  });
-  assert.equal(awdah5.isAlphaOnlyBeforeMerge, true);
-  assert.equal(awdah5.adamSpineNodes.length, 5);
-
-  // 6) الأيدا / المشادقة -> 4 عُقد فقط في مشاريع ألفا
-  const ayda4 = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'المشادقة',
-    tribeName: 'عنزة',
-    branchName: 'الأيدا',
-    originCountry: 'السعودية',
-  });
-  assert.equal(ayda4.isAlphaOnlyBeforeMerge, true);
-  assert.equal(ayda4.adamSpineNodes.length, 4);
-
-  // 7) الأوس / الغورية -> عقدتان (2) فقط في مشاريع ألفا
-  const aws2 = resolveDeterministicLineage({
-    ...baseValidForm,
-    familyName: 'الغورية',
-    tribeName: 'بلحارث',
-    branchName: 'الأوس',
-    originCountry: 'السعودية',
-  });
-  assert.equal(aws2.isAlphaOnlyBeforeMerge, true);
-  assert.equal(aws2.adamSpineNodes.length, 2);
+  assert.equal(unmatchedPreset.adamSpineNodes.length, 1);
 });
 
 test('Dashboard capabilities enforce exact Basic vs VIP and Individual vs Record Keeper rules', () => {
@@ -259,13 +155,39 @@ test('Dashboard capabilities enforce exact Basic vs VIP and Individual vs Record
   assert.equal(vipIndividual.canAccessTreeDirectly, false);
   assert.equal(vipIndividual.requiresCharterUpgradeForTree, true);
 
-  // Annual VIP + Record Keeper -> Direct access to شجرتي
+  // Annual VIP + Record Keeper -> Direct access to شجرتي + Unlimited quotas + Family invites + Priority observatory
   const vipKeeper = getDashboardCapabilities(
     DashboardStateMode.AnnualVip,
     AccountLegalType.RecordKeeper
   );
   assert.equal(vipKeeper.canAccessTreeDirectly, true);
   assert.equal(vipKeeper.requiresCharterUpgradeForTree, false);
+  assert.equal(vipKeeper.maxTreeMembers, null);
+  assert.equal(vipKeeper.maxVaultDocuments, null);
+  assert.equal(vipKeeper.canPublishPublicSite, true);
+  assert.equal(vipKeeper.canInviteFamilyContributors, true);
+  assert.equal(vipKeeper.hasRegistrarBadge, true);
+  assert.equal(vipKeeper.hasPriorityResearchObservatory, true);
+
+  // Quotas for Individual Free vs $5 Basic vs Annual VIP
+  assert.equal(s2.maxTreeMembers, 15);
+  assert.equal(s2.maxVaultDocuments, 5);
+  assert.equal(s2.canPublishPublicSite, false);
+  assert.equal(s2.canInviteFamilyContributors, false);
+
+  const basicIndividual = getDashboardCapabilities(
+    DashboardStateMode.State1Paid5Basic,
+    AccountLegalType.Individual
+  );
+  assert.equal(basicIndividual.maxTreeMembers, 50);
+  assert.equal(basicIndividual.maxVaultDocuments, 20);
+  assert.equal(basicIndividual.canPublishPublicSite, false);
+
+  assert.equal(vipIndividual.maxTreeMembers, 250);
+  assert.equal(vipIndividual.maxVaultDocuments, 100);
+  // Creating & publishing «موقعي» is reserved exclusively for RecordKeeper (`registrar`)
+  assert.equal(vipIndividual.canPublishPublicSite, false);
+  assert.equal(vipIndividual.canInviteFamilyContributors, false);
 });
 
 test('Neo4j 4-Condition Connector Logic enforces "من (سليل غير مباشر)" by default and restricts "بن (سليل مباشر)" strictly', () => {
@@ -399,5 +321,347 @@ test('Neo4j 4-Condition Connector Logic enforces "من (سليل غير مباش
     ),
     'من (سليل غير مباشر)'
   );
+});
+
+test('Priority 3 Official Branded Export enforces Free watermark governance, Registrar seal, and strict unlocked-node extraction', async () => {
+  const {
+    buildOfficialVerificationId,
+    buildOfficialExportMetadata,
+    extractUnlockedLineageNodesForExport,
+  } = await import('./brandedExport');
+
+  const muqitResult = {
+    ...resolveDeterministicLineage({
+      ...baseValidForm,
+      ...FOUNDER_PRESETS[0].values,
+    }),
+    matched: true,
+    adamSpineNodes: ADAM_SPINE_40_NODES,
+  };
+
+  // Deterministic verification reference IDs
+  const linId1 = buildOfficialVerificationId('uid_123', 'آل مقيت', 'lineage_spine');
+  const linId2 = buildOfficialVerificationId('uid_123', 'آل مقيت', 'lineage_spine');
+  const treeId = buildOfficialVerificationId('uid_123', 'آل مقيت', 'family_tree');
+  assert.equal(linId1, linId2);
+  assert.ok(linId1.startsWith('JTH-LIN-'));
+  assert.ok(treeId.startsWith('JTH-TRE-'));
+  assert.notEqual(linId1, treeId);
+
+  // 1) Free Individual: Not eligible for clean certified export + only contemporary nodes extracted
+  const freeCaps = getDashboardCapabilities(
+    DashboardStateMode.State2MatchedUnpaid,
+    AccountLegalType.Individual
+  );
+  const freeMeta = buildOfficialExportMetadata({
+    result: muqitResult,
+    accountType: AccountLegalType.Individual,
+    caps: freeCaps,
+    userId: 'uid_123',
+    exportKind: 'lineage_spine',
+  });
+  assert.equal(freeMeta.isEligibleForCertifiedExport, false);
+  assert.equal(freeMeta.isRegistrar, false);
+
+  const freeNodes = extractUnlockedLineageNodesForExport({
+    result: muqitResult,
+    caps: freeCaps,
+  });
+  // Must NOT leak locked root tribe or Adam upper spine in Free tier
+  assert.equal(
+    freeNodes.some((n) => n.title.includes('آدم عليه السلام')),
+    false
+  );
+  assert.equal(
+    freeNodes.some((n) => n.isRoot),
+    false
+  );
+
+  // 2) Basic $5 Individual: Eligible for certified export + unlocks Root nodes (B2/B0) without leaking VIP upper spine
+  const basicCaps = getDashboardCapabilities(
+    DashboardStateMode.State1Paid5Basic,
+    AccountLegalType.Individual
+  );
+  const basicMeta = buildOfficialExportMetadata({
+    result: muqitResult,
+    accountType: AccountLegalType.Individual,
+    caps: basicCaps,
+    userId: 'uid_123',
+    exportKind: 'lineage_spine',
+  });
+  assert.equal(basicMeta.isEligibleForCertifiedExport, true);
+
+  const basicNodes = extractUnlockedLineageNodesForExport({
+    result: muqitResult,
+    caps: basicCaps,
+  });
+  assert.equal(
+    basicNodes.some((n) => n.isRoot),
+    true
+  );
+  assert.equal(
+    basicNodes.some((n) => n.title.includes('آدم عليه السلام')),
+    false
+  );
+
+  // 3) Annual VIP + Record Keeper (أمين السجل): Official Registrar Seal + full unlocked upper spine up to Adam
+  const registrarCaps = getDashboardCapabilities(
+    DashboardStateMode.AnnualVip,
+    AccountLegalType.RecordKeeper
+  );
+  const registrarMeta = buildOfficialExportMetadata({
+    result: muqitResult,
+    accountType: AccountLegalType.RecordKeeper,
+    caps: registrarCaps,
+    userId: 'uid_123',
+    exportKind: 'family_tree',
+  });
+  assert.equal(registrarMeta.isEligibleForCertifiedExport, true);
+  assert.equal(registrarMeta.isRegistrar, true);
+  assert.ok(registrarMeta.membershipBadgeLabel.includes('أمين السجل'));
+
+  const vipNodes = extractUnlockedLineageNodesForExport({
+    result: muqitResult,
+    caps: registrarCaps,
+  });
+  assert.equal(
+    vipNodes.some((n) => n.isSummit && n.title.includes('آدم عليه السلام')),
+    true
+  );
+});
+
+test('Luxury Micro-CMS, Commercial Paywall, 4 Female Policies, Clean Root URLs & $10 Referral Engine invariants', async () => {
+  const {
+    validatePublicSiteSlug,
+    resolveMicrositeSlugFromLocation,
+    sanitizeTreeMembersForPublicSite,
+    computeContemporaryTreeMetrics,
+    projectSelectedVaultItemsForPublicSite,
+    resolveTicketLifecycleStage,
+    COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR,
+  } = await import('../services/priority4Service');
+  const {
+    REFERRAL_REWARD_USD,
+    FAMILY_SITE_THEMES,
+  } = await import('../config/referralAndSiteConfig');
+
+  // 1) 5 Scoped Themes & $10 Referral Engine Constant
+  assert.equal(REFERRAL_REWARD_USD, 10);
+  assert.equal(FAMILY_SITE_THEMES.length, 5);
+  assert.ok(COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR.includes('منصة جذوري'));
+
+  // 2) Clean Root URL resolution (`Juthori.com/{FamilySlug}`) & protected routes
+  assert.equal(validatePublicSiteSlug('Alrasheed').valid, true);
+  assert.equal(validatePublicSiteSlug('Alrasheed').normalized, 'alrasheed');
+  assert.equal(validatePublicSiteSlug('team').valid, false);
+  assert.equal(validatePublicSiteSlug('admin').valid, false);
+  assert.equal(validatePublicSiteSlug('optout').valid, false);
+  assert.equal(resolveMicrositeSlugFromLocation('/Alrasheed', ''), 'alrasheed');
+  assert.equal(resolveMicrositeSlugFromLocation('/team', ''), null);
+  assert.equal(resolveMicrositeSlugFromLocation('/api', ''), null);
+  assert.equal(resolveMicrositeSlugFromLocation('/', '?site=Al-Arafat'), 'al-arafat');
+
+  // 3) Strict Commercial Paywall: `isCertifiedReference: true` nodes NEVER leak into `public_sites`
+  const sampleTree = [
+    {
+      id: 'p_founder',
+      firstName: 'إبراهيم',
+      familyName: 'عرفات',
+      honorific: 'الشيخ',
+      relationLabel: 'الجد المعاصر',
+      generationLevel: 3,
+      gender: 'male' as const,
+      isDeceased: true,
+      deathYear: '1968',
+    },
+    {
+      id: 'p_son_living',
+      firstName: 'خالد',
+      familyName: 'عرفات',
+      fatherId: 'p_founder',
+      relationLabel: 'ابن',
+      generationLevel: 2,
+      gender: 'male' as const,
+      isDeceased: false,
+      birthYear: '1995',
+      contactInfo: '0500000000',
+    },
+    {
+      id: 'p_daughter',
+      firstName: 'نورة',
+      familyName: 'عرفات',
+      fatherId: 'p_founder',
+      relationLabel: 'ابنة',
+      generationLevel: 2,
+      gender: 'female' as const,
+      isDeceased: false,
+      birthYear: '1998',
+    },
+    {
+      id: 'p_certified',
+      firstName: 'سبأ',
+      familyName: '',
+      relationLabel: 'جد مرجعي موثق',
+      generationLevel: 6,
+      isCertifiedReference: true,
+    },
+  ];
+
+  const maskedProjection = sanitizeTreeMembersForPublicSite(sampleTree, true);
+  // Certified ancestor `سبأ` must be stripped 100%
+  assert.equal(
+    maskedProjection.some((m) => m.id === 'p_certified' || m.displayName.includes('سبأ')),
+    false
+  );
+  assert.equal(maskedProjection.length, 3);
+  assert.equal(maskedProjection[0].displayName, 'الشيخ إبراهيم عرفات');
+  assert.equal(maskedProjection[1].displayName, 'فرد على قيد الحياة (محمي)');
+  assert.equal(maskedProjection[1].birthYear, undefined);
+
+  // 4) 4 Female Display Policies (`SYMBOLIC_TITLE`, `FAMILY_CIRCLE_ONLY`, `HIDE_ALL`)
+  const symbolicProjection = sanitizeTreeMembersForPublicSite(sampleTree, {
+    familyName: 'عرفات',
+    hideLivingNamesForGuests: false,
+    femaleDisplayPolicy: 'SYMBOLIC_TITLE',
+  });
+  const symbolicDaughter = symbolicProjection.find((m) => m.id === 'p_daughter')!;
+  assert.equal(symbolicDaughter.displayName, 'كريمة إبراهيم عرفات');
+  assert.equal(symbolicDaughter.familyCircleDisplayName, undefined);
+
+  const circleOnlyProjection = sanitizeTreeMembersForPublicSite(sampleTree, {
+    familyName: 'عرفات',
+    hideLivingNamesForGuests: false,
+    femaleDisplayPolicy: 'FAMILY_CIRCLE_ONLY',
+  });
+  const circleDaughter = circleOnlyProjection.find((m) => m.id === 'p_daughter')!;
+  assert.equal(circleDaughter.displayName, 'كريمة إبراهيم عرفات');
+  assert.equal(circleDaughter.familyCircleDisplayName, 'نورة عرفات');
+
+  const hideFemalesProjection = sanitizeTreeMembersForPublicSite(sampleTree, {
+    familyName: 'عرفات',
+    hideLivingNamesForGuests: false,
+    femaleDisplayPolicy: 'HIDE_ALL',
+  });
+  assert.equal(
+    hideFemalesProjection.some((m) => m.gender === 'female'),
+    false
+  );
+
+  // 5) Excluded branch pruning + Contemporary Tree Metrics
+  const prunedProjection = sanitizeTreeMembersForPublicSite(sampleTree, {
+    familyName: 'عرفات',
+    excludedBranchRootIds: ['p_son_living'],
+  });
+  assert.equal(
+    prunedProjection.some((m) => m.id === 'p_son_living'),
+    false
+  );
+
+  const metrics = computeContemporaryTreeMetrics(sampleTree, 'عرفات');
+  assert.equal(metrics.totalContemporaryMembers, 3); // Excludes `p_certified`
+
+  // 6) Selective Vault folder/item projection + Dynamic Watermark `Juthori.com/{Slug}`
+  const vaultItems = [
+    {
+      id: 'v1',
+      folderId: 'f_archive',
+      title: 'وثيقة وقف تاريخية',
+      mediaType: 'document' as const,
+      dateOrOccasion: '1340 هـ',
+      fileDataUrl: '',
+      enhanced: false,
+      aiRestoredEnhanced: false,
+      linkedPersonIds: [],
+      createdAt: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'v2',
+      folderId: 'f_photos',
+      title: 'صورة مجلس الأسرة',
+      mediaType: 'photo' as const,
+      dateOrOccasion: '1395 هـ',
+      fileDataUrl: '',
+      enhanced: false,
+      aiRestoredEnhanced: false,
+      linkedPersonIds: [],
+      createdAt: '2026-01-02T00:00:00Z',
+    },
+  ];
+  const projectedVault = projectSelectedVaultItemsForPublicSite(vaultItems, ['v1'], {
+    selectedFolderIds: ['f_photos'],
+    enableDynamicWatermark: true,
+    siteSlug: 'alarafat',
+  });
+  assert.equal(projectedVault.length, 2);
+  assert.equal(projectedVault[1].watermarkText, 'Juthori.com/alarafat');
+
+  // 7) Canonical 5-stage Research Ticket lifecycle resolution
+  assert.equal(resolveTicketLifecycleStage({ status: 'pending_review' }), 'OPEN');
+  assert.equal(resolveTicketLifecycleStage({ status: 'investigating' }), 'IN_REVIEW');
+  assert.equal(
+    resolveTicketLifecycleStage({ status: 'NEEDS_INFO', lifecycleStage: 'NEEDS_INFO' }),
+    'NEEDS_INFO'
+  );
+  assert.equal(resolveTicketLifecycleStage({ status: 'lineage_found' }), 'RESOLVED');
+  assert.equal(resolveTicketLifecycleStage({ status: 'CLOSED' }), 'CLOSED');
+});
+
+test('Priority 5 End-to-End Hardening: Zero-Trust Firestore/Storage rules, PII stripping, Referral Engine & Secret Isolation', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const { sanitizeTreeMembersForPublicSite } = await import('../services/priority4Service');
+  const { buildDeterministicReferralCode } = await import('../config/referralAndSiteConfig');
+
+  // 1) Verify firestore.rules enforces Zero-Trust invariants
+  const firestoreRules = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf8');
+  assert.ok(firestoreRules.includes("rules_version = '2';"));
+  assert.ok(firestoreRules.includes('match /{document=**} {\n      allow read, write: if false;'));
+  assert.ok(firestoreRules.includes('isLedgerBackedWalletOrTierUpdate'));
+  assert.ok(firestoreRules.includes('isForbiddenStaffCustomerRecord'));
+  assert.ok(firestoreRules.includes('match /wallet_transactions/{txnId}'));
+  assert.ok(firestoreRules.includes('allow update, delete: if false;'));
+  assert.ok(firestoreRules.includes("!('publishedLineageNodes' in data)"));
+  assert.ok(firestoreRules.includes("!('verifiedSourceCitation' in data)"));
+  assert.ok(firestoreRules.includes('isCustomerResolutionPayloadProtected'));
+  assert.ok(firestoreRules.includes('isRecordKeeperUser(request.auth.uid)'));
+
+  // 2) Verify storage.rules enforces owner isolation, MIME allowlist & 15MB max size
+  const storageRules = fs.readFileSync(path.resolve(process.cwd(), 'storage.rules'), 'utf8');
+  assert.ok(storageRules.includes('match /users/{userId}/{allPaths=**}'));
+  assert.ok(storageRules.includes('request.auth != null'));
+  assert.ok(storageRules.includes('request.auth.uid == userId'));
+  assert.ok(storageRules.includes('15 * 1024 * 1024'));
+  assert.ok(storageRules.includes('^(image/.*|application/pdf|audio/.*)$'));
+
+  // 3) Verify PII & commercial paywall stripping on public_sites projection
+  const projected = sanitizeTreeMembersForPublicSite(
+    [
+      {
+        id: 'p_living',
+        firstName: 'سلطان',
+        familyName: 'الرشيد',
+        relationLabel: 'ابن',
+        generationLevel: 2,
+        gender: 'male',
+        isDeceased: false,
+        contactInfo: '+966500000000',
+      },
+    ],
+    false
+  );
+  assert.equal(projected.length, 1);
+  assert.equal('contactInfo' in (projected[0] as unknown as Record<string, unknown>), false);
+
+  // 4) Deterministic Referral Code stability across sessions
+  const refCodeA = buildDeterministicReferralCode('uid_registrar_01');
+  const refCodeB = buildDeterministicReferralCode('uid_registrar_01');
+  assert.equal(refCodeA, refCodeB);
+  assert.ok(refCodeA.startsWith('JTH-'));
+
+  // 5) Verify zero backend secrets leak into client bundle source (`src/`)
+  const mainTsx = fs.readFileSync(path.resolve(process.cwd(), 'src/main.tsx'), 'utf8');
+  assert.ok(mainTsx.includes('AppErrorBoundary'));
+  assert.equal(mainTsx.includes('RESEND_API_KEY'), false);
+  assert.equal(mainTsx.includes('GEMINI_API_KEY'), false);
 });
 

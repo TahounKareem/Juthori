@@ -19,7 +19,11 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { DashboardTab, LineageSearchResult } from '../types/juthori';
+import {
+  DashboardAccessCapabilities,
+  DashboardTab,
+  LineageSearchResult,
+} from '../types/juthori';
 import {
   DEFAULT_STARTER_VAULT_FOLDERS,
   FamilyVaultMediaItem,
@@ -29,15 +33,26 @@ import {
   readSyncedTreePeopleList,
   readVaultArchiveFromLocal,
   saveUserVaultArchive,
+  syncLiveTreePeopleForVault,
 } from '../services/firestoreService';
+import {
+  processMediaFileForUpload,
+  uploadMediaToCloudWithFallback,
+} from '../utils/mediaPipeline';
 
 interface FamilyMemoryVaultViewProps {
   result: LineageSearchResult;
+  caps?: DashboardAccessCapabilities;
   userId?: string;
   userEmail?: string;
   userAvatarUrl?: string;
+  initialSelectedPersonId?: string | null;
+  onConsumeSelectedPersonId?: () => void;
   onLogActivity: (action: string, detail: string) => void;
   onNavigateTab?: (tab: DashboardTab) => void;
+  onUnlockRoot5Usd?: () => void;
+  onUpgradeAnnualVip?: () => void;
+  onSignCharterAndEnableTree?: () => void;
 }
 
 interface PendingUploadDraft {
@@ -48,6 +63,7 @@ interface PendingUploadDraft {
   dateOrOccasion: string;
   description: string;
   fileDataUrl: string;
+  thumbnailDataUrl?: string;
   fileName: string;
   fileMimeType: string;
   linkedPersonIds: string[];
@@ -109,60 +125,34 @@ const FOLDER_THEME_STYLES: Record<
   },
 };
 
-function compressImageFileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('فشل قراءة الملف'));
-    reader.onload = () => {
-      const rawResult = typeof reader.result === 'string' ? reader.result : '';
-      if (!file.type.startsWith('image/')) {
-        resolve(rawResult);
-        return;
-      }
-      const img = new Image();
-      img.onerror = () => resolve(rawResult);
-      img.onload = () => {
-        try {
-          const maxDim = 1100;
-          let width = img.width;
-          let height = img.height;
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(rawResult);
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.8);
-          resolve(compressed);
-        } catch {
-          resolve(rawResult);
-        }
-      };
-      img.src = rawResult;
-    };
-    reader.readAsDataURL(file);
-  });
+function isRenderableImageSource(
+  src?: string,
+  mimeType?: string,
+  mediaType?: 'photo' | 'document'
+): boolean {
+  if (!src) return false;
+  if (mimeType?.includes('pdf')) return false;
+  if (src.startsWith('data:image')) return true;
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    if (/\.pdf(\?|$)/i.test(src)) return false;
+    return mediaType === 'photo' || !mimeType || mimeType.startsWith('image/');
+  }
+  return false;
 }
 
 export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   result,
+  caps,
   userId,
   userEmail,
   userAvatarUrl,
+  initialSelectedPersonId,
+  onConsumeSelectedPersonId,
   onLogActivity,
   onNavigateTab,
+  onUnlockRoot5Usd,
+  onUpgradeAnnualVip,
+  onSignCharterAndEnableTree,
 }) => {
   const initialLocal = useMemo(
     () => readVaultArchiveFromLocal(userId, result.familyName, userEmail),
@@ -192,14 +182,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<
     'ALL' | 'photo' | 'document'
   >('ALL');
-  const [selectedPersonFilterId, setSelectedPersonFilterId] =
-    useState<string>('ALL');
+  const [selectedPersonFilterId, setSelectedPersonFilterId] = useState<string>(
+    initialSelectedPersonId || 'ALL'
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   // Multi-Upload Drag & Drop state
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [pendingDrafts, setPendingDrafts] = useState<PendingUploadDraft[]>([]);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
+  const [isSavingDraftsToCloud, setIsSavingDraftsToCloud] = useState(false);
+  const [vaultQuotaAlert, setVaultQuotaAlert] = useState<{
+    currentCount: number;
+    tryingToAdd: number;
+    maxAllowed: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // New Folder Modal state
@@ -217,7 +214,17 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   // Lightbox Modal state
   const [lightboxItemId, setLightboxItemId] = useState<string | null>(null);
 
-  // Sync from Firebase on mount or userId change
+  // Apply incoming person filter when jumping from a card in `مشجرتي`
+  useEffect(() => {
+    if (initialSelectedPersonId) {
+      setSelectedPersonFilterId(initialSelectedPersonId);
+      setSelectedFolderId('ALL');
+      setSelectedTypeFilter('ALL');
+      onConsumeSelectedPersonId?.();
+    }
+  }, [initialSelectedPersonId, onConsumeSelectedPersonId]);
+
+  // Sync Vault Archive + Live Tree People from Firebase on mount or userId change
   useEffect(() => {
     let mounted = true;
     fetchUserVaultArchive(userId, result.familyName, userEmail).then(
@@ -231,10 +238,34 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         setItems(remoteData.items);
       }
     );
+
+    syncLiveTreePeopleForVault(userId, userEmail, {
+      clientName: result.clientName,
+      fatherName: result.fatherName,
+      grandfatherName: result.grandfatherName,
+      familyName: result.familyName,
+      rootBranchName: result.rootBranchName,
+      rootTribeName: result.rootTribeName,
+      userAvatarUrl,
+    }).then((liveTreeList) => {
+      if (!mounted) return;
+      setTreePeople(liveTreeList);
+    });
+
     return () => {
       mounted = false;
     };
-  }, [userId, result.familyName, userEmail]);
+  }, [
+    userId,
+    userEmail,
+    result.clientName,
+    result.fatherName,
+    result.grandfatherName,
+    result.familyName,
+    result.rootBranchName,
+    result.rootTribeName,
+    userAvatarUrl,
+  ]);
 
   // Listen to live updates from `شجرتي` (`juthori:vault-updated` and `juthori:tree-updated`)
   useEffect(() => {
@@ -281,20 +312,31 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     nextFolders: VaultFolderRecord[],
     nextItems: FamilyVaultMediaItem[]
   ) => {
+    const validPersonIds =
+      treePeople.length > 0 ? new Set(treePeople.map((p) => p.id)) : null;
+    const sanitizedItems = validPersonIds
+      ? nextItems.map((it) => ({
+          ...it,
+          linkedPersonIds: Array.from(
+            new Set(it.linkedPersonIds.filter((pid) => validPersonIds.has(pid)))
+          ),
+        }))
+      : nextItems;
+
     setFolders(nextFolders);
-    setItems(nextItems);
+    setItems(sanitizedItems);
     saveUserVaultArchive(
       userId,
       result.familyName,
       {
         folders: nextFolders,
-        items: nextItems,
+        items: sanitizedItems,
       },
       userEmail
     ).catch(() => {});
   };
 
-  // Handle dropped or selected files
+  // Handle dropped or selected files via Smart Media Pipeline (WebP/JPEG + Thumbnail)
   const handleFilesSelected = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     setIsProcessingFiles(true);
@@ -307,11 +349,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
       try {
-        const dataUrl = await compressImageFileToDataUrl(file);
         const baseTitle = file.name.replace(/\.[^/.]+$/, '');
         const isDoc =
           file.type.includes('pdf') ||
           /وثيقة|صك|حجة|عقد|شهادة|مخطوط/i.test(baseTitle);
+        const processed = await processMediaFileForUpload(
+          file,
+          isDoc ? 'vault_document' : 'vault_photo'
+        );
         newDrafts.push({
           tempId: `draft_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
           title: baseTitle || `ذكرى عائلية ${items.length + i + 1}`,
@@ -319,9 +364,10 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           folderId: isDoc ? 'folder_docs' : defaultFolder,
           dateOrOccasion: new Date().getFullYear().toString(),
           description: '',
-          fileDataUrl: dataUrl,
+          fileDataUrl: processed.mainDataUrl,
+          thumbnailDataUrl: processed.thumbnailDataUrl,
           fileName: file.name,
-          fileMimeType: file.type || 'image/jpeg',
+          fileMimeType: processed.mimeType || file.type || 'image/jpeg',
           linkedPersonIds:
             selectedPersonFilterId !== 'ALL' ? [selectedPersonFilterId] : [],
         });
@@ -336,31 +382,69 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     }
   };
 
-  const handleSaveAllPendingDrafts = () => {
-    if (pendingDrafts.length === 0) return;
-    const nowIso = new Date().toISOString();
-    const createdItems: FamilyVaultMediaItem[] = pendingDrafts.map((d, idx) => ({
-      id: `vault_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
-      title: d.title.trim() || d.fileName || 'ملف محفوظ في الخزانة',
-      mediaType: d.mediaType,
-      folderId: d.folderId || folders[0]?.id || 'folder_docs',
-      dateOrOccasion: d.dateOrOccasion.trim() || 'أرشيف الأسرة',
-      description: d.description.trim() || undefined,
-      fileDataUrl: d.fileDataUrl,
-      fileName: d.fileName,
-      fileMimeType: d.fileMimeType,
-      linkedPersonIds: d.linkedPersonIds,
-      enhanced: false,
-      createdAt: nowIso,
-    }));
+  const handleSaveAllPendingDrafts = async () => {
+    if (pendingDrafts.length === 0 || isSavingDraftsToCloud) return;
 
-    const nextItems = [...createdItems, ...items];
-    persistVaultChange(folders, nextItems);
-    setPendingDrafts([]);
-    onLogActivity(
-      'إيداع في خزانة الذاكرة العائلية',
-      `رفع وحفظ (${createdItems.length}) ${createdItems.length === 1 ? 'ملف عائلي' : 'ملفات عائلية'} في خزانتي`
-    );
+    // Enforce tier document quota BEFORE saving — keep all pendingDrafts intact so zero user work is lost!
+    if (
+      caps &&
+      caps.maxVaultDocuments !== null &&
+      items.length + pendingDrafts.length > caps.maxVaultDocuments
+    ) {
+      setVaultQuotaAlert({
+        currentCount: items.length,
+        tryingToAdd: pendingDrafts.length,
+        maxAllowed: caps.maxVaultDocuments,
+      });
+      return;
+    }
+
+    setVaultQuotaAlert(null);
+    setIsSavingDraftsToCloud(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const createdItems: FamilyVaultMediaItem[] = await Promise.all(
+        pendingDrafts.map(async (d, idx) => {
+          const itemId = `vault_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`;
+          const cloudRes = await uploadMediaToCloudWithFallback({
+            uid: userId,
+            category: 'vault',
+            itemId,
+            mainDataUrl: d.fileDataUrl,
+            thumbnailDataUrl: d.thumbnailDataUrl,
+            mimeType: d.fileMimeType,
+          });
+
+          return {
+            id: itemId,
+            title: d.title.trim() || d.fileName || 'ملف محفوظ في الخزانة',
+            mediaType: d.mediaType,
+            folderId: d.folderId || folders[0]?.id || 'folder_docs',
+            dateOrOccasion: d.dateOrOccasion.trim() || 'أرشيف الأسرة',
+            description: d.description.trim() || undefined,
+            fileDataUrl: cloudRes.url,
+            thumbnailDataUrl: cloudRes.thumbnailUrl || d.thumbnailDataUrl,
+            storagePath: cloudRes.storagePath,
+            storageProvider: cloudRes.provider,
+            fileName: d.fileName,
+            fileMimeType: d.fileMimeType,
+            linkedPersonIds: d.linkedPersonIds,
+            enhanced: false,
+            createdAt: nowIso,
+          };
+        })
+      );
+
+      const nextItems = [...createdItems, ...items];
+      persistVaultChange(folders, nextItems);
+      setPendingDrafts([]);
+      onLogActivity(
+        'إيداع في خزانة الذاكرة العائلية',
+        `رفع وحفظ (${createdItems.length}) ${createdItems.length === 1 ? 'ملف عائلي' : 'ملفات عائلية'} في خزانتي`
+      );
+    } finally {
+      setIsSavingDraftsToCloud(false);
+    }
   };
 
   const handleCreateFolder = (e: React.FormEvent) => {
@@ -524,9 +608,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#D4AF37]/60 text-[#8D4925] text-xs font-display font-extrabold shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
-              <span>خزانة الذاكرة والأرشيف العائلي الحي · مربوطة تبادلياً مع «شجرتي»</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#D4AF37]/60 text-[#8D4925] text-xs font-display font-extrabold shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
+                <span>خزانة الذاكرة والأرشيف العائلي الحي · مربوطة تبادلياً مع «شجرتي»</span>
+              </div>
+              {caps && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#252321] text-[#F3D299] text-xs font-display font-bold">
+                  <span>
+                    سعة الخزانة:{' '}
+                    {caps.maxVaultDocuments !== null
+                      ? `${items.length} / ${caps.maxVaultDocuments} ملفات`
+                      : `${items.length} · سعة مفتوحة (أمين السجل ✦)`}
+                  </span>
+                </div>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
               خزانة عائلة {result.familyName} للصور والوثائق التاريخية
@@ -653,14 +749,71 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 </button>
                 <button
                   type="button"
+                  disabled={isSavingDraftsToCloud}
                   onClick={handleSaveAllPendingDrafts}
-                  className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                  className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] disabled:opacity-60 text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                 >
                   <CheckCircle2 className="w-4 h-4 text-[#F3D299]" />
-                  <span>حفظ وإيداع في الخزانة الآن ({pendingDrafts.length})</span>
+                  <span>
+                    {isSavingDraftsToCloud
+                      ? 'جاري الضغط والحفظ السحابي...'
+                      : `حفظ وإيداع في الخزانة الآن (${pendingDrafts.length})`}
+                  </span>
                 </button>
               </div>
             </div>
+
+            {vaultQuotaAlert && (
+              <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF6F0] to-[#FEF3C7]/45 border-2 border-[#D4AF37] p-4 sm:p-5 space-y-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-display font-extrabold text-[#252321]">
+                      تجاوزت الحد الأقصى لسعة الخزانة في باقتك الحالية ({vaultQuotaAlert.currentCount} / {vaultQuotaAlert.maxAllowed} ملفات)
+                    </h4>
+                    <p className="text-xs text-[#252321]/80 leading-relaxed">
+                      ملفاتك الجاهزة أعلاه ({vaultQuotaAlert.tryingToAdd}) وعناوينها محفوظة بالكامل في قائمة الانتظار ولن تضيع. قم بترقية باقتك الآن لحفظها فوراً:
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVaultQuotaAlert(null)}
+                    className="p-1.5 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#252321] cursor-pointer shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  {caps && !caps.isRootUnlocked && onUnlockRoot5Usd && (
+                    <button
+                      type="button"
+                      onClick={onUnlockRoot5Usd}
+                      className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
+                    >
+                      فتح الجذر ($5) ← رفع السعة إلى 20 وثيقة
+                    </button>
+                  )}
+                  {caps && !caps.isVip && onUpgradeAnnualVip && (
+                    <button
+                      type="button"
+                      onClick={onUpgradeAnnualVip}
+                      className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold cursor-pointer"
+                    >
+                      الباقة السنوية بريميوم ← 100 وثيقة
+                    </button>
+                  )}
+                  {caps && !caps.hasRegistrarBadge && onSignCharterAndEnableTree && (
+                    <button
+                      type="button"
+                      onClick={onSignCharterAndEnableTree}
+                      className="px-4 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1c] text-white text-xs font-display font-bold cursor-pointer"
+                    >
+                      تفعيل أمين سجل العائلة ✦ ← سعة غير محدودة
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {pendingDrafts.map((draft) => (
@@ -1105,10 +1258,15 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     onClick={() => setLightboxItemId(item.id)}
                     className="relative h-52 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 overflow-hidden cursor-pointer flex items-center justify-center"
                   >
-                    {item.fileDataUrl.startsWith('data:image') ? (
+                    {isRenderableImageSource(
+                      item.thumbnailDataUrl || item.fileDataUrl,
+                      item.fileMimeType,
+                      item.mediaType
+                    ) ? (
                       <img
-                        src={item.fileDataUrl}
+                        src={item.thumbnailDataUrl || item.fileDataUrl}
                         alt={item.title}
+                        loading="lazy"
                         className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
                           item.enhanced
                             ? 'contrast-125 brightness-105 saturate-110'
@@ -1200,6 +1358,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 <div className="pt-2.5 border-t border-[#EDE6DA] flex items-center justify-between gap-2">
                   <button
                     type="button"
+                    data-testid={`vault-card-link-tree-btn-${item.id}`}
                     onClick={() => {
                       setPersonSearchInModal('');
                       setLinkingItemId(item.id);
@@ -1208,7 +1367,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   >
                     <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
                     <span>
-                      🔗 ربط بأفراد مشجرتي ({item.linkedPersonIds.length})
+                      ربط أفراد من مشجرتي ({linkedPeopleObjs.length})
                     </span>
                   </button>
 
@@ -1326,8 +1485,13 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] truncate">
-                            {person.fullName}
+                          <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] truncate flex items-center gap-1.5">
+                            <span className="truncate">{person.fullName}</span>
+                            {person.isCertifiedReference && (
+                              <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D4AF37] text-[10px] font-bold text-[#92400E] shrink-0">
+                                مرجع موثق ✦
+                              </span>
+                            )}
                           </div>
                           <div className="text-[11px] font-semibold text-[#8D4925]">
                             {person.relationLabel}
@@ -1510,7 +1674,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           <div className="w-full max-w-4xl rounded-3xl bg-[#FFFDF9] border-2 border-[#D4AF37] overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-12 max-h-[90vh]">
             {/* Visual Preview Column */}
             <div className="lg:col-span-7 bg-[#1C1917] flex items-center justify-center p-4 relative min-h-[280px] lg:min-h-[460px]">
-              {activeLightboxItem.fileDataUrl.startsWith('data:image') ? (
+              {isRenderableImageSource(
+                activeLightboxItem.fileDataUrl,
+                activeLightboxItem.fileMimeType,
+                activeLightboxItem.mediaType
+              ) ? (
                 <img
                   src={activeLightboxItem.fileDataUrl}
                   alt={activeLightboxItem.title}

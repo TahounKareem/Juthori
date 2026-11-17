@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
+  AlertCircle,
   Bell,
   Camera,
   CheckCircle2,
@@ -11,9 +12,12 @@ import {
   Globe,
   HelpCircle,
   KeyRound,
+  Loader2,
   Lock,
   LogOut,
+  Mail,
   Phone,
+  Send,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -26,16 +30,18 @@ import {
 import { updatePassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import {
+  buildVerifiedLineageSnapshot,
   canonicalCustomerEmailUid,
   createCharterRequestInFirebase,
   CustomerCommunityPostData,
   CustomerSiteSettingsData,
   deleteUserAccountFromFirebase,
-  executeWalletTransaction,
+  executeAtomicWalletOperation,
   fetchCustomerDashboardWorkspace,
   fetchUserLegalAuditTrailFromFirebase,
   fetchUserProfile,
   fetchUserProfileByEmail,
+  hydrateLineageResultFromSnapshot,
   LegalAuditTrailEntry,
   readCustomerDashboardWorkspaceFromLocal,
   recordLegalAuditTrailInFirebase,
@@ -70,11 +76,17 @@ import {
   getDashboardCapabilities,
   searchJuthoriLineage,
 } from '../utils/lineageEngine';
+import {
+  buildResearchTicketDraftFromSearch,
+  PendingResearchTicketDraft,
+  ResearchTicketReasonType,
+} from '../utils/handoffStorage';
 import { LineageSpineColumn } from './LineageSpineColumn';
 import { PremiumTabViews } from './PremiumTabViews';
+import { ResearchTicketsView } from './ResearchTicketsView';
 import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
-import { CheckoutModal } from './CheckoutModal';
+import { CheckoutExecutionResult, CheckoutModal } from './CheckoutModal';
 import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
 
 interface CustomerDashboardProps {
@@ -109,6 +121,11 @@ interface CustomerDashboardProps {
   }) => void;
   onUpdateLineageResult?: (nextResult: LineageSearchResult) => void;
   onDeleteAccount?: () => Promise<void>;
+  initialTab?: DashboardTab;
+  initialTicketDraft?: PendingResearchTicketDraft | null;
+  onClearInitialTicketDraft?: () => void;
+  onResyncLineageFromEngine?: () => Promise<void>;
+  isResyncingLineage?: boolean;
 }
 
 const DASHBOARD_TABS: Array<{
@@ -118,11 +135,12 @@ const DASHBOARD_TABS: Array<{
 }> = [
   { id: DashboardTab.Home, label: 'الرئيسية', premium: false },
   { id: DashboardTab.Lineage, label: 'عمود نسبي', premium: false },
-  { id: DashboardTab.MyTree, label: 'شجرتي', premium: true },
-  { id: DashboardTab.MyVault, label: 'خزانتي', premium: true },
+  { id: DashboardTab.ResearchTickets, label: 'مرصد البحوث', premium: false },
+  { id: DashboardTab.MyTree, label: 'شجرتي', premium: false },
+  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false },
   { id: DashboardTab.MyExplorer, label: 'كشافي', premium: true },
-  { id: DashboardTab.MySite, label: 'موقعي', premium: true },
-  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: true },
+  { id: DashboardTab.MySite, label: 'موقعي', premium: false },
+  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false },
 ];
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
@@ -144,6 +162,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   onUpdateProfileDetails,
   onUpdateLineageResult,
   onDeleteAccount,
+  initialTab,
+  initialTicketDraft = null,
+  onClearInitialTicketDraft,
+  onResyncLineageFromEngine,
+  isResyncingLineage = false,
 }) => {
   const resolvedCustomerUid =
     userId ||
@@ -160,7 +183,31 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     !result.familyName ||
     initialWorkspace.familyName.trim() === result.familyName.trim();
 
-  const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Lineage);
+  const [activeTab, setActiveTab] = useState<DashboardTab>(
+    () =>
+      initialTicketDraft
+        ? DashboardTab.ResearchTickets
+        : initialTab || DashboardTab.Lineage
+  );
+  const [localTicketDraft, setLocalTicketDraft] =
+    useState<PendingResearchTicketDraft | null>(initialTicketDraft);
+  const [vaultPersonFilterId, setVaultPersonFilterId] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialTicketDraft) {
+      setLocalTicketDraft(initialTicketDraft);
+      setActiveUtilityDrawer(null);
+      setActiveTab(DashboardTab.ResearchTickets);
+    }
+  }, [initialTicketDraft]);
+
+  useEffect(() => {
+    if (initialTab && !initialTicketDraft) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, initialTicketDraft]);
+
   const [bridgedAncestors, setBridgedAncestors] = useState<string[]>(() =>
     initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.bridgedAncestors)
       ? initialWorkspace!.bridgedAncestors!
@@ -209,6 +256,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [communityPosts, setCommunityPosts] = useState<
     CustomerCommunityPostData[] | undefined
   >(() => initialWorkspace?.communityPosts);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>(() =>
+    Array.isArray(initialWorkspace?.blockedUserIds)
+      ? initialWorkspace!.blockedUserIds!
+      : []
+  );
+  const [blockedUsersMeta, setBlockedUsersMeta] = useState<
+    Array<{ userId: string; name: string; blockedAt: string }>
+  >(() =>
+    Array.isArray(initialWorkspace?.blockedUsersMeta)
+      ? initialWorkspace!.blockedUsersMeta!
+      : []
+  );
 
   const prevFamilyNameRef = useRef<string>((result.familyName || '').trim());
   const isWorkspaceHydratedRef = useRef<boolean>(false);
@@ -281,7 +340,32 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   );
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Security & Notification Settings State
+  // Security, Non-Blocking Email Verification & Wallet Shortfall State
+  const isGoogleAuthSession = Boolean(
+    auth.currentUser?.providerData?.some((p) => p.providerId === 'google.com')
+  );
+  const [isEmailVerified, setIsEmailVerified] =
+    useState<boolean>(isGoogleAuthSession);
+  const [emailVerifiedAt, setEmailVerifiedAt] = useState<string | null>(null);
+  const [dismissedEmailBannerInProfile, setDismissedEmailBannerInProfile] =
+    useState(false);
+  const [dismissedEmailBannerInWallet, setDismissedEmailBannerInWallet] =
+    useState(false);
+  const [isSendingVerificationOtp, setIsSendingVerificationOtp] =
+    useState(false);
+  const [verificationOtpSent, setVerificationOtpSent] = useState(false);
+  const [verificationOtpInput, setVerificationOtpInput] = useState('');
+  const [isVerifyingOtpCode, setIsVerifyingOtpCode] = useState(false);
+  const [verificationResendCooldown, setVerificationResendCooldown] =
+    useState(0);
+  const [verificationFeedback, setVerificationFeedback] = useState<{
+    type: 'success' | 'error' | 'diagnostic';
+    text: string;
+  } | null>(null);
+  const [walletShortfallUsd, setWalletShortfallUsd] = useState<number | null>(
+    null
+  );
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordFeedback, setPasswordFeedback] = useState<{
@@ -292,6 +376,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [emailNotificationsTree, setEmailNotificationsTree] = useState(true);
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  useEffect(() => {
+    if (verificationResendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setVerificationResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [verificationResendCooldown]);
 
   useEffect(() => {
     if (initialAvatarUrl) {
@@ -315,6 +407,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         if (cancelled) return;
 
         if (profile) {
+          const googleVerified = Boolean(
+            auth.currentUser?.providerData?.some(
+              (p) => p.providerId === 'google.com'
+            )
+          );
+          if (googleVerified || profile.emailVerified === true) {
+            setIsEmailVerified(true);
+            if (profile.emailVerifiedAt) {
+              setEmailVerifiedAt(profile.emailVerifiedAt);
+            }
+          } else {
+            setIsEmailVerified(false);
+          }
+
           if (typeof profile.walletBalance === 'number') {
             setWalletBalance(profile.walletBalance);
           }
@@ -342,6 +448,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           if (typeof profile.emailNotificationsTree === 'boolean') {
             setEmailNotificationsTree(profile.emailNotificationsTree);
           }
+          if (Array.isArray(profile.blockedUserIds)) {
+            setBlockedUserIds(profile.blockedUserIds);
+          }
+          if (Array.isArray(profile.blockedUsersMeta)) {
+            setBlockedUsersMeta(profile.blockedUsersMeta);
+          }
           if (
             profile.subscriptionTier === 'premium_annual' &&
             stateMode !== DashboardStateMode.AnnualVip
@@ -360,6 +472,23 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             accountType !== AccountLegalType.RecordKeeper
           ) {
             onUpgradeAccountToRecordKeeper();
+          }
+
+          const savedSnap =
+            profile.verifiedLineageSnapshot || profile.lineageSnapshot;
+          if (
+            savedSnap &&
+            (!result.familyName ||
+              !savedSnap.familyName ||
+              savedSnap.familyName.trim() === result.familyName.trim())
+          ) {
+            const hydratedFromProfile = hydrateLineageResultFromSnapshot(
+              savedSnap,
+              profile
+            );
+            if (hydratedFromProfile) {
+              setVerifiedResultOverride((curr) => curr || hydratedFromProfile);
+            }
           }
         }
 
@@ -403,6 +532,25 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           }
           if (workspace.siteSettings) {
             setSiteSettings(workspace.siteSettings);
+          }
+          if (Array.isArray(workspace.blockedUserIds)) {
+            setBlockedUserIds((prev) =>
+              Array.from(new Set([...prev, ...(workspace.blockedUserIds || [])]))
+            );
+          }
+          if (
+            Array.isArray(workspace.blockedUsersMeta) &&
+            workspace.blockedUsersMeta.length > 0
+          ) {
+            setBlockedUsersMeta((prev) => {
+              const map = new Map<
+                string,
+                { userId: string; name: string; blockedAt: string }
+              >();
+              prev.forEach((m) => map.set(m.userId, m));
+              workspace.blockedUsersMeta!.forEach((m) => map.set(m.userId, m));
+              return Array.from(map.values());
+            });
           }
           if (
             Array.isArray(workspace.communityPosts) &&
@@ -565,6 +713,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         : null,
       siteSettings,
       communityPosts,
+      blockedUserIds,
+      blockedUsersMeta,
     }).catch(() => {});
 
     if (resolvedCustomerUid) {
@@ -572,6 +722,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         bridgedAncestors: bridgedAncestors.slice(0, 100),
         unlockedCapsules: unlockedCapsules.slice(0, 100),
         unlockedAddonSourceIds: unlockedAddonSourceIds.slice(0, 200),
+        blockedUserIds: blockedUserIds.slice(0, 200),
+        blockedUsersMeta: blockedUsersMeta.slice(0, 200),
       }).catch(() => {});
     }
   }, [
@@ -581,11 +733,71 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     verifiedResultOverride,
     siteSettings,
     communityPosts,
+    blockedUserIds,
+    blockedUsersMeta,
     resolvedCustomerUid,
     userEmail,
     activeResult.familyName,
     result.familyName,
   ]);
+
+  const handleBlockCommunityUser = (targetUid: string, targetName: string) => {
+    const cleanUid = (targetUid || '').trim();
+    if (!cleanUid || cleanUid === resolvedCustomerUid) return;
+    const nowIso = new Date().toISOString();
+    const nextIds = Array.from(new Set([...blockedUserIds, cleanUid])).slice(0, 200);
+    const nextMeta = [
+      {
+        userId: cleanUid,
+        name: (targetName || 'عضو المجتمع').trim().slice(0, 120),
+        blockedAt: nowIso,
+      },
+      ...blockedUsersMeta.filter((m) => m.userId !== cleanUid),
+    ].slice(0, 200);
+
+    setBlockedUserIds(nextIds);
+    setBlockedUsersMeta(nextMeta);
+    if (resolvedCustomerUid) {
+      updateUserProfile(resolvedCustomerUid, {
+        blockedUserIds: nextIds,
+        blockedUsersMeta: nextMeta,
+      }).catch(() => {});
+      saveCustomerDashboardWorkspace(resolvedCustomerUid, userEmail, {
+        familyName: activeResult.familyName || result.familyName,
+        blockedUserIds: nextIds,
+        blockedUsersMeta: nextMeta,
+      }).catch(() => {});
+    }
+    appendActivity(
+      'حظر مستخدم في مجتمعي',
+      `تم إخفاء منشورات وتعليقات «${targetName || cleanUid}» فوراً من واجهتك`
+    );
+  };
+
+  const handleUnblockCommunityUser = (targetUid: string) => {
+    const cleanUid = (targetUid || '').trim();
+    const removedMeta = blockedUsersMeta.find((m) => m.userId === cleanUid);
+    const nextIds = blockedUserIds.filter((id) => id !== cleanUid);
+    const nextMeta = blockedUsersMeta.filter((m) => m.userId !== cleanUid);
+
+    setBlockedUserIds(nextIds);
+    setBlockedUsersMeta(nextMeta);
+    if (resolvedCustomerUid) {
+      updateUserProfile(resolvedCustomerUid, {
+        blockedUserIds: nextIds,
+        blockedUsersMeta: nextMeta,
+      }).catch(() => {});
+      saveCustomerDashboardWorkspace(resolvedCustomerUid, userEmail, {
+        familyName: activeResult.familyName || result.familyName,
+        blockedUserIds: nextIds,
+        blockedUsersMeta: nextMeta,
+      }).catch(() => {});
+    }
+    appendActivity(
+      'فك حظر مستخدم في مجتمعي',
+      `إعادة إظهار مشاركات «${removedMeta?.name || cleanUid}» في مجتمعي`
+    );
+  };
 
   // Avatar File Upload Handler -> Firebase Storage / Firestore
   const handleAvatarFileChange = async (
@@ -630,60 +842,132 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     setIsSavingProfile(true);
     setProfileSaveFeedback(null);
 
-    const fullName = [
-      editFirstName.trim(),
-      editFatherName.trim(),
-      editGrandfatherName.trim(),
-      editFamilyName.trim(),
-    ]
+    const cleanFirst = editFirstName.trim();
+    const cleanFather = editFatherName.trim();
+    const cleanGrand = editGrandfatherName.trim();
+    const cleanFamily = editFamilyName.trim();
+    const cleanRegion = editOriginRegion.trim();
+
+    const fullName = [cleanFirst, cleanFather, cleanGrand, cleanFamily]
       .filter(Boolean)
       .join(' ');
 
-    const targetUid = userId || auth.currentUser?.uid;
+    const lineageIdentityChanged =
+      Boolean(cleanFamily) &&
+      (cleanFamily !== (activeResult.familyName || '').trim() ||
+        editOriginCountry !== (activeResult.originCountry || '').trim() ||
+        cleanRegion !== (activeResult.originRegion || '').trim());
+
+    let updatedSnapshotResult: LineageSearchResult = {
+      ...activeResult,
+      clientName: cleanFirst || activeResult.clientName,
+      fatherName: cleanFather || activeResult.fatherName,
+      grandfatherName: cleanGrand || activeResult.grandfatherName,
+      familyName: cleanFamily || activeResult.familyName,
+      originCountry: editOriginCountry || activeResult.originCountry,
+      originRegion: cleanRegion,
+    };
+
+    if (lineageIdentityChanged) {
+      try {
+        const refreshed = await searchJuthoriLineage(
+          {
+            accountType,
+            firstName: cleanFirst || 'عميل',
+            fatherName: cleanFather,
+            grandfatherName: cleanGrand,
+            familyName: cleanFamily,
+            originCountry: editOriginCountry,
+            originRegion: cleanRegion,
+            tribeName: '',
+            branchName: '',
+            email: userEmail,
+            password: '',
+            agreedToTerms: true,
+          },
+          {
+            ip_country: silentGeo.ip_country,
+            ip_city: silentGeo.ip_city,
+          }
+        );
+        if (refreshed) {
+          updatedSnapshotResult = {
+            ...refreshed,
+            clientName: cleanFirst || refreshed.clientName,
+            fatherName: cleanFather || refreshed.fatherName,
+            grandfatherName: cleanGrand || refreshed.grandfatherName,
+          };
+          setVerifiedResultOverride(updatedSnapshotResult);
+          if (onUpdateLineageResult) {
+            onUpdateLineageResult(updatedSnapshotResult);
+          }
+          if (!caps.isVip && !caps.isRootUnlocked) {
+            onChangeStateMode(
+              updatedSnapshotResult.matched
+                ? DashboardStateMode.State2MatchedUnpaid
+                : DashboardStateMode.State3Unmatched
+            );
+          }
+        }
+      } catch {
+        // Keep existing snapshot if engine is unreachable
+      }
+    } else {
+      setVerifiedResultOverride(updatedSnapshotResult);
+      if (onUpdateLineageResult) {
+        onUpdateLineageResult(updatedSnapshotResult);
+      }
+    }
+
+    const nextSnapshot = buildVerifiedLineageSnapshot(updatedSnapshotResult);
+    const targetUid = userId || auth.currentUser?.uid || resolvedCustomerUid;
     if (targetUid) {
       await updateUserProfile(targetUid, {
         fullName,
-        firstName: editFirstName.trim(),
-        fatherName: editFatherName.trim(),
-        grandfatherName: editGrandfatherName.trim(),
-        familyName: editFamilyName.trim(),
+        firstName: cleanFirst,
+        fatherName: cleanFather,
+        grandfatherName: cleanGrand,
+        familyName: cleanFamily,
         phone: editPhone.trim(),
         defaultCountry: editDefaultCountry,
         originCountry: editOriginCountry,
-        originRegion: editOriginRegion.trim(),
+        originRegion: cleanRegion,
         avatarUrl: avatarUrl || undefined,
         emailNotificationsEnabled: emailNotificationsTicket || emailNotificationsTree,
+        verifiedLineageSnapshot: nextSnapshot,
+        lineageSnapshot: nextSnapshot,
       }).catch(() => {});
     }
 
     if (onUpdateImmediateParents) {
-      onUpdateImmediateParents(
-        editFatherName.trim(),
-        editGrandfatherName.trim()
-      );
+      onUpdateImmediateParents(cleanFather, cleanGrand);
     }
 
     if (onUpdateProfileDetails) {
       onUpdateProfileDetails({
-        firstName: editFirstName.trim(),
-        fatherName: editFatherName.trim(),
-        grandfatherName: editGrandfatherName.trim(),
-        familyName: editFamilyName.trim(),
+        firstName: cleanFirst,
+        fatherName: cleanFather,
+        grandfatherName: cleanGrand,
+        familyName: cleanFamily,
         phone: editPhone.trim(),
         defaultCountry: editDefaultCountry,
         originCountry: editOriginCountry,
-        originRegion: editOriginRegion.trim(),
+        originRegion: cleanRegion,
         avatarUrl: avatarUrl || undefined,
       });
     }
 
     appendActivity(
       'تحديث الملف الشخصي والبيانات الجغرافية',
-      `حفظ بيانات (${fullName}) في قاعدة بيانات Firebase`
+      lineageIdentityChanged
+        ? `حفظ بيانات (${fullName}) وإعادة مزامنة عمود النسب في Firebase`
+        : `حفظ بيانات (${fullName}) في قاعدة بيانات Firebase`
     );
     setIsSavingProfile(false);
     setProfileSaveFeedback(
-      'تم حفظ تعديلات الملف الشخصي والبيانات الجغرافية في Firebase بنجاح ✓'
+      lineageIdentityChanged
+        ? 'تم حفظ تعديلاتك وإعادة مزامنة لقطة عمود النسب الموثق في Firebase بنجاح ✓'
+        : 'تم حفظ تعديلات الملف الشخصي والبيانات الجغرافية في Firebase بنجاح ✓'
     );
     setTimeout(() => setProfileSaveFeedback(null), 4000);
   };
@@ -747,6 +1031,137 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     }
   };
 
+  // Non-blocking Server-Side Email Verification via Resend (`/api/email/send-verification` & `/api/email/verify-code`)
+  const handleSendEmailVerificationCode = async () => {
+    if (isSendingVerificationOtp || verificationResendCooldown > 0) return;
+    setIsSendingVerificationOtp(true);
+    setVerificationFeedback(null);
+    try {
+      const response = await fetch('/api/email/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          clientName: editFirstName || result.clientName || 'عميل جذوري',
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 429) {
+        const waitSec =
+          typeof data.cooldownSeconds === 'number'
+            ? data.cooldownSeconds
+            : typeof data.retryAfterSeconds === 'number'
+            ? data.retryAfterSeconds
+            : 60;
+        setVerificationResendCooldown(waitSec);
+        setVerificationFeedback({
+          type: 'error',
+          text:
+            data.diagnosticAr ||
+            data.error ||
+            `يرجى الانتظار ${waitSec} ثانية قبل طلب إرسال رمز توثيق جديد.`,
+        });
+        return;
+      }
+
+      if (data.sent) {
+        setVerificationOtpSent(true);
+        setVerificationResendCooldown(
+          typeof data.cooldownSeconds === 'number' ? data.cooldownSeconds : 60
+        );
+        setVerificationFeedback({
+          type: 'success',
+          text:
+            data.message ||
+            `تم إرسال رمز التوثيق المكون من 6 أرقام إلى (${userEmail}) بنجاح — الرمز صالح لمدة 15 دقيقة.`,
+        });
+      } else {
+        setVerificationFeedback({
+          type: 'diagnostic',
+          text:
+            data.diagnosticAr ||
+            data.error ||
+            'تعذر إرسال رسالة التوثيق عبر خدمة Resend. يرجى التحقق من إعداد مفتاح الخدمة أو النطاق الموثق.',
+        });
+      }
+    } catch {
+      setVerificationFeedback({
+        type: 'error',
+        text: 'تعذر الاتصال بخادم البريد حالياً. يرجى المحاولة مرة أخرى بعد قليل.',
+      });
+    } finally {
+      setIsSendingVerificationOtp(false);
+    }
+  };
+
+  const handleVerifyEmailOtpCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = verificationOtpInput.trim();
+    if (!cleanCode || cleanCode.length < 6 || isVerifyingOtpCode) {
+      setVerificationFeedback({
+        type: 'error',
+        text: 'يرجى إدخال رمز التوثيق المكون من 6 أرقام كاملاً.',
+      });
+      return;
+    }
+
+    setIsVerifyingOtpCode(true);
+    setVerificationFeedback(null);
+    try {
+      const response = await fetch('/api/email/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          code: cleanCode,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !(data.valid || data.verified)) {
+        setVerificationFeedback({
+          type: 'error',
+          text:
+            data.message ||
+            data.error ||
+            'رمز التوثيق غير صحيح أو منتهي الصلاحية. يرجى التأكد والمحاولة مجدداً.',
+        });
+        return;
+      }
+
+      const verifiedIso = data.verifiedAt || new Date().toISOString();
+      setIsEmailVerified(true);
+      setEmailVerifiedAt(verifiedIso);
+      setVerificationOtpSent(false);
+      setVerificationOtpInput('');
+      setVerificationFeedback({
+        type: 'success',
+        text: 'تم توثيق بريدك الإلكتروني رسمياً وحفظ حالة التوثيق في قاعدة بيانات الحساب ✓',
+      });
+
+      const targetUid = userId || auth.currentUser?.uid || resolvedCustomerUid;
+      if (targetUid) {
+        await updateUserProfile(targetUid, {
+          emailVerified: true,
+          emailVerifiedAt: verifiedIso,
+        }).catch(() => {});
+      }
+
+      appendActivity(
+        'توثيق البريد الإلكتروني رسمياً',
+        `تم تأكيد ملكية البريد (${userEmail}) عبر رمز التوثيق المرسل من الخادم`
+      );
+    } catch {
+      setVerificationFeedback({
+        type: 'error',
+        text: 'حدث خطأ أثناء التحقق من الرمز. يرجى المحاولة مرة أخرى.',
+      });
+    } finally {
+      setIsVerifyingOtpCode(false);
+    }
+  };
+
   // Opens 3-Step Realistic Checkout Modal for $5 Root Unlock (No pre-$5 spoilers!)
   const handleUnlockRoot5Usd = () => {
     setActiveCheckoutOrder({
@@ -754,7 +1169,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       type: 'unlock_root_5',
       title: 'فتح نقطة الربط (الجذر) — الباقة الأساسية',
       subtitle:
-        'يكشف عقدتي الجذر الموثق (الفرع الجامع والقبيلة الأم) لعائلتك في السجل التاريخي',
+        'يكشف عقدتي الجذر الموثق (الفرع الجامع والقبيلة الأم) لعائلتك في السجل التاريخي + رفع سعة شجرتي إلى 50 فرداً وخزانتي إلى 20 وثيقة',
       amountUsd: 5,
       allowWalletPayment: true,
     });
@@ -768,9 +1183,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       type: 'upgrade_vip_60',
       title: 'الاشتراك السنوي الشامل — عضوية بريميوم (VIP)',
       subtitle:
-        'يفتح المحطات الرئيسية الموثقة حتى آدم عليه السلام + التبويبات الخمسة + $25 رصيد هدية في محفظتك',
+        'يفتح المحطات الرئيسية الموثقة حتى آدم عليه السلام + رفع سعة شجرتي لـ 250 فرداً وخزانتي لـ 100 وثيقة + نشر موقعي + $25 رصيد هدية',
       amountUsd: 60,
-      allowWalletPayment: false,
+      allowWalletPayment: true,
       bonusWalletUsd: 25,
     });
   };
@@ -800,8 +1215,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     });
   };
 
-  // Unlocks a Verified Addon Source (`VERIFIED_ADDON_SOURCE`) using the Customer Wallet
-  const handleUnlockVerifiedAddonSource = (addon: VerifiedAddonSourceItem) => {
+  // Unlocks a Verified Addon Source (`VERIFIED_ADDON_SOURCE`) atomically via `runTransaction`
+  const handleUnlockVerifiedAddonSource = async (
+    addon: VerifiedAddonSourceItem
+  ): Promise<boolean> => {
     const priceUsd =
       typeof addon.addon_unlock_price_usd === 'number' &&
       addon.addon_unlock_price_usd > 0
@@ -812,48 +1229,60 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       unlockedAddonSourceIds.includes(addonKey) ||
       unlockedAddonSourceIds.includes(addon.source_id)
     ) {
-      return;
+      return true;
     }
 
     const activeUid =
       userId ||
       auth.currentUser?.uid ||
+      resolvedCustomerUid ||
       `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
-      if (walletBalance >= priceUsd) {
-      const nextBal = Math.max(0, walletBalance - priceUsd);
-      const nextAddons = Array.from(
-        new Set([...unlockedAddonSourceIds, addonKey, addon.source_id])
+    const res = await executeAtomicWalletOperation({
+      userId: activeUid,
+      userEmail,
+      operationType: 'UNLOCK_CAPSULE',
+      amountUsd: priceUsd,
+      paymentMethod: 'wallet',
+      descriptionAr: `فتح مرجع تاريخي إضافي موثق [${addon.source_id}]: ${addon.canonical_title} (ج${addon.volume} ص${addon.page})`,
+      targetAddonSourceId: addonKey,
+    });
+
+    if (res.status === 'INSUFFICIENT_FUNDS') {
+      const shortfall = Number(
+        (res.shortfallUsd ?? Math.max(0, priceUsd - res.balanceBefore)).toFixed(2)
       );
-      setWalletBalance(nextBal);
-      setUnlockedAddonSourceIds(nextAddons);
-      updateUserProfile(activeUid, {
-        walletBalance: nextBal,
-        unlockedAddonSourceIds: nextAddons.slice(0, 200),
-      }).catch(() => {});
-      executeWalletTransaction(
-        activeUid,
-        'debit',
-        priceUsd,
-        `فتح مرجع تاريخي إضافي موثق [${addon.source_id}]: ${addon.canonical_title} (ج${addon.volume} ص${addon.page})`,
-        `addon_src_${addon.source_id}_${Date.now()}`
-      ).catch(() => {});
+      setWalletBalance(res.balanceBefore);
+      setWalletShortfallUsd(shortfall);
+      setActiveUtilityDrawer('cart');
+      return false;
+    }
+
+    const nextAddons = Array.from(
+      new Set([...unlockedAddonSourceIds, addonKey, addon.source_id])
+    );
+    setWalletBalance(res.balanceAfter);
+    setUnlockedAddonSourceIds(nextAddons);
+    setWalletShortfallUsd(null);
+
+    if (res.status === 'COMPLETED') {
       appendActivity(
-        `فتح مرجع تاريخي إضافي موثق ($${priceUsd} من المحفظة)`,
+        `فتح مرجع تاريخي إضافي (${res.transactionId || 'TXN'}) — $${priceUsd}`,
         `تم كشف بيانات المرجع [${addon.source_id}] «${addon.canonical_title}» (ج${addon.volume} ص${addon.page})`
       );
     }
+    return true;
   };
 
-  // Callback executed after Step 3 of CheckoutModal completes
-  const handleConfirmCheckoutSuccess = (
+  // Atomic Firestore `runTransaction` executor passed into CheckoutModal (`onExecutePayment`)
+  const handleExecuteCheckoutPayment = async (
     order: CheckoutOrderRequest,
-    paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay',
-    invoiceNumber: string
-  ) => {
+    paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay'
+  ): Promise<CheckoutExecutionResult> => {
     const activeUid =
       userId ||
       auth.currentUser?.uid ||
+      resolvedCustomerUid ||
       `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     const fullName = [
       result.clientName,
@@ -865,167 +1294,269 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       .join(' ');
     const orderDocId = `ord_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${result.familyName.replace(/\s+/g, '_')}`;
 
-    let nextWalletBalance = walletBalance;
-    if (paymentMethod === 'wallet') {
-      nextWalletBalance = Math.max(0, walletBalance - order.amountUsd);
-      setWalletBalance(nextWalletBalance);
-      executeWalletTransaction(
-        activeUid,
-        'debit',
-        order.amountUsd,
-        `${order.title} (${invoiceNumber})`,
-        invoiceNumber
-      ).catch(() => {});
+    const allCapsuleIds = (
+      result.capsules?.length ? result.capsules : AL_MUQIT_8_CAPSULES
+    ).map((c) => c.id);
+
+    const operationType =
+      order.type === 'unlock_root_5'
+        ? 'PURCHASE_ROOT_5USD'
+        : order.type === 'upgrade_vip_60'
+        ? 'UPGRADE_ANNUAL_VIP'
+        : order.type === 'wallet_topup'
+        ? 'TOPUP'
+        : 'UNLOCK_CAPSULE';
+
+    const targetCapsuleIds =
+      order.type === 'unlock_capsule' && order.capsuleId
+        ? [order.capsuleId]
+        : order.type === 'unlock_all_capsules_12'
+        ? allCapsuleIds
+        : undefined;
+
+    const bonusWalletCreditUsd =
+      order.type === 'upgrade_vip_60' ? order.bonusWalletUsd ?? 25 : 0;
+
+    const atomicRes = await executeAtomicWalletOperation({
+      userId: activeUid,
+      userEmail,
+      userFullName: fullName,
+      operationType,
+      amountUsd: order.amountUsd,
+      paymentMethod: paymentMethod === 'wallet' ? 'wallet' : 'external',
+      descriptionAr: order.title,
+      targetCapsuleIds,
+      bonusWalletCreditUsd,
+    });
+
+    if (atomicRes.status === 'INSUFFICIENT_FUNDS') {
+      setWalletBalance(atomicRes.balanceBefore);
+      setWalletShortfallUsd(atomicRes.shortfallUsd ?? null);
+      return {
+        status: 'INSUFFICIENT_FUNDS',
+        shortfallUsd: atomicRes.shortfallUsd,
+        balanceAfter: atomicRes.balanceBefore,
+      };
     }
 
+    setWalletBalance(atomicRes.balanceAfter);
+    setWalletShortfallUsd(null);
+
+    const txRef = atomicRes.transactionId || 'TXN-VERIFIED';
+    const currentSnapshot = buildVerifiedLineageSnapshot(activeResult);
+
+    const refreshUnlockedSnapshotFromEngine = () => {
+      if (!activeResult.familyName) return;
+      searchJuthoriLineage(
+        {
+          accountType,
+          firstName: activeResult.clientName || editFirstName || 'عميل',
+          fatherName: activeResult.fatherName || editFatherName || '',
+          grandfatherName:
+            activeResult.grandfatherName || editGrandfatherName || '',
+          familyName: activeResult.familyName,
+          originCountry: activeResult.originCountry || editOriginCountry,
+          originRegion: activeResult.originRegion || editOriginRegion || '',
+          tribeName: activeResult.rootTribeName || '',
+          branchName: activeResult.rootBranchName || '',
+          email: userEmail,
+          password: '',
+          agreedToTerms: true,
+        },
+        {
+          ip_country: silentGeo.ip_country,
+          ip_city: silentGeo.ip_city,
+        }
+      )
+        .then((refreshed) => {
+          if (!refreshed || !refreshed.matched) return;
+          const mergedRefreshed: LineageSearchResult = {
+            ...refreshed,
+            clientName: activeResult.clientName || refreshed.clientName,
+            fatherName: activeResult.fatherName || refreshed.fatherName,
+            grandfatherName:
+              activeResult.grandfatherName || refreshed.grandfatherName,
+            requiresBlindDisambiguation:
+              activeResult.requiresBlindDisambiguation === false
+                ? false
+                : refreshed.requiresBlindDisambiguation,
+          };
+          setVerifiedResultOverride(mergedRefreshed);
+          if (onUpdateLineageResult) {
+            onUpdateLineageResult(mergedRefreshed);
+          }
+          const snap = buildVerifiedLineageSnapshot(mergedRefreshed);
+          updateUserProfile(activeUid, {
+            verifiedLineageSnapshot: snap,
+            lineageSnapshot: snap,
+          }).catch(() => {});
+        })
+        .catch(() => {});
+    };
+
     if (order.type === 'unlock_root_5') {
-      onChangeStateMode(DashboardStateMode.State1Paid5Basic);
+      if (stateMode !== DashboardStateMode.AnnualVip) {
+        onChangeStateMode(DashboardStateMode.State1Paid5Basic);
+      }
       updateUserProfile(activeUid, {
-        subscriptionTier: 'basic_verified',
-        isRootUnlocked: true,
-        walletBalance: nextWalletBalance,
-        paidRevenueUsd: 5,
+        verifiedLineageSnapshot: currentSnapshot,
+        lineageSnapshot: currentSnapshot,
       }).catch(() => {});
-      upsertCustomerOrderInFirebase({
-        id: orderDocId,
-        userId: activeUid,
-        fullName,
-        firstName: result.clientName,
-        fatherName: result.fatherName || '—',
-        grandfatherName: result.grandfatherName || '—',
-        familyName: result.familyName,
-        originCountry: result.originCountry,
-        originRegion: result.originRegion || 'غير محدد',
-        email: userEmail,
-        phone: editPhone || '—',
-        legalRole: accountType,
-        accountStatus: 'paid_5_root',
-        walletBalanceUsd: nextWalletBalance,
-        paidRevenueUsd: 5,
-        matchStatus: !result.matched
-          ? 'open_research_ticket'
-          : result.isAlphaOnlyBeforeMerge
-          ? 'staged_3_nodes'
-          : 'auto_adam_full',
-        ticketId: result.alphaBackgroundTicketCode || '—',
-        ticketType: !result.matched
-          ? 'طلب عميل P1'
-          : result.isAlphaOnlyBeforeMerge
-          ? 'إثراء شجرة آدم P2'
-          : 'آلي مكتمل',
-        assignedResearcher: 'مفتوح بالمنصة للباحثين',
-        slaStatus: 'قيد العمل',
-        nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
-      }).catch(() => {});
-      appendActivity(
-        `سداد ناجح (${invoiceNumber}) — فتح الجذر ($5)`,
-        `تم الكشف عن الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName})`
-      );
+      refreshUnlockedSnapshotFromEngine();
+
+      if (atomicRes.status === 'COMPLETED') {
+        upsertCustomerOrderInFirebase({
+          id: orderDocId,
+          userId: activeUid,
+          fullName,
+          firstName: result.clientName,
+          fatherName: result.fatherName || '—',
+          grandfatherName: result.grandfatherName || '—',
+          familyName: result.familyName,
+          originCountry: result.originCountry,
+          originRegion: result.originRegion || 'غير محدد',
+          email: userEmail,
+          phone: editPhone || '—',
+          legalRole: accountType,
+          accountStatus: 'paid_5_root',
+          walletBalanceUsd: atomicRes.balanceAfter,
+          paidRevenueUsd: 5,
+          matchStatus: !result.matched
+            ? 'open_research_ticket'
+            : result.isAlphaOnlyBeforeMerge
+            ? 'staged_3_nodes'
+            : 'auto_adam_full',
+          ticketId: result.alphaBackgroundTicketCode || '—',
+          ticketType: !result.matched
+            ? 'طلب عميل P1'
+            : result.isAlphaOnlyBeforeMerge
+            ? 'إثراء شجرة آدم P2'
+            : 'آلي مكتمل',
+          assignedResearcher: 'مفتوح بالمنصة للباحثين',
+          slaStatus: 'قيد العمل',
+          nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
+        }).catch(() => {});
+        appendActivity(
+          `سداد ذري ناجح (${txRef}) — فتح الجذر ($5)`,
+          `تم الكشف عن الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName})`
+        );
+      }
     } else if (order.type === 'upgrade_vip_60') {
-      const bonusUsd = order.bonusWalletUsd ?? 25;
-      nextWalletBalance = nextWalletBalance + bonusUsd;
       onChangeStateMode(DashboardStateMode.AnnualVip);
-      setWalletBalance(nextWalletBalance);
       updateUserProfile(activeUid, {
-        subscriptionTier: 'premium_annual',
-        isRootUnlocked: true,
-        walletBalance: nextWalletBalance,
-        paidRevenueUsd: 60,
+        verifiedLineageSnapshot: currentSnapshot,
+        lineageSnapshot: currentSnapshot,
       }).catch(() => {});
-      executeWalletTransaction(
-        activeUid,
-        'credit',
-        bonusUsd,
-        `رصيد محفظة ترحيبي مع الاشتراك السنوي بريميوم (${invoiceNumber})`,
-        invoiceNumber
-      ).catch(() => {});
-      upsertCustomerOrderInFirebase({
-        id: orderDocId,
-        userId: activeUid,
-        fullName,
-        firstName: result.clientName,
-        fatherName: result.fatherName || '—',
-        grandfatherName: result.grandfatherName || '—',
-        familyName: result.familyName,
-        originCountry: result.originCountry,
-        originRegion: result.originRegion || 'غير محدد',
-        email: userEmail,
-        phone: editPhone || '—',
-        legalRole: accountType,
-        accountStatus: 'annual_vip',
-        walletBalanceUsd: nextWalletBalance,
-        paidRevenueUsd: 60,
-        matchStatus: !result.matched
-          ? 'open_research_ticket'
-          : result.isAlphaOnlyBeforeMerge
-          ? 'staged_3_nodes'
-          : 'auto_adam_full',
-        ticketId: result.alphaBackgroundTicketCode || '—',
-        ticketType: !result.matched
-          ? 'طلب عميل P1'
-          : result.isAlphaOnlyBeforeMerge
-          ? 'إثراء شجرة آدم P2'
-          : 'آلي مكتمل',
-        assignedResearcher: 'مفتوح بالمنصة للباحثين',
-        slaStatus: 'قيد العمل',
-        nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
-      }).catch(() => {});
-      syncClientLineageTicketToFirebase({
-        userId: activeUid,
-        userFullName: fullName,
-        userEmail,
-        userPhone: editPhone,
-        familyName: result.familyName,
-        originCountry: result.originCountry,
-        originRegion: result.originRegion,
-        rootBranchName: result.rootBranchName,
-        rootTribeName: result.rootTribeName,
-        matched: result.matched,
-        isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
-        isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
-        subscriptionTier: 'premium_annual',
-        adamNodeId: result.adamNodeId,
-        alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
-        verifiedSources: result.verified_sources,
-        corroboratingAlphaEvidence:
-          result.corroborating_alpha_evidence_for_researcher,
-        siblingBranches: result.sibling_branches_in_record,
-        notablesInRecord: result.notables_in_record,
-        enrichedLocations: result.enrichedLocations,
-        adamSpineNodesCount: result.adamSpineNodes?.length || 1,
-      }).catch(() => {});
-      appendActivity(
-        `سداد ناجح (${invoiceNumber}) — عضوية بريميوم السنوية ($60)`,
-        'فتح المحطات الرئيسية في شجرة آدم والمصادر وتفعيل التبويبات الخمسة + إيداع $25 رصيد هدية في المحفظة'
-      );
+      refreshUnlockedSnapshotFromEngine();
+
+      if (atomicRes.status === 'COMPLETED') {
+        upsertCustomerOrderInFirebase({
+          id: orderDocId,
+          userId: activeUid,
+          fullName,
+          firstName: result.clientName,
+          fatherName: result.fatherName || '—',
+          grandfatherName: result.grandfatherName || '—',
+          familyName: result.familyName,
+          originCountry: result.originCountry,
+          originRegion: result.originRegion || 'غير محدد',
+          email: userEmail,
+          phone: editPhone || '—',
+          legalRole: accountType,
+          accountStatus: 'annual_vip',
+          walletBalanceUsd: atomicRes.balanceAfter,
+          paidRevenueUsd: 60,
+          matchStatus: !result.matched
+            ? 'open_research_ticket'
+            : result.isAlphaOnlyBeforeMerge
+            ? 'staged_3_nodes'
+            : 'auto_adam_full',
+          ticketId: result.alphaBackgroundTicketCode || '—',
+          ticketType: !result.matched
+            ? 'طلب عميل P1'
+            : result.isAlphaOnlyBeforeMerge
+            ? 'إثراء شجرة آدم P2'
+            : 'آلي مكتمل',
+          assignedResearcher: 'مفتوح بالمنصة للباحثين',
+          slaStatus: 'قيد العمل',
+          nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
+        }).catch(() => {});
+        syncClientLineageTicketToFirebase({
+          userId: activeUid,
+          userFullName: fullName,
+          userEmail,
+          userPhone: editPhone,
+          familyName: result.familyName,
+          originCountry: result.originCountry,
+          originRegion: result.originRegion,
+          rootBranchName: result.rootBranchName,
+          rootTribeName: result.rootTribeName,
+          matched: result.matched,
+          isAlphaOnlyBeforeMerge: result.isAlphaOnlyBeforeMerge,
+          isAlphaMergedIntoAdam: result.isAlphaMergedIntoAdam,
+          subscriptionTier: 'premium_annual',
+          adamNodeId: result.adamNodeId,
+          alphaBackgroundTicketCode: result.alphaBackgroundTicketCode,
+          verifiedSources: result.verified_sources,
+          corroboratingAlphaEvidence:
+            result.corroborating_alpha_evidence_for_researcher,
+          siblingBranches: result.sibling_branches_in_record,
+          notablesInRecord: result.notables_in_record,
+          enrichedLocations: result.enrichedLocations,
+          adamSpineNodesCount: result.adamSpineNodes?.length || 1,
+        }).catch(() => {});
+        appendActivity(
+          `سداد ذري ناجح (${txRef}) — عضوية بريميوم السنوية ($60)`,
+          `فتح المحطات الرئيسية في شجرة آدم والمصادر + رفع السعات وإيداع $${bonusWalletCreditUsd} رصيد هدية`
+        );
+      }
     } else if (order.type === 'unlock_capsule' && order.capsuleId) {
       const nextCapsules = unlockedCapsules.includes(order.capsuleId)
         ? unlockedCapsules
         : [...unlockedCapsules, order.capsuleId];
       setUnlockedCapsules(nextCapsules);
       updateUserProfile(activeUid, {
-        walletBalance: nextWalletBalance,
-        unlockedCapsules: nextCapsules,
+        verifiedLineageSnapshot: currentSnapshot,
+        lineageSnapshot: currentSnapshot,
       }).catch(() => {});
-      appendActivity(
-        `سداد ناجح (${invoiceNumber}) — ${order.title}`,
-        `تم فتح حلقة الأجداد الوسيطين بالخصم من ${paymentMethod === 'wallet' ? 'المحفظة الرقمية' : 'البطاقة البنكية'}`
-      );
+      if (atomicRes.status === 'COMPLETED') {
+        appendActivity(
+          `سداد ذري ناجح (${txRef}) — ${order.title}`,
+          `تم فتح حلقة الأجداد الوسيطين بالخصم من ${paymentMethod === 'wallet' ? 'المحفظة الرقمية' : 'البطاقة البنكية'}`
+        );
+      }
     } else if (order.type === 'unlock_all_capsules_12') {
-      const allIds = (
-        result.capsules?.length ? result.capsules : AL_MUQIT_8_CAPSULES
-      ).map((c) => c.id);
-      setUnlockedCapsules(allIds);
+      setUnlockedCapsules(allCapsuleIds);
       updateUserProfile(activeUid, {
-        walletBalance: nextWalletBalance,
-        unlockedCapsules: allIds,
+        verifiedLineageSnapshot: currentSnapshot,
+        lineageSnapshot: currentSnapshot,
       }).catch(() => {});
-      appendActivity(
-        `سداد ناجح (${invoiceNumber}) — فتح حلقات الأجداد الوسيطين كاملة ($12)`,
-        'تم فتح جميع حلقات الأجداد الوسيطين في شجرة آدم وتحويل كافة الروابط إلى «بن (سليل مباشر)»'
-      );
+      if (atomicRes.status === 'COMPLETED') {
+        appendActivity(
+          `سداد ذري ناجح (${txRef}) — فتح حلقات الأجداد الوسيطين كاملة ($12)`,
+          'تم فتح جميع حلقات الأجداد الوسيطين في شجرة آدم وتحويل كافة الروابط إلى «بن (سليل مباشر)»'
+        );
+      }
     }
 
+    return {
+      status: atomicRes.status,
+      transactionId: txRef,
+      balanceAfter: atomicRes.balanceAfter,
+    };
+  };
+
+  // Callback executed when user clicks the final receipt button in CheckoutModal
+  const handleConfirmCheckoutSuccess = (
+    order: CheckoutOrderRequest,
+    paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay',
+    invoiceNumber: string,
+    alreadyExecutedAtomically?: boolean
+  ) => {
+    if (!alreadyExecutedAtomically) {
+      handleExecuteCheckoutPayment(order, paymentMethod).catch(() => {});
+    }
+    void invoiceNumber;
     setActiveCheckoutOrder(null);
     setActiveUtilityDrawer(null);
     setActiveTab(DashboardTab.Lineage);
@@ -1058,6 +1589,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       const activeUid =
         userId ||
         auth.currentUser?.uid ||
+        resolvedCustomerUid ||
         `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
       const fullName = [
         result.clientName,
@@ -1087,15 +1619,23 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         verificationMethod: 'electronic_contract_signature',
       });
 
-      onUpgradeAccountToRecordKeeper();
+      const registrarTx = await executeAtomicWalletOperation({
+        userId: activeUid,
+        userEmail,
+        userFullName:
+          fullName || `${result.clientName} ${result.familyName}`.trim(),
+        operationType: 'UPGRADE_REGISTRAR',
+        amountUsd: 0,
+        paymentMethod: 'external',
+        descriptionAr: `تفعيل عضوية وصلاحية أمين سجل عائلة (${result.familyName}) — شهادة العقد (${auditEntry.certificateCode})`,
+        charterSignatureMeta: {
+          signedAt: auditEntry.signedAtIso,
+          charterCode: auditEntry.certificateCode,
+          contractVersion: RECORD_KEEPER_CONTRACT_VERSION,
+        },
+      });
 
-      await updateUserProfile(activeUid, {
-        accountType: 'record_keeper',
-        recordKeeperCharterSigned: true,
-        recordKeeperCharterSignedAt: auditEntry.signedAtIso,
-        recordKeeperCharterCode: auditEntry.certificateCode,
-        recordKeeperContractVersion: RECORD_KEEPER_CONTRACT_VERSION,
-      }).catch(() => {});
+      onUpgradeAccountToRecordKeeper();
 
       await createCharterRequestInFirebase({
         userId: activeUid,
@@ -1131,7 +1671,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             : caps.isRootUnlocked
             ? 'paid_5_root'
             : 'free',
-        walletBalanceUsd: walletBalance,
+        walletBalanceUsd: registrarTx.balanceAfter,
         paidRevenueUsd:
           stateMode === DashboardStateMode.AnnualVip
             ? 60
@@ -1166,7 +1706,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
       appendActivity(
         `التوقيع الإلكتروني الموثق على عقد أمين السجل (${auditEntry.certificateCode})`,
-        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «رب أسرة - أمين السجل» وتفعيل بناء شجرتي`
+        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «أمين سجل العائلة ✦» بسعة غير محدودة`
       );
 
       return auditEntry;
@@ -1260,11 +1800,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       });
     }
 
+    const resolvedChoiceId = chosenOpt?.choice_id || optionId;
+    const mergedSnapshot = buildVerifiedLineageSnapshot(
+      merged,
+      resolvedChoiceId
+    );
+
     updateUserProfile(activeUid, {
       tribeName: merged.rootTribeName,
       familyBranch: merged.rootBranchName,
       originCountry: merged.originCountry,
       originRegion: merged.originRegion || editOriginRegion,
+      disambiguationChoiceId: resolvedChoiceId,
+      verifiedLineageSnapshot: mergedSnapshot,
+      lineageSnapshot: mergedSnapshot,
     }).catch(() => {});
 
     // 2. Sync customer's verified lineage ticket to Firebase `research_tickets` ONLY if Annual VIP
@@ -1373,6 +1922,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             if (onUpdateLineageResult) {
               onUpdateLineageResult(finalLive);
             }
+            const liveSnap = buildVerifiedLineageSnapshot(
+              finalLive,
+              chosenOpt.choice_id
+            );
+            updateUserProfile(activeUid, {
+              verifiedLineageSnapshot: liveSnap,
+              lineageSnapshot: liveSnap,
+            }).catch(() => {});
           }
         })
         .catch(() => {});
@@ -1382,6 +1939,56 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       'حسم سؤال التحقق المتدرج وفتح الجذر',
       `تم اعتماد مسار (${merged.rootBranchName} ⬅️ ${merged.rootTribeName}) لعائلة ${merged.familyName}`
     );
+  };
+
+  const handleOpenPrefilledResearchTicket = (
+    reasonType: ResearchTicketReasonType
+  ) => {
+    const draft = buildResearchTicketDraftFromSearch({
+      firstName: activeResult.clientName || editFirstName,
+      fatherName: activeResult.fatherName || editFatherName,
+      grandfatherName: activeResult.grandfatherName || editGrandfatherName,
+      familyName: activeResult.familyName || editFamilyName,
+      originCountry: activeResult.originCountry || editOriginCountry,
+      originRegion: activeResult.originRegion || editOriginRegion,
+      tribeName: activeResult.rootTribeName || '',
+      familyBranch: activeResult.rootBranchName || '',
+      reasonType,
+      additionalContext:
+        reasonType === 'geographic_disambiguation'
+          ? activeResult.disambiguationPathsSummaryForTicket
+          : undefined,
+    });
+    setLocalTicketDraft(draft);
+    setActiveUtilityDrawer(null);
+    setActiveTab(DashboardTab.ResearchTickets);
+  };
+
+  const handleOpenReferenceCorrectionTicket = (
+    personName: string,
+    referenceRank?: string
+  ) => {
+    const draft = buildResearchTicketDraftFromSearch({
+      firstName: activeResult.clientName || editFirstName,
+      fatherName: activeResult.fatherName || editFatherName,
+      grandfatherName: activeResult.grandfatherName || editGrandfatherName,
+      familyName: activeResult.familyName || editFamilyName,
+      originCountry: activeResult.originCountry || editOriginCountry,
+      originRegion: activeResult.originRegion || editOriginRegion,
+      tribeName: activeResult.rootTribeName || '',
+      familyBranch: activeResult.rootBranchName || '',
+      reasonType: 'deep_archival_verification',
+      additionalContext: `طلب تدقيق/تصحيح نسبي متعلق بالعقدة المرجعية الموثقة (${personName}${
+        referenceRank ? ` — ${referenceRank}` : ''
+      }) المستوردة في مشجرتي من عمود النسب.`,
+    });
+    appendActivity(
+      'طلب تصحيح عقدة مرجعية في مرصد البحوث',
+      `فتح تذكرة تدقيق أرشيفي للعقدة المرجعية «${personName}»`
+    );
+    setLocalTicketDraft(draft);
+    setActiveUtilityDrawer(null);
+    setActiveTab(DashboardTab.ResearchTickets);
   };
 
   const handleEscalateVerificationToTicket = () => {
@@ -1401,46 +2008,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       userId ||
       auth.currentUser?.uid ||
       `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-    const fullName = [
-      result.clientName,
-      result.fatherName,
-      result.grandfatherName,
-      result.familyName,
-    ]
-      .filter((s) => s && s !== '—')
-      .join(' ');
-
-    syncClientLineageTicketToFirebase({
-      userId: activeUid,
-      userFullName: fullName,
-      userEmail,
-      userPhone: editPhone,
-      familyName: result.familyName,
-      originCountry: result.originCountry,
-      originRegion: result.originRegion,
-      rootBranchName: '',
-      rootTribeName: 'تذكرة بحث للباحثين (تعدد مسارات)',
-      matched: false,
-      isAlphaOnlyBeforeMerge: false,
-      isAlphaMergedIntoAdam: false,
-      isEscalatedDisambiguation: true,
-      verificationChoiceLabel: 'إحالة لتذكرة بحث متخصصة (لا أعرف / موضع آخر)',
-      additionalNotes:
-        result.disambiguationPathsSummaryForTicket ||
-        `طلب تحقيق أرشيفي محال من العميل بعد سؤال التحقق لعائلة (${result.familyName}).`,
-      verifiedSources: result.verified_sources,
-      corroboratingAlphaEvidence:
-        result.corroborating_alpha_evidence_for_researcher,
-      siblingBranches: result.sibling_branches_in_record,
-      notablesInRecord: result.notables_in_record,
-      enrichedLocations: result.enrichedLocations,
-      adamSpineNodesCount: 1,
+    const escalatedSnap = buildVerifiedLineageSnapshot(
+      escalated,
+      'not_sure_ticket'
+    );
+    updateUserProfile(activeUid, {
+      disambiguationChoiceId: 'not_sure_ticket',
+      verifiedLineageSnapshot: escalatedSnap,
+      lineageSnapshot: escalatedSnap,
     }).catch(() => {});
 
     appendActivity(
-      'تحويل آلي إلى تذكرة بحث مباشرة للباحثين',
-      `إحالة طلب عائلة (${result.familyName}) مع كافة المسارات المرصودة إلى صندوق تذاكر الباحثين`
+      'فتح نموذج تذكرة بحثية في مرصد البحوث',
+      `تجهيز تذكرة بحثية معبأة مسبقاً لعائلة (${result.familyName}) لحسم تعدد المسارات`
     );
+
+    handleOpenPrefilledResearchTicket('geographic_disambiguation');
   };
 
   const availableCartItems: CartItem[] = [];
@@ -1511,17 +2094,34 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     )}
                   </div>
 
-                  {/* Customer Name + Calm Package Subtitle */}
+                  {/* Customer Name + Calm Package / Registrar Subtitle */}
                   <div className="text-right">
-                    <div className="text-sm sm:text-base font-display font-bold text-[#252321] leading-tight">
-                      {result.clientName} {result.familyName}
+                    <div className="text-sm sm:text-base font-display font-bold text-[#252321] leading-tight flex items-center gap-1.5">
+                      <span>
+                        {result.clientName} {result.familyName}
+                      </span>
+                      {caps.hasRegistrarBadge && (
+                        <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-[#252321] text-[#F3D299] text-[10px] font-bold">
+                          أمين سجل العائلة ✦
+                        </span>
+                      )}
                     </div>
                     <div
                       className={`text-[11px] font-medium mt-0.5 ${
-                        caps.isVip ? 'text-[#D8755B] font-bold' : 'text-[#252321]/65'
+                        caps.isVip || caps.hasRegistrarBadge
+                          ? 'text-[#D8755B] font-bold'
+                          : 'text-[#252321]/65'
                       }`}
                     >
-                      {caps.isVip ? 'عضوية بريميوم ✦' : 'عضوية أساسية'}
+                      {caps.hasRegistrarBadge
+                        ? caps.isVip
+                          ? 'أمين سجل العائلة ✦ · بريميوم'
+                          : 'أمين سجل العائلة ✦'
+                        : caps.isVip
+                        ? 'عضوية بريميوم ✦'
+                        : caps.isRootUnlocked
+                        ? 'الباقة الأساسية الموثقة ($5)'
+                        : 'العضوية المجانية'}
                     </div>
                   </div>
 
@@ -1540,7 +2140,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     role="menu"
                     className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-[#B98A78]/50 shadow-2xl py-2 z-50 text-right overflow-hidden"
                   >
-                    {/* Dropdown Header: Full Name, Email, Verification Badge */}
+                    {/* Dropdown Header: Full Name, Email, Verification & Registrar Badges */}
                     <div className="px-4 py-3.5 bg-[#FAF6F0] border-b border-[#B98A78]/25 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-display font-extrabold text-sm text-[#252321] truncate">
@@ -1550,11 +2150,24 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             : ''}{' '}
                           {result.familyName}
                         </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold shrink-0">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>حساب موثق</span>
-                        </span>
+                        {isEmailVerified ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold shrink-0">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>موثّق ✓</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-bold shrink-0">
+                            <span>غير موثّق</span>
+                          </span>
+                        )}
                       </div>
+                      {caps.hasRegistrarBadge && (
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#252321] text-[#F3D299] text-[10px] font-display font-bold">
+                            <span>أمين سجل العائلة ✦</span>
+                          </span>
+                        </div>
+                      )}
                       <div
                         className="text-xs font-mono text-[#252321]/70 truncate"
                         dir="ltr"
@@ -1936,6 +2549,166 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {(activeUtilityDrawer === 'profile' ||
               activeUtilityDrawer === 'settings') && (
               <div className="space-y-8">
+                {/* Thin, Calm, Dismissible Email Verification Reminder Banner (ONLY in Profile/Settings & Wallet) */}
+                {!isEmailVerified && !dismissedEmailBannerInProfile && (
+                  <div className="rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321]">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-[#D8755B] shrink-0" />
+                      <span>
+                        تذكير هادئ: يمكنك توثيق بريدك الإلكتروني (<strong className="font-mono">{userEmail}</strong>) أدناه لتعزيز أمان حسابك وتفعيل النشر العام في «موقعي».
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={
+                          isSendingVerificationOtp ||
+                          verificationResendCooldown > 0
+                        }
+                        onClick={handleSendEmailVerificationCode}
+                        className="px-3 py-1 rounded-lg bg-[#252321] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isSendingVerificationOtp
+                          ? 'جاري الإرسال...'
+                          : verificationResendCooldown > 0
+                          ? `إعادة الإرسال (${verificationResendCooldown}ث)`
+                          : 'إرسال رمز التوثيق'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDismissedEmailBannerInProfile(true)}
+                        aria-label="إغلاق التذكير"
+                        className="p-1 rounded-lg hover:bg-[#EDE6DA] text-[#252321]/65 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Non-Blocking Server-Side Email Verification Card (Resend OTP) */}
+                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#D8755B]" />
+                        <h2 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                          حالة البريد الإلكتروني المرتبط بالحساب
+                        </h2>
+                        <span
+                          dir="ltr"
+                          className="px-2.5 py-0.5 rounded-lg bg-white border border-[#B98A78]/35 text-xs font-mono text-[#8D4925]"
+                        >
+                          {userEmail}
+                        </span>
+                        {isEmailVerified ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-extrabold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>موثّق ✓</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-bold">
+                            <span>غير موثّق</span>
+                          </span>
+                        )}
+                        {caps.hasRegistrarBadge && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#252321] text-[#F3D299] text-[11px] font-display font-bold">
+                            <span>أمين سجل العائلة ✦</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#252321]/70">
+                        {isEmailVerified
+                          ? `البريد الإلكتروني موثّق ومعتمد رسمياً${
+                              emailVerifiedAt
+                                ? ` منذ ${new Date(emailVerifiedAt).toLocaleDateString('ar-SA')}`
+                                : ''
+                            } — النشر العام وحماية المحفظة مفعّلان بالكامل.`
+                          : 'التوثيق اختياري ولا يعيق استخدامك لشجرتي أو خزانتي أو عمود النسب، ويُطلب فقط قبل النشر العام في «موقعي».'}
+                      </p>
+                    </div>
+
+                    {!isEmailVerified && (
+                      <button
+                        type="button"
+                        disabled={
+                          isSendingVerificationOtp ||
+                          verificationResendCooldown > 0
+                        }
+                        onClick={handleSendEmailVerificationCode}
+                        className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 disabled:opacity-55"
+                      >
+                        {isSendingVerificationOtp ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {isSendingVerificationOtp
+                            ? 'جاري إرسال الرمز...'
+                            : verificationResendCooldown > 0
+                            ? `إعادة الإرسال بعد (${verificationResendCooldown}ث)`
+                            : 'إرسال رمز التوثيق'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {!isEmailVerified && verificationOtpSent && (
+                    <form
+                      onSubmit={handleVerifyEmailOtpCode}
+                      className="pt-3 border-t border-[#B98A78]/25 flex flex-col sm:flex-row sm:items-center gap-2.5"
+                    >
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        dir="ltr"
+                        maxLength={6}
+                        value={verificationOtpInput}
+                        onChange={(e) =>
+                          setVerificationOtpInput(
+                            e.target.value.replace(/[^0-9]/g, '').slice(0, 6)
+                          )
+                        }
+                        placeholder="أدخل الرمز المكون من 6 أرقام"
+                        className="sm:w-64 rounded-xl bg-white border border-[#B98A78]/55 px-4 py-2 text-center font-mono text-sm tracking-widest text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isVerifyingOtpCode}
+                        className="px-5 py-2 rounded-xl bg-[#252321] hover:bg-[#D8755B] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {isVerifyingOtpCode ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>تأكيد رمز التوثيق</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {verificationFeedback && (
+                    <div
+                      role="status"
+                      className={`rounded-xl px-4 py-3 text-xs font-semibold flex items-start gap-2.5 leading-relaxed ${
+                        verificationFeedback.type === 'success'
+                          ? 'bg-emerald-50 border border-emerald-300 text-emerald-950'
+                          : verificationFeedback.type === 'diagnostic'
+                          ? 'bg-amber-50 border border-amber-300 text-amber-950'
+                          : 'bg-red-50 border border-red-200 text-red-800'
+                      }`}
+                    >
+                      {verificationFeedback.type === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                      )}
+                      <span>{verificationFeedback.text}</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* 1. Avatar Upload Card */}
                 <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div className="flex items-center gap-4">
@@ -2309,12 +3082,64 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   </div>
                 </div>
 
-                {/* 5. Danger Zone (منطقة الخطر - طلب حذف الحساب نهائياً) */}
+                {/* 5. Community Blocked Users Governance (إدارة المستخدمين المحظورين في مجتمعي) */}
+                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 p-5 sm:p-6 space-y-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-[#252321] font-display font-extrabold text-sm sm:text-base">
+                      <ShieldCheck className="w-5 h-5 text-[#8D4925]" />
+                      <span>5. إدارة المستخدمين المحظورين في «مجتمعي»</span>
+                    </div>
+                    <span className="text-xs font-semibold text-[#8D4925] bg-white border border-[#B98A78]/35 px-2.5 py-1 rounded-lg">
+                      المحظورون حالياً: {blockedUserIds.length}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#252321]/75 leading-relaxed">
+                    يتم إخفاء منشورات وتعليقات المستخدمين المحظورين فوراً من واجهة «مجتمعي» الخاصة بك، ويمكنك فك الحظر عن أي حساب في أي وقت.
+                  </p>
+
+                  {blockedUserIds.length === 0 ? (
+                    <div className="rounded-xl bg-white border border-[#B98A78]/30 px-4 py-3 text-xs text-[#252321]/70">
+                      لا يوجد أي مستخدم محظور في قائمة الحظر الخاصة بحسابك حالياً.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {blockedUserIds.map((bUid) => {
+                        const meta = blockedUsersMeta.find(
+                          (item) => item.userId === bUid
+                        );
+                        return (
+                          <div
+                            key={bUid}
+                            className="rounded-xl bg-white border border-[#B98A78]/35 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3"
+                          >
+                            <div>
+                              <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                                {meta?.name || 'عضو في مجتمعي'}
+                              </div>
+                              <div className="text-[11px] text-[#252321]/60 font-mono" dir="ltr">
+                                {bUid}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleUnblockCommunityUser(bUid)}
+                              className="px-3.5 py-1.5 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                            >
+                              فك الحظر
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 6. Danger Zone (منطقة الخطر - طلب حذف الحساب نهائياً) */}
                 <div className="rounded-2xl bg-red-50/70 border-2 border-red-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-red-800 font-display font-extrabold text-base">
                       <ShieldAlert className="w-5 h-5 text-red-600" />
-                      <span>5. منطقة الخطر (Danger Zone)</span>
+                      <span>6. منطقة الخطر (Danger Zone)</span>
                     </div>
                     <p className="text-xs text-red-900/80 leading-relaxed max-w-2xl">
                       حذف الحساب نهائياً يؤدي إلى إزالة ملفك الشخصي وبيانات جلستك من قاعدة بيانات Firebase وإنهاء الجلسة الحالية فوراً.
@@ -2413,13 +3238,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     onUpgradeSuccess={handleUpgradeAnnualVip}
                     onLogActivity={appendActivity}
                     externalBalance={walletBalance}
+                    highlightedShortfallUsd={walletShortfallUsd}
+                    onClearShortfall={() => setWalletShortfallUsd(null)}
+                    emailVerified={isEmailVerified}
+                    showEmailReminderBanner={
+                      !isEmailVerified && !dismissedEmailBannerInWallet
+                    }
+                    onDismissEmailReminderBanner={() =>
+                      setDismissedEmailBannerInWallet(true)
+                    }
+                    onOpenEmailVerification={() =>
+                      setActiveUtilityDrawer('profile')
+                    }
                     onBalanceChange={(nextBal) => {
                       setWalletBalance(nextBal);
-                      if (resolvedCustomerUid) {
-                        updateUserProfile(resolvedCustomerUid, {
-                          walletBalance: nextBal,
-                        }).catch(() => {});
-                      }
                     }}
                   />
                 </div>
@@ -2629,6 +3461,33 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               );
               if (treeTab) handleTabClick(treeTab);
             }}
+            onResyncLineage={onResyncLineageFromEngine}
+            isResyncingLineage={isResyncingLineage}
+            onCreateResearchTicket={handleOpenPrefilledResearchTicket}
+            userId={resolvedCustomerUid}
+            onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
+            onLogActivity={appendActivity}
+          />
+        ) : activeTab === DashboardTab.ResearchTickets ? (
+          <ResearchTicketsView
+            result={activeResult}
+            userEmail={userEmail}
+            userId={resolvedCustomerUid}
+            userPhone={editPhone}
+            accountType={accountType}
+            initialDraft={localTicketDraft}
+            onConsumeDraft={() => {
+              setLocalTicketDraft(null);
+              onClearInitialTicketDraft?.();
+            }}
+            onLogActivity={appendActivity}
+            onAdoptResolvedLineage={(enriched) => {
+              setVerifiedResultOverride(enriched);
+              onUpdateLineageResult?.(enriched);
+              if (stateMode === DashboardStateMode.State3Unmatched) {
+                onChangeStateMode(DashboardStateMode.State2MatchedUnpaid);
+              }
+            }}
           />
         ) : (
           <div className="space-y-4">
@@ -2696,6 +3555,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               onSaveSiteSettings={(nextSettings) => setSiteSettings(nextSettings)}
               initialCommunityPosts={communityPosts}
               onSaveCommunityPosts={(nextPosts) => setCommunityPosts(nextPosts)}
+              emailVerified={isEmailVerified}
+              onOpenEmailVerification={() => setActiveUtilityDrawer('profile')}
+              initialVaultPersonFilterId={vaultPersonFilterId}
+              onConsumeVaultPersonFilterId={() => setVaultPersonFilterId(null)}
+              onOpenVaultForPerson={(personId) => {
+                setVaultPersonFilterId(personId);
+                setActiveUtilityDrawer(null);
+                setActiveTab(DashboardTab.MyVault);
+              }}
+              onRequestReferenceCorrectionTicket={
+                handleOpenReferenceCorrectionTicket
+              }
+              blockedUserIds={blockedUserIds}
+              onBlockCommunityUser={handleBlockCommunityUser}
             />
           </div>
         )}
@@ -2808,32 +3681,32 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         }
       />
 
-      {/* MODAL 3: Realistic 3-Step Checkout & Wallet Payment Modal */}
+      {/* MODAL 3: Realistic 3-Step Atomic Checkout & Wallet Payment Modal */}
       <CheckoutModal
         order={activeCheckoutOrder}
         walletBalance={walletBalance}
         onClose={() => setActiveCheckoutOrder(null)}
+        onExecutePayment={handleExecuteCheckoutPayment}
         onConfirmSuccess={handleConfirmCheckoutSuccess}
-        onQuickTopUpWallet={(amountUsd) => {
+        onQuickTopUpWallet={async (amountUsd) => {
           const activeUid =
             userId ||
             auth.currentUser?.uid ||
+            resolvedCustomerUid ||
             `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-          const nextBal = walletBalance + amountUsd;
-          setWalletBalance(nextBal);
-          updateUserProfile(activeUid, {
-            walletBalance: nextBal,
-          }).catch(() => {});
-          executeWalletTransaction(
-            activeUid,
-            'credit',
+          const res = await executeAtomicWalletOperation({
+            userId: activeUid,
+            userEmail,
+            operationType: 'TOPUP',
             amountUsd,
-            `إيداع فوري ($${amountUsd}) عبر بوابة الدفع السريع`,
-            `quick_topup_${Date.now()}`
-          ).catch(() => {});
+            paymentMethod: 'external',
+            descriptionAr: `إيداع فوري ($${amountUsd.toFixed(2)}) عبر بوابة الدفع السريع`,
+          });
+          setWalletBalance(res.balanceAfter);
+          setWalletShortfallUsd(null);
           appendActivity(
-            'شحن فوري للمحفظة الرقمية',
-            `إيداع $${amountUsd} عبر بوابة الدفع السريع`
+            `شحن فوري للمحفظة (${res.transactionId || 'TXN'})`,
+            `إيداع $${amountUsd.toFixed(2)} عبر بوابة الدفع السريع — الرصيد بعدها: $${res.balanceAfter.toFixed(2)}`
           );
         }}
       />

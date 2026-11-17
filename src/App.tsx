@@ -4,14 +4,15 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   signOut,
 } from 'firebase/auth';
 import { auth, googleProvider } from './services/firebase';
 import {
+  buildVerifiedLineageSnapshot,
   fetchUserProfile,
   fetchUserProfileByEmail,
   findTeamMemberByEmail,
+  hydrateLineageResultFromSnapshot,
   isCorporateStaffEmail,
   updateUserProfile,
   createUserProfileIfMissing,
@@ -26,6 +27,7 @@ import { TERMS_AND_PRIVACY_VERSION } from './data/recordKeeperContractData';
 import {
   AccountLegalType,
   DashboardStateMode,
+  DashboardTab,
   LineageSearchResult,
   RegistrationFormState,
   SilentGeoMetadata,
@@ -37,11 +39,25 @@ import {
   searchJuthoriLineage,
   upgradeAlphaResultToMergedAdam,
 } from './utils/lineageEngine';
+import {
+  clearPendingLineageHandoff,
+  PendingResearchTicketDraft,
+  readPendingLineageHandoff,
+  readPendingTicketDraft,
+  savePendingLineageHandoff,
+} from './utils/handoffStorage';
 import { LandingPage } from './components/LandingPage';
 import { SearchProgressScreen } from './components/SearchProgressScreen';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { LoginModal } from './components/LoginModal';
 import { AdminStaffPortal } from './components/AdminStaffPortal';
+import { PublicFamilyMicrositePage } from './components/PublicFamilyMicrositePage';
+import {
+  normalizePublicSiteSlug,
+  processKinshipOptOutByToken,
+  resolveMicrositeSlugFromLocation,
+} from './services/priority4Service';
+import { capturePendingReferralCodeFromUrl } from './config/referralAndSiteConfig';
 
 const DEFAULT_FORM_STATE: RegistrationFormState = {
   accountType: AccountLegalType.Individual,
@@ -155,6 +171,25 @@ function isTeamRouteInWindow(): boolean {
   );
 }
 
+function resolvePublicSiteSlugFromWindow(): string | null {
+  if (typeof window === 'undefined') return null;
+  if (isTeamRouteInWindow()) return null;
+
+  const fromLocation = resolveMicrositeSlugFromLocation(
+    window.location.pathname,
+    window.location.search
+  );
+  if (fromLocation) return fromLocation;
+
+  const hashMatch = window.location.hash.match(/^#\/?u\/([a-zA-Z0-9_-]+)/);
+  if (hashMatch?.[1]) {
+    const normalized = normalizePublicSiteSlug(hashMatch[1]);
+    if (normalized.length >= 3) return normalized;
+  }
+
+  return null;
+}
+
 export function App() {
   const initialSession = loadSavedCustomerSession();
 
@@ -228,6 +263,21 @@ export function App() {
   const [dashboardStateMode, setDashboardStateMode] = useState<DashboardStateMode>(
     () => initialSession?.dashboardStateMode || DashboardStateMode.State2MatchedUnpaid
   );
+  const [initialDashboardTab, setInitialDashboardTab] = useState<DashboardTab>(
+    () =>
+      readPendingTicketDraft()
+        ? DashboardTab.ResearchTickets
+        : DashboardTab.Lineage
+  );
+  const [pendingTicketDraftState, setPendingTicketDraftState] =
+    useState<PendingResearchTicketDraft | null>(() => readPendingTicketDraft());
+  const [isResyncingLineage, setIsResyncingLineage] = useState<boolean>(false);
+  const [publicMicrositeSlug, setPublicMicrositeSlug] = useState<string | null>(
+    () => resolvePublicSiteSlugFromWindow()
+  );
+  const [optOutFeedbackMessage, setOptOutFeedbackMessage] = useState<
+    string | null
+  >(null);
 
   // Refs to preserve active Arabic search form & matched lineageResult during Firebase Auth callbacks
   const formRef = useRef<RegistrationFormState>(form);
@@ -239,14 +289,39 @@ export function App() {
     lineageResultRef.current = lineageResult;
   }, [lineageResult]);
 
-  // Listen for URL changes to /Team or #/Team and bootstrap Firestore collections
+  // Listen for URL changes to /Team, #/Team, /{FamilySlug}, ?ref=, ?optout=, and bootstrap Firestore
   useEffect(() => {
     bootstrapJuthoriFirestoreDatabase().catch(() => {});
+    capturePendingReferralCodeFromUrl();
+
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const optOutToken = searchParams.get('optout');
+      if (optOutToken) {
+        processKinshipOptOutByToken(optOutToken)
+          .then((res) => {
+            setOptOutFeedbackMessage(res.messageAr);
+            searchParams.delete('optout');
+            const qs = searchParams.toString();
+            window.history.replaceState(
+              {},
+              '',
+              `${window.location.pathname}${qs ? `?${qs}` : ''}`
+            );
+          })
+          .catch(() => {});
+      }
+    }
+
     if (typeof window === 'undefined') return;
     const handleLocationChange = () => {
+      capturePendingReferralCodeFromUrl();
       if (isTeamRouteInWindow()) {
+        setPublicMicrositeSlug(null);
         setActiveView('staff_portal');
+        return;
       }
+      setPublicMicrositeSlug(resolvePublicSiteSlugFromWindow());
     };
     window.addEventListener('popstate', handleLocationChange);
     window.addEventListener('hashchange', handleLocationChange);
@@ -474,6 +549,22 @@ export function App() {
     };
   }, []);
 
+  // Prefill familyName cleanly if user opened a Family Registrar invite link (?inviteTree=...&family=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const invitedFamily = (params.get('family') || '').trim();
+      if (invitedFamily) {
+        setForm((prev) =>
+          prev.familyName ? prev : { ...prev, familyName: invitedFamily }
+        );
+      }
+    } catch {
+      // Ignore malformed URL query
+    }
+  }, []);
+
   // Firebase Auth Observer to synchronize logged-in user profile and keep customer session active
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -502,8 +593,32 @@ export function App() {
 
         setUserId(user.uid);
         try {
-          const activeSearchForm = formRef.current;
-          const activeLineage = lineageResultRef.current;
+          const pendingHandoff = readPendingLineageHandoff();
+          const pendingDraft = readPendingTicketDraft();
+          if (pendingDraft) {
+            setPendingTicketDraftState(pendingDraft);
+            setInitialDashboardTab(DashboardTab.ResearchTickets);
+          }
+
+          const activeSearchForm = pendingHandoff
+            ? {
+                ...formRef.current,
+                firstName: pendingHandoff.firstName || formRef.current.firstName,
+                fatherName: pendingHandoff.fatherName || formRef.current.fatherName,
+                grandfatherName:
+                  pendingHandoff.grandfatherName || formRef.current.grandfatherName,
+                familyName: pendingHandoff.familyName || formRef.current.familyName,
+                originCountry:
+                  pendingHandoff.originCountry || formRef.current.originCountry,
+                originRegion:
+                  pendingHandoff.originRegion || formRef.current.originRegion,
+                tribeName: pendingHandoff.tribeName || formRef.current.tribeName,
+                branchName: pendingHandoff.branchName || formRef.current.branchName,
+                accountType:
+                  pendingHandoff.accountType || formRef.current.accountType,
+              }
+            : formRef.current;
+          const activeLineage = pendingHandoff?.result || lineageResultRef.current;
           const hasActiveArabicSearch =
             Boolean(activeSearchForm.familyName) &&
             !isEmailPrefixOrAsciiPlaceholder(
@@ -532,6 +647,23 @@ export function App() {
             localEmailPart.includes('tahoun') && localEmailPart.includes('kareem');
           const isSnosiEmail =
             cleanUserEmail === 'snosi@gmail.com' || localEmailPart === 'snosi';
+
+          const profileLacksSavedLineage =
+            !profile ||
+            !profile.familyName ||
+            isEmailPrefixOrAsciiPlaceholder(profile.familyName, cleanUserEmail) ||
+            (!profile.verifiedLineageSnapshot && !profile.lineageSnapshot);
+
+          if (
+            profile &&
+            user.providerData.some((p) => p.providerId === 'google.com') &&
+            profile.emailVerified !== true
+          ) {
+            updateUserProfile(user.uid, {
+              emailVerified: true,
+              emailVerifiedAt: new Date().toISOString(),
+            }).catch(() => {});
+          }
 
           if (!profile) {
             const firstFromSearch = !isEmailPrefixOrAsciiPlaceholder(
@@ -579,6 +711,17 @@ export function App() {
               .filter(Boolean)
               .join(' ');
 
+            const handoffSnap =
+              pendingHandoff?.result && familyFromSearch
+                ? buildVerifiedLineageSnapshot(
+                    pendingHandoff.result,
+                    pendingHandoff.disambiguation_choice_id
+                  )
+                : undefined;
+
+            const isGoogleAuth = user.providerData.some(
+              (p) => p.providerId === 'google.com'
+            );
             profile = await createUserProfileIfMissing(
               {
                 uid: user.uid,
@@ -596,20 +739,101 @@ export function App() {
                 originRegion: regionFromSearch,
                 tribeName: activeSearchForm.tribeName || '',
                 familyBranch: activeSearchForm.branchName || '',
+                disambiguationChoiceId: pendingHandoff?.disambiguation_choice_id,
+                verifiedLineageSnapshot: handoffSnap,
+                lineageSnapshot: handoffSnap,
+                emailVerified: isGoogleAuth,
+                emailVerifiedAt: isGoogleAuth ? new Date().toISOString() : undefined,
                 accountType:
                   activeSearchForm.accountType === AccountLegalType.RecordKeeper
                     ? 'record_keeper'
                     : 'individual',
               }
             );
+            if (pendingHandoff) {
+              clearPendingLineageHandoff();
+            }
+          } else if (
+            pendingHandoff &&
+            profileLacksSavedLineage &&
+            hasActiveArabicSearch
+          ) {
+            // Migrate guest sessionStorage search bundle to customer's Firestore profile when account has no saved lineage path yet
+            const healedFirst = !isEmailPrefixOrAsciiPlaceholder(
+              pendingHandoff.firstName,
+              cleanUserEmail
+            )
+              ? pendingHandoff.firstName.trim()
+              : profile.firstName || 'مستخدم';
+            const healedFather = !isEmailPrefixOrAsciiPlaceholder(
+              pendingHandoff.fatherName,
+              cleanUserEmail
+            )
+              ? pendingHandoff.fatherName.trim()
+              : profile.fatherName || '';
+            const healedGrand = !isEmailPrefixOrAsciiPlaceholder(
+              pendingHandoff.grandfatherName,
+              cleanUserEmail
+            )
+              ? pendingHandoff.grandfatherName.trim()
+              : profile.grandfatherName || '';
+            const healedFamily = pendingHandoff.familyName.trim();
+            const healedFullName = [
+              healedFirst,
+              healedFather,
+              healedGrand,
+              healedFamily,
+            ]
+              .filter(Boolean)
+              .join(' ');
+            const healedCountry =
+              pendingHandoff.originCountry || profile.originCountry || 'السعودية';
+            const healedRegion =
+              pendingHandoff.originRegion || profile.originRegion || '';
+            const handoffSnap = buildVerifiedLineageSnapshot(
+              pendingHandoff.result,
+              pendingHandoff.disambiguation_choice_id
+            );
+
+            profile = {
+              ...profile,
+              fullName: healedFullName,
+              firstName: healedFirst,
+              fatherName: healedFather,
+              grandfatherName: healedGrand,
+              familyName: healedFamily,
+              originCountry: healedCountry,
+              originRegion: healedRegion,
+              tribeName: pendingHandoff.tribeName || profile.tribeName || '',
+              familyBranch:
+                pendingHandoff.branchName || profile.familyBranch || '',
+              disambiguationChoiceId:
+                pendingHandoff.disambiguation_choice_id ||
+                profile.disambiguationChoiceId,
+              verifiedLineageSnapshot: handoffSnap,
+              lineageSnapshot: handoffSnap,
+            };
+            updateUserProfile(user.uid, {
+              fullName: healedFullName,
+              firstName: healedFirst,
+              fatherName: healedFather,
+              grandfatherName: healedGrand,
+              familyName: healedFamily,
+              originCountry: healedCountry,
+              originRegion: healedRegion,
+              tribeName: profile.tribeName,
+              familyBranch: profile.familyBranch,
+              disambiguationChoiceId: profile.disambiguationChoiceId,
+              verifiedLineageSnapshot: handoffSnap,
+              lineageSnapshot: handoffSnap,
+            }).catch(() => {});
+            clearPendingLineageHandoff();
           } else if (
             hasActiveArabicSearch &&
             (isEmailPrefixOrAsciiPlaceholder(profile.familyName, cleanUserEmail) ||
-              isEmailPrefixOrAsciiPlaceholder(profile.firstName, cleanUserEmail) ||
-              normalizeArabicForSearch(profile.familyName || '') !==
-                normalizeArabicForSearch(activeSearchForm.familyName || ''))
+              isEmailPrefixOrAsciiPlaceholder(profile.firstName, cleanUserEmail))
           ) {
-            // Fix 1(b): Immediately heal/update existing profile in Firestore with the active Arabic search data!
+            // Heal ASCII/email-prefix placeholder names in Firestore
             const healedFirst = !isEmailPrefixOrAsciiPlaceholder(
               activeSearchForm.firstName,
               cleanUserEmail
@@ -742,24 +966,20 @@ export function App() {
             }
 
             const resolvedCountry =
-              (hasActiveArabicSearch ? activeSearchForm.originCountry : '') ||
               profile.originCountry ||
-              activeSearchForm.originCountry ||
+              (hasActiveArabicSearch ? activeSearchForm.originCountry : '') ||
               (isSnosiEmail ? 'مصر' : 'السعودية');
             const resolvedRegion =
-              (hasActiveArabicSearch ? activeSearchForm.originRegion : '') ||
               profile.originRegion ||
-              activeSearchForm.originRegion ||
+              (hasActiveArabicSearch ? activeSearchForm.originRegion : '') ||
               (isSnosiEmail ? 'مغاغة' : '');
             const resolvedTribe =
-              (hasActiveArabicSearch ? activeSearchForm.tribeName : '') ||
               profile.tribeName ||
-              activeSearchForm.tribeName ||
+              (hasActiveArabicSearch ? activeSearchForm.tribeName : '') ||
               '';
             const resolvedBranch =
-              (hasActiveArabicSearch ? activeSearchForm.branchName : '') ||
               profile.familyBranch ||
-              activeSearchForm.branchName ||
+              (hasActiveArabicSearch ? activeSearchForm.branchName : '') ||
               '';
             const resolvedAccountType =
               profile.accountType === 'record_keeper' ||
@@ -788,33 +1008,48 @@ export function App() {
             }));
 
             if (resolvedFamily) {
-              // Preserve existing matched lineageResult if it already matches the same Arabic family!
+              const savedSnapshot =
+                profile.verifiedLineageSnapshot || profile.lineageSnapshot;
+              const hydratedSnapshotResult = hydrateLineageResultFromSnapshot(
+                savedSnapshot,
+                {
+                  firstName: resolvedFirst,
+                  fatherName: resolvedFather,
+                  grandfatherName: resolvedGrand,
+                  familyName: resolvedFamily,
+                  originCountry: resolvedCountry,
+                  originRegion: resolvedRegion,
+                }
+              );
+
               const alreadyHasMatchedLineageForFamily =
-                Boolean(activeLineage?.matched) &&
+                Boolean(activeLineage?.familyName) &&
                 normalizeArabicForSearch(activeLineage.familyName) ===
                   normalizeArabicForSearch(resolvedFamily);
 
-              const baseLineage = alreadyHasMatchedLineageForFamily
-                ? {
-                    ...activeLineage,
-                    clientName: resolvedFirst || activeLineage.clientName,
-                    fatherName: resolvedFather || activeLineage.fatherName,
-                    grandfatherName:
-                      resolvedGrand || activeLineage.grandfatherName,
-                    familyName: resolvedFamily,
-                    originCountry: resolvedCountry || activeLineage.originCountry,
-                    originRegion: resolvedRegion || activeLineage.originRegion,
-                  }
-                : resolveDeterministicLineage({
-                    firstName: resolvedFirst || 'مستخدم',
-                    fatherName: resolvedFather,
-                    grandfatherName: resolvedGrand,
-                    familyName: resolvedFamily,
-                    originCountry: resolvedCountry,
-                    originRegion: resolvedRegion,
-                    tribeName: resolvedTribe,
-                    branchName: resolvedBranch,
-                  });
+              const baseLineage =
+                hydratedSnapshotResult ||
+                (alreadyHasMatchedLineageForFamily
+                  ? {
+                      ...activeLineage,
+                      clientName: resolvedFirst || activeLineage.clientName,
+                      fatherName: resolvedFather || activeLineage.fatherName,
+                      grandfatherName:
+                        resolvedGrand || activeLineage.grandfatherName,
+                      familyName: resolvedFamily,
+                      originCountry: resolvedCountry || activeLineage.originCountry,
+                      originRegion: resolvedRegion || activeLineage.originRegion,
+                    }
+                  : resolveDeterministicLineage({
+                      firstName: resolvedFirst || 'مستخدم',
+                      fatherName: resolvedFather,
+                      grandfatherName: resolvedGrand,
+                      familyName: resolvedFamily,
+                      originCountry: resolvedCountry,
+                      originRegion: resolvedRegion,
+                      tribeName: resolvedTribe,
+                      branchName: resolvedBranch,
+                    }));
 
               setLineageResult(baseLineage);
 
@@ -833,32 +1068,51 @@ export function App() {
                 );
               }
 
-              // Also fetch from Live German Engine in background while honoring saved verification answer
-              searchJuthoriLineage(nextForm, {
-                ip_country: silentGeo.ip_country,
-                ip_city: silentGeo.ip_city,
-              })
-                .then((liveRes) => {
-                  if (liveRes && liveRes.matched) {
-                    const mergedLive: LineageSearchResult = {
-                      ...liveRes,
-                      clientName: resolvedFirst || liveRes.clientName,
-                      fatherName: resolvedFather || liveRes.fatherName,
-                      grandfatherName: resolvedGrand || liveRes.grandfatherName,
-                      requiresBlindDisambiguation:
-                        resolvedTribe || resolvedBranch
-                          ? false
-                          : liveRes.requiresBlindDisambiguation,
-                    };
-                    setLineageResult(mergedLive);
-                    setDashboardStateMode((currMode) =>
-                      currMode === DashboardStateMode.State3Unmatched
-                        ? DashboardStateMode.State2MatchedUnpaid
-                        : currMode
-                    );
-                  }
-                })
-                .catch(() => {});
+              // Instant Firestore Snapshot Rule:
+              // Only query the live engine once if this legacy profile does NOT have a `verifiedLineageSnapshot` saved yet!
+              if (!hydratedSnapshotResult) {
+                searchJuthoriLineage(
+                  nextForm,
+                  {
+                    ip_country: silentGeo.ip_country,
+                    ip_city: silentGeo.ip_city,
+                  },
+                  profile.disambiguationChoiceId
+                )
+                  .then((liveRes) => {
+                    if (liveRes) {
+                      const mergedLive: LineageSearchResult = {
+                        ...liveRes,
+                        clientName: resolvedFirst || liveRes.clientName,
+                        fatherName: resolvedFather || liveRes.fatherName,
+                        grandfatherName: resolvedGrand || liveRes.grandfatherName,
+                        requiresBlindDisambiguation:
+                          resolvedTribe ||
+                          resolvedBranch ||
+                          profile?.disambiguationChoiceId
+                            ? false
+                            : liveRes.requiresBlindDisambiguation,
+                      };
+                      setLineageResult(mergedLive);
+                      if (mergedLive.matched) {
+                        setDashboardStateMode((currMode) =>
+                          currMode === DashboardStateMode.State3Unmatched
+                            ? DashboardStateMode.State2MatchedUnpaid
+                            : currMode
+                        );
+                      }
+                      const initialSnap = buildVerifiedLineageSnapshot(
+                        mergedLive,
+                        profile?.disambiguationChoiceId
+                      );
+                      updateUserProfile(user.uid, {
+                        verifiedLineageSnapshot: initialSnap,
+                        lineageSnapshot: initialSnap,
+                      }).catch(() => {});
+                    }
+                  })
+                  .catch(() => {});
+              }
             }
 
             // If user is authenticated in Firebase and not on /Team, ensure they go directly to CustomerDashboard
@@ -896,28 +1150,83 @@ export function App() {
     document.body.scrollTop = 0;
   }, [activeView, searchStep]);
 
+  // Helper: route to Research Observatory if a pre-filled ticket draft is pending, else directly to Lineage Spine ("عمود نسبي")
+  const syncRoutingForPendingTicketOrLineage = () => {
+    const draft = readPendingTicketDraft();
+    if (draft) {
+      setPendingTicketDraftState(draft);
+      setInitialDashboardTab(DashboardTab.ResearchTickets);
+    } else {
+      setInitialDashboardTab(DashboardTab.Lineage);
+    }
+  };
+
   // Step 1: Submit search from Landing Page -> launches intermediate Verification Screen (Step 2)
   const handleSubmitSearch = async () => {
     setIsSearching(true);
     setIsAlphaMergedIntoAdam(false);
-    setForm((prev) => ({ ...prev, accountType: AccountLegalType.Individual }));
+    const searchPayload: RegistrationFormState = {
+      ...form,
+      accountType: AccountLegalType.Individual,
+    };
+    setForm(searchPayload);
 
-    const rawResult = await searchJuthoriLineage(
-      { ...form, accountType: AccountLegalType.Individual },
-      {
+    try {
+      const rawResult = await searchJuthoriLineage(searchPayload, {
         ip_country: silentGeo.ip_country,
         ip_city: silentGeo.ip_city,
-      }
-    );
+      });
 
-    setLineageResult(rawResult);
-    setDashboardStateMode(rawResult.recommendedInitialState);
-    setSearchStep(2);
-    setIsSearching(false);
-    setActiveView('searching');
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
+      setLineageResult(rawResult);
+      setDashboardStateMode(rawResult.recommendedInitialState);
+
+      if (!hasActiveSession) {
+        savePendingLineageHandoff({
+          form: searchPayload,
+          result: rawResult,
+        });
+      } else {
+        const activeUid =
+          userId ||
+          auth.currentUser?.uid ||
+          canonicalCustomerEmailUid(searchPayload.email);
+        if (activeUid) {
+          const snap = buildVerifiedLineageSnapshot(rawResult);
+          updateUserProfile(activeUid, {
+            firstName: searchPayload.firstName,
+            fatherName: searchPayload.fatherName,
+            grandfatherName: searchPayload.grandfatherName,
+            familyName: searchPayload.familyName,
+            originCountry: searchPayload.originCountry,
+            originRegion: searchPayload.originRegion,
+            tribeName: searchPayload.tribeName,
+            familyBranch: searchPayload.branchName,
+            verifiedLineageSnapshot: snap,
+            lineageSnapshot: snap,
+          }).catch(() => {});
+        }
+      }
+
+      setSearchStep(2);
+      setActiveView('searching');
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    } catch {
+      const fallback = resolveDeterministicLineage(searchPayload);
+      setLineageResult(fallback);
+      setDashboardStateMode(fallback.recommendedInitialState);
+      if (!hasActiveSession) {
+        savePendingLineageHandoff({
+          form: searchPayload,
+          result: fallback,
+        });
+      }
+      setSearchStep(2);
+      setActiveView('searching');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   // Step 2: Complete Preservation Gateway -> transitions to Dashboard (Step 3)
@@ -941,12 +1250,13 @@ export function App() {
       throw new Error('TEAM_ACCOUNT_ISOLATED');
     }
 
+    const pendingHandoff = readPendingLineageHandoff();
+
     let uid = auth.currentUser?.uid || userId;
     if (!uid) {
       try {
         const cred = await createUserWithEmailAndPassword(auth, cleanRegEmail, password);
         uid = cred.user.uid;
-        sendEmailVerification(cred.user).catch(() => {});
       } catch {
         try {
           const cred = await signInWithEmailAndPassword(auth, cleanRegEmail, password);
@@ -966,6 +1276,81 @@ export function App() {
 
     const agreedIso = new Date().toISOString();
 
+    let effectiveMode = dashboardStateMode;
+    let effectiveMatched = lineageResult.matched;
+    let resolvedActiveResult = lineageResult;
+    const resolvedDisambigChoiceId =
+      pendingHandoff?.disambiguation_choice_id || selectedDisambiguation;
+
+    if (selectedDisambiguation === 'option_a' && lineageResult.optionAResultOverride) {
+      resolvedActiveResult = {
+        ...lineageResult,
+        ...lineageResult.optionAResultOverride,
+        requiresBlindDisambiguation: false,
+      };
+      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
+      effectiveMatched = true;
+    } else if (selectedDisambiguation === 'option_b' && lineageResult.optionBResultOverride) {
+      const nextBase = {
+        ...lineageResult,
+        ...lineageResult.optionBResultOverride,
+        requiresBlindDisambiguation: false,
+      };
+      resolvedActiveResult = isAlphaMergedIntoAdam
+        ? upgradeAlphaResultToMergedAdam(nextBase)
+        : nextBase;
+      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
+      effectiveMatched = true;
+    } else if (selectedDisambiguation === 'not_sure_ticket') {
+      resolvedActiveResult = {
+        ...lineageResult,
+        matched: false,
+        isAlphaOnlyBeforeMerge: false,
+        isAlphaMergedIntoAdam: false,
+        requiresBlindDisambiguation: false,
+        adamSpineNodes: lineageResult.adamSpineNodes?.slice(0, 1) || [],
+        upperAncestors: [],
+        capsules: [],
+      };
+      effectiveMode = DashboardStateMode.State3Unmatched;
+      effectiveMatched = false;
+    } else if (
+      effectiveMatched &&
+      effectiveMode === DashboardStateMode.State3Unmatched
+    ) {
+      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
+    }
+
+    // Ensure resolvedActiveResult always carries the customer's Arabic personal names
+    resolvedActiveResult = {
+      ...resolvedActiveResult,
+      clientName: form.firstName || resolvedActiveResult.clientName,
+      fatherName: form.fatherName || resolvedActiveResult.fatherName,
+      grandfatherName:
+        form.grandfatherName || resolvedActiveResult.grandfatherName,
+      familyName: form.familyName || resolvedActiveResult.familyName,
+    };
+    setLineageResult(resolvedActiveResult);
+    setDashboardStateMode(effectiveMode);
+
+    const verifiedSnap = buildVerifiedLineageSnapshot(
+      resolvedActiveResult,
+      resolvedDisambigChoiceId
+    );
+
+    const existingCustomerProfile = await fetchUserProfile(safeUid).then(
+      (p) => p || fetchUserProfileByEmail(cleanRegEmail)
+    );
+    const shouldMigrateSearchToProfile =
+      !existingCustomerProfile ||
+      !existingCustomerProfile.familyName ||
+      isEmailPrefixOrAsciiPlaceholder(
+        existingCustomerProfile.familyName,
+        cleanRegEmail
+      ) ||
+      (!existingCustomerProfile.verifiedLineageSnapshot &&
+        !existingCustomerProfile.lineageSnapshot);
+
     await createUserProfileIfMissing(
       { uid: safeUid, email, displayName: fullName },
       {
@@ -982,14 +1367,38 @@ export function App() {
         defaultCountry: form.originCountry || selectedPortalCountry,
         originCountry: form.originCountry || selectedPortalCountry,
         originRegion: form.originRegion,
-        tribeName: form.tribeName,
-        familyBranch: form.branchName,
+        tribeName: resolvedActiveResult.rootTribeName || form.tribeName,
+        familyBranch: resolvedActiveResult.rootBranchName || form.branchName,
+        disambiguationChoiceId: resolvedDisambigChoiceId,
+        verifiedLineageSnapshot: verifiedSnap,
+        lineageSnapshot: verifiedSnap,
         agreedToTermsAndPrivacy: true,
         termsAndPrivacyAgreedAt: agreedIso,
         termsAndPrivacyVersion: TERMS_AND_PRIVACY_VERSION,
         termsIpAddress: silentGeo.ip || '127.0.0.1',
+        emailVerified: existingCustomerProfile?.emailVerified ?? false,
+        emailVerifiedAt: existingCustomerProfile?.emailVerifiedAt,
       }
     );
+
+    if (shouldMigrateSearchToProfile) {
+      await updateUserProfile(safeUid, {
+        fullName,
+        firstName: form.firstName,
+        fatherName: form.fatherName,
+        grandfatherName: form.grandfatherName,
+        familyName: form.familyName,
+        originCountry: form.originCountry || selectedPortalCountry,
+        originRegion: form.originRegion,
+        tribeName: resolvedActiveResult.rootTribeName || form.tribeName,
+        familyBranch: resolvedActiveResult.rootBranchName || form.branchName,
+        disambiguationChoiceId: resolvedDisambigChoiceId,
+        verifiedLineageSnapshot: verifiedSnap,
+        lineageSnapshot: verifiedSnap,
+      }).catch(() => {});
+    }
+
+    clearPendingLineageHandoff();
 
     recordLegalAuditTrailInFirebase({
       userId: safeUid,
@@ -1009,71 +1418,8 @@ export function App() {
       verificationMethod: 'email_registration',
     }).catch(() => {});
 
-    let effectiveMode = dashboardStateMode;
-    let effectiveMatched = lineageResult.matched;
-    let resolvedActiveResult = lineageResult;
-
-    if (selectedDisambiguation === 'option_a' && lineageResult.optionAResultOverride) {
-      resolvedActiveResult = {
-        ...lineageResult,
-        ...lineageResult.optionAResultOverride,
-        requiresBlindDisambiguation: false,
-      };
-      setLineageResult(resolvedActiveResult);
-      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
-      effectiveMatched = true;
-      setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
-    } else if (selectedDisambiguation === 'option_b' && lineageResult.optionBResultOverride) {
-      const nextBase = {
-        ...lineageResult,
-        ...lineageResult.optionBResultOverride,
-        requiresBlindDisambiguation: false,
-      };
-      resolvedActiveResult = isAlphaMergedIntoAdam
-        ? upgradeAlphaResultToMergedAdam(nextBase)
-        : nextBase;
-      setLineageResult(resolvedActiveResult);
-      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
-      effectiveMatched = true;
-      setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
-    } else if (selectedDisambiguation === 'not_sure_ticket') {
-      resolvedActiveResult = {
-        ...lineageResult,
-        matched: false,
-        isAlphaOnlyBeforeMerge: false,
-        isAlphaMergedIntoAdam: false,
-        requiresBlindDisambiguation: false,
-        adamSpineNodes: lineageResult.adamSpineNodes?.slice(0, 1) || [],
-        upperAncestors: [],
-        capsules: [],
-      };
-      setLineageResult(resolvedActiveResult);
-      effectiveMode = DashboardStateMode.State3Unmatched;
-      effectiveMatched = false;
-      setDashboardStateMode(DashboardStateMode.State3Unmatched);
-    } else if (
-      effectiveMatched &&
-      effectiveMode === DashboardStateMode.State3Unmatched
-    ) {
-      effectiveMode = DashboardStateMode.State2MatchedUnpaid;
-      setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
-    }
-
-    // Ensure resolvedActiveResult always carries the customer's Arabic personal names
-    resolvedActiveResult = {
-      ...resolvedActiveResult,
-      clientName: form.firstName || resolvedActiveResult.clientName,
-      fatherName: form.fatherName || resolvedActiveResult.fatherName,
-      grandfatherName:
-        form.grandfatherName || resolvedActiveResult.grandfatherName,
-      familyName: form.familyName || resolvedActiveResult.familyName,
-    };
-    setLineageResult(resolvedActiveResult);
-
     let createdTicketNumber =
       resolvedActiveResult.alphaBackgroundTicketCode || '—';
-    // Fix 3: Only create an active research ticket on registration if the customer chose "not_sure_ticket" (escalated)
-    // or if they are an Annual VIP subscriber!
     if (
       selectedDisambiguation === 'not_sure_ticket' ||
       effectiveMode === DashboardStateMode.AnnualVip
@@ -1186,6 +1532,7 @@ export function App() {
       agreedToTerms: true,
     }));
 
+    syncRoutingForPendingTicketOrLineage();
     setHasActiveSession(true);
     setSearchStep(3);
     setPreviousPlatformView('dashboard');
@@ -1211,6 +1558,21 @@ export function App() {
         setUserAvatarUrl(user.photoURL);
       }
 
+      const pendingHandoff = readPendingLineageHandoff();
+      const existingProfile = await fetchUserProfile(user.uid).then(
+        (p) => p || (cleanGoogleEmail ? fetchUserProfileByEmail(cleanGoogleEmail) : null)
+      );
+      const hasExistingSavedLineage =
+        Boolean(existingProfile?.familyName) &&
+        !isEmailPrefixOrAsciiPlaceholder(
+          existingProfile?.familyName,
+          cleanGoogleEmail
+        ) &&
+        Boolean(
+          existingProfile?.verifiedLineageSnapshot ||
+            existingProfile?.lineageSnapshot
+        );
+
       const fullName =
         `${form.firstName} ${form.fatherName} ${form.grandfatherName} ${form.familyName}`
           .replace(/\s+/g, ' ')
@@ -1219,6 +1581,10 @@ export function App() {
         'مستخدم جذوري';
 
       const agreedIso = new Date().toISOString();
+      const verifiedSnap = buildVerifiedLineageSnapshot(
+        pendingHandoff?.result || lineageResult,
+        pendingHandoff?.disambiguation_choice_id
+      );
 
       await createUserProfileIfMissing(
         { uid: user.uid, email: user.email, displayName: user.displayName || fullName },
@@ -1239,12 +1605,43 @@ export function App() {
           originRegion: form.originRegion,
           tribeName: form.tribeName,
           familyBranch: form.branchName,
+          disambiguationChoiceId: pendingHandoff?.disambiguation_choice_id,
+          verifiedLineageSnapshot: verifiedSnap,
+          lineageSnapshot: verifiedSnap,
           agreedToTermsAndPrivacy: true,
           termsAndPrivacyAgreedAt: agreedIso,
           termsAndPrivacyVersion: TERMS_AND_PRIVACY_VERSION,
           termsIpAddress: silentGeo.ip || '127.0.0.1',
+          emailVerified: true,
+          emailVerifiedAt: existingProfile?.emailVerifiedAt || agreedIso,
         }
       );
+
+      if (!hasExistingSavedLineage && form.familyName) {
+        await updateUserProfile(user.uid, {
+          fullName,
+          firstName: form.firstName,
+          fatherName: form.fatherName,
+          grandfatherName: form.grandfatherName,
+          familyName: form.familyName,
+          originCountry: form.originCountry || selectedPortalCountry,
+          originRegion: form.originRegion,
+          tribeName: form.tribeName,
+          familyBranch: form.branchName,
+          disambiguationChoiceId: pendingHandoff?.disambiguation_choice_id,
+          verifiedLineageSnapshot: verifiedSnap,
+          lineageSnapshot: verifiedSnap,
+          emailVerified: true,
+          emailVerifiedAt: existingProfile?.emailVerifiedAt || agreedIso,
+        }).catch(() => {});
+      } else if (existingProfile && existingProfile.emailVerified !== true) {
+        updateUserProfile(user.uid, {
+          emailVerified: true,
+          emailVerifiedAt: agreedIso,
+        }).catch(() => {});
+      }
+
+      clearPendingLineageHandoff();
 
       recordLegalAuditTrailInFirebase({
         userId: user.uid,
@@ -1311,6 +1708,7 @@ export function App() {
         agreedToTerms: true,
       }));
 
+      syncRoutingForPendingTicketOrLineage();
       setHasActiveSession(true);
       setSearchStep(3);
       setPreviousPlatformView('dashboard');
@@ -1335,9 +1733,117 @@ export function App() {
     accountType: AccountLegalType;
     subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
     isRootUnlocked?: boolean;
+    isNewRegistration?: boolean;
   }) => {
-    if (payload.uid) {
-      setUserId(payload.uid);
+    const resolvedUid =
+      payload.uid ||
+      auth.currentUser?.uid ||
+      canonicalCustomerEmailUid(payload.email);
+    if (resolvedUid) {
+      setUserId(resolvedUid);
+    }
+
+    const pendingHandoff = readPendingLineageHandoff();
+    const existingProfile = await (resolvedUid
+      ? fetchUserProfile(resolvedUid)
+      : Promise.resolve(null)
+    ).then(
+      (p) => p || (payload.email ? fetchUserProfileByEmail(payload.email) : null)
+    );
+
+    const existingHasSavedLineage =
+      Boolean(existingProfile?.familyName) &&
+      !isEmailPrefixOrAsciiPlaceholder(existingProfile?.familyName, payload.email) &&
+      Boolean(
+        existingProfile?.verifiedLineageSnapshot || existingProfile?.lineageSnapshot
+      );
+
+    // 1. Check if we should migrate guest sessionStorage handoff immediately to Firestore
+    if (
+      pendingHandoff &&
+      (payload.isNewRegistration || !existingHasSavedLineage)
+    ) {
+      const handoffForm: RegistrationFormState = {
+        ...form,
+        email: payload.email,
+        firstName: pendingHandoff.firstName || payload.firstName,
+        fatherName: pendingHandoff.fatherName || payload.fatherName,
+        grandfatherName:
+          pendingHandoff.grandfatherName || payload.grandfatherName,
+        familyName: pendingHandoff.familyName || payload.familyName,
+        originCountry: pendingHandoff.originCountry || payload.originCountry,
+        originRegion:
+          pendingHandoff.originRegion || payload.originRegion || '',
+        tribeName: pendingHandoff.tribeName || payload.tribeName,
+        branchName: pendingHandoff.branchName || payload.branchName,
+        accountType: payload.accountType,
+        agreedToTerms: true,
+      };
+      const handoffResult: LineageSearchResult = {
+        ...pendingHandoff.result,
+        clientName: handoffForm.firstName || pendingHandoff.result.clientName,
+        fatherName: handoffForm.fatherName || pendingHandoff.result.fatherName,
+        grandfatherName:
+          handoffForm.grandfatherName || pendingHandoff.result.grandfatherName,
+        familyName: handoffForm.familyName || pendingHandoff.result.familyName,
+      };
+      const handoffSnap = buildVerifiedLineageSnapshot(
+        handoffResult,
+        pendingHandoff.disambiguation_choice_id
+      );
+
+      if (resolvedUid) {
+        const computedFull = [
+          handoffForm.firstName,
+          handoffForm.fatherName,
+          handoffForm.grandfatherName,
+          handoffForm.familyName,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        await updateUserProfile(resolvedUid, {
+          fullName: computedFull,
+          firstName: handoffForm.firstName,
+          fatherName: handoffForm.fatherName,
+          grandfatherName: handoffForm.grandfatherName,
+          familyName: handoffForm.familyName,
+          originCountry: handoffForm.originCountry,
+          originRegion: handoffForm.originRegion,
+          tribeName: handoffForm.tribeName,
+          familyBranch: handoffForm.branchName,
+          disambiguationChoiceId: pendingHandoff.disambiguation_choice_id,
+          verifiedLineageSnapshot: handoffSnap,
+          lineageSnapshot: handoffSnap,
+        }).catch(() => {});
+      }
+
+      clearPendingLineageHandoff();
+      setForm(handoffForm);
+      setLineageResult(handoffResult);
+
+      const handoffMode =
+        payload.subscriptionTier === 'premium_annual'
+          ? DashboardStateMode.AnnualVip
+          : payload.subscriptionTier === 'basic_verified' || payload.isRootUnlocked
+          ? DashboardStateMode.State1Paid5Basic
+          : handoffResult.matched
+          ? DashboardStateMode.State2MatchedUnpaid
+          : handoffResult.recommendedInitialState;
+
+      setDashboardStateMode(handoffMode);
+      syncRoutingForPendingTicketOrLineage();
+      setHasActiveSession(true);
+      setSearchStep(3);
+      setLoginModalOpen(false);
+      setPreviousPlatformView('dashboard');
+      setActiveView('dashboard');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+
+    // Clear stale guest handoff if returning customer already owns a verified saved path
+    if (pendingHandoff && existingHasSavedLineage) {
+      clearPendingLineageHandoff();
     }
 
     const updatedForm: RegistrationFormState = {
@@ -1356,16 +1862,30 @@ export function App() {
     };
     setForm(updatedForm);
 
-    const immediateResult = resolveDeterministicLineage({
+    const savedSnap =
+      existingProfile?.verifiedLineageSnapshot ||
+      existingProfile?.lineageSnapshot;
+    const hydratedFromFirestore = hydrateLineageResultFromSnapshot(savedSnap, {
       firstName: payload.firstName,
       fatherName: payload.fatherName,
       grandfatherName: payload.grandfatherName,
       familyName: payload.familyName,
       originCountry: payload.originCountry,
-      originRegion: payload.originRegion || '',
-      tribeName: payload.tribeName,
-      branchName: payload.branchName,
+      originRegion: payload.originRegion,
     });
+
+    const immediateResult =
+      hydratedFromFirestore ||
+      resolveDeterministicLineage({
+        firstName: payload.firstName,
+        fatherName: payload.fatherName,
+        grandfatherName: payload.grandfatherName,
+        familyName: payload.familyName,
+        originCountry: payload.originCountry,
+        originRegion: payload.originRegion || '',
+        tribeName: payload.tribeName,
+        branchName: payload.branchName,
+      });
     setLineageResult(immediateResult);
 
     const targetMode =
@@ -1378,6 +1898,7 @@ export function App() {
         : immediateResult.recommendedInitialState;
 
     setDashboardStateMode(targetMode);
+    syncRoutingForPendingTicketOrLineage();
     setHasActiveSession(true);
     setSearchStep(3);
     setLoginModalOpen(false);
@@ -1385,32 +1906,112 @@ export function App() {
     setActiveView('dashboard');
     window.scrollTo({ top: 0, behavior: 'auto' });
 
-    // Also run full engine search in background to enrich if live Port 8090 responds
-    searchJuthoriLineage(updatedForm, {
-      ip_country: silentGeo.ip_country,
-      ip_city: silentGeo.ip_city,
-    })
-      .then((liveRes) => {
-        if (!liveRes) return;
-        setLineageResult({
-          ...liveRes,
-          clientName: payload.firstName || liveRes.clientName,
-          fatherName: payload.fatherName || liveRes.fatherName,
-          grandfatherName: payload.grandfatherName || liveRes.grandfatherName,
-          requiresBlindDisambiguation:
-            payload.tribeName || payload.branchName
-              ? false
-              : liveRes.requiresBlindDisambiguation,
-        });
-        if (liveRes.matched) {
-          setDashboardStateMode((currMode) =>
-            currMode === DashboardStateMode.State3Unmatched
-              ? DashboardStateMode.State2MatchedUnpaid
-              : currMode
-          );
-        }
-      })
-      .catch(() => {});
+    // Only run background engine query if this account did NOT have a saved `verifiedLineageSnapshot` yet
+    if (!hydratedFromFirestore && payload.familyName) {
+      searchJuthoriLineage(
+        updatedForm,
+        {
+          ip_country: silentGeo.ip_country,
+          ip_city: silentGeo.ip_city,
+        },
+        existingProfile?.disambiguationChoiceId
+      )
+        .then((liveRes) => {
+          if (!liveRes) return;
+          const mergedLive: LineageSearchResult = {
+            ...liveRes,
+            clientName: payload.firstName || liveRes.clientName,
+            fatherName: payload.fatherName || liveRes.fatherName,
+            grandfatherName: payload.grandfatherName || liveRes.grandfatherName,
+            requiresBlindDisambiguation:
+              payload.tribeName ||
+              payload.branchName ||
+              existingProfile?.disambiguationChoiceId
+                ? false
+                : liveRes.requiresBlindDisambiguation,
+          };
+          setLineageResult(mergedLive);
+          if (mergedLive.matched) {
+            setDashboardStateMode((currMode) =>
+              currMode === DashboardStateMode.State3Unmatched
+                ? DashboardStateMode.State2MatchedUnpaid
+                : currMode
+            );
+          }
+          if (resolvedUid) {
+            const snap = buildVerifiedLineageSnapshot(
+              mergedLive,
+              existingProfile?.disambiguationChoiceId
+            );
+            updateUserProfile(resolvedUid, {
+              verifiedLineageSnapshot: snap,
+              lineageSnapshot: snap,
+            }).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+  };
+
+  // Explicit lightweight "إعادة مزامنة الفحص" handler inside CustomerDashboard
+  const handleManualResyncLineage = async () => {
+    if (!form.familyName && !lineageResult.familyName) return;
+    setIsResyncingLineage(true);
+    try {
+      const targetForm: RegistrationFormState = {
+        ...form,
+        firstName: form.firstName || lineageResult.clientName || 'عميل',
+        fatherName: form.fatherName || lineageResult.fatherName || '',
+        grandfatherName:
+          form.grandfatherName || lineageResult.grandfatherName || '',
+        familyName: form.familyName || lineageResult.familyName,
+        originCountry:
+          form.originCountry || lineageResult.originCountry || 'السعودية',
+        originRegion: form.originRegion || lineageResult.originRegion || '',
+        tribeName: form.tribeName || lineageResult.rootTribeName || '',
+        branchName: form.branchName || lineageResult.rootBranchName || '',
+      };
+
+      const refreshed = await searchJuthoriLineage(targetForm, {
+        ip_country: silentGeo.ip_country,
+        ip_city: silentGeo.ip_city,
+      });
+
+      const mergedRefreshed: LineageSearchResult = {
+        ...refreshed,
+        clientName: targetForm.firstName || refreshed.clientName,
+        fatherName: targetForm.fatherName || refreshed.fatherName,
+        grandfatherName: targetForm.grandfatherName || refreshed.grandfatherName,
+        requiresBlindDisambiguation:
+          targetForm.tribeName || targetForm.branchName
+            ? false
+            : refreshed.requiresBlindDisambiguation,
+      };
+
+      setLineageResult(mergedRefreshed);
+      if (
+        mergedRefreshed.matched &&
+        dashboardStateMode === DashboardStateMode.State3Unmatched
+      ) {
+        setDashboardStateMode(DashboardStateMode.State2MatchedUnpaid);
+      }
+
+      const activeUid =
+        userId ||
+        auth.currentUser?.uid ||
+        canonicalCustomerEmailUid(form.email);
+      if (activeUid) {
+        const snap = buildVerifiedLineageSnapshot(mergedRefreshed);
+        await updateUserProfile(activeUid, {
+          verifiedLineageSnapshot: snap,
+          lineageSnapshot: snap,
+        }).catch(() => {});
+      }
+    } catch {
+      // Graceful silent fallback if remote tunnel is temporarily unreachable
+    } finally {
+      setIsResyncingLineage(false);
+    }
   };
 
   const handleLogoutCustomer = () => {
@@ -1764,6 +2365,21 @@ export function App() {
 
   return (
     <>
+      {optOutFeedbackMessage && (
+        <div
+          dir="rtl"
+          className="bg-[#252321] text-[#F7F2E9] border-b border-[#B98A78]/40 px-4 py-3 text-xs font-display font-bold flex items-center justify-between gap-4 z-50 relative"
+        >
+          <span>✓ {optOutFeedbackMessage}</span>
+          <button
+            type="button"
+            onClick={() => setOptOutFeedbackMessage(null)}
+            className="px-3 py-1 rounded-lg bg-[#D8755B] text-white text-xs cursor-pointer shrink-0"
+          >
+            إغلاق
+          </button>
+        </div>
+      )}
       {activeView === 'staff_portal' ? (
         <AdminStaffPortal
           currentClientResult={lineageResult}
@@ -1789,6 +2405,27 @@ export function App() {
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           }}
         />
+      ) : publicMicrositeSlug ? (
+        <PublicFamilyMicrositePage
+          siteSlug={publicMicrositeSlug}
+          viewerEmail={form.email || auth.currentUser?.email || ''}
+          onExitToMainApp={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+            setPublicMicrositeSlug(null);
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
+          onStartOwnLineageSearch={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+            setPublicMicrositeSlug(null);
+            setActiveView('landing');
+            setSearchStep(1);
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
+        />
       ) : activeView === 'landing' ? (
         <LandingPage
           form={form}
@@ -1810,6 +2447,7 @@ export function App() {
           result={lineageResult}
           onCompletePreservation={handleCompletePreservation}
           onGoogleSignInPreserve={handleGoogleSignInPreserve}
+          onOpenLoginModal={() => setLoginModalOpen(true)}
           onBackToEdit={() => {
             setSearchStep(1);
             setActiveView('landing');
@@ -1860,6 +2498,11 @@ export function App() {
           onDeleteAccount={async () => {
             handleLogoutCustomer();
           }}
+          initialTab={initialDashboardTab}
+          initialTicketDraft={pendingTicketDraftState}
+          onClearInitialTicketDraft={() => setPendingTicketDraftState(null)}
+          onResyncLineageFromEngine={handleManualResyncLineage}
+          isResyncingLineage={isResyncingLineage}
         />
       )}
 

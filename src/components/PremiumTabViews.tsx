@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   BookOpen,
   CheckCircle2,
-  Globe,
-  MessageSquarePlus,
   ArrowLeft,
 } from 'lucide-react';
 import {
@@ -15,6 +13,8 @@ import {
 } from '../types/juthori';
 import { InteractiveFamilyTreeBuilder } from './InteractiveFamilyTreeBuilder';
 import { FamilyMemoryVaultView } from './FamilyMemoryVaultView';
+import { MySiteStudioView } from './MySiteStudioView';
+import { CommunityHubView } from './CommunityHubView';
 import {
   CustomerCommunityPostData,
   CustomerSiteSettingsData,
@@ -42,6 +42,17 @@ interface PremiumTabViewsProps {
   onSaveSiteSettings?: (settings: CustomerSiteSettingsData) => void;
   initialCommunityPosts?: CustomerCommunityPostData[];
   onSaveCommunityPosts?: (posts: CustomerCommunityPostData[]) => void;
+  emailVerified?: boolean;
+  onOpenEmailVerification?: () => void;
+  initialVaultPersonFilterId?: string | null;
+  onConsumeVaultPersonFilterId?: () => void;
+  onOpenVaultForPerson?: (personId: string) => void;
+  onRequestReferenceCorrectionTicket?: (
+    personName: string,
+    referenceRank?: string
+  ) => void;
+  blockedUserIds?: string[];
+  onBlockCommunityUser?: (targetUserId: string, targetUserName: string) => void;
 }
 
 export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
@@ -64,60 +75,15 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   userEmail,
   initialSiteSettings,
   onSaveSiteSettings,
-  initialCommunityPosts,
-  onSaveCommunityPosts,
+  emailVerified = true,
+  onOpenEmailVerification,
+  initialVaultPersonFilterId = null,
+  onConsumeVaultPersonFilterId,
+  onOpenVaultForPerson,
+  onRequestReferenceCorrectionTicket,
+  blockedUserIds = [],
+  onBlockCommunityUser,
 }) => {
-  const defaultSubdomain = (userEmail?.split('@')[0] || 'family')
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '') || 'family';
-
-  // 3. My Site (موقعي) State
-  const [siteSubdomain, setSiteSubdomain] = useState(
-    initialSiteSettings?.siteSubdomain || defaultSubdomain
-  );
-  const [publishLineagePublic, setPublishLineagePublic] = useState(
-    initialSiteSettings?.publishLineagePublic ?? true
-  );
-  const [protectLivingMembers, setProtectLivingMembers] = useState(
-    initialSiteSettings?.protectLivingMembers ?? true
-  );
-  const [siteSavedBanner, setSiteSavedBanner] = useState(false);
-
-  useEffect(() => {
-    if (initialSiteSettings) {
-      setSiteSubdomain(initialSiteSettings.siteSubdomain || defaultSubdomain);
-      setPublishLineagePublic(initialSiteSettings.publishLineagePublic ?? true);
-      setProtectLivingMembers(initialSiteSettings.protectLivingMembers ?? true);
-    }
-  }, [
-    initialSiteSettings?.siteSubdomain,
-    initialSiteSettings?.publishLineagePublic,
-    initialSiteSettings?.protectLivingMembers,
-    defaultSubdomain,
-  ]);
-
-  // 4. My Community (مجتمعي) State
-  const [communityPosts, setCommunityPosts] = useState<CustomerCommunityPostData[]>(
-    initialCommunityPosts && initialCommunityPosts.length > 0
-      ? initialCommunityPosts
-      : [
-          {
-            id: 'cp-welcome-1',
-            author: `مجلس أسرة ${result.familyName}`,
-            role: 'مساحة التوثيق المشتركة',
-            date: 'مثبت',
-            text: `مرحباً بأبناء عمومة أسرة ${result.familyName} في مساحة التوثيق المشتركة لتبادل الوثائق والصور التاريخية المحفوظة لدى كبار السن.`,
-            likes: 1,
-          },
-        ]
-  );
-  const [newPostText, setNewPostText] = useState('');
-
-  useEffect(() => {
-    if (initialCommunityPosts && initialCommunityPosts.length > 0) {
-      setCommunityPosts(initialCommunityPosts);
-    }
-  }, [initialCommunityPosts]);
 
   if (activeTab === DashboardTab.Home) {
     return (
@@ -200,16 +166,16 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
           <div className="rounded-2xl bg-white border border-[#B98A78]/35 p-5">
             <div className="text-xs text-[#252321]/65 mb-1">صلاحية شجرة العائلة (شجرتي)</div>
             <div className="text-lg font-display font-bold text-[#252321] mb-2">
-              {accountType === AccountLegalType.RecordKeeper
-                ? 'مفعّلة بصفة أمين السجل'
-                : 'حساب فرد — قابلة للترقية بميثاق أمين السجل'}
+              {caps.maxTreeMembers === null
+                ? 'سعة مفتوحة · أمين سجل العائلة ✦'
+                : `مفعّلة حتى ${caps.maxTreeMembers} فرداً`}
             </div>
             <button
               type="button"
               onClick={() => onNavigateTab(DashboardTab.MyTree)}
               className="text-xs font-semibold text-[#D8755B] hover:underline cursor-pointer"
             >
-              {caps.isVip ? 'الدخول إلى شجرتي ←' : 'تُفتح مع باقة بريميوم ←'}
+              الدخول إلى شجرتي ←
             </button>
           </div>
         </div>
@@ -235,6 +201,8 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         userAvatarUrl={userAvatarUrl}
         userId={userId}
         userEmail={userEmail}
+        onOpenVaultForPerson={onOpenVaultForPerson}
+        onRequestReferenceCorrectionTicket={onRequestReferenceCorrectionTicket}
       />
     );
   }
@@ -243,11 +211,17 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
     return (
       <FamilyMemoryVaultView
         result={result}
+        caps={caps}
         userId={userId}
         userEmail={userEmail}
         userAvatarUrl={userAvatarUrl}
+        initialSelectedPersonId={initialVaultPersonFilterId}
+        onConsumeSelectedPersonId={onConsumeVaultPersonFilterId}
         onLogActivity={onLogActivity}
         onNavigateTab={onNavigateTab}
+        onUnlockRoot5Usd={onUnlockRoot5Usd}
+        onUpgradeAnnualVip={onUpgradeAnnualVip}
+        onSignCharterAndEnableTree={onSignCharterAndEnableTree}
       />
     );
   }
@@ -297,188 +271,39 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
 
   if (activeTab === DashboardTab.MySite) {
     return (
-      <div className="rounded-2xl bg-white border border-[#B98A78]/40 p-6 sm:p-8 space-y-6">
-        <div className="border-b border-[#B98A78]/25 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs font-semibold text-[#D8755B] mb-1">
-              موقعي · بوابة سجل العائلة على الإنترنت
-            </div>
-            <h2 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
-              إعدادات موقع عائلة {result.familyName} الرسمي
-            </h2>
-          </div>
-          <Globe className="w-6 h-6 text-[#D8755B]" aria-hidden="true" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-6 space-y-4">
-            <div>
-              <label
-                htmlFor="family-subdomain"
-                className="block text-xs font-medium text-[#252321] mb-1.5"
-              >
-                النطاق الفرعي المخصص للعائلة
-              </label>
-              <div className="flex items-center rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5" dir="ltr">
-                <span className="text-xs text-[#252321]/60">https://</span>
-                <input
-                  id="family-subdomain"
-                  type="text"
-                  value={siteSubdomain}
-                  onChange={(e) => setSiteSubdomain(e.target.value)}
-                  className="flex-1 bg-transparent text-sm font-mono font-semibold text-[#252321] focus:outline-none px-1"
-                />
-                <span className="text-xs text-[#252321]/60">.juthori.com</span>
-              </div>
-            </div>
-
-            <label className="flex items-center justify-between rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-3.5 cursor-pointer">
-              <span className="text-sm font-medium text-[#252321]">
-                إظهار عمود النسب التاريخي لزوار موقع العائلة
-              </span>
-              <input
-                type="checkbox"
-                checked={publishLineagePublic}
-                onChange={(e) => setPublishLineagePublic(e.target.checked)}
-                className="w-4 h-4 accent-[#D8755B]"
-              />
-            </label>
-
-            <label className="flex items-center justify-between rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-3.5 cursor-pointer">
-              <span className="text-sm font-medium text-[#252321]">
-                حماية بيانات الأحياء بكلمة مرور خاصة بأفراد الأسرة
-              </span>
-              <input
-                type="checkbox"
-                checked={protectLivingMembers}
-                onChange={(e) => setProtectLivingMembers(e.target.checked)}
-                className="w-4 h-4 accent-[#D8755B]"
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={() => {
-                onSaveSiteSettings?.({
-                  siteSubdomain: siteSubdomain.trim() || defaultSubdomain,
-                  publishLineagePublic,
-                  protectLivingMembers,
-                });
-                setSiteSavedBanner(true);
-                onLogActivity(
-                  'تحديث موقع العائلة',
-                  `حفظ إعدادات النطاق https://${siteSubdomain}.juthori.com`
-                );
-              }}
-              className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold cursor-pointer"
-            >
-              حفظ ونشر إعدادات الموقع
-            </button>
-
-            {siteSavedBanner && (
-              <p className="text-xs font-semibold text-[#D8755B]">
-                تم حفظ إعدادات بوابة https://{siteSubdomain}.juthori.com في قاعدة البيانات بنجاح.
-              </p>
-            )}
-          </div>
-
-          {/* Live Family Site Preview Card */}
-          <div className="lg:col-span-6 rounded-2xl bg-[#EDE6DA] border border-[#B98A78]/45 p-6 space-y-3">
-            <div className="text-xs font-mono text-[#252321]/65" dir="ltr">
-              https://{siteSubdomain || 'family'}.juthori.com
-            </div>
-            <h3 className="text-xl font-display font-bold text-[#252321]">
-              ديوان وسجل أسرة {result.familyName}
-            </h3>
-            <p className="text-xs text-[#252321]/80 leading-relaxed">
-              {publishLineagePublic
-                ? `النسب المتصل: ${result.rootSummaryLabel}.`
-                : 'عمود النسب مخصص للأعضاء المسجلين فقط.'}
-            </p>
-            <div className="text-xs text-[#252321]/70 pt-2 border-t border-[#B98A78]/30">
-              خصوصية الأحياء: {protectLivingMembers ? 'محمية برمز العائلة السري' : 'متاحة للعموم'}
-            </div>
-          </div>
-        </div>
-      </div>
+      <MySiteStudioView
+        result={result}
+        accountType={accountType}
+        caps={caps}
+        unlockedCapsules={unlockedCapsules}
+        userId={userId}
+        userEmail={userEmail}
+        emailVerified={emailVerified}
+        initialSiteSettings={initialSiteSettings}
+        onSaveSiteSettings={onSaveSiteSettings}
+        onUpgradeAnnualVip={onUpgradeAnnualVip}
+        onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+        onOpenEmailVerification={onOpenEmailVerification}
+        onLogActivity={onLogActivity}
+      />
     );
   }
 
-  // DashboardTab.MyCommunity (مجتمعي)
-  const handleAddCommunityPost = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPostText.trim()) return;
-    const nextPosts: CustomerCommunityPostData[] = [
-      {
-        id: `cp-${Date.now()}`,
-        author: `${result.clientName} ${result.familyName}`.trim(),
-        role:
-          accountType === AccountLegalType.RecordKeeper
-            ? 'أمين سجل معتمد'
-            : 'عضو العائلة',
-        date: new Date().toLocaleDateString('ar-SA'),
-        text: newPostText.trim(),
-        likes: 1,
-      },
-      ...communityPosts,
-    ];
-    setCommunityPosts(nextPosts);
-    onSaveCommunityPosts?.(nextPosts);
-    onLogActivity('نشر مشاركة في مجتمعي', 'إضافة ملاحظة بحثية في مجتمع العائلة');
-    setNewPostText('');
-  };
-
   return (
-    <div className="rounded-2xl bg-white border border-[#B98A78]/40 p-6 sm:p-8 space-y-6">
-      <div className="border-b border-[#B98A78]/25 pb-5">
-        <div className="text-xs font-semibold text-[#D8755B] mb-1">
-          مجتمعي · تواصل الأرحام والباحثين في العائلة والقبيلة
-        </div>
-        <h2 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
-          مجتمع أبحاث وذكريات {result.familyName} و{result.rootTribeName}
-        </h2>
-      </div>
-
-      <form onSubmit={handleAddCommunityPost} className="flex flex-col sm:flex-row gap-3">
-        <label htmlFor="community-post-input" className="sr-only">
-          شارك معلومة أو وثيقة مع أبناء العائلة
-        </label>
-        <input
-          id="community-post-input"
-          type="text"
-          value={newPostText}
-          onChange={(e) => setNewPostText(e.target.value)}
-          placeholder="شارك فائدة تاريخية، سؤالاً نسبياً، أو ذكرى موثقة مع أبناء عمومتك..."
-          className="flex-1 rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-4 py-2.5 text-sm text-[#252321]"
-        />
-        <button
-          type="submit"
-          className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <MessageSquarePlus className="w-4 h-4" aria-hidden="true" />
-          <span>نشر في المجتمع</span>
-        </button>
-      </form>
-
-      <div className="space-y-4">
-        {communityPosts.map((post) => (
-          <article
-            key={post.id}
-            className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 space-y-2"
-          >
-            <div className="flex items-center justify-between text-xs text-[#252321]/70">
-              <div>
-                <strong className="text-sm text-[#252321] font-display">
-                  {post.author}
-                </strong>{' '}
-                · {post.role}
-              </div>
-              <span>{post.date}</span>
-            </div>
-            <p className="text-sm text-[#252321]/85 leading-relaxed">{post.text}</p>
-          </article>
-        ))}
-      </div>
-    </div>
+    <CommunityHubView
+      result={result}
+      accountType={accountType}
+      caps={caps}
+      userId={userId}
+      userEmail={userEmail}
+      publishedSiteSlug={initialSiteSettings?.siteSubdomain}
+      blockedUserIds={blockedUserIds}
+      onBlockUser={(targetUid, targetName) =>
+        onBlockCommunityUser?.(targetUid, targetName)
+      }
+      onNavigateTab={onNavigateTab}
+      onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+      onLogActivity={onLogActivity}
+    />
   );
 };

@@ -1,22 +1,29 @@
-import React, { useState } from 'react';
-import { X, ArrowLeft, Lock, Mail, Loader2, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ArrowLeft, Lock, Mail, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  sendEmailVerification,
   signOut,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import {
+  buildVerifiedLineageSnapshot,
   createUserProfileIfMissing,
   fetchUserProfile,
   fetchUserProfileByEmail,
   findTeamMemberByEmail,
   isCorporateStaffEmail,
+  updateUserProfile,
 } from '../services/firestoreService';
 import { AccountLegalType } from '../types/juthori';
+import {
+  PendingLineageHandoffPayload,
+  PendingResearchTicketDraft,
+  readPendingLineageHandoff,
+  readPendingTicketDraft,
+} from '../utils/handoffStorage';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -35,6 +42,7 @@ interface LoginModalProps {
     accountType: AccountLegalType;
     subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
     isRootUnlocked?: boolean;
+    isNewRegistration?: boolean;
   }) => void;
 }
 
@@ -109,6 +117,35 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [error, setError] = useState('');
   const [resetNotice, setResetNotice] = useState('');
+  const [pendingHandoff, setPendingHandoff] =
+    useState<PendingLineageHandoffPayload | null>(null);
+  const [pendingTicket, setPendingTicket] =
+    useState<PendingResearchTicketDraft | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handoff = readPendingLineageHandoff();
+    const ticket = readPendingTicketDraft();
+    setPendingHandoff(handoff);
+    setPendingTicket(ticket);
+    if (!fullName.trim()) {
+      const candidateFull =
+        ticket?.fullName ||
+        (handoff
+          ? [
+              handoff.firstName,
+              handoff.fatherName,
+              handoff.grandfatherName,
+              handoff.familyName,
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : '');
+      if (candidateFull) {
+        setFullName(candidateFull);
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -150,32 +187,101 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
       const rawDisplayName = (user.displayName || '').trim();
       const inferred = inferArabicNameFromEmailOrDisplay(cleanEmail, rawDisplayName);
+      const activeHandoff = readPendingLineageHandoff();
+      const existingHasSavedArabicFamily =
+        Boolean(mergedExisting?.familyName) &&
+        /[\u0600-\u06FF]/.test(mergedExisting?.familyName || '') &&
+        mergedExisting?.familyName !== 'مستخدم';
+      const shouldUseHandoff = Boolean(activeHandoff) && !existingHasSavedArabicFamily;
+      const handoffSnapshot =
+        shouldUseHandoff && activeHandoff
+          ? buildVerifiedLineageSnapshot(
+              activeHandoff.result,
+              activeHandoff.disambiguation_choice_id
+            )
+          : undefined;
+      const handoffFullName = activeHandoff
+        ? [
+            activeHandoff.firstName,
+            activeHandoff.fatherName,
+            activeHandoff.grandfatherName,
+            activeHandoff.familyName,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        : '';
 
       const userDoc = await createUserProfileIfMissing(
         {
           uid: user.uid,
           email: user.email,
-          displayName: mergedExisting?.fullName || rawDisplayName || inferred.fullName,
+          displayName:
+            (shouldUseHandoff ? handoffFullName : '') ||
+            mergedExisting?.fullName ||
+            rawDisplayName ||
+            inferred.fullName,
         },
         {
-          accountType: mergedExisting?.accountType || 'individual',
+          accountType:
+            (shouldUseHandoff && activeHandoff?.accountType === AccountLegalType.RecordKeeper
+              ? 'record_keeper'
+              : mergedExisting?.accountType) || 'individual',
           fullName:
+            (shouldUseHandoff ? handoffFullName : '') ||
             mergedExisting?.fullName ||
             rawDisplayName ||
             inferred.fullName ||
             'مستخدم جذوري',
-          firstName: mergedExisting?.firstName || inferred.firstName,
-          fatherName: mergedExisting?.fatherName || inferred.fatherName,
-          grandfatherName: mergedExisting?.grandfatherName || inferred.grandfatherName,
-          familyName: mergedExisting?.familyName || inferred.familyName,
-          originCountry: mergedExisting?.originCountry || 'السعودية',
-          originRegion: mergedExisting?.originRegion,
-          tribeName: mergedExisting?.tribeName,
-          familyBranch: mergedExisting?.familyBranch,
+          firstName:
+            (shouldUseHandoff ? activeHandoff?.firstName : '') ||
+            mergedExisting?.firstName ||
+            inferred.firstName,
+          fatherName:
+            (shouldUseHandoff ? activeHandoff?.fatherName : '') ||
+            mergedExisting?.fatherName ||
+            inferred.fatherName,
+          grandfatherName:
+            (shouldUseHandoff ? activeHandoff?.grandfatherName : '') ||
+            mergedExisting?.grandfatherName ||
+            inferred.grandfatherName,
+          familyName:
+            (shouldUseHandoff ? activeHandoff?.familyName : '') ||
+            mergedExisting?.familyName ||
+            inferred.familyName,
+          originCountry:
+            (shouldUseHandoff ? activeHandoff?.originCountry : '') ||
+            mergedExisting?.originCountry ||
+            'السعودية',
+          originRegion:
+            (shouldUseHandoff ? activeHandoff?.originRegion : '') ||
+            mergedExisting?.originRegion,
+          tribeName:
+            (shouldUseHandoff ? activeHandoff?.tribeName : '') ||
+            mergedExisting?.tribeName,
+          familyBranch:
+            (shouldUseHandoff ? activeHandoff?.branchName : '') ||
+            mergedExisting?.familyBranch,
+          disambiguationChoiceId:
+            (shouldUseHandoff ? activeHandoff?.disambiguation_choice_id : undefined) ||
+            mergedExisting?.disambiguationChoiceId,
+          verifiedLineageSnapshot:
+            mergedExisting?.verifiedLineageSnapshot || handoffSnapshot,
+          lineageSnapshot:
+            mergedExisting?.lineageSnapshot || handoffSnapshot,
+          emailVerified: true,
+          emailVerifiedAt:
+            mergedExisting?.emailVerifiedAt || new Date().toISOString(),
         }
       );
 
-      const resolvedDoc = mergedExisting?.familyName ? mergedExisting : userDoc;
+      if (mergedExisting && mergedExisting.emailVerified !== true) {
+        updateUserProfile(user.uid, {
+          emailVerified: true,
+          emailVerifiedAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
+
+      const resolvedDoc = existingHasSavedArabicFamily ? mergedExisting! : userDoc;
       const nameParts = (
         resolvedDoc.fullName ||
         rawDisplayName ||
@@ -218,6 +324,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             : AccountLegalType.Individual,
         subscriptionTier: resolvedDoc.subscriptionTier,
         isRootUnlocked: resolvedDoc.isRootUnlocked,
+        isNewRegistration: !existingHasSavedArabicFamily,
       });
       onClose();
     } catch (err: unknown) {
@@ -297,7 +404,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         uid = userCred.user.uid;
         authDisplayName = userCred.user.displayName || '';
         authenticatedViaFirebaseAuth = true;
-        sendEmailVerification(userCred.user).catch(() => {});
       } catch (regErr: unknown) {
         const regMsg = regErr instanceof Error ? regErr.message : String(regErr);
         if (regMsg.includes('email-already-in-use')) {
@@ -377,12 +483,32 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    const activeHandoff = readPendingLineageHandoff();
+    const storedHasArabicFamily =
+      Boolean(storedProfile?.familyName) &&
+      /[\u0600-\u06FF]/.test(storedProfile?.familyName || '') &&
+      storedProfile?.familyName !== 'مستخدم';
+    const shouldMigrateGuestHandoff =
+      Boolean(activeHandoff) && (isRegisterMode || !storedHasArabicFamily);
+
     const inferredFromIdentity = inferArabicNameFromEmailOrDisplay(
       cleanEmail,
       typedFullName || storedProfile?.fullName || authDisplayName
     );
 
+    const handoffFullName = activeHandoff
+      ? [
+          activeHandoff.firstName,
+          activeHandoff.fatherName,
+          activeHandoff.grandfatherName,
+          activeHandoff.familyName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : '';
+
     const effectiveFullName =
+      (shouldMigrateGuestHandoff && handoffFullName ? handoffFullName : '') ||
       typedFullName ||
       storedProfile?.fullName ||
       authDisplayName ||
@@ -391,11 +517,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const nameParts = effectiveFullName.split(' ').filter(Boolean);
 
     const resolvedFirstName =
+      (shouldMigrateGuestHandoff ? activeHandoff?.firstName : '') ||
       (isRegisterMode && typedFullName ? nameParts[0] : storedProfile?.firstName) ||
       nameParts[0] ||
       inferredFromIdentity.firstName;
 
     const resolvedFatherName =
+      (shouldMigrateGuestHandoff ? activeHandoff?.fatherName : '') ||
       (isRegisterMode && typedFullName && nameParts.length > 2
         ? nameParts[1]
         : storedProfile?.fatherName) ||
@@ -404,6 +532,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       '';
 
     const resolvedGrandfatherName =
+      (shouldMigrateGuestHandoff ? activeHandoff?.grandfatherName : '') ||
       (isRegisterMode && typedFullName && nameParts.length > 3
         ? nameParts[2]
         : storedProfile?.grandfatherName) ||
@@ -412,6 +541,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       '';
 
     const resolvedFamilyName =
+      (shouldMigrateGuestHandoff ? activeHandoff?.familyName : '') ||
       (isRegisterMode && typedFullName && nameParts.length > 1
         ? nameParts.length > 3
           ? nameParts.slice(3).join(' ')
@@ -423,14 +553,36 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         ? nameParts.slice(1).join(' ')
         : inferredFromIdentity.familyName || resolvedFirstName);
 
-    const resolvedCountry = storedProfile?.originCountry || 'مصر';
-    const resolvedRegion = storedProfile?.originRegion || '';
-    const resolvedTribe = storedProfile?.tribeName || '';
-    const resolvedBranch = storedProfile?.familyBranch || '';
+    const resolvedCountry =
+      (shouldMigrateGuestHandoff ? activeHandoff?.originCountry : '') ||
+      storedProfile?.originCountry ||
+      'السعودية';
+    const resolvedRegion =
+      (shouldMigrateGuestHandoff ? activeHandoff?.originRegion : '') ||
+      storedProfile?.originRegion ||
+      '';
+    const resolvedTribe =
+      (shouldMigrateGuestHandoff ? activeHandoff?.tribeName : '') ||
+      storedProfile?.tribeName ||
+      '';
+    const resolvedBranch =
+      (shouldMigrateGuestHandoff ? activeHandoff?.branchName : '') ||
+      storedProfile?.familyBranch ||
+      '';
     const resolvedAccountType =
-      storedProfile?.accountType === 'record_keeper'
+      storedProfile?.accountType === 'record_keeper' ||
+      (shouldMigrateGuestHandoff &&
+        activeHandoff?.accountType === AccountLegalType.RecordKeeper)
         ? AccountLegalType.RecordKeeper
         : AccountLegalType.Individual;
+
+    const handoffSnapshot =
+      shouldMigrateGuestHandoff && activeHandoff
+        ? buildVerifiedLineageSnapshot(
+            activeHandoff.result,
+            activeHandoff.disambiguation_choice_id
+          )
+        : undefined;
 
     // Ensure profile is saved/healed under the active UID in Firestore
     await createUserProfileIfMissing(
@@ -438,6 +590,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         uid: safeUid,
         email: cleanEmail,
         displayName:
+          (shouldMigrateGuestHandoff && handoffFullName ? handoffFullName : '') ||
           storedProfile?.fullName ||
           [resolvedFirstName, resolvedFatherName, resolvedGrandfatherName, resolvedFamilyName]
             .filter(Boolean)
@@ -445,6 +598,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       },
       {
         fullName:
+          (shouldMigrateGuestHandoff && handoffFullName ? handoffFullName : '') ||
           storedProfile?.fullName ||
           [resolvedFirstName, resolvedFatherName, resolvedGrandfatherName, resolvedFamilyName]
             .filter(Boolean)
@@ -465,6 +619,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         subscriptionTier: storedProfile?.subscriptionTier || 'free',
         walletBalance: storedProfile?.walletBalance ?? 0,
         isRootUnlocked: storedProfile?.isRootUnlocked ?? false,
+        disambiguationChoiceId:
+          (shouldMigrateGuestHandoff
+            ? activeHandoff?.disambiguation_choice_id
+            : undefined) || storedProfile?.disambiguationChoiceId,
+        verifiedLineageSnapshot:
+          storedProfile?.verifiedLineageSnapshot || handoffSnapshot,
+        lineageSnapshot:
+          storedProfile?.lineageSnapshot || handoffSnapshot,
+        emailVerified: storedProfile?.emailVerified ?? false,
+        emailVerifiedAt: storedProfile?.emailVerifiedAt,
       }
     );
 
@@ -482,6 +646,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       accountType: resolvedAccountType,
       subscriptionTier: storedProfile?.subscriptionTier,
       isRootUnlocked: storedProfile?.isRootUnlocked,
+      isNewRegistration: isRegisterMode || !storedHasArabicFamily,
     });
     setIsLoading(false);
     onClose();
@@ -518,6 +683,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {(pendingTicket || pendingHandoff) && (
+          <div className="mb-4 rounded-xl bg-[#252321] text-white border border-[#D8755B]/60 p-3.5 text-right flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-[#F3D299] shrink-0 mt-0.5" />
+            <div className="space-y-0.5 text-[11px] leading-relaxed">
+              {pendingTicket ? (
+                <>
+                  <div className="font-display font-bold text-[#F3D299]">
+                    تذكرتك البحثية لعائلة ({pendingTicket.familyName}) جاهزة للفتح باسمك
+                  </div>
+                  <p className="text-white/80">
+                    بمجرد تسجيل الدخول أو إنشاء الحساب، ستُفتح لك نافذة التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بياناتك.
+                  </p>
+                </>
+              ) : pendingHandoff ? (
+                <>
+                  <div className="font-display font-bold text-[#F3D299]">
+                    سيتم ترحيل نتيجة فحص عائلة ({pendingHandoff.familyName}) تلقائياً لحسابك
+                  </div>
+                  <p className="text-white/80">
+                    ادخل أو أنشئ حسابك لتنتقل مباشرةً إلى تبويب «عمود نسبي» دون الحاجة لإعادة البحث.
+                  </p>
+                </>
+              ) : null}
+            </div>
+          </div>
+        )}
 
         {/* Google One-Click Button */}
         <button

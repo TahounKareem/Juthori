@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import {
   BookOpenCheck,
   CheckCircle2,
+  Download,
+  FileText,
+  RefreshCw,
   Sparkles,
   MapPin,
 } from 'lucide-react';
@@ -31,6 +34,7 @@ import {
   resolveNodeHistoricalEra,
   getHistoricalEraBadgeLabel,
 } from './HeritageNodeAvatar';
+import { OfficialBrandedExportModal } from './OfficialBrandedExportModal';
 
 interface LineageSpineColumnProps {
   stateMode: DashboardStateMode;
@@ -55,7 +59,20 @@ interface LineageSpineColumnProps {
   onSelectVerificationPath?: (optionId: 'option_a' | 'option_b' | 'option_c') => void;
   onEscalateVerificationToTicket?: () => void;
   unlockedAddonSourceIds?: string[];
-  onUnlockVerifiedAddonSource?: (addon: VerifiedAddonSourceItem) => void;
+  onUnlockVerifiedAddonSource?: (
+    addon: VerifiedAddonSourceItem
+  ) => Promise<boolean> | boolean | void;
+  onResyncLineage?: () => void;
+  isResyncingLineage?: boolean;
+  onCreateResearchTicket?: (
+    reasonType:
+      | 'unmatched_family'
+      | 'geographic_disambiguation'
+      | 'deep_archival_verification'
+  ) => void;
+  userId?: string;
+  onSignCharterAndEnableTree?: () => void;
+  onLogActivity?: (action: string, detail: string) => void;
 }
 
 const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
@@ -140,13 +157,24 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onEscalateVerificationToTicket,
   unlockedAddonSourceIds = [],
   onUnlockVerifiedAddonSource,
+  onResyncLineage,
+  isResyncingLineage = false,
+  onCreateResearchTicket,
+  userId,
+  onSignCharterAndEnableTree,
+  onLogActivity,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
     useState<UpperAncestorNode | null>(null);
   const [showSourceDetails, setShowSourceDetails] = useState<boolean>(true);
+  const [showOfficialExportModal, setShowOfficialExportModal] =
+    useState<boolean>(false);
   const [localUnlockedAddonIds, setLocalUnlockedAddonIds] = useState<string[]>(
     []
+  );
+  const [processingAddonKey, setProcessingAddonKey] = useState<string | null>(
+    null
   );
   const [localWalletDeduction, setLocalWalletDeduction] = useState<number>(0);
   const [addonWalletWarning, setAddonWalletWarning] = useState<string | null>(
@@ -690,6 +718,17 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           >
             <span>اشترك في الباقة السنوية وافتح تذكرة بحث لعائلتك ←</span>
           </button>
+
+          {onCreateResearchTicket && (
+            <button
+              type="button"
+              onClick={() => onCreateResearchTicket('unmatched_family')}
+              className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#8D4925]/55 text-[#8D4925] text-xs font-display font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+            >
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              <span>إنشاء تذكرة بحثية في مرصد البحوث ←</span>
+            </button>
+          )}
         </div>
       );
     }
@@ -724,6 +763,17 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
           >
             ابدأ ببناء شجرة أسرتك القريبة في «شجرتي» ←
+          </button>
+        )}
+
+        {onCreateResearchTicket && (
+          <button
+            type="button"
+            onClick={() => onCreateResearchTicket('unmatched_family')}
+            className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#8D4925]/55 text-[#8D4925] text-xs font-display font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+          >
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span>إنشاء تذكرة بحثية في مرصد البحوث ←</span>
           </button>
         )}
       </div>
@@ -1139,6 +1189,21 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 رجوع
               </button>
             </div>
+          </div>
+        )}
+
+        {onCreateResearchTicket && (
+          <div className="pt-2 border-t border-[#B98A78]/25 text-center">
+            <button
+              type="button"
+              onClick={() =>
+                onCreateResearchTicket('geographic_disambiguation')
+              }
+              className="w-full py-2 px-3 rounded-xl bg-white/85 hover:bg-white border border-[#B98A78]/45 text-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
+              <span>إنشاء تذكرة بحثية في مرصد البحوث لحسم الترجيح</span>
+            </button>
           </div>
         )}
       </div>
@@ -1612,6 +1677,40 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {!isResearcherDirectPreview && !isUnmatchedCase && (
+              <button
+                type="button"
+                data-testid="open-lineage-official-export-btn"
+                onClick={() => setShowOfficialExportModal(true)}
+                title="تصدير أو طباعة بطاقة عمود النسب الموثق بهوية جذوري الرسمية"
+                className="px-3.5 py-1.5 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-[#F3D299] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5 text-[#D8755B]" />
+                <span>تصدير بطاقة عمود النسب</span>
+              </button>
+            )}
+
+            {!isResearcherDirectPreview && onResyncLineage && (
+              <button
+                type="button"
+                disabled={isResyncingLineage}
+                onClick={onResyncLineage}
+                title="تحديث ومزامنة لقطة الفحص مع محرك الأنساب وحفظها في حسابك"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#F7F2E9] border border-[#B98A78]/45 text-[#252321] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 text-[#D8755B] ${
+                    isResyncingLineage ? 'animate-spin' : ''
+                  }`}
+                />
+                <span>
+                  {isResyncingLineage
+                    ? 'جاري مزامنة الفحص...'
+                    : 'إعادة مزامنة الفحص'}
+                </span>
+              </button>
+            )}
+
             {caps.isVip &&
               !isUnmatchedCase &&
               !isVerificationPending &&
@@ -1898,20 +1997,33 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                                   ? addon.addon_unlock_price_usd
                                   : 2;
 
-                              const handleUnlockAddonClick = () => {
+                              const handleUnlockAddonClick = async () => {
+                                if (processingAddonKey === addonKey) return;
                                 setAddonWalletWarning(null);
                                 if (onUnlockVerifiedAddonSource) {
-                                  onUnlockVerifiedAddonSource(addon);
-                                  setLocalUnlockedAddonIds((prev) =>
-                                    prev.includes(addonKey)
-                                      ? prev
-                                      : [...prev, addonKey]
-                                  );
+                                  setProcessingAddonKey(addonKey);
+                                  try {
+                                    const unlockedOk =
+                                      await onUnlockVerifiedAddonSource(addon);
+                                    if (unlockedOk === true) {
+                                      setLocalUnlockedAddonIds((prev) =>
+                                        prev.includes(addonKey)
+                                          ? prev
+                                          : [...prev, addonKey]
+                                      );
+                                    }
+                                  } finally {
+                                    setProcessingAddonKey(null);
+                                  }
                                   return;
                                 }
                                 if (effectiveWalletBalance < priceUsd) {
+                                  const shortfall = Math.max(
+                                    0,
+                                    priceUsd - effectiveWalletBalance
+                                  );
                                   setAddonWalletWarning(
-                                    `رصيد المحفظة الحالي ($${effectiveWalletBalance.toFixed(2)}) غير كافٍ لفتح المرجع الإضافي ($${priceUsd}). يرجى شحن المحفظة.`
+                                    `رصيد المحفظة الحالي ($${effectiveWalletBalance.toFixed(2)}) غير كافٍ لفتح المرجع الإضافي ($${priceUsd.toFixed(2)}). المبلغ المتبقي بدقة: $${shortfall.toFixed(2)}.`
                                   );
                                   return;
                                 }
@@ -1984,13 +2096,16 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
                                       <button
                                         type="button"
+                                        disabled={processingAddonKey === addonKey}
                                         data-testid={`unlock-verified-addon-btn-${aIdx}`}
                                         onClick={handleUnlockAddonClick}
-                                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8D4925] to-[#B45309] hover:from-[#78350F] hover:to-[#92400E] text-white text-xs font-display font-extrabold shadow-xs transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+                                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8D4925] to-[#B45309] hover:from-[#78350F] hover:to-[#92400E] text-white text-xs font-display font-extrabold shadow-xs transition-all cursor-pointer shrink-0 flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                                       >
-                                        <span>🔓</span>
+                                        <span>{processingAddonKey === addonKey ? '⏳' : '🔓'}</span>
                                         <span>
-                                          فتح بيانات المرجع الإضافي ورقم الصفحة (${priceUsd} من المحفظة)
+                                          {processingAddonKey === addonKey
+                                            ? 'جاري التحقق والخصم الذري...'
+                                            : `فتح بيانات المرجع الإضافي ورقم الصفحة ($${priceUsd} من المحفظة)`}
                                         </span>
                                       </button>
                                     </div>
@@ -2101,7 +2216,59 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             )}
           </div>
         )}
+
+        {/* Quiet Research Observatory Handoff Footer at Bottom of Spine */}
+        {!isResearcherDirectPreview && onCreateResearchTicket && (
+          <div className="mt-6 pt-5 border-t border-[#B98A78]/25 max-w-2xl mx-auto w-full relative z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/80 rounded-2xl px-4 py-3.5 border border-[#B98A78]/35">
+            <div className="text-right space-y-0.5">
+              <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                هل تود طلب تدقيق أرشيفي متخصص أو حسم مسار عائلي في المخطوطات؟
+              </div>
+              <p className="text-[11px] text-[#252321]/70">
+                تُفتح التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بيانات فحصك دون إعادة كتابتها.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                onCreateResearchTicket(
+                  isUnmatchedCase
+                    ? 'unmatched_family'
+                    : isVerificationPending
+                    ? 'geographic_disambiguation'
+                    : 'deep_archival_verification'
+                )
+              }
+              className="shrink-0 px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#F3D299]" />
+              <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {!isResearcherDirectPreview && (
+        <OfficialBrandedExportModal
+          isOpen={showOfficialExportModal}
+          onClose={() => setShowOfficialExportModal(false)}
+          exportKind="lineage_spine"
+          result={effectiveResult}
+          accountType={accountType}
+          caps={caps}
+          userId={userId}
+          unlockedCapsules={unlockedCapsules}
+          onUnlockRoot5Usd={onUnlockRoot5Usd}
+          onUpgradeAnnualVip={onUpgradeAnnualVip}
+          onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+          onLogExport={(formatLabel, verificationId) =>
+            onLogActivity?.(
+              'تصدير بطاقة عمود النسب الموثق',
+              `تصدير ${formatLabel} برمز التحقق المرجعي (${verificationId})`
+            )
+          }
+        />
+      )}
     </div>
   );
 };

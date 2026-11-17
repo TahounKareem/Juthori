@@ -22,10 +22,16 @@ import {
   VerifiedAddonSourceItem,
 } from '../types/juthori';
 
-export const GERMAN_ENGINE_BASE_URL =
-  'https://yes-poems-tennessee-condo.trycloudflare.com';
-const DIRECT_ENGINE_URL = `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/lineage-search`;
-const PROXY_ENGINE_URL = '/api/juthori/lineage-search';
+import {
+  JUTHORI_API_TIMEOUT_MS,
+  JUTHORI_ENGINE_BASE_URL,
+  JUTHORI_LINEAGE_SEARCH_URL,
+  JUTHORI_PROXY_LINEAGE_SEARCH_URL,
+} from '../config/juthoriApiConfig';
+
+export const GERMAN_ENGINE_BASE_URL = JUTHORI_ENGINE_BASE_URL;
+const DIRECT_ENGINE_URL = JUTHORI_LINEAGE_SEARCH_URL;
+const PROXY_ENGINE_URL = JUTHORI_PROXY_LINEAGE_SEARCH_URL;
 
 export interface FormValidationResult {
   valid: boolean;
@@ -7137,6 +7143,30 @@ export function getDashboardCapabilities(
   const arePremiumTabsUnlocked = isVip;
   const isRecordKeeper = accountType === AccountLegalType.RecordKeeper;
 
+  const membershipTierKey = isRecordKeeper
+    ? 'registrar'
+    : isVip
+    ? 'annual_vip'
+    : isRootUnlocked
+    ? 'basic_5usd'
+    : 'free';
+
+  const maxTreeMembers = isRecordKeeper
+    ? null
+    : isVip
+    ? 250
+    : isRootUnlocked
+    ? 50
+    : 15;
+
+  const maxVaultDocuments = isRecordKeeper
+    ? null
+    : isVip
+    ? 100
+    : isRootUnlocked
+    ? 20
+    : 5;
+
   return {
     isVip,
     isMatched,
@@ -7146,11 +7176,24 @@ export function getDashboardCapabilities(
     arePremiumTabsUnlocked,
     canAccessTreeDirectly: isVip && isRecordKeeper,
     requiresCharterUpgradeForTree: isVip && !isRecordKeeper,
-    tierHeaderTitle: isVip
+    tierHeaderTitle: isRecordKeeper
+      ? isVip
+        ? 'أمين سجل العائلة · بريميوم السنوية'
+        : isRootUnlocked
+        ? 'أمين سجل العائلة · الباقة الأساسية ($5)'
+        : 'أمين سجل العائلة'
+      : isVip
       ? 'عضوية بريميوم السنوية'
       : isRootUnlocked
       ? 'الباقة الأساسية ($5)'
       : 'حساب مجاني',
+    membershipTierKey,
+    maxTreeMembers,
+    maxVaultDocuments,
+    canPublishPublicSite: isRecordKeeper,
+    canInviteFamilyContributors: isRecordKeeper,
+    hasRegistrarBadge: isRecordKeeper,
+    hasPriorityResearchObservatory: isRecordKeeper,
   };
 }
 
@@ -9245,7 +9288,7 @@ export async function searchJuthoriLineage(
       const controller = new AbortController();
       const onExternalAbort = () => controller.abort();
       externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
-      const timer = setTimeout(() => controller.abort(), 6500);
+      const timer = setTimeout(() => controller.abort(), JUTHORI_API_TIMEOUT_MS);
       try {
         const res = await fetch(endpointUrl, {
           method: 'POST',

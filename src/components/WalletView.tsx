@@ -5,7 +5,6 @@ import {
   ArrowDownLeft,
   Crown,
   Sparkles,
-  CreditCard,
   FileCheck2,
   Dna,
   History,
@@ -14,13 +13,18 @@ import {
   Plus,
   Loader2,
   CheckCircle,
+  Copy,
+  Check,
+  Mail,
+  X,
+  AlertCircle,
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import {
   canonicalCustomerEmailUid,
   fetchUserProfile,
   fetchUserWalletTransactions,
-  executeWalletTransaction,
+  executeAtomicWalletOperation,
   WalletTransactionData,
 } from '../services/firestoreService';
 import { LineageSearchResult } from '../types/juthori';
@@ -34,6 +38,12 @@ interface WalletViewProps {
   onLogActivity?: (action: string, detail: string) => void;
   externalBalance?: number;
   onBalanceChange?: (nextBalance: number) => void;
+  highlightedShortfallUsd?: number | null;
+  onClearShortfall?: () => void;
+  emailVerified?: boolean;
+  showEmailReminderBanner?: boolean;
+  onDismissEmailReminderBanner?: () => void;
+  onOpenEmailVerification?: () => void;
 }
 
 export const WalletView: React.FC<WalletViewProps> = ({
@@ -44,21 +54,36 @@ export const WalletView: React.FC<WalletViewProps> = ({
   onLogActivity,
   externalBalance,
   onBalanceChange,
+  highlightedShortfallUsd = null,
+  onClearShortfall,
+  emailVerified = true,
+  showEmailReminderBanner = false,
+  onDismissEmailReminderBanner,
+  onOpenEmailVerification,
 }) => {
   const [balance, setBalance] = useState<number>(
     typeof externalBalance === 'number' ? externalBalance : isVip ? 25 : 0
   );
   const [transactions, setTransactions] = useState<WalletTransactionData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
+  const [localShortfallUsd, setLocalShortfallUsd] = useState<number | null>(null);
+  const [copiedTxId, setCopiedTxId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof externalBalance === 'number') {
       setBalance(externalBalance);
     }
   }, [externalBalance]);
+
+  const activeShortfallUsd =
+    typeof highlightedShortfallUsd === 'number' && highlightedShortfallUsd > 0
+      ? highlightedShortfallUsd
+      : typeof localShortfallUsd === 'number' && localShortfallUsd > 0
+      ? localShortfallUsd
+      : null;
 
   const updateSharedBalance = (nextVal: number) => {
     setBalance(nextVal);
@@ -90,13 +115,19 @@ export const WalletView: React.FC<WalletViewProps> = ({
       } else if (isVip && resolvedBalance > 0) {
         setTransactions([
           {
-            id: 'tx-welcome-init',
+            id: 'TXN-20260101-BONUS',
+            transactionId: 'TXN-20260101-BONUS',
             userId: currentUid,
-            type: 'credit',
+            userEmail,
+            type: 'TOPUP',
+            direction: 'credit',
             amount: resolvedBalance,
+            balanceBefore: 0,
+            balanceAfter: resolvedBalance,
+            status: 'COMPLETED',
+            descriptionAr: 'رصيد محفظة ترحيبي مع ترقية الاشتراك السنوي بريميوم',
             reason: 'رصيد محفظة ترحيبي مع ترقية الاشتراك السنوي بريميوم',
             referenceId: 'welcome_annual_bonus',
-            balanceAfter: resolvedBalance,
             createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
           },
         ]);
@@ -114,44 +145,83 @@ export const WalletView: React.FC<WalletViewProps> = ({
     loadWalletData();
   }, [currentUid]);
 
-  // Handle service purchase with wallet balance
-  const handlePurchaseService = async (serviceName: string, costUsd: number) => {
-    setActionErrorMessage(null);
-    if (balance < costUsd) {
-      setActionErrorMessage(
-        `رصيدك الحالي ($${balance}) غير كافٍ. يمكنك شحن المحفظة أو ترقية الاشتراك للحصول على رصيد إضافي.`
-      );
-      setTimeout(() => setActionErrorMessage(null), 5000);
-      return;
+  const handleCopyTransactionId = async (txRef: string) => {
+    if (!txRef) return;
+    try {
+      await navigator.clipboard.writeText(txRef);
+      setCopiedTxId(txRef);
+      setTimeout(() => {
+        setCopiedTxId((curr) => (curr === txRef ? null : curr));
+      }, 2200);
+    } catch {
+      // Clipboard fallback ignored cleanly
     }
+  };
+
+  // Handle service purchase via Atomic Firestore Transaction (`runTransaction`)
+  const handlePurchaseService = async (serviceName: string, costUsd: number) => {
+    if (isProcessing) return;
+    setActionErrorMessage(null);
+    setActionSuccessMessage(null);
 
     setIsProcessing(true);
     try {
-      const txRes = await executeWalletTransaction(
-        currentUid,
-        'debit',
-        costUsd,
-        `شراء خدمة: ${serviceName}`,
-        `srv_${Date.now()}`
-      );
-      const nextBalance =
-        typeof txRes.newBalance === 'number'
-          ? txRes.newBalance
-          : Math.max(0, balance - costUsd);
-      updateSharedBalance(nextBalance);
-      const newTx: WalletTransactionData = {
-        id: `tx_${Date.now()}`,
+      const res = await executeAtomicWalletOperation({
         userId: currentUid,
-        type: 'debit',
+        userEmail,
+        operationType: 'UNLOCK_CAPSULE',
+        amountUsd: costUsd,
+        paymentMethod: 'wallet',
+        descriptionAr: `شراء خدمة جينيالوجية من المحفظة: ${serviceName}`,
+        referenceId: `srv_${Date.now()}`,
+        skipFeatureIdempotency: true,
+      });
+
+      if (res.status === 'INSUFFICIENT_FUNDS') {
+        const shortfall = Number(
+          (res.shortfallUsd ?? Math.max(0, costUsd - res.balanceBefore)).toFixed(2)
+        );
+        updateSharedBalance(res.balanceBefore);
+        setLocalShortfallUsd(shortfall);
+        setActionErrorMessage(
+          `رصيدك الفعلي في المحفظة ($${res.balanceBefore.toFixed(2)}) غير كافٍ لشراء «${serviceName}» ($${costUsd.toFixed(2)}). المبلغ المتبقي لإتمام العملية بدقة: $${shortfall.toFixed(2)}.`
+        );
+        return;
+      }
+
+      const nextBalance = res.balanceAfter;
+      updateSharedBalance(nextBalance);
+      setLocalShortfallUsd(null);
+      onClearShortfall?.();
+
+      const recordedTx: WalletTransactionData = res.transactionRecord || {
+        id: res.transactionId || `TXN-${Date.now()}`,
+        transactionId: res.transactionId,
+        userId: currentUid,
+        userEmail,
+        type: 'UNLOCK_CAPSULE',
+        direction: 'debit',
         amount: costUsd,
-        reason: `شراء خدمة: ${serviceName}`,
+        balanceBefore: res.balanceBefore,
         balanceAfter: nextBalance,
+        status: 'COMPLETED',
+        descriptionAr: `شراء خدمة جينيالوجية من المحفظة: ${serviceName}`,
+        reason: `شراء خدمة جينيالوجية من المحفظة: ${serviceName}`,
         createdAt: new Date().toISOString(),
       };
-      setTransactions((prev) => [newTx, ...prev]);
-      setActionSuccessMessage(`تم شراء «${serviceName}» بنجاح وخصم $${costUsd} من محفظتك.`);
-      onLogActivity?.('شراء خدمة من المحفظة', `${serviceName} — $${costUsd}`);
-      setTimeout(() => setActionSuccessMessage(null), 4000);
+
+      setTransactions((prev) => [
+        recordedTx,
+        ...prev.filter((item) => item.id !== recordedTx.id),
+      ]);
+      setActionSuccessMessage(
+        `تم شراء «${serviceName}» بنجاح وخصم $${costUsd.toFixed(2)} ذرياً من محفظتك · المرجع: ${recordedTx.transactionId || recordedTx.id}`
+      );
+      onLogActivity?.(
+        `شراء خدمة من المحفظة (${recordedTx.transactionId || recordedTx.id})`,
+        `${serviceName} — $${costUsd.toFixed(2)}`
+      );
+      setTimeout(() => setActionSuccessMessage(null), 5000);
     } catch (err) {
       console.warn('Transaction error:', err);
       setActionErrorMessage('تعذر إتمام العملية من المحفظة. يرجى المحاولة لاحقاً.');
@@ -161,36 +231,60 @@ export const WalletView: React.FC<WalletViewProps> = ({
     }
   };
 
-  // Handle instant top-up
+  // Handle instant atomic top-up via Firestore `runTransaction`
   const handleTopUpWallet = async (amount: number) => {
+    if (isProcessing || amount <= 0) return;
     setIsProcessing(true);
     setActionErrorMessage(null);
+    setActionSuccessMessage(null);
     try {
-      const txRes = await executeWalletTransaction(
-        currentUid,
-        'credit',
-        amount,
-        `شحن رصيد إضافي في المحفظة عبر البطاقة`,
-        `topup_${Date.now()}`
-      );
-      const nextBalance =
-        typeof txRes.newBalance === 'number' ? txRes.newBalance : balance + amount;
-      updateSharedBalance(nextBalance);
-      const newTx: WalletTransactionData = {
-        id: `tx_${Date.now()}`,
+      const cleanAmount = Number(amount.toFixed(2));
+      const res = await executeAtomicWalletOperation({
         userId: currentUid,
-        type: 'credit',
-        amount,
-        reason: 'شحن رصيد إضافي في المحفظة',
+        userEmail,
+        operationType: 'TOPUP',
+        amountUsd: cleanAmount,
+        paymentMethod: 'external',
+        descriptionAr: `شحن رصيد إضافي في المحفظة الرقمية (+$${cleanAmount.toFixed(2)})`,
+        referenceId: `topup_${Date.now()}`,
+      });
+
+      const nextBalance = res.balanceAfter;
+      updateSharedBalance(nextBalance);
+      setLocalShortfallUsd(null);
+      onClearShortfall?.();
+
+      const recordedTx: WalletTransactionData = res.transactionRecord || {
+        id: res.transactionId || `TXN-${Date.now()}`,
+        transactionId: res.transactionId,
+        userId: currentUid,
+        userEmail,
+        type: 'TOPUP',
+        direction: 'credit',
+        amount: cleanAmount,
+        balanceBefore: res.balanceBefore,
         balanceAfter: nextBalance,
+        status: 'COMPLETED',
+        descriptionAr: `شحن رصيد إضافي في المحفظة الرقمية (+$${cleanAmount.toFixed(2)})`,
+        reason: `شحن رصيد إضافي في المحفظة الرقمية (+$${cleanAmount.toFixed(2)})`,
         createdAt: new Date().toISOString(),
       };
-      setTransactions((prev) => [newTx, ...prev]);
-      setActionSuccessMessage(`تم شحن المحفظة وحفظ الرصيد ($${nextBalance}) في قاعدة البيانات بنجاح!`);
-      onLogActivity?.('شحن محفظة', `إيداع $${amount}`);
-      setTimeout(() => setActionSuccessMessage(null), 4000);
+
+      setTransactions((prev) => [
+        recordedTx,
+        ...prev.filter((item) => item.id !== recordedTx.id),
+      ]);
+      setActionSuccessMessage(
+        `تم شحن المحفظة بمبلغ $${cleanAmount.toFixed(2)} وحفظ الرصيد الجديد ($${nextBalance.toFixed(2)}) ذرياً · المرجع: ${recordedTx.transactionId || recordedTx.id}`
+      );
+      onLogActivity?.(
+        `شحن محفظة (${recordedTx.transactionId || recordedTx.id})`,
+        `إيداع $${cleanAmount.toFixed(2)} — الرصيد بعد الشحن: $${nextBalance.toFixed(2)}`
+      );
+      setTimeout(() => setActionSuccessMessage(null), 5000);
     } catch (err) {
       console.warn('Top-up error:', err);
+      setActionErrorMessage('تعذر إتمام عملية شحن المحفظة حالياً. يرجى المحاولة مرة أخرى.');
     } finally {
       setIsProcessing(false);
     }
@@ -201,8 +295,109 @@ export const WalletView: React.FC<WalletViewProps> = ({
     onUpgradeSuccess();
   };
 
+  const getStructuredTypeBadgeLabel = (tx: WalletTransactionData): string => {
+    switch (tx.type) {
+      case 'TOPUP':
+        return 'شحن رصيد · TOPUP';
+      case 'PURCHASE_ROOT_5USD':
+        return 'فتح الجذر · $5';
+      case 'UNLOCK_CAPSULE':
+        return 'فتح سلسلة / مرجع';
+      case 'UPGRADE_ANNUAL_VIP':
+        return 'ترقية سنوية VIP';
+      case 'UPGRADE_REGISTRAR':
+        return 'توثيق أمين السجل';
+      default:
+        return tx.type === 'credit' ? 'إيداع بالمحفظة' : 'خصم من المحفظة';
+    }
+  };
+
   return (
     <div className="space-y-6 text-[#252321]">
+      {/* Thin, Calm, Dismissible Email Verification Reminder Banner (Allowed ONLY in Profile & Wallet) */}
+      {showEmailReminderBanner && !emailVerified && (
+        <div className="rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321]">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-[#D8755B] shrink-0" />
+            <span>
+              تذكير هادئ: بريدك الإلكتروني (<strong className="font-mono">{userEmail}</strong>) غير موثّق بعد — وثّقه لحماية سجلك المالي وإتاحة النشر العام.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {onOpenEmailVerification && (
+              <button
+                type="button"
+                onClick={onOpenEmailVerification}
+                className="px-3 py-1 rounded-lg bg-[#252321] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold transition-colors cursor-pointer"
+              >
+                توثيق البريد الآن
+              </button>
+            )}
+            {onDismissEmailReminderBanner && (
+              <button
+                type="button"
+                onClick={onDismissEmailReminderBanner}
+                aria-label="إغلاق التذكير"
+                className="p-1 rounded-lg hover:bg-[#EDE6DA] text-[#252321]/65 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Exact Shortfall Top-Up Prompt when a transaction detects insufficient wallet balance */}
+      {activeShortfallUsd !== null && activeShortfallUsd > 0 && (
+        <div
+          role="region"
+          aria-label="شحن الرصيد المتبقي لإتمام العملية"
+          className="rounded-2xl bg-[#FAF6F0] border-2 border-[#D8755B] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#D8755B]/15 text-[#D8755B] flex items-center justify-center shrink-0 mt-0.5">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm font-display font-extrabold text-[#252321]">
+                شحن المحفظة لاستكمال العملية — المبلغ المتبقي بدقة:{' '}
+                <span className="font-mono text-[#D8755B]">
+                  ${activeShortfallUsd.toFixed(2)}
+                </span>
+              </div>
+              <p className="text-xs text-[#252321]/75 leading-relaxed">
+                رصيدك الفعلي الحالي <strong>${balance.toFixed(2)}</strong>. يمكنك شحن المبلغ المتبقي بالضبط أو اختيار باقة شحن فوري لإتمام الشراء بأمان دون أي خصم مزدوج.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => handleTopUpWallet(activeShortfallUsd)}
+              className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              {isProcessing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
+              <span>شحن المتبقي (${activeShortfallUsd.toFixed(2)})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLocalShortfallUsd(null);
+                onClearShortfall?.();
+              }}
+              className="px-3 py-2 rounded-xl bg-[#EDE6DA] hover:bg-[#e3dacb] text-[#252321] text-xs font-bold cursor-pointer"
+            >
+              إغلاق
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Success Notification Alert */}
       {actionSuccessMessage && (
         <div className="rounded-xl bg-emerald-50 border border-emerald-300 p-4 text-emerald-900 text-xs sm:text-sm font-semibold flex items-center gap-2">
@@ -211,7 +406,10 @@ export const WalletView: React.FC<WalletViewProps> = ({
         </div>
       )}
       {actionErrorMessage && (
-        <div role="alert" className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800 text-xs sm:text-sm font-semibold flex items-center gap-2">
+        <div
+          role="alert"
+          className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800 text-xs sm:text-sm font-semibold flex items-center gap-2"
+        >
           <span>{actionErrorMessage}</span>
         </div>
       )}
@@ -230,11 +428,11 @@ export const WalletView: React.FC<WalletViewProps> = ({
               </span>
             </div>
 
-            <div className="text-3xl sm:text-4xl font-display font-extrabold text-[#F7F2E9] mb-1">
+            <div className="text-3xl sm:text-4xl font-display font-extrabold text-[#F7F2E9] mb-1 tabular-nums">
               ${balance.toFixed(2)}
             </div>
             <p className="text-xs text-white/60">
-              الرصيد المتاح لشراء الوثائق، الفحوصات الجينية، والمشجرات الجدارية.
+              الرصيد الفعلي الموثق عبر معاملات سحابية ذرية لشراء الوثائق والسلاسل والفحوصات.
             </p>
           </div>
 
@@ -245,7 +443,11 @@ export const WalletView: React.FC<WalletViewProps> = ({
               onClick={() => handleTopUpWallet(20)}
               className="flex-1 py-2 px-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Plus className="w-3.5 h-3.5" />
+              {isProcessing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
               <span>شحن $20</span>
             </button>
             <button
@@ -254,7 +456,11 @@ export const WalletView: React.FC<WalletViewProps> = ({
               onClick={() => handleTopUpWallet(50)}
               className="flex-1 py-2 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Plus className="w-3.5 h-3.5" />
+              {isProcessing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
               <span>شحن $50</span>
             </button>
           </div>
@@ -271,8 +477,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
               الاشتراك السنوي الشامل بريميوم ($60 / سنة)
             </h3>
             <p className="text-xs sm:text-sm text-[#252321]/75 mt-1 leading-relaxed">
-              يشمل فتح عمود النسب الكامل حتى أدد، استعراض المخطوطات، وتفعيل كافة الأدوات
-              (شجرتي، خزانتي، كشافي، موقعي، مجتمعي)،{' '}
+              يشمل فتح عمود النسب الكامل حتى آدم عليه السلام، استعراض المخطوطات، ورفع سعة شجرتي إلى 250 فرداً وخزانتي إلى 100 وثيقة مع نشر موقعي الشخصي،{' '}
               <strong className="text-[#D8755B]">
                 بالإضافة إلى إيداع رصيد فوري بقيمة $25 في محفظتك الرقمية
               </strong>{' '}
@@ -320,10 +525,10 @@ export const WalletView: React.FC<WalletViewProps> = ({
               مزايا وخدمات يمكن شراؤها برصيد المحفظة
             </h3>
             <p className="text-xs text-[#252321]/70 mt-0.5">
-              استثمر رصيد محفظتك الرقمية في توثيق إرث عائلتك عبر خدمات جينيالوجية حصرية
+              استثمر رصيد محفظتك الرقمية في توثيق إرث عائلتك عبر معاملات سحابية ذرية آمنة
             </p>
           </div>
-          <span className="text-xs font-bold text-[#D8755B]">خصم مباشر من المحفظة</span>
+          <span className="text-xs font-bold text-[#D8755B]">خصم ذري مباشر من المحفظة</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
@@ -376,90 +581,177 @@ export const WalletView: React.FC<WalletViewProps> = ({
               icon: Sparkles,
               badge: 'VIP',
             },
-          ].map((srv) => (
-            <div
-              key={srv.id}
-              className="rounded-xl border border-[#B98A78]/30 bg-[#F7F2E9] p-4 flex flex-col justify-between hover:border-[#D8755B] transition-colors"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-white text-[#D8755B] flex items-center justify-center shadow-2xs">
-                    <srv.icon className="w-4 h-4" />
+          ].map((srv) => {
+            const hasEnough = balance >= srv.cost;
+            const shortfall = Math.max(0, srv.cost - balance);
+            return (
+              <div
+                key={srv.id}
+                className="rounded-xl border border-[#B98A78]/30 bg-[#F7F2E9] p-4 flex flex-col justify-between hover:border-[#D8755B] transition-colors"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-white text-[#D8755B] flex items-center justify-center shadow-2xs">
+                      <srv.icon className="w-4 h-4" />
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-[#EDE6DA] text-[10px] font-bold text-[#252321]/80">
+                      {srv.badge}
+                    </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-[#EDE6DA] text-[10px] font-bold text-[#252321]/80">
-                    {srv.badge}
-                  </span>
+                  <h4 className="text-sm font-display font-bold text-[#252321]">{srv.title}</h4>
+                  <p className="text-xs text-[#252321]/70 mt-1 leading-relaxed">{srv.desc}</p>
                 </div>
-                <h4 className="text-sm font-display font-bold text-[#252321]">{srv.title}</h4>
-                <p className="text-xs text-[#252321]/70 mt-1 leading-relaxed">{srv.desc}</p>
-              </div>
 
-              <div className="pt-4 border-t border-[#B98A78]/20 mt-3 flex items-center justify-between">
-                <span className="text-sm font-extrabold text-[#D8755B]">${srv.cost}</span>
-                <button
-                  type="button"
-                  disabled={isProcessing || balance < srv.cost}
-                  onClick={() => handlePurchaseService(srv.title, srv.cost)}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                    balance >= srv.cost
-                      ? 'bg-[#252321] text-white hover:bg-[#D8755B]'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {balance >= srv.cost ? 'شراء بالرصيد' : 'رصيد غير كافٍ'}
-                </button>
+                <div className="pt-4 border-t border-[#B98A78]/20 mt-3 flex items-center justify-between gap-2">
+                  <span className="text-sm font-extrabold text-[#D8755B] tabular-nums">
+                    ${srv.cost}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => handlePurchaseService(srv.title, srv.cost)}
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                      hasEnough
+                        ? 'bg-[#252321] text-white hover:bg-[#D8755B]'
+                        : 'bg-[#EDE6DA] text-[#8D4925] hover:bg-[#D8755B] hover:text-white'
+                    }`}
+                  >
+                    {hasEnough
+                      ? 'شراء بالرصيد'
+                      : `شحن المتبقي ($${shortfall.toFixed(2)})`}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* 3. Transaction History Ledger */}
+      {/* 3. Structured Financial Transaction Ledger (`wallet_transactions`) */}
       <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-display font-bold text-[#252321]">
-            سجل حركات ومعاملات المحفظة
-          </h3>
-          <span className="text-xs text-[#252321]/60">مدقق تلقائياً في السجل المالي</span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-display font-bold text-[#252321]">
+              سجل الحركات والمعاملات المالية الموثّق
+            </h3>
+            <p className="text-[11px] text-[#252321]/65 mt-0.5">
+              كل عملية موثقة برقم مرجعي فريد قابل للنسخ الفوري لمراجعته مع الدعم الفني عند الحاجة
+            </p>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/35 text-[11px] font-semibold text-[#8D4925]">
+            مدقق ذرياً في السحابة
+          </span>
         </div>
 
         {transactions.length === 0 ? (
-          <p className="text-xs text-[#252321]/60 text-center py-6">لا توجد حركات مسجلة حتى الآن.</p>
+          <p className="text-xs text-[#252321]/60 text-center py-6">
+            لا توجد حركات مالية مسجلة في محفظتك حتى الآن.
+          </p>
         ) : (
           <div className="divide-y divide-[#B98A78]/20">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="py-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                      tx.type === 'credit'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-rose-100 text-rose-700'
-                    }`}
-                  >
-                    {tx.type === 'credit' ? (
-                      <ArrowDownLeft className="w-4 h-4" />
-                    ) : (
-                      <ArrowUpRight className="w-4 h-4" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#252321]">{tx.reason}</div>
-                    <div className="text-[11px] text-[#252321]/60">
-                      {new Date(tx.createdAt).toLocaleDateString('ar-SA')} · الرصيد بعدها: ${tx.balanceAfter.toFixed(2)}
+            {transactions.map((tx) => {
+              const isCredit = tx.direction
+                ? tx.direction === 'credit'
+                : tx.type === 'credit' || tx.type === 'TOPUP';
+              const txRef = tx.transactionId || tx.id;
+              const statusLabel =
+                tx.status === 'FAILED'
+                  ? 'فشلت'
+                  : tx.status === 'PENDING'
+                  ? 'قيد المعالجة'
+                  : 'مكتملة';
+              const isCopied = copiedTxId === txRef;
+
+              return (
+                <div
+                  key={tx.id}
+                  className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        isCredit
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}
+                    >
+                      {isCredit ? (
+                        <ArrowDownLeft className="w-4 h-4" />
+                      ) : (
+                        <ArrowUpRight className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-[#252321]">
+                          {tx.descriptionAr || tx.reason}
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/35 text-[10px] font-semibold text-[#8D4925]">
+                          {getStructuredTypeBadgeLabel(tx)}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            tx.status === 'FAILED'
+                              ? 'bg-red-50 text-red-700'
+                              : tx.status === 'PENDING'
+                              ? 'bg-amber-50 text-amber-800'
+                              : 'bg-emerald-50 text-emerald-800'
+                          }`}
+                        >
+                          {statusLabel}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#252321]/65">
+                        <span
+                          dir="ltr"
+                          className="font-mono font-bold text-[#252321] bg-[#F7F2E9] px-2 py-0.5 rounded border border-[#B98A78]/30"
+                        >
+                          {txRef}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyTransactionId(txRef)}
+                          title="نسخ الرقم المرجعي للعملية"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#EDE6DA] hover:bg-[#D8755B] hover:text-white text-[#252321] text-[10px] font-bold transition-colors cursor-pointer"
+                        >
+                          {isCopied ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              <span>تم النسخ</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>نسخ المرجع</span>
+                            </>
+                          )}
+                        </button>
+                        <span>·</span>
+                        <span>{new Date(tx.createdAt).toLocaleDateString('ar-SA')}</span>
+                        <span>·</span>
+                        <span className="tabular-nums">
+                          {typeof tx.balanceBefore === 'number'
+                            ? `الرصيد: $${tx.balanceBefore.toFixed(2)} ← $${tx.balanceAfter.toFixed(2)}`
+                            : `الرصيد بعدها: $${tx.balanceAfter.toFixed(2)}`}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div
-                  className={`font-mono font-bold text-sm ${
-                    tx.type === 'credit' ? 'text-emerald-700' : 'text-rose-700'
-                  }`}
-                >
-                  {tx.type === 'credit' ? `+$${tx.amount.toFixed(2)}` : `-$${tx.amount.toFixed(2)}`}
+                  <div
+                    dir="ltr"
+                    className={`font-mono font-bold text-sm tabular-nums self-end sm:self-center shrink-0 ${
+                      isCredit ? 'text-emerald-700' : 'text-rose-700'
+                    }`}
+                  >
+                    {isCredit
+                      ? `+$${tx.amount.toFixed(2)}`
+                      : `-$${tx.amount.toFixed(2)}`}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

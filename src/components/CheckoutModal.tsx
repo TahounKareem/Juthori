@@ -10,25 +10,41 @@ import {
   X,
   ArrowLeft,
   Plus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { CheckoutOrderRequest } from '../types/juthori';
+import { generateWalletTransactionId } from '../services/firestoreService';
+
+export interface CheckoutExecutionResult {
+  status: 'COMPLETED' | 'ALREADY_OWNED' | 'INSUFFICIENT_FUNDS';
+  transactionId?: string;
+  balanceAfter?: number;
+  shortfallUsd?: number;
+}
 
 interface CheckoutModalProps {
   order: CheckoutOrderRequest | null;
   walletBalance: number;
   onClose: () => void;
+  onExecutePayment?: (
+    order: CheckoutOrderRequest,
+    paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay'
+  ) => Promise<CheckoutExecutionResult>;
   onConfirmSuccess: (
     order: CheckoutOrderRequest,
     paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay',
-    invoiceNumber: string
+    invoiceNumber: string,
+    alreadyExecutedAtomically?: boolean
   ) => void;
-  onQuickTopUpWallet?: (amountUsd: number) => void;
+  onQuickTopUpWallet?: (amountUsd: number) => Promise<void> | void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   order,
   walletBalance,
   onClose,
+  onExecutePayment,
   onConfirmSuccess,
   onQuickTopUpWallet,
 }) => {
@@ -40,39 +56,119 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [cardNumber, setCardNumber] = useState('4458 •••• •••• 9042');
   const [cardExpiry, setCardExpiry] = useState('08/29');
   const [cardCvv, setCardCvv] = useState('842');
-  const [invoiceNumber, setInvoiceNumber] = useState('#INV-JTH-9042');
+  const [invoiceNumber, setInvoiceNumber] = useState(() =>
+    generateWalletTransactionId()
+  );
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [isQuickToppingUp, setIsQuickToppingUp] = useState(false);
+  const [alreadyOwnedNotice, setAlreadyOwnedNotice] = useState(false);
+  const [executedAtomically, setExecutedAtomically] = useState(false);
+  const [serverShortfallUsd, setServerShortfallUsd] = useState<number | null>(null);
+  const [copiedReceiptRef, setCopiedReceiptRef] = useState(false);
 
+  // Reset modal ONLY when a new order opens (do not reset step when walletBalance updates!)
   useEffect(() => {
     if (order) {
       setStep('summary');
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-      setInvoiceNumber(`#INV-JTH-${randomNum}`);
+      setInvoiceNumber(generateWalletTransactionId());
+      setIsSubmittingPayment(false);
+      setAlreadyOwnedNotice(false);
+      setExecutedAtomically(false);
+      setServerShortfallUsd(null);
+      setCopiedReceiptRef(false);
       if (order.allowWalletPayment && walletBalance >= order.amountUsd) {
         setPaymentMethod('wallet');
       } else {
         setPaymentMethod('mada');
       }
     }
-  }, [order, walletBalance]);
+  }, [order?.id]);
+
+  // If the customer tops up their wallet while on the summary screen, clear shortfall automatically
+  useEffect(() => {
+    if (order && step === 'summary' && walletBalance >= order.amountUsd) {
+      setServerShortfallUsd(null);
+    }
+  }, [walletBalance, order, step]);
 
   if (!order) return null;
 
   const canPayWithWallet =
     order.allowWalletPayment && walletBalance >= order.amountUsd;
 
-  const handleStartPayment = (e: React.FormEvent) => {
+  const exactShortfallUsd =
+    serverShortfallUsd !== null
+      ? serverShortfallUsd
+      : Math.max(0, Number((order.amountUsd - walletBalance).toFixed(2)));
+
+  const handleCopyInvoice = async () => {
+    try {
+      await navigator.clipboard.writeText(invoiceNumber);
+      setCopiedReceiptRef(true);
+      setTimeout(() => setCopiedReceiptRef(false), 2200);
+    } catch {
+      // Ignore clipboard restriction
+    }
+  };
+
+  const handleQuickTopUpClick = async (amountToTopUp: number) => {
+    if (!onQuickTopUpWallet || isQuickToppingUp) return;
+    setIsQuickToppingUp(true);
+    try {
+      await onQuickTopUpWallet(Number(amountToTopUp.toFixed(2)));
+      setServerShortfallUsd(null);
+      setPaymentMethod('wallet');
+    } finally {
+      setIsQuickToppingUp(false);
+    }
+  };
+
+  const handleStartPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (paymentMethod === 'wallet' && !canPayWithWallet) {
+    if (isSubmittingPayment) return;
+
+    if (paymentMethod === 'wallet' && !canPayWithWallet && !onExecutePayment) {
       return;
     }
+
+    setIsSubmittingPayment(true);
     setStep('processing');
+
+    if (onExecutePayment) {
+      try {
+        const res = await onExecutePayment(order, paymentMethod);
+        if (res.status === 'INSUFFICIENT_FUNDS') {
+          setServerShortfallUsd(
+            res.shortfallUsd ??
+              Math.max(0, Number((order.amountUsd - walletBalance).toFixed(2)))
+          );
+          setStep('summary');
+          setIsSubmittingPayment(false);
+          return;
+        }
+
+        if (res.transactionId) {
+          setInvoiceNumber(res.transactionId);
+        }
+        setAlreadyOwnedNotice(res.status === 'ALREADY_OWNED');
+        setExecutedAtomically(true);
+        setStep('receipt');
+      } catch {
+        setStep('summary');
+      } finally {
+        setIsSubmittingPayment(false);
+      }
+      return;
+    }
+
     setTimeout(() => {
+      setIsSubmittingPayment(false);
       setStep('receipt');
-    }, 1500);
+    }, 900);
   };
 
   const handleFinishReceipt = () => {
-    onConfirmSuccess(order, paymentMethod, invoiceNumber);
+    onConfirmSuccess(order, paymentMethod, invoiceNumber, executedAtomically);
   };
 
   return (
@@ -95,10 +191,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 id="checkout-modal-title"
                 className="text-sm sm:text-base font-display font-bold"
               >
-                بوابة السداد وتوثيق الصلاحيات — جذوري
+                بوابة السداد الذري وتوثيق الصلاحيات — جذوري
               </h2>
               <p className="text-[11px] text-white/70">
-                تشفير آمن ومرتبط مباشرة بمحرك شجرة آدم والمحفظة الرقمية
+                حماية ضد الخصم المزدوج ومرتبط مباشرة بمحرك شجرة آدم والمحفظة الرقمية
               </p>
             </div>
           </div>
@@ -274,7 +370,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs sm:text-sm">
                   <span className="font-semibold text-[#252321]">
-                    رصيد محفظة جذوري الحالي:
+                    رصيد محفظة جذوري الفعلي الحالي:
                   </span>
                   <span className="font-mono font-bold text-[#252321] tabular-nums">
                     ${walletBalance.toFixed(2)}
@@ -282,7 +378,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-xs sm:text-sm">
                   <span className="font-semibold text-[#252321]">
-                    قيمة فتح حلقات الأجداد الوسيطين / الخدمة:
+                    قيمة الباقة / الخدمة المطلوبة:
                   </span>
                   <span className="font-mono font-bold text-[#D8755B] tabular-nums">
                     -${order.amountUsd.toFixed(2)}
@@ -291,30 +387,54 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 {canPayWithWallet ? (
                   <div className="pt-2 border-t border-[#B98A78]/25 flex items-center justify-between text-xs font-bold text-[#8D4925]">
-                    <span>الرصيد المتبقي بعد الخصم:</span>
+                    <span>الرصيد المتبقي بعد الخصم الذري:</span>
                     <span className="font-mono tabular-nums">
                       ${(walletBalance - order.amountUsd).toFixed(2)}
                     </span>
                   </div>
                 ) : (
-                  <div className="pt-2 border-t border-[#B98A78]/25 space-y-2.5">
-                    <p className="text-xs text-red-700 font-semibold">
-                      رصيد المحفظة الحالي (${walletBalance.toFixed(2)}) أقل من قيمة الطلب (${order.amountUsd.toFixed(2)}). يمكنك شحن المحفظة فوراً أو اختيار بطاقة مدى / Visa:
-                    </p>
+                  <div className="pt-2.5 border-t border-[#B98A78]/25 space-y-3">
+                    <div className="rounded-xl bg-amber-50 border border-amber-300 px-3.5 py-2.5 text-xs text-amber-950 space-y-1">
+                      <div className="font-display font-extrabold">
+                        رصيد المحفظة الحالي (${walletBalance.toFixed(2)}) غير كافٍ — المبلغ المتبقي بدقة:{' '}
+                        <span className="font-mono text-[#D8755B]">
+                          ${exactShortfallUsd.toFixed(2)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-900/85">
+                        اشحن المبلغ المتبقي فوراً أدناه أو اختر السداد المباشر عبر بطاقة مدى / Visa.
+                      </p>
+                    </div>
                     {onQuickTopUpWallet && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onQuickTopUpWallet(15)}
-                          className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                          disabled={isQuickToppingUp}
+                          onClick={() => handleQuickTopUpClick(exactShortfallUsd || 5)}
+                          className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>شحن فوري للمحفظة (+$15)</span>
+                          {isQuickToppingUp ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Plus className="w-3.5 h-3.5" />
+                          )}
+                          <span>
+                            شحن المبلغ المتبقي فوراً (+${exactShortfallUsd.toFixed(2)})
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isQuickToppingUp}
+                          onClick={() => handleQuickTopUpClick(20)}
+                          className="px-3 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-white text-xs font-display font-bold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>شحن +$20</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setPaymentMethod('mada')}
-                          className="px-3.5 py-2 rounded-xl bg-[#EDE6DA] text-[#252321] text-xs font-display font-bold cursor-pointer"
+                          className="px-3 py-2 rounded-xl bg-[#EDE6DA] text-[#252321] text-xs font-display font-bold cursor-pointer"
                         >
                           الدفع ببطاقة مدى مباشرة
                         </button>
@@ -400,24 +520,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             )}
 
-            {/* Submit Payment Button */}
+            {/* Submit Payment Button (Locked during transaction to prevent double-charge) */}
             <div className="pt-1 flex flex-col sm:flex-row gap-2.5">
               <button
                 type="submit"
-                disabled={paymentMethod === 'wallet' && !canPayWithWallet}
-                className="flex-1 py-3.5 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-extrabold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                disabled={
+                  isSubmittingPayment ||
+                  (paymentMethod === 'wallet' && !canPayWithWallet)
+                }
+                className="flex-1 py-3.5 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-extrabold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Lock className="w-4 h-4" />
+                {isSubmittingPayment ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Lock className="w-4 h-4" />
+                )}
                 <span>
-                  {paymentMethod === 'wallet'
+                  {isSubmittingPayment
+                    ? 'جاري تنفيذ المعاملة السحابية الذرية...'
+                    : paymentMethod === 'wallet'
                     ? `تأكيد خصم $${order.amountUsd.toFixed(2)} من المحفظة وفتح العُقد`
                     : `إتمام السداد الآن ($${order.amountUsd.toFixed(2)}) وتفعيل الصلاحيات`}
                 </span>
               </button>
               <button
                 type="button"
+                disabled={isSubmittingPayment}
                 onClick={onClose}
-                className="py-3.5 px-4 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-xs font-display font-bold cursor-pointer"
+                className="py-3.5 px-4 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-xs font-display font-bold cursor-pointer disabled:opacity-50"
               >
                 إلغاء
               </button>
@@ -425,7 +555,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </form>
         )}
 
-        {/* STEP 2: Processing Animation (1.5 seconds) */}
+        {/* STEP 2: Atomic Cloud Transaction Processing */}
         {step === 'processing' && (
           <div className="p-10 sm:p-14 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-[#D8755B]/15 border-2 border-[#D8755B] text-[#D8755B] flex items-center justify-center mx-auto shadow-inner">
@@ -433,10 +563,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
             <div className="space-y-2">
               <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
-                جاري تأكيد عملية السداد وتوثيق الصلاحيات في شجرة آدم...
+                جاري تنفيذ المعاملة الذرية وتوثيق الصلاحيات في شجرة آدم...
               </h3>
               <p className="text-xs sm:text-sm text-[#252321]/75 max-w-md mx-auto leading-relaxed">
-                يتم الآن فك التشفير الأرشيفي للعُقد المطلوبة وربطها بسجل عائلتك الموثق.
+                يتم التحقق السحابي الفوري من الرصيد وعدم التكرار وتوثيق المرجع المالي المعتمد.
               </p>
             </div>
           </div>
@@ -450,15 +580,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/40 text-xs font-mono font-bold text-[#8D4925]">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/40 text-xs font-mono font-bold text-[#8D4925]">
                 <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
-                <span>إيصال تأكيد معتمد · رقم العملية: {invoiceNumber}</span>
+                <span dir="ltr">{invoiceNumber}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyInvoice}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white hover:bg-[#D8755B] hover:text-white text-[#252321] text-[10px] font-sans font-bold transition-colors cursor-pointer"
+                >
+                  {copiedReceiptRef ? (
+                    <>
+                      <Check className="w-3 h-3" />
+                      <span>تم النسخ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>نسخ الرقم المرجعي</span>
+                    </>
+                  )}
+                </button>
               </div>
               <h3 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
-                تمت عملية السداد والتفعيل بنجاح!
+                {alreadyOwnedNotice
+                  ? 'الميزة مفعّلة مسبقاً في حسابك!'
+                  : 'تمت عملية السداد والتفعيل الذري بنجاح!'}
               </h3>
               <p className="text-xs sm:text-sm text-[#252321]/80 max-w-md mx-auto leading-relaxed">
-                تم توثيق وإتاحة <strong>«{order.title}»</strong> في حسابك بنجاح داخل شجرة آدم.
+                {alreadyOwnedNotice
+                  ? `تم التحقق السحابي من ملكيتك السابقة لـ «${order.title}» — لم يتم خصم أي سنت إضافي ($0.00).`
+                  : `تم توثيق وإتاحة «${order.title}» في حسابك بنجاح داخل شجرة آدم والسجل المالي.`}
               </p>
             </div>
 
@@ -468,14 +619,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <span className="font-bold text-[#252321]">{order.title}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#252321]/65">المبلغ المسدد:</span>
+                <span className="text-[#252321]/65">المبلغ المسدد فعلياً:</span>
                 <span className="font-mono font-bold text-[#D8755B]">
-                  ${order.amountUsd.toFixed(2)}
+                  {alreadyOwnedNotice ? '$0.00 (مفعّلة مسبقاً)' : `$${order.amountUsd.toFixed(2)}`}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#252321]/65">المرجع الأرشيفي:</span>
-                <span className="font-mono font-semibold text-[#252321]">
+                <span className="text-[#252321]/65">المرجع المالي الموحد:</span>
+                <span dir="ltr" className="font-mono font-semibold text-[#252321]">
                   {invoiceNumber}
                 </span>
               </div>
