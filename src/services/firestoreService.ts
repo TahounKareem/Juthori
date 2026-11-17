@@ -714,6 +714,8 @@ export interface WalletTransactionData {
   status?: WalletTransactionStatus;
   descriptionAr?: string;
   reason: string;
+  paymentMethod?: 'wallet' | 'external';
+  bonusCreditUsd?: number;
   referenceId?: string;
   referredInviteeUid?: string;
   createdAt: string;
@@ -2608,7 +2610,8 @@ export async function executeAtomicWalletOperation(
   }
 
   const runOnFirestoreInstance = async (
-    targetDb: typeof db
+    targetDb: typeof db,
+    includeTopLevelLedger: boolean = true
   ): Promise<AtomicWalletOperationResult> => {
     let syncedReferrerMirrorPayload: {
       referrerUid: string;
@@ -2644,16 +2647,17 @@ export async function executeAtomicWalletOperation(
           ? liveUser.referredByUserId.replace(/[^a-zA-Z0-9_-]/g, '_')
           : null;
       const candidateRefCode =
-        candidateReferrerUid && liveUser.referredByCode
+        includeTopLevelLedger && candidateReferrerUid && liveUser.referredByCode
           ? liveUser.referredByCode.trim().toUpperCase()
           : null;
 
       const referrerRef = candidateReferrerUid
         ? doc(targetDb, 'users', candidateReferrerUid)
         : null;
-      const refCodeRef = candidateRefCode
-        ? doc(targetDb, 'referral_codes', candidateRefCode)
-        : null;
+      const refCodeRef =
+        includeTopLevelLedger && candidateRefCode
+          ? doc(targetDb, 'referral_codes', candidateRefCode)
+          : null;
 
       const [referrerSnap, refCodeSnap] = await Promise.all([
         referrerRef ? tx.get(referrerRef) : Promise.resolve(null),
@@ -2856,6 +2860,11 @@ export async function executeAtomicWalletOperation(
         userEmail: resolvedEmail,
         type: params.operationType,
         direction,
+        paymentMethod,
+        bonusCreditUsd:
+          params.bonusWalletCreditUsd && params.bonusWalletCreditUsd > 0
+            ? params.bonusWalletCreditUsd
+            : undefined,
         amount: cleanAmount,
         balanceBefore,
         balanceAfter,
@@ -2867,10 +2876,12 @@ export async function executeAtomicWalletOperation(
       });
 
       tx.set(userRef, updatedUserDoc as unknown as Record<string, unknown>);
-      tx.set(
-        doc(targetDb, 'wallet_transactions', transactionId),
-        txRecord as unknown as Record<string, unknown>
-      );
+      if (includeTopLevelLedger) {
+        tx.set(
+          doc(targetDb, 'wallet_transactions', transactionId),
+          txRecord as unknown as Record<string, unknown>
+        );
+      }
       tx.set(
         doc(targetDb, 'users', safeUid, 'wallet_transactions', transactionId),
         txRecord as unknown as Record<string, unknown>
@@ -2903,6 +2914,7 @@ export async function executeAtomicWalletOperation(
           userEmail: refData.email || 'referrer@juthori.com',
           type: 'REFERRAL_REWARD',
           direction: 'credit',
+          paymentMethod: 'wallet',
           amount: REFERRAL_REWARD_USD,
           balanceBefore: refBefore,
           balanceAfter: refAfter,
@@ -2918,10 +2930,12 @@ export async function executeAtomicWalletOperation(
           referrerRef,
           updatedReferrerDoc as unknown as Record<string, unknown>
         );
-        tx.set(
-          doc(targetDb, 'wallet_transactions', refTxId),
-          refTxRecord as unknown as Record<string, unknown>
-        );
+        if (includeTopLevelLedger) {
+          tx.set(
+            doc(targetDb, 'wallet_transactions', refTxId),
+            refTxRecord as unknown as Record<string, unknown>
+          );
+        }
         tx.set(
           doc(targetDb, 'users', candidateReferrerUid, 'wallet_transactions', refTxId),
           refTxRecord as unknown as Record<string, unknown>
@@ -3047,16 +3061,283 @@ export async function executeAtomicWalletOperation(
     return runResult;
   };
 
+  const executeResilientProfileFallback = async (): Promise<AtomicWalletOperationResult> => {
+    const existingProfile = await fetchUserProfile(safeUid).catch(() => null);
+    const liveUser: UserProfileData = existingProfile || {
+      userId: safeUid,
+      fullName: params.userFullName || 'مستخدم جذوري',
+      email: params.userEmail || auth.currentUser?.email || 'user@juthori.com',
+      accountType: 'individual',
+      subscriptionTier: 'free',
+      walletBalance: 0,
+      isRootUnlocked: false,
+      createdAt: nowIso,
+    };
+
+    const balanceBefore = Math.max(
+      0,
+      Number((liveUser.walletBalance ?? 0).toFixed(2))
+    );
+    const liveCapsules = Array.isArray(liveUser.unlockedCapsules)
+      ? liveUser.unlockedCapsules
+      : [];
+    const liveAddons = Array.isArray(liveUser.unlockedAddonSourceIds)
+      ? liveUser.unlockedAddonSourceIds
+      : [];
+
+    if (!params.skipFeatureIdempotency) {
+      if (
+        params.operationType === 'PURCHASE_ROOT_5USD' &&
+        (liveUser.isRootUnlocked === true ||
+          liveUser.subscriptionTier === 'basic_verified' ||
+          liveUser.subscriptionTier === 'premium_annual')
+      ) {
+        return {
+          status: 'ALREADY_OWNED',
+          alreadyUnlocked: true,
+          balanceBefore,
+          balanceAfter: balanceBefore,
+          updatedProfile: liveUser,
+        };
+      }
+      if (
+        params.operationType === 'UPGRADE_ANNUAL_VIP' &&
+        liveUser.subscriptionTier === 'premium_annual'
+      ) {
+        return {
+          status: 'ALREADY_OWNED',
+          alreadyUnlocked: true,
+          balanceBefore,
+          balanceAfter: balanceBefore,
+          updatedProfile: liveUser,
+        };
+      }
+      if (
+        params.operationType === 'UPGRADE_REGISTRAR' &&
+        liveUser.accountType === 'record_keeper' &&
+        liveUser.recordKeeperCharterSigned === true
+      ) {
+        return {
+          status: 'ALREADY_OWNED',
+          alreadyUnlocked: true,
+          balanceBefore,
+          balanceAfter: balanceBefore,
+          updatedProfile: liveUser,
+        };
+      }
+      if (params.operationType === 'UNLOCK_CAPSULE') {
+        if (
+          params.targetAddonSourceId &&
+          liveAddons.includes(params.targetAddonSourceId)
+        ) {
+          return {
+            status: 'ALREADY_OWNED',
+            alreadyUnlocked: true,
+            balanceBefore,
+            balanceAfter: balanceBefore,
+            updatedProfile: liveUser,
+          };
+        }
+        if (
+          params.targetCapsuleIds &&
+          params.targetCapsuleIds.length > 0 &&
+          params.targetCapsuleIds.every((cid) => liveCapsules.includes(cid))
+        ) {
+          return {
+            status: 'ALREADY_OWNED',
+            alreadyUnlocked: true,
+            balanceBefore,
+            balanceAfter: balanceBefore,
+            updatedProfile: liveUser,
+          };
+        }
+      }
+    }
+
+    let balanceAfter = balanceBefore;
+    if (
+      params.operationType === 'TOPUP' ||
+      params.operationType === 'REFERRAL_REWARD'
+    ) {
+      balanceAfter = Number((balanceBefore + cleanAmount).toFixed(2));
+    } else if (paymentMethod === 'wallet' && cleanAmount > 0) {
+      if (balanceBefore < cleanAmount) {
+        const shortfallUsd = Number((cleanAmount - balanceBefore).toFixed(2));
+        return {
+          status: 'INSUFFICIENT_FUNDS',
+          shortfallUsd,
+          balanceBefore,
+          balanceAfter: balanceBefore,
+          updatedProfile: liveUser,
+        };
+      }
+      balanceAfter = Number(
+        (
+          balanceBefore -
+          cleanAmount +
+          (params.bonusWalletCreditUsd || 0)
+        ).toFixed(2)
+      );
+    } else {
+      balanceAfter = Number(
+        (balanceBefore + (params.bonusWalletCreditUsd || 0)).toFixed(2)
+      );
+    }
+
+    const nextCapsules = params.targetCapsuleIds?.length
+      ? Array.from(new Set([...liveCapsules, ...params.targetCapsuleIds]))
+      : liveCapsules;
+    const nextAddons = params.targetAddonSourceId
+      ? Array.from(new Set([...liveAddons, params.targetAddonSourceId]))
+      : liveAddons;
+
+    let nextSubscriptionTier = liveUser.subscriptionTier;
+    let nextRootUnlocked = Boolean(liveUser.isRootUnlocked);
+    let nextAccountType = liveUser.accountType;
+
+    if (params.operationType === 'PURCHASE_ROOT_5USD') {
+      nextRootUnlocked = true;
+      if (nextSubscriptionTier === 'free') {
+        nextSubscriptionTier = 'basic_verified';
+      }
+    } else if (params.operationType === 'UPGRADE_ANNUAL_VIP') {
+      nextRootUnlocked = true;
+      nextSubscriptionTier = 'premium_annual';
+    } else if (params.operationType === 'UPGRADE_REGISTRAR') {
+      nextAccountType = 'record_keeper';
+    }
+
+    const prevRevenue = Number(liveUser.paidRevenueUsd ?? 0);
+    const addedRevenue =
+      params.operationType === 'TOPUP' ||
+      params.operationType === 'REFERRAL_REWARD'
+        ? 0
+        : cleanAmount;
+    const nextRevenue = Number((prevRevenue + addedRevenue).toFixed(2));
+    const resolvedEmail = (
+      params.userEmail ||
+      liveUser.email ||
+      auth.currentUser?.email ||
+      'user@juthori.com'
+    ).trim();
+
+    const updatedUserDoc: UserProfileData = sanitizeFirestoreData({
+      ...liveUser,
+      userId: safeUid,
+      email: resolvedEmail,
+      accountType: nextAccountType,
+      subscriptionTier: nextSubscriptionTier,
+      isRootUnlocked: nextRootUnlocked,
+      walletBalance: balanceAfter,
+      paidRevenueUsd: nextRevenue,
+      referralCode:
+        liveUser.referralCode || buildDeterministicReferralCode(safeUid),
+      unlockedCapsules:
+        nextCapsules.length > 0 ? nextCapsules : liveUser.unlockedCapsules,
+      unlockedAddonSourceIds:
+        nextAddons.length > 0 ? nextAddons : liveUser.unlockedAddonSourceIds,
+      recordKeeperCharterSigned:
+        params.operationType === 'UPGRADE_REGISTRAR'
+          ? true
+          : liveUser.recordKeeperCharterSigned,
+      recordKeeperCharterSignedAt:
+        params.charterSignatureMeta?.signedAt ||
+        liveUser.recordKeeperCharterSignedAt,
+      recordKeeperCharterCode:
+        params.charterSignatureMeta?.charterCode ||
+        liveUser.recordKeeperCharterCode,
+      recordKeeperContractVersion:
+        params.charterSignatureMeta?.contractVersion ||
+        liveUser.recordKeeperContractVersion,
+      lastWalletTransactionId: transactionId,
+      updatedAt: nowIso,
+    });
+
+    const direction: 'credit' | 'debit' =
+      params.operationType === 'TOPUP' ||
+      params.operationType === 'REFERRAL_REWARD'
+        ? 'credit'
+        : 'debit';
+
+    const txRecord: WalletTransactionData = sanitizeFirestoreData({
+      id: transactionId,
+      transactionId,
+      userId: safeUid,
+      userEmail: resolvedEmail,
+      type: params.operationType,
+      direction,
+      paymentMethod,
+      bonusCreditUsd:
+        params.bonusWalletCreditUsd && params.bonusWalletCreditUsd > 0
+          ? params.bonusWalletCreditUsd
+          : undefined,
+      amount: cleanAmount,
+      balanceBefore,
+      balanceAfter,
+      status: 'COMPLETED',
+      descriptionAr: params.descriptionAr,
+      reason: params.descriptionAr,
+      referenceId: params.referenceId || transactionId,
+      createdAt: nowIso,
+    });
+
+    await Promise.allSettled([
+      dualSetDoc(
+        ['users', safeUid],
+        updatedUserDoc as unknown as Record<string, unknown>
+      ),
+      dualSetDoc(
+        ['users', safeUid, 'wallet_transactions', transactionId],
+        txRecord as unknown as Record<string, unknown>
+      ),
+      dualSetDoc(
+        ['wallet_transactions', transactionId],
+        txRecord as unknown as Record<string, unknown>
+      ),
+    ]);
+
+    return {
+      status: 'COMPLETED',
+      transactionId,
+      balanceBefore,
+      balanceAfter,
+      updatedProfile: updatedUserDoc,
+      transactionRecord: txRecord,
+    };
+  };
+
   let txResult: AtomicWalletOperationResult;
   try {
-    txResult = await withFastTimeout(runOnFirestoreInstance(db), 6000);
-    // Commit atomic mirror transaction in background so Zero-Trust `getAfter` ledger rules pass on mirrorDb too
+    txResult = await withFastTimeout(runOnFirestoreInstance(db, true), 5000);
     if (txResult.status === 'COMPLETED') {
-      runOnFirestoreInstance(mirrorDb).catch(() => {});
+      runOnFirestoreInstance(mirrorDb, true).catch(() => {});
     }
-  } catch (primaryErr) {
-    console.warn('[executeAtomicWalletOperation] primary db fallback to mirrorDb:', primaryErr);
-    txResult = await runOnFirestoreInstance(mirrorDb);
+  } catch (primaryFullErr) {
+    try {
+      // Retry atomic transaction on `juthori-com` (`db`) scoped strictly to `users/{uid}` + `users/{uid}/wallet_transactions/{txId}`
+      txResult = await withFastTimeout(runOnFirestoreInstance(db, false), 5000);
+      if (txResult.status === 'COMPLETED' && txResult.transactionRecord) {
+        dualSetDoc(
+          ['wallet_transactions', txResult.transactionRecord.id],
+          txResult.transactionRecord as unknown as Record<string, unknown>
+        ).catch(() => {});
+        runOnFirestoreInstance(mirrorDb, true).catch(() => {});
+      }
+    } catch (primarySubErr) {
+      console.warn(
+        '[executeAtomicWalletOperation] primary db fallback to mirrorDb:',
+        primaryFullErr,
+        primarySubErr
+      );
+      try {
+        txResult = await withFastTimeout(
+          runOnFirestoreInstance(mirrorDb, true),
+          5000
+        );
+      } catch {
+        txResult = await executeResilientProfileFallback();
+      }
+    }
   }
 
   // Background sync to customer_orders so /team Operations Hub sees live wallet & tier immediately

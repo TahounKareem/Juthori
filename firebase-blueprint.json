@@ -885,6 +885,15 @@
           "enum": ["credit", "debit"],
           "description": "Ledger direction (credit or debit)."
         },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["wallet", "external"],
+          "description": "Whether settled by internal wallet deduction or external card/Mada/ApplePay gateway."
+        },
+        "bonusCreditUsd": {
+          "type": "number",
+          "description": "Optional promotional wallet credit granted alongside an annual subscription upgrade."
+        },
         "amount": {
           "type": "number",
           "description": "Transaction amount in USD."

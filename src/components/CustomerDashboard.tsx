@@ -1347,6 +1347,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
     const refreshUnlockedSnapshotFromEngine = () => {
       if (!activeResult.familyName) return;
+      if (
+        Array.isArray(activeResult.adamSpineNodes) &&
+        activeResult.adamSpineNodes.length >= 2 &&
+        activeResult.rootTribeName
+      ) {
+        return;
+      }
       searchJuthoriLineage(
         {
           accountType,

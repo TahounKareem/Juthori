@@ -65,6 +65,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [executedAtomically, setExecutedAtomically] = useState(false);
   const [serverShortfallUsd, setServerShortfallUsd] = useState<number | null>(null);
   const [copiedReceiptRef, setCopiedReceiptRef] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Reset modal ONLY when a new order opens (do not reset step when walletBalance updates!)
   useEffect(() => {
@@ -76,6 +77,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setExecutedAtomically(false);
       setServerShortfallUsd(null);
       setCopiedReceiptRef(false);
+      setPaymentError(null);
       if (order.allowWalletPayment && walletBalance >= order.amountUsd) {
         setPaymentMethod('wallet');
       } else {
@@ -131,6 +133,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    setPaymentError(null);
     setIsSubmittingPayment(true);
     setStep('processing');
 
@@ -154,6 +157,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setExecutedAtomically(true);
         setStep('receipt');
       } catch {
+        setPaymentError(
+          'تعذّر إتمام الاتصال السحابي لحظياً. يرجى المحاولة مرة أخرى.'
+        );
         setStep('summary');
       } finally {
         setIsSubmittingPayment(false);
@@ -517,6 +523,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {paymentError && (
+              <div className="rounded-xl bg-rose-50 border border-rose-300 px-3.5 py-2.5 text-xs font-semibold text-rose-900">
+                {paymentError}
               </div>
             )}
 

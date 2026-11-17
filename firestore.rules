@@ -267,9 +267,40 @@ service cloud.firestore {
             && math.abs((data.balanceBefore + data.amount) - data.balanceAfter) < 0.02
           )
           || (
-            data.type in ['PURCHASE_ROOT_5USD', 'UNLOCK_CAPSULE', 'UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR', 'debit']
-            && data.balanceBefore >= data.amount - 0.02
-            && math.abs((data.balanceBefore - data.amount) - data.balanceAfter) < 0.02
+            data.type in ['PURCHASE_ROOT_5USD', 'UNLOCK_CAPSULE', 'UPGRADE_REGISTRAR', 'debit']
+            && (
+              (
+                (!('paymentMethod' in data) || data.paymentMethod == 'wallet')
+                && data.balanceBefore >= data.amount - 0.02
+                && math.abs((data.balanceBefore - data.amount) - data.balanceAfter) < 0.02
+              )
+              || (
+                'paymentMethod' in data
+                && data.paymentMethod == 'external'
+                && math.abs(data.balanceAfter - data.balanceBefore) < 0.02
+              )
+            )
+          )
+          || (
+            data.type == 'UPGRADE_ANNUAL_VIP'
+            && (
+              (
+                (!('paymentMethod' in data) || data.paymentMethod == 'wallet')
+                && data.balanceBefore >= data.amount - 0.02
+                && (
+                  math.abs((data.balanceBefore - data.amount) - data.balanceAfter) < 0.02
+                  || math.abs((data.balanceBefore - data.amount + 25) - data.balanceAfter) < 0.02
+                )
+              )
+              || (
+                'paymentMethod' in data
+                && data.paymentMethod == 'external'
+                && (
+                  math.abs(data.balanceAfter - data.balanceBefore) < 0.02
+                  || math.abs((data.balanceBefore + 25) - data.balanceAfter) < 0.02
+                )
+              )
+            )
           )
         );
     }
@@ -283,6 +314,8 @@ service cloud.firestore {
         && (!('id' in data) || (data.id is string && data.id.size() <= 60))
         && (!('transactionId' in data) || (data.transactionId is string && data.transactionId.size() <= 60))
         && (!('direction' in data) || data.direction in ['credit', 'debit'])
+        && (!('paymentMethod' in data) || data.paymentMethod in ['wallet', 'external'])
+        && (!('bonusCreditUsd' in data) || (data.bonusCreditUsd is number && data.bonusCreditUsd >= 0 && data.bonusCreditUsd <= 25))
         && (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 120))
         && (!('status' in data) || data.status in ['COMPLETED', 'PENDING', 'FAILED'])
         && (!('descriptionAr' in data) || (data.descriptionAr is string && data.descriptionAr.size() <= 300))
@@ -545,9 +578,24 @@ service cloud.firestore {
         && (
           (
             isOwner(userId)
-            && incoming().walletBalance == 0
-            && incoming().subscriptionTier == 'free'
-            && (!('isRootUnlocked' in incoming()) || incoming().isRootUnlocked == false)
+            && (
+              (
+                incoming().walletBalance == 0
+                && incoming().subscriptionTier == 'free'
+                && (!('isRootUnlocked' in incoming()) || incoming().isRootUnlocked == false)
+              )
+              || (
+                'lastWalletTransactionId' in incoming()
+                && incoming().lastWalletTransactionId is string
+                && incoming().lastWalletTransactionId.size() > 0
+                && incoming().lastWalletTransactionId.size() <= 60
+                && !exists(/databases/$(database)/documents/wallet_transactions/$(incoming().lastWalletTransactionId))
+                && existsAfter(/databases/$(database)/documents/wallet_transactions/$(incoming().lastWalletTransactionId))
+                && getAfter(/databases/$(database)/documents/wallet_transactions/$(incoming().lastWalletTransactionId)).data.userId == userId
+                && getAfter(/databases/$(database)/documents/wallet_transactions/$(incoming().lastWalletTransactionId)).data.balanceBefore == 0
+                && math.abs(getAfter(/databases/$(database)/documents/wallet_transactions/$(incoming().lastWalletTransactionId)).data.balanceAfter - incoming().walletBalance) < 0.02
+              )
+            )
           )
           || isStaffOrAdmin()
         );
