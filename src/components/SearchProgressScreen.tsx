@@ -555,7 +555,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                 <span>متابعة ←</span>
               </button>
 
-              {/* Quiet Secondary Button: لست متأكداً / إنشاء تذكرة بحثية */}
+              {/* Quiet Secondary Button: لست متأكداً */}
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
@@ -563,16 +563,6 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                   className="px-4 py-2 rounded-lg text-xs font-medium text-[#252321]/65 hover:text-[#252321] hover:bg-[#EDE6DA]/60 transition-colors cursor-pointer"
                 >
                   لست متأكداً
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handlePrepareGuestResearchTicket('geographic_disambiguation')
-                  }
-                  className="px-4 py-2 rounded-lg text-xs font-display font-bold text-[#8D4925] bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/40 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
-                  <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
                 </button>
               </div>
             </div>
@@ -583,30 +573,18 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
             {isMatched ? (
               <div className="rounded-2xl border-2 border-[#D8755B]/60 bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] p-5 sm:p-6 shadow-xs text-right relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-2.5 h-full bg-[#D8755B]" />
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#D8755B] text-white flex items-center justify-center shrink-0 shadow-sm">
-                      <Sparkles className="w-6 h-6" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
-                        تم العثور على سجل نسبي موثق لعائلة ({form.familyName})
-                      </h2>
-                      <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                        أكمل حفظ حسابك بالأسفل للانتقال مباشرةً إلى تبويب «عمود نسبي» واستعراض النتيجة كاملةً.
-                      </p>
-                    </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-[#D8755B] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Sparkles className="w-6 h-6" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handlePrepareGuestResearchTicket('deep_archival_verification')
-                    }
-                    className="self-start sm:self-center shrink-0 px-3.5 py-2 rounded-xl bg-white hover:bg-[#EDE6DA]/70 border border-[#B98A78]/50 text-[11px] font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
-                    <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
-                  </button>
+                  <div className="space-y-1.5">
+                    <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+                      تم العثور على سجل نسبي موثق لعائلة ({form.familyName})
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
+                      أكمل حفظ حسابك بالأسفل للانتقال مباشرةً إلى تبويب «عمود نسبي» واستعراض النتيجة كاملةً.
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (

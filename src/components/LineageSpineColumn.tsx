@@ -1191,21 +1191,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             </div>
           </div>
         )}
-
-        {onCreateResearchTicket && (
-          <div className="pt-2 border-t border-[#B98A78]/25 text-center">
-            <button
-              type="button"
-              onClick={() =>
-                onCreateResearchTicket('geographic_disambiguation')
-              }
-              className="w-full py-2 px-3 rounded-xl bg-white/85 hover:bg-white border border-[#B98A78]/45 text-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5 text-[#D8755B]" />
-              <span>إنشاء تذكرة بحثية في مرصد البحوث لحسم الترجيح</span>
-            </button>
-          </div>
-        )}
       </div>
     );
   };
@@ -2214,36 +2199,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 );
               })()
             )}
-          </div>
-        )}
-
-        {/* Quiet Research Observatory Handoff Footer at Bottom of Spine */}
-        {!isResearcherDirectPreview && onCreateResearchTicket && (
-          <div className="mt-6 pt-5 border-t border-[#B98A78]/25 max-w-2xl mx-auto w-full relative z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/80 rounded-2xl px-4 py-3.5 border border-[#B98A78]/35">
-            <div className="text-right space-y-0.5">
-              <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
-                هل تود طلب تدقيق أرشيفي متخصص أو حسم مسار عائلي في المخطوطات؟
-              </div>
-              <p className="text-[11px] text-[#252321]/70">
-                تُفتح التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بيانات فحصك دون إعادة كتابتها.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                onCreateResearchTicket(
-                  isUnmatchedCase
-                    ? 'unmatched_family'
-                    : isVerificationPending
-                    ? 'geographic_disambiguation'
-                    : 'deep_archival_verification'
-                )
-              }
-              className="shrink-0 px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5 text-[#F3D299]" />
-              <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
-            </button>
           </div>
         )}
       </div>
