@@ -76,9 +76,14 @@ import {
   getDashboardCapabilities,
   searchJuthoriLineage,
 } from '../utils/lineageEngine';
-import { PendingResearchTicketDraft } from '../utils/handoffStorage';
+import {
+  buildResearchTicketDraftFromSearch,
+  PendingResearchTicketDraft,
+  ResearchTicketReasonType,
+} from '../utils/handoffStorage';
 import { LineageSpineColumn } from './LineageSpineColumn';
 import { PremiumTabViews } from './PremiumTabViews';
+import { ResearchTicketsView } from './ResearchTicketsView';
 import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
 import { CheckoutExecutionResult, CheckoutModal } from './CheckoutModal';
@@ -130,6 +135,7 @@ const DASHBOARD_TABS: Array<{
 }> = [
   { id: DashboardTab.Home, label: 'الرئيسية', premium: false },
   { id: DashboardTab.Lineage, label: 'عمود نسبي', premium: false },
+  { id: DashboardTab.ResearchTickets, label: 'مرصد البحوث', premium: false },
   { id: DashboardTab.MyTree, label: 'شجرتي', premium: false },
   { id: DashboardTab.MyVault, label: 'خزانتي', premium: false },
   { id: DashboardTab.MyExplorer, label: 'كشافي', premium: true },
@@ -177,25 +183,30 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     !result.familyName ||
     initialWorkspace.familyName.trim() === result.familyName.trim();
 
-  const [activeTab, setActiveTab] = useState<DashboardTab>(() =>
-    initialTab && initialTab !== DashboardTab.ResearchTickets
-      ? initialTab
-      : DashboardTab.Lineage
+  const [activeTab, setActiveTab] = useState<DashboardTab>(
+    () =>
+      initialTicketDraft
+        ? DashboardTab.ResearchTickets
+        : initialTab || DashboardTab.Lineage
   );
+  const [localTicketDraft, setLocalTicketDraft] =
+    useState<PendingResearchTicketDraft | null>(initialTicketDraft);
   const [vaultPersonFilterId, setVaultPersonFilterId] =
     useState<string | null>(null);
 
   useEffect(() => {
     if (initialTicketDraft) {
-      onClearInitialTicketDraft?.();
+      setLocalTicketDraft(initialTicketDraft);
+      setActiveUtilityDrawer(null);
+      setActiveTab(DashboardTab.ResearchTickets);
     }
-  }, [initialTicketDraft, onClearInitialTicketDraft]);
+  }, [initialTicketDraft]);
 
   useEffect(() => {
-    if (initialTab && initialTab !== DashboardTab.ResearchTickets) {
+    if (initialTab && !initialTicketDraft) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+  }, [initialTab, initialTicketDraft]);
 
   const [bridgedAncestors, setBridgedAncestors] = useState<string[]>(() =>
     initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.bridgedAncestors)
@@ -1937,6 +1948,56 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     );
   };
 
+  const handleOpenPrefilledResearchTicket = (
+    reasonType: ResearchTicketReasonType
+  ) => {
+    const draft = buildResearchTicketDraftFromSearch({
+      firstName: activeResult.clientName || editFirstName,
+      fatherName: activeResult.fatherName || editFatherName,
+      grandfatherName: activeResult.grandfatherName || editGrandfatherName,
+      familyName: activeResult.familyName || editFamilyName,
+      originCountry: activeResult.originCountry || editOriginCountry,
+      originRegion: activeResult.originRegion || editOriginRegion,
+      tribeName: activeResult.rootTribeName || '',
+      familyBranch: activeResult.rootBranchName || '',
+      reasonType,
+      additionalContext:
+        reasonType === 'geographic_disambiguation'
+          ? activeResult.disambiguationPathsSummaryForTicket
+          : undefined,
+    });
+    setLocalTicketDraft(draft);
+    setActiveUtilityDrawer(null);
+    setActiveTab(DashboardTab.ResearchTickets);
+  };
+
+  const handleOpenReferenceCorrectionTicket = (
+    personName: string,
+    referenceRank?: string
+  ) => {
+    const draft = buildResearchTicketDraftFromSearch({
+      firstName: activeResult.clientName || editFirstName,
+      fatherName: activeResult.fatherName || editFatherName,
+      grandfatherName: activeResult.grandfatherName || editGrandfatherName,
+      familyName: activeResult.familyName || editFamilyName,
+      originCountry: activeResult.originCountry || editOriginCountry,
+      originRegion: activeResult.originRegion || editOriginRegion,
+      tribeName: activeResult.rootTribeName || '',
+      familyBranch: activeResult.rootBranchName || '',
+      reasonType: 'deep_archival_verification',
+      additionalContext: `طلب تدقيق/تصحيح نسبي متعلق بالعقدة المرجعية الموثقة (${personName}${
+        referenceRank ? ` — ${referenceRank}` : ''
+      }) المستوردة في مشجرتي من عمود النسب.`,
+    });
+    appendActivity(
+      'طلب تصحيح عقدة مرجعية في مرصد البحوث',
+      `فتح تذكرة تدقيق أرشيفي للعقدة المرجعية «${personName}»`
+    );
+    setLocalTicketDraft(draft);
+    setActiveUtilityDrawer(null);
+    setActiveTab(DashboardTab.ResearchTickets);
+  };
+
   const handleEscalateVerificationToTicket = () => {
     const escalated: LineageSearchResult = {
       ...result,
@@ -1965,9 +2026,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     }).catch(() => {});
 
     appendActivity(
-      'تحديث حالة مطابقة العائلة',
-      `طلب مراجعة مسار عائلة (${result.familyName})`
+      'فتح نموذج تذكرة بحثية في مرصد البحوث',
+      `تجهيز تذكرة بحثية معبأة مسبقاً لعائلة (${result.familyName}) لحسم تعدد المسارات`
     );
+
+    handleOpenPrefilledResearchTicket('geographic_disambiguation');
   };
 
   const availableCartItems: CartItem[] = [];
@@ -3407,9 +3470,31 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
             onResyncLineage={onResyncLineageFromEngine}
             isResyncingLineage={isResyncingLineage}
+            onCreateResearchTicket={handleOpenPrefilledResearchTicket}
             userId={resolvedCustomerUid}
             onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
             onLogActivity={appendActivity}
+          />
+        ) : activeTab === DashboardTab.ResearchTickets ? (
+          <ResearchTicketsView
+            result={activeResult}
+            userEmail={userEmail}
+            userId={resolvedCustomerUid}
+            userPhone={editPhone}
+            accountType={accountType}
+            initialDraft={localTicketDraft}
+            onConsumeDraft={() => {
+              setLocalTicketDraft(null);
+              onClearInitialTicketDraft?.();
+            }}
+            onLogActivity={appendActivity}
+            onAdoptResolvedLineage={(enriched) => {
+              setVerifiedResultOverride(enriched);
+              onUpdateLineageResult?.(enriched);
+              if (stateMode === DashboardStateMode.State3Unmatched) {
+                onChangeStateMode(DashboardStateMode.State2MatchedUnpaid);
+              }
+            }}
           />
         ) : (
           <div className="space-y-4">
@@ -3486,6 +3571,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 setActiveUtilityDrawer(null);
                 setActiveTab(DashboardTab.MyVault);
               }}
+              onRequestReferenceCorrectionTicket={
+                handleOpenReferenceCorrectionTicket
+              }
               blockedUserIds={blockedUserIds}
               onBlockCommunityUser={handleBlockCommunityUser}
             />

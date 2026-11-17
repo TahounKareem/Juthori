@@ -1547,7 +1547,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const handleSyncCertifiedLineageIntoTree = () => {
     if (!result.matched) {
       setReferenceSyncBanner(
-        'سيتم تفعيل الاستيراد المرجعي فور توثيق واعتماد عمود نسب عائلتك.'
+        'سيتم تفعيل الاستيراد المرجعي فور اعتماد الباحثين لتذكرة عائلتك في مرصد البحوث.'
       );
       return;
     }
@@ -2421,9 +2421,19 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     </button>
                   </div>
                 ) : (
-                  <div className="w-full h-full min-h-[58px] rounded-xl bg-white/10 border border-[#D4AF37]/50 text-[#F3D299] text-[11px] font-display font-bold flex items-center justify-center px-2 text-center">
-                    <span>عقدة مرجعية محمية ✦</span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRadialTargetNodeId(null);
+                      onRequestReferenceCorrectionTicket?.(
+                        person.firstName,
+                        person.referenceRankLabel
+                      );
+                    }}
+                    className="w-full h-full min-h-[58px] rounded-xl bg-white/10 hover:bg-[#D4AF37]/30 border border-[#D4AF37]/50 text-[#F3D299] text-[11px] font-display font-bold cursor-pointer transition-colors flex items-center justify-center px-2 text-center"
+                  >
+                    <span>طلب تصحيح في مرصد البحوث</span>
+                  </button>
                 )}
 
                 <div>
@@ -3259,7 +3269,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             ) : (
               <div className="space-y-4">
                 <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                  ميزة <strong>«دعوة أفراد العائلة للمساهمة أو المعاينة»</strong> عبر رابط عائلي موحد هي إحدى صلاحيات الحوكمة المخصصة لحاملي صفة <strong>«أمين سجل العائلة»</strong>، وتشمل أيضاً سعة غير محدودة للأفراد والوثائق وصلاحية النشر العائلي الموثق.
+                  ميزة <strong>«دعوة أفراد العائلة للمساهمة أو المعاينة»</strong> عبر رابط عائلي موحد هي إحدى صلاحيات الحوكمة المخصصة لحاملي صفة <strong>«أمين سجل العائلة»</strong>، وتشمل أيضاً سعة غير محدودة للأفراد والوثائق وأولوية قصوى في مرصد البحوث.
                 </p>
                 <div className="flex items-center justify-end gap-2.5 pt-1">
                   <button
@@ -3347,6 +3357,26 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                             </p>
                           </div>
                         </div>
+                        {onRequestReferenceCorrectionTicket && (
+                          <div className="flex justify-end pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const refName = editingPerson.firstName;
+                                const refRank = editingPerson.referenceRankLabel;
+                                setModalConfig(null);
+                                onRequestReferenceCorrectionTicket(
+                                  refName,
+                                  refRank
+                                );
+                              }}
+                              className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>طلب تصحيح نسبي في مرصد البحوث ←</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
