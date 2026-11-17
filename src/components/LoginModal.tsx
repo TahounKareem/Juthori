@@ -16,6 +16,7 @@ import {
   findTeamMemberByEmail,
   isCorporateStaffEmail,
   updateUserProfile,
+  UserProfileData,
 } from '../services/firestoreService';
 import { AccountLegalType } from '../types/juthori';
 import {
@@ -43,6 +44,7 @@ interface LoginModalProps {
     subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
     isRootUnlocked?: boolean;
     isNewRegistration?: boolean;
+    profile?: UserProfileData | null;
   }) => void;
 }
 
@@ -154,9 +156,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   ): Promise<string | null> => {
     const normalized = (candidateEmail || '').trim().toLowerCase();
     if (!normalized) return null;
+    if (isCorporateStaffEmail(normalized)) {
+      return 'عذراً، هذا البريد الإلكتروني مسجل ضمن حسابات الإدارة وفريق العمل. يوجد فصل تام بين حسابات الإدارة وحسابات العملاء — يرجى الدخول عبر بوابة فريق العمل المخصصة (/team).';
+    }
     const teamMember = await findTeamMemberByEmail(normalized);
-    if (teamMember || isCorporateStaffEmail(normalized)) {
-      const roleNote = teamMember?.role ? ` بصلاحية «${teamMember.role}»` : '';
+    if (teamMember) {
+      const roleNote = teamMember.role ? ` بصلاحية «${teamMember.role}»` : '';
       return `عذراً، هذا البريد الإلكتروني مسجل ضمن حسابات الإدارة وفريق العمل${roleNote}. يوجد فصل تام بين حسابات الإدارة وحسابات العملاء — يرجى الدخول عبر بوابة فريق العمل المخصصة (/team).`;
     }
     return null;
@@ -172,18 +177,25 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const user = res.user;
       const cleanEmail = (user.email || '').trim();
 
-      const staffBlockMsg = await checkStaffIsolationBlock(cleanEmail);
+      const [staffBlockMsg, existingByUid] = await Promise.all([
+        checkStaffIsolationBlock(cleanEmail),
+        fetchUserProfile(user.uid),
+      ]);
       if (staffBlockMsg) {
         await signOut(auth).catch(() => {});
         setError(staffBlockMsg);
         return;
       }
 
-      const existingByEmail = cleanEmail
-        ? await fetchUserProfileByEmail(cleanEmail)
-        : null;
-      const existingByUid = await fetchUserProfile(user.uid);
-      const mergedExisting = existingByEmail || existingByUid;
+      const existingByEmail =
+        !existingByUid?.familyName && cleanEmail
+          ? await fetchUserProfileByEmail(cleanEmail)
+          : null;
+      const mergedExisting =
+        (existingByUid?.familyName ? existingByUid : null) ||
+        (existingByEmail?.familyName ? existingByEmail : null) ||
+        existingByUid ||
+        existingByEmail;
 
       const rawDisplayName = (user.displayName || '').trim();
       const inferred = inferArabicNameFromEmailOrDisplay(cleanEmail, rawDisplayName);
@@ -211,7 +223,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             .join(' ')
         : '';
 
-      const userDoc = await createUserProfileIfMissing(
+      const profileTask = createUserProfileIfMissing(
         {
           uid: user.uid,
           email: user.email,
@@ -271,8 +283,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           emailVerified: true,
           emailVerifiedAt:
             mergedExisting?.emailVerifiedAt || new Date().toISOString(),
+        },
+        {
+          knownExistingProfile: existingByUid,
+          skipTeamCheck: true,
         }
       );
+
+      let resolvedDoc: UserProfileData;
+      if (existingHasSavedArabicFamily && !shouldUseHandoff && existingByUid) {
+        profileTask.catch(() => {});
+        resolvedDoc = mergedExisting!;
+      } else {
+        resolvedDoc = await profileTask;
+      }
 
       if (mergedExisting && mergedExisting.emailVerified !== true) {
         updateUserProfile(user.uid, {
@@ -281,7 +305,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         }).catch(() => {});
       }
 
-      const resolvedDoc = existingHasSavedArabicFamily ? mergedExisting! : userDoc;
       const nameParts = (
         resolvedDoc.fullName ||
         rawDisplayName ||
@@ -325,6 +348,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         subscriptionTier: resolvedDoc.subscriptionTier,
         isRootUnlocked: resolvedDoc.isRootUnlocked,
         isNewRegistration: !existingHasSavedArabicFamily,
+        profile: resolvedDoc,
       });
       onClose();
     } catch (err: unknown) {
@@ -381,11 +405,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError('');
     setResetNotice('');
 
-    // Strict Isolation Gate: Block any staff/admin account BEFORE calling Firebase Auth on the Customer Portal
-    const staffBlockMsg = await checkStaffIsolationBlock(cleanEmail);
-    if (staffBlockMsg) {
+    // Fast synchronous corporate staff check first (0ms)
+    if (isCorporateStaffEmail(cleanEmail)) {
       await signOut(auth).catch(() => {});
-      setError(staffBlockMsg);
+      setError(
+        'عذراً، هذا البريد الإلكتروني مسجل ضمن حسابات الإدارة وفريق العمل. يوجد فصل تام بين حسابات الإدارة وحسابات العملاء — يرجى الدخول عبر بوابة فريق العمل المخصصة (/team).'
+      );
       setIsLoading(false);
       return;
     }
@@ -393,12 +418,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     let uid = '';
     let authDisplayName = '';
     let authenticatedViaFirebaseAuth = false;
+    let profileByEmail: UserProfileData | null = null;
     const typedFullName = fullName.trim();
 
-    // Look up existing profile in Firestore by email (checks `users`, `customer_orders`, and `research_tickets`)
-    const profileByEmail = await fetchUserProfileByEmail(cleanEmail);
-
     if (isRegisterMode) {
+      const staffBlockMsg = await checkStaffIsolationBlock(cleanEmail);
+      if (staffBlockMsg) {
+        await signOut(auth).catch(() => {});
+        setError(staffBlockMsg);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         uid = userCred.user.uid;
@@ -420,19 +451,35 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             return;
           }
         } else {
+          profileByEmail = await fetchUserProfileByEmail(cleanEmail);
           uid = profileByEmail?.userId || `usr_${Date.now()}`;
         }
       }
     } else {
-      // Login Mode: Authenticate with Firebase Auth FIRST (supports users who changed their password via Firebase email link!)
-      try {
-        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-        uid = userCred.user.uid;
-        authDisplayName = userCred.user.displayName || '';
+      // Login Mode: Run Firebase Auth sign-in AND staff isolation check in parallel (no pre-auth full-collection scan!)
+      const [staffCheckRes, signInRes] = await Promise.allSettled([
+        checkStaffIsolationBlock(cleanEmail),
+        signInWithEmailAndPassword(auth, cleanEmail, password),
+      ]);
+
+      const staffBlockMsg =
+        staffCheckRes.status === 'fulfilled' ? staffCheckRes.value : null;
+      if (staffBlockMsg) {
+        await signOut(auth).catch(() => {});
+        setError(staffBlockMsg);
+        setIsLoading(false);
+        return;
+      }
+
+      if (signInRes.status === 'fulfilled') {
+        uid = signInRes.value.user.uid;
+        authDisplayName = signInRes.value.user.displayName || '';
         authenticatedViaFirebaseAuth = true;
-      } catch (signErr: unknown) {
+      } else {
+        const signErr = signInRes.reason;
         const signMsg = signErr instanceof Error ? signErr.message : String(signErr);
-        // If the customer has a profile in Firestore (e.g. from OTP registration) and isn't in Firebase Auth yet, provision them
+        // Only query by email if Firebase Auth sign-in failed (e.g. legacy OTP account not yet in Firebase Auth)
+        profileByEmail = await fetchUserProfileByEmail(cleanEmail);
         if (profileByEmail) {
           try {
             const created = await createUserWithEmailAndPassword(auth, cleanEmail, password);
@@ -441,7 +488,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             authenticatedViaFirebaseAuth = true;
           } catch (createErr: unknown) {
             const createMsg = createErr instanceof Error ? createErr.message : String(createErr);
-            if (createMsg.includes('email-already-in-use') || signMsg.includes('wrong-password') || signMsg.includes('invalid-credential')) {
+            if (
+              createMsg.includes('email-already-in-use') ||
+              signMsg.includes('wrong-password') ||
+              signMsg.includes('invalid-credential')
+            ) {
               setError(
                 'كلمة المرور غير صحيحة. إذا قمت بتغييرها مؤخراً أو نسيتها، اضغط على «نسيت كلمة المرور؟» أدناه لإرسال رابط الاستعادة لبريدك.'
               );
@@ -451,7 +502,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             uid = profileByEmail.userId || `usr_${Date.now()}`;
           }
         } else {
-          // Neither Firebase Auth sign-in succeeded nor Firestore profile found
           if (signMsg.includes('wrong-password') || signMsg.includes('invalid-credential')) {
             setError(
               'كلمة المرور غير صحيحة أو الحساب غير مسجل بعد. يمكنك الضغط على «نسيت كلمة المرور؟» لاستعادتها عبر البريد، أو إنشاء حساب جديد.'
@@ -470,12 +520,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const safeUid = uid || profileByEmail?.userId || `usr_${Date.now()}`;
     const profileByUid = await fetchUserProfile(safeUid);
 
+    // Only query by email if the direct O(1) UID document didn't already carry the user's familyName
+    if (!profileByUid?.familyName && !profileByEmail) {
+      profileByEmail = await fetchUserProfileByEmail(cleanEmail);
+    }
+
     // Prefer the profile that actually has the user's registered familyName
     const storedProfile =
-      (profileByEmail?.familyName ? profileByEmail : null) ||
       (profileByUid?.familyName ? profileByUid : null) ||
-      profileByEmail ||
-      profileByUid;
+      (profileByEmail?.familyName ? profileByEmail : null) ||
+      profileByUid ||
+      profileByEmail;
 
     if (!isRegisterMode && !storedProfile && !authenticatedViaFirebaseAuth) {
       setError('لا يوجد حساب عميل مسجل بهذا البريد الإلكتروني في قاعدة البيانات.');
@@ -584,8 +639,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           )
         : undefined;
 
-    // Ensure profile is saved/healed under the active UID in Firestore
-    await createUserProfileIfMissing(
+    const profileSaveTask = createUserProfileIfMissing(
       {
         uid: safeUid,
         email: cleanEmail,
@@ -629,8 +683,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           storedProfile?.lineageSnapshot || handoffSnapshot,
         emailVerified: storedProfile?.emailVerified ?? false,
         emailVerifiedAt: storedProfile?.emailVerifiedAt,
+      },
+      {
+        knownExistingProfile: profileByUid,
+        skipTeamCheck: true,
       }
     );
+
+    let finalProfile: UserProfileData;
+    if (storedHasArabicFamily && !shouldMigrateGuestHandoff && profileByUid) {
+      profileSaveTask.catch(() => {});
+      finalProfile = storedProfile!;
+    } else {
+      finalProfile = await profileSaveTask;
+    }
 
     onLoginSuccess({
       uid: safeUid,
@@ -644,9 +710,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       tribeName: resolvedTribe,
       branchName: resolvedBranch,
       accountType: resolvedAccountType,
-      subscriptionTier: storedProfile?.subscriptionTier,
-      isRootUnlocked: storedProfile?.isRootUnlocked,
+      subscriptionTier: finalProfile.subscriptionTier ?? storedProfile?.subscriptionTier,
+      isRootUnlocked: finalProfile.isRootUnlocked ?? storedProfile?.isRootUnlocked,
       isNewRegistration: isRegisterMode || !storedHasArabicFamily,
+      profile: finalProfile,
     });
     setIsLoading(false);
     onClose();

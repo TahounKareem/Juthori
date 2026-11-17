@@ -27,11 +27,6 @@ import {
   isCorporateStaffEmail,
 } from '../services/firestoreService';
 import {
-  buildResearchTicketDraftFromSearch,
-  PendingResearchTicketDraft,
-  readPendingTicketDraft,
-  ResearchTicketReasonType,
-  savePendingTicketDraft,
   updatePendingLineageHandoffDisambiguation,
 } from '../utils/handoffStorage';
 
@@ -82,8 +77,6 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [pendingTicketDraft, setPendingTicketDraft] =
-    useState<PendingResearchTicketDraft | null>(() => readPendingTicketDraft());
   const preservationCardRef = React.useRef<HTMLDivElement | null>(null);
   const emailInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -150,39 +143,6 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
       disambiguationChoiceId: 'NOT_SURE_ESCALATE_P1',
     });
     setDisambiguationResolved(true);
-  };
-
-  const handlePrepareGuestResearchTicket = (
-    reasonType: ResearchTicketReasonType,
-    openExistingLoginModal = false
-  ) => {
-    const draft = buildResearchTicketDraftFromSearch({
-      firstName: form.firstName || result.clientName,
-      fatherName: form.fatherName || result.fatherName,
-      grandfatherName: form.grandfatherName || result.grandfatherName,
-      familyName: form.familyName || result.familyName,
-      originCountry: form.originCountry || result.originCountry,
-      originRegion: form.originRegion || result.originRegion,
-      tribeName: form.tribeName,
-      familyBranch: form.branchName,
-      reasonType,
-    });
-    savePendingTicketDraft(draft);
-    setPendingTicketDraft(draft);
-    setDisambiguationResolved(true);
-
-    if (openExistingLoginModal && onOpenLoginModal) {
-      onOpenLoginModal();
-      return;
-    }
-
-    setTimeout(() => {
-      preservationCardRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-      emailInputRef.current?.focus();
-    }, 80);
   };
 
   const handleSendRealOtpEmail = async () => {
@@ -599,59 +559,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                       لم يظهر تطابق آلي مباشر لعائلة ({form.familyName}) في الفهرس العام
                     </h2>
                     <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                      يمكنك رفع طلب تحقيق وتوثيق متخصص في «مرصد البحوث» ببياناتك المدخلة كاملةً دون إعادة كتابتها، أو حفظ حسابك أدناه لمتابعة سجل أسرتك.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2.5 pr-0 sm:pr-16">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handlePrepareGuestResearchTicket(
-                        selectedDisambiguationOption === 'not_sure_ticket'
-                          ? 'geographic_disambiguation'
-                          : 'unmatched_family'
-                      )
-                    }
-                    className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-white text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-[#F3D299]" />
-                    <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
-                    <ArrowLeft className="w-4 h-4 text-[#F3D299]" />
-                  </button>
-                  {onOpenLoginModal && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handlePrepareGuestResearchTicket(
-                          selectedDisambiguationOption === 'not_sure_ticket'
-                            ? 'geographic_disambiguation'
-                            : 'unmatched_family',
-                          true
-                        )
-                      }
-                      className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[#252321] text-xs font-display font-bold transition-colors cursor-pointer"
-                    >
-                      لديك حساب مسبق؟ سجّل الدخول لفتح التذكرة فوراً
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Welcoming Handoff Banner when Guest Prepared a Research Ticket Draft */}
-            {pendingTicketDraft && (
-              <div className="rounded-2xl bg-gradient-to-l from-[#252321] to-[#36322E] text-white border border-[#D8755B]/60 p-4 sm:p-5 shadow-md flex items-start justify-between gap-3 text-right">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#D8755B]/25 border border-[#D8755B]/60 text-[#F3D299] flex items-center justify-center shrink-0 mt-0.5">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs sm:text-sm font-display font-extrabold text-[#F3D299]">
-                      مرحباً بك — تم تجهيز مسودة تذكرتك البحثية لعائلة ({pendingTicketDraft.familyName}) بنجاح
-                    </div>
-                    <p className="text-[11px] sm:text-xs text-white/85 leading-relaxed">
-                      بمجرد إتمام حفظ حسابك أو تسجيل الدخول أدناه، ستُفتح لك نافذة التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بياناتك المدخلة دون فقدان أي حرف.
+                      أكمل حفظ حسابك بالأسفل للانتقال إلى لوحة التحكم ومتابعة سجل أسرتك وبناء مشجرتك الخاصة.
                     </p>
                   </div>
                 </div>
@@ -666,14 +574,10 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#B98A78]/25 pb-4">
                 <div className="text-right">
                   <span className="text-xs font-display font-bold text-[#D8755B]">
-                    {pendingTicketDraft
-                      ? 'بوابة تفعيل الحساب وفتح التذكرة البحثية'
-                      : 'بطاقة تأكيد وحفظ الاكتشاف'}
+                    بطاقة تأكيد وحفظ الاكتشاف
                   </span>
                   <h3 className="text-base sm:text-lg font-display font-bold text-[#252321]">
-                    {pendingTicketDraft
-                      ? 'أنشئ حسابك في ثوانٍ لتُفتح تذكرتك البحثية باسمك مباشرةً:'
-                      : 'احفظ هذا الاكتشاف باسمك وانتقل فوراً إلى لوحة التحكم:'}
+                    احفظ هذا الاكتشاف باسمك وانتقل فوراً إلى لوحة التحكم:
                   </h3>
                 </div>
 

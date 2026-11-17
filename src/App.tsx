@@ -22,6 +22,7 @@ import {
   isEmailPrefixOrAsciiPlaceholder,
   recordLegalAuditTrailInFirebase,
   canonicalCustomerEmailUid,
+  UserProfileData,
 } from './services/firestoreService';
 import { TERMS_AND_PRIVACY_VERSION } from './data/recordKeeperContractData';
 import {
@@ -289,9 +290,11 @@ export function App() {
     lineageResultRef.current = lineageResult;
   }, [lineageResult]);
 
-  // Listen for URL changes to /Team, #/Team, /{FamilySlug}, ?ref=, ?optout=, and bootstrap Firestore
+  // Listen for URL changes to /Team, #/Team, /{FamilySlug}, ?ref=, ?optout= (only run admin DB bootstrap on /team)
   useEffect(() => {
-    bootstrapJuthoriFirestoreDatabase().catch(() => {});
+    if (isTeamRouteInWindow()) {
+      bootstrapJuthoriFirestoreDatabase().catch(() => {});
+    }
     capturePendingReferralCodeFromUrl();
 
     if (typeof window !== 'undefined') {
@@ -495,10 +498,11 @@ export function App() {
           return;
         }
 
-        const [byUid, byEmail] = await Promise.all([
-          cachedUid ? fetchUserProfile(cachedUid) : Promise.resolve(null),
-          cachedEmail ? fetchUserProfileByEmail(cachedEmail) : Promise.resolve(null),
-        ]);
+        const byUid = cachedUid ? await fetchUserProfile(cachedUid) : null;
+        const byEmail =
+          !byUid && cachedEmail
+            ? await fetchUserProfileByEmail(cachedEmail)
+            : null;
         if (cancelled) return;
         if (!byUid && !byEmail) {
           if (initialSession.form?.email && initialSession.form?.familyName) {
@@ -626,21 +630,25 @@ export function App() {
               cleanUserEmail
             );
 
-          const [profileByUid, profileByEmail] = await Promise.all([
-            fetchUserProfile(user.uid),
-            user.email ? fetchUserProfileByEmail(user.email) : Promise.resolve(null),
-          ]);
+          const profileByUid = await fetchUserProfile(user.uid);
+          const uidHasValidArabicFamily =
+            Boolean(profileByUid?.familyName) &&
+            !isEmailPrefixOrAsciiPlaceholder(
+              profileByUid?.familyName,
+              cleanUserEmail
+            );
+          const profileByEmail =
+            !uidHasValidArabicFamily && user.email
+              ? await fetchUserProfileByEmail(user.email)
+              : null;
           let profile =
+            (uidHasValidArabicFamily ? profileByUid : null) ||
             (profileByEmail?.familyName &&
             !isEmailPrefixOrAsciiPlaceholder(profileByEmail.familyName, cleanUserEmail)
               ? profileByEmail
               : null) ||
-            (profileByUid?.familyName &&
-            !isEmailPrefixOrAsciiPlaceholder(profileByUid.familyName, cleanUserEmail)
-              ? profileByUid
-              : null) ||
-            profileByEmail ||
-            profileByUid;
+            profileByUid ||
+            profileByEmail;
 
           const localEmailPart = (cleanUserEmail.split('@')[0] || '').toLowerCase();
           const isTahounKareem =
@@ -748,6 +756,10 @@ export function App() {
                   activeSearchForm.accountType === AccountLegalType.RecordKeeper
                     ? 'record_keeper'
                     : 'individual',
+              },
+              {
+                knownExistingProfile: null,
+                skipTeamCheck: true,
               }
             );
             if (pendingHandoff) {
@@ -1338,9 +1350,10 @@ export function App() {
       resolvedDisambigChoiceId
     );
 
-    const existingCustomerProfile = await fetchUserProfile(safeUid).then(
-      (p) => p || fetchUserProfileByEmail(cleanRegEmail)
-    );
+    const existingByUid = await fetchUserProfile(safeUid);
+    const existingCustomerProfile =
+      existingByUid ||
+      (cleanRegEmail ? await fetchUserProfileByEmail(cleanRegEmail) : null);
     const shouldMigrateSearchToProfile =
       !existingCustomerProfile ||
       !existingCustomerProfile.familyName ||
@@ -1378,6 +1391,10 @@ export function App() {
         termsIpAddress: silentGeo.ip || '127.0.0.1',
         emailVerified: existingCustomerProfile?.emailVerified ?? false,
         emailVerifiedAt: existingCustomerProfile?.emailVerifiedAt,
+      },
+      {
+        knownExistingProfile: existingByUid,
+        skipTeamCheck: true,
       }
     );
 
@@ -1471,8 +1488,8 @@ export function App() {
       }
     }
 
-    // Record real customer order in Firebase (/customer_orders) for /Team visibility
-    await upsertCustomerOrderInFirebase({
+    // Record real customer order in Firebase (/customer_orders) non-blockingly for /Team visibility
+    upsertCustomerOrderInFirebase({
       id: `ORD-${safeUid.slice(-6).toUpperCase()}`,
       userId: safeUid,
       fullName: fullName || form.familyName,
@@ -1522,7 +1539,7 @@ export function App() {
         ? `${resolvedActiveResult.adamSpineNodes.length} عُقد (مشاريع ألفا)`
         : `${resolvedActiveResult.adamSpineNodes.length} عقدة (شجرة آدم)`,
       createdAt: new Date().toISOString(),
-    });
+    }).catch(() => {});
 
     setForm((prev) => ({
       ...prev,
@@ -1546,10 +1563,13 @@ export function App() {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
       const cleanGoogleEmail = (user.email || '').trim();
-      if (
-        isCorporateStaffEmail(cleanGoogleEmail) ||
-        Boolean(await findTeamMemberByEmail(cleanGoogleEmail))
-      ) {
+      const [isTeamMember, existingByUid] = await Promise.all([
+        isCorporateStaffEmail(cleanGoogleEmail)
+          ? Promise.resolve(true)
+          : findTeamMemberByEmail(cleanGoogleEmail).then(Boolean),
+        fetchUserProfile(user.uid),
+      ]);
+      if (isTeamMember) {
         await signOut(auth).catch(() => {});
         return;
       }
@@ -1559,9 +1579,9 @@ export function App() {
       }
 
       const pendingHandoff = readPendingLineageHandoff();
-      const existingProfile = await fetchUserProfile(user.uid).then(
-        (p) => p || (cleanGoogleEmail ? fetchUserProfileByEmail(cleanGoogleEmail) : null)
-      );
+      const existingProfile =
+        existingByUid ||
+        (cleanGoogleEmail ? await fetchUserProfileByEmail(cleanGoogleEmail) : null);
       const hasExistingSavedLineage =
         Boolean(existingProfile?.familyName) &&
         !isEmailPrefixOrAsciiPlaceholder(
@@ -1614,11 +1634,15 @@ export function App() {
           termsIpAddress: silentGeo.ip || '127.0.0.1',
           emailVerified: true,
           emailVerifiedAt: existingProfile?.emailVerifiedAt || agreedIso,
+        },
+        {
+          knownExistingProfile: existingByUid,
+          skipTeamCheck: true,
         }
       );
 
       if (!hasExistingSavedLineage && form.familyName) {
-        await updateUserProfile(user.uid, {
+        updateUserProfile(user.uid, {
           fullName,
           firstName: form.firstName,
           fatherName: form.fatherName,
@@ -1663,7 +1687,7 @@ export function App() {
 
       const ticketNum = lineageResult.alphaBackgroundTicketCode || '—';
 
-      await upsertCustomerOrderInFirebase({
+      upsertCustomerOrderInFirebase({
         id: `ORD-${user.uid.slice(-6).toUpperCase()}`,
         userId: user.uid,
         fullName,
@@ -1700,7 +1724,7 @@ export function App() {
           ? `${lineageResult.adamSpineNodes.length} عقدة`
           : 'تذكرة بحث مفتوحة',
         createdAt: new Date().toISOString(),
-      });
+      }).catch(() => {});
 
       setForm((prev) => ({
         ...prev,
@@ -1734,6 +1758,7 @@ export function App() {
     subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
     isRootUnlocked?: boolean;
     isNewRegistration?: boolean;
+    profile?: UserProfileData | null;
   }) => {
     const resolvedUid =
       payload.uid ||
@@ -1744,12 +1769,16 @@ export function App() {
     }
 
     const pendingHandoff = readPendingLineageHandoff();
-    const existingProfile = await (resolvedUid
-      ? fetchUserProfile(resolvedUid)
-      : Promise.resolve(null)
-    ).then(
-      (p) => p || (payload.email ? fetchUserProfileByEmail(payload.email) : null)
-    );
+    const existingProfile =
+      payload.profile !== undefined
+        ? payload.profile
+        : await (resolvedUid
+            ? fetchUserProfile(resolvedUid)
+            : Promise.resolve(null)
+          ).then(
+            (p) =>
+              p || (payload.email ? fetchUserProfileByEmail(payload.email) : null)
+          );
 
     const existingHasSavedLineage =
       Boolean(existingProfile?.familyName) &&
@@ -1801,7 +1830,7 @@ export function App() {
         ]
           .filter(Boolean)
           .join(' ');
-        await updateUserProfile(resolvedUid, {
+        updateUserProfile(resolvedUid, {
           fullName: computedFull,
           firstName: handoffForm.firstName,
           fatherName: handoffForm.fatherName,

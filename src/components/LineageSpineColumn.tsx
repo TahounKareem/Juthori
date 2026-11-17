@@ -3,7 +3,6 @@ import {
   BookOpenCheck,
   CheckCircle2,
   Download,
-  FileText,
   RefreshCw,
   Sparkles,
   MapPin,
@@ -716,19 +715,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             onClick={onUpgradeAnnualVip}
             className="w-full py-3 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs sm:text-sm font-display font-extrabold transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
           >
-            <span>اشترك في الباقة السنوية وافتح تذكرة بحث لعائلتك ←</span>
+            <span>اشترك في الباقة السنوية لتوثيق عمود نسب عائلتك ←</span>
           </button>
-
-          {onCreateResearchTicket && (
-            <button
-              type="button"
-              onClick={() => onCreateResearchTicket('unmatched_family')}
-              className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#8D4925]/55 text-[#8D4925] text-xs font-display font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
-            >
-              <FileText className="w-3.5 h-3.5 shrink-0" />
-              <span>إنشاء تذكرة بحثية في مرصد البحوث ←</span>
-            </button>
-          )}
         </div>
       );
     }
@@ -763,17 +751,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
           >
             ابدأ ببناء شجرة أسرتك القريبة في «شجرتي» ←
-          </button>
-        )}
-
-        {onCreateResearchTicket && (
-          <button
-            type="button"
-            onClick={() => onCreateResearchTicket('unmatched_family')}
-            className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#8D4925]/55 text-[#8D4925] text-xs font-display font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
-          >
-            <FileText className="w-3.5 h-3.5 shrink-0" />
-            <span>إنشاء تذكرة بحثية في مرصد البحوث ←</span>
           </button>
         )}
       </div>

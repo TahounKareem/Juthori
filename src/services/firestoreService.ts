@@ -143,11 +143,12 @@ export async function provisionUserInFirebaseAuth(
   return { registeredInAuth, uid: resolvedUid };
 }
 
-// Dual-database helpers: run primary (juthori-com) and mirrorDb in PARALLEL with automatic undefined sanitization and Auth retry
+// Dual-database helpers: run primary (juthori-com) and mirrorDb in PARALLEL with primary-first resolution
+// so a slow/unauthenticated mirrorDb handshake never delays customer login or reads when primary `db` responds immediately.
 async function dualSetDoc(
   pathSegments: [string, ...string[]],
   data: Record<string, unknown>,
-  timeoutMs: number = 4500
+  timeoutMs: number = 2500
 ): Promise<{
   primaryWritten: boolean;
   mirrorWritten: boolean;
@@ -160,18 +161,6 @@ async function dualSetDoc(
   let primaryError: string | undefined;
   let mirrorError: string | undefined;
 
-  const primaryTask = (async () => {
-    try {
-      await withFastTimeout(
-        setDoc(doc(db, ...pathSegments), cleanData),
-        timeoutMs
-      );
-      primaryWritten = true;
-    } catch (err) {
-      primaryError = err instanceof Error ? err.message : String(err);
-    }
-  })();
-
   const mirrorTask = withFastTimeout(
     setDoc(doc(mirrorDb, ...pathSegments), cleanData),
     timeoutMs
@@ -183,46 +172,123 @@ async function dualSetDoc(
       mirrorError = err instanceof Error ? err.message : String(err);
     });
 
-  await Promise.allSettled([primaryTask, mirrorTask]);
+  try {
+    await withFastTimeout(
+      setDoc(doc(db, ...pathSegments), cleanData),
+      timeoutMs
+    );
+    primaryWritten = true;
+    // Primary DB succeeded — let mirrorTask finish non-blockingly in the background
+    return { primaryWritten, mirrorWritten, primaryError, mirrorError };
+  } catch (err) {
+    primaryError = err instanceof Error ? err.message : String(err);
+  }
 
+  // Primary DB failed or timed out — await mirror fallback
+  await mirrorTask;
   return { primaryWritten, mirrorWritten, primaryError, mirrorError };
 }
 
 async function dualGetDoc<T = Record<string, unknown>>(
-  pathSegments: [string, ...string[]]
+  pathSegments: [string, ...string[]],
+  timeoutMs: number = 1800
 ): Promise<T | null> {
-  const [mirrorRes, primaryRes] = await Promise.allSettled([
+  const mirrorPromise = withFastTimeout(
     getDoc(doc(mirrorDb, ...pathSegments)),
-    withFastTimeout(getDoc(doc(db, ...pathSegments)), 2500),
-  ]);
+    timeoutMs
+  );
 
-  // Primary database (juthori-com `db`) is the strict single source of truth:
-  if (primaryRes.status === 'fulfilled') {
-    if (primaryRes.value.exists()) {
-      const primaryData = primaryRes.value.data() as T;
-      if (mirrorRes.status === 'fulfilled' && !mirrorRes.value.exists()) {
-        setDoc(
-          doc(mirrorDb, ...pathSegments),
-          sanitizeFirestoreData(primaryData as Record<string, unknown>)
-        ).catch(() => {});
-      }
+  try {
+    const primarySnap = await withFastTimeout(
+      getDoc(doc(db, ...pathSegments)),
+      timeoutMs
+    );
+    // Primary database (juthori-com `db`) is the strict single source of truth:
+    if (primarySnap.exists()) {
+      const primaryData = primarySnap.data() as T;
+      mirrorPromise
+        .then((mSnap) => {
+          if (!mSnap.exists()) {
+            return setDoc(
+              doc(mirrorDb, ...pathSegments),
+              sanitizeFirestoreData(primaryData as Record<string, unknown>)
+            );
+          }
+          return undefined;
+        })
+        .catch(() => {});
       return primaryData;
     } else {
-      // Document does NOT exist in juthori-com (e.g. deleted by admin in Firebase Console).
-      // Never resurrect it from mirrorDb — delete stale mirror copy instead!
-      if (mirrorRes.status === 'fulfilled' && mirrorRes.value.exists()) {
-        deleteDoc(doc(mirrorDb, ...pathSegments)).catch(() => {});
-      }
+      // Document does NOT exist in juthori-com — purge any stale mirror copy in background
+      mirrorPromise
+        .then((mSnap) => {
+          if (mSnap.exists()) {
+            return deleteDoc(doc(mirrorDb, ...pathSegments));
+          }
+          return undefined;
+        })
+        .catch(() => {});
       return null;
     }
+  } catch {
+    // Only fall back to mirrorDb if primary request rejected or timed out
+    try {
+      const mirrorSnap = await mirrorPromise;
+      if (mirrorSnap.exists()) {
+        return mirrorSnap.data() as T;
+      }
+    } catch {
+      // Both unavailable or denied
+    }
+    return null;
   }
+}
 
-  // Only fall back to mirrorDb if primaryRes failed due to network timeout/offline
-  if (mirrorRes.status === 'fulfilled' && mirrorRes.value.exists()) {
-    return mirrorRes.value.data() as T;
+async function dualQueryByField<T extends { id?: string }>(
+  collectionName: string,
+  fieldName: string,
+  candidates: string[],
+  maxDocs: number = 5,
+  timeoutMs: number = 1500
+): Promise<T[]> {
+  const uniqueCandidates = Array.from(
+    new Set(candidates.map((c) => c.trim()).filter(Boolean))
+  );
+  if (uniqueCandidates.length === 0) return [];
+
+  const buildQuery = (targetDb: typeof db) =>
+    uniqueCandidates.length === 1
+      ? query(
+          collection(targetDb, collectionName),
+          where(fieldName, '==', uniqueCandidates[0]),
+          limit(maxDocs)
+        )
+      : query(
+          collection(targetDb, collectionName),
+          where(fieldName, 'in', uniqueCandidates.slice(0, 10)),
+          limit(maxDocs)
+        );
+
+  const mirrorPromise = withFastTimeout(getDocs(buildQuery(mirrorDb)), timeoutMs);
+
+  try {
+    const primarySnap = await withFastTimeout(getDocs(buildQuery(db)), timeoutMs);
+    mirrorPromise.catch(() => {});
+    return primarySnap.docs.map((d) => {
+      const item = d.data() as T;
+      return item.id ? item : ({ ...item, id: d.id } as T);
+    });
+  } catch {
+    try {
+      const mirrorSnap = await mirrorPromise;
+      return mirrorSnap.docs.map((d) => {
+        const item = d.data() as T;
+        return item.id ? item : ({ ...item, id: d.id } as T);
+      });
+    } catch {
+      return [];
+    }
   }
-
-  return null;
 }
 
 async function dualDeleteDoc(pathSegments: [string, ...string[]]): Promise<void> {
@@ -927,10 +993,26 @@ export function canonicalCustomerEmailUid(email?: string | null): string {
   return `usr_email_${em.replace(/[^a-z0-9]/g, '_').slice(0, 96)}`;
 }
 
+const TEAM_EMAIL_CACHE_TTL_MS = 60_000;
+const teamEmailLookupCache = new Map<
+  string,
+  { value: TeamMemberRecord | null; expiresAt: number }
+>();
+const inFlightTeamLookups = new Map<string, Promise<TeamMemberRecord | null>>();
+
+function invalidateTeamEmailCache(email?: string | null): void {
+  if (!email) {
+    teamEmailLookupCache.clear();
+    return;
+  }
+  teamEmailLookupCache.delete(email.trim().toLowerCase());
+}
+
 export async function findTeamMemberByEmail(
   email?: string | null
 ): Promise<TeamMemberRecord | null> {
-  const cleanEmail = (email || '').trim().toLowerCase();
+  const rawTrimmed = (email || '').trim();
+  const cleanEmail = rawTrimmed.toLowerCase();
   if (!cleanEmail) return null;
   if (cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()) {
     return FOUNDING_MAESTRO_MEMBER;
@@ -938,31 +1020,66 @@ export async function findTeamMemberByEmail(
   if (cleanEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase()) {
     return DEFAULT_GENERAL_MANAGER_MEMBER;
   }
-  try {
-    const canonicalDocId = getTeamMemberDocIdByEmail(cleanEmail);
-    const directDoc = await dualGetDoc<TeamMemberRecord>([
-      'team_members',
-      canonicalDocId,
-    ]);
-    if (
-      directDoc &&
-      (directDoc.email || '').trim().toLowerCase() === cleanEmail &&
-      !LEGACY_DUMMY_TEAM_IDS.has(directDoc.id)
-    ) {
-      return directDoc;
-    }
-    const allMembers = await dualGetCollection<TeamMemberRecord>('team_members');
-    const matched = allMembers.find(
-      (m) =>
-        m &&
-        m.email &&
-        !LEGACY_DUMMY_TEAM_IDS.has(m.id) &&
-        m.email.trim().toLowerCase() === cleanEmail
-    );
-    return matched || null;
-  } catch {
-    return null;
+
+  const cached = teamEmailLookupCache.get(cleanEmail);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
   }
+
+  const existingInFlight = inFlightTeamLookups.get(cleanEmail);
+  if (existingInFlight) {
+    return existingInFlight;
+  }
+
+  const lookupPromise = (async (): Promise<TeamMemberRecord | null> => {
+    try {
+      const canonicalDocId = getTeamMemberDocIdByEmail(cleanEmail);
+      const emailCandidates =
+        rawTrimmed !== cleanEmail ? [cleanEmail, rawTrimmed] : [cleanEmail];
+
+      const [directDoc, queriedDocs] = await Promise.all([
+        dualGetDoc<TeamMemberRecord>(['team_members', canonicalDocId], 1200),
+        dualQueryByField<TeamMemberRecord>(
+          'team_members',
+          'email',
+          emailCandidates,
+          2,
+          1200
+        ),
+      ]);
+
+      let resolved: TeamMemberRecord | null = null;
+      if (
+        directDoc &&
+        (directDoc.email || '').trim().toLowerCase() === cleanEmail &&
+        !LEGACY_DUMMY_TEAM_IDS.has(directDoc.id)
+      ) {
+        resolved = directDoc;
+      } else {
+        resolved =
+          queriedDocs.find(
+            (m) =>
+              m &&
+              m.email &&
+              !LEGACY_DUMMY_TEAM_IDS.has(m.id) &&
+              m.email.trim().toLowerCase() === cleanEmail
+          ) || null;
+      }
+
+      teamEmailLookupCache.set(cleanEmail, {
+        value: resolved,
+        expiresAt: Date.now() + TEAM_EMAIL_CACHE_TTL_MS,
+      });
+      return resolved;
+    } catch {
+      return null;
+    } finally {
+      inFlightTeamLookups.delete(cleanEmail);
+    }
+  })();
+
+  inFlightTeamLookups.set(cleanEmail, lookupPromise);
+  return lookupPromise;
 }
 
 function isTeamAccountDocInUsers(
@@ -1091,7 +1208,8 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
 export async function fetchUserProfileByEmail(
   email: string
 ): Promise<UserProfileData | null> {
-  const cleanEmail = (email || '').trim().toLowerCase();
+  const rawEmail = (email || '').trim();
+  const cleanEmail = rawEmail.toLowerCase();
   if (!cleanEmail || isCorporateStaffEmail(cleanEmail)) return null;
 
   const teamMatch = await findTeamMemberByEmail(cleanEmail);
@@ -1119,10 +1237,31 @@ export async function fetchUserProfileByEmail(
   }
 
   try {
+    const emailCandidates =
+      rawEmail !== cleanEmail ? [cleanEmail, rawEmail] : [cleanEmail];
+
     const [allUsers, allOrders, allTickets] = await Promise.all([
-      dualGetCollection<UserProfileData & { id?: string }>('users'),
-      dualGetCollection<CustomerOrderRecord>('customer_orders'),
-      dualGetCollection<ResearchTicketData>('research_tickets'),
+      dualQueryByField<UserProfileData & { id?: string }>(
+        'users',
+        'email',
+        emailCandidates,
+        5,
+        1500
+      ),
+      dualQueryByField<CustomerOrderRecord>(
+        'customer_orders',
+        'email',
+        emailCandidates,
+        5,
+        1500
+      ),
+      dualQueryByField<ResearchTicketData>(
+        'research_tickets',
+        'userEmail',
+        emailCandidates,
+        5,
+        1500
+      ),
     ]);
 
     const matchingUsers = allUsers.filter(
@@ -1308,7 +1447,11 @@ export async function fetchUserProfileByEmail(
 
 export async function createUserProfileIfMissing(
   user: { uid: string; email?: string | null; displayName?: string | null },
-  additional: Partial<UserProfileData> = {}
+  additional: Partial<UserProfileData> = {},
+  options?: {
+    knownExistingProfile?: UserProfileData | null;
+    skipTeamCheck?: boolean;
+  }
 ): Promise<UserProfileData> {
   const safeUid = (user.uid || `usr_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
   const cleanEmail = (additional.email || user.email || 'user@juthori.com').trim();
@@ -1316,7 +1459,7 @@ export async function createUserProfileIfMissing(
   // Strict RBAC Isolation: NEVER allow corporate or /team staff accounts in `users`
   if (
     isTeamAccountDocInUsers(safeUid, cleanEmail, additional.fullName || user.displayName || '') ||
-    (await findTeamMemberByEmail(cleanEmail))
+    (!options?.skipTeamCheck && Boolean(await findTeamMemberByEmail(cleanEmail)))
   ) {
     await dualDeleteDoc(['users', safeUid]).catch(() => {});
     throw new Error(
@@ -1377,7 +1520,10 @@ export async function createUserProfileIfMissing(
   })!;
 
   try {
-    const existing = await fetchUserProfile(safeUid);
+    const existing =
+      options && 'knownExistingProfile' in options
+        ? options.knownExistingProfile ?? null
+        : await fetchUserProfile(safeUid);
     if (existing) {
       const ensuredRefCode =
         existing.referralCode || buildDeterministicReferralCode(safeUid);
@@ -4033,6 +4179,10 @@ export async function addTeamMemberToFirebase(params: {
   ]);
 
   provisionedAuthEmailsInSession.add(cleanEmail);
+  teamEmailLookupCache.set(cleanEmail, {
+    value: newMember,
+    expiresAt: Date.now() + TEAM_EMAIL_CACHE_TTL_MS,
+  });
 
   // 4. Send official invitation via Resend API (info@Juthori.com) non-blockingly with fast timeout
   let emailDispatched = false;
@@ -4074,13 +4224,15 @@ export async function updateTeamMemberStatusInFirebase(
   try {
     const existing = await dualGetDoc<TeamMemberRecord>(['team_members', safeId]);
     if (!existing) return;
+    const updatedMember: TeamMemberRecord = {
+      ...existing,
+      status: nextStatus,
+    };
     await dualSetDoc(
       ['team_members', safeId],
-      {
-        ...existing,
-        status: nextStatus,
-      } as unknown as Record<string, unknown>
+      updatedMember as unknown as Record<string, unknown>
     );
+    invalidateTeamEmailCache(existing.email);
   } catch (err) {
     console.warn('[updateTeamMemberStatusInFirebase] warning:', err);
   }
@@ -4092,6 +4244,7 @@ export async function deleteTeamMemberFromFirebase(
 ): Promise<void> {
   const safeId = memberId.replace(/[^a-zA-Z0-9_-]/g, '_');
   if (!safeId || safeId === FOUNDING_MAESTRO_MEMBER.id) return;
+  invalidateTeamEmailCache(memberEmail);
   const tasks: Promise<unknown>[] = [
     dualDeleteDoc(['team_members', safeId]),
     dualDeleteDoc(['users', safeId]),
