@@ -41,6 +41,7 @@ import {
   UpperAncestorNode,
 } from '../types/juthori';
 import { resolveSpineConnectorLabel } from '../utils/lineageEngine';
+import { resolveClientPublicAppBaseUrl } from '../config/referralAndSiteConfig';
 import {
   HeritageNodeAvatar,
   getHistoricalEraBadgeLabel,
@@ -724,10 +725,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   }, [userId, result.familyName]);
 
   const familyInviteUrl = useMemo(() => {
-    const origin =
-      typeof window !== 'undefined' && window.location?.origin
-        ? window.location.origin
-        : 'https://juthori.com';
+    const origin = resolveClientPublicAppBaseUrl();
     return `${origin}/?inviteTree=${familyTreeShareId}&family=${encodeURIComponent(
       result.familyName || ''
     )}&role=${inviteRoleMode}`;

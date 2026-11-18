@@ -33,8 +33,8 @@ import {
   canonicalCustomerEmailUid,
   fetchUserFamilyTreeFromFirebase,
   fetchUserVaultArchive,
-  isCorporateStaffEmail,
   isRuntimeStaffSession,
+  normalizeResearchTicketDocId,
   readUserFamilyTreeFromLocal,
   saveUserFamilyTreeToFirebase,
   saveUserVaultArchive,
@@ -53,6 +53,8 @@ import {
   PROTECTED_SYSTEM_PATHS,
   REFERRAL_REWARD_USD,
   buildDeterministicReferralCode,
+  buildPublicKinshipInviteLinks,
+  resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 
 // =============================================================================
@@ -101,11 +103,13 @@ function fastTimeout<T>(promise: Promise<T>, ms = 2800): Promise<T> {
 const P4_PUBLIC_READ_COLLECTIONS = new Set([
   'public_sites',
   'public_site_directory',
+  'kinship_invitations',
   'site_guestbook',
   'test',
 ]);
 
 const P4_PUBLIC_WRITE_COLLECTIONS = new Set([
+  'kinship_invitations',
   'site_access_requests',
   'enrichment_requests',
   'tree_enrichment_requests',
@@ -120,7 +124,7 @@ function canP4Read(
   if (P4_PUBLIC_READ_COLLECTIONS.has(root)) return true;
   const user = targetAuth.currentUser;
   if (!user) return false;
-  const isStaff = isCorporateStaffEmail(user.email);
+  const isStaff = isRuntimeStaffSession(targetAuth);
   if ((root === 'users' || root === 'kinship_circles') && segments[1]) {
     return user.uid === segments[1] || isStaff;
   }
@@ -135,7 +139,7 @@ function canP4Write(
   if (P4_PUBLIC_WRITE_COLLECTIONS.has(root)) return true;
   const user = targetAuth.currentUser;
   if (!user) return false;
-  const isStaff = isCorporateStaffEmail(user.email);
+  const isStaff = isRuntimeStaffSession(targetAuth);
   if (root === 'users' && segments[1]) {
     if (segments[2] === 'notifications') return true;
     return user.uid === segments[1] || isStaff;
@@ -304,7 +308,7 @@ export async function appendMessageToResearchTicket(params: {
   attachments?: ResearchTicketAttachmentRef[];
   nextLifecycleStage?: CanonicalTicketLifecycleStage;
 }): Promise<ResearchTicketMessageData | null> {
-  const safeTicketId = params.ticketId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeTicketId = normalizeResearchTicketDocId(params.ticketId);
   const cleanBody = params.body.trim().slice(0, 2800);
   if (!cleanBody && (!params.attachments || params.attachments.length === 0)) {
     return null;
@@ -409,7 +413,7 @@ export async function updateTicketLifecycleAndResolutionByStaff(params: {
   verifiedSources?: string;
   resolutionPayload?: ResearchTicketResolutionPayload;
 }): Promise<ResearchTicketData | null> {
-  const safeTicketId = params.ticketId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeTicketId = normalizeResearchTicketDocId(params.ticketId);
   const existing = await readDualDoc<ResearchTicketData>([
     'research_tickets',
     safeTicketId,
@@ -508,7 +512,7 @@ export async function applyResolvedTicketToCustomerLineage(params: {
     canonicalCustomerEmailUid(userEmail) ||
     ticket.userId
   ).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const safeTicketId = ticket.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeTicketId = normalizeResearchTicketDocId(ticket.id);
   const nowIso = new Date().toISOString();
 
   const payload: ResearchTicketResolutionPayload = ticket.resolutionPayload || {
@@ -2109,6 +2113,39 @@ export interface KinshipCircleMember {
   inviteToken: string;
   addedAt: string;
   approvedEnrichmentsCount: number;
+  status?: 'SENT' | 'ACTIVE' | 'OPTED_OUT';
+  claimedByUid?: string;
+  claimedAt?: string;
+  fatherName?: string;
+  grandfatherName?: string;
+  residenceCountry?: string;
+  residenceCity?: string;
+  profession?: string;
+}
+
+export interface KinshipInvitationDoc {
+  inviteToken: string;
+  ownerId: string;
+  inviterName: string;
+  familyName: string;
+  originCountry?: string;
+  originRegion?: string;
+  siteSlug?: string;
+  referralCode?: string;
+  relativeName: string;
+  kinshipRelation: string;
+  invitedEmail: string;
+  status: 'PENDING' | 'SENT' | 'ACTIVE' | 'OPTED_OUT';
+  claimedByUid?: string;
+  claimedAt?: string;
+  optedOutAt?: string;
+  fatherName?: string;
+  grandfatherName?: string;
+  residenceCountry?: string;
+  residenceCity?: string;
+  profession?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface KinshipCircleDoc {
@@ -2158,6 +2195,63 @@ export interface TreeEnrichmentRequestDoc {
   reviewedAt?: string;
 }
 
+async function fetchOwnerKinshipInvitations(
+  ownerId: string
+): Promise<KinshipInvitationDoc[]> {
+  const safeUid = (ownerId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeUid) return [];
+  const canQueryPrimary = Boolean(
+    auth.currentUser &&
+      (auth.currentUser.uid === safeUid || isRuntimeStaffSession(auth))
+  );
+  const canQueryMirror = Boolean(
+    mirrorAuth.currentUser &&
+      (mirrorAuth.currentUser.uid === safeUid ||
+        isRuntimeStaffSession(mirrorAuth))
+  );
+  if (!canQueryPrimary && !canQueryMirror) return [];
+
+  const [pSnap, mSnap] = await Promise.allSettled([
+    canQueryPrimary
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(db, 'kinship_invitations'),
+              where('ownerId', '==', safeUid)
+            )
+          ),
+          2800
+        )
+      : Promise.reject(new Error('SKIP')),
+    canQueryMirror
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(mirrorDb, 'kinship_invitations'),
+              where('ownerId', '==', safeUid)
+            )
+          ),
+          2800
+        )
+      : Promise.reject(new Error('SKIP')),
+  ]);
+
+  const byToken = new Map<string, KinshipInvitationDoc>();
+  if (mSnap.status === 'fulfilled') {
+    mSnap.value.forEach((d) => {
+      const data = d.data() as KinshipInvitationDoc;
+      if (data?.inviteToken) byToken.set(data.inviteToken, data);
+    });
+  }
+  if (pSnap.status === 'fulfilled') {
+    pSnap.value.forEach((d) => {
+      const data = d.data() as KinshipInvitationDoc;
+      if (data?.inviteToken) byToken.set(data.inviteToken, data);
+    });
+  }
+  return Array.from(byToken.values());
+}
+
 export async function fetchKinshipCircleForOwner(
   ownerId: string
 ): Promise<KinshipCircleDoc> {
@@ -2165,38 +2259,155 @@ export async function fetchKinshipCircleForOwner(
   if (!safeUid) {
     return { ownerId: '', members: [], updatedAt: '' };
   }
-  const existing = await readDualDoc<KinshipCircleDoc>([
-    'kinship_circles',
-    safeUid,
+  const [existing, ownerInvites] = await Promise.all([
+    readDualDoc<KinshipCircleDoc>(['kinship_circles', safeUid]),
+    fetchOwnerKinshipInvitations(safeUid),
   ]);
-  if (existing && Array.isArray(existing.members)) {
-    return existing;
+
+  const baseCircle: KinshipCircleDoc =
+    existing && Array.isArray(existing.members)
+      ? existing
+      : {
+          ownerId: safeUid,
+          members: [],
+          updatedAt: new Date().toISOString(),
+        };
+
+  if (ownerInvites.length === 0) {
+    return baseCircle;
   }
-  return {
-    ownerId: safeUid,
-    members: [],
-    updatedAt: new Date().toISOString(),
-  };
+
+  const inviteByToken = new Map<string, KinshipInvitationDoc>();
+  const inviteByEmail = new Map<string, KinshipInvitationDoc>();
+  const optedOutEmails = new Set<string>();
+
+  for (const inv of ownerInvites) {
+    inviteByToken.set(inv.inviteToken, inv);
+    const lowerEmail = (inv.invitedEmail || '').trim().toLowerCase();
+    if (lowerEmail) {
+      inviteByEmail.set(lowerEmail, inv);
+      if (inv.status === 'OPTED_OUT') {
+        optedOutEmails.add(lowerEmail);
+      }
+    }
+  }
+
+  let mutated = false;
+  const syncedMembers: KinshipCircleMember[] = [];
+  for (const m of baseCircle.members) {
+    const lowerEmail = (m.email || '').trim().toLowerCase();
+    const matchedInv =
+      inviteByToken.get(m.inviteToken) || inviteByEmail.get(lowerEmail);
+    if (matchedInv?.status === 'OPTED_OUT' || optedOutEmails.has(lowerEmail)) {
+      mutated = true;
+      continue;
+    }
+    if (matchedInv) {
+      const nextStatus: 'SENT' | 'ACTIVE' =
+        matchedInv.status === 'ACTIVE' ? 'ACTIVE' : 'SENT';
+      if (
+        m.status !== nextStatus ||
+        m.claimedByUid !== matchedInv.claimedByUid ||
+        m.profession !== matchedInv.profession ||
+        m.residenceCity !== matchedInv.residenceCity
+      ) {
+        mutated = true;
+      }
+      syncedMembers.push(
+        cleanUndefined({
+          ...m,
+          inviteToken: matchedInv.inviteToken || m.inviteToken,
+          status: nextStatus,
+          claimedByUid: matchedInv.claimedByUid || m.claimedByUid,
+          claimedAt: matchedInv.claimedAt || m.claimedAt,
+          fatherName: matchedInv.fatherName || m.fatherName,
+          grandfatherName: matchedInv.grandfatherName || m.grandfatherName,
+          residenceCountry:
+            matchedInv.residenceCountry || m.residenceCountry,
+          residenceCity: matchedInv.residenceCity || m.residenceCity,
+          profession: matchedInv.profession || m.profession,
+        })
+      );
+    } else {
+      syncedMembers.push(m);
+    }
+  }
+
+  if (mutated) {
+    const nowIso = new Date().toISOString();
+    const nextCircle: KinshipCircleDoc = cleanUndefined({
+      ...baseCircle,
+      ownerId: safeUid,
+      familyName: baseCircle.familyName || 'العائلة',
+      members: syncedMembers,
+      updatedAt: nowIso,
+    });
+    await writeDualDoc(
+      ['kinship_circles', safeUid],
+      nextCircle as unknown as Record<string, unknown>
+    ).catch(() => {});
+
+    if (optedOutEmails.size > 0 && baseCircle.siteSlug) {
+      const slug = normalizePublicSiteSlug(baseCircle.siteSlug);
+      if (slug) {
+        const siteDoc = await readDualDoc<PublicMicrositeData>([
+          'public_sites',
+          slug,
+        ]);
+        if (siteDoc && siteDoc.ownerId === safeUid) {
+          const nextWhitelist = (siteDoc.whitelistedEmails || []).filter(
+            (em) => !optedOutEmails.has(em.trim().toLowerCase())
+          );
+          if (nextWhitelist.length !== (siteDoc.whitelistedEmails || []).length) {
+            await writeDualDoc(['public_sites', slug], {
+              ...siteDoc,
+              whitelistedEmails: nextWhitelist,
+              updatedAt: nowIso,
+            } as unknown as Record<string, unknown>).catch(() => {});
+          }
+        }
+      }
+    }
+    return nextCircle;
+  }
+
+  return baseCircle;
 }
 
 export async function addRelativeToKinshipCircleAndSendInvite(params: {
   ownerId: string;
   ownerName: string;
   familyName: string;
+  originCountry?: string;
+  originRegion?: string;
   siteSlug?: string;
   referralCode: string;
   relativeName: string;
   kinshipRelation: string;
   relativeEmail: string;
+  customPublicBaseUrl?: string;
 }): Promise<{
   ok: boolean;
   circle: KinshipCircleDoc;
+  portalUrl?: string;
+  inviteToken?: string;
   messageAr: string;
 }> {
   const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const cleanEmail = params.relativeEmail.trim().toLowerCase();
   const cleanName = params.relativeName.trim().slice(0, 120);
   const cleanRel = params.kinshipRelation.trim().slice(0, 80) || 'قريب';
+  const cleanOwnerName =
+    (params.ownerName || 'أمين سجل العائلة').trim().slice(0, 140) ||
+    'أمين سجل العائلة';
+  const cleanFamilyName = (params.familyName || 'العائلة')
+    .trim()
+    .slice(0, 90);
+  const cleanReferralCode = (
+    params.referralCode || buildDeterministicReferralCode(safeUid)
+  )
+    .trim()
+    .toUpperCase();
   const nowIso = new Date().toISOString();
 
   const current = await fetchKinshipCircleForOwner(safeUid);
@@ -2204,14 +2415,20 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
     (m) => m.email.toLowerCase() === cleanEmail
   );
 
+  const existingToken =
+    existingIdx >= 0 ? current.members[existingIdx].inviteToken : '';
   const inviteToken =
-    existingIdx >= 0
-      ? current.members[existingIdx].inviteToken
-      : `opt_${safeUid.slice(0, 10)}_${Date.now().toString(36)}_${Math.random()
+    existingToken && /^[a-zA-Z0-9_-]{10,110}$/.test(existingToken)
+      ? existingToken
+      : `inv_${safeUid.slice(0, 8)}_${Date.now().toString(36)}_${Math.random()
           .toString(36)
-          .slice(2, 7)}`;
+          .slice(2, 10)}`;
 
-  const memberObj: KinshipCircleMember = {
+  const targetSlug = normalizePublicSiteSlug(
+    params.siteSlug || current.siteSlug || ''
+  );
+
+  const memberObj: KinshipCircleMember = cleanUndefined({
     id:
       existingIdx >= 0
         ? current.members[existingIdx].id
@@ -2225,7 +2442,15 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
       existingIdx >= 0
         ? current.members[existingIdx].approvedEnrichmentsCount || 0
         : 0,
-  };
+    status:
+      existingIdx >= 0 && current.members[existingIdx].status === 'ACTIVE'
+        ? 'ACTIVE'
+        : 'SENT',
+    claimedByUid:
+      existingIdx >= 0 ? current.members[existingIdx].claimedByUid : undefined,
+    claimedAt:
+      existingIdx >= 0 ? current.members[existingIdx].claimedAt : undefined,
+  });
 
   const nextMembers =
     existingIdx >= 0
@@ -2234,11 +2459,8 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
 
   const updatedCircle: KinshipCircleDoc = cleanUndefined({
     ownerId: safeUid,
-    familyName: (params.familyName || current.familyName || 'العائلة').slice(
-      0,
-      90
-    ),
-    siteSlug: params.siteSlug || current.siteSlug,
+    familyName: cleanFamilyName,
+    siteSlug: targetSlug || current.siteSlug,
     members: nextMembers,
     updatedAt: nowIso,
   });
@@ -2248,10 +2470,68 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
     updatedCircle as unknown as Record<string, unknown>
   );
 
-  // Sync `whitelistedEmails` on published microsite if exists
-  const targetSlug = normalizePublicSiteSlug(
-    params.siteSlug || current.siteSlug || ''
+  // Persist capability-token KinshipInvitationDoc so external invited relatives can
+  // preview personalized onboarding OR 1-click Opt-out without 403 or login barriers!
+  const existingInvDoc = await readDualDoc<KinshipInvitationDoc>([
+    'kinship_invitations',
+    inviteToken,
+  ]);
+  const invitationDoc: KinshipInvitationDoc = cleanUndefined({
+    inviteToken,
+    ownerId: safeUid,
+    inviterName: cleanOwnerName,
+    familyName: cleanFamilyName,
+    originCountry: params.originCountry
+      ? params.originCountry.trim().slice(0, 80)
+      : existingInvDoc?.originCountry,
+    originRegion: params.originRegion
+      ? params.originRegion.trim().slice(0, 120)
+      : existingInvDoc?.originRegion,
+    siteSlug: targetSlug || undefined,
+    referralCode: cleanReferralCode,
+    relativeName: cleanName,
+    kinshipRelation: cleanRel,
+    invitedEmail: cleanEmail,
+    status:
+      existingInvDoc?.status === 'ACTIVE' ? 'ACTIVE' : ('SENT' as const),
+    claimedByUid: existingInvDoc?.claimedByUid,
+    claimedAt: existingInvDoc?.claimedAt,
+    fatherName: existingInvDoc?.fatherName,
+    grandfatherName: existingInvDoc?.grandfatherName,
+    residenceCountry: existingInvDoc?.residenceCountry,
+    residenceCity: existingInvDoc?.residenceCity,
+    profession: existingInvDoc?.profession,
+    createdAt: existingInvDoc?.createdAt || nowIso,
+    updatedAt: nowIso,
+  });
+  await writeDualDoc(
+    ['kinship_invitations', inviteToken],
+    invitationDoc as unknown as Record<string, unknown>
   );
+
+  // Ensure inviter's referral code index exists in Firestore so the relative's claim binds `$10` attribution seamlessly
+  readDualDoc<ReferralCodeIndexDoc>(['referral_codes', cleanReferralCode])
+    .then((existingRefIdx) => {
+      if (!existingRefIdx) {
+        const refIdx: ReferralCodeIndexDoc = {
+          code: cleanReferralCode,
+          ownerId: safeUid,
+          ownerName: cleanOwnerName,
+          familyName: cleanFamilyName,
+          invitees: [],
+          totalEarnedUsd: 0,
+          updatedAt: nowIso,
+        };
+        return writeDualDoc(
+          ['referral_codes', cleanReferralCode],
+          refIdx as unknown as Record<string, unknown>
+        );
+      }
+      return undefined;
+    })
+    .catch(() => {});
+
+  // Sync `whitelistedEmails` on published microsite if exists
   if (targetSlug) {
     const siteDoc = await readDualDoc<PublicMicrositeData>([
       'public_sites',
@@ -2269,15 +2549,15 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
     }
   }
 
-  // Trigger smart Arabic invitation email via Express/Resend endpoint
-  const origin =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : 'https://juthori.com';
-  const siteUrl = targetSlug
-    ? `${origin}/${targetSlug}?ref=${encodeURIComponent(params.referralCode)}`
-    : `${origin}/?ref=${encodeURIComponent(params.referralCode)}`;
-  const optOutUrl = `${origin}/?optout=${encodeURIComponent(inviteToken)}`;
+  // Build public URLs (automatically rewriting `ais-dev-*` -> `ais-pre-*` or using `PUBLIC_APP_URL`)
+  const { publicBaseUrl, portalUrl, optOutUrl } = buildPublicKinshipInviteLinks(
+    {
+      siteSlug: targetSlug,
+      inviteToken,
+      referralCode: cleanReferralCode,
+      customBaseUrl: params.customPublicBaseUrl,
+    }
+  );
 
   let emailDispatched = false;
   try {
@@ -2285,17 +2565,28 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        ownerId: safeUid,
         relativeEmail: cleanEmail,
         relativeName: cleanName,
         kinshipRelation: cleanRel,
-        ownerName: params.ownerName,
-        familyName: params.familyName,
-        siteUrl,
+        ownerName: cleanOwnerName,
+        inviterName: cleanOwnerName,
+        familyName: cleanFamilyName,
+        siteSlug: targetSlug,
+        referralCode: cleanReferralCode,
+        inviteToken,
+        originUrl: publicBaseUrl || resolveClientPublicAppBaseUrl(),
+        portalUrl,
+        siteUrl: portalUrl,
         optOutUrl,
       }),
     });
     if (resp.ok) {
-      emailDispatched = true;
+      const payload = (await resp.json().catch(() => ({}))) as {
+        sent?: boolean;
+        delivered?: boolean;
+      };
+      emailDispatched = Boolean(resp.ok && (payload.sent ?? payload.delivered ?? true));
     }
   } catch {
     // Graceful fallback if local dev lacks Resend key
@@ -2304,8 +2595,10 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
   return {
     ok: true,
     circle: updatedCircle,
+    portalUrl,
+    inviteToken,
     messageAr: emailDispatched
-      ? `تمت إضافة (${cleanName}) إلى دائرة العائلة وإرسال دعوة بريدية ذكية مع خيار الخصوصية (Opt-out) بنجاح ✓`
+      ? `تمت إضافة (${cleanName}) إلى دائرة العائلة وإرسال دعوة بريدية ذكية برابط عام مباشر وخيار (Opt-out) بنجاح ✓`
       : `تمت إضافة (${cleanName}) وتفعيل صلاحيته الفورية في دائرة العائلة بنجاح ✓`,
   };
 }
@@ -2319,6 +2612,9 @@ export async function removeRelativeFromKinshipCircle(params: {
   const nowIso = new Date().toISOString();
 
   const current = await fetchKinshipCircleForOwner(safeUid);
+  const removedMembers = current.members.filter(
+    (m) => m.email.trim().toLowerCase() === targetEmail
+  );
   const nextMembers = current.members.filter(
     (m) => m.email.trim().toLowerCase() !== targetEmail
   );
@@ -2335,6 +2631,12 @@ export async function removeRelativeFromKinshipCircle(params: {
     ['kinship_circles', safeUid],
     updatedCircle as unknown as Record<string, unknown>
   );
+
+  for (const rm of removedMembers) {
+    if (rm.inviteToken && rm.inviteToken.length >= 10) {
+      deleteDualDoc(['kinship_invitations', rm.inviteToken]).catch(() => {});
+    }
+  }
 
   if (current.siteSlug) {
     const slug = normalizePublicSiteSlug(current.siteSlug);
@@ -2357,39 +2659,150 @@ export async function removeRelativeFromKinshipCircle(params: {
 }
 
 /**
- * 1-Click Privacy Unlink (`?optout={inviteToken}`) from Smart Invitation Email
+ * Capability-Token O(1) Kinship Invitation Lookup (`?invite={inviteToken}`)
+ * Works seamlessly for unauthenticated invited relatives without exposing collection listing.
  */
-export async function processKinshipOptOutByToken(
-  token: string
-): Promise<{ ok: boolean; messageAr: string }> {
-  const cleanToken = (token || '').trim();
-  if (!cleanToken) {
+export async function fetchKinshipInvitationByToken(
+  inviteToken: string
+): Promise<KinshipInvitationDoc | null> {
+  const cleanToken = (inviteToken || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!cleanToken || cleanToken.length < 10) return null;
+  const docData = await readDualDoc<KinshipInvitationDoc>([
+    'kinship_invitations',
+    cleanToken,
+  ]);
+  if (!docData || !docData.inviteToken) return null;
+  return docData;
+}
+
+/**
+ * Marks a Kinship Invitation as `ACTIVE` (`نشط ✓`) upon 1-step relative claim
+ * and records optional enrichment metadata (`fatherName`, `grandfatherName`, `residenceCountry`, `residenceCity`, `profession`).
+ */
+export async function claimKinshipInvitation(params: {
+  inviteToken: string;
+  claimedByUid: string;
+  fatherName?: string;
+  grandfatherName?: string;
+  residenceCountry?: string;
+  residenceCity?: string;
+  profession?: string;
+}): Promise<KinshipInvitationDoc | null> {
+  const cleanToken = (params.inviteToken || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '');
+  const cleanUid = (params.claimedByUid || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!cleanToken || cleanToken.length < 10 || !cleanUid) return null;
+
+  const existing = await fetchKinshipInvitationByToken(cleanToken);
+  if (!existing || existing.status === 'OPTED_OUT') return existing;
+
+  const nowIso = new Date().toISOString();
+  const updated: KinshipInvitationDoc = cleanUndefined({
+    ...existing,
+    status: 'ACTIVE',
+    claimedByUid: cleanUid,
+    claimedAt: existing.claimedAt || nowIso,
+    fatherName: params.fatherName
+      ? params.fatherName.trim().slice(0, 80)
+      : existing.fatherName,
+    grandfatherName: params.grandfatherName
+      ? params.grandfatherName.trim().slice(0, 80)
+      : existing.grandfatherName,
+    residenceCountry: params.residenceCountry
+      ? params.residenceCountry.trim().slice(0, 80)
+      : existing.residenceCountry,
+    residenceCity: params.residenceCity
+      ? params.residenceCity.trim().slice(0, 80)
+      : existing.residenceCity,
+    profession: params.profession
+      ? params.profession.trim().slice(0, 100)
+      : existing.profession,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_invitations', cleanToken],
+    updated as unknown as Record<string, unknown>
+  );
+
+  // Notify Registrar in-app that their invited relative joined the family portal
+  sendCustomerNotification({
+    userId: existing.ownerId,
+    title: `انضم قريبك «${existing.relativeName}» إلى بوابة عائلة ${existing.familyName}`,
+    body: `قام ${existing.relativeName} (${existing.kinshipRelation}) بتفعيل عضويته العائلية عبر دعوتك وأصبح نشطاً في دائرة عائلتك.`,
+    category: 'system_notice',
+    senderRole: 'system',
+  }).catch(() => {});
+
+  return updated;
+}
+
+/**
+ * 1-Click Unauthenticated Privacy Unlink (`?optout={inviteToken}`) from Smart Invitation Email.
+ * Uses capability-token O(1) lookup & terminal `OPTED_OUT` transition so zero login is required!
+ */
+export async function processKinshipOptOutByToken(token: string): Promise<{
+  ok: boolean;
+  familyName?: string;
+  invitedEmail?: string;
+  inviterName?: string;
+  messageAr: string;
+}> {
+  const cleanToken = (token || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!cleanToken || cleanToken.length < 10) {
     return { ok: false, messageAr: 'رمز إلغاء الارتباط غير صالح.' };
   }
 
-  const allCircles = await readDualCollection<KinshipCircleDoc>(
-    'kinship_circles'
-  );
-  for (const circle of allCircles) {
-    if (!circle || !Array.isArray(circle.members)) continue;
-    const match = circle.members.find((m) => m.inviteToken === cleanToken);
-    if (match) {
-      await removeRelativeFromKinshipCircle({
-        ownerId: circle.ownerId,
-        memberEmail: match.email,
-      });
-      return {
-        ok: true,
-        messageAr: `تمت إزالة بريدك (${match.email}) وإلغاء ارتباطك بدائرة أسرة ${
-          circle.familyName || ''
-        } فوراً احتراماً لخصوصيتك ✓`,
+  const nowIso = new Date().toISOString();
+  const invDoc = await fetchKinshipInvitationByToken(cleanToken);
+  if (invDoc) {
+    if (invDoc.status !== 'OPTED_OUT') {
+      // Strictly mutate ONLY ['status', 'optedOutAt', 'updatedAt'] per Zero-Trust Action 2 rule
+      const optedOutDoc: KinshipInvitationDoc = {
+        ...invDoc,
+        status: 'OPTED_OUT',
+        optedOutAt: nowIso,
+        updatedAt: nowIso,
       };
+      await writeDualDoc(
+        ['kinship_invitations', cleanToken],
+        optedOutDoc as unknown as Record<string, unknown>
+      );
     }
+
+    // Also notify backend memory set (non-blocking)
+    fetch(`/api/email/optout-invite?token=${encodeURIComponent(cleanToken)}`, {
+      method: 'GET',
+      redirect: 'manual',
+    }).catch(() => {});
+
+    // If the Registrar themselves clicked it while signed in, sync kinship_circles immediately too
+    if (auth.currentUser?.uid === invDoc.ownerId) {
+      await removeRelativeFromKinshipCircle({
+        ownerId: invDoc.ownerId,
+        memberEmail: invDoc.invitedEmail,
+      }).catch(() => {});
+    }
+
+    return {
+      ok: true,
+      familyName: invDoc.familyName,
+      invitedEmail: invDoc.invitedEmail,
+      inviterName: invDoc.inviterName,
+      messageAr: `تم إلغاء إدراج بريدك الإلكتروني (${invDoc.invitedEmail}) وحذفه فوراً من الدائرة العائلية الخاصة لأسرة (${invDoc.familyName}) احتراماً لخصوصيتك الكاملة، ودون الحاجة لتسجيل الدخول ✓`,
+    };
   }
 
   return {
     ok: false,
-    messageAr: 'تم إلغاء هذا الارتباط مسبقاً أو أن الرابط منتهي الصلاحية.',
+    messageAr: 'تم إلغاء هذا الارتباط مسبقاً أو أن رابط الدعوة منتهي الصلاحية.',
   };
 }
 
@@ -2408,12 +2821,12 @@ export async function fetchAuthorizedFamilyPortalsForEmail(
   const allowPrimary = Boolean(
     auth.currentUser &&
       ((auth.currentUser.email || '').trim().toLowerCase() === cleanEmail ||
-        isCorporateStaffEmail(auth.currentUser.email))
+        isRuntimeStaffSession(auth))
   );
   const allowMirror = Boolean(
     mirrorAuth.currentUser &&
       ((mirrorAuth.currentUser.email || '').trim().toLowerCase() === cleanEmail ||
-        isCorporateStaffEmail(mirrorAuth.currentUser.email))
+        isRuntimeStaffSession(mirrorAuth))
   );
   if (!allowPrimary && !allowMirror) return [];
 
@@ -2697,7 +3110,7 @@ export function subscribeToOwnerEnrichmentRequests(
     if (
       !disposed &&
       user &&
-      (user.uid === safeUid || isCorporateStaffEmail(user.email))
+      (user.uid === safeUid || isRuntimeStaffSession(auth))
     ) {
       unsubPrimarySnap = onSnapshot(
         query(
@@ -2729,7 +3142,7 @@ export function subscribeToOwnerEnrichmentRequests(
     if (
       !disposed &&
       mUser &&
-      (mUser.uid === safeUid || isCorporateStaffEmail(mUser.email))
+      (mUser.uid === safeUid || isRuntimeStaffSession(mirrorAuth))
     ) {
       unsubMirrorSnap = onSnapshot(
         query(

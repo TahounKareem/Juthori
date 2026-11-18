@@ -98,6 +98,7 @@ import {
   TeamMemberRecord,
   fetchAllResearchTicketsForStaff,
   fetchAllTeamMembersFromFirebase,
+  normalizeResearchTicketDocId,
   saveGeneratedResearchTicketToFirebase,
   sendCustomerNotification,
   syncClientLineageTicketToFirebase,
@@ -404,6 +405,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [createdAssignedTicketId, setCreatedAssignedTicketId] = useState<
     string | null
   >(null);
+  const [isSavingAssignedTicket, setIsSavingAssignedTicket] =
+    useState<boolean>(false);
   const [isDirectSearching, setIsDirectSearching] = useState<boolean>(false);
   const directSearchAbortRef = useRef<AbortController | null>(null);
 
@@ -1725,20 +1728,51 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         // Strictly deduplicate hydrated tickets by normalized id so React never encounters duplicate keys
         const uniqueHydratedList: ResearcherStudioTicket[] = [];
         const seenHydratedIds = new Set<string>();
+        const seenFirestoreDocIds = new Set<string>();
         for (const item of hydratedList) {
           const normKey = String(item.id || '')
             .trim()
             .replace(/^#/, '')
             .toLowerCase();
-          if (!normKey || seenHydratedIds.has(normKey)) continue;
+          const normDocId = String(
+            item.firestoreDocId || normalizeResearchTicketDocId(item.id)
+          )
+            .trim()
+            .toLowerCase();
+          if (
+            !normKey ||
+            seenHydratedIds.has(normKey) ||
+            (normDocId && seenFirestoreDocIds.has(normDocId))
+          ) {
+            continue;
+          }
           seenHydratedIds.add(normKey);
+          if (normDocId) seenFirestoreDocIds.add(normDocId);
           uniqueHydratedList.push(item);
         }
 
-        setTickets(uniqueHydratedList);
+        setTickets((prev) => {
+          const unsyncedLocal = prev.filter((localItem) => {
+            const normKey = String(localItem.id || '')
+              .trim()
+              .replace(/^#/, '')
+              .toLowerCase();
+            const normDocId = String(
+              localItem.firestoreDocId ||
+                normalizeResearchTicketDocId(localItem.id)
+            )
+              .trim()
+              .toLowerCase();
+            return (
+              Boolean(normKey) &&
+              !seenHydratedIds.has(normKey) &&
+              (!normDocId || !seenFirestoreDocIds.has(normDocId))
+            );
+          });
+          return [...unsyncedLocal, ...uniqueHydratedList];
+        });
       } catch (err) {
         console.warn('Firestore ticket sync warning:', err);
-        setTickets([]);
       } finally {
         if (showSpinner) setIsRefreshingTickets(false);
       }
@@ -1747,6 +1781,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   useEffect(() => {
     loadRealTicketsFromDatabase(false);
   }, [currentClientResult]);
+
+  useEffect(() => {
+    if (
+      activePortalSection === 'research_studio' ||
+      activeSubTab === 'ticket_inbox'
+    ) {
+      loadRealTicketsFromDatabase(false);
+    }
+  }, [activePortalSection, activeSubTab]);
 
   // =========================================================================
   // PILLAR 2: 4-TIER PRIORITY QUEUE (`P1 -> Assigned -> P2 -> P3 Mining Queue`)
@@ -1806,9 +1849,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   };
 
   const filteredInboxTickets = useMemo(() => {
+    const isAssignedToActiveStaff = (t: ResearcherStudioTicket): number => {
+      if (!activeStaffMember) return 0;
+      if (
+        (t.assignedResearcherId &&
+          t.assignedResearcherId === activeStaffMember.id) ||
+        (t.assignedResearcherName &&
+          t.assignedResearcherName.trim() === activeStaffMember.name.trim())
+      ) {
+        return 1;
+      }
+      return 0;
+    };
+
     const sorted = [...tickets].sort((a, b) => {
       const rankDiff = priorityRankScore(a) - priorityRankScore(b);
       if (rankDiff !== 0) return rankDiff;
+      const assigneeDiff =
+        isAssignedToActiveStaff(b) - isAssignedToActiveStaff(a);
+      if (assigneeDiff !== 0) return assigneeDiff;
       return (
         (b.p3StrategicMeta?.strategic_score || 0) -
         (a.p3StrategicMeta?.strategic_score || 0)
@@ -3028,11 +3087,12 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   // =========================================================================
   // REQUIREMENT 2: SMART DIRECT TRANSFER FROM DIAGNOSTIC SEARCH TO TICKET ROOM
   // =========================================================================
-  const handleTransferDiagnosticToTicketRoom = (
+  const handleTransferDiagnosticToTicketRoom = async (
     res: LineageSearchResult,
     rawEvidenceList: CorroboratingAlphaEvidence[],
     finalStitchedStations: UpperAncestorNode[]
   ) => {
+    if (isSavingAssignedTicket) return;
     const cleanFam = res.familyName.replace(/^عائلة\s+/, '').trim();
 
     const enrichedEvidence: CorroboratingAlphaEvidence[] = rawEvidenceList.map(
@@ -3132,6 +3192,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     newTkt.ticketCategory = 'ASSIGNED_RESEARCH';
     newTkt.priorityTier = 'ASSIGNED_RESEARCH';
     newTkt.queue = 'P2';
+    newTkt.firestoreDocId = normalizeResearchTicketDocId(newTkt.id);
     newTkt.assignedResearcherId = assignedManagerId;
     newTkt.assignedResearcherName = assignedManagerName;
     newTkt.title = `وصل وإثراء (${cleanFam} ← ${
@@ -3158,41 +3219,6 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       }));
     }
 
-    // Immediately persist assigned ticket to Firebase Firestore `research_tickets`
-    saveGeneratedResearchTicketToFirebase({
-      ticketId: newTkt.id,
-      alphaId:
-        newTkt.alphaId || newTkt.corroboratingEvidence?.[0]?.alpha_id || '',
-      adamNodeId: newTkt.adamNodeId,
-      ticketCategory: 'ASSIGNED_RESEARCH',
-      familyName: newTkt.familyName,
-      subRootName: newTkt.subRootName,
-      motherTribeName: newTkt.motherTribeName,
-      originCountry: newTkt.inferredCountries?.[0] || 'الجزيرة العربية',
-      originRegion: newTkt.locationLabel,
-      clientName: newTkt.clientName,
-      assignedResearcherId: assignedManagerId,
-      assignedResearcherName: assignedManagerName,
-      verifiedSources: (newTkt.corroboratingEvidence || []).map((ev) =>
-        formatAlphaEvidenceCitation(ev)
-      ),
-      corroboratingAlphaEvidence: newTkt.corroboratingEvidence || [],
-      fullStitchedLineage: newTkt.fullStitchedLineage || [],
-      extractedNodes: newTkt.extractedNodes || [],
-      precomputedDiagnostic: newTkt.precomputed_diagnostic,
-      additionalNotes: `تذكرة بحث مسندة من بوصلة الجذور إلى مدير البحوث (${assignedManagerName}) لعائلة (${cleanFam} ← ${newTkt.subRootName} ← ${newTkt.motherTribeName}).`,
-    })
-      .then((savedDoc) => {
-        setTickets((prev) =>
-          prev.map((item) =>
-            item.id === newTkt.id
-              ? { ...item, firestoreDocId: savedDoc.id }
-              : item
-          )
-        );
-      })
-      .catch(() => {});
-
     setTickets((prev) => [
       newTkt,
       ...prev.filter((existing) => existing.id !== newTkt.id),
@@ -3215,12 +3241,53 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     }));
     setEnrichmentBranchesInput(allBranches.join('، '));
     setEnrichmentLocationsInput(allLocations.join('، '));
-    setCreatedAssignedTicketId(newTkt.id);
     setSelectedTicketId(newTkt.id);
 
-    showToast(
-      `🟠 تم إنشاء تذكرة بحثية مسندة إلى (${assignedManagerName}) لعائلة (${cleanFam}) وحفظها في مرصد البحوث!`
-    );
+    setIsSavingAssignedTicket(true);
+    try {
+      const savedDoc = await saveGeneratedResearchTicketToFirebase({
+        ticketId: newTkt.id,
+        alphaId:
+          newTkt.alphaId || newTkt.corroboratingEvidence?.[0]?.alpha_id || '',
+        adamNodeId: newTkt.adamNodeId,
+        ticketCategory: 'ASSIGNED_RESEARCH',
+        familyName: newTkt.familyName,
+        subRootName: newTkt.subRootName,
+        motherTribeName: newTkt.motherTribeName,
+        originCountry: newTkt.inferredCountries?.[0] || 'الجزيرة العربية',
+        originRegion: newTkt.locationLabel,
+        clientName: newTkt.clientName,
+        assignedResearcherId: assignedManagerId,
+        assignedResearcherName: assignedManagerName,
+        verifiedSources: (newTkt.corroboratingEvidence || []).map((ev) =>
+          formatAlphaEvidenceCitation(ev)
+        ),
+        corroboratingAlphaEvidence: newTkt.corroboratingEvidence || [],
+        fullStitchedLineage: newTkt.fullStitchedLineage || [],
+        extractedNodes: newTkt.extractedNodes || [],
+        precomputedDiagnostic: newTkt.precomputed_diagnostic,
+        additionalNotes: `تذكرة بحث مسندة من بوصلة الجذور إلى مدير البحوث (${assignedManagerName}) لعائلة (${cleanFam} ← ${newTkt.subRootName} ← ${newTkt.motherTribeName}).`,
+      });
+      setTickets((prev) =>
+        prev.map((item) =>
+          item.id === newTkt.id
+            ? { ...item, firestoreDocId: savedDoc.id }
+            : item
+        )
+      );
+      setCreatedAssignedTicketId(newTkt.id);
+      showToast(
+        `🟠 تم إنشاء تذكرة بحثية مسندة إلى (${assignedManagerName}) لعائلة (${cleanFam}) وحفظها في مرصد البحوث!`
+      );
+    } catch (err) {
+      console.error('[ResearcherStudio] Failed to persist assigned ticket:', err);
+      setCreatedAssignedTicketId(newTkt.id);
+      showToast(
+        `⚠️ تم إدراج التذكرة محلياً لعائلة (${cleanFam})، يرجى الضغط على «تحديث» داخل مرصد البحوث للتحقق من مزامنتها السحابية.`
+      );
+    } finally {
+      setIsSavingAssignedTicket(false);
+    }
   };
 
   // =========================================================================
@@ -8897,24 +8964,56 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     ========================================================= */}
                     <div
                       data-testid="boslet-top-create-ticket-action-bar"
-                      className="flex justify-center my-4"
+                      className="flex flex-wrap items-center justify-center gap-3 my-4"
                     >
                       {!createdAssignedTicketId ? (
-                        <button
-                          type="button"
-                          data-testid="top-create-assigned-ticket-btn"
-                          onClick={() =>
-                            handleTransferDiagnosticToTicketRoom(
-                              effectiveFinalResultForShowcase,
-                              rawEvidenceList,
-                              finalStitchedStations
-                            )
-                          }
-                          className="px-6 py-2.5 rounded-full bg-gradient-to-l from-[#C2410C] via-[#D8755B] to-[#8D4925] hover:from-[#9A3412] hover:to-[#7C2D12] text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-                        >
-                          <Plus className="w-4 h-4 shrink-0" />
-                          <span>إنشاء تذكرة بحثية في مرصد البحوث</span>
-                        </button>
+                        <>
+                          {researchManagersList.length > 0 && (
+                            <div className="inline-flex items-center gap-2 rounded-xl border border-[#E2DACB] bg-[#FAF6F0] px-3 py-2 text-xs text-[#252321]">
+                              <span className="font-extrabold text-[#8D4925]">
+                                إسناد إلى:
+                              </span>
+                              <select
+                                value={selectedAssigneeManagerId}
+                                onChange={(e) =>
+                                  setSelectedAssigneeManagerId(e.target.value)
+                                }
+                                aria-label="اختيار الباحث المسندة إليه التذكرة"
+                                className="bg-transparent font-bold text-[#252321] focus:outline-none cursor-pointer"
+                              >
+                                {researchManagersList.map((mgr) => (
+                                  <option key={mgr.id} value={mgr.id}>
+                                    {mgr.name} ({mgr.role})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isSavingAssignedTicket}
+                            data-testid="top-create-assigned-ticket-btn"
+                            onClick={() =>
+                              handleTransferDiagnosticToTicketRoom(
+                                effectiveFinalResultForShowcase,
+                                rawEvidenceList,
+                                finalStitchedStations
+                              )
+                            }
+                            className="px-6 py-2.5 rounded-xl bg-gradient-to-l from-[#C2410C] via-[#D8755B] to-[#8D4925] hover:from-[#9A3412] hover:to-[#7C2D12] disabled:opacity-65 text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+                          >
+                            {isSavingAssignedTicket ? (
+                              <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4 shrink-0" />
+                            )}
+                            <span>
+                              {isSavingAssignedTicket
+                                ? 'جارٍ حفظ وإسناد التذكرة في مرصد البحوث...'
+                                : 'إنشاء تذكرة بحثية في مرصد البحوث'}
+                            </span>
+                          </button>
+                        </>
                       ) : (
                         <button
                           type="button"
@@ -8925,10 +9024,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             setActiveSubTab('ticket_inbox');
                             onSelectPortalSection?.('research_studio');
                           }}
-                          className="px-6 py-2.5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
+                          className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
                         >
                           <CheckCircle2 className="w-4 h-4 shrink-0" />
-                          <span>✓ تم إنشاء التذكرة في مرصد البحوث</span>
+                          <span>✓ تم إنشاء التذكرة في مرصد البحوث — فتحها الآن ←</span>
                         </button>
                       )}
                     </div>
@@ -10149,6 +10248,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                       directSearchResult,
                                       `فحص باحث (${directSearchResult.familyName})`
                                     );
+                                    newTkt.firestoreDocId =
+                                      normalizeResearchTicketDocId(newTkt.id);
                                     saveGeneratedResearchTicketToFirebase({
                                       ticketId: newTkt.id,
                                       adamNodeId: newTkt.adamNodeId,
@@ -10187,6 +10288,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     ]);
                                     setSelectedTicketId(newTkt.id);
                                     setActiveSubTab('ticket_inbox');
+                                    onSelectPortalSection?.('research_studio');
                                   }}
                                   className="px-3.5 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-extrabold cursor-pointer transition-colors"
                                 >

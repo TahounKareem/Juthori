@@ -35,22 +35,41 @@ service cloud.firestore {
         && id.matches('^[a-zA-Z0-9_\\-#]+$');
     }
 
-    // Verified corporate staff token check (prevents unverified email spoofing; zero DB read cost for `list` rules)
-    function isVerifiedStaffEmail() {
+    // Corporate staff email token check (works for both Google OAuth and isolated /team Email/Password sessions;
+    // customer registration strictly forbids `@adamresearchcenter.net` via `isForbiddenStaffCustomerRecord`)
+    function isCorporateStaffToken() {
       return isSignedIn()
-        && request.auth.token.email_verified == true
         && request.auth.token.email != null
         && request.auth.token.email is string
         && request.auth.token.email.lower().matches('.*@adamresearchcenter\\.net$');
     }
 
-    // Trusted single-doc RBAC check against isolated `/team_members/{uid}` or verified corporate staff domain
+    // Active `/team_members/{uid}` RBAC check with synchronous parent canonical revocation (Pillar 1)
+    function isActiveTeamMemberUid() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/team_members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/team_members/$(request.auth.uid)).data.status == 'نشط'
+        && (
+          !('canonicalMemberId' in get(/databases/$(database)/documents/team_members/$(request.auth.uid)).data)
+          || (
+            isValidId(get(/databases/$(database)/documents/team_members/$(request.auth.uid)).data.canonicalMemberId)
+            && exists(/databases/$(database)/documents/team_members/$(get(/databases/$(database)/documents/team_members/$(request.auth.uid)).data.canonicalMemberId))
+            && get(/databases/$(database)/documents/team_members/$(get(/databases/$(database)/documents/team_members/$(request.auth.uid)).data.canonicalMemberId)).data.status == 'نشط'
+          )
+        );
+    }
+
+    // Trusted RBAC check for both corporate staff and invited researchers/managers in `/team_members`
     function isStaffOrAdmin() {
       return isSignedIn()
         && (
-          exists(/databases/$(database)/documents/team_members/$(request.auth.uid))
-          || isVerifiedStaffEmail()
+          isCorporateStaffToken()
+          || isActiveTeamMemberUid()
         );
+    }
+
+    function isVerifiedStaffEmail() {
+      return isStaffOrAdmin();
     }
 
     // Strict Isolation Wall: Block `/team` & corporate staff emails/IDs from ever entering `/users`
@@ -113,6 +132,8 @@ service cloud.firestore {
         && (!('phone' in data) || (data.phone is string && data.phone.size() <= 30))
         && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 350000))
         && (!('defaultCountry' in data) || (data.defaultCountry is string && data.defaultCountry.size() <= 60))
+        && (!('residenceCity' in data) || (data.residenceCity is string && data.residenceCity.size() <= 80))
+        && (!('profession' in data) || (data.profession is string && data.profession.size() <= 100))
         && (!('originCountry' in data) || (data.originCountry is string && data.originCountry.size() <= 60))
         && (!('originRegion' in data) || (data.originRegion is string && data.originRegion.size() <= 100))
         && (!('tribeName' in data) || (data.tribeName is string && data.tribeName.size() <= 100))
@@ -403,11 +424,19 @@ service cloud.firestore {
 
     function isWhitelistedViewer(data) {
       return isSignedIn()
-        && request.auth.token.email_verified == true
         && request.auth.token.email != null
         && 'whitelistedEmails' in data
         && data.whitelistedEmails is list
-        && request.auth.token.email.lower() in data.whitelistedEmails;
+        && request.auth.token.email.lower() in data.whitelistedEmails
+        && (
+          request.auth.token.email_verified == true
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && 'emailVerified' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified == true
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower() == request.auth.token.email.lower()
+          )
+        );
     }
 
     function isValidSiteDirectoryHeader(data, slug) {
@@ -432,6 +461,67 @@ service cloud.firestore {
         && (!('siteSlug' in data) || (data.siteSlug is string && data.siteSlug.size() <= 60))
         && data.members is list && data.members.size() <= 500
         && data.updatedAt is string && data.updatedAt.size() <= 60;
+    }
+
+    function isValidKinshipInvitation(data) {
+      return data.keys().hasAll([
+          'inviteToken',
+          'ownerId',
+          'inviterName',
+          'familyName',
+          'relativeName',
+          'kinshipRelation',
+          'invitedEmail',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'inviteToken',
+          'ownerId',
+          'inviterName',
+          'familyName',
+          'originCountry',
+          'originRegion',
+          'siteSlug',
+          'referralCode',
+          'relativeName',
+          'kinshipRelation',
+          'invitedEmail',
+          'status',
+          'claimedByUid',
+          'claimedAt',
+          'optedOutAt',
+          'fatherName',
+          'grandfatherName',
+          'residenceCountry',
+          'residenceCity',
+          'profession',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.inviteToken is string && data.inviteToken.size() >= 10 && data.inviteToken.size() <= 120
+        && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
+        && data.inviterName is string && data.inviterName.size() > 0 && data.inviterName.size() <= 150
+        && data.familyName is string && data.familyName.size() > 0 && data.familyName.size() <= 100
+        && (!('originCountry' in data) || (data.originCountry is string && data.originCountry.size() <= 80))
+        && (!('originRegion' in data) || (data.originRegion is string && data.originRegion.size() <= 120))
+        && (!('siteSlug' in data) || (data.siteSlug is string && data.siteSlug.size() <= 60))
+        && (!('referralCode' in data) || (data.referralCode is string && data.referralCode.size() <= 32))
+        && data.relativeName is string && data.relativeName.size() > 0 && data.relativeName.size() <= 140
+        && data.kinshipRelation is string && data.kinshipRelation.size() > 0 && data.kinshipRelation.size() <= 120
+        && data.invitedEmail is string && data.invitedEmail.size() >= 3 && data.invitedEmail.size() <= 120
+        && data.status in ['PENDING', 'SENT', 'ACTIVE', 'OPTED_OUT']
+        && (!('claimedByUid' in data) || (data.claimedByUid is string && data.claimedByUid.size() <= 128))
+        && (!('claimedAt' in data) || (data.claimedAt is string && data.claimedAt.size() <= 60))
+        && (!('optedOutAt' in data) || (data.optedOutAt is string && data.optedOutAt.size() <= 60))
+        && (!('fatherName' in data) || (data.fatherName is string && data.fatherName.size() <= 80))
+        && (!('grandfatherName' in data) || (data.grandfatherName is string && data.grandfatherName.size() <= 80))
+        && (!('residenceCountry' in data) || (data.residenceCountry is string && data.residenceCountry.size() <= 80))
+        && (!('residenceCity' in data) || (data.residenceCity is string && data.residenceCity.size() <= 80))
+        && (!('profession' in data) || (data.profession is string && data.profession.size() <= 100))
+        && data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() > 0 && data.updatedAt.size() <= 60;
     }
 
     function isValidEnrichmentRequest(data) {
@@ -780,8 +870,72 @@ service cloud.firestore {
       allow create, update: if isValidId(ownerId)
         && isOwner(ownerId)
         && isValidKinshipCircle(incoming(), ownerId)
-        && isRecordKeeperUser(request.auth.uid);
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
       allow delete: if isValidId(ownerId) && (isOwner(ownerId) || isStaffOrAdmin());
+    }
+
+    match /kinship_invitations/{inviteToken} {
+      // Capability-token O(1) lookup ONLY when possessing the exact high-entropy inviteToken (NEVER public list)
+      allow get: if isValidId(inviteToken) && inviteToken.size() >= 10;
+
+      allow list: if isSignedIn()
+        && (
+          existing().ownerId == request.auth.uid
+          || ('claimedByUid' in existing() && existing().claimedByUid == request.auth.uid)
+          || isVerifiedStaffEmail()
+        );
+
+      allow create: if isValidId(inviteToken)
+        && inviteToken.size() >= 10
+        && isSignedIn()
+        && isValidKinshipInvitation(incoming())
+        && incoming().inviteToken == inviteToken
+        && incoming().ownerId == request.auth.uid
+        && incoming().status in ['PENDING', 'SENT']
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if isValidId(inviteToken)
+        && inviteToken.size() >= 10
+        && isValidKinshipInvitation(incoming())
+        && incoming().inviteToken == existing().inviteToken
+        && incoming().ownerId == existing().ownerId
+        && incoming().invitedEmail == existing().invitedEmail
+        && incoming().createdAt == existing().createdAt
+        && (
+          // Action 1: Registrar / Owner updates or re-sends invitation
+          (
+            isSignedIn()
+            && isOwner(existing().ownerId)
+            && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          )
+          // Action 2: 1-Click Unauthenticated Privacy Opt-Out (terminal lock to OPTED_OUT)
+          || (
+            existing().status in ['PENDING', 'SENT', 'ACTIVE']
+            && incoming().status == 'OPTED_OUT'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'optedOutAt', 'updatedAt'])
+          )
+          // Action 3: Authenticated Relative Zero-Friction Claim & Profile Enrichment
+          || (
+            isSignedIn()
+            && existing().status in ['PENDING', 'SENT', 'ACTIVE']
+            && incoming().status == 'ACTIVE'
+            && 'claimedByUid' in incoming()
+            && incoming().claimedByUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'status',
+              'claimedByUid',
+              'claimedAt',
+              'fatherName',
+              'grandfatherName',
+              'residenceCountry',
+              'residenceCity',
+              'profession',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isValidId(inviteToken) && (isOwner(existing().ownerId) || isStaffOrAdmin());
     }
 
     match /enrichment_requests/{requestId} {
@@ -997,10 +1151,35 @@ service cloud.firestore {
     }
 
     match /team_members/{memberId} {
-      allow get: if isValidId(memberId) && (isOwner(memberId) || isStaffOrAdmin());
-      allow list: if isVerifiedStaffEmail();
+      allow get: if isValidId(memberId)
+        && (
+          isOwner(memberId)
+          || isStaffOrAdmin()
+          || (
+            isSignedIn()
+            && request.auth.token.email != null
+            && existing().email.lower() == request.auth.token.email.lower()
+          )
+        );
+      allow list: if isStaffOrAdmin();
       allow create, update: if isValidId(memberId)
-        && isStaffOrAdmin()
+        && (
+          isStaffOrAdmin()
+          || (
+            // Allow an invited researcher/manager signing into `/team` to bind their own `/team_members/{uid}`
+            // strictly when an active canonical `/team_members/{canonicalMemberId}` record already exists for their exact email & role
+            isOwner(memberId)
+            && request.auth.token.email != null
+            && 'canonicalMemberId' in incoming()
+            && isValidId(incoming().canonicalMemberId)
+            && incoming().canonicalMemberId != memberId
+            && exists(/databases/$(database)/documents/team_members/$(incoming().canonicalMemberId))
+            && get(/databases/$(database)/documents/team_members/$(incoming().canonicalMemberId)).data.status == 'نشط'
+            && get(/databases/$(database)/documents/team_members/$(incoming().canonicalMemberId)).data.email.lower() == request.auth.token.email.lower()
+            && get(/databases/$(database)/documents/team_members/$(incoming().canonicalMemberId)).data.role == incoming().role
+            && incoming().status == 'نشط'
+          )
+        )
         && incoming().name is string && incoming().name.size() <= 120
         && incoming().email is string && incoming().email.size() <= 120
         && incoming().role in ['المايسترو', 'مدير عام', 'مدير البحوث', 'مدير إدارة الطلبات وخدمة العملاء', 'مدير تحرير المركز المعرفي'];

@@ -665,3 +665,110 @@ test('Priority 5 End-to-End Hardening: Zero-Trust Firestore/Storage rules, PII s
   assert.equal(mainTsx.includes('GEMINI_API_KEY'), false);
 });
 
+test('Kinship Invitation Public URL Rewriting (ais-dev -> ais-pre), Invite/Opt-Out Links & Capability Token Rules', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const {
+    rewriteAisDevToPublicOrigin,
+    buildPublicKinshipInviteLinks,
+  } = await import('../config/referralAndSiteConfig');
+
+  // 1) Rewrite internal protected `ais-dev-*` preview URLs to public `ais-pre-*` to prevent Google 403 auth-bridge
+  assert.equal(
+    rewriteAisDevToPublicOrigin(
+      'https://ais-dev-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app'
+    ),
+    'https://ais-pre-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app'
+  );
+  assert.equal(
+    rewriteAisDevToPublicOrigin(
+      'http://ais-dev-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app/some/path/'
+    ),
+    'https://ais-pre-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app'
+  );
+
+  // 2) Preserve custom production domains (`juthori.com`, Hostinger, etc.)
+  assert.equal(rewriteAisDevToPublicOrigin('https://juthori.com/'), 'https://juthori.com');
+  assert.equal(
+    rewriteAisDevToPublicOrigin('https://lemonchiffon-gorilla-255162.hostingersite.com'),
+    'https://lemonchiffon-gorilla-255162.hostingersite.com'
+  );
+
+  // 3) Build exact portal CTA & 1-click opt-out links WITH and WITHOUT siteSlug
+  const withSlug = buildPublicKinshipInviteLinks({
+    baseOriginOverride:
+      'https://ais-dev-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app',
+    siteSlug: 'Almuqit',
+    inviteToken: 'inv_test987654321',
+    referralCode: 'JTH-KARIM1',
+  });
+  assert.equal(
+    withSlug.publicBaseUrl,
+    'https://ais-pre-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app'
+  );
+  assert.equal(
+    withSlug.portalUrl,
+    'https://ais-pre-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app/almuqit?invite=inv_test987654321&ref=JTH-KARIM1'
+  );
+  assert.equal(
+    withSlug.optOutUrl,
+    'https://ais-pre-dyyubhlhobciifbgx4rwcq-525819226718.us-west1.run.app/?optout=inv_test987654321'
+  );
+  assert.equal(withSlug.portalUrl.includes('ais-dev-'), false);
+  assert.equal(withSlug.optOutUrl.includes('ais-dev-'), false);
+
+  const withoutSlug = buildPublicKinshipInviteLinks({
+    baseOriginOverride: 'https://juthori.com',
+    siteSlug: '',
+    inviteToken: 'inv_noslug123456',
+    referralCode: 'JTH-KARIM1',
+  });
+  assert.equal(
+    withoutSlug.portalUrl,
+    'https://juthori.com/?invite=inv_noslug123456&ref=JTH-KARIM1'
+  );
+  assert.equal(
+    withoutSlug.optOutUrl,
+    'https://juthori.com/?optout=inv_noslug123456'
+  );
+
+  // 4) Verify Firestore security rules include capability-token `kinship_invitations` O(1) get & opt-out
+  const firestoreRules = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf8');
+  assert.ok(firestoreRules.includes('match /kinship_invitations/{inviteToken}'));
+  assert.ok(firestoreRules.includes('allow get: if isValidId(inviteToken) && inviteToken.size() >= 10;'));
+  assert.ok(firestoreRules.includes('allow list: if isSignedIn()'));
+});
+
+test('Assigned Research Tickets (#ASG-<Arabic>): ASCII Firestore DocId Normalization & Staff RBAC Rules', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const { normalizeResearchTicketDocId } = await import('../services/firestoreService');
+
+  const validFirestoreIdRegex = /^[a-zA-Z0-9_-]+$/;
+
+  // 1) Arabic `#ASG-...` ticket IDs convert deterministically to pure ASCII valid Firestore document IDs
+  const saadDocId = normalizeResearchTicketDocId('#ASG-سعد');
+  const qurayshDocId = normalizeResearchTicketDocId('#ASG-الكريش');
+  const baitArefDocId = normalizeResearchTicketDocId('#ASG-بيت_عارف');
+
+  assert.match(saadDocId, validFirestoreIdRegex);
+  assert.match(qurayshDocId, validFirestoreIdRegex);
+  assert.match(baitArefDocId, validFirestoreIdRegex);
+  assert.ok(saadDocId.startsWith('tkt_db_ASG_'));
+  assert.notEqual(saadDocId, qurayshDocId);
+  assert.notEqual(saadDocId, baitArefDocId);
+
+  // 2) Idempotent when passed an already-normalized `tkt_db_...` document ID
+  assert.equal(normalizeResearchTicketDocId(saadDocId), saadDocId);
+
+  // 3) Pure ASCII ticket codes remain clean and deterministic
+  const p3DocId = normalizeResearchTicketDocId('#P3-ALPHA-709');
+  assert.equal(p3DocId, 'tkt_db_P3-ALPHA-709');
+  assert.match(p3DocId, validFirestoreIdRegex);
+
+  // 4) Verify `firestore.rules` authorizes `/team` Email/Password corporate staff and invited active researchers
+  const firestoreRules = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf8');
+  assert.ok(firestoreRules.includes('function isCorporateStaffToken()'));
+  assert.ok(firestoreRules.includes('function isActiveTeamMemberUid()'));
+  assert.ok(firestoreRules.includes('canonicalMemberId'));
+});

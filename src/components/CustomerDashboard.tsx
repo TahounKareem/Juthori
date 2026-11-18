@@ -122,6 +122,8 @@ interface CustomerDashboardProps {
   initialTab?: DashboardTab;
   initialTicketDraft?: PendingResearchTicketDraft | null;
   onClearInitialTicketDraft?: () => void;
+  initialAutoOpenVipUpgrade?: boolean;
+  onClearAutoOpenVipUpgrade?: () => void;
   onResyncLineageFromEngine?: () => Promise<void>;
   isResyncingLineage?: boolean;
 }
@@ -161,6 +163,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   initialTab,
   initialTicketDraft = null,
   onClearInitialTicketDraft,
+  initialAutoOpenVipUpgrade = false,
+  onClearAutoOpenVipUpgrade,
   onResyncLineageFromEngine,
   isResyncingLineage = false,
 }) => {
@@ -253,6 +257,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   );
   const [activeCheckoutOrder, setActiveCheckoutOrder] =
     useState<CheckoutOrderRequest | null>(null);
+
+  useEffect(() => {
+    if (!initialAutoOpenVipUpgrade) return;
+    setActiveCheckoutOrder({
+      id: 'ord-vip-60',
+      type: 'upgrade_vip_60',
+      title: 'الاشتراك السنوي الشامل — عضوية بريميوم (VIP)',
+      subtitle:
+        'يفتح المحطات الرئيسية الموثقة حتى آدم عليه السلام + رفع سعة شجرتي لـ 250 فرداً وخزانتي لـ 100 وثيقة + نشر موقعي + $25 رصيد هدية',
+      amountUsd: 60,
+      allowWalletPayment: true,
+      bonusWalletUsd: 25,
+    });
+    onClearAutoOpenVipUpgrade?.();
+  }, [initialAutoOpenVipUpgrade, onClearAutoOpenVipUpgrade]);
   const [verifiedResultOverride, setVerifiedResultOverride] =
     useState<LineageSearchResult | null>(() => {
       if (
@@ -2255,13 +2274,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           </span>
                         )}
                       </div>
-                      {caps.hasRegistrarBadge && (
-                        <div>
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#252321] text-[#F3D299] text-[10px] font-display font-bold">
-                            <span>أمين سجل العائلة ✦</span>
-                          </span>
-                        </div>
-                      )}
                       <div
                         className="text-xs font-mono text-[#252321]/70 truncate"
                         dir="ltr"

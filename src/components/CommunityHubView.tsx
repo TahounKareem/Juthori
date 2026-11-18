@@ -29,6 +29,7 @@ import {
 import {
   REFERRAL_REWARD_USD,
   buildDeterministicReferralCode,
+  resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 import {
   KinshipCircleDoc,
@@ -191,10 +192,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   }, [circle.members]);
 
   const personalInviteLink = useMemo(() => {
-    const origin =
-      typeof window !== 'undefined'
-        ? window.location.origin
-        : 'https://juthori.com';
+    const origin = resolveClientPublicAppBaseUrl();
     if (effectiveSiteSlug) {
       return `${origin}/${effectiveSiteSlug}?ref=${encodeURIComponent(
         referralStats.referralCode || referralCode
@@ -215,6 +213,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         ownerId: userId,
         ownerName: ownerFullName,
         familyName: result.familyName,
+        originCountry: result.originCountry,
+        originRegion: result.originRegion,
         siteSlug: effectiveSiteSlug || circle.siteSlug,
         referralCode: referralStats.referralCode || referralCode,
         relativeName: relName,
@@ -592,12 +592,23 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       key={m.id}
                       className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 flex items-center justify-between gap-3"
                     >
-                      <div className="space-y-0.5 text-xs">
-                        <div className="font-display font-bold text-sm text-[#252321]">
-                          {m.name}{' '}
-                          <span className="text-[#8D4925] text-xs font-normal">
-                            ({m.kinshipRelation})
+                      <div className="space-y-1 text-xs">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-display font-bold text-sm text-[#252321]">
+                            {m.name}{' '}
+                            <span className="text-[#8D4925] text-xs font-normal">
+                              ({m.kinshipRelation})
+                            </span>
                           </span>
+                          {m.status === 'ACTIVE' ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-900/15 text-emerald-900 border border-emerald-700/30 text-[10px] font-display font-bold">
+                              نشط ✓
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-900/10 text-[#8D4925] border border-[#B98A78]/40 text-[10px] font-display font-bold">
+                              دعوة مرسلة
+                            </span>
+                          )}
                         </div>
                         <div
                           dir="ltr"
@@ -605,6 +616,18 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         >
                           {m.email}
                         </div>
+                        {(m.profession || m.residenceCity || m.residenceCountry) && (
+                          <div className="text-[11px] text-[#252321]/75">
+                            {[
+                              m.profession,
+                              [m.residenceCity, m.residenceCountry]
+                                .filter(Boolean)
+                                .join('، '),
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </div>
+                        )}
                         {m.approvedEnrichmentsCount > 0 && (
                           <div className="text-[11px] font-bold text-[#D8755B]">
                             ✦ ساهم بـ {m.approvedEnrichmentsCount} إثراء معتمد في السجل

@@ -957,6 +957,69 @@ app.post('/api/email/verify-code', (req, res) => {
 });
 
 // 5C. Kinship Circle Luxury Invite & Direct 1-Click Privacy Opt-Out via Resend
+function rewriteServerAisDevUrl(rawUrl) {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed) return '';
+  return trimmed.replace(/^https?:\/\/ais-dev-/i, 'https://ais-pre-');
+}
+
+function rewriteServerAisDevOrigin(rawUrl) {
+  const rewritten = rewriteServerAisDevUrl(rawUrl);
+  if (!rewritten) return '';
+  try {
+    return new URL(rewritten).origin;
+  } catch {
+    return rewritten.replace(/\/+$/, '');
+  }
+}
+
+function resolvePublicAppBaseUrl(req, clientOrigin) {
+  const envPublic = String(
+    process.env.PUBLIC_APP_URL || process.env.VITE_PUBLIC_APP_URL || ''
+  ).trim();
+  if (/^https?:\/\/[^/\s]+/i.test(envPublic)) {
+    return rewriteServerAisDevOrigin(envPublic);
+  }
+
+  const candidateClient = String(clientOrigin || '').trim();
+  if (/^https?:\/\/[^/\s]+/i.test(candidateClient)) {
+    return rewriteServerAisDevOrigin(candidateClient);
+  }
+
+  const headerOrigin = String(req.headers.origin || '').trim();
+  if (/^https?:\/\/[^/\s]+/i.test(headerOrigin)) {
+    return rewriteServerAisDevOrigin(headerOrigin);
+  }
+
+  const forwardedHost = String(
+    req.headers['x-forwarded-host'] || req.headers.host || ''
+  )
+    .split(',')[0]
+    .trim();
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || 'https')
+    .split(',')[0]
+    .trim();
+  if (
+    forwardedHost &&
+    !/^localhost(:|$)|^127\.0\.0\.1(:|$)/i.test(forwardedHost)
+  ) {
+    return rewriteServerAisDevUrl(`${forwardedProto}://${forwardedHost}`);
+  }
+
+  return 'https://Juthori.com';
+}
+
+function sanitizePublicActionUrl(rawUrl, fallbackBaseUrl) {
+  const cleaned = rewriteServerAisDevUrl(rawUrl);
+  if (/^https?:\/\/[^/\s]+/i.test(cleaned)) {
+    return cleaned;
+  }
+  if (cleaned.startsWith('/')) {
+    return `${fallbackBaseUrl}${cleaned}`;
+  }
+  return fallbackBaseUrl;
+}
+
 app.post('/api/email/send-family-invite', async (req, res) => {
   const relativeEmail = String(
     req.body?.relativeEmail || req.body?.toEmail || ''
@@ -979,12 +1042,18 @@ app.post('/api/email/send-family-invite', async (req, res) => {
     .trim()
     .toLowerCase();
   const familyName = String(req.body?.familyName || 'العائلة').trim();
-  const siteSlug = String(req.body?.siteSlug || '').trim().toLowerCase();
-  const referralCode = String(req.body?.referralCode || '').trim();
-  const inviteToken = String(req.body?.inviteToken || '').trim();
-  const originBase =
-    String(req.body?.originUrl || '').trim().replace(/\/+$/, '') ||
-    'https://Juthori.com';
+  const siteSlug = String(req.body?.siteSlug || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '');
+  const referralCode = String(req.body?.referralCode || '').trim().toUpperCase();
+  const inviteToken = String(req.body?.inviteToken || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '');
+  const originBase = resolvePublicAppBaseUrl(
+    req,
+    String(req.body?.originUrl || '')
+  );
 
   if (!relativeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(relativeEmail)) {
     res.status(400).json({
@@ -999,19 +1068,35 @@ app.post('/api/email/send-family-invite', async (req, res) => {
     return;
   }
 
-  const portalUrl =
-    String(req.body?.portalUrl || req.body?.siteUrl || '').trim() ||
-    (siteSlug
-      ? `${originBase}/${encodeURIComponent(siteSlug)}${
-          referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''
-        }`
-      : `${originBase}/${referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''}`);
+  const portalQueryParts = [];
+  if (inviteToken) {
+    portalQueryParts.push(`invite=${encodeURIComponent(inviteToken)}`);
+  }
+  if (referralCode) {
+    portalQueryParts.push(`ref=${encodeURIComponent(referralCode)}`);
+  }
+  const portalQuerySuffix =
+    portalQueryParts.length > 0 ? `?${portalQueryParts.join('&')}` : '';
+
+  const defaultPortalUrl = siteSlug
+    ? `${originBase}/${encodeURIComponent(siteSlug)}${portalQuerySuffix}`
+    : `${originBase}/${portalQuerySuffix}`;
+
+  const portalUrl = inviteToken
+    ? defaultPortalUrl
+    : sanitizePublicActionUrl(
+        String(req.body?.portalUrl || req.body?.siteUrl || ''),
+        defaultPortalUrl
+      );
   const discoverUrl = `${originBase}/${
     referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''
   }`;
-  const optOutUrl =
-    String(req.body?.optOutUrl || '').trim() ||
-    `${originBase}/?optout=${encodeURIComponent(inviteToken || 'optout')}`;
+  const optOutUrl = inviteToken
+    ? `${originBase}/?optout=${encodeURIComponent(inviteToken)}`
+    : sanitizePublicActionUrl(
+        String(req.body?.optOutUrl || ''),
+        `${originBase}/?optout=optout`
+      );
 
   const html = `
     <div dir="rtl" style="font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif; background-color: #F7F2E9; padding: 36px 18px; color: #252321;">
@@ -1066,8 +1151,11 @@ app.post('/api/email/send-family-invite', async (req, res) => {
 });
 
 app.get('/api/email/optout-invite', (req, res) => {
-  const token = String(req.query?.token || '').trim();
-  res.redirect(`/?optout=${encodeURIComponent(token || 'done')}`);
+  const token = String(req.query?.token || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '');
+  const publicBase = resolvePublicAppBaseUrl(req);
+  res.redirect(`${publicBase}/?optout=${encodeURIComponent(token || 'done')}`);
 });
 
 // 6. Send Official Team Invitation
@@ -1135,8 +1223,14 @@ app.post('/api/email/send-notification', async (req, res) => {
   const category = String(req.body?.category || 'system_notice').trim();
   const ticketNumber = String(req.body?.ticketNumber || '').trim();
   const senderName = String(req.body?.senderName || 'منصة جذوري').trim();
-  const actionUrl =
-    String(req.body?.actionUrl || '').trim() || 'https://Juthori.com';
+  const publicBase = resolvePublicAppBaseUrl(
+    req,
+    String(req.body?.originUrl || '')
+  );
+  const actionUrl = sanitizePublicActionUrl(
+    String(req.body?.actionUrl || '').trim(),
+    publicBase
+  );
   const actionLabel =
     String(req.body?.actionLabel || '').trim() || 'الدخول إلى حسابي في منصة جذوري';
 

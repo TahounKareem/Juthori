@@ -71,9 +71,10 @@ export const mirrorAuth = getAuth(mirrorApp);
 export const provisionerAuth = getAuth(provisionerApp);
 export const mirrorProvisionerAuth = getAuth(mirrorProvisionerApp);
 
-// Enforce local persistence for main auth and in-memory persistence for provisioner auth
+// Enforce local persistence for main auth and mirrorAuth, and in-memory persistence for provisioner auth
 try {
   setPersistence(auth, browserLocalPersistence).catch(() => {});
+  setPersistence(mirrorAuth, browserLocalPersistence).catch(() => {});
   setPersistence(provisionerAuth, inMemoryPersistence).catch(() => {});
   setPersistence(mirrorProvisionerAuth, inMemoryPersistence).catch(() => {});
 } catch {

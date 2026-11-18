@@ -34,11 +34,13 @@ import {
 import {
   COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR,
   EnrichmentRequestType,
+  KinshipInvitationDoc,
   ModuleVisibility,
   PublicMicrositeData,
   addBlessingToFamilyNews,
   addReplyToGuidedMajlisTopic,
   buildDefaultCmsModules,
+  fetchKinshipInvitationByToken,
   fetchPublishedMicrositeBySlug,
   incrementElderMemorialPrayer,
   submitEventRsvpOnMicrosite,
@@ -48,14 +50,29 @@ import {
 } from '../services/priority4Service';
 import { processMediaFileForUpload } from '../utils/mediaPipeline';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
+import {
+  ClaimedKinshipSessionPayload,
+  KinshipInviteClaimModal,
+} from './KinshipInviteClaimModal';
 
 interface PublicFamilyMicrositePageProps {
   siteSlug: string;
   previewData?: PublicMicrositeData | null;
   viewerEmail?: string;
+  viewerName?: string;
+  viewerKinshipRelation?: string;
+  viewerIsAnnualVip?: boolean;
+  inviteToken?: string | null;
   isOwnerPreview?: boolean;
   onExitToMainApp: () => void;
   onStartOwnLineageSearch?: () => void;
+  onInvitationClaimed?: (payload: ClaimedKinshipSessionPayload) => void;
+  onUpgradeOwnMembershipToAnnualVip?: (familyContext?: {
+    familyName: string;
+    originCountry?: string;
+    originRegion?: string;
+  }) => void;
+  onGoToOwnDashboard?: () => void;
 }
 
 const SESSION_AUTHORIZED_EMAIL_KEY = 'juthori_microsite_circle_email_v1';
@@ -66,15 +83,35 @@ export const PublicFamilyMicrositePage: React.FC<
   siteSlug,
   previewData,
   viewerEmail,
+  viewerName,
+  viewerKinshipRelation,
+  viewerIsAnnualVip = false,
+  inviteToken,
   isOwnerPreview = false,
   onExitToMainApp,
   onStartOwnLineageSearch,
+  onInvitationClaimed,
+  onUpgradeOwnMembershipToAnnualVip,
+  onGoToOwnDashboard,
 }) => {
   const [siteData, setSiteData] = useState<PublicMicrositeData | null>(
     previewData || null
   );
   const [loading, setLoading] = useState<boolean>(!previewData);
   const [showQrModal, setShowQrModal] = useState(false);
+
+  // Kinship Capability-Token Invitation State (`?invite={inviteToken}`)
+  const [activeInvitation, setActiveInvitation] =
+    useState<KinshipInvitationDoc | null>(null);
+  const [showInviteClaimModal, setShowInviteClaimModal] = useState(false);
+  const [justClaimedRelative, setJustClaimedRelative] = useState<{
+    name: string;
+    kinshipRelation: string;
+    email: string;
+  } | null>(null);
+  const [inviteOptedOutNotice, setInviteOptedOutNotice] = useState<
+    string | null
+  >(null);
 
   // Visitor Circle Verification State
   const [circleEmailInput, setCircleEmailInput] = useState<string>(() => {
@@ -110,11 +147,11 @@ export const PublicFamilyMicrositePage: React.FC<
   const [showEnrichmentModal, setShowEnrichmentModal] = useState(false);
   const [enrType, setEnrType] =
     useState<EnrichmentRequestType>('ADD_TREE_MEMBER');
-  const [enrRequesterName, setEnrRequesterName] = useState('');
+  const [enrRequesterName, setEnrRequesterName] = useState(viewerName || '');
   const [enrRequesterEmail, setEnrRequesterEmail] = useState(
     viewerEmail || activeCircleEmail || ''
   );
-  const [enrKinship, setEnrKinship] = useState('');
+  const [enrKinship, setEnrKinship] = useState(viewerKinshipRelation || '');
   const [enrTargetPersonId, setEnrTargetPersonId] = useState('');
   const [enrProposedFirstName, setEnrProposedFirstName] = useState('');
   const [enrProposedGender, setEnrProposedGender] = useState<'male' | 'female'>(
@@ -191,17 +228,120 @@ export const PublicFamilyMicrositePage: React.FC<
       const clean = viewerEmail.trim().toLowerCase();
       setActiveCircleEmail(clean);
       setCircleEmailInput(clean);
+      setEnrRequesterEmail((prev) => prev || clean);
     }
-  }, [viewerEmail]);
+    if (viewerName) {
+      setEnrRequesterName((prev) => prev || viewerName);
+    }
+    if (viewerKinshipRelation) {
+      setEnrKinship((prev) => prev || viewerKinshipRelation);
+    }
+  }, [viewerEmail, viewerName, viewerKinshipRelation]);
+
+  useEffect(() => {
+    if (!inviteToken || isOwnerPreview) return;
+    let mounted = true;
+    fetchKinshipInvitationByToken(inviteToken)
+      .then((inv) => {
+        if (!mounted || !inv) return;
+        setActiveInvitation(inv);
+        if (inv.status === 'OPTED_OUT') {
+          setInviteOptedOutNotice(
+            `تم إلغاء إدراج البريد الإلكتروني (${inv.invitedEmail}) مسبقاً من الدائرة العائلية الخاصة لأسرة ${inv.familyName}.`
+          );
+          if (
+            activeCircleEmail.trim().toLowerCase() ===
+            inv.invitedEmail.trim().toLowerCase()
+          ) {
+            setActiveCircleEmail('');
+          }
+          return;
+        }
+
+        const invitedLower = (inv.invitedEmail || '').trim().toLowerCase();
+        const viewerLower = (viewerEmail || '').trim().toLowerCase();
+        setEnrRequesterName((prev) => prev || inv.relativeName);
+        setEnrRequesterEmail((prev) => prev || invitedLower);
+        setEnrKinship((prev) => prev || inv.kinshipRelation);
+
+        if (viewerLower && viewerLower === invitedLower && inv.status === 'ACTIVE') {
+          setActiveCircleEmail(invitedLower);
+          setJustClaimedRelative({
+            name: inv.relativeName,
+            kinshipRelation: inv.kinshipRelation,
+            email: invitedLower,
+          });
+        } else {
+          setShowInviteClaimModal(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [inviteToken, isOwnerPreview, viewerEmail]);
+
+  const handleInviteClaimSuccess = async (
+    payload: ClaimedKinshipSessionPayload
+  ) => {
+    setShowInviteClaimModal(false);
+    setActiveInvitation(payload.invitation);
+    setActiveCircleEmail(payload.email);
+    setCircleEmailInput(payload.email);
+    setEnrRequesterName(payload.fullName || payload.firstName);
+    setEnrRequesterEmail(payload.email);
+    setEnrKinship(payload.kinshipRelation);
+    setJustClaimedRelative({
+      name: payload.invitation.relativeName || payload.firstName,
+      kinshipRelation: payload.kinshipRelation,
+      email: payload.email,
+    });
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.setItem(
+          SESSION_AUTHORIZED_EMAIL_KEY,
+          payload.email
+        );
+      } catch {
+        // Ignore
+      }
+    }
+    if (onInvitationClaimed) {
+      onInvitationClaimed(payload);
+    }
+    // Re-fetch published microsite now that the user is authenticated & verified (unlocks PRIVATE_WHITELIST!)
+    if (!previewData) {
+      const refreshed = await fetchPublishedMicrositeBySlug(siteSlug);
+      if (refreshed) {
+        setSiteData(refreshed);
+      }
+    }
+  };
 
   const isAuthorizedFamilyCircle = useMemo(() => {
     if (isOwnerPreview || Boolean(previewData)) return true;
+    if (activeInvitation?.status === 'OPTED_OUT') return false;
+    if (
+      justClaimedRelative &&
+      activeCircleEmail &&
+      justClaimedRelative.email.toLowerCase() ===
+        activeCircleEmail.trim().toLowerCase()
+    ) {
+      return true;
+    }
     if (!siteData || !activeCircleEmail) return false;
     const list = (siteData.whitelistedEmails || []).map((e) =>
       e.trim().toLowerCase()
     );
     return list.includes(activeCircleEmail.trim().toLowerCase());
-  }, [isOwnerPreview, previewData, siteData, activeCircleEmail]);
+  }, [
+    isOwnerPreview,
+    previewData,
+    siteData,
+    activeCircleEmail,
+    activeInvitation,
+    justClaimedRelative,
+  ]);
 
   const canRenderVisibility = (vis?: ModuleVisibility): boolean => {
     const effective = vis || 'PUBLIC';
@@ -511,6 +651,20 @@ export const PublicFamilyMicrositePage: React.FC<
         <footer className="py-5 text-center text-xs fs-muted border-t fs-border">
           بوابة عائلية موثقة عبر منصة «جذوري» لحفظ الأنساب العربية · Juthori.com/{siteData.siteSlug}
         </footer>
+
+        {activeInvitation && activeInvitation.status !== 'OPTED_OUT' && (
+          <KinshipInviteClaimModal
+            isOpen={showInviteClaimModal}
+            invitation={activeInvitation}
+            onClose={() => setShowInviteClaimModal(false)}
+            onClaimCompleted={handleInviteClaimSuccess}
+            onOptOutCompleted={(msg) => {
+              setShowInviteClaimModal(false);
+              setInviteOptedOutNotice(msg);
+              setActiveCircleEmail('');
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -607,6 +761,16 @@ export const PublicFamilyMicrositePage: React.FC<
               <span>بطاقة الدعوة و QR</span>
             </button>
 
+            {onGoToOwnDashboard && Boolean(viewerEmail || justClaimedRelative) && !isOwnerPreview && (
+              <button
+                type="button"
+                onClick={onGoToOwnDashboard}
+                className="px-3.5 py-2 rounded-xl border fs-border fs-muted-surface text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90"
+              >
+                <span>لوحة حسابي الشخصي</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onStartOwnLineageSearch || onExitToMainApp}
@@ -620,6 +784,103 @@ export const PublicFamilyMicrositePage: React.FC<
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-10 space-y-8">
+        {inviteOptedOutNotice && (
+          <section className="rounded-2xl bg-[#252321] text-[#F7F2E9] border border-[#B98A78]/50 p-5 flex items-center justify-between gap-4">
+            <div className="text-xs sm:text-sm font-display font-bold leading-relaxed">
+              ✓ {inviteOptedOutNotice}
+            </div>
+            <button
+              type="button"
+              onClick={() => setInviteOptedOutNotice(null)}
+              className="px-3 py-1.5 rounded-lg bg-[#D8755B] text-white text-xs font-bold cursor-pointer shrink-0"
+            >
+              إغلاق
+            </button>
+          </section>
+        )}
+
+        {/* Unclaimed Invite Prompt Ribbon if visitor closed modal temporarily */}
+        {activeInvitation &&
+          activeInvitation.status !== 'OPTED_OUT' &&
+          !isAuthorizedFamilyCircle &&
+          !showInviteClaimModal && (
+            <section className="rounded-2xl bg-[#252321] text-[#F7F2E9] border border-[#D8755B]/65 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-[#E8C284]">
+                  ✦ دعوة عائلية جاهزة للتفعيل باسم: {activeInvitation.relativeName} ({activeInvitation.kinshipRelation})
+                </div>
+                <p className="text-xs text-[#F7F2E9]/85">
+                  أكمل تفعيل عضويتك العائلية في خطوة واحدة لفتح الأقسام الخاصة وإضافة فرعك في شجرة عائلة {siteData.familyName}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInviteClaimModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold shrink-0 cursor-pointer"
+              >
+                تفعيل عضويتي العائلية الآن ←
+              </button>
+            </section>
+          )}
+
+        {/* GUIDED ACTION BAR FOR AUTHORIZED / CLAIMED FAMILY MEMBERS */}
+        {isAuthorizedFamilyCircle && !isOwnerPreview && (
+          <section className="rounded-2xl bg-[#252321] text-[#F7F2E9] border-2 border-[#D8755B]/75 p-5 sm:p-6 shadow-md space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-[#E8C284] flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#D8755B]" />
+                  <span>
+                    عضوية عائلة معتمدة ومفعّلة
+                    {justClaimedRelative
+                      ? ` · مرحباً بك يا ${justClaimedRelative.name} (${justClaimedRelative.kinshipRelation})`
+                      : viewerName
+                      ? ` · مرحباً بك يا ${viewerName}`
+                      : ''}
+                  </span>
+                </div>
+                <h2 className="text-base sm:text-lg font-display font-bold">
+                  أهلاً بك في الدائرة العائلية الخاصة لديوان أسرة {siteData.familyName}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEnrType('ADD_TREE_MEMBER');
+                  setEnrSuccessMessage(null);
+                  setShowEnrichmentModal(true);
+                }}
+                className="px-5 py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>أضف فرعك / أبناءك أو شارك صورة تاريخية في شجرة العائلة ✦</span>
+              </button>
+            </div>
+
+            {!viewerIsAnnualVip && onUpgradeOwnMembershipToAnnualVip && (
+              <div className="pt-3.5 border-t border-white/15 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+                <p className="text-xs text-[#F7F2E9]/90 leading-relaxed max-w-3xl">
+                  أنت تتصفح البوابة المعاصرة لأسرتك مجاناً بصفتك عضو عائلة معتمد. هل تود كشف عمود نسبك التاريخي الموثق بالمصادر، وبناء خزانتك الأرشيفية المستقلة، أو تأسيس بوابة فرعك الخاص؟ رقِّ عضويتك للباقة السنوية الآن
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpgradeOwnMembershipToAnnualVip({
+                      familyName: siteData.familyName,
+                      originCountry: siteData.originCountry,
+                      originRegion: siteData.originRegion,
+                    })
+                  }
+                  className="px-4 py-2.5 rounded-xl bg-[#F7F2E9] hover:bg-white text-[#252321] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
+                  <span>رقِّ عضويتك للباقة السنوية الآن ←</span>
+                </button>
+              </div>
+            )}
+          </section>
+        )}
         {/* 1. HERO, EMBLEM TAG & FAMILY BIO */}
         <section className="rounded-2xl fs-hero p-6 sm:p-10 shadow-md relative overflow-hidden">
           <div className="max-w-3xl space-y-4 relative z-10">
@@ -709,30 +970,65 @@ export const PublicFamilyMicrositePage: React.FC<
         {siteData.privacyConfig.showFamilyTree &&
           canRenderVisibility(siteData.privacyConfig.treeVisibility) && (
             <section className="rounded-2xl fs-surface border fs-border p-6 sm:p-8 space-y-6">
-              {/* COMMERCIAL PAYWALL TEASER (Zero upper lineage spine or book sources leaked!) */}
-              <div className="rounded-xl fs-muted-surface border fs-border p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl fs-hero flex items-center justify-center shrink-0 mt-0.5">
-                    <Scroll className="w-4 h-4" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-bold fs-accent-text">
-                      التوثيق التاريخي المرجعي عبر منصة جذوري
+              {/* SMART ANNUAL VIP UPSELL FOR AUTHORIZED FAMILY MEMBERS OR STANDARD COMMERCIAL TEASER FOR PUBLIC VISITORS */}
+              {isAuthorizedFamilyCircle &&
+              !isOwnerPreview &&
+              !viewerIsAnnualVip &&
+              onUpgradeOwnMembershipToAnnualVip ? (
+                <div className="rounded-xl fs-muted-surface border fs-border p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl fs-hero flex items-center justify-center shrink-0 mt-0.5">
+                      <Scroll className="w-4 h-4" />
                     </div>
-                    <p className="text-xs sm:text-sm font-display font-bold leading-relaxed">
-                      «{COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR}»
-                    </p>
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-bold fs-accent-text">
+                        ✦ ترقية العضوية الشخصية لأفراد عائلة {siteData.familyName} المعتمدين
+                      </div>
+                      <p className="text-xs sm:text-sm font-display font-bold leading-relaxed">
+                        «أنت تتصفح البوابة المعاصرة لأسرتك مجاناً بصفتك عضو عائلة معتمد. هل تود كشف عمود نسبك التاريخي الموثق بالمصادر، وبناء خزانتك الأرشيفية المستقلة، أو تأسيس بوابة فرعك الخاص؟ رقِّ عضويتك للباقة السنوية الآن»
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpgradeOwnMembershipToAnnualVip({
+                        familyName: siteData.familyName,
+                        originCountry: siteData.originCountry,
+                        originRegion: siteData.originRegion,
+                      })
+                    }
+                    className="px-4 py-2.5 rounded-xl fs-accent-bg text-xs font-display font-bold inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer hover:opacity-95"
+                  >
+                    <span>رقِّ عضويتك للباقة السنوية الآن</span>
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={onStartOwnLineageSearch || onExitToMainApp}
-                  className="px-4 py-2.5 rounded-xl fs-accent-bg text-xs font-display font-bold inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer hover:opacity-95"
-                >
-                  <span>افحص واكشف عمود نسبك الخاص</span>
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              ) : (
+                <div className="rounded-xl fs-muted-surface border fs-border p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl fs-hero flex items-center justify-center shrink-0 mt-0.5">
+                      <Scroll className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-bold fs-accent-text">
+                        التوثيق التاريخي المرجعي عبر منصة جذوري
+                      </div>
+                      <p className="text-xs sm:text-sm font-display font-bold leading-relaxed">
+                        «{COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR}»
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onStartOwnLineageSearch || onExitToMainApp}
+                    className="px-4 py-2.5 rounded-xl fs-accent-bg text-xs font-display font-bold inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer hover:opacity-95"
+                  >
+                    <span>افحص واكشف عمود نسبك الخاص</span>
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Tree Header + Enrichment CTA */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b fs-border pb-4">
@@ -1753,6 +2049,21 @@ export const PublicFamilyMicrositePage: React.FC<
         registrarName={siteData.ownerDisplayName}
         referralCode={siteData.ownerReferralCode}
       />
+
+      {/* VIP Kinship Invitation Onboarding Modal */}
+      {activeInvitation && activeInvitation.status !== 'OPTED_OUT' && (
+        <KinshipInviteClaimModal
+          isOpen={showInviteClaimModal}
+          invitation={activeInvitation}
+          onClose={() => setShowInviteClaimModal(false)}
+          onClaimCompleted={handleInviteClaimSuccess}
+          onOptOutCompleted={(msg) => {
+            setShowInviteClaimModal(false);
+            setInviteOptedOutNotice(msg);
+            setActiveCircleEmail('');
+          }}
+        />
+      )}
 
       {/* Enrichment Proposal Modal («اقترح إثراءً») */}
       {showEnrichmentModal && (

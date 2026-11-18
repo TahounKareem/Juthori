@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
+import { resolveClientPublicAppBaseUrl } from '../config/referralAndSiteConfig';
 
 interface RoyalQrInvitationModalProps {
   isOpen?: boolean;
@@ -34,8 +35,7 @@ export const RoyalQrInvitationModal: React.FC<RoyalQrInvitationModalProps> = ({
   const [cardDataUrl, setCardDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : 'https://Juthori.com';
+  const origin = resolveClientPublicAppBaseUrl();
   const cleanSlug = (siteSlug || 'family').trim();
   const shareUrl = `${origin}/${cleanSlug}${
     referralCode ? `?ref=${encodeURIComponent(referralCode)}` : ''

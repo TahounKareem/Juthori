@@ -61,6 +61,16 @@
           "maxLength": 60,
           "description": "Default residence country."
         },
+        "residenceCity": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Current residence city."
+        },
+        "profession": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Occupation, specialty, or profession."
+        },
         "originCountry": {
           "type": "string",
           "maxLength": 60,
@@ -739,6 +749,55 @@
       },
       "required": ["ownerId", "familyName", "members", "updatedAt"]
     },
+    "KinshipInvitation": {
+      "title": "KinshipInvitation",
+      "description": "Capability-token kinship invitation record enabling zero-friction relative onboarding, 1-click unauthenticated opt-out, referral attribution, and active status tracking.",
+      "type": "object",
+      "properties": {
+        "inviteToken": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 120,
+          "description": "High-entropy capability token embedded in invitation and opt-out URLs."
+        },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "inviterName": { "type": "string", "maxLength": 150 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "originCountry": { "type": "string", "maxLength": 80 },
+        "originRegion": { "type": "string", "maxLength": 120 },
+        "siteSlug": { "type": "string", "maxLength": 60 },
+        "referralCode": { "type": "string", "maxLength": 32 },
+        "relativeName": { "type": "string", "maxLength": 140 },
+        "kinshipRelation": { "type": "string", "maxLength": 120 },
+        "invitedEmail": { "type": "string", "format": "email", "maxLength": 120 },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "SENT", "ACTIVE", "OPTED_OUT"]
+        },
+        "claimedByUid": { "type": "string", "maxLength": 128 },
+        "claimedAt": { "type": "string", "maxLength": 60 },
+        "optedOutAt": { "type": "string", "maxLength": 60 },
+        "fatherName": { "type": "string", "maxLength": 80 },
+        "grandfatherName": { "type": "string", "maxLength": 80 },
+        "residenceCountry": { "type": "string", "maxLength": 80 },
+        "residenceCity": { "type": "string", "maxLength": 80 },
+        "profession": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": [
+        "inviteToken",
+        "ownerId",
+        "inviterName",
+        "familyName",
+        "relativeName",
+        "kinshipRelation",
+        "invitedEmail",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
     "EnrichmentRequest": {
       "title": "EnrichmentRequest",
       "description": "Closed-loop family enrichment submission from a family microsite visitor/relative into the Record Keeper's inbox.",
@@ -1030,6 +1089,15 @@
           "enum": ["نشط", "موقوف"],
           "description": "Account status."
         },
+        "canonicalMemberId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Canonical /team_members/{id} reference for Firebase Auth UID binding records."
+        },
+        "isAuthUidBinding": {
+          "type": "boolean",
+          "description": "True when document maps a staff Firebase Auth UID to their canonical team_members record."
+        },
         "createdAt": {
           "type": "string",
           "description": "Creation timestamp."
@@ -1206,6 +1274,10 @@
     "/kinship_circles/{ownerId}": {
       "schema": { "$ref": "entities/KinshipCircle" },
       "description": "Private kinship circle of authorized family relatives managed by the Record Keeper."
+    },
+    "/kinship_invitations/{inviteToken}": {
+      "schema": { "$ref": "entities/KinshipInvitation" },
+      "description": "Capability-token kinship invitations for VIP landing onboarding and 1-click privacy opt-out."
     },
     "/enrichment_requests/{requestId}": {
       "schema": { "$ref": "entities/EnrichmentRequest" },

@@ -54,11 +54,21 @@ import { LoginModal } from './components/LoginModal';
 import { AdminStaffPortal } from './components/AdminStaffPortal';
 import { PublicFamilyMicrositePage } from './components/PublicFamilyMicrositePage';
 import {
+  ClaimedKinshipSessionPayload,
+  KinshipInviteClaimModal,
+} from './components/KinshipInviteClaimModal';
+import {
+  KinshipInvitationDoc,
+  fetchKinshipInvitationByToken,
   normalizePublicSiteSlug,
   processKinshipOptOutByToken,
   resolveMicrositeSlugFromLocation,
 } from './services/priority4Service';
-import { capturePendingReferralCodeFromUrl } from './config/referralAndSiteConfig';
+import {
+  capturePendingReferralCodeFromUrl,
+  clearPendingInviteToken,
+  readInviteTokenFromWindow,
+} from './config/referralAndSiteConfig';
 
 const DEFAULT_FORM_STATE: RegistrationFormState = {
   accountType: AccountLegalType.Individual,
@@ -278,9 +288,24 @@ export function App() {
   const [publicMicrositeSlug, setPublicMicrositeSlug] = useState<string | null>(
     () => resolvePublicSiteSlugFromWindow()
   );
-  const [optOutFeedbackMessage, setOptOutFeedbackMessage] = useState<
-    string | null
-  >(null);
+  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(
+    () => readInviteTokenFromWindow()
+  );
+  const [standaloneInvitation, setStandaloneInvitation] =
+    useState<KinshipInvitationDoc | null>(null);
+  const [standaloneClaimModalOpen, setStandaloneClaimModalOpen] =
+    useState<boolean>(false);
+  const [claimedKinshipRelation, setClaimedKinshipRelation] =
+    useState<string>('');
+  const [autoOpenVipUpgradeInDashboard, setAutoOpenVipUpgradeInDashboard] =
+    useState<boolean>(false);
+  const [optOutFeedbackModal, setOptOutFeedbackModal] = useState<{
+    ok: boolean;
+    familyName?: string;
+    invitedEmail?: string;
+    inviterName?: string;
+    messageAr: string;
+  } | null>(null);
 
   // Refs to preserve active Arabic search form & matched lineageResult during Firebase Auth callbacks
   const formRef = useRef<RegistrationFormState>(form);
@@ -305,7 +330,7 @@ export function App() {
       if (optOutToken) {
         processKinshipOptOutByToken(optOutToken)
           .then((res) => {
-            setOptOutFeedbackMessage(res.messageAr);
+            setOptOutFeedbackModal(res);
             searchParams.delete('optout');
             const qs = searchParams.toString();
             window.history.replaceState(
@@ -321,6 +346,7 @@ export function App() {
     if (typeof window === 'undefined') return;
     const handleLocationChange = () => {
       capturePendingReferralCodeFromUrl();
+      setPendingInviteToken(readInviteTokenFromWindow());
       if (isTeamRouteInWindow()) {
         setPublicMicrositeSlug(null);
         setActiveView('staff_portal');
@@ -335,6 +361,61 @@ export function App() {
       window.removeEventListener('hashchange', handleLocationChange);
     };
   }, []);
+
+  // Resolve root `/?invite={inviteToken}` invitations:
+  // - If the Registrar has a published `siteSlug`, route seamlessly to `/{siteSlug}?invite=...`
+  // - Otherwise open `<KinshipInviteClaimModal>` directly over the platform
+  useEffect(() => {
+    if (!pendingInviteToken || publicMicrositeSlug) {
+      setStandaloneInvitation(null);
+      setStandaloneClaimModalOpen(false);
+      return;
+    }
+
+    let cancelled = false;
+    fetchKinshipInvitationByToken(pendingInviteToken)
+      .then((inv) => {
+        if (cancelled || !inv) return;
+        if (inv.status === 'OPTED_OUT') {
+          setOptOutFeedbackModal({
+            ok: false,
+            familyName: inv.familyName,
+            invitedEmail: inv.invitedEmail,
+            messageAr:
+              'تم إلغاء إدراج بريدك الإلكتروني من هذه الدائرة العائلية مسبقاً بناءً على طلبك.',
+          });
+          clearPendingInviteToken();
+          setPendingInviteToken(null);
+          return;
+        }
+        if (inv.siteSlug) {
+          const cleanSlug = normalizePublicSiteSlug(inv.siteSlug);
+          if (cleanSlug.length >= 3) {
+            if (typeof window !== 'undefined') {
+              const qs = new URLSearchParams(window.location.search);
+              qs.set('invite', inv.inviteToken);
+              if (inv.referralCode && !qs.get('ref')) {
+                qs.set('ref', inv.referralCode);
+              }
+              window.history.replaceState(
+                {},
+                '',
+                `/${cleanSlug}?${qs.toString()}`
+              );
+            }
+            setPublicMicrositeSlug(cleanSlug);
+            return;
+          }
+        }
+        setStandaloneInvitation(inv);
+        setStandaloneClaimModalOpen(true);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingInviteToken, publicMicrositeSlug]);
 
   // Reset scroll position to the very top whenever any top-level view or search screen changes
   useEffect(() => {
@@ -675,7 +756,12 @@ export function App() {
             }).catch(() => {});
           }
 
+          const activeInviteTokenInUrl = readInviteTokenFromWindow();
+
           if (!profile) {
+            if (activeInviteTokenInUrl) {
+              return;
+            }
             const firstFromSearch = !isEmailPrefixOrAsciiPlaceholder(
               activeSearchForm.firstName,
               cleanUserEmail
@@ -2403,23 +2489,125 @@ export function App() {
     }));
   };
 
+  const handleKinshipClaimCompleted = (
+    payload: ClaimedKinshipSessionPayload,
+    options?: { enterOwnDashboardIfNoSite?: boolean }
+  ) => {
+    setUserId(payload.uid);
+    setHasActiveSession(true);
+    setClaimedKinshipRelation(payload.kinshipRelation || '');
+    setUserDefaultCountry(
+      payload.residenceCountry || payload.originCountry || 'السعودية'
+    );
+    setPendingInviteToken(null);
+    setStandaloneClaimModalOpen(false);
+    setStandaloneInvitation(null);
+
+    const nextClaimedForm: RegistrationFormState = {
+      ...DEFAULT_FORM_STATE,
+      accountType: AccountLegalType.Individual,
+      firstName: payload.firstName || 'عضو',
+      fatherName: payload.fatherName || '',
+      grandfatherName: payload.grandfatherName || '',
+      familyName: payload.familyName || 'العائلة',
+      originCountry: payload.originCountry || 'السعودية',
+      originRegion: payload.originRegion || '',
+      tribeName: '',
+      branchName: '',
+      email: payload.email,
+      agreedToTerms: true,
+    };
+    setForm(nextClaimedForm);
+
+    const matchedLineage = resolveDeterministicLineage({
+      firstName: nextClaimedForm.firstName,
+      fatherName: nextClaimedForm.fatherName,
+      grandfatherName: nextClaimedForm.grandfatherName,
+      familyName: nextClaimedForm.familyName,
+      originCountry: nextClaimedForm.originCountry,
+      originRegion: nextClaimedForm.originRegion,
+      tribeName: '',
+      branchName: '',
+    });
+    setLineageResult(matchedLineage);
+    setDashboardStateMode((curr) =>
+      curr === DashboardStateMode.AnnualVip
+        ? curr
+        : matchedLineage.matched
+        ? DashboardStateMode.State2MatchedUnpaid
+        : matchedLineage.recommendedInitialState
+    );
+    setSearchStep(3);
+    setPreviousPlatformView('dashboard');
+
+    if (options?.enterOwnDashboardIfNoSite && !publicMicrositeSlug) {
+      setActiveView('dashboard');
+    }
+  };
+
   return (
     <>
-      {optOutFeedbackMessage && (
+      {optOutFeedbackModal && (
         <div
           dir="rtl"
-          className="bg-[#252321] text-[#F7F2E9] border-b border-[#B98A78]/40 px-4 py-3 text-xs font-display font-bold flex items-center justify-between gap-4 z-50 relative"
+          className="fixed inset-0 z-[130] bg-[#1E1C1A]/75 backdrop-blur-sm flex items-center justify-center p-4"
         >
-          <span>✓ {optOutFeedbackMessage}</span>
-          <button
-            type="button"
-            onClick={() => setOptOutFeedbackMessage(null)}
-            className="px-3 py-1 rounded-lg bg-[#D8755B] text-white text-xs cursor-pointer shrink-0"
-          >
-            إغلاق
-          </button>
+          <div className="w-full max-w-md rounded-2xl bg-[#FDFBF7] border-2 border-[#B98A78]/50 shadow-2xl overflow-hidden">
+            <div className="bg-[#252321] text-[#F7F2E9] px-6 py-4 border-b border-[#B98A78]/30">
+              <p className="text-[11px] font-bold text-[#E6B980] mb-1">
+                حماية الخصوصية الفورية — منصة جذوري
+              </p>
+              <h3 className="text-base font-display font-bold">
+                {optOutFeedbackModal.ok
+                  ? 'تم حذف بريدك وإلغاء الإدراج فوراً ✓'
+                  : 'حالة رابط إلغاء الإدراج'}
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs sm:text-sm text-[#3A3632] leading-relaxed font-medium">
+                {optOutFeedbackModal.messageAr}
+              </p>
+              <div className="rounded-xl bg-[#F4EFE6] border border-[#E2D9C8] p-3 text-[11px] text-[#5C554E] leading-relaxed">
+                لا يتطلب هذا الإجراء تسجيل الدخول أو إنشاء حساب، ولن تصلك أي دعوات مستقبلية من هذه الدائرة العائلية على هذا البريد الإلكتروني.
+              </div>
+              <button
+                type="button"
+                onClick={() => setOptOutFeedbackModal(null)}
+                className="w-full py-2.5 rounded-xl bg-[#252321] hover:bg-[#3A3632] text-[#F7F2E9] text-xs font-display font-bold transition-colors cursor-pointer"
+              >
+                حسناً، إغلاق النافذة
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
+      {standaloneInvitation && !publicMicrositeSlug && (
+        <KinshipInviteClaimModal
+          isOpen={standaloneClaimModalOpen}
+          invitation={standaloneInvitation}
+          onClose={() => {
+            setStandaloneClaimModalOpen(false);
+            clearPendingInviteToken();
+            setPendingInviteToken(null);
+          }}
+          onClaimCompleted={(claimed) =>
+            handleKinshipClaimCompleted(claimed, {
+              enterOwnDashboardIfNoSite: true,
+            })
+          }
+          onOptOutCompleted={(msgAr) => {
+            setStandaloneClaimModalOpen(false);
+            setStandaloneInvitation(null);
+            setPendingInviteToken(null);
+            setOptOutFeedbackModal({
+              ok: true,
+              messageAr: msgAr,
+            });
+          }}
+        />
+      )}
+
       {activeView === 'staff_portal' ? (
         <AdminStaffPortal
           currentClientResult={lineageResult}
@@ -2448,7 +2636,78 @@ export function App() {
       ) : publicMicrositeSlug ? (
         <PublicFamilyMicrositePage
           siteSlug={publicMicrositeSlug}
+          inviteToken={pendingInviteToken}
           viewerEmail={form.email || auth.currentUser?.email || ''}
+          viewerName={[form.firstName, form.familyName]
+            .filter((part) => part && part !== 'مستخدم')
+            .join(' ')}
+          viewerKinshipRelation={claimedKinshipRelation}
+          viewerIsAnnualVip={dashboardStateMode === DashboardStateMode.AnnualVip}
+          onInvitationClaimed={(claimed) =>
+            handleKinshipClaimCompleted(claimed, {
+              enterOwnDashboardIfNoSite: false,
+            })
+          }
+          onUpgradeOwnMembershipToAnnualVip={(ctx) => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+            setPublicMicrositeSlug(null);
+
+            const targetFamily = (
+              form.familyName ||
+              ctx?.familyName ||
+              'العائلة'
+            ).trim();
+            const targetCountry = (
+              form.originCountry ||
+              ctx?.originCountry ||
+              'السعودية'
+            ).trim();
+
+            if (!form.familyName || form.familyName !== targetFamily) {
+              const nextUpgradeForm: RegistrationFormState = {
+                ...form,
+                firstName:
+                  form.firstName && form.firstName !== 'مستخدم'
+                    ? form.firstName
+                    : 'عضو',
+                familyName: targetFamily,
+                originCountry: targetCountry,
+              };
+              setForm(nextUpgradeForm);
+              const seededLineage = resolveDeterministicLineage({
+                firstName: nextUpgradeForm.firstName,
+                fatherName: nextUpgradeForm.fatherName,
+                grandfatherName: nextUpgradeForm.grandfatherName,
+                familyName: targetFamily,
+                originCountry: targetCountry,
+                originRegion: nextUpgradeForm.originRegion,
+                tribeName: nextUpgradeForm.tribeName,
+                branchName: nextUpgradeForm.branchName,
+              });
+              setLineageResult(seededLineage);
+            }
+
+            if (hasActiveSession || auth.currentUser) {
+              setInitialDashboardTab(DashboardTab.Lineage);
+              setAutoOpenVipUpgradeInDashboard(true);
+              setActiveView('dashboard');
+            } else {
+              setActiveView('landing');
+              setSearchStep(1);
+              setLoginModalOpen(true);
+            }
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
+          onGoToOwnDashboard={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+            setPublicMicrositeSlug(null);
+            setActiveView('dashboard');
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
           onExitToMainApp={() => {
             if (typeof window !== 'undefined') {
               window.history.pushState({}, '', '/');
@@ -2541,6 +2800,10 @@ export function App() {
           initialTab={initialDashboardTab}
           initialTicketDraft={pendingTicketDraftState}
           onClearInitialTicketDraft={() => setPendingTicketDraftState(null)}
+          initialAutoOpenVipUpgrade={autoOpenVipUpgradeInDashboard}
+          onClearAutoOpenVipUpgrade={() =>
+            setAutoOpenVipUpgradeInDashboard(false)
+          }
           onResyncLineageFromEngine={handleManualResyncLineage}
           isResyncingLineage={isResyncingLineage}
         />

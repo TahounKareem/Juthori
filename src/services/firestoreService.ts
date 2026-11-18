@@ -50,6 +50,7 @@ import {
   buildDeterministicReferralCode,
   clearPendingReferralCode,
   readPendingReferralCode,
+  resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 
 export { buildDeterministicReferralCode };
@@ -94,19 +95,28 @@ function withFastTimeout<T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> {
 
 // Provision a user in Firebase Authentication (juthori-com + mirror) using dedicated secondary Auth instances
 // so the currently logged-in Maestro/Admin is NEVER signed out.
-export async function provisionUserInFirebaseAuth(
+export function provisionUserInFirebaseAuth(
   email: string,
   password: string,
   displayName: string
-): Promise<{ registeredInAuth: boolean; uid?: string }> {
+): Promise<{
+  registeredInAuth: boolean;
+  uid?: string;
+  primaryUid?: string;
+  mirrorUid?: string;
+}> {
   const cleanEmail = email.trim();
   const rawPass = password.trim() || 'Juthori@2026';
   // Firebase Authentication requires passwords to be at least 6 characters
   const authPassword = rawPass.length >= 6 ? rawPass : rawPass.padEnd(6, '0');
   let registeredInAuth = false;
-  let resolvedUid: string | undefined;
+  let primaryUid: string | undefined;
+  let mirrorUid: string | undefined;
 
-  const registerOnAuthInstance = async (targetAuth: typeof provisionerAuth) => {
+  const registerOnAuthInstance = async (
+    targetAuth: typeof provisionerAuth,
+    kind: 'primary' | 'mirror'
+  ) => {
     try {
       const cred = await withFastTimeout(
         createUserWithEmailAndPassword(targetAuth, cleanEmail, authPassword),
@@ -116,7 +126,8 @@ export async function provisionUserInFirebaseAuth(
         await updateProfile(cred.user, { displayName }).catch(() => {});
       }
       registeredInAuth = true;
-      resolvedUid = resolvedUid || cred.user.uid;
+      if (kind === 'primary') primaryUid = cred.user.uid;
+      else mirrorUid = cred.user.uid;
       await signOut(targetAuth).catch(() => {});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -127,7 +138,8 @@ export async function provisionUserInFirebaseAuth(
             signInWithEmailAndPassword(targetAuth, cleanEmail, authPassword),
             2500
           );
-          resolvedUid = resolvedUid || signCred.user.uid;
+          if (kind === 'primary') primaryUid = signCred.user.uid;
+          else mirrorUid = signCred.user.uid;
           if (displayName && signCred.user.displayName !== displayName) {
             await updateProfile(signCred.user, { displayName }).catch(() => {});
           }
@@ -139,12 +151,15 @@ export async function provisionUserInFirebaseAuth(
     }
   };
 
-  await Promise.allSettled([
-    registerOnAuthInstance(provisionerAuth),
-    registerOnAuthInstance(mirrorProvisionerAuth),
-  ]);
-
-  return { registeredInAuth, uid: resolvedUid };
+  return Promise.allSettled([
+    registerOnAuthInstance(provisionerAuth, 'primary'),
+    registerOnAuthInstance(mirrorProvisionerAuth, 'mirror'),
+  ]).then(() => ({
+    registeredInAuth,
+    uid: primaryUid || mirrorUid,
+    primaryUid,
+    mirrorUid,
+  }));
 }
 
 const PUBLIC_READ_COLLECTIONS = new Set([
@@ -163,12 +178,40 @@ const PUBLIC_WRITE_COLLECTIONS = new Set([
   'site_guestbook',
 ]);
 
+const TEAM_PORTAL_SESSION_STORAGE_KEY = 'juthori_team_authenticated_session';
+
+function readStoredActiveTeamMemberSession(): TeamMemberRecord | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(TEAM_PORTAL_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TeamMemberRecord;
+    if (parsed && parsed.email && parsed.status === 'نشط') {
+      return parsed;
+    }
+  } catch {
+    // Ignore storage parse errors
+  }
+  return null;
+}
+
+function isAuthorizedStaffEmailInRuntime(email?: string | null): boolean {
+  const clean = (email || '').trim().toLowerCase();
+  if (!clean) return false;
+  if (isCorporateStaffEmail(clean)) return true;
+  const activeTeam = readStoredActiveTeamMemberSession();
+  if (activeTeam && activeTeam.email.trim().toLowerCase() === clean) {
+    return true;
+  }
+  return false;
+}
+
 export function isRuntimeStaffSession(
   targetAuth: typeof auth = auth
 ): boolean {
   return Boolean(
     targetAuth.currentUser?.email &&
-      isCorporateStaffEmail(targetAuth.currentUser.email)
+      isAuthorizedStaffEmailInRuntime(targetAuth.currentUser.email)
   );
 }
 
@@ -180,7 +223,7 @@ function canReadOnAuth(
   if (PUBLIC_READ_COLLECTIONS.has(root)) return true;
   const currentUser = targetAuth.currentUser;
   if (!currentUser) return false;
-  const isStaff = isCorporateStaffEmail(currentUser.email);
+  const isStaff = isAuthorizedStaffEmailInRuntime(currentUser.email);
   if (root === 'users' && pathSegments[1]) {
     return currentUser.uid === pathSegments[1] || isStaff;
   }
@@ -203,7 +246,7 @@ function canWriteOnAuth(
   if (PUBLIC_WRITE_COLLECTIONS.has(root)) return true;
   const currentUser = targetAuth.currentUser;
   if (!currentUser) return false;
-  const isStaff = isCorporateStaffEmail(currentUser.email);
+  const isStaff = isAuthorizedStaffEmailInRuntime(currentUser.email);
   if (root === 'users' && pathSegments[1]) {
     if (pathSegments[2] === 'notifications') return true;
     return currentUser.uid === pathSegments[1] || isStaff;
@@ -212,7 +255,13 @@ function canWriteOnAuth(
     return currentUser.uid === pathSegments[1] || isStaff;
   }
   if (root === 'team_members' || root === 'knowledge_articles') {
-    return isStaff;
+    return (
+      Boolean(
+        root === 'team_members' &&
+          pathSegments[1] &&
+          currentUser.uid === pathSegments[1]
+      ) || isStaff
+    );
   }
   return true;
 }
@@ -512,6 +561,8 @@ export interface UserProfileData {
   avatarUrl?: string;
   accountType: 'individual' | 'record_keeper';
   defaultCountry?: string;
+  residenceCity?: string;
+  profession?: string;
   originCountry?: string;
   originRegion?: string;
   tribeName?: string;
@@ -955,6 +1006,8 @@ export interface TeamMemberRecord {
   completedTickets: number;
   avgCompletionTime: string;
   permissions: string[];
+  canonicalMemberId?: string;
+  isAuthUidBinding?: boolean;
   createdAt: string;
 }
 
@@ -1656,6 +1709,8 @@ export async function createUserProfileIfMissing(
     avatarUrl: additional.avatarUrl || '',
     accountType: additional.accountType || 'individual',
     defaultCountry: additional.defaultCountry || additional.originCountry || 'السعودية',
+    residenceCity: additional.residenceCity || undefined,
+    profession: additional.profession || undefined,
     originCountry: additional.originCountry || 'السعودية',
     originRegion: additional.originRegion || '',
     tribeName: additional.tribeName || '',
@@ -1713,17 +1768,86 @@ export async function createUserProfileIfMissing(
       const shouldPromoteEmailVerified =
         additional.emailVerified === true && !existing.emailVerified;
 
+      const shouldBindReferralOnExisting =
+        !existing.referredByUserId &&
+        Boolean(additional.referredByUserId || additional.referredByCode);
+
       if (
         incomingHasArabicFamily ||
         incomingHasArabicFirst ||
         additional.originRegion ||
+        additional.residenceCity ||
+        additional.profession ||
         incomingSnapshot ||
         shouldPromoteEmailVerified ||
+        shouldBindReferralOnExisting ||
         !existing.referralCode
       ) {
+        let boundRefUid = existing.referredByUserId;
+        let boundRefCode = existing.referredByCode;
+        if (shouldBindReferralOnExisting) {
+          const candidateCode = (
+            additional.referredByCode ||
+            readPendingReferralCode() ||
+            ''
+          )
+            .trim()
+            .toUpperCase();
+          if (
+            additional.referredByUserId &&
+            additional.referredByUserId !== safeUid
+          ) {
+            boundRefUid = additional.referredByUserId;
+            boundRefCode = candidateCode || existing.referredByCode;
+          }
+          if (candidateCode && candidateCode !== ensuredRefCode) {
+            try {
+              const referrerIndex = await dualGetDoc<ReferralCodeIndexDoc>([
+                'referral_codes',
+                candidateCode,
+              ]);
+              if (
+                referrerIndex &&
+                referrerIndex.ownerId &&
+                referrerIndex.ownerId !== safeUid
+              ) {
+                boundRefUid = referrerIndex.ownerId;
+                boundRefCode = candidateCode;
+                const prevInvitees: ReferralInviteeSummary[] = Array.isArray(
+                  referrerIndex.invitees
+                )
+                  ? referrerIndex.invitees
+                  : [];
+                if (!prevInvitees.some((inv) => inv.userId === safeUid)) {
+                  const nextInvitees = [
+                    ...prevInvitees,
+                    {
+                      userId: safeUid,
+                      fullName:
+                        additional.fullName || existing.fullName || 'عضو مدعو',
+                      status: 'REGISTERED_FREE' as const,
+                      createdAt: new Date().toISOString(),
+                    },
+                  ].slice(-300);
+                  await dualSetDoc(['referral_codes', candidateCode], {
+                    ...referrerIndex,
+                    invitees: nextInvitees,
+                    updatedAt: new Date().toISOString(),
+                  });
+                }
+                clearPendingReferralCode();
+              }
+            } catch {
+              // Non-blocking referral binding
+            }
+          }
+        }
+
         const updatedProfile: UserProfileData = {
           ...existing,
           referralCode: ensuredRefCode,
+          referredByUserId: boundRefUid,
+          referredByCode: boundRefCode,
           fullName:
             incomingHasArabicFirst || incomingHasArabicFamily
               ? additional.fullName || existing.fullName
@@ -1750,6 +1874,8 @@ export async function createUserProfileIfMissing(
             existing.defaultCountry ||
             existing.originCountry ||
             'السعودية',
+          residenceCity: additional.residenceCity || existing.residenceCity,
+          profession: additional.profession || existing.profession,
           originCountry:
             incomingHasArabicFamily && additional.originCountry
               ? additional.originCountry
@@ -1783,6 +1909,20 @@ export async function createUserProfileIfMissing(
         return updatedProfile;
       }
       return existing;
+    }
+
+    // Explicit inviter UID fallback if passed directly from a verified KinshipInvitationDoc
+    if (
+      additional.referredByUserId &&
+      additional.referredByUserId !== safeUid
+    ) {
+      initialProfile.referredByUserId = additional.referredByUserId;
+      if (additional.referredByCode) {
+        initialProfile.referredByCode = additional.referredByCode
+          .trim()
+          .toUpperCase();
+      }
+      initialProfile.referralRewardClaimed = false;
     }
 
     // New customer account: bind `?ref={code}` if present (zero $ reward on free signup)
@@ -2679,6 +2819,10 @@ function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
   if (fam && !/[\u0600-\u06FF]/.test(fam)) {
     return true;
   }
+  // Never treat explicitly assigned research tickets from Boslet Al-Juthor as dummy seeds
+  if (t.ticketCategory === 'ASSIGNED_RESEARCH') {
+    return false;
+  }
   // Exclude auto-created free-tier single-match tickets (unless P3 proactive mining, P1 customer search, or VIP P2 ticket)
   if (
     (t.ticketCategory === 'ALPHA_TO_ADAM_LINK' ||
@@ -2691,7 +2835,55 @@ function isHardcodedOrDummyTicket(t: ResearchTicketData): boolean {
   return false;
 }
 
+/**
+ * Deterministically converts any ticket identifier (including Arabic `#ASG-سعد` or `#P3-...`)
+ * into a pure-ASCII Firestore document ID strictly matching `isValidId` (`^[a-zA-Z0-9_\-#]+$`).
+ */
+export function normalizeResearchTicketDocId(rawIdOrKey: string): string {
+  const trimmed = String(rawIdOrKey || '').trim();
+  if (!trimmed) return `tkt_db_${Date.now()}`;
+
+  // Already a valid pure-ASCII Firestore ticket docId (`tkt_...`)
+  if (/^tkt_[a-zA-Z0-9_-]{2,110}$/.test(trimmed)) {
+    return trimmed.slice(0, 100);
+  }
+
+  const withoutHash = trimmed.replace(/^#+/, '').trim();
+  // Pure ASCII ticket code (e.g. `P3-ALPHA-709`, `JTH-P1-ABC`)
+  if (/^[a-zA-Z0-9_-]{2,90}$/.test(withoutHash)) {
+    return `tkt_db_${withoutHash}`.slice(0, 100);
+  }
+
+  // Contains Arabic or non-ASCII characters (e.g. `ASG-سعد`, `ASG-بيت_عارف`):
+  // Extract ASCII prefix + deterministic 2-stage hash (djb2 + fnv1a) for zero collisions
+  const asciiPrefix =
+    withoutHash
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 24) || 'asg';
+
+  let h1 = 5381;
+  let h2 = 2166136261;
+  for (let i = 0; i < withoutHash.length; i += 1) {
+    const code = withoutHash.charCodeAt(i);
+    h1 = ((h1 << 5) + h1 + code) >>> 0;
+    h2 ^= code;
+    h2 = Math.imul(h2, 16777619) >>> 0;
+  }
+
+  return `tkt_db_${asciiPrefix}_${h1.toString(36)}_${h2.toString(36)}`.slice(
+    0,
+    100
+  );
+}
+
 export async function fetchAllResearchTicketsForStaff(): Promise<ResearchTicketData[]> {
+  if (!isRuntimeStaffSession(auth) && !isRuntimeStaffSession(mirrorAuth)) {
+    const storedStaff = readStoredActiveTeamMemberSession();
+    if (storedStaff) {
+      await ensureActiveStaffMirrorAuthSession(storedStaff);
+    }
+  }
   const all = await dualGetCollection<ResearchTicketData>('research_tickets');
   const sortedAll = [...all].sort((a, b) =>
     (b.updatedAt || b.openedAt || '').localeCompare(
@@ -2749,7 +2941,7 @@ export async function resolveResearchTicketByStaff(
     | 'no_records_found'
     | 'CLOSED_AND_ENRICHED'
 ): Promise<void> {
-  const safeId = ticketId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeId = normalizeResearchTicketDocId(ticketId);
   try {
     const ticket = await dualGetDoc<ResearchTicketData>(['research_tickets', safeId]);
     if (!ticket) return;
@@ -2777,7 +2969,7 @@ export async function updateResearchTicketFullInFirebase(
   ticketId: string,
   updates: Partial<ResearchTicketData>
 ): Promise<void> {
-  const safeId = ticketId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeId = normalizeResearchTicketDocId(ticketId);
   try {
     const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', safeId]);
     if (!existing) return;
@@ -2966,8 +3158,8 @@ export async function updateTicketStatus(
   ticketId: string,
   newStatus: ResearchTicketData['status']
 ): Promise<void> {
-  const safeId = (ticketId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (!safeId) return;
+  if (!ticketId) return;
+  const safeId = normalizeResearchTicketDocId(ticketId);
   try {
     const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', safeId]);
     if (!existing) return;
@@ -3011,12 +3203,17 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
   precomputedDiagnostic?: unknown;
   additionalNotes?: string;
 }): Promise<ResearchTicketData> {
-  const cleanFam = (params.familyName || '').trim();
-  const rawSlug = (params.ticketId || params.alphaId || cleanFam)
-    .replace(/^#/, '')
-    .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_');
-  const docId = `tkt_db_${rawSlug}`.slice(0, 80);
+  if (!isRuntimeStaffSession(auth) && !isRuntimeStaffSession(mirrorAuth)) {
+    const storedStaff = readStoredActiveTeamMemberSession();
+    if (storedStaff) {
+      await ensureActiveStaffMirrorAuthSession(storedStaff);
+    }
+  }
+
+  const cleanFam = (params.familyName || 'عائلة قيد التحقيق').trim().slice(0, 180);
+  const docId = normalizeResearchTicketDocId(
+    params.ticketId || params.alphaId || cleanFam
+  );
 
   const existing = await dualGetDoc<ResearchTicketData>(['research_tickets', docId]);
 
@@ -3047,26 +3244,32 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
   };
 
   const record: ResearchTicketData = {
+    ...(existing || {}),
     id: docId,
     ticketNumber: params.ticketId.startsWith('#')
       ? params.ticketId
       : `#${params.ticketId}`,
-    userId: params.userId || 'system_proactive_miner',
-    userFullName: params.clientName || `سجل قاعدة البيانات (${cleanFam})`,
-    userEmail: '',
+    userId: (params.userId || 'system_proactive_miner')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 120),
+    userFullName: (
+      params.clientName || `سجل قاعدة البيانات (${cleanFam})`
+    ).slice(0, 150),
+    userEmail: existing?.userEmail || '',
     familyName: cleanFam,
     targetAncestor: cleanFam,
-    tribeName: params.motherTribeName || '',
-    familyBranch: params.subRootName || '',
-    originCountry: params.originCountry || 'الجزيرة العربية',
-    originRegion: params.originRegion || '',
+    tribeName: (params.motherTribeName || '').slice(0, 140),
+    familyBranch: (params.subRootName || '').slice(0, 140),
+    originCountry: (params.originCountry || 'الجزيرة العربية').slice(0, 80),
+    originRegion: (params.originRegion || '').slice(0, 120),
     additionalNotes:
       params.additionalNotes ||
       `تذكرة بحثية حقيقية مرتبطة بقاعدة البيانات (${cleanFam} ← ${params.subRootName} ← ${params.motherTribeName})`,
     ticketCategory: params.ticketCategory,
     adamNodeId: params.adamNodeId || '',
     alphaId: params.alphaId || '',
-    status: existing?.status || 'pending_review',
+    status: existing?.status || 'OPEN',
+    lifecycleStage: existing?.lifecycleStage || 'OPEN',
     assignedResearcherId:
       params.assignedResearcherId || existing?.assignedResearcherId,
     assignedResearcherName:
@@ -3090,8 +3293,8 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
 export async function deleteResearchTicketFromFirebase(
   ticketId: string
 ): Promise<void> {
-  const safeId = (ticketId || '').replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_');
-  if (!safeId) return;
+  if (!ticketId) return;
+  const safeId = normalizeResearchTicketDocId(ticketId);
   await dualDeleteDoc(['research_tickets', safeId]);
 }
 
@@ -4209,11 +4412,9 @@ async function dispatchOfficialNotificationEmailNonBlocking(
           (notif.senderRole === 'researcher'
             ? 'فريق التحقيق النَّسبي — منصة جذوري'
             : 'منصة جذوري'),
+        originUrl: resolveClientPublicAppBaseUrl(),
         actionUrl:
-          notif.actionUrl ||
-          (typeof window !== 'undefined'
-            ? window.location.origin
-            : 'https://Juthori.com'),
+          notif.actionUrl || resolveClientPublicAppBaseUrl(),
         actionLabel:
           notif.actionLabel || 'متابعة السجل والمراسلات في منصة جذوري',
       }),
@@ -4506,9 +4707,18 @@ export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecor
   ensureFoundingMaestroInFirebase().catch(() => {});
 
   const rawList = await dualGetCollection<TeamMemberRecord>('team_members');
-  const validList = rawList.filter((m) => m && m.email && !LEGACY_DUMMY_TEAM_IDS.has(m.id));
+  // Never display or delete Firebase Auth UID shadow binding docs (`isAuthUidBinding: true` / `canonicalMemberId`),
+  // as those docs authorize `exists(/databases/.../team_members/$(request.auth.uid))` in Zero-Trust Firestore rules!
+  const validList = rawList.filter(
+    (m) =>
+      m &&
+      m.email &&
+      !m.isAuthUidBinding &&
+      !m.canonicalMemberId &&
+      !LEGACY_DUMMY_TEAM_IDS.has(m.id)
+  );
 
-  // Strictly deduplicate by normalized lowercase email and delete any duplicate document IDs
+  // Strictly deduplicate canonical rows by normalized lowercase email and delete only true legacy duplicate IDs
   const byEmailMap = new Map<string, TeamMemberRecord>();
   const duplicateIdsToDelete: string[] = [];
 
@@ -4520,17 +4730,19 @@ export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecor
       byEmailMap.set(emailKey, item);
     } else {
       const existing = byEmailMap.get(emailKey)!;
-      // Prefer the canonical ID document over random timestamp IDs
+      // Prefer the canonical ID document over legacy timestamp IDs (`team_17...`)
       if (item.id === canonicalId && existing.id !== canonicalId) {
-        duplicateIdsToDelete.push(existing.id);
+        if (existing.id.startsWith('team_')) {
+          duplicateIdsToDelete.push(existing.id);
+        }
         byEmailMap.set(emailKey, item);
-      } else {
+      } else if (item.id.startsWith('team_')) {
         duplicateIdsToDelete.push(item.id);
       }
     }
   }
 
-  // Clean up any duplicate documents in the background
+  // Clean up any legacy `team_*` duplicate documents in the background
   if (duplicateIdsToDelete.length > 0) {
     Promise.allSettled(
       duplicateIdsToDelete.map((dupId) => dualDeleteDoc(['team_members', dupId]))
@@ -4561,6 +4773,67 @@ export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecor
   return dedupedList;
 }
 
+export async function ensureActiveStaffMirrorAuthSession(
+  staffRecord: TeamMemberRecord,
+  explicitPassword?: string
+): Promise<void> {
+  const staffEmail = (staffRecord.email || '').trim().toLowerCase();
+  if (!staffEmail) return;
+
+  const rawPass =
+    explicitPassword?.trim() ||
+    staffRecord.passwordHash?.trim() ||
+    (staffEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
+      ? FOUNDING_MAESTRO_MEMBER.passwordHash
+      : staffEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase()
+      ? DEFAULT_GENERAL_MANAGER_MEMBER.passwordHash
+      : 'Juthori@2026');
+  const authPass = rawPass.length >= 6 ? rawPass : rawPass.padEnd(6, '0');
+
+  try {
+    let mirrorUid = mirrorAuth.currentUser?.uid;
+    if (
+      !mirrorUid ||
+      (mirrorAuth.currentUser?.email || '').trim().toLowerCase() !== staffEmail
+    ) {
+      try {
+        const cred = await withFastTimeout(
+          signInWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
+          2500
+        );
+        mirrorUid = cred.user.uid;
+      } catch {
+        const cred = await withFastTimeout(
+          createUserWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
+          2500
+        );
+        mirrorUid = cred.user.uid;
+      }
+    }
+
+    if (mirrorUid) {
+      const canonicalId =
+        staffEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
+          ? FOUNDING_MAESTRO_MEMBER.id
+          : staffRecord.id || getTeamMemberDocIdByEmail(staffEmail);
+
+      await setDoc(
+        doc(mirrorDb, 'team_members', mirrorUid),
+        sanitizeFirestoreData({
+          ...staffRecord,
+          id: mirrorUid,
+          canonicalMemberId:
+            canonicalId !== mirrorUid ? canonicalId : undefined,
+          isAuthUidBinding: canonicalId !== mirrorUid,
+          status: 'نشط',
+        } as unknown as Record<string, unknown>)
+      ).catch(() => {});
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+}
+
 export async function authenticateTeamMemberInFirebase(
   email: string,
   password: string
@@ -4568,60 +4841,18 @@ export async function authenticateTeamMemberInFirebase(
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = password.trim();
 
-  const syncIsolatedStaffMirrorSession = async (
-    staffEmail: string,
-    staffPassword: string,
-    staffRecord: TeamMemberRecord
-  ) => {
-    try {
-      const authPass =
-        staffPassword.length >= 6 ? staffPassword : staffPassword.padEnd(6, '0');
-      let mirrorUid = mirrorAuth.currentUser?.uid;
-      if (
-        !mirrorUid ||
-        (mirrorAuth.currentUser?.email || '').trim().toLowerCase() !== staffEmail
-      ) {
-        try {
-          const cred = await withFastTimeout(
-            signInWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
-            2500
-          );
-          mirrorUid = cred.user.uid;
-        } catch {
-          const cred = await withFastTimeout(
-            createUserWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
-            2500
-          );
-          mirrorUid = cred.user.uid;
-        }
-      }
-      if (mirrorUid) {
-        await setDoc(
-          doc(mirrorDb, 'team_members', mirrorUid),
-          sanitizeFirestoreData({
-            ...staffRecord,
-            id: mirrorUid,
-          } as unknown as Record<string, unknown>)
-        ).catch(() => {});
-      }
-    } catch {
-      // Non-blocking mirror staff auth sync
-    }
-  };
-
-  // 1. Instant Fast-Path for Founding Maestro (< 10ms)
+  // 1. Instant Fast-Path for Founding Maestro
   // IMPORTANT: Never call signInWithEmailAndPassword on the primary customer `auth` instance here,
   // so logging into `/Team` never logs the customer portal in as "كريم طاحون"!
   if (
     cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() &&
     (cleanPass === FOUNDING_MAESTRO_MEMBER.passwordHash || cleanPass === 'Kareem123@')
   ) {
+    await ensureActiveStaffMirrorAuthSession(
+      FOUNDING_MAESTRO_MEMBER,
+      FOUNDING_MAESTRO_MEMBER.passwordHash
+    );
     ensureFoundingMaestroInFirebase().catch(() => {});
-    syncIsolatedStaffMirrorSession(
-      cleanEmail,
-      FOUNDING_MAESTRO_MEMBER.passwordHash,
-      FOUNDING_MAESTRO_MEMBER
-    ).catch(() => {});
     return { member: FOUNDING_MAESTRO_MEMBER };
   }
 
@@ -4631,6 +4862,10 @@ export async function authenticateTeamMemberInFirebase(
     cleanPass === '123456'
   ) {
     try {
+      await ensureActiveStaffMirrorAuthSession(
+        DEFAULT_GENERAL_MANAGER_MEMBER,
+        '123456'
+      );
       const existingGm = await dualGetDoc<TeamMemberRecord>([
         'team_members',
         DEFAULT_GENERAL_MANAGER_MEMBER.id,
@@ -4648,9 +4883,6 @@ export async function authenticateTeamMemberInFirebase(
         ['team_members', DEFAULT_GENERAL_MANAGER_MEMBER.id],
         resolvedGm as unknown as Record<string, unknown>
       ).catch(() => {});
-      syncIsolatedStaffMirrorSession(cleanEmail, '123456', resolvedGm).catch(
-        () => {}
-      );
       return { member: resolvedGm };
     } catch {
       return { member: DEFAULT_GENERAL_MANAGER_MEMBER };
@@ -4669,6 +4901,24 @@ export async function authenticateTeamMemberInFirebase(
       const members = await fetchAllTeamMembersFromFirebase();
       matched =
         members.find((m) => m.email.trim().toLowerCase() === cleanEmail) || null;
+    }
+
+    // If not yet readable before mirrorAuth sign-in (e.g. non-corporate researcher email), sign in on mirrorAuth first then verify `/team_members`
+    if (!matched) {
+      try {
+        const authPass =
+          cleanPass.length >= 6 ? cleanPass : cleanPass.padEnd(6, '0');
+        await withFastTimeout(
+          signInWithEmailAndPassword(mirrorAuth, cleanEmail, authPass),
+          2500
+        );
+        matched = await dualGetDoc<TeamMemberRecord>([
+          'team_members',
+          canonicalDocId,
+        ]);
+      } catch {
+        // Invalid credentials or not a registered team member
+      }
     }
 
     if (!matched) {
@@ -4698,7 +4948,7 @@ export async function authenticateTeamMemberInFirebase(
       };
     }
 
-    syncIsolatedStaffMirrorSession(cleanEmail, cleanPass, matched).catch(() => {});
+    await ensureActiveStaffMirrorAuthSession(matched, cleanPass);
     return { member: matched };
   } catch {
     return {
@@ -4775,6 +5025,35 @@ export async function addTeamMemberToFirebase(params: {
     ),
     dualDeleteDoc(['users', id]),
   ]);
+
+  // Pre-bind Firebase Auth UIDs in `team_members/{uid}` so the invited researcher has instant Zero-Trust RBAC access upon first login
+  const uidBindTasks: Promise<unknown>[] = [];
+  if (authResult.mirrorUid && authResult.mirrorUid !== id) {
+    uidBindTasks.push(
+      setDoc(
+        doc(mirrorDb, 'team_members', authResult.mirrorUid),
+        sanitizeFirestoreData({
+          ...newMember,
+          id: authResult.mirrorUid,
+          canonicalMemberId: id,
+          isAuthUidBinding: true,
+        } as unknown as Record<string, unknown>)
+      ).catch(() => {})
+    );
+  }
+  if (authResult.primaryUid && authResult.primaryUid !== id) {
+    uidBindTasks.push(
+      dualSetDoc(['team_members', authResult.primaryUid], {
+        ...newMember,
+        id: authResult.primaryUid,
+        canonicalMemberId: id,
+        isAuthUidBinding: true,
+      } as unknown as Record<string, unknown>).catch(() => {})
+    );
+  }
+  if (uidBindTasks.length > 0) {
+    await Promise.allSettled(uidBindTasks);
+  }
 
   provisionedAuthEmailsInSession.add(cleanEmail);
   teamEmailLookupCache.set(cleanEmail, {

@@ -52,6 +52,7 @@ import {
   bootstrapJuthoriFirestoreDatabase,
   deleteKnowledgeArticleFromFirebase,
   deleteTeamMemberFromFirebase,
+  ensureActiveStaffMirrorAuthSession,
   fetchAllCustomerOrdersFromFirebase,
   fetchAllLegalAuditTrailForStaff,
   fetchAllResearchTicketsForStaff,
@@ -284,6 +285,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     if (!loggedInMember) return;
     setIsLoadingData(true);
     try {
+      await ensureActiveStaffMirrorAuthSession(loggedInMember).catch(() => false);
       bootstrapJuthoriFirestoreDatabase().catch(() => {});
       const [
         fetchedStaff,
@@ -339,7 +341,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       loggedInMember &&
       (activeTab === 'command_hub' || activeTab === 'orders_support')
     ) {
-      fetchAllResearchTicketsForStaff()
+      ensureActiveStaffMirrorAuthSession(loggedInMember)
+        .catch(() => false)
+        .then(() => fetchAllResearchTicketsForStaff())
         .then((list) => {
           setResearchTicketsCount(list.length);
           setResearchTicketsList(list);
