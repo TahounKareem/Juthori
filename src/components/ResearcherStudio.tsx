@@ -8769,13 +8769,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     : !shouldAutoCollapseContainer1;
 
                 // Smart Collapse behavior for Container 2:
-                // Collapsed automatically when matched in Adam Tree AND 0 pending raw Alpha records
+                // Only mark as served from Adam when there is a TRUE confirmed Adam match AND 0 pending raw Alpha records
                 const isServedFromAdamOnlyWithZeroAlpha =
-                  rawEvidenceList.length === 0 &&
-                  (adamMatchedCandidates.length > 0 ||
-                    hasVerifiedSpineFromAdamTree ||
-                    directSearchResult.primary_source_of_truth ===
-                      'ADAM_MASTER_TREE');
+                  rawEvidenceList.length === 0 && hasClearConfirmedAdamMatch;
+                const hasZeroUnlinkedResultsWithoutAdamMatch =
+                  rawEvidenceList.length === 0 && !hasClearConfirmedAdamMatch;
                 const isContainer2Expanded =
                   isRawBundleManualOverride !== null
                     ? isRawBundleManualOverride
@@ -8783,9 +8781,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 // Dynamic Final Result Source & Effective Result for Container 3
                 const isFinalResultFromAdamTree =
-                  (adamMatchedCandidates.length > 0 ||
-                    hasVerifiedSpineFromAdamTree) &&
-                  hasAnyLocalityMatchingAdamCandidate &&
+                  hasClearConfirmedAdamMatch &&
                   (rawEvidenceList.length === 0 ||
                     directSearchResult.primary_source_of_truth ===
                       'ADAM_MASTER_TREE');
@@ -9346,6 +9342,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                               className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold"
                             >
                               ✓ المسار موثق بالكامل في شجرة آدم (الحزمة الأولى) — لا توجد سجلات خام معلقة في بحيرة ألفا لهذا الاسم
+                            </span>
+                          )}
+                          {hasZeroUnlinkedResultsWithoutAdamMatch && (
+                            <span
+                              data-testid="raw-bundle-no-unlinked-results-badge"
+                              className="px-3.5 py-1.5 rounded-xl bg-transparent border border-[#C5A059] text-[#8D4925] text-xs font-extrabold"
+                            >
+                              المسار لا توجد نتائج لهذا الإسم في المشاريع الغير مربوطة
                             </span>
                           )}
                           <button

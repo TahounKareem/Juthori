@@ -662,6 +662,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         grandfatherName: resolvedGrandfatherName,
         familyName: resolvedFamilyName,
         email: cleanEmail,
+        phone: storedProfile?.phone || '',
+        avatarUrl: storedProfile?.avatarUrl || '',
+        defaultCountry: storedProfile?.defaultCountry || resolvedCountry,
         originCountry: resolvedCountry,
         originRegion: resolvedRegion,
         tribeName: resolvedTribe,
@@ -713,7 +716,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       subscriptionTier: finalProfile.subscriptionTier ?? storedProfile?.subscriptionTier,
       isRootUnlocked: finalProfile.isRootUnlocked ?? storedProfile?.isRootUnlocked,
       isNewRegistration: isRegisterMode || !storedHasArabicFamily,
-      profile: finalProfile,
+      profile: {
+        ...finalProfile,
+        phone: finalProfile.phone || storedProfile?.phone || '',
+        defaultCountry:
+          finalProfile.defaultCountry ||
+          storedProfile?.defaultCountry ||
+          resolvedCountry,
+        avatarUrl: finalProfile.avatarUrl || storedProfile?.avatarUrl || '',
+      },
     });
     setIsLoading(false);
     onClose();

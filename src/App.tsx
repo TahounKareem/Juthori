@@ -1782,6 +1782,14 @@ export function App() {
               p || (payload.email ? fetchUserProfileByEmail(payload.email) : null)
           );
 
+    if (existingProfile?.avatarUrl) {
+      setUserAvatarUrl(existingProfile.avatarUrl);
+    }
+    setUserPhone(existingProfile?.phone || '');
+    setUserDefaultCountry(
+      existingProfile?.defaultCountry || payload.originCountry || 'السعودية'
+    );
+
     const existingHasSavedLineage =
       Boolean(existingProfile?.familyName) &&
       !isEmailPrefixOrAsciiPlaceholder(existingProfile?.familyName, payload.email) &&
@@ -2050,6 +2058,7 @@ export function App() {
     setUserId('');
     setUserAvatarUrl('');
     setUserPhone('');
+    setUserDefaultCountry('السعودية');
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
     }

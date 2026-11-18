@@ -28,11 +28,11 @@ import {
   X,
   ArrowRight,
 } from 'lucide-react';
-import { updatePassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import {
   buildVerifiedLineageSnapshot,
   canonicalCustomerEmailUid,
+  changeCustomerAccountPassword,
   createCharterRequestInFirebase,
   CustomerCommunityPostData,
   CustomerSiteSettingsData,
@@ -344,9 +344,15 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       : ''
   );
   const [editFamilyName, setEditFamilyName] = useState(result.familyName || '');
-  const [editPhone, setEditPhone] = useState(initialPhone);
+  const [editPhone, setEditPhone] = useState(
+    initialPhone || initialWorkspace?.phone || ''
+  );
   const [editDefaultCountry, setEditDefaultCountry] = useState(
-    initialDefaultCountry || result.originCountry || silentGeo.ip_country || 'السعودية'
+    initialDefaultCountry ||
+      initialWorkspace?.defaultCountry ||
+      result.originCountry ||
+      silentGeo.ip_country ||
+      'السعودية'
   );
   const [editOriginCountry, setEditOriginCountry] = useState(
     result.originCountry || 'السعودية'
@@ -363,6 +369,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const isGoogleAuthSession = Boolean(
     auth.currentUser?.providerData?.some((p) => p.providerId === 'google.com')
   );
+  const hasPasswordAuthProvider = Boolean(
+    auth.currentUser?.providerData?.some((p) => p.providerId === 'password')
+  );
+  const isGoogleOnlyPasswordlessSession =
+    isGoogleAuthSession && !hasPasswordAuthProvider;
   const [isEmailVerified, setIsEmailVerified] =
     useState<boolean>(isGoogleAuthSession);
   const [emailVerifiedAt, setEmailVerifiedAt] = useState<string | null>(null);
@@ -385,8 +396,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     null
   );
 
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<{
     type: 'success' | 'error';
     text: string;
@@ -409,6 +422,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       setAvatarUrl(initialAvatarUrl);
     }
   }, [initialAvatarUrl]);
+
+  useEffect(() => {
+    if (typeof initialPhone === 'string' && initialPhone.trim()) {
+      setEditPhone(initialPhone.trim());
+    }
+  }, [initialPhone]);
+
+  useEffect(() => {
+    if (
+      typeof initialDefaultCountry === 'string' &&
+      initialDefaultCountry.trim()
+    ) {
+      setEditDefaultCountry(initialDefaultCountry.trim());
+    }
+  }, [initialDefaultCountry]);
 
   // Restore persisted walletBalance, unlockedCapsules, bridgedAncestors, addon sources, subscription state, and workspace from Firestore on mount
   useEffect(() => {
@@ -467,6 +495,75 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           if (typeof profile.emailNotificationsTree === 'boolean') {
             setEmailNotificationsTree(profile.emailNotificationsTree);
           }
+          const restoredPhone =
+            (typeof profile.phone === 'string' && profile.phone.trim()) ||
+            (typeof workspace?.phone === 'string' && workspace.phone.trim()) ||
+            '';
+          if (restoredPhone) {
+            setEditPhone(restoredPhone);
+          }
+          const restoredDefaultCountry =
+            (typeof profile.defaultCountry === 'string' &&
+              profile.defaultCountry.trim()) ||
+            (typeof workspace?.defaultCountry === 'string' &&
+              workspace.defaultCountry.trim()) ||
+            '';
+          if (restoredDefaultCountry) {
+            setEditDefaultCountry(restoredDefaultCountry);
+          }
+          if (typeof profile.avatarUrl === 'string' && profile.avatarUrl.trim()) {
+            setAvatarUrl(profile.avatarUrl);
+          }
+          if (typeof profile.firstName === 'string' && profile.firstName.trim()) {
+            setEditFirstName(profile.firstName.trim());
+          }
+          if (typeof profile.fatherName === 'string') {
+            setEditFatherName(
+              profile.fatherName === '—' ? '' : profile.fatherName.trim()
+            );
+          }
+          if (typeof profile.grandfatherName === 'string') {
+            setEditGrandfatherName(
+              profile.grandfatherName === '—'
+                ? ''
+                : profile.grandfatherName.trim()
+            );
+          }
+          if (
+            onUpdateProfileDetails &&
+            (restoredPhone || restoredDefaultCountry || profile.avatarUrl)
+          ) {
+            onUpdateProfileDetails({
+              firstName: profile.firstName || result.clientName || '',
+              fatherName:
+                profile.fatherName && profile.fatherName !== '—'
+                  ? profile.fatherName
+                  : result.fatherName && result.fatherName !== '—'
+                  ? result.fatherName
+                  : '',
+              grandfatherName:
+                profile.grandfatherName && profile.grandfatherName !== '—'
+                  ? profile.grandfatherName
+                  : result.grandfatherName && result.grandfatherName !== '—'
+                  ? result.grandfatherName
+                  : '',
+              familyName: result.familyName || profile.familyName || '',
+              phone: restoredPhone || initialPhone || '',
+              defaultCountry:
+                restoredDefaultCountry ||
+                initialDefaultCountry ||
+                result.originCountry ||
+                'السعودية',
+              originCountry:
+                result.originCountry || profile.originCountry || 'السعودية',
+              originRegion:
+                initialOriginRegion ||
+                result.originRegion ||
+                profile.originRegion ||
+                '',
+              avatarUrl: profile.avatarUrl || undefined,
+            });
+          }
           if (Array.isArray(profile.blockedUserIds)) {
             setBlockedUserIds(profile.blockedUserIds);
           }
@@ -512,6 +609,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         }
 
         if (workspace) {
+          if (
+            !profile?.phone &&
+            typeof workspace.phone === 'string' &&
+            workspace.phone.trim()
+          ) {
+            setEditPhone(workspace.phone.trim());
+          }
+          if (
+            !profile?.defaultCountry &&
+            typeof workspace.defaultCountry === 'string' &&
+            workspace.defaultCountry.trim()
+          ) {
+            setEditDefaultCountry(workspace.defaultCountry.trim());
+          }
           const sameFamily =
             !workspace.familyName ||
             !result.familyName ||
@@ -730,6 +841,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       verifiedResultOverrideJson: verifiedResultOverride
         ? JSON.stringify(verifiedResultOverride)
         : null,
+      phone: editPhone.trim(),
+      defaultCountry: editDefaultCountry,
       siteSettings,
       communityPosts,
       blockedUserIds,
@@ -855,7 +968,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     }
   };
 
-  // Save Personal & Geographic Profile Data to Firebase
+  // Save Personal & Residence Country Profile Data to Firebase (Family Name & Origin Country/Region are locked to root linkage)
   const handleSaveProfileData = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingProfile(true);
@@ -864,97 +977,82 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     const cleanFirst = editFirstName.trim();
     const cleanFather = editFatherName.trim();
     const cleanGrand = editGrandfatherName.trim();
-    const cleanFamily = editFamilyName.trim();
-    const cleanRegion = editOriginRegion.trim();
+    const cleanPhone = editPhone.trim().slice(0, 30);
+    const cleanResidenceCountry = (editDefaultCountry || 'السعودية')
+      .trim()
+      .slice(0, 60);
 
-    const fullName = [cleanFirst, cleanFather, cleanGrand, cleanFamily]
+    // Strictly preserve locked family name and origin homeland tied to root matching
+    const lockedFamily = (
+      activeResult.familyName ||
+      result.familyName ||
+      editFamilyName
+    ).trim();
+    const lockedOriginCountry = (
+      activeResult.originCountry ||
+      result.originCountry ||
+      editOriginCountry ||
+      'السعودية'
+    ).trim();
+    const lockedOriginRegion = (
+      initialOriginRegion ||
+      activeResult.originRegion ||
+      result.originRegion ||
+      editOriginRegion
+    ).trim();
+
+    setEditFamilyName(lockedFamily);
+    setEditOriginCountry(lockedOriginCountry);
+    setEditOriginRegion(lockedOriginRegion);
+    setEditPhone(cleanPhone);
+    setEditDefaultCountry(cleanResidenceCountry);
+
+    const fullName = [cleanFirst, cleanFather, cleanGrand, lockedFamily]
       .filter(Boolean)
       .join(' ');
 
-    const lineageIdentityChanged =
-      Boolean(cleanFamily) &&
-      (cleanFamily !== (activeResult.familyName || '').trim() ||
-        editOriginCountry !== (activeResult.originCountry || '').trim() ||
-        cleanRegion !== (activeResult.originRegion || '').trim());
-
-    let updatedSnapshotResult: LineageSearchResult = {
+    const updatedSnapshotResult: LineageSearchResult = {
       ...activeResult,
       clientName: cleanFirst || activeResult.clientName,
       fatherName: cleanFather || activeResult.fatherName,
       grandfatherName: cleanGrand || activeResult.grandfatherName,
-      familyName: cleanFamily || activeResult.familyName,
-      originCountry: editOriginCountry || activeResult.originCountry,
-      originRegion: cleanRegion,
+      familyName: lockedFamily || activeResult.familyName,
+      originCountry: lockedOriginCountry || activeResult.originCountry,
+      originRegion: lockedOriginRegion,
     };
 
-    if (lineageIdentityChanged) {
-      try {
-        const refreshed = await searchJuthoriLineage(
-          {
-            accountType,
-            firstName: cleanFirst || 'عميل',
-            fatherName: cleanFather,
-            grandfatherName: cleanGrand,
-            familyName: cleanFamily,
-            originCountry: editOriginCountry,
-            originRegion: cleanRegion,
-            tribeName: '',
-            branchName: '',
-            email: userEmail,
-            password: '',
-            agreedToTerms: true,
-          },
-          {
-            ip_country: silentGeo.ip_country,
-            ip_city: silentGeo.ip_city,
-          }
-        );
-        if (refreshed) {
-          updatedSnapshotResult = {
-            ...refreshed,
-            clientName: cleanFirst || refreshed.clientName,
-            fatherName: cleanFather || refreshed.fatherName,
-            grandfatherName: cleanGrand || refreshed.grandfatherName,
-          };
-          setVerifiedResultOverride(updatedSnapshotResult);
-          if (onUpdateLineageResult) {
-            onUpdateLineageResult(updatedSnapshotResult);
-          }
-          if (!caps.isVip && !caps.isRootUnlocked) {
-            onChangeStateMode(
-              updatedSnapshotResult.matched
-                ? DashboardStateMode.State2MatchedUnpaid
-                : DashboardStateMode.State3Unmatched
-            );
-          }
-        }
-      } catch {
-        // Keep existing snapshot if engine is unreachable
-      }
-    } else {
-      setVerifiedResultOverride(updatedSnapshotResult);
-      if (onUpdateLineageResult) {
-        onUpdateLineageResult(updatedSnapshotResult);
-      }
+    setVerifiedResultOverride(updatedSnapshotResult);
+    if (onUpdateLineageResult) {
+      onUpdateLineageResult(updatedSnapshotResult);
     }
 
     const nextSnapshot = buildVerifiedLineageSnapshot(updatedSnapshotResult);
-    const targetUid = userId || auth.currentUser?.uid || resolvedCustomerUid;
+    const targetUid = auth.currentUser?.uid || userId || resolvedCustomerUid;
+
+    let cloudSaved = false;
     if (targetUid) {
-      await updateUserProfile(targetUid, {
+      cloudSaved = await updateUserProfile(targetUid, {
+        email: userEmail,
         fullName,
         firstName: cleanFirst,
         fatherName: cleanFather,
         grandfatherName: cleanGrand,
-        familyName: cleanFamily,
-        phone: editPhone.trim(),
-        defaultCountry: editDefaultCountry,
-        originCountry: editOriginCountry,
-        originRegion: cleanRegion,
+        familyName: lockedFamily,
+        phone: cleanPhone,
+        defaultCountry: cleanResidenceCountry,
+        originCountry: lockedOriginCountry,
+        originRegion: lockedOriginRegion,
         avatarUrl: avatarUrl || undefined,
-        emailNotificationsEnabled: emailNotificationsTicket || emailNotificationsTree,
+        emailNotificationsEnabled:
+          emailNotificationsTicket || emailNotificationsTree,
         verifiedLineageSnapshot: nextSnapshot,
         lineageSnapshot: nextSnapshot,
+      });
+
+      await saveCustomerDashboardWorkspace(targetUid, userEmail, {
+        familyName: lockedFamily,
+        phone: cleanPhone,
+        defaultCountry: cleanResidenceCountry,
       }).catch(() => {});
     }
 
@@ -967,34 +1065,45 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         firstName: cleanFirst,
         fatherName: cleanFather,
         grandfatherName: cleanGrand,
-        familyName: cleanFamily,
-        phone: editPhone.trim(),
-        defaultCountry: editDefaultCountry,
-        originCountry: editOriginCountry,
-        originRegion: cleanRegion,
+        familyName: lockedFamily,
+        phone: cleanPhone,
+        defaultCountry: cleanResidenceCountry,
+        originCountry: lockedOriginCountry,
+        originRegion: lockedOriginRegion,
         avatarUrl: avatarUrl || undefined,
       });
     }
 
-    appendActivity(
-      'تحديث الملف الشخصي والبيانات الجغرافية',
-      lineageIdentityChanged
-        ? `حفظ بيانات (${fullName}) وإعادة مزامنة عمود النسب في Firebase`
-        : `حفظ بيانات (${fullName}) في قاعدة بيانات Firebase`
-    );
     setIsSavingProfile(false);
-    setProfileSaveFeedback(
-      lineageIdentityChanged
-        ? 'تم حفظ تعديلاتك وإعادة مزامنة لقطة عمود النسب الموثق في Firebase بنجاح ✓'
-        : 'تم حفظ تعديلات الملف الشخصي والبيانات الجغرافية في Firebase بنجاح ✓'
+    if (!cloudSaved && !auth.currentUser) {
+      setProfileSaveFeedback(
+        'تعذر تأكيد المزامنة السحابية لانتهاء جلسة المصادقة. يرجى تسجيل الدخول مجدداً لحفظ التعديلات في قاعدة البيانات.'
+      );
+      return;
+    }
+
+    appendActivity(
+      'تحديث الملف الشخصي',
+      `تم تحديث البيانات الشخصية ورقم الجوال ودولة الإقامة (${fullName})`
     );
-    setTimeout(() => setProfileSaveFeedback(null), 4000);
+    setProfileSaveFeedback(
+      'تم حفظ البيانات الشخصية ورقم الجوال ودولة الإقامة في حسابك بنجاح ✓'
+    );
+    setTimeout(() => setProfileSaveFeedback(null), 4500);
   };
 
-  // Change Password Handler
+  // Change Password Handler (Real Firebase Authentication Reauthentication + Update)
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordFeedback(null);
+
+    if (!isGoogleOnlyPasswordlessSession && !currentPassword) {
+      setPasswordFeedback({
+        type: 'error',
+        text: 'يرجى إدخال كلمة المرور الحالية للتحقق من هويتك أولاً.',
+      });
+      return;
+    }
     if (!newPassword || newPassword.length < 6) {
       setPasswordFeedback({
         type: 'error',
@@ -1005,29 +1114,48 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     if (newPassword !== confirmNewPassword) {
       setPasswordFeedback({
         type: 'error',
-        text: 'كلمتا المرور غير متطابقتين.',
+        text: 'كلمتا المرور الجديدتان غير متطابقتين.',
+      });
+      return;
+    }
+    if (!isGoogleOnlyPasswordlessSession && currentPassword === newPassword) {
+      setPasswordFeedback({
+        type: 'error',
+        text: 'كلمة المرور الجديدة مطابقة لكلمة المرور الحالية.',
       });
       return;
     }
 
+    setIsChangingPassword(true);
     try {
-      if (auth.currentUser) {
-        await updatePassword(auth.currentUser, newPassword);
+      const res = await changeCustomerAccountPassword({
+        email: userEmail,
+        currentPassword,
+        newPassword,
+      });
+      if (!res.ok) {
+        setPasswordFeedback({
+          type: 'error',
+          text:
+            res.error ||
+            'تعذر تحديث كلمة المرور في قاعدة البيانات. يرجى المحاولة مرة أخرى.',
+        });
+        return;
       }
+
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
-      appendActivity('تحديث الأمان', 'تم تغيير كلمة مرور الحساب بنجاح');
+      appendActivity(
+        'تحديث الأمان',
+        'تم تحديث كلمة مرور الحساب في Firebase Authentication بنجاح'
+      );
       setPasswordFeedback({
         type: 'success',
-        text: 'تم تحديث كلمة المرور بنجاح في حسابك ✓',
+        text: 'تم تحديث كلمة المرور فعلياً في قاعدة البيانات ويمكنك استخدامها الآن لتسجيل الدخول ✓',
       });
-    } catch {
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setPasswordFeedback({
-        type: 'success',
-        text: 'تم اعتماد كلمة المرور الجديدة لحسابك ✓',
-      });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -2588,30 +2716,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         className="hidden"
                       />
                     </label>
-                    {avatarUrl && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAvatarUrl('');
-                          if (onUpdateProfileDetails) {
-                            onUpdateProfileDetails({
-                              firstName: editFirstName,
-                              fatherName: editFatherName,
-                              grandfatherName: editGrandfatherName,
-                              familyName: editFamilyName,
-                              phone: editPhone,
-                              defaultCountry: editDefaultCountry,
-                              originCountry: editOriginCountry,
-                              originRegion: editOriginRegion,
-                              avatarUrl: '',
-                            });
-                          }
-                        }}
-                        className="px-3 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-red-50 text-[#252321] hover:text-red-700 text-xs font-bold transition-colors cursor-pointer"
-                      >
-                        استعادة الأيقونة التراثية
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -2626,7 +2730,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         2. تعديل البيانات الشخصية والجغرافية
                       </h2>
                       <p className="text-xs text-[#252321]/70">
-                        تحديث الاسم الرباعي، رقم الجوال، الدولة الافتراضية، والموطن الأصلي للعائلة في Firebase
+                        تحديث الاسم الثلاثي، رقم الجوال، ودولة الإقامة في حسابك (بيانات اسم العائلة والموطن الأصلي مثبتة لارتباطها بالجذر الموثق)
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -2694,15 +2798,24 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                        اسم العائلة / الشهرة *
+                      <label className="flex items-center justify-between gap-1 text-xs font-bold text-[#252321]/80 mb-1.5">
+                        <span>اسم العائلة / الشهرة *</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8D4925]">
+                          <Lock className="w-3 h-3" />
+                          <span>مرتبط بالجذر</span>
+                        </span>
                       </label>
                       <input
                         type="text"
-                        required
-                        value={editFamilyName}
-                        onChange={(e) => setEditFamilyName(e.target.value)}
-                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                        readOnly
+                        disabled
+                        value={
+                          activeResult.familyName ||
+                          result.familyName ||
+                          editFamilyName
+                        }
+                        title="غير قابل للتعديل لأنه معتمد في عملية الربط بالجذر والمطابقة"
+                        className="w-full rounded-xl bg-[#EDE6DA]/75 border border-[#B98A78]/40 px-3.5 py-2.5 text-sm font-semibold text-[#252321]/70 cursor-not-allowed select-none"
                       />
                     </div>
                   </div>
@@ -2727,7 +2840,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                        الدولة الافتراضية للإقامة
+                        دولة الإقامة
                       </label>
                       <select
                         value={editDefaultCountry}
@@ -2743,35 +2856,57 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                        الموطن الأصلي للعائلة (الدولة والإقليم)
+                      <label className="flex items-center justify-between gap-1 text-xs font-bold text-[#252321]/80 mb-1.5">
+                        <span>الموطن الأصلي للعائلة (الدولة والإقليم)</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8D4925]">
+                          <Lock className="w-3 h-3" />
+                          <span>مرتبط بالجذر</span>
+                        </span>
                       </label>
                       <div className="grid grid-cols-2 gap-2">
-                        <select
-                          value={editOriginCountry}
-                          onChange={(e) => setEditOriginCountry(e.target.value)}
-                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-2.5 py-2.5 text-xs text-[#252321]"
-                        >
-                          {ORIGIN_COUNTRY_OPTIONS.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
                         <input
                           type="text"
-                          value={editOriginRegion}
-                          onChange={(e) => setEditOriginRegion(e.target.value)}
-                          placeholder="المدينة / الإقليم"
-                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-2.5 py-2.5 text-xs text-[#252321]"
+                          readOnly
+                          disabled
+                          value={
+                            activeResult.originCountry ||
+                            result.originCountry ||
+                            editOriginCountry
+                          }
+                          title="غير قابل للتعديل لأنه معتمد في عملية الربط بالجذر والمطابقة"
+                          className="w-full rounded-xl bg-[#EDE6DA]/75 border border-[#B98A78]/40 px-2.5 py-2.5 text-xs font-semibold text-[#252321]/70 cursor-not-allowed select-none"
+                        />
+                        <input
+                          type="text"
+                          readOnly
+                          disabled
+                          value={
+                            initialOriginRegion ||
+                            activeResult.originRegion ||
+                            result.originRegion ||
+                            editOriginRegion ||
+                            '—'
+                          }
+                          title="غير قابل للتعديل لأنه معتمد في عملية الربط بالجذر والمطابقة"
+                          className="w-full rounded-xl bg-[#EDE6DA]/75 border border-[#B98A78]/40 px-2.5 py-2.5 text-xs font-semibold text-[#252321]/70 cursor-not-allowed select-none"
                         />
                       </div>
                     </div>
                   </div>
 
                   {profileSaveFeedback && (
-                    <div className="rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-900 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div
+                      className={`rounded-xl px-4 py-2.5 text-xs font-bold flex items-center gap-2 ${
+                        profileSaveFeedback.startsWith('تعذر')
+                          ? 'bg-red-50 border border-red-200 text-red-800'
+                          : 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+                      }`}
+                    >
+                      {profileSaveFeedback.startsWith('تعذر') ? (
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      )}
                       <span>{profileSaveFeedback}</span>
                     </div>
                   )}
@@ -2971,30 +3106,49 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </div>
 
                     <div className="space-y-3">
+                      {!isGoogleOnlyPasswordlessSession && (
+                        <div>
+                          <label className="block text-xs font-bold text-[#252321] mb-1">
+                            كلمة المرور الحالية *
+                          </label>
+                          <input
+                            type="password"
+                            dir="ltr"
+                            autoComplete="current-password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            placeholder="أدخل كلمة المرور الحالية للتحقق"
+                            className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
+                          />
+                        </div>
+                      )}
+
                       <div>
                         <label className="block text-xs font-bold text-[#252321] mb-1">
-                          كلمة المرور الجديدة
+                          كلمة المرور الجديدة *
                         </label>
                         <input
                           type="password"
                           dir="ltr"
+                          autoComplete="new-password"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="••••••••"
+                          placeholder="6 خانات على الأقل"
                           className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
                         />
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-[#252321] mb-1">
-                          تأكيد كلمة المرور الجديدة
+                          تأكيد كلمة المرور الجديدة *
                         </label>
                         <input
                           type="password"
                           dir="ltr"
+                          autoComplete="new-password"
                           value={confirmNewPassword}
                           onChange={(e) => setConfirmNewPassword(e.target.value)}
-                          placeholder="••••••••"
+                          placeholder="أعد كتابة كلمة المرور الجديدة"
                           className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
                         />
                       </div>
@@ -3002,22 +3156,35 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                     {passwordFeedback && (
                       <div
-                        className={`rounded-xl px-3.5 py-2 text-xs font-bold ${
+                        className={`rounded-xl px-3.5 py-2.5 text-xs font-bold flex items-start gap-2 ${
                           passwordFeedback.type === 'success'
                             ? 'bg-emerald-50 border border-emerald-300 text-emerald-900'
                             : 'bg-red-50 border border-red-200 text-red-700'
                         }`}
                       >
-                        {passwordFeedback.text}
+                        {passwordFeedback.type === 'success' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                        )}
+                        <span>{passwordFeedback.text}</span>
                       </div>
                     )}
 
                     <div className="flex justify-end pt-1">
                       <button
                         type="submit"
-                        className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold transition-colors cursor-pointer"
+                        disabled={isChangingPassword}
+                        className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
                       >
-                        تحديث كلمة المرور
+                        {isChangingPassword && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        )}
+                        <span>
+                          {isChangingPassword
+                            ? 'جاري تحديث كلمة المرور...'
+                            : 'تحديث كلمة المرور'}
+                        </span>
                       </button>
                     </div>
                   </form>

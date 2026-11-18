@@ -212,6 +212,13 @@ const getNextVerticalGrandfatherLabel = (nextLevel: number): string => {
   return ARABIC_ORDINAL_GRANDFATHER[nextLevel] || `الجد رقم ${nextLevel - 2}`;
 };
 
+function cleanNaturalSpineName(rawName?: string): string {
+  return String(rawName || '')
+    .replace(/^(القبيلة الأم|الفرع الجامع|العائلة المباشرة)\s*:\s*/u, '')
+    .replace(/^(من قبيلة|قبيلة|قبائل|فرع|عائلة)\s+/u, '')
+    .trim();
+}
+
 /**
  * Parses initial registration fatherName & grandfatherName cleanly
  */
@@ -649,6 +656,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       cancelled = true;
     };
   }, [people, userId, userEmail, result.familyName]);
+
+  const findPerson = (id?: string) => people.find((p) => p.id === id);
 
   const handleManualSaveTree = async () => {
     setTreeSaveState('saving');
@@ -1164,8 +1173,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [showMoreBioSection, setShowMoreBioSection] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const findPerson = (id?: string) => people.find((p) => p.id === id);
-
   // Direct Spine Lineage chain ascending from Record Keeper (Level 1 -> Level 2 -> ...)
   const directLineageSpine = useMemo(() => {
     const chain: InteractiveTreePerson[] = [];
@@ -1426,22 +1433,23 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       rel === 'sister';
 
     let motherOptions: InteractiveTreePerson[] = [];
+    const targetSpouses = target.spouseIds || [];
     if (rel === 'son' || rel === 'daughter') {
       const father =
         target.gender === 'male'
           ? target
-          : target.spouseIds.length > 0
-          ? findPerson(target.spouseIds[0])
+          : targetSpouses.length > 0
+          ? findPerson(targetSpouses[0])
           : undefined;
       if (father) {
-        motherOptions = father.spouseIds
+        motherOptions = (father.spouseIds || [])
           .map((id) => findPerson(id))
           .filter((w): w is InteractiveTreePerson => Boolean(w));
       }
     } else if (rel === 'brother' || rel === 'sister') {
       const father = target.fatherId ? findPerson(target.fatherId) : undefined;
       if (father) {
-        motherOptions = father.spouseIds
+        motherOptions = (father.spouseIds || [])
           .map((id) => findPerson(id))
           .filter((w): w is InteractiveTreePerson => Boolean(w));
       }
@@ -2046,12 +2054,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       </div>
     );
   };
-
-  const cleanNaturalSpineName = (rawName: string): string =>
-    rawName
-      .replace(/^(القبيلة الأم|الفرع الجامع|العائلة المباشرة)\s*:\s*/u, '')
-      .replace(/^(من قبيلة|قبيلة|قبائل|فرع|عائلة)\s+/u, '')
-      .trim();
 
   const renderFamilyStationCard = () => {
     const station1Node = spineNodes[0];
@@ -3815,10 +3817,23 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   <>
                     {isVerticalOnlyModal && (
                       <div className="rounded-2xl bg-[#FAF6F0] border border-[#D4AF37]/70 p-3.5 text-xs text-[#252321]/85 leading-relaxed">
-                        <strong className="text-[#8D4925]">
-                          حلقة ربط عمودية نحو الجذر (ما فوق الجد الخامس):
-                        </strong>{' '}
-                        تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة دون تفريع أفقي.
+                        {modalConfig.mode === 'add' &&
+                        modalConfig.relationKind ===
+                          'horizontal_branch_above_family' ? (
+                          <>
+                            <strong className="text-[#8D4925]">
+                              إضافة فرع أفقي فوق العائلة المباشرة وحتى الجذر:
+                            </strong>{' '}
+                            يُسجَّل هذا الفرع بشكل أفقي مجاور في نطاق الوصل الواقع بين العائلة المباشرة ونقطة الجذر الموثقة.
+                          </>
+                        ) : (
+                          <>
+                            <strong className="text-[#8D4925]">
+                              حلقة ربط عمودية نحو الجذر (ما فوق الجد الخامس):
+                            </strong>{' '}
+                            تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة.
+                          </>
+                        )}
                       </div>
                     )}
 

@@ -17,6 +17,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  linkWithCredential,
+  EmailAuthProvider,
   signOut,
 } from 'firebase/auth';
 import {
@@ -1740,6 +1744,12 @@ export async function createUserProfileIfMissing(
           familyName: incomingHasArabicFamily
             ? additional.familyName!
             : existing.familyName,
+          phone: additional.phone || existing.phone || '',
+          defaultCountry:
+            additional.defaultCountry ||
+            existing.defaultCountry ||
+            existing.originCountry ||
+            'السعودية',
           originCountry:
             incomingHasArabicFamily && additional.originCountry
               ? additional.originCountry
@@ -1857,9 +1867,9 @@ export async function createUserProfileIfMissing(
 export async function updateUserProfile(
   userId: string,
   updates: Partial<UserProfileData>
-): Promise<void> {
-  if (!userId) return;
-  if (!auth.currentUser && !mirrorAuth.currentUser) return;
+): Promise<boolean> {
+  if (!userId) return false;
+  if (!auth.currentUser && !mirrorAuth.currentUser) return false;
 
   let safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const isStaff =
@@ -1870,7 +1880,7 @@ export async function updateUserProfile(
     if (!updateEmail || updateEmail === authEmail) {
       safeUid = auth.currentUser.uid;
     } else {
-      return;
+      return false;
     }
   }
 
@@ -1880,11 +1890,14 @@ export async function updateUserProfile(
     (candidateEmail && (await findTeamMemberByEmail(candidateEmail)))
   ) {
     await dualDeleteDoc(['users', safeUid]).catch(() => {});
-    return;
+    return false;
   }
   const path = `users/${safeUid}`;
   try {
-    const existingData = await dualGetDoc<UserProfileData>(['users', safeUid]);
+    const existingData = await dualGetDoc<UserProfileData>(
+      ['users', safeUid],
+      8000
+    );
     if (!existingData) {
       await createUserProfileIfMissing(
         {
@@ -1894,7 +1907,7 @@ export async function updateUserProfile(
         },
         updates
       );
-      return;
+      return true;
     }
     if (
       existingData.email &&
@@ -1902,7 +1915,7 @@ export async function updateUserProfile(
         (await findTeamMemberByEmail(existingData.email)))
     ) {
       await dualDeleteDoc(['users', safeUid]).catch(() => {});
-      return;
+      return false;
     }
     // Never mutate ledger-protected financial/tier fields via non-transactional updateUserProfile
     const safeNonFinancialUpdates: Partial<UserProfileData> = { ...updates };
@@ -1910,20 +1923,222 @@ export async function updateUserProfile(
     delete safeNonFinancialUpdates.subscriptionTier;
     delete safeNonFinancialUpdates.isRootUnlocked;
 
+    if (typeof safeNonFinancialUpdates.phone === 'string') {
+      safeNonFinancialUpdates.phone = safeNonFinancialUpdates.phone
+        .trim()
+        .slice(0, 30);
+    }
+    if (typeof safeNonFinancialUpdates.defaultCountry === 'string') {
+      safeNonFinancialUpdates.defaultCountry =
+        safeNonFinancialUpdates.defaultCountry.trim().slice(0, 60);
+    }
+
+    const ensuredFullName = (
+      safeNonFinancialUpdates.fullName ||
+      existingData.fullName ||
+      [
+        safeNonFinancialUpdates.firstName ?? existingData.firstName,
+        safeNonFinancialUpdates.fatherName ?? existingData.fatherName,
+        safeNonFinancialUpdates.grandfatherName ?? existingData.grandfatherName,
+        safeNonFinancialUpdates.familyName ?? existingData.familyName,
+      ]
+        .filter(Boolean)
+        .join(' ') ||
+      'مستخدم جذوري'
+    )
+      .trim()
+      .slice(0, 150);
+
+    const ensuredEmail = (
+      existingData.email ||
+      candidateEmail ||
+      'user@juthori.com'
+    )
+      .trim()
+      .slice(0, 100);
+
     const merged: UserProfileData = {
       ...existingData,
       ...safeNonFinancialUpdates,
       userId: existingData.userId || safeUid,
+      fullName: ensuredFullName,
+      email: ensuredEmail,
+      accountType:
+        existingData.accountType === 'record_keeper'
+          ? 'record_keeper'
+          : safeNonFinancialUpdates.accountType === 'record_keeper'
+          ? 'record_keeper'
+          : 'individual',
+      subscriptionTier: existingData.subscriptionTier || 'free',
+      walletBalance:
+        typeof existingData.walletBalance === 'number' &&
+        existingData.walletBalance >= 0
+          ? existingData.walletBalance
+          : 0,
       createdAt: existingData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    await dualSetDoc(['users', safeUid], merged as unknown as Record<string, unknown>);
+    const writeRes = await dualSetDoc(
+      ['users', safeUid],
+      merged as unknown as Record<string, unknown>,
+      8000
+    );
+    return Boolean(writeRes.primaryWritten || writeRes.mirrorWritten);
   } catch (error) {
     try {
       handleFirestoreError(error, OperationType.UPDATE, path);
     } catch {
       // Logged cleanly via handleFirestoreError without crashing background UI callers
     }
+    return false;
+  }
+}
+
+export async function changeCustomerAccountPassword(params: {
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const cleanEmail = (params.email || auth.currentUser?.email || '')
+    .trim()
+    .toLowerCase();
+  const currentPassword = params.currentPassword || '';
+  const newPassword = params.newPassword || '';
+
+  if (!cleanEmail) {
+    return {
+      ok: false,
+      error: 'لا يوجد بريد إلكتروني نشط مرتبط بالجلسة الحالية.',
+    };
+  }
+  if (!newPassword || newPassword.length < 6) {
+    return {
+      ok: false,
+      error: 'يجب أن تتكون كلمة المرور الجديدة من 6 خانات على الأقل.',
+    };
+  }
+
+  const activeUser = auth.currentUser;
+  const hasPasswordProvider = Boolean(
+    activeUser?.providerData?.some((p) => p.providerId === 'password')
+  );
+  const isGoogleOnlyUser = Boolean(
+    activeUser &&
+      !hasPasswordProvider &&
+      activeUser.providerData?.some((p) => p.providerId === 'google.com')
+  );
+
+  try {
+    if (isGoogleOnlyUser && activeUser) {
+      const linkCred = EmailAuthProvider.credential(cleanEmail, newPassword);
+      try {
+        await linkWithCredential(activeUser, linkCred);
+      } catch (linkErr: unknown) {
+        const linkMsg =
+          linkErr instanceof Error ? linkErr.message : String(linkErr);
+        if (linkMsg.includes('provider-already-linked')) {
+          if (!currentPassword) {
+            return {
+              ok: false,
+              error:
+                'يرجى إدخال كلمة المرور الحالية للتحقق من هويتك قبل تعيين كلمة المرور الجديدة.',
+            };
+          }
+          await reauthenticateWithCredential(
+            activeUser,
+            EmailAuthProvider.credential(cleanEmail, currentPassword)
+          );
+          await updatePassword(activeUser, newPassword);
+        } else {
+          throw linkErr;
+        }
+      }
+    } else {
+      if (!currentPassword) {
+        return {
+          ok: false,
+          error:
+            'يرجى إدخال كلمة المرور الحالية للتحقق من هويتك قبل تعيين كلمة المرور الجديدة.',
+        };
+      }
+
+      if (
+        activeUser &&
+        (activeUser.email || '').trim().toLowerCase() === cleanEmail
+      ) {
+        const cred = EmailAuthProvider.credential(cleanEmail, currentPassword);
+        await reauthenticateWithCredential(activeUser, cred);
+        await updatePassword(activeUser, newPassword);
+      } else {
+        const signCred = await signInWithEmailAndPassword(
+          auth,
+          cleanEmail,
+          currentPassword
+        );
+        await updatePassword(signCred.user, newPassword);
+      }
+    }
+
+    // Best-effort sync on secondary mirror Firebase Auth so both instances stay aligned
+    (async () => {
+      try {
+        if (currentPassword) {
+          const mirrorCred = await withFastTimeout(
+            signInWithEmailAndPassword(
+              mirrorProvisionerAuth,
+              cleanEmail,
+              currentPassword
+            ),
+            4000
+          );
+          await updatePassword(mirrorCred.user, newPassword);
+          await signOut(mirrorProvisionerAuth).catch(() => {});
+        }
+      } catch {
+        // Mirror auth may not have a separate user record; primary auth is authoritative
+      }
+    })();
+
+    return { ok: true };
+  } catch (err: unknown) {
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    if (
+      rawMsg.includes('auth/wrong-password') ||
+      rawMsg.includes('auth/invalid-credential') ||
+      rawMsg.includes('INVALID_LOGIN_CREDENTIALS')
+    ) {
+      return {
+        ok: false,
+        error:
+          'كلمة المرور الحالية غير صحيحة. يرجى التأكد من كلمة المرور الحالية والمحاولة مجدداً.',
+      };
+    }
+    if (rawMsg.includes('auth/weak-password')) {
+      return {
+        ok: false,
+        error:
+          'كلمة المرور الجديدة ضعيفة جداً. يرجى اختيار كلمة مرور من 6 خانات على الأقل.',
+      };
+    }
+    if (rawMsg.includes('auth/too-many-requests')) {
+      return {
+        ok: false,
+        error:
+          'تم إيقاف المحاولات مؤقتاً لكثرة الطلبات. يرجى الانتظار بضع دقائق ثم المحاولة مجدداً.',
+      };
+    }
+    if (rawMsg.includes('auth/requires-recent-login')) {
+      return {
+        ok: false,
+        error:
+          'انتهت صلاحية جلسة التحقق الأمني. يرجى تسجيل الخروج ثم الدخول مجدداً لتغيير كلمة المرور.',
+      };
+    }
+    return {
+      ok: false,
+      error:
+        'تعذر تحديث كلمة المرور في قاعدة البيانات حالياً. يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً.',
+    };
   }
 }
 
@@ -5830,6 +6045,8 @@ export interface CustomerActivityLogEntry {
 
 export interface CustomerDashboardWorkspaceData {
   familyName?: string;
+  phone?: string;
+  defaultCountry?: string;
   bridgedAncestors?: string[];
   unlockedCapsules?: string[];
   unlockedAddonSourceIds?: string[];
