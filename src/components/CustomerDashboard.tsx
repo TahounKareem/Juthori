@@ -135,7 +135,6 @@ const DASHBOARD_TABS: Array<{
   { id: DashboardTab.Lineage, label: 'عمود نسبي', premium: false },
   { id: DashboardTab.MyTree, label: 'شجرتي', premium: false },
   { id: DashboardTab.MyVault, label: 'خزانتي', premium: false },
-  { id: DashboardTab.MyExplorer, label: 'كشافي', premium: true },
   { id: DashboardTab.MySite, label: 'موقعي', premium: false },
   { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false },
 ];
@@ -181,11 +180,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     initialWorkspace.familyName.trim() === result.familyName.trim();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() =>
-    initialTab &&
-    (initialTab !== DashboardTab.ResearchTickets ||
-      stateMode === DashboardStateMode.AnnualVip)
+    initialTab && initialTab !== DashboardTab.MyExplorer
       ? initialTab
-      : DashboardTab.Lineage
+      : DashboardTab.Home
   );
   const [vaultPersonFilterId, setVaultPersonFilterId] =
     useState<string | null>(null);
@@ -201,14 +198,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   }, [initialTicketDraft, onClearInitialTicketDraft]);
 
   useEffect(() => {
-    if (
-      initialTab &&
-      (initialTab !== DashboardTab.ResearchTickets ||
-        stateMode === DashboardStateMode.AnnualVip)
-    ) {
+    if (initialTab && initialTab !== DashboardTab.MyExplorer) {
       setActiveTab(initialTab);
     }
-  }, [initialTab, stateMode]);
+  }, [initialTab]);
 
   useEffect(() => {
     if (!resolvedCustomerUid && !userEmail) return;
@@ -687,7 +680,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     {
       id: 'notif-2',
       title: 'مزايا الاشتراك السنوي (بريميوم)',
-      body: 'ارفع الأقفال الحمراء عن المحطات المرمّزة في شجرة آدم وفعّل شجرتي وخزانتي وكشافي وموقعي ومجتمعي.',
+      body: 'ارفع الأقفال الحمراء عن المحطات المرمّزة في شجرة آدم وفعّل شجرتي وخزانتي وموقعي ومجتمعي.',
       timestamp: 'منذ دقيقتين',
       unread: true,
       actionType: 'upgrade_vip',
@@ -1069,6 +1062,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         body: JSON.stringify({
           email: userEmail,
           clientName: editFirstName || result.clientName || 'عميل جذوري',
+          familyName: editFamilyName || result.familyName || '',
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -1100,7 +1094,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           type: 'success',
           text:
             data.message ||
-            `تم إرسال رمز التوثيق المكون من 6 أرقام إلى (${userEmail}) بنجاح — الرمز صالح لمدة 15 دقيقة.`,
+            `تم إرسال رمز التوثيق المكون من 6 أرقام من «منصة جذوري» (info@Juthori.com) إلى (${userEmail}) بنجاح — الرمز صالح لمدة 15 دقيقة.`,
         });
       } else {
         setVerificationFeedback({
@@ -1108,7 +1102,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           text:
             data.diagnosticAr ||
             data.error ||
-            'تعذر إرسال رسالة التوثيق عبر خدمة Resend. يرجى التحقق من إعداد مفتاح الخدمة أو النطاق الموثق.',
+            'تعذر إرسال رسالة التوثيق عبر (info@Juthori.com). يرجى التحقق من ربط مفتاح الخدمة بالنطاق الموثق (Juthori.com).',
         });
       }
     } catch {
@@ -1600,12 +1594,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   };
 
   const handleTabClick = (tab: (typeof DASHBOARD_TABS)[number]) => {
-    if (tab.id === DashboardTab.Home) {
-      setActiveUtilityDrawer(null);
-      onBackToLanding();
-      return;
-    }
-
     if (tab.premium && !caps.arePremiumTabsUnlocked) {
       setLockedTabPromptName(tab.label);
       return;
@@ -2081,15 +2069,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                   {/* Customer Name + Calm Package / Registrar Subtitle */}
                   <div className="text-right">
-                    <div className="text-sm sm:text-base font-display font-bold text-[#252321] leading-tight flex items-center gap-1.5">
-                      <span>
-                        {result.clientName} {result.familyName}
-                      </span>
-                      {caps.hasRegistrarBadge && (
-                        <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-[#252321] text-[#F3D299] text-[10px] font-bold">
-                          أمين سجل العائلة ✦
-                        </span>
-                      )}
+                    <div className="text-sm sm:text-base font-display font-bold text-[#252321] leading-tight">
+                      {result.clientName} {result.familyName}
                     </div>
                     <div
                       className={`text-[11px] font-medium mt-0.5 ${
@@ -2202,7 +2183,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             ⚙️ إعدادات الحساب والأمان
                           </div>
                           <div className="text-[11px] text-[#252321]/65 truncate">
-                            تغيير كلمة المرور، الإشعارات، وحذف الحساب
+                            توثيق البريد، كلمة المرور، الإشعارات، وحذف الحساب
                           </div>
                         </div>
                       </button>
@@ -2263,37 +2244,39 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         </div>
                       </button>
 
-                      {caps.isVip && (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setUserDropdownOpen(false);
-                            setActiveUtilityDrawer(null);
-                            setActiveTab(DashboardTab.ResearchTickets);
-                          }}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
-                            <Scroll className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-xs font-display font-bold text-[#252321]">
-                                📜 مرصد البحوث ومراسلات النسب
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer(null);
+                          setActiveTab(DashboardTab.ResearchTickets);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
+                          <Scroll className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-display font-bold text-[#252321]">
+                              📜 مرصد البحوث ومراسلات النسب
+                            </span>
+                            {hasResearcherReplyWaiting ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950">
+                                رد جديد
                               </span>
-                              {hasResearcherReplyWaiting && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950">
-                                  رد جديد
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-[#252321]/65 truncate">
-                              متابعة حالة تحقيق النسب والرد على الباحثين
-                            </div>
+                            ) : hasCustomerResearchTicket ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/40 text-[#8D4925]">
+                                قيد المتابعة
+                              </span>
+                            ) : null}
                           </div>
-                        </button>
-                      )}
+                          <div className="text-[11px] text-[#252321]/65 truncate">
+                            متابعة حالة تحقيق النسب والرد على الباحثين
+                          </div>
+                        </div>
+                      </button>
                     </div>
 
                     {/* Logout Action at Bottom of Dropdown */}
@@ -2431,23 +2414,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </div>
           </div>
 
-          {/* Main Dashboard Navigation Tabs */}
+          {/* Main Dashboard Navigation Tabs (No كشافي or مرصد البحوث in horizontal tabs) */}
           <nav
             aria-label="تبويبات لوحة تحكم العميل"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth touch-pan-x py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0"
           >
-            {[
-              ...DASHBOARD_TABS,
-              ...(caps.isVip && (!activeResult.matched || hasCustomerResearchTicket)
-                ? [
-                    {
-                      id: DashboardTab.ResearchTickets,
-                      label: 'مرصد البحوث',
-                      premium: true,
-                    },
-                  ]
-                : []),
-            ].map((tab) => {
+            {DASHBOARD_TABS.map((tab) => {
               const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
               const isSelected = activeUtilityDrawer === null && activeTab === tab.id;
 
@@ -2483,14 +2455,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     />
                   )}
                   <span>{tab.label}</span>
-                  {tab.id === DashboardTab.ResearchTickets &&
-                    hasResearcherReplyWaiting &&
-                    !isSelected && (
-                      <span
-                        className="w-2 h-2 rounded-full bg-[#DC2626] shrink-0"
-                        title="توجد رسالة أو طلب استكمال بيانات من الباحث"
-                      />
-                    )}
                   {isLocked && (
                     <Lock
                       className="w-3.5 h-3.5 text-[#DC2626]/80"
@@ -2511,9 +2475,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#B98A78]/25">
               <div>
                 <p className="text-xs font-semibold text-[#D8755B] mb-1">
-                  {(activeUtilityDrawer === 'profile' ||
-                    activeUtilityDrawer === 'settings') &&
-                    'الملف الشخصي وإعدادات الحساب والأمان (Firebase)'}
+                  {activeUtilityDrawer === 'profile' &&
+                    'الملف الشخصي والبيانات العائلية والجغرافية'}
+                  {activeUtilityDrawer === 'settings' &&
+                    'إعدادات الحساب والأمان والخصوصية'}
                   {activeUtilityDrawer === 'cart' && 'الترقيات والمحفظة الرقمية'}
                   {activeUtilityDrawer === 'notifications' &&
                     'التنبيهات والتحديثات الأرشيفية'}
@@ -2580,171 +2545,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </div>
 
             {/* ============================================================ */}
-            {/* INTEGRATED PROFILE & SETTINGS VIEW (Connected to Firebase)   */}
+            {/* 1. DEDICATED PROFILE VIEW (الملف الشخصي فقط)                  */}
             {/* ============================================================ */}
-            {(activeUtilityDrawer === 'profile' ||
-              activeUtilityDrawer === 'settings') && (
+            {activeUtilityDrawer === 'profile' && (
               <div className="space-y-8">
-                {/* Thin, Calm, Dismissible Email Verification Reminder Banner (ONLY in Profile/Settings & Wallet) */}
-                {!isEmailVerified && !dismissedEmailBannerInProfile && (
-                  <div className="rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321]">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-[#D8755B] shrink-0" />
-                      <span>
-                        تذكير هادئ: يمكنك توثيق بريدك الإلكتروني (<strong className="font-mono">{userEmail}</strong>) أدناه لتعزيز أمان حسابك وتفعيل النشر العام في «موقعي».
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        disabled={
-                          isSendingVerificationOtp ||
-                          verificationResendCooldown > 0
-                        }
-                        onClick={handleSendEmailVerificationCode}
-                        className="px-3 py-1 rounded-lg bg-[#252321] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {isSendingVerificationOtp
-                          ? 'جاري الإرسال...'
-                          : verificationResendCooldown > 0
-                          ? `إعادة الإرسال (${verificationResendCooldown}ث)`
-                          : 'إرسال رمز التوثيق'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDismissedEmailBannerInProfile(true)}
-                        aria-label="إغلاق التذكير"
-                        className="p-1 rounded-lg hover:bg-[#EDE6DA] text-[#252321]/65 cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Non-Blocking Server-Side Email Verification Card (Resend OTP) */}
-                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Mail className="w-4 h-4 text-[#D8755B]" />
-                        <h2 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
-                          حالة البريد الإلكتروني المرتبط بالحساب
-                        </h2>
-                        <span
-                          dir="ltr"
-                          className="px-2.5 py-0.5 rounded-lg bg-white border border-[#B98A78]/35 text-xs font-mono text-[#8D4925]"
-                        >
-                          {userEmail}
-                        </span>
-                        {isEmailVerified ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-extrabold">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                            <span>موثّق ✓</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-bold">
-                            <span>غير موثّق</span>
-                          </span>
-                        )}
-                        {caps.hasRegistrarBadge && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#252321] text-[#F3D299] text-[11px] font-display font-bold">
-                            <span>أمين سجل العائلة ✦</span>
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#252321]/70">
-                        {isEmailVerified
-                          ? `البريد الإلكتروني موثّق ومعتمد رسمياً${
-                              emailVerifiedAt
-                                ? ` منذ ${new Date(emailVerifiedAt).toLocaleDateString('ar-SA')}`
-                                : ''
-                            } — النشر العام وحماية المحفظة مفعّلان بالكامل.`
-                          : 'التوثيق اختياري ولا يعيق استخدامك لشجرتي أو خزانتي أو عمود النسب، ويُطلب فقط قبل النشر العام في «موقعي».'}
-                      </p>
-                    </div>
-
-                    {!isEmailVerified && (
-                      <button
-                        type="button"
-                        disabled={
-                          isSendingVerificationOtp ||
-                          verificationResendCooldown > 0
-                        }
-                        onClick={handleSendEmailVerificationCode}
-                        className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 disabled:opacity-55"
-                      >
-                        {isSendingVerificationOtp ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5" />
-                        )}
-                        <span>
-                          {isSendingVerificationOtp
-                            ? 'جاري إرسال الرمز...'
-                            : verificationResendCooldown > 0
-                            ? `إعادة الإرسال بعد (${verificationResendCooldown}ث)`
-                            : 'إرسال رمز التوثيق'}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-
-                  {!isEmailVerified && verificationOtpSent && (
-                    <form
-                      onSubmit={handleVerifyEmailOtpCode}
-                      className="pt-3 border-t border-[#B98A78]/25 flex flex-col sm:flex-row sm:items-center gap-2.5"
-                    >
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        dir="ltr"
-                        maxLength={6}
-                        value={verificationOtpInput}
-                        onChange={(e) =>
-                          setVerificationOtpInput(
-                            e.target.value.replace(/[^0-9]/g, '').slice(0, 6)
-                          )
-                        }
-                        placeholder="أدخل الرمز المكون من 6 أرقام"
-                        className="sm:w-64 rounded-xl bg-white border border-[#B98A78]/55 px-4 py-2 text-center font-mono text-sm tracking-widest text-[#252321] focus:outline-none focus:border-[#D8755B]"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isVerifyingOtpCode}
-                        className="px-5 py-2 rounded-xl bg-[#252321] hover:bg-[#D8755B] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
-                      >
-                        {isVerifyingOtpCode ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        )}
-                        <span>تأكيد رمز التوثيق</span>
-                      </button>
-                    </form>
-                  )}
-
-                  {verificationFeedback && (
-                    <div
-                      role="status"
-                      className={`rounded-xl px-4 py-3 text-xs font-semibold flex items-start gap-2.5 leading-relaxed ${
-                        verificationFeedback.type === 'success'
-                          ? 'bg-emerald-50 border border-emerald-300 text-emerald-950'
-                          : verificationFeedback.type === 'diagnostic'
-                          ? 'bg-amber-50 border border-amber-300 text-amber-950'
-                          : 'bg-red-50 border border-red-200 text-red-800'
-                      }`}
-                    >
-                      {verificationFeedback.type === 'success' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                      )}
-                      <span>{verificationFeedback.text}</span>
-                    </div>
-                  )}
-                </div>
-
                 {/* 1. Avatar Upload Card */}
                 <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div className="flex items-center gap-4">
@@ -2816,7 +2620,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   onSubmit={handleSaveProfileData}
                   className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 space-y-5"
                 >
-                  <div className="flex items-center justify-between border-b border-[#B98A78]/25 pb-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#B98A78]/25 pb-3.5">
                     <div>
                       <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
                         2. تعديل البيانات الشخصية والجغرافية
@@ -2825,9 +2629,28 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         تحديث الاسم الرباعي، رقم الجوال، الدولة الافتراضية، والموطن الأصلي للعائلة في Firebase
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/35 text-[11px] font-mono text-[#8D4925]">
-                      {userEmail}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        dir="ltr"
+                        className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/35 text-[11px] font-mono text-[#8D4925]"
+                      >
+                        {userEmail}
+                      </span>
+                      {isEmailVerified ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-extrabold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>بريد موثّق ✓</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setActiveUtilityDrawer('settings')}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          <span>توثيق البريد في الأمان والإعدادات ←</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2965,10 +2788,172 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </button>
                   </div>
                 </form>
+              </div>
+            )}
 
-                {/* 3. Security & Password Change + 4. Notification Preferences */}
+            {/* ============================================================ */}
+            {/* 2. DEDICATED SECURITY & SETTINGS VIEW (الأمان والإعدادات فقط) */}
+            {/* ============================================================ */}
+            {activeUtilityDrawer === 'settings' && (
+              <div className="space-y-8">
+                {/* Thin, Calm, Dismissible Email Verification Reminder Banner */}
+                {!isEmailVerified && !dismissedEmailBannerInProfile && (
+                  <div className="rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321]">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-[#D8755B] shrink-0" />
+                      <span>
+                        تذكير هادئ: يمكنك توثيق بريدك الإلكتروني (<strong className="font-mono">{userEmail}</strong>) أدناه لتعزيز أمان حسابك وتفعيل النشر العام في «موقعي».
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={
+                          isSendingVerificationOtp ||
+                          verificationResendCooldown > 0
+                        }
+                        onClick={handleSendEmailVerificationCode}
+                        className="px-3 py-1 rounded-lg bg-[#252321] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isSendingVerificationOtp
+                          ? 'جاري الإرسال...'
+                          : verificationResendCooldown > 0
+                          ? `إعادة الإرسال (${verificationResendCooldown}ث)`
+                          : 'إرسال رمز التوثيق'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDismissedEmailBannerInProfile(true)}
+                        aria-label="إغلاق التذكير"
+                        className="p-1 rounded-lg hover:bg-[#EDE6DA] text-[#252321]/65 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1. Non-Blocking Server-Side Email Verification Card (Resend OTP) */}
+                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#D8755B]" />
+                        <h2 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                          1. حالة وتوثيق البريد الإلكتروني المرتبط بالحساب
+                        </h2>
+                        <span
+                          dir="ltr"
+                          className="px-2.5 py-0.5 rounded-lg bg-white border border-[#B98A78]/35 text-xs font-mono text-[#8D4925]"
+                        >
+                          {userEmail}
+                        </span>
+                        {isEmailVerified ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-extrabold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>موثّق ✓</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-bold">
+                            <span>غير موثّق</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#252321]/70">
+                        {isEmailVerified
+                          ? `البريد الإلكتروني موثّق ومعتمد رسمياً${
+                              emailVerifiedAt
+                                ? ` منذ ${new Date(emailVerifiedAt).toLocaleDateString('ar-SA')}`
+                                : ''
+                            } — النشر العام وحماية المحفظة مفعّلان بالكامل.`
+                          : 'التوثيق اختياري ولا يعيق استخدامك لشجرتي أو خزانتي أو عمود النسب، ويُطلب فقط قبل النشر العام في «موقعي» (يُرسل الرمز عبر: منصة جذوري · info@Juthori.com).'}
+                      </p>
+                    </div>
+
+                    {!isEmailVerified && (
+                      <button
+                        type="button"
+                        disabled={
+                          isSendingVerificationOtp ||
+                          verificationResendCooldown > 0
+                        }
+                        onClick={handleSendEmailVerificationCode}
+                        className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 disabled:opacity-55"
+                      >
+                        {isSendingVerificationOtp ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {isSendingVerificationOtp
+                            ? 'جاري إرسال الرمز...'
+                            : verificationResendCooldown > 0
+                            ? `إعادة الإرسال بعد (${verificationResendCooldown}ث)`
+                            : 'إرسال رمز التوثيق'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {!isEmailVerified && verificationOtpSent && (
+                    <form
+                      onSubmit={handleVerifyEmailOtpCode}
+                      className="pt-3 border-t border-[#B98A78]/25 flex flex-col sm:flex-row sm:items-center gap-2.5"
+                    >
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        dir="ltr"
+                        maxLength={6}
+                        value={verificationOtpInput}
+                        onChange={(e) =>
+                          setVerificationOtpInput(
+                            e.target.value.replace(/[^0-9]/g, '').slice(0, 6)
+                          )
+                        }
+                        placeholder="أدخل الرمز المكون من 6 أرقام"
+                        className="sm:w-64 rounded-xl bg-white border border-[#B98A78]/55 px-4 py-2 text-center font-mono text-sm tracking-widest text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isVerifyingOtpCode}
+                        className="px-5 py-2 rounded-xl bg-[#252321] hover:bg-[#D8755B] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {isVerifyingOtpCode ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>تأكيد رمز التوثيق</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {verificationFeedback && (
+                    <div
+                      role="status"
+                      className={`rounded-xl px-4 py-3 text-xs font-semibold flex items-start gap-2.5 leading-relaxed ${
+                        verificationFeedback.type === 'success'
+                          ? 'bg-emerald-50 border border-emerald-300 text-emerald-950'
+                          : verificationFeedback.type === 'diagnostic'
+                          ? 'bg-amber-50 border border-amber-300 text-amber-950'
+                          : 'bg-red-50 border border-red-200 text-red-800'
+                      }`}
+                    >
+                      {verificationFeedback.type === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                      )}
+                      <span>{verificationFeedback.text}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Security & Password Change + 3. Notification Preferences */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* 3. Security & Password Change */}
+                  {/* 2. Security & Password Change */}
                   <form
                     onSubmit={handleChangePassword}
                     className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 space-y-4"
@@ -2977,7 +2962,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <KeyRound className="w-5 h-5 text-[#D8755B]" />
                       <div>
                         <h2 className="text-base font-display font-bold text-[#252321]">
-                          3. الأمان وتغيير كلمة المرور
+                          2. الأمان وتغيير كلمة المرور
                         </h2>
                         <p className="text-xs text-[#252321]/70">
                           تحديث كلمة مرور حسابك في Firebase Authentication
@@ -3044,7 +3029,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <Bell className="w-5 h-5 text-[#D8755B]" />
                         <div>
                           <h2 className="text-base font-display font-bold text-[#252321]">
-                            4. إدارة الإشعارات البريدية
+                            3. إدارة الإشعارات البريدية
                           </h2>
                           <p className="text-xs text-[#252321]/70">
                             تحكم في التنبيهات المرسلة إلى بريدك ({userEmail})
@@ -3112,7 +3097,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <div className="flex items-center justify-between pt-2 border-t border-[#B98A78]/20 text-xs text-[#8D4925] font-semibold">
                       <span className="inline-flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-[#D8755B]" />
-                        <span>تُرسل الإشعارات الرسمية عبر info@Juthori.com</span>
+                        <span>تُرسل جميع رموز التوثيق والمراسلات والإشعارات باسم «منصة جذوري» عبر info@Juthori.com</span>
                       </span>
                     </div>
                   </div>
@@ -3123,7 +3108,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-[#252321] font-display font-extrabold text-sm sm:text-base">
                       <ShieldCheck className="w-5 h-5 text-[#8D4925]" />
-                      <span>5. إدارة المستخدمين المحظورين في «مجتمعي»</span>
+                      <span>4. إدارة المستخدمين المحظورين في «مجتمعي»</span>
                     </div>
                     <span className="text-xs font-semibold text-[#8D4925] bg-white border border-[#B98A78]/35 px-2.5 py-1 rounded-lg">
                       المحظورون حالياً: {blockedUserIds.length}
@@ -3175,7 +3160,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-red-800 font-display font-extrabold text-base">
                       <ShieldAlert className="w-5 h-5 text-red-600" />
-                      <span>6. منطقة الخطر (Danger Zone)</span>
+                      <span>5. منطقة الخطر (Danger Zone)</span>
                     </div>
                     <p className="text-xs text-red-900/80 leading-relaxed max-w-2xl">
                       حذف الحساب نهائياً يؤدي إلى إزالة ملفك الشخصي وبيانات جلستك من قاعدة بيانات Firebase وإنهاء الجلسة الحالية فوراً.
@@ -3284,7 +3269,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       setDismissedEmailBannerInWallet(true)
                     }
                     onOpenEmailVerification={() =>
-                      setActiveUtilityDrawer('profile')
+                      setActiveUtilityDrawer('settings')
                     }
                     onBalanceChange={(nextBal) => {
                       setWalletBalance(nextBal);
@@ -3520,6 +3505,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             onResyncLineage={onResyncLineageFromEngine}
             isResyncingLineage={isResyncingLineage}
             userId={resolvedCustomerUid}
+            userEmail={userEmail}
+            onOpenVaultForPerson={(personId) => {
+              setVaultPersonFilterId(personId);
+              setActiveUtilityDrawer(null);
+              setActiveTab(DashboardTab.MyVault);
+            }}
             onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
             onLogActivity={appendActivity}
           />
@@ -3586,6 +3577,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               accountType={accountType}
               caps={caps}
               onNavigateTab={(t) => {
+                if (t === DashboardTab.ResearchTickets) {
+                  setActiveUtilityDrawer(null);
+                  setActiveTab(DashboardTab.ResearchTickets);
+                  return;
+                }
                 const found = DASHBOARD_TABS.find((x) => x.id === t);
                 if (found) handleTabClick(found);
               }}
@@ -3595,18 +3591,44 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               onLogActivity={appendActivity}
               onSyncImmediateParents={onUpdateImmediateParents}
               unlockedCapsules={unlockedCapsules}
+              unlockedAddonSourceIds={unlockedAddonSourceIds}
               onRequestUnlockCapsule={handleRequestUnlockCapsule}
               onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
               walletBalance={walletBalance}
               userAvatarUrl={avatarUrl || undefined}
               userId={resolvedCustomerUid}
               userEmail={userEmail}
+              userPhone={editPhone}
+              dashboardNotifications={notifications}
+              onOpenWalletDrawer={() => setActiveUtilityDrawer('cart')}
+              onOpenNotificationsDrawer={() => {
+                setActiveUtilityDrawer('notifications');
+                setNotifications((prev) =>
+                  prev.map((n) => ({ ...n, unread: false }))
+                );
+              }}
+              onOpenFullResearchTickets={() => {
+                setActiveUtilityDrawer(null);
+                setActiveTab(DashboardTab.ResearchTickets);
+              }}
+              onAdoptResolvedLineage={(enriched) => {
+                setVerifiedResultOverride(enriched);
+                onUpdateLineageResult?.(enriched);
+                setHasResearcherReplyWaiting(false);
+              }}
+              onTicketsStatusChange={({
+                hasAnyTicket,
+                hasResearcherReplyWaiting: waiting,
+              }) => {
+                setHasCustomerResearchTicket(hasAnyTicket);
+                setHasResearcherReplyWaiting(waiting);
+              }}
               initialSiteSettings={siteSettings}
               onSaveSiteSettings={(nextSettings) => setSiteSettings(nextSettings)}
               initialCommunityPosts={communityPosts}
               onSaveCommunityPosts={(nextPosts) => setCommunityPosts(nextPosts)}
               emailVerified={isEmailVerified}
-              onOpenEmailVerification={() => setActiveUtilityDrawer('profile')}
+              onOpenEmailVerification={() => setActiveUtilityDrawer('settings')}
               initialVaultPersonFilterId={vaultPersonFilterId}
               onConsumeVaultPersonFilterId={() => setVaultPersonFilterId(null)}
               onOpenVaultForPerson={(personId) => {
@@ -3661,7 +3683,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               تبويب «{lockedTabPromptName}» ضمن مزايا باقة بريميوم السنوية
             </h3>
             <p className="text-sm text-[#252321]/80 leading-relaxed">
-              أنت حالياً على العضوية الأساسية. رقِّ حسابك إلى الاشتراك السنوي (بريميوم) لفتح عمود النسب الكامل فوق الجذر وتفعيل خدمات (شجرتي، خزانتي، كشافي، موقعي، مجتمعي).
+              أنت حالياً على العضوية الأساسية. رقِّ حسابك إلى الاشتراك السنوي (بريميوم) لفتح عمود النسب الكامل فوق الجذر وتفعيل خدمات (شجرتي، خزانتي، موقعي، مجتمعي).
             </p>
 
             <div className="flex flex-col sm:flex-row gap-2.5 pt-2">

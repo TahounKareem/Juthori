@@ -60,6 +60,12 @@ interface ResearchTicketsViewProps {
   onConsumeDraft?: () => void;
   onLogActivity?: (action: string, detail: string) => void;
   onAdoptResolvedLineage?: (enrichedResult: LineageSearchResult) => void;
+  embeddedHomeWidget?: boolean;
+  onOpenFullTicketsPage?: () => void;
+  onTicketsStatusChange?: (status: {
+    hasAnyTicket: boolean;
+    hasResearcherReplyWaiting: boolean;
+  }) => void;
 }
 
 export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
@@ -73,6 +79,9 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
   onConsumeDraft,
   onLogActivity,
   onAdoptResolvedLineage,
+  embeddedHomeWidget = false,
+  onOpenFullTicketsPage,
+  onTicketsStatusChange,
 }) => {
   const isFamilyRegistrar = accountType === AccountLegalType.RecordKeeper;
   const [tickets, setTickets] = useState<ResearchTicketData[]>([]);
@@ -150,7 +159,20 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
     setIsLoading(true);
     try {
       const data = await fetchUserResearchTickets(currentUid, userEmail);
-      setTickets(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setTickets(list);
+      const waiting = list.some((t) => {
+        if (t.status === 'NEEDS_INFO' || t.lifecycleStage === 'NEEDS_INFO') {
+          return true;
+        }
+        const msgs = t.messages || [];
+        const lastMsg = msgs[msgs.length - 1];
+        return Boolean(lastMsg && lastMsg.senderRole === 'researcher');
+      });
+      onTicketsStatusChange?.({
+        hasAnyTicket: list.length > 0,
+        hasResearcherReplyWaiting: waiting,
+      });
     } catch {
       setTickets([]);
     } finally {
@@ -274,8 +296,8 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         const currentStage = resolveTicketLifecycleStage(ticket);
         const nextStage: CanonicalTicketLifecycleStage =
           currentStage === 'NEEDS_INFO' ? 'IN_REVIEW' : currentStage;
-        setTickets((prev) =>
-          prev.map((t) =>
+        setTickets((prev) => {
+          const nextList = prev.map((t) =>
             t.id === ticket.id
               ? {
                   ...t,
@@ -289,8 +311,21 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
                   updatedAt: savedMsg.createdAt,
                 }
               : t
-          )
-        );
+          );
+          const waiting = nextList.some((t) => {
+            if (t.status === 'NEEDS_INFO' || t.lifecycleStage === 'NEEDS_INFO') {
+              return true;
+            }
+            const msgs = t.messages || [];
+            const lastMsg = msgs[msgs.length - 1];
+            return Boolean(lastMsg && lastMsg.senderRole === 'researcher');
+          });
+          onTicketsStatusChange?.({
+            hasAnyTicket: nextList.length > 0,
+            hasResearcherReplyWaiting: waiting,
+          });
+          return nextList;
+        });
         setReplyDraftByTicket((prev) => ({ ...prev, [ticket.id]: '' }));
         setReplyAttachmentsByTicket((prev) => ({ ...prev, [ticket.id]: [] }));
         onLogActivity?.(
@@ -405,8 +440,34 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
       .filter(Boolean)
   );
 
+  const displayedTickets = embeddedHomeWidget
+    ? tickets.filter((t) => {
+        const st = resolveTicketLifecycleStage(t);
+        if (st === 'CLOSED') return false;
+        if (st === 'RESOLVED' && t.resolutionPayload?.appliedByCustomerAt) {
+          return false;
+        }
+        return true;
+      })
+    : tickets;
+
+  if (embeddedHomeWidget && (isLoading || displayedTickets.length === 0)) {
+    return null;
+  }
+
   return (
-    <div className="space-y-6 text-[#252321]">
+    <div
+      data-testid={
+        embeddedHomeWidget
+          ? 'home-active-research-ticket-box'
+          : 'full-research-tickets-view'
+      }
+      className={
+        embeddedHomeWidget
+          ? 'rounded-2xl bg-[#FAF6F0] border-2 border-[#B98A78]/50 p-5 sm:p-6 space-y-5 text-[#252321]'
+          : 'space-y-6 text-[#252321]'
+      }
+    >
       {adoptedBannerMessage && (
         <div className="rounded-2xl bg-[#FFFDF9] border-2 border-[#D4AF37] p-4 sm:p-5 flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
@@ -427,39 +488,84 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         </div>
       )}
 
-      {/* 1. Header Banner (Strictly Tracking & Replying — No Manual Ticket Creation) */}
-      <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#D8755B]/15 text-[#D8755B] text-xs font-semibold">
-              <Scroll className="w-3.5 h-3.5" />
-              <span>متابعة طلب تحقيق النسب ومراسلات الباحثين</span>
-            </div>
-            {isFamilyRegistrar && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FEF3C7] border border-[#D4AF37] text-xs font-display font-bold text-[#8D4925]">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
-                <span>أولوية أمين السجل مفعّلة · PRIORITY_REGISTRAR</span>
+      {/* 1. Header Banner */}
+      {embeddedHomeWidget ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#B98A78]/30">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D8755B]/15 text-[#D8755B] text-xs font-display font-bold">
+                <Scroll className="w-3.5 h-3.5" />
+                <span>تذكرتك البحثية الجارية في مرصد البحوث</span>
               </span>
+              {isFamilyRegistrar && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FEF3C7] border border-[#D4AF37] text-[11px] font-display font-bold text-[#8D4925]">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
+                  <span>أولوية أمين السجل · PRIORITY_REGISTRAR</span>
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[#252321]/75">
+              متابعة فورية لمراحل تحقيق وتوثيق عمود النسب والرد المباشر على الباحث المختص أو إرفاق وثائق من «خزانتي».
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={loadTickets}
+              disabled={isLoading}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/45 text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`}
+              />
+              <span>تحديث</span>
+            </button>
+            {onOpenFullTicketsPage && (
+              <button
+                type="button"
+                onClick={onOpenFullTicketsPage}
+                className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-[#F3D299] text-xs font-display font-bold transition-colors cursor-pointer"
+              >
+                فتح صفحة مرصد البحوث كاملة ←
+              </button>
             )}
           </div>
-          <h2 className="text-xl font-display font-bold text-[#252321]">
-            مرصد البحوث وتذاكر التحقيق الجينيالوجي
-          </h2>
-          <p className="text-xs sm:text-sm text-[#252321]/75 max-w-2xl leading-relaxed">
-            هذه الصفحة مخصصة لمتابعة مراحل طلب تحقيق وتوثيق نسب عائلتك ضمن الاشتراك السنوي، والرد على استفسارات ومراسلات فريق الباحثين أو إرفاق وثائق مساندة من «خزانتي»، واعتماد النتيجة الموثقة فور صدورها.
-          </p>
         </div>
+      ) : (
+        <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#D8755B]/15 text-[#D8755B] text-xs font-semibold">
+                <Scroll className="w-3.5 h-3.5" />
+                <span>متابعة طلب تحقيق النسب ومراسلات الباحثين</span>
+              </div>
+              {isFamilyRegistrar && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FEF3C7] border border-[#D4AF37] text-xs font-display font-bold text-[#8D4925]">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
+                  <span>أولوية أمين السجل مفعّلة · PRIORITY_REGISTRAR</span>
+                </span>
+              )}
+            </div>
+            <h2 className="text-xl font-display font-bold text-[#252321]">
+              مرصد البحوث وتذاكر التحقيق الجينيالوجي
+            </h2>
+            <p className="text-xs sm:text-sm text-[#252321]/75 max-w-2xl leading-relaxed">
+              هذه الصفحة مخصصة لمتابعة مراحل طلب تحقيق وتوثيق نسب عائلتك ضمن الاشتراك السنوي، والرد على استفسارات ومراسلات فريق الباحثين أو إرفاق وثائق مساندة من «خزانتي»، واعتماد النتيجة الموثقة فور صدورها.
+            </p>
+          </div>
 
-        <button
-          type="button"
-          onClick={loadTickets}
-          disabled={isLoading}
-          className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/45 text-xs sm:text-sm font-display font-bold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-2xs disabled:opacity-60"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>تحديث الحالة والمراسلات</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={loadTickets}
+            disabled={isLoading}
+            className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/45 text-xs sm:text-sm font-display font-bold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-2xs disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>تحديث الحالة والمراسلات</span>
+          </button>
+        </div>
+      )}
 
       {/* 2. Active Tickets List */}
       {isLoading ? (
@@ -469,7 +575,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
             جاري تحميل حالة طلب تحقيق النسب ومراسلات الباحثين...
           </p>
         </div>
-      ) : tickets.length === 0 ? (
+      ) : displayedTickets.length === 0 ? (
         <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-8 text-center space-y-3.5">
           <div className="w-12 h-12 rounded-full bg-[#EDE6DA] mx-auto flex items-center justify-center text-[#8D4925]">
             <Search className="w-6 h-6" />
@@ -494,7 +600,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
         </div>
       ) : (
         <div className="space-y-5">
-          {tickets.map((ticket) => {
+          {displayedTickets.map((ticket) => {
             const stage = resolveTicketLifecycleStage(ticket);
             const pres = getStagePresentation(stage);
             const canReplyInThread =

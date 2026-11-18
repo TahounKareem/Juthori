@@ -268,6 +268,8 @@ export function App() {
     () =>
       readPendingTicketDraft()
         ? DashboardTab.ResearchTickets
+        : initialSession?.isLoggedIn
+        ? DashboardTab.Home
         : DashboardTab.Lineage
   );
   const [pendingTicketDraftState, setPendingTicketDraftState] =
@@ -1927,7 +1929,7 @@ export function App() {
         : immediateResult.recommendedInitialState;
 
     setDashboardStateMode(targetMode);
-    syncRoutingForPendingTicketOrLineage();
+    setInitialDashboardTab(DashboardTab.Home);
     setHasActiveSession(true);
     setSearchStep(3);
     setLoginModalOpen(false);

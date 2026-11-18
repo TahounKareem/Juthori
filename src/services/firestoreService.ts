@@ -143,8 +143,99 @@ export async function provisionUserInFirebaseAuth(
   return { registeredInAuth, uid: resolvedUid };
 }
 
-// Dual-database helpers: run primary (juthori-com) and mirrorDb in PARALLEL with primary-first resolution
-// so a slow/unauthenticated mirrorDb handshake never delays customer login or reads when primary `db` responds immediately.
+const PUBLIC_READ_COLLECTIONS = new Set([
+  'public_sites',
+  'public_site_directory',
+  'knowledge_articles',
+  'site_guestbook',
+  'test',
+]);
+
+const PUBLIC_WRITE_COLLECTIONS = new Set([
+  'newsletter_subscribers',
+  'site_access_requests',
+  'enrichment_requests',
+  'tree_enrichment_requests',
+  'site_guestbook',
+]);
+
+export function isRuntimeStaffSession(
+  targetAuth: typeof auth = auth
+): boolean {
+  return Boolean(
+    targetAuth.currentUser?.email &&
+      isCorporateStaffEmail(targetAuth.currentUser.email)
+  );
+}
+
+function canReadOnAuth(
+  targetAuth: typeof auth,
+  pathSegments: [string, ...string[]]
+): boolean {
+  const root = pathSegments[0];
+  if (PUBLIC_READ_COLLECTIONS.has(root)) return true;
+  const currentUser = targetAuth.currentUser;
+  if (!currentUser) return false;
+  const isStaff = isCorporateStaffEmail(currentUser.email);
+  if (root === 'users' && pathSegments[1]) {
+    return currentUser.uid === pathSegments[1] || isStaff;
+  }
+  if (root === 'kinship_circles' && pathSegments[1]) {
+    return currentUser.uid === pathSegments[1] || isStaff;
+  }
+  if (root === 'team_members') {
+    return (
+      Boolean(pathSegments[1] && currentUser.uid === pathSegments[1]) || isStaff
+    );
+  }
+  return true;
+}
+
+function canWriteOnAuth(
+  targetAuth: typeof auth,
+  pathSegments: [string, ...string[]]
+): boolean {
+  const root = pathSegments[0];
+  if (PUBLIC_WRITE_COLLECTIONS.has(root)) return true;
+  const currentUser = targetAuth.currentUser;
+  if (!currentUser) return false;
+  const isStaff = isCorporateStaffEmail(currentUser.email);
+  if (root === 'users' && pathSegments[1]) {
+    if (pathSegments[2] === 'notifications') return true;
+    return currentUser.uid === pathSegments[1] || isStaff;
+  }
+  if (root === 'kinship_circles' && pathSegments[1]) {
+    return currentUser.uid === pathSegments[1] || isStaff;
+  }
+  if (root === 'team_members' || root === 'knowledge_articles') {
+    return isStaff;
+  }
+  return true;
+}
+
+function resolveAuthorizedCloudUids(
+  safeUid: string,
+  emailUid: string
+): string[] {
+  if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+    return Array.from(new Set([safeUid, emailUid].filter(Boolean)));
+  }
+  const activeUids = new Set<string>();
+  if (auth.currentUser?.uid) {
+    if (!safeUid || safeUid === auth.currentUser.uid) {
+      activeUids.add(auth.currentUser.uid);
+    }
+  }
+  if (mirrorAuth.currentUser?.uid) {
+    if (!safeUid || safeUid === mirrorAuth.currentUser.uid) {
+      activeUids.add(mirrorAuth.currentUser.uid);
+    }
+  }
+  return Array.from(activeUids);
+}
+
+// Dual-database helpers: run primary (juthori-com) and mirrorDb safely with immediate rejection guards
+// so an unauthenticated mirrorDb or transient network error NEVER causes unhandled promise rejections.
 async function dualSetDoc(
   pathSegments: [string, ...string[]],
   data: Record<string, unknown>,
@@ -161,30 +252,37 @@ async function dualSetDoc(
   let primaryError: string | undefined;
   let mirrorError: string | undefined;
 
-  const mirrorTask = withFastTimeout(
-    setDoc(doc(mirrorDb, ...pathSegments), cleanData),
-    timeoutMs
-  )
-    .then(() => {
-      mirrorWritten = true;
-    })
-    .catch((err) => {
-      mirrorError = err instanceof Error ? err.message : String(err);
-    });
+  const allowPrimary = canWriteOnAuth(auth, pathSegments);
+  const allowMirror = canWriteOnAuth(mirrorAuth, pathSegments);
 
-  try {
-    await withFastTimeout(
-      setDoc(doc(db, ...pathSegments), cleanData),
-      timeoutMs
-    );
-    primaryWritten = true;
-    // Primary DB succeeded — let mirrorTask finish non-blockingly in the background
-    return { primaryWritten, mirrorWritten, primaryError, mirrorError };
-  } catch (err) {
-    primaryError = err instanceof Error ? err.message : String(err);
+  const mirrorTask = allowMirror
+    ? withFastTimeout(
+        setDoc(doc(mirrorDb, ...pathSegments), cleanData),
+        timeoutMs
+      )
+        .then(() => {
+          mirrorWritten = true;
+        })
+        .catch((err) => {
+          mirrorError = err instanceof Error ? err.message : String(err);
+        })
+    : Promise.resolve();
+
+  if (allowPrimary) {
+    try {
+      await withFastTimeout(
+        setDoc(doc(db, ...pathSegments), cleanData),
+        timeoutMs
+      );
+      primaryWritten = true;
+      return { primaryWritten, mirrorWritten, primaryError, mirrorError };
+    } catch (err) {
+      primaryError = err instanceof Error ? err.message : String(err);
+    }
+  } else {
+    primaryError = 'SKIPPED_UNAUTHENTICATED';
   }
 
-  // Primary DB failed or timed out — await mirror fallback
   await mirrorTask;
   return { primaryWritten, mirrorWritten, primaryError, mirrorError };
 }
@@ -193,55 +291,62 @@ async function dualGetDoc<T = Record<string, unknown>>(
   pathSegments: [string, ...string[]],
   timeoutMs: number = 1800
 ): Promise<T | null> {
-  const mirrorPromise = withFastTimeout(
-    getDoc(doc(mirrorDb, ...pathSegments)),
-    timeoutMs
-  );
+  const allowPrimary = canReadOnAuth(auth, pathSegments);
+  const allowMirror = canReadOnAuth(mirrorAuth, pathSegments);
 
-  try {
-    const primarySnap = await withFastTimeout(
-      getDoc(doc(db, ...pathSegments)),
-      timeoutMs
-    );
-    // Primary database (juthori-com `db`) is the strict single source of truth:
-    if (primarySnap.exists()) {
-      const primaryData = primarySnap.data() as T;
-      mirrorPromise
-        .then((mSnap) => {
-          if (!mSnap.exists()) {
-            return setDoc(
-              doc(mirrorDb, ...pathSegments),
-              sanitizeFirestoreData(primaryData as Record<string, unknown>)
-            );
-          }
-          return undefined;
-        })
-        .catch(() => {});
-      return primaryData;
-    } else {
-      // Document does NOT exist in juthori-com — purge any stale mirror copy in background
-      mirrorPromise
-        .then((mSnap) => {
-          if (mSnap.exists()) {
-            return deleteDoc(doc(mirrorDb, ...pathSegments));
-          }
-          return undefined;
-        })
-        .catch(() => {});
-      return null;
-    }
-  } catch {
-    // Only fall back to mirrorDb if primary request rejected or timed out
+  // Immediately catch mirrorPromise on creation so browser NEVER fires unhandledrejection
+  const safeMirrorPromise = allowMirror
+    ? withFastTimeout(getDoc(doc(mirrorDb, ...pathSegments)), timeoutMs).then(
+        (snap) => ({ ok: true as const, snap }),
+        () => ({ ok: false as const, snap: null })
+      )
+    : Promise.resolve({ ok: false as const, snap: null });
+
+  if (allowPrimary) {
     try {
-      const mirrorSnap = await mirrorPromise;
-      if (mirrorSnap.exists()) {
-        return mirrorSnap.data() as T;
+      const primarySnap = await withFastTimeout(
+        getDoc(doc(db, ...pathSegments)),
+        timeoutMs
+      );
+      if (primarySnap.exists()) {
+        const primaryData = primarySnap.data() as T;
+        if (canWriteOnAuth(mirrorAuth, pathSegments)) {
+          safeMirrorPromise
+            .then((mRes) => {
+              if (mRes.ok && mRes.snap && !mRes.snap.exists()) {
+                return setDoc(
+                  doc(mirrorDb, ...pathSegments),
+                  sanitizeFirestoreData(primaryData as Record<string, unknown>)
+                );
+              }
+              return undefined;
+            })
+            .catch(() => {});
+        }
+        return primaryData;
+      } else {
+        if (canWriteOnAuth(mirrorAuth, pathSegments)) {
+          safeMirrorPromise
+            .then((mRes) => {
+              if (mRes.ok && mRes.snap && mRes.snap.exists()) {
+                return deleteDoc(doc(mirrorDb, ...pathSegments));
+              }
+              return undefined;
+            })
+            .catch(() => {});
+        }
+        return null;
       }
     } catch {
-      // Both unavailable or denied
+      // Fall back to mirrorDb below
     }
-    return null;
   }
+
+  const mirrorRes = await safeMirrorPromise;
+  if (mirrorRes.ok && mirrorRes.snap && mirrorRes.snap.exists()) {
+    return mirrorRes.snap.data() as T;
+  }
+  return null;
 }
 
 async function dualQueryByField<T extends { id?: string }>(
@@ -256,6 +361,10 @@ async function dualQueryByField<T extends { id?: string }>(
   );
   if (uniqueCandidates.length === 0) return [];
 
+  const allowPrimary = canReadOnAuth(auth, [collectionName]);
+  const allowMirror = canReadOnAuth(mirrorAuth, [collectionName]);
+  if (!allowPrimary && !allowMirror) return [];
+
   const buildQuery = (targetDb: typeof db) =>
     uniqueCandidates.length === 1
       ? query(
@@ -269,49 +378,75 @@ async function dualQueryByField<T extends { id?: string }>(
           limit(maxDocs)
         );
 
-  const mirrorPromise = withFastTimeout(getDocs(buildQuery(mirrorDb)), timeoutMs);
+  const safeMirrorPromise = allowMirror
+    ? withFastTimeout(getDocs(buildQuery(mirrorDb)), timeoutMs).then(
+        (snap) => ({ ok: true as const, snap }),
+        () => ({ ok: false as const, snap: null })
+      )
+    : Promise.resolve({ ok: false as const, snap: null });
 
-  try {
-    const primarySnap = await withFastTimeout(getDocs(buildQuery(db)), timeoutMs);
-    mirrorPromise.catch(() => {});
-    return primarySnap.docs.map((d) => {
-      const item = d.data() as T;
-      return item.id ? item : ({ ...item, id: d.id } as T);
-    });
-  } catch {
+  if (allowPrimary) {
     try {
-      const mirrorSnap = await mirrorPromise;
-      return mirrorSnap.docs.map((d) => {
+      const primarySnap = await withFastTimeout(
+        getDocs(buildQuery(db)),
+        timeoutMs
+      );
+      return primarySnap.docs.map((d) => {
         const item = d.data() as T;
         return item.id ? item : ({ ...item, id: d.id } as T);
       });
     } catch {
-      return [];
+      // Fall back to mirror below
     }
   }
+
+  const mirrorRes = await safeMirrorPromise;
+  if (mirrorRes.ok && mirrorRes.snap) {
+    return mirrorRes.snap.docs.map((d) => {
+      const item = d.data() as T;
+      return item.id ? item : ({ ...item, id: d.id } as T);
+    });
+  }
+  return [];
 }
 
 async function dualDeleteDoc(pathSegments: [string, ...string[]]): Promise<void> {
-  await Promise.allSettled([
-    withFastTimeout(deleteDoc(doc(db, ...pathSegments)), 2500),
-    deleteDoc(doc(mirrorDb, ...pathSegments)),
-  ]);
+  const tasks: Promise<unknown>[] = [];
+  if (canWriteOnAuth(auth, pathSegments)) {
+    tasks.push(withFastTimeout(deleteDoc(doc(db, ...pathSegments)), 2500));
+  }
+  if (canWriteOnAuth(mirrorAuth, pathSegments)) {
+    tasks.push(withFastTimeout(deleteDoc(doc(mirrorDb, ...pathSegments)), 2500));
+  }
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks);
+  }
 }
 
 async function dualGetCollection<T extends { id?: string }>(
   collectionName: string,
   timeoutMs: number = 3000
 ): Promise<T[]> {
+  const isPublicCol = PUBLIC_READ_COLLECTIONS.has(collectionName);
+  const allowPrimary = isPublicCol || isRuntimeStaffSession(auth);
+  const allowMirror = isPublicCol || isRuntimeStaffSession(mirrorAuth);
+  if (!allowPrimary && !allowMirror) {
+    return [];
+  }
+
   const mergedMap = new Map<string, T>();
   const primaryIds = new Set<string>();
   const mirrorIds = new Set<string>();
 
   const [mirrorRes, primaryRes] = await Promise.allSettled([
-    withFastTimeout(getDocs(collection(mirrorDb, collectionName)), timeoutMs),
-    withFastTimeout(getDocs(collection(db, collectionName)), timeoutMs),
+    allowMirror
+      ? withFastTimeout(getDocs(collection(mirrorDb, collectionName)), timeoutMs)
+      : Promise.reject(new Error('SKIP_MIRROR')),
+    allowPrimary
+      ? withFastTimeout(getDocs(collection(db, collectionName)), timeoutMs)
+      : Promise.reject(new Error('SKIP_PRIMARY')),
   ]);
 
-  // Primary database (juthori-com `db`) is the strict source of truth when reachable
   if (primaryRes.status === 'fulfilled') {
     primaryRes.value.docs.forEach((d) => {
       const item = d.data() as T;
@@ -320,29 +455,29 @@ async function dualGetCollection<T extends { id?: string }>(
       mergedMap.set(docKey, item);
     });
 
-    if (mirrorRes.status === 'fulfilled') {
+    if (mirrorRes.status === 'fulfilled' && canWriteOnAuth(mirrorAuth, [collectionName])) {
       mirrorRes.value.docs.forEach((d) => {
         const item = d.data() as T;
         const docKey = item.id || d.id;
         mirrorIds.add(docKey);
-        // Any doc in mirrorDb that is NOT in primary db was deleted from juthori-com -> purge from mirrorDb
         if (!primaryIds.has(docKey)) {
           deleteDoc(doc(mirrorDb, collectionName, d.id)).catch(() => {});
         }
       });
-    }
 
-    for (const [docKey, item] of mergedMap.entries()) {
-      if (!mirrorIds.has(docKey)) {
-        const cleanPayload = sanitizeFirestoreData(item as unknown as Record<string, unknown>);
-        setDoc(doc(mirrorDb, collectionName, docKey), cleanPayload).catch(() => {});
+      for (const [docKey, item] of mergedMap.entries()) {
+        if (!mirrorIds.has(docKey)) {
+          const cleanPayload = sanitizeFirestoreData(
+            item as unknown as Record<string, unknown>
+          );
+          setDoc(doc(mirrorDb, collectionName, docKey), cleanPayload).catch(() => {});
+        }
       }
     }
 
     return Array.from(mergedMap.values());
   }
 
-  // Fallback to mirrorDb only if primary db request rejected/timed out
   if (mirrorRes.status === 'fulfilled') {
     mirrorRes.value.docs.forEach((d) => {
       const item = d.data() as T;
@@ -797,6 +932,11 @@ export interface CustomerNotificationData {
   actionLabel?: string;
   isRead: boolean;
   senderRole?: 'system' | 'support' | 'researcher';
+  senderName?: string;
+  recipientEmail?: string;
+  recipientName?: string;
+  familyName?: string;
+  ticketNumber?: string;
   createdAt: string;
 }
 
@@ -1021,6 +1161,20 @@ export async function findTeamMemberByEmail(
     return DEFAULT_GENERAL_MANAGER_MEMBER;
   }
 
+  // Non-staff emails (@gmail.com, etc.) can never exist in `team_members` under Zero-Trust rules;
+  // skip Firestore `team_members` reads unless checking a corporate staff email or running as staff.
+  if (
+    !isCorporateStaffEmail(cleanEmail) &&
+    !isRuntimeStaffSession(auth) &&
+    !isRuntimeStaffSession(mirrorAuth)
+  ) {
+    teamEmailLookupCache.set(cleanEmail, {
+      value: null,
+      expiresAt: Date.now() + TEAM_EMAIL_CACHE_TTL_MS,
+    });
+    return null;
+  }
+
   const cached = teamEmailLookupCache.get(cleanEmail);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.value;
@@ -1226,6 +1380,22 @@ export async function fetchUserProfileByEmail(
     if (directSelf) {
       return directSelf;
     }
+  }
+
+  if (
+    mirrorAuth.currentUser?.uid &&
+    (mirrorAuth.currentUser.email || '').trim().toLowerCase() === cleanEmail
+  ) {
+    const mirrorSelf = await fetchUserProfile(mirrorAuth.currentUser.uid);
+    if (mirrorSelf) {
+      return mirrorSelf;
+    }
+  }
+
+  // Cross-UID email queries (`users` by email, `customer_orders` by email, `research_tickets` by userEmail)
+  // are permitted strictly for verified staff under Zero-Trust rules.
+  if (!isRuntimeStaffSession(auth) && !isRuntimeStaffSession(mirrorAuth)) {
+    return null;
   }
 
   const canonicalUid = canonicalCustomerEmailUid(cleanEmail);
@@ -1689,7 +1859,21 @@ export async function updateUserProfile(
   updates: Partial<UserProfileData>
 ): Promise<void> {
   if (!userId) return;
-  const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!auth.currentUser && !mirrorAuth.currentUser) return;
+
+  let safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const isStaff =
+    isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth);
+  if (!isStaff && auth.currentUser?.uid && safeUid !== auth.currentUser.uid) {
+    const authEmail = (auth.currentUser.email || '').trim().toLowerCase();
+    const updateEmail = (updates.email || '').trim().toLowerCase();
+    if (!updateEmail || updateEmail === authEmail) {
+      safeUid = auth.currentUser.uid;
+    } else {
+      return;
+    }
+  }
+
   const candidateEmail = (updates.email || auth.currentUser?.email || '').trim();
   if (
     isTeamAccountDocInUsers(safeUid, candidateEmail, updates.fullName) ||
@@ -1720,16 +1904,26 @@ export async function updateUserProfile(
       await dualDeleteDoc(['users', safeUid]).catch(() => {});
       return;
     }
+    // Never mutate ledger-protected financial/tier fields via non-transactional updateUserProfile
+    const safeNonFinancialUpdates: Partial<UserProfileData> = { ...updates };
+    delete safeNonFinancialUpdates.walletBalance;
+    delete safeNonFinancialUpdates.subscriptionTier;
+    delete safeNonFinancialUpdates.isRootUnlocked;
+
     const merged: UserProfileData = {
       ...existingData,
-      ...updates,
+      ...safeNonFinancialUpdates,
       userId: existingData.userId || safeUid,
       createdAt: existingData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     await dualSetDoc(['users', safeUid], merged as unknown as Record<string, unknown>);
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+    try {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    } catch {
+      // Logged cleanly via handleFirestoreError without crashing background UI callers
+    }
   }
 }
 
@@ -1881,17 +2075,13 @@ export async function saveUserFamilyTreeToFirebase(
 
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const targetUids = Array.from(
-    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
-  );
-  if (targetUids.length === 0) return false;
+  const targetUids = resolveAuthorizedCloudUids(safeUid, emailUid);
+  if (targetUids.length === 0) return true;
 
   try {
     const updatedAt = new Date().toISOString();
     const avatarChunks: Array<{ docId: string; dataUrl: string }> = [];
 
-    // Offload inline base64 node portraits (`photoUrl` or `avatarDataUrl` > 8KB) into dedicated
-    // Firestore sub-documents when Firebase Storage fallback was used, keeping `main` fast & < 1MB.
     const peopleToSerialize = (people as Array<Record<string, unknown>>).map(
       (node, idx) => {
         const safePersonId = String(node.id || `p_${idx}`)
@@ -1955,9 +2145,7 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
 ): Promise<T[] | null> {
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const candidateUids = Array.from(
-    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
-  );
+  const candidateUids = resolveAuthorizedCloudUids(safeUid, emailUid);
 
   for (const uid of candidateUids) {
     try {
@@ -2012,8 +2200,7 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
             rehydrated,
             userEmail
           );
-          // Backfill primary safeUid if loaded from emailUid
-          if (safeUid && uid !== safeUid) {
+          if (safeUid && uid !== safeUid && canWriteOnAuth(auth, ['users', safeUid])) {
             dualSetDoc(['users', safeUid, 'family_tree', 'main'], {
               userId: safeUid,
               familyName: familyName || data.familyName || 'العائلة',
@@ -2147,39 +2334,57 @@ export async function fetchUserResearchTickets(
   const cleanEmail = (userEmail || '').trim().toLowerCase();
   if (!safeUid && !cleanEmail) return [];
 
-  const all = await dualGetCollection<ResearchTicketData>('research_tickets');
-  const matchedFromDual = all.filter((t) => {
-    if (!t || t.id === 'ticket_seed_1042') return false;
-    const matchUid = Boolean(safeUid) && t.userId === safeUid;
-    const matchEmail =
-      Boolean(cleanEmail) && (t.userEmail || '').trim().toLowerCase() === cleanEmail;
-    return matchUid || matchEmail;
-  });
-
-  if (matchedFromDual.length > 0) {
-    return matchedFromDual.sort((a, b) =>
-      (b.openedAt || '').localeCompare(a.openedAt || '')
-    );
+  if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+    const all = await dualGetCollection<ResearchTicketData>('research_tickets');
+    const matchedFromDual = all.filter((t) => {
+      if (!t || t.id === 'ticket_seed_1042') return false;
+      const matchUid = Boolean(safeUid) && t.userId === safeUid;
+      const matchEmail =
+        Boolean(cleanEmail) && (t.userEmail || '').trim().toLowerCase() === cleanEmail;
+      return matchUid || matchEmail;
+    });
+    if (matchedFromDual.length > 0) {
+      return matchedFromDual.sort((a, b) =>
+        (b.openedAt || '').localeCompare(a.openedAt || '')
+      );
+    }
   }
 
-  if (!safeUid) return [];
+  const queryPrimaryUid =
+    auth.currentUser?.uid && (!safeUid || safeUid === auth.currentUser.uid)
+      ? auth.currentUser.uid
+      : null;
+  const queryMirrorUid =
+    mirrorAuth.currentUser?.uid && (!safeUid || safeUid === mirrorAuth.currentUser.uid)
+      ? mirrorAuth.currentUser.uid
+      : null;
+
+  if (!queryPrimaryUid && !queryMirrorUid) return [];
+
   try {
     const [primarySnap, mirrorSnap] = await Promise.allSettled([
-      withFastTimeout(
-        getDocs(
-          query(collection(db, 'research_tickets'), where('userId', '==', safeUid))
-        ),
-        2800
-      ),
-      withFastTimeout(
-        getDocs(
-          query(
-            collection(mirrorDb, 'research_tickets'),
-            where('userId', '==', safeUid)
+      queryPrimaryUid
+        ? withFastTimeout(
+            getDocs(
+              query(
+                collection(db, 'research_tickets'),
+                where('userId', '==', queryPrimaryUid)
+              )
+            ),
+            2800
           )
-        ),
-        2800
-      ),
+        : Promise.reject(new Error('SKIP_PRIMARY')),
+      queryMirrorUid
+        ? withFastTimeout(
+            getDocs(
+              query(
+                collection(mirrorDb, 'research_tickets'),
+                where('userId', '==', queryMirrorUid)
+              )
+            ),
+            2800
+          )
+        : Promise.reject(new Error('SKIP_MIRROR')),
     ]);
 
     const scopedMap = new Map<string, ResearchTicketData>();
@@ -3196,28 +3401,44 @@ export async function executeAtomicWalletOperation(
         refCode?: string;
         updatedRefIndex?: ReferralCodeIndexDoc;
       };
-      Promise.allSettled([
-        setDoc(
-          doc(mirrorDb, 'users', rp.referrerUid),
-          sanitizeFirestoreData(rp.updatedReferrerDoc as unknown as Record<string, unknown>)
-        ),
-        setDoc(
-          doc(mirrorDb, 'wallet_transactions', rp.refTxId),
-          sanitizeFirestoreData(rp.refTxRecord as unknown as Record<string, unknown>)
-        ),
-        setDoc(
-          doc(mirrorDb, 'users', rp.referrerUid, 'wallet_transactions', rp.refTxId),
-          sanitizeFirestoreData(rp.refTxRecord as unknown as Record<string, unknown>)
-        ),
-        ...(rp.refCode && rp.updatedRefIndex
-          ? [
-              setDoc(
-                doc(mirrorDb, 'referral_codes', rp.refCode),
-                sanitizeFirestoreData(rp.updatedRefIndex as unknown as Record<string, unknown>)
-              ),
-            ]
-          : []),
-      ]).catch(() => {});
+      if (mirrorAuth.currentUser) {
+        Promise.allSettled([
+          setDoc(
+            doc(mirrorDb, 'users', rp.referrerUid),
+            sanitizeFirestoreData(
+              rp.updatedReferrerDoc as unknown as Record<string, unknown>
+            )
+          ),
+          setDoc(
+            doc(mirrorDb, 'wallet_transactions', rp.refTxId),
+            sanitizeFirestoreData(
+              rp.refTxRecord as unknown as Record<string, unknown>
+            )
+          ),
+          setDoc(
+            doc(
+              mirrorDb,
+              'users',
+              rp.referrerUid,
+              'wallet_transactions',
+              rp.refTxId
+            ),
+            sanitizeFirestoreData(
+              rp.refTxRecord as unknown as Record<string, unknown>
+            )
+          ),
+          ...(rp.refCode && rp.updatedRefIndex
+            ? [
+                setDoc(
+                  doc(mirrorDb, 'referral_codes', rp.refCode),
+                  sanitizeFirestoreData(
+                    rp.updatedRefIndex as unknown as Record<string, unknown>
+                  )
+                ),
+              ]
+            : []),
+        ]).catch(() => {});
+      }
 
       sendCustomerNotification({
         userId: rp.referrerUid,
@@ -3481,64 +3702,92 @@ export async function executeAtomicWalletOperation(
   let txResult: AtomicWalletOperationResult;
   try {
     txResult = await withFastTimeout(runOnFirestoreInstance(db, true), 5000);
-    if (txResult.status === 'COMPLETED') {
+    if (txResult.status === 'COMPLETED' && mirrorAuth.currentUser) {
       runOnFirestoreInstance(mirrorDb, true).catch(() => {});
     }
   } catch (primaryFullErr) {
     try {
-      // Retry atomic transaction on `juthori-com` (`db`) scoped strictly to `users/{uid}` + `users/{uid}/wallet_transactions/{txId}`
       txResult = await withFastTimeout(runOnFirestoreInstance(db, false), 5000);
       if (txResult.status === 'COMPLETED' && txResult.transactionRecord) {
         dualSetDoc(
           ['wallet_transactions', txResult.transactionRecord.id],
           txResult.transactionRecord as unknown as Record<string, unknown>
         ).catch(() => {});
-        runOnFirestoreInstance(mirrorDb, true).catch(() => {});
+        if (mirrorAuth.currentUser) {
+          runOnFirestoreInstance(mirrorDb, true).catch(() => {});
+        }
       }
     } catch (primarySubErr) {
       console.warn(
-        '[executeAtomicWalletOperation] primary db fallback to mirrorDb:',
+        '[executeAtomicWalletOperation] primary db fallback:',
         primaryFullErr,
         primarySubErr
       );
-      try {
-        txResult = await withFastTimeout(
-          runOnFirestoreInstance(mirrorDb, true),
-          5000
-        );
-      } catch {
+      if (mirrorAuth.currentUser) {
+        try {
+          txResult = await withFastTimeout(
+            runOnFirestoreInstance(mirrorDb, true),
+            5000
+          );
+        } catch {
+          txResult = await executeResilientProfileFallback();
+        }
+      } else {
         txResult = await executeResilientProfileFallback();
       }
     }
   }
 
-  // Background sync to customer_orders so /team Operations Hub sees live wallet & tier immediately
+  // Scoped owner sync to customer_orders so /team Operations Hub sees live wallet & tier immediately
   if (txResult.status === 'COMPLETED' && txResult.updatedProfile) {
     const prof = txResult.updatedProfile;
-    dualGetCollection<CustomerOrderRecord>('customer_orders')
-      .then((orders) => {
+    const syncCustomerOrders = async () => {
+      const mappedStatus: CustomerOrderRecord['accountStatus'] =
+        prof.subscriptionTier === 'premium_annual'
+          ? 'annual_vip'
+          : prof.isRootUnlocked || prof.subscriptionTier === 'basic_verified'
+          ? 'paid_5_root'
+          : 'free';
+
+      if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+        const orders = await dualGetCollection<CustomerOrderRecord>('customer_orders');
         const emailLower = (prof.email || '').trim().toLowerCase();
-        const mappedStatus: CustomerOrderRecord['accountStatus'] =
-          prof.subscriptionTier === 'premium_annual'
-            ? 'annual_vip'
-            : prof.isRootUnlocked || prof.subscriptionTier === 'basic_verified'
-            ? 'paid_5_root'
-            : 'free';
         for (const ord of orders) {
           if (
             ord.userId === safeUid ||
             (emailLower && (ord.email || '').trim().toLowerCase() === emailLower)
           ) {
-            updateCustomerOrderInFirebase(ord.id, {
+            await updateCustomerOrderInFirebase(ord.id, {
               walletBalanceUsd: prof.walletBalance,
               paidRevenueUsd: prof.paidRevenueUsd ?? ord.paidRevenueUsd,
               accountStatus: mappedStatus,
               legalRole: prof.accountType,
-            }).catch(() => {});
+            });
           }
         }
-      })
-      .catch(() => {});
+      } else if (auth.currentUser?.uid === safeUid) {
+        const snap = await withFastTimeout(
+          getDocs(
+            query(
+              collection(db, 'customer_orders'),
+              where('userId', '==', safeUid)
+            )
+          ),
+          2500
+        );
+        for (const d of snap.docs) {
+          const ord = d.data() as CustomerOrderRecord;
+          const ordId = ord.id || d.id;
+          await updateCustomerOrderInFirebase(ordId, {
+            walletBalanceUsd: prof.walletBalance,
+            paidRevenueUsd: prof.paidRevenueUsd ?? ord.paidRevenueUsd,
+            accountStatus: mappedStatus,
+            legalRole: prof.accountType,
+          });
+        }
+      }
+    };
+    syncCustomerOrders().catch(() => {});
   }
 
   return txResult;
@@ -3590,80 +3839,175 @@ export async function fetchUserWalletTransactions(
     }
   };
 
-  try {
-    const [centralSnap, userSubSnap] = await Promise.allSettled([
-      withFastTimeout(
-        getDocs(
-          query(
-            collection(db, 'wallet_transactions'),
-            where('userId', '==', safeUid)
-          )
+  if (canReadOnAuth(auth, ['users', safeUid])) {
+    try {
+      const [centralSnap, userSubSnap] = await Promise.allSettled([
+        withFastTimeout(
+          getDocs(
+            query(
+              collection(db, 'wallet_transactions'),
+              where('userId', '==', safeUid)
+            )
+          ),
+          3000
         ),
-        3000
-      ),
-      withFastTimeout(
-        getDocs(
-          query(
-            collection(db, 'users', safeUid, 'wallet_transactions'),
-            orderBy('createdAt', 'desc'),
-            limit(40)
-          )
+        withFastTimeout(
+          getDocs(
+            query(
+              collection(db, 'users', safeUid, 'wallet_transactions'),
+              orderBy('createdAt', 'desc'),
+              limit(40)
+            )
+          ),
+          3000
         ),
-        3000
-      ),
-    ]);
+      ]);
 
-    if (centralSnap.status === 'fulfilled' && !centralSnap.value.empty) {
-      collectDocs(
-        centralSnap.value.docs.map((d) => d.data() as WalletTransactionData)
-      );
-    }
-    if (userSubSnap.status === 'fulfilled' && !userSubSnap.value.empty) {
-      collectDocs(
-        userSubSnap.value.docs.map((d) => d.data() as WalletTransactionData)
-      );
-    }
+      if (centralSnap.status === 'fulfilled' && !centralSnap.value.empty) {
+        collectDocs(
+          centralSnap.value.docs.map((d) => d.data() as WalletTransactionData)
+        );
+      }
+      if (userSubSnap.status === 'fulfilled' && !userSubSnap.value.empty) {
+        collectDocs(
+          userSubSnap.value.docs.map((d) => d.data() as WalletTransactionData)
+        );
+      }
 
-    if (deduped.size > 0) {
+      if (deduped.size > 0) {
+        return Array.from(deduped.values())
+          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+          .slice(0, 40);
+      }
+    } catch {
+      // Fallback to mirrorDb below
+    }
+  }
+
+  if (canReadOnAuth(mirrorAuth, ['users', safeUid])) {
+    try {
+      const [mirrorCentral, mirrorSub] = await Promise.allSettled([
+        withFastTimeout(
+          getDocs(
+            query(
+              collection(mirrorDb, 'wallet_transactions'),
+              where('userId', '==', safeUid)
+            )
+          ),
+          2500
+        ),
+        withFastTimeout(
+          getDocs(collection(mirrorDb, 'users', safeUid, 'wallet_transactions')),
+          2500
+        ),
+      ]);
+      if (mirrorCentral.status === 'fulfilled') {
+        collectDocs(
+          mirrorCentral.value.docs.map((d) => d.data() as WalletTransactionData)
+        );
+      }
+      if (mirrorSub.status === 'fulfilled') {
+        collectDocs(
+          mirrorSub.value.docs.map((d) => d.data() as WalletTransactionData)
+        );
+      }
       return Array.from(deduped.values())
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
         .slice(0, 40);
+    } catch {
+      return [];
     }
-  } catch {
-    // Fallback to mirrorDb below
   }
 
-  try {
-    const [mirrorCentral, mirrorSub] = await Promise.allSettled([
-      getDocs(
-        query(
-          collection(mirrorDb, 'wallet_transactions'),
-          where('userId', '==', safeUid)
-        )
-      ),
-      getDocs(collection(mirrorDb, 'users', safeUid, 'wallet_transactions')),
-    ]);
-    if (mirrorCentral.status === 'fulfilled') {
-      collectDocs(
-        mirrorCentral.value.docs.map((d) => d.data() as WalletTransactionData)
-      );
-    }
-    if (mirrorSub.status === 'fulfilled') {
-      collectDocs(
-        mirrorSub.value.docs.map((d) => d.data() as WalletTransactionData)
-      );
-    }
-    return Array.from(deduped.values())
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
-      .slice(0, 40);
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 // =============================================================================
 // 6. CUSTOMER CARE NOTIFICATIONS
 // =============================================================================
+const recentCustomerEmailDispatches = new Map<string, number>();
+
+async function dispatchOfficialNotificationEmailNonBlocking(
+  safeUid: string,
+  notif: CustomerNotificationData
+): Promise<void> {
+  if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+
+  const dedupeKey = `${safeUid}:${notif.category}:${notif.title.trim()}`;
+  const now = Date.now();
+  const prevTs = recentCustomerEmailDispatches.get(dedupeKey) || 0;
+  if (now - prevTs < 15000) {
+    return;
+  }
+  recentCustomerEmailDispatches.set(dedupeKey, now);
+
+  try {
+    let targetEmail = (notif.recipientEmail || '').trim().toLowerCase();
+    let recipientName = (notif.recipientName || '').trim();
+    let familyName = (notif.familyName || '').trim();
+
+    const userDoc = await dualGetDoc<Record<string, unknown>>(['users', safeUid]);
+    if (userDoc) {
+      if (userDoc.emailNotificationsEnabled === false) return;
+      if (
+        notif.category === 'ticket_update' &&
+        userDoc.emailNotificationsTicket === false
+      ) {
+        return;
+      }
+      if (!targetEmail && typeof userDoc.email === 'string') {
+        targetEmail = userDoc.email.trim().toLowerCase();
+      }
+      if (!recipientName) {
+        recipientName = String(
+          userDoc.fullName || userDoc.firstName || 'عميلنا الكريم'
+        ).trim();
+      }
+      if (!familyName && typeof userDoc.familyName === 'string') {
+        familyName = userDoc.familyName.trim();
+      }
+    }
+
+    if (
+      !targetEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail) ||
+      targetEmail === 'user@juthori.com' ||
+      targetEmail === 'client@juthori.com' ||
+      targetEmail === 'preview@juthori.com'
+    ) {
+      return;
+    }
+
+    await fetch('/api/email/send-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        toEmail: targetEmail,
+        recipientName: recipientName || 'عميلنا الكريم',
+        familyName,
+        title: notif.title,
+        body: notif.body,
+        category: notif.category,
+        ticketNumber: notif.ticketNumber || '',
+        senderName:
+          notif.senderName ||
+          (notif.senderRole === 'researcher'
+            ? 'فريق التحقيق النَّسبي — منصة جذوري'
+            : 'منصة جذوري'),
+        actionUrl:
+          notif.actionUrl ||
+          (typeof window !== 'undefined'
+            ? window.location.origin
+            : 'https://Juthori.com'),
+        actionLabel:
+          notif.actionLabel || 'متابعة السجل والمراسلات في منصة جذوري',
+      }),
+    });
+  } catch {
+    // Non-blocking external email dispatch
+  }
+}
+
 export async function sendCustomerNotification(
   params: Omit<CustomerNotificationData, 'id' | 'isRead' | 'createdAt'>
 ): Promise<CustomerNotificationData> {
@@ -3679,6 +4023,8 @@ export async function sendCustomerNotification(
   };
 
   if (!safeUid) return notif;
+
+  void dispatchOfficialNotificationEmailNonBlocking(safeUid, notif);
 
   try {
     await dualSetDoc(
@@ -3696,24 +4042,35 @@ export async function fetchUserNotifications(
 ): Promise<CustomerNotificationData[]> {
   if (!userId) return [];
   const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  try {
-    const snap = await getDocs(collection(db, 'users', safeUid, 'notifications'));
-    if (!snap.empty) {
+  if (canReadOnAuth(auth, ['users', safeUid])) {
+    try {
+      const snap = await withFastTimeout(
+        getDocs(collection(db, 'users', safeUid, 'notifications')),
+        2500
+      );
+      if (!snap.empty) {
+        return snap.docs
+          .map((d) => d.data() as CustomerNotificationData)
+          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      }
+    } catch {
+      // Fallback to mirrorDb
+    }
+  }
+  if (canReadOnAuth(mirrorAuth, ['users', safeUid])) {
+    try {
+      const snap = await withFastTimeout(
+        getDocs(collection(mirrorDb, 'users', safeUid, 'notifications')),
+        2500
+      );
       return snap.docs
         .map((d) => d.data() as CustomerNotificationData)
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    } catch {
+      return [];
     }
-  } catch {
-    // Fallback to mirrorDb
   }
-  try {
-    const snap = await getDocs(collection(mirrorDb, 'users', safeUid, 'notifications'));
-    return snap.docs
-      .map((d) => d.data() as CustomerNotificationData)
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 export async function markNotificationAsRead(
@@ -4940,48 +5297,67 @@ export async function fetchUserLegalAuditTrailFromFirebase(
   }
 
   if (safeUid) {
-    try {
-      const [primarySnap, mirrorSnap] = await Promise.allSettled([
-        withFastTimeout(
-          getDocs(collection(db, 'users', safeUid, 'audit_trail')),
-          2500
-        ),
-        withFastTimeout(
-          getDocs(collection(mirrorDb, 'users', safeUid, 'audit_trail')),
-          2500
-        ),
-      ]);
-      if (primarySnap.status === 'fulfilled') {
-        primarySnap.value.docs.forEach((d) => {
-          const item = d.data() as LegalAuditTrailEntry;
-          if (item && item.id) merged.set(item.id, item);
-        });
+    const allowPrimary = canReadOnAuth(auth, ['users', safeUid]);
+    const allowMirror = canReadOnAuth(mirrorAuth, ['users', safeUid]);
+    if (allowPrimary || allowMirror) {
+      try {
+        const [primarySnap, mirrorSnap] = await Promise.allSettled([
+          allowPrimary
+            ? withFastTimeout(
+                getDocs(collection(db, 'users', safeUid, 'audit_trail')),
+                2500
+              )
+            : Promise.reject(new Error('SKIP_PRIMARY')),
+          allowMirror
+            ? withFastTimeout(
+                getDocs(collection(mirrorDb, 'users', safeUid, 'audit_trail')),
+                2500
+              )
+            : Promise.reject(new Error('SKIP_MIRROR')),
+        ]);
+        if (primarySnap.status === 'fulfilled') {
+          primarySnap.value.docs.forEach((d) => {
+            const item = d.data() as LegalAuditTrailEntry;
+            if (item && item.id) merged.set(item.id, item);
+          });
+        }
+        if (mirrorSnap.status === 'fulfilled') {
+          mirrorSnap.value.docs.forEach((d) => {
+            const item = d.data() as LegalAuditTrailEntry;
+            if (item && item.id && !merged.has(item.id)) {
+              merged.set(item.id, item);
+            }
+          });
+        }
+      } catch {
+        // Fallback below
       }
-      if (mirrorSnap.status === 'fulfilled') {
-        mirrorSnap.value.docs.forEach((d) => {
-          const item = d.data() as LegalAuditTrailEntry;
-          if (item && item.id && !merged.has(item.id)) {
-            merged.set(item.id, item);
-          }
-        });
-      }
-    } catch {
-      // Fallback to central collection below
     }
   }
 
   try {
-    const centralList = await dualGetCollection<LegalAuditTrailEntry>(
-      'audit_trail',
-      2500
-    );
-    for (const item of centralList) {
-      if (
-        (safeUid && item.userId === safeUid) ||
-        (cleanEmail && (item.userEmail || '').trim().toLowerCase() === cleanEmail)
-      ) {
-        merged.set(item.id, item);
+    if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+      const centralList = await dualGetCollection<LegalAuditTrailEntry>(
+        'audit_trail',
+        2500
+      );
+      for (const item of centralList) {
+        if (
+          (safeUid && item.userId === safeUid) ||
+          (cleanEmail && (item.userEmail || '').trim().toLowerCase() === cleanEmail)
+        ) {
+          merged.set(item.id, item);
+        }
       }
+    } else if (safeUid && auth.currentUser?.uid === safeUid) {
+      const snap = await withFastTimeout(
+        getDocs(query(collection(db, 'audit_trail'), where('userId', '==', safeUid))),
+        2500
+      );
+      snap.docs.forEach((d) => {
+        const item = d.data() as LegalAuditTrailEntry;
+        if (item && item.id) merged.set(item.id, item);
+      });
     }
   } catch {
     // Ignore
@@ -5233,9 +5609,7 @@ export async function fetchUserVaultArchive(
   const localData = readVaultArchiveFromLocal(userId, familyName, userEmail);
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const candidateUids = Array.from(
-    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
-  );
+  const candidateUids = resolveAuthorizedCloudUids(safeUid, emailUid);
   if (candidateUids.length === 0) {
     return localData;
   }
@@ -5339,15 +5713,11 @@ export async function saveUserVaultArchive(
 
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const targetUids = Array.from(
-    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
-  );
+  const targetUids = resolveAuthorizedCloudUids(safeUid, emailUid);
   if (targetUids.length > 0) {
     try {
       const mediaChunks: Array<{ docId: string; dataUrl: string }> = [];
 
-      // Proactively offload inline base64 media (`fileDataUrl` > 12KB) into dedicated chunk documents
-      // whenever Firebase Storage was not used, keeping `vault_archive` index lightweight & under 1MB.
       const lightItems = record.items.map((item, idx) => {
         if (
           typeof item.fileDataUrl === 'string' &&
@@ -5511,9 +5881,7 @@ export async function fetchCustomerDashboardWorkspace(
 ): Promise<CustomerDashboardWorkspaceData | null> {
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const candidateUids = Array.from(
-    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
-  );
+  const candidateUids = resolveAuthorizedCloudUids(safeUid, emailUid);
 
   for (const uid of candidateUids) {
     try {
@@ -5574,9 +5942,7 @@ export async function saveCustomerDashboardWorkspace(
 
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const targetUids = Array.from(
-    new Set([safeUid, emailUid].filter((id) => Boolean(id)))
-  );
+  const targetUids = resolveAuthorizedCloudUids(safeUid, emailUid);
   if (targetUids.length === 0) return;
 
   try {
@@ -5607,6 +5973,31 @@ export function getTreeStorageKeyForVaultSync(
     : `juthori_tree_nodes_v2_fam_${safeFam}`;
 }
 
+export const DIRECT_FAMILY_VAULT_NODE_ID = 'node-family-house';
+
+export function ensureDirectFamilyInVaultSummaries(
+  list: TreePersonSummaryForVault[],
+  familyName: string
+): TreePersonSummaryForVault[] {
+  const cleanFam = (familyName || 'العائلة')
+    .replace(/^(القبيلة الأم|الفرع الجامع|العائلة المباشرة)\s*:\s*/u, '')
+    .trim();
+  if (list.some((p) => p.id === DIRECT_FAMILY_VAULT_NODE_ID)) {
+    return list;
+  }
+  return [
+    ...list,
+    {
+      id: DIRECT_FAMILY_VAULT_NODE_ID,
+      fullName: `العائلة المباشرة (${cleanFam})`,
+      relationLabel: 'العائلة المباشرة — بيت النسب',
+      gender: 'male',
+      isAlive: true,
+      isCertifiedReference: true,
+    },
+  ];
+}
+
 export function readSyncedTreePeopleList(
   userId: string | undefined,
   fallbackInfo: {
@@ -5626,20 +6017,23 @@ export function readSyncedTreePeopleList(
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (p: any): TreePersonSummaryForVault => ({
-              id: String(p.id),
-              fullName: String(
-                p.fullName || `${p.firstName || ''} ${p.familyName || ''}`.trim()
-              ),
-              relationLabel: String(p.relationLabel || 'فرد في المشجرة'),
-              gender: p.gender === 'female' ? 'female' : 'male',
-               avatarDataUrl: p.avatarDataUrl || undefined,
-              birthYear: p.birthYear || undefined,
-              isAlive: p.isAlive !== false,
-              isCertifiedReference: Boolean(p.isCertifiedReference),
-            })
+          return ensureDirectFamilyInVaultSummaries(
+            parsed.map(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (p: any): TreePersonSummaryForVault => ({
+                id: String(p.id),
+                fullName: String(
+                  p.fullName || `${p.firstName || ''} ${p.familyName || ''}`.trim()
+                ),
+                relationLabel: String(p.relationLabel || 'فرد في المشجرة'),
+                gender: p.gender === 'female' ? 'female' : 'male',
+                avatarDataUrl: p.avatarDataUrl || undefined,
+                birthYear: p.birthYear || undefined,
+                isAlive: p.isAlive !== false,
+                isCertifiedReference: Boolean(p.isCertifiedReference),
+              })
+            ),
+            fallbackInfo.familyName
           );
         }
       }
@@ -5655,25 +6049,28 @@ export function readSyncedTreePeopleList(
     fallbackInfo.familyName
   );
   if (localFullTree && localFullTree.length > 0) {
-    return localFullTree.map((p): TreePersonSummaryForVault => ({
-      id: String(p.id || ''),
-      fullName: `${String(p.firstName || '')} ${String(p.familyName || '')}`.trim(),
-      relationLabel: p.isRecordKeeper
-        ? 'أمين السجل'
-        : p.isCertifiedReference
-        ? String(p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق')
-        : String(p.relationToTargetLabel || 'فرد في المشجرة'),
-      gender: p.gender === 'female' ? 'female' : 'male',
-      avatarDataUrl:
-        typeof p.photoThumbnailUrl === 'string' && p.photoThumbnailUrl
-          ? p.photoThumbnailUrl
-          : typeof p.photoUrl === 'string'
-          ? p.photoUrl
-          : undefined,
-      birthYear: typeof p.birthDateValue === 'string' ? p.birthDateValue : undefined,
-      isAlive: p.vitalStatus !== 'deceased',
-      isCertifiedReference: Boolean(p.isCertifiedReference),
-    }));
+    return ensureDirectFamilyInVaultSummaries(
+      localFullTree.map((p): TreePersonSummaryForVault => ({
+        id: String(p.id || ''),
+        fullName: `${String(p.firstName || '')} ${String(p.familyName || '')}`.trim(),
+        relationLabel: p.isRecordKeeper
+          ? 'أمين السجل'
+          : p.isCertifiedReference
+          ? String(p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق')
+          : String(p.relationToTargetLabel || 'فرد في المشجرة'),
+        gender: p.gender === 'female' ? 'female' : 'male',
+        avatarDataUrl:
+          typeof p.photoThumbnailUrl === 'string' && p.photoThumbnailUrl
+            ? p.photoThumbnailUrl
+            : typeof p.photoUrl === 'string'
+            ? p.photoUrl
+            : undefined,
+        birthYear: typeof p.birthDateValue === 'string' ? p.birthDateValue : undefined,
+        isAlive: p.vitalStatus !== 'deceased',
+        isCertifiedReference: Boolean(p.isCertifiedReference),
+      })),
+      fallbackInfo.familyName
+    );
   }
 
   const cleanFather =
@@ -5685,30 +6082,33 @@ export function readSyncedTreePeopleList(
       ? fallbackInfo.grandfatherName.trim()
       : 'الجد';
 
-  return [
-    {
-      id: 'node-record-keeper',
-      fullName: `${fallbackInfo.clientName} ${fallbackInfo.familyName}`.trim(),
-      relationLabel: 'أمين السجل',
-      gender: 'male',
-      avatarDataUrl: fallbackInfo.userAvatarUrl,
-      isAlive: true,
-    },
-    {
-      id: 'node-auto-father',
-      fullName: `${cleanFather} ${fallbackInfo.familyName}`.trim(),
-      relationLabel: 'الأب المباشر',
-      gender: 'male',
-      isAlive: true,
-    },
-    {
-      id: 'node-auto-grandfather',
-      fullName: `${cleanGrandfather} ${fallbackInfo.familyName}`.trim(),
-      relationLabel: 'الجد الثاني',
-      gender: 'male',
-      isAlive: false,
-    },
-  ];
+  return ensureDirectFamilyInVaultSummaries(
+    [
+      {
+        id: 'node-record-keeper',
+        fullName: `${fallbackInfo.clientName} ${fallbackInfo.familyName}`.trim(),
+        relationLabel: 'أمين السجل',
+        gender: 'male',
+        avatarDataUrl: fallbackInfo.userAvatarUrl,
+        isAlive: true,
+      },
+      {
+        id: 'node-auto-father',
+        fullName: `${cleanFather} ${fallbackInfo.familyName}`.trim(),
+        relationLabel: 'الأب المباشر',
+        gender: 'male',
+        isAlive: true,
+      },
+      {
+        id: 'node-auto-grandfather',
+        fullName: `${cleanGrandfather} ${fallbackInfo.familyName}`.trim(),
+        relationLabel: 'الجد الثاني',
+        gender: 'male',
+        isAlive: false,
+      },
+    ],
+    fallbackInfo.familyName
+  );
 }
 
 /**
@@ -5735,26 +6135,30 @@ export async function syncLiveTreePeopleForVault(
         Record<string, unknown>
       >(userId || '', userEmail, fallbackInfo.familyName);
       if (remoteNodes && remoteNodes.length > 0) {
-        const summaries: TreePersonSummaryForVault[] = remoteNodes.map((p) => ({
-          id: String(p.id || ''),
-          fullName: `${String(p.firstName || '')} ${String(p.familyName || '')}`.trim(),
-          relationLabel: p.isRecordKeeper
-            ? 'أمين السجل'
-            : p.isCertifiedReference
-            ? String(p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق')
-            : String(p.relationToTargetLabel || 'فرد في المشجرة'),
-          gender: p.gender === 'female' ? 'female' : 'male',
-          avatarDataUrl:
-            typeof p.photoThumbnailUrl === 'string' && p.photoThumbnailUrl
-              ? p.photoThumbnailUrl
-              : typeof p.photoUrl === 'string'
-              ? p.photoUrl
-              : undefined,
-          birthYear:
-            typeof p.birthDateValue === 'string' ? p.birthDateValue : undefined,
-          isAlive: p.vitalStatus !== 'deceased',
-          isCertifiedReference: Boolean(p.isCertifiedReference),
-        }));
+        const summaries: TreePersonSummaryForVault[] =
+          ensureDirectFamilyInVaultSummaries(
+            remoteNodes.map((p) => ({
+              id: String(p.id || ''),
+              fullName: `${String(p.firstName || '')} ${String(p.familyName || '')}`.trim(),
+              relationLabel: p.isRecordKeeper
+                ? 'أمين السجل'
+                : p.isCertifiedReference
+                ? String(p.referenceRankLabel || p.relationToTargetLabel || 'مرجع موثق')
+                : String(p.relationToTargetLabel || 'فرد في المشجرة'),
+              gender: p.gender === 'female' ? 'female' : 'male',
+              avatarDataUrl:
+                typeof p.photoThumbnailUrl === 'string' && p.photoThumbnailUrl
+                  ? p.photoThumbnailUrl
+                  : typeof p.photoUrl === 'string'
+                  ? p.photoUrl
+                  : undefined,
+              birthYear:
+                typeof p.birthDateValue === 'string' ? p.birthDateValue : undefined,
+              isAlive: p.vitalStatus !== 'deceased',
+              isCertifiedReference: Boolean(p.isCertifiedReference),
+            })),
+            fallbackInfo.familyName
+          );
 
         if (typeof window !== 'undefined') {
           try {

@@ -28,9 +28,42 @@ import {
   JUTHORI_API_TIMEOUT_MS,
 } from './src/config/juthoriApiConfig';
 
+const OFFICIAL_JUTHORI_SENDER_NAME = 'منصة جذوري';
+const OFFICIAL_JUTHORI_SENDER_EMAIL = 'info@Juthori.com';
+const OFFICIAL_JUTHORI_FROM = `${OFFICIAL_JUTHORI_SENDER_NAME} <${OFFICIAL_JUTHORI_SENDER_EMAIL}>`;
+const OFFICIAL_JUTHORI_FROM_LOWER = `${OFFICIAL_JUTHORI_SENDER_NAME} <info@juthori.com>`;
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || 'منصة جذوري <onboarding@resend.dev>';
+  process.env.RESEND_FROM_EMAIL || OFFICIAL_JUTHORI_FROM;
+
+function resolveOfficialJuthoriSenders(rawConfigured?: string): string[] {
+  const candidates: string[] = [
+    OFFICIAL_JUTHORI_FROM,
+    OFFICIAL_JUTHORI_FROM_LOWER,
+  ];
+  const cleaned = String(rawConfigured || '')
+    .replace(/^['"]+|['"]+$/g, '')
+    .trim();
+
+  if (
+    cleaned &&
+    cleaned.includes('@') &&
+    !cleaned.toLowerCase().includes('resend.dev')
+  ) {
+    const emailMatch = cleaned.match(/<([^<>@\s]+@[^<>@\s]+)>/);
+    const bareEmail = emailMatch ? emailMatch[1].trim() : cleaned;
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bareEmail)) {
+      if (bareEmail.toLowerCase() === 'info@juthori.com') {
+        // Already prioritized as OFFICIAL_JUTHORI_FROM at index 0
+      } else {
+        candidates.push(`${OFFICIAL_JUTHORI_SENDER_NAME} <${bareEmail}>`);
+      }
+    }
+  }
+
+  return Array.from(new Set(candidates));
+}
 
 // Server-side in-memory OTP store (keyed by normalized email)
 interface OtpEntry {
@@ -57,10 +90,10 @@ function buildResendDiagnosticMessage(status: number, rawError: string): {
       lower.includes('not verified'))
   ) {
     return {
-      errorCode: 'RESEND_SANDBOX_DOMAIN_UNVERIFIED',
+      errorCode: 'RESEND_DOMAIN_NOT_VERIFIED_FOR_KEY',
       isSandboxRestriction: true,
       diagnosticAr:
-        'رفض مزود البريد (Resend) الإرسال لهذا العنوان لأن الإرسال عبر النطاق التجريبي (onboarding@resend.dev) مقتصر على البريد المسجل لمالك حساب Resend فقط. لإرسال الرموز لجميع العملاء، يرجى توثيق نطاق (juthori.com) عبر سجلات DNS في لوحة تحكم Resend وتحديث RESEND_FROM_EMAIL.',
+        'رفض مزود البريد (Resend) الإرسال من (info@Juthori.com) لأن النطاق (Juthori.com) غير موثق بعد ضمن نفس حساب مفتاح (RESEND_API_KEY) الحالي أو لم يكتمل تفعيل سجلات DNS في لوحة Resend.',
     };
   }
   if (status === 401 || lower.includes('api key is invalid')) {
@@ -69,6 +102,17 @@ function buildResendDiagnosticMessage(status: number, rawError: string): {
       isSandboxRestriction: false,
       diagnosticAr:
         'تعذر الإرسال عبر Resend: مفتاح (RESEND_API_KEY) المضاف في بيئة الخادم غير صالح أو غير مفعل.',
+    };
+  }
+  if (
+    status === 403 &&
+    (lower.includes('send_access') || lower.includes('restricted'))
+  ) {
+    return {
+      errorCode: 'RESEND_KEY_RESTRICTED',
+      isSandboxRestriction: false,
+      diagnosticAr:
+        'مفتاح (RESEND_API_KEY) الحالي مقيد بصلاحية نطاق آخر داخل Resend. يرجى التأكد من أن المفتاح يملك صلاحية الإرسال لنطاق (Juthori.com) أو صلاحية Full Access.',
     };
   }
   if (status === 429) {
@@ -83,7 +127,7 @@ function buildResendDiagnosticMessage(status: number, rawError: string): {
     errorCode: 'RESEND_API_REJECTED',
     isSandboxRestriction: false,
     diagnosticAr:
-      'تعذر تسليم رسالة التوثيق من خادم البريد الخارجي (Resend). يرجى التحقق من إعدادات النطاق ومفتاح الخدمة.',
+      'تعذر تسليم الرسالة عبر (info@Juthori.com) من خادم البريد (Resend). يرجى التحقق من ربط مفتاح (RESEND_API_KEY) بالنطاق الموثق (Juthori.com).',
   };
 }
 
@@ -101,10 +145,12 @@ async function dispatchResendEmail(payload: {
   diagnosticAr?: string;
   senderUsed?: string;
 }> {
-  const liveResendKey = String(process.env.RESEND_API_KEY || RESEND_API_KEY || '').trim();
-  const configuredFrom =
-    String(process.env.RESEND_FROM_EMAIL || RESEND_FROM_EMAIL || '').trim() ||
-    'منصة جذوري <onboarding@resend.dev>';
+  const liveResendKey = String(process.env.RESEND_API_KEY || RESEND_API_KEY || '')
+    .replace(/^['"]+|['"]+$/g, '')
+    .trim();
+  const candidateSenders = resolveOfficialJuthoriSenders(
+    process.env.RESEND_FROM_EMAIL || RESEND_FROM_EMAIL
+  );
 
   if (!liveResendKey) {
     return {
@@ -113,8 +159,9 @@ async function dispatchResendEmail(payload: {
       error: 'RESEND_API_KEY is not set in environment variables',
       errorCode: 'MISSING_RESEND_API_KEY',
       isSandboxRestriction: false,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
       diagnosticAr:
-        'مفتاح خدمة البريد (RESEND_API_KEY) غير مضبوط بعد في متغيرات بيئة الخادم. أضف المفتاح لتفعيل إرسال رسائل التحقق الفعلية.',
+        'مفتاح خدمة البريد (RESEND_API_KEY) غير مضبوط بعد في متغيرات بيئة الخادم. أضف المفتاح لتفعيل الإرسال الرسمي عبر info@Juthori.com.',
     };
   }
 
@@ -127,6 +174,7 @@ async function dispatchResendEmail(payload: {
       },
       body: JSON.stringify({
         from: fromAddress,
+        reply_to: OFFICIAL_JUTHORI_SENDER_EMAIL,
         to: [payload.to],
         subject: payload.subject,
         html: payload.html,
@@ -146,10 +194,6 @@ async function dispatchResendEmail(payload: {
   };
 
   try {
-    const candidateSenders = Array.from(
-      new Set([configuredFrom, 'منصة جذوري <onboarding@resend.dev>'])
-    );
-
     let lastErrorText = '';
     let lastStatus = 500;
     for (const sender of candidateSenders) {
@@ -157,15 +201,17 @@ async function dispatchResendEmail(payload: {
       if (attempt.ok) {
         return {
           dispatched: true,
-          provider: sender.includes('resend.dev')
-            ? 'resend_onboarding_fallback'
-            : 'resend',
+          provider: 'resend',
           id: attempt.id,
-          senderUsed: sender,
+          senderUsed: OFFICIAL_JUTHORI_FROM,
         };
       }
       lastStatus = attempt.status;
       lastErrorText = attempt.text;
+      // Do not retry if recipient address itself is invalid or API key is invalid/rate-limited
+      if (attempt.status === 401 || attempt.status === 429) {
+        break;
+      }
     }
 
     const diag = buildResendDiagnosticMessage(lastStatus, lastErrorText);
@@ -175,6 +221,7 @@ async function dispatchResendEmail(payload: {
       error: lastErrorText,
       errorCode: diag.errorCode,
       isSandboxRestriction: diag.isSandboxRestriction,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
       diagnosticAr: diag.diagnosticAr,
     };
   } catch (err) {
@@ -185,6 +232,7 @@ async function dispatchResendEmail(payload: {
       error: msg,
       errorCode: 'RESEND_NETWORK_ERROR',
       isSandboxRestriction: false,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
       diagnosticAr:
         'تعذر الاتصال بخدمة البريد (Resend) من الخادم حالياً. يرجى المحاولة بعد قليل.',
     };
@@ -1157,7 +1205,7 @@ async function startServer() {
           </div>
           <p style="font-size: 12px; color: #6E6762; line-height: 1.7; margin: 0;">تنتهي صلاحية هذا الرمز تلقائياً بعد <strong>15 دقيقة</strong> من وقت الإرسال. إذا لم تطلب توثيق البريد الإلكتروني، يمكنك تجاهل هذه الرسالة بأمان تام.</p>
           <hr style="border: none; border-top: 1px solid #EDE6DA; margin: 24px 0 16px 0;" />
-          <p style="font-size: 12px; color: #8D4925; margin: 0;">منصة جذوري — حفظ وتوثيق السجلات النسبية والإرث العائلي العربي</p>
+          <p style="font-size: 12px; color: #8D4925; margin: 0;">منصة جذوري للأنساب والإرث العائلي العربي — <span dir="ltr">info@Juthori.com</span></p>
         </div>
       </div>
     `;
@@ -1179,7 +1227,7 @@ async function startServer() {
         sent: true,
         id: result.id,
         provider: result.provider,
-        senderUsed: result.senderUsed,
+        senderUsed: OFFICIAL_JUTHORI_FROM,
         expiresInMinutes: 15,
       });
       return;
@@ -1189,11 +1237,12 @@ async function startServer() {
       ok: false,
       sent: false,
       provider: result.provider,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
       errorCode: result.errorCode || 'RESEND_DELIVERY_FAILED',
       isSandboxRestriction: Boolean(result.isSandboxRestriction),
       diagnosticAr:
         result.diagnosticAr ||
-        'تعذر إرسال رسالة التوثيق عبر Resend. يرجى التحقق من إعدادات النطاق ومفتاح الخدمة.',
+        'تعذر إرسال رسالة التوثيق عبر (info@Juthori.com). يرجى التحقق من ربط مفتاح Resend بالنطاق الموثق (Juthori.com).',
       rawError: result.error,
     });
   });
@@ -1335,7 +1384,7 @@ async function startServer() {
             </div>
             <hr style="border: none; border-top: 1px solid #EDE6DA; margin: 24px 0 16px 0;" />
             <p style="margin: 0; font-size: 12px; color: #6E6762; line-height: 1.7;">
-              <strong>ضمان الخصوصية وحرية الاختيار:</strong> أُرسلت هذه الدعوة بناءً على إدراج بريدكم ضمن دائرة الأقارب الخاصة بـ (${registrarName}). إذا لم ترغبوا في إدراج بريدكم أو تودون حذف بياناتكم من دائرة العائلة فوراً بضغطة واحدة ودون الحاجة لتسجيل الدخول:
+              <strong>ضمان الخصوصية وحرية الاختيار:</strong> أُرسلت هذه الدعوة عبر البريد الرسمي لمنصة جذوري (<span dir="ltr">info@Juthori.com</span>) بناءً على إدراج بريدكم ضمن دائرة الأقارب الخاصة بـ (${registrarName}). إذا لم ترغبوا في إدراج بريدكم أو تودون حذف بياناتكم من دائرة العائلة فوراً بضغطة واحدة ودون الحاجة لتسجيل الدخول:
               <a href="${optOutUrl}" style="color: #8D4925; font-weight: bold; text-decoration: underline;">إلغاء الإدراج وحذف بريدي فوراً (Opt-out)</a>.
             </p>
           </div>
@@ -1345,7 +1394,7 @@ async function startServer() {
 
     const result = await dispatchResendEmail({
       to: relativeEmail,
-      subject: `دعوة خاصة من ${registrarName} للانضمام إلى بوابة عائلة ${familyName} — جذوري`,
+      subject: `دعوة خاصة من ${registrarName} للانضمام إلى بوابة عائلة ${familyName} — منصة جذوري`,
       html,
     });
 
@@ -1354,6 +1403,7 @@ async function startServer() {
       sent: Boolean(result.dispatched),
       deliveredViaResend: Boolean(result.dispatched),
       provider: result.provider,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
       portalUrl,
       optOutUrl,
       diagnosticAr: result.dispatched
@@ -1415,6 +1465,114 @@ async function startServer() {
       ok: true,
       dispatched: result.dispatched,
       provider: result.provider,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
+    });
+  });
+
+  // 6B. Official Platform Notifications & Researcher Correspondence via info@Juthori.com ("منصة جذوري")
+  app.post('/api/email/send-notification', async (req, res) => {
+    const toEmail = String(req.body?.toEmail || req.body?.email || '')
+      .trim()
+      .toLowerCase();
+    const recipientName = String(
+      req.body?.recipientName || req.body?.clientName || 'عميلنا الكريم'
+    ).trim();
+    const familyName = String(req.body?.familyName || '').trim();
+    const title = String(req.body?.title || 'إشعار رسمي من منصة جذوري').trim();
+    const bodyText = String(req.body?.body || '').trim();
+    const category = String(req.body?.category || 'system_notice').trim();
+    const ticketNumber = String(req.body?.ticketNumber || '').trim();
+    const senderName = String(req.body?.senderName || 'منصة جذوري').trim();
+    const actionUrl =
+      String(req.body?.actionUrl || '').trim() || 'https://Juthori.com';
+    const actionLabel =
+      String(req.body?.actionLabel || '').trim() || 'الدخول إلى حسابي في منصة جذوري';
+
+    if (
+      !toEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail) ||
+      toEmail === 'user@juthori.com' ||
+      toEmail === 'preview@juthori.com' ||
+      toEmail === 'client@juthori.com'
+    ) {
+      res.status(200).json({
+        ok: false,
+        sent: false,
+        skippedPlaceholder: true,
+      });
+      return;
+    }
+
+    if (!bodyText) {
+      res.status(400).json({
+        ok: false,
+        sent: false,
+        diagnosticAr: 'محتوى الرسالة أو الإشعار فارغ.',
+      });
+      return;
+    }
+
+    if (!enforceEmailRateLimit(req, res, toEmail)) {
+      return;
+    }
+
+    const badgeLabel =
+      category === 'ticket_update'
+        ? `مرصد البحوث ومراسلات التحقيق النَّسبي${ticketNumber ? ` · #${ticketNumber}` : ''}`
+        : category === 'wallet_bonus'
+        ? 'إشعار المحفظة الرقمية والمكافآت'
+        : category === 'feature_announcement'
+        ? 'تحديثات ومزايا منصة جذوري'
+        : 'إشعار رسمي · منصة جذوري';
+
+    const escapedBody = bodyText
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br />');
+
+    const html = `
+      <div dir="rtl" style="font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif; background-color: #F7F2E9; padding: 36px 20px; color: #252321;">
+        <div style="max-width: 580px; margin: 0 auto; background: #FFFFFF; border: 1px solid #B98A78; border-radius: 18px; overflow: hidden; box-shadow: 0 8px 24px rgba(37, 35, 33, 0.06);">
+          <div style="background: #252321; color: #F7F2E9; padding: 24px 30px; border-bottom: 3px solid #D8755B;">
+            <div style="font-size: 12px; color: #E8C284; font-weight: bold; margin-bottom: 6px;">${badgeLabel}</div>
+            <h2 style="margin: 0; font-size: 19px; color: #FFFFFF; line-height: 1.5;">${title}</h2>
+          </div>
+          <div style="padding: 28px 30px; line-height: 1.85; font-size: 15px;">
+            <p style="margin: 0 0 14px 0;">مرحباً بك <strong>${recipientName}${familyName ? ` (${familyName})` : ''}</strong>،</p>
+            <div style="margin: 18px 0; padding: 18px 20px; background: #FAF6F0; border-right: 4px solid #D8755B; border-radius: 12px; font-size: 14px; color: #252321; line-height: 1.9;">
+              ${escapedBody}
+              ${
+                senderName && senderName !== 'منصة جذوري'
+                  ? `<div style="margin-top: 12px; font-size: 12px; color: #8D4925; font-weight: bold;">— ${senderName}</div>`
+                  : ''
+              }
+            </div>
+            <div style="text-align: center; margin: 24px 0 12px 0;">
+              <a href="${actionUrl}" style="display: inline-block; background: #D8755B; color: #FFFFFF; text-decoration: none; font-weight: bold; padding: 12px 26px; border-radius: 12px; font-size: 13px;">
+                ${actionLabel} ←
+              </a>
+            </div>
+            <hr style="border: none; border-top: 1px solid #EDE6DA; margin: 24px 0 14px 0;" />
+            <p style="font-size: 12px; color: #8D4925; margin: 0;">منصة جذوري للأنساب والإرث العائلي العربي — البريد الرسمي: <span dir="ltr">info@Juthori.com</span></p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const result = await dispatchResendEmail({
+      to: toEmail,
+      subject: `${title} — منصة جذوري`,
+      html,
+    });
+
+    res.status(200).json({
+      ok: Boolean(result.dispatched),
+      sent: Boolean(result.dispatched),
+      id: result.id,
+      provider: result.provider,
+      senderUsed: OFFICIAL_JUTHORI_FROM,
+      diagnosticAr: result.dispatched ? undefined : result.diagnosticAr,
     });
   });
 

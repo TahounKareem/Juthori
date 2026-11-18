@@ -176,7 +176,7 @@ export async function verifyFirestoreConnection(): Promise<{
   let errorMessage: string | undefined;
 
   try {
-    await getDocFromServer(doc(db, 'team_members', 'team_maestro_kareem'));
+    await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('the client is offline')) {

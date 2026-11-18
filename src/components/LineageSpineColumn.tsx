@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BookOpenCheck,
   CheckCircle2,
+  ChevronLeft,
   Download,
+  FileText,
+  Link2,
+  Loader2,
+  MapPin,
+  Paperclip,
   RefreshCw,
   Sparkles,
-  MapPin,
+  Upload,
+  X,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -18,7 +25,6 @@ import {
 } from '../types/juthori';
 import {
   buildResolvedLineageFromDisambiguationOption,
-  deduplicateNotablesWithOcrTolerance,
   extractUnifiedVerifiedSourcesList,
   getDashboardCapabilities,
   getVerifiedAddonSourcesForEvidence,
@@ -34,6 +40,19 @@ import {
   getHistoricalEraBadgeLabel,
 } from './HeritageNodeAvatar';
 import { OfficialBrandedExportModal } from './OfficialBrandedExportModal';
+import {
+  DEFAULT_STARTER_VAULT_FOLDERS,
+  DIRECT_FAMILY_VAULT_NODE_ID,
+  FamilyVaultMediaItem,
+  VaultFolderRecord,
+  fetchUserVaultArchive,
+  readVaultArchiveFromLocal,
+  saveUserVaultArchive,
+} from '../services/firestoreService';
+import {
+  processMediaFileForUpload,
+  uploadMediaToCloudWithFallback,
+} from '../utils/mediaPipeline';
 
 interface LineageSpineColumnProps {
   stateMode: DashboardStateMode;
@@ -70,6 +89,8 @@ interface LineageSpineColumnProps {
       | 'deep_archival_verification'
   ) => void;
   userId?: string;
+  userEmail?: string;
+  onOpenVaultForPerson?: (personId: string) => void;
   onOpenResearchTicketsTab?: () => void;
   onSignCharterAndEnableTree?: () => void;
   onLogActivity?: (action: string, detail: string) => void;
@@ -161,6 +182,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   isResyncingLineage = false,
   onCreateResearchTicket,
   userId,
+  userEmail,
+  onOpenVaultForPerson,
   onOpenResearchTicketsTab,
   onSignCharterAndEnableTree,
   onLogActivity,
@@ -170,6 +193,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     useState<UpperAncestorNode | null>(null);
   const [showSourceDetails, setShowSourceDetails] = useState<boolean>(true);
   const [showOfficialExportModal, setShowOfficialExportModal] =
+    useState<boolean>(false);
+  const [isFollowUpNoteOpen, setIsFollowUpNoteOpen] = useState<boolean>(false);
+  const [showDirectFamilyVaultModal, setShowDirectFamilyVaultModal] =
     useState<boolean>(false);
   const [localUnlockedAddonIds, setLocalUnlockedAddonIds] = useState<string[]>(
     []
@@ -495,11 +521,190 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     );
   };
 
+  // Two-Way Vault Sync for Direct Family (`العائلة المباشرة`) in `عمود نسبي`
+  const initialVaultForSpine = React.useMemo(
+    () =>
+      readVaultArchiveFromLocal(
+        userId,
+        effectiveResult.familyName,
+        userEmail
+      ),
+    [userId, effectiveResult.familyName, userEmail]
+  );
+  const [vaultFolders, setVaultFolders] = useState<VaultFolderRecord[]>(
+    initialVaultForSpine.folders.length > 0
+      ? initialVaultForSpine.folders
+      : DEFAULT_STARTER_VAULT_FOLDERS
+  );
+  const [vaultItems, setVaultItems] = useState<FamilyVaultMediaItem[]>(
+    initialVaultForSpine.items
+  );
+  const [familyVaultUploadTitle, setFamilyVaultUploadTitle] =
+    useState<string>('');
+  const [familyVaultUploadFolderId, setFamilyVaultUploadFolderId] =
+    useState<string>('folder_ancestors');
+  const [isUploadingFamilyVault, setIsUploadingFamilyVault] =
+    useState<boolean>(false);
+  const [familyVaultFeedback, setFamilyVaultFeedback] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (isResearcherDirectPreview) return;
+    let mounted = true;
+    fetchUserVaultArchive(userId, effectiveResult.familyName, userEmail).then(
+      (archive) => {
+        if (!mounted) return;
+        setVaultFolders(
+          archive.folders.length > 0
+            ? archive.folders
+            : DEFAULT_STARTER_VAULT_FOLDERS
+        );
+        setVaultItems(archive.items);
+      }
+    );
+    const onVaultUpdated = () => {
+      const latest = readVaultArchiveFromLocal(
+        userId,
+        effectiveResult.familyName,
+        userEmail
+      );
+      setVaultFolders(
+        latest.folders.length > 0
+          ? latest.folders
+          : DEFAULT_STARTER_VAULT_FOLDERS
+      );
+      setVaultItems(latest.items);
+    };
+    window.addEventListener('juthori:vault-updated', onVaultUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener('juthori:vault-updated', onVaultUpdated);
+    };
+  }, [
+    userId,
+    effectiveResult.familyName,
+    userEmail,
+    isResearcherDirectPreview,
+  ]);
+
+  const handleToggleVaultItemForDirectFamily = (itemId: string) => {
+    const nextItems = vaultItems.map((it) => {
+      if (it.id !== itemId) return it;
+      const already = it.linkedPersonIds.includes(DIRECT_FAMILY_VAULT_NODE_ID);
+      return {
+        ...it,
+        linkedPersonIds: already
+          ? it.linkedPersonIds.filter((id) => id !== DIRECT_FAMILY_VAULT_NODE_ID)
+          : [...it.linkedPersonIds, DIRECT_FAMILY_VAULT_NODE_ID],
+      };
+    });
+    setVaultItems(nextItems);
+    saveUserVaultArchive(
+      userId,
+      effectiveResult.familyName,
+      {
+        folders: vaultFolders,
+        items: nextItems,
+      },
+      userEmail
+    ).catch(() => {});
+  };
+
+  const handleUploadDirectFamilyVaultFile = async (
+    fileList: FileList | null
+  ) => {
+    if (!fileList || fileList.length === 0) return;
+    setFamilyVaultFeedback(null);
+    if (
+      caps.maxVaultDocuments !== null &&
+      vaultItems.length + 1 > caps.maxVaultDocuments
+    ) {
+      setFamilyVaultFeedback(
+        `وصلت إلى الحد الأقصى لوثائق الخزانة في باقتك الحالية (${caps.maxVaultDocuments} ملفات). يمكنك الترقية لزيادة السعة.`
+      );
+      return;
+    }
+
+    const file = fileList[0];
+    setIsUploadingFamilyVault(true);
+    try {
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      const isDoc =
+        file.type.includes('pdf') ||
+        /وثيقة|صك|حجة|عقد|شهادة|مخطوط/i.test(baseName);
+      const processed = await processMediaFileForUpload(
+        file,
+        isDoc ? 'vault_document' : 'vault_photo'
+      );
+      const newItemId = `vault_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 6)}`;
+      const cloudRes = await uploadMediaToCloudWithFallback({
+        uid: userId,
+        category: 'vault',
+        itemId: newItemId,
+        mainDataUrl: processed.mainDataUrl,
+        thumbnailDataUrl: processed.thumbnailDataUrl,
+        mimeType: processed.mimeType,
+      });
+
+      const cleanFam = getCleanSpineNodeName(effectiveResult.familyName);
+      const newItem: FamilyVaultMediaItem = {
+        id: newItemId,
+        title:
+          familyVaultUploadTitle.trim() ||
+          baseName ||
+          `وثيقة عائلة ${cleanFam}`,
+        mediaType: isDoc ? 'document' : 'photo',
+        folderId:
+          familyVaultUploadFolderId ||
+          (isDoc ? 'folder_docs' : 'folder_ancestors'),
+        dateOrOccasion: 'أرشيف العائلة المباشرة',
+        fileDataUrl: cloudRes.url,
+        thumbnailDataUrl: cloudRes.thumbnailUrl || processed.thumbnailDataUrl,
+        storagePath: cloudRes.storagePath,
+        storageProvider: cloudRes.provider,
+        fileName: file.name,
+        fileMimeType: processed.mimeType || file.type || 'image/jpeg',
+        linkedPersonIds: [DIRECT_FAMILY_VAULT_NODE_ID],
+        enhanced: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      const nextItems = [newItem, ...vaultItems];
+      setVaultItems(nextItems);
+      await saveUserVaultArchive(
+        userId,
+        effectiveResult.familyName,
+        {
+          folders: vaultFolders,
+          items: nextItems,
+        },
+        userEmail
+      );
+      setFamilyVaultUploadTitle('');
+      onLogActivity?.(
+        'رفع ملف للعائلة المباشرة من عمود النسب',
+        `إيداع «${newItem.title}» في الخزانة وربطه بالعائلة المباشرة (${cleanFam})`
+      );
+      setShowDirectFamilyVaultModal(false);
+    } catch {
+      setFamilyVaultFeedback('تعذر قراءة الملف المرفوع، يرجى تجربة صورة أو PDF آخر.');
+    } finally {
+      setIsUploadingFamilyVault(false);
+    }
+  };
+
   // ============================================================================
   // 4. FAMILY STATION NODE (عقدة العائلة المباشرة - بيت النسب)
   // ============================================================================
   const renderFamilyStationNode = () => {
     const station1Node = spineNodes[0];
+    const directFamilyMediaCount = vaultItems.filter((vi) =>
+      vi.linkedPersonIds.includes(DIRECT_FAMILY_VAULT_NODE_ID)
+    ).length;
+
     return (
       <div className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-r from-purple-50/95 via-white to-purple-50/95 border-2 border-[#7C3AED]/55 py-3 px-4 shadow-xs relative z-20 text-right">
         <div className="flex items-center justify-between gap-3">
@@ -522,6 +727,35 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             بيت النسب
           </span>
         </div>
+
+        {!isResearcherDirectPreview && (
+          <div className="mt-2.5 pt-2.5 border-t border-[#7C3AED]/20 flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              data-testid="spine-direct-family-vault-btn"
+              onClick={() => {
+                setFamilyVaultFeedback(null);
+                setShowDirectFamilyVaultModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#7C3AED]/35 hover:border-[#D8755B] text-[11px] font-display font-extrabold text-[#252321] transition-colors cursor-pointer shadow-2xs"
+            >
+              <span>📂 وثائق وصور هذا الفرد في خزانتي</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D4AF37]/60 text-[#8D4925] text-[10px]">
+                {directFamilyMediaCount}
+              </span>
+            </button>
+
+            {directFamilyMediaCount > 0 && onOpenVaultForPerson && (
+              <button
+                type="button"
+                onClick={() => onOpenVaultForPerson(DIRECT_FAMILY_VAULT_NODE_ID)}
+                className="text-[11px] font-display font-bold text-[#7C3AED] hover:text-[#D8755B] cursor-pointer"
+              >
+                عرض في خزانتي ←
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -656,9 +890,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   );
 
   // ============================================================================
-  // 5C. CASE 2 VIP RESEARCHER FOLLOW-UP CARD (Alpha Family in Annual VIP before Researcher Merge)
+  // 5C. CASE 2 VIP RESEARCHER FOLLOW-UP SIDE NOTE (Beside the Spine — NEVER as a misleading Spine Node)
   // ============================================================================
-  const renderAlphaVipPendingResearcherMergeCard = () => {
+  const renderAlphaVipPendingResearcherMergeSideNote = () => {
     const tribeLabel = getCleanSpineNodeName(
       result.rootTribeName || 'قبيلة العقيدات'
     );
@@ -667,22 +901,38 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       : `قبيلة ${tribeLabel}`;
 
     return (
-      <div
+      <aside
         data-testid="alpha-vip-researcher-followup-card"
-        className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F5E6C8] border-2 border-[#D4AF37] p-4 sm:p-5 shadow-md relative z-20 text-right space-y-2"
+        aria-label="ملاحظة متابعة التوثيق"
+        className="inline-flex flex-col items-start max-w-full"
       >
-        <div className="flex items-start gap-3">
-          <HeritageNodeAvatar eraOverride="ancient_root" size="md" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] leading-snug">
-              ⏳ جاري استكمال ربط وتوثيق الطبقات العليا حتى آدم عليه السلام
+        <button
+          type="button"
+          onClick={() => setIsFollowUpNoteOpen((prev) => !prev)}
+          aria-expanded={isFollowUpNoteOpen}
+          data-testid="alpha-vip-followup-toggle-btn"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#FFFDF9] hover:bg-[#FAF3E6] border border-[#D4AF37]/85 border-r-4 border-r-[#D8755B] text-xs font-display font-extrabold text-[#8D4925] shadow-xs transition-all cursor-pointer shrink-0"
+        >
+          <span>⏳</span>
+          <span>ملاحظة متابعة التوثيق</span>
+          <ChevronLeft
+            className={`w-3.5 h-3.5 text-[#D8755B] transition-transform duration-200 ${
+              isFollowUpNoteOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        {isFollowUpNoteOpen && (
+          <div className="mt-2 w-[265px] sm:w-[285px] max-w-full rounded-2xl bg-[#FFFDF9]/98 border border-[#D4AF37]/80 border-r-4 border-r-[#D8755B] p-4 shadow-md text-right space-y-2 origin-top-right transition-all">
+            <h3 className="text-xs sm:text-sm font-display font-extrabold text-[#252321] leading-snug">
+              جاري استكمال ربط وتوثيق الطبقات العليا حتى آدم عليه السلام
             </h3>
-            <p className="text-xs text-[#252321]/85 leading-relaxed font-medium">
-              باقتك السنوية مفعّلة — يعمل فريق النسابين حالياً على المراجعة النهائية لوصل ({fullTribeDisplay}) بعمودها التاريخي الأعلى، وستظهر العُقد المفتوحة هنا تلقائياً فور اعتمادها.
+            <p className="text-[11px] sm:text-xs text-[#252321]/80 leading-relaxed">
+              باقتك السنوية مفعّلة — يعمل فريق النسابين حالياً على المراجعة النهائية لوصل ({fullTribeDisplay}) بعمودها التاريخي الأعلى، وستظهر العُقد المفتوحة تلقائياً فور اعتمادها.
             </p>
           </div>
-        </div>
-      </div>
+        )}
+      </aside>
     );
   };
 
@@ -1496,38 +1746,40 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     }
 
     const topToBottomAlphaEntries = [...ascendingEntries].reverse();
+    // Never leave a folded intermediate ring dangling above the highest verified station
+    while (
+      topToBottomAlphaEntries.length > 0 &&
+      topToBottomAlphaEntries[0].kind === 'ringGroup'
+    ) {
+      topToBottomAlphaEntries.shift();
+    }
 
     return (
-      <div className="space-y-2.5 relative z-20">
-        {renderAlphaVipPendingResearcherMergeCard()}
-        {renderConnectorBadge('من')}
+      <div className="space-y-2 relative z-20">
+        {topToBottomAlphaEntries.map((entry, idx) => {
+          const nextEntryBelow = topToBottomAlphaEntries[idx + 1];
+          const connectorLabel: SpineConnectorLabel =
+            !nextEntryBelow ||
+            entry.kind === 'ringGroup' ||
+            nextEntryBelow.kind === 'ringGroup'
+              ? 'من (سليل غير مباشر)'
+              : resolveSpineConnectorLabel(
+                  nextEntryBelow.node,
+                  entry.node,
+                  entry.node.orderNumber - nextEntryBelow.node.orderNumber > 1
+                );
 
-        <div className="space-y-2">
-          {topToBottomAlphaEntries.map((entry, idx) => {
-            const nextEntryBelow = topToBottomAlphaEntries[idx + 1];
-            const connectorLabel: SpineConnectorLabel =
-              !nextEntryBelow ||
-              entry.kind === 'ringGroup' ||
-              nextEntryBelow.kind === 'ringGroup'
-                ? 'من (سليل غير مباشر)'
-                : resolveSpineConnectorLabel(
-                    nextEntryBelow.node,
-                    entry.node,
-                    entry.node.orderNumber - nextEntryBelow.node.orderNumber > 1
-                  );
-
-            return (
-              <React.Fragment
-                key={entry.kind === 'node' ? entry.node.id : entry.ringGroup.id}
-              >
-                {entry.kind === 'node'
-                  ? renderAdamNodeCard(entry.node)
-                  : renderCompactIntermediatePillBadge(entry.ringGroup)}
-                {nextEntryBelow && renderConnectorBadge(connectorLabel)}
-              </React.Fragment>
-            );
-          })}
-        </div>
+          return (
+            <React.Fragment
+              key={entry.kind === 'node' ? entry.node.id : entry.ringGroup.id}
+            >
+              {entry.kind === 'node'
+                ? renderAdamNodeCard(entry.node)
+                : renderCompactIntermediatePillBadge(entry.ringGroup)}
+              {nextEntryBelow && renderConnectorBadge(connectorLabel)}
+            </React.Fragment>
+          );
+        })}
       </div>
     );
   };
@@ -1712,56 +1964,90 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
         </div>
 
-        {/* Centered Vertical Pedigree Spine (Ascending Bottom-to-Top) */}
-        <div className="relative py-4 min-h-[380px]">
-          <div
-            className="absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-0.5 bg-gradient-to-t from-[#252321]/30 via-[#D8755B]/40 to-[#8D4925]/30 rounded-full pointer-events-none"
-            aria-hidden="true"
-          />
+        {/* Centered Vertical Pedigree Spine + Optional Non-Intrusive Side Note */}
+        {(() => {
+          const showAlphaPendingSideNote =
+            !isUnmatchedCase &&
+            !isVerificationPending &&
+            Boolean(
+              effectiveResult.isAlphaOnlyBeforeMerge &&
+                !effectiveResult.isAlphaMergedIntoAdam &&
+                (caps.isVip || isResearcherDirectPreview)
+            );
 
-          <div className="space-y-2">
-            {/* Upper Spine Section (Handled strictly for Case 1, Case 2, and Case 3) */}
-            {isUnmatchedCase
-              ? renderUnmatchedFamilyUpperSection()
-              : effectiveResult.isAlphaOnlyBeforeMerge
-              ? renderAlphaOnlyBeforeMergeSpine()
-              : caps.isVip && !isVerificationPending
-              ? renderVipFullAdamSpine()
-              : renderNonVipSpineAboveFamily()}
+          return (
+            <div
+              className={
+                showAlphaPendingSideNote
+                  ? 'relative z-20 py-4 min-h-[380px] flex flex-col lg:grid lg:grid-cols-[1fr_minmax(0,420px)_1fr] items-start gap-4'
+                  : 'relative z-20 py-4 min-h-[380px]'
+              }
+            >
+              {/* Right Spacer in RTL so Spine remains dead-center */}
+              {showAlphaPendingSideNote && (
+                <div className="hidden lg:block lg:order-1" aria-hidden="true" />
+              )}
 
-            {/* Connector between Family Station and Root/Upper Spine ("↑ من") */}
-            {renderConnectorBadge('من')}
+              {/* Centered Lineage Spine */}
+              <div className="relative w-full max-w-[420px] mx-auto order-2 lg:order-2">
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-0.5 bg-gradient-to-t from-[#252321]/30 via-[#D8755B]/40 to-[#8D4925]/30 rounded-full pointer-events-none"
+                  aria-hidden="true"
+                />
 
-            {/* Family Station Node (العائلة المباشرة - بيت النسب) */}
-            {renderFamilyStationNode()}
+                <div className="space-y-2">
+                  {/* Upper Spine Section (Handled strictly for Case 1, Case 2, and Case 3) */}
+                  {isUnmatchedCase
+                    ? renderUnmatchedFamilyUpperSection()
+                    : effectiveResult.isAlphaOnlyBeforeMerge
+                    ? renderAlphaOnlyBeforeMergeSpine()
+                    : caps.isVip && !isVerificationPending
+                    ? renderVipFullAdamSpine()
+                    : renderNonVipSpineAboveFamily()}
 
-            {!isResearcherDirectPreview && (
-              <>
-                {/* Connector between topmost Personal Card (Grandfather, Father, or Record Keeper) and Family Station ("↑ من") */}
-                {renderConnectorBadge('من')}
+                  {/* Connector between Family Station and Root/Upper Spine ("↑ من") */}
+                  {renderConnectorBadge('من')}
 
-                {/* Grandfather Node (ONLY rendered if grandfatherName is filled) */}
-                {grandfatherName && (
-                  <>
-                    {renderGrandfatherNode()}
-                    {renderConnectorBadge(fatherName ? 'بن' : 'من')}
-                  </>
-                )}
+                  {/* Family Station Node (العائلة المباشرة - بيت النسب) */}
+                  {renderFamilyStationNode()}
 
-                {/* Father Node (ONLY rendered if fatherName is filled) */}
-                {fatherName && (
-                  <>
-                    {renderFatherNode()}
-                    {renderConnectorBadge('بن')}
-                  </>
-                )}
+                  {!isResearcherDirectPreview && (
+                    <>
+                      {/* Connector between topmost Personal Card (Grandfather, Father, or Record Keeper) and Family Station ("↑ من") */}
+                      {renderConnectorBadge('من')}
 
-                {/* Client Node at Bottom ("أمين السجل") */}
-                {renderClientNode()}
-              </>
-            )}
-          </div>
-        </div>
+                      {/* Grandfather Node (ONLY rendered if grandfatherName is filled) */}
+                      {grandfatherName && (
+                        <>
+                          {renderGrandfatherNode()}
+                          {renderConnectorBadge(fatherName ? 'بن' : 'من')}
+                        </>
+                      )}
+
+                      {/* Father Node (ONLY rendered if fatherName is filled) */}
+                      {fatherName && (
+                        <>
+                          {renderFatherNode()}
+                          {renderConnectorBadge('بن')}
+                        </>
+                      )}
+
+                      {/* Client Node at Bottom ("أمين السجل") */}
+                      {renderClientNode()}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Left Column in RTL (`على يسار عمود النسب`): Collapsible Follow-Up Note unfolding leftward */}
+              {showAlphaPendingSideNote && (
+                <div className="w-full flex justify-end lg:justify-start lg:sticky lg:top-6 order-1 lg:order-3">
+                  {renderAlphaVipPendingResearcherMergeSideNote()}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ======================================================== */}
         {/* VERIFIED HISTORICAL SOURCES SECTION                      */}
@@ -1885,13 +2171,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       <div className="pt-4 border-t border-[#B98A78]/30 space-y-4">
                         {/* Aggregated Verified Sources List (Books, Volumes & Pages) */}
                         <div className="rounded-2xl bg-[#FAF6F0] border border-[#8D4925]/30 p-3.5 space-y-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs font-display font-extrabold text-[#8D4925]">
-                              قائمة المصادر والمراجع التاريخية المجمعة (الكتب والأجزاء والصفحات):
-                            </div>
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white border border-[#8D4925]/25 text-[#8D4925]">
-                              verified_sources ({aggregatedSources.length})
-                            </span>
+                          <div className="text-xs font-display font-extrabold text-[#8D4925]">
+                            قائمة المصادر والمراجع التاريخية المجمعة (الكتب والأجزاء والصفحات):
                           </div>
                           {aggregatedSources.length > 0 ? (
                             <ul className="space-y-1.5 text-xs text-[#252321]/90">
@@ -2127,26 +2408,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       );
                     })()}
 
-                    {effectiveResult.notables_in_record &&
-                      effectiveResult.notables_in_record.length > 0 && (
-                        <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
-                          <div className="text-xs font-display font-bold text-[#8D4925]">
-                            الأعلام والشخصيات المرصودة في السجل:
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {deduplicateNotablesWithOcrTolerance(
-                              effectiveResult.notables_in_record
-                            ).map((notable: string, idx: number) => (
-                              <span
-                                key={idx}
-                                className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-xs font-semibold text-[#252321]"
-                              >
-                                {notable}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+
 
                     {effectiveResult.enrichedLocations && effectiveResult.enrichedLocations.length > 0 && (
                       <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 p-3.5 space-y-1.5">
@@ -2192,6 +2454,214 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
         )}
       </div>
+
+      {!isResearcherDirectPreview && showDirectFamilyVaultModal && (() => {
+        const cleanFam = getCleanSpineNodeName(effectiveResult.familyName);
+        const linkedFamilyMedia = vaultItems.filter((vi) =>
+          vi.linkedPersonIds.includes(DIRECT_FAMILY_VAULT_NODE_ID)
+        );
+        const unlinkedVaultMedia = vaultItems.filter(
+          (vi) => !vi.linkedPersonIds.includes(DIRECT_FAMILY_VAULT_NODE_ID)
+        );
+
+        return (
+          <div
+            data-testid="direct-family-vault-modal"
+            className="fixed inset-0 z-[75] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`وثائق وصور العائلة المباشرة (${cleanFam})`}
+          >
+            <div
+              dir="rtl"
+              className="bg-[#FFFDF9] border-2 border-[#D4AF37] rounded-3xl max-w-2xl w-full p-5 sm:p-6 space-y-4 text-right shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-[#B98A78]/30 pb-3">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 text-xs font-display font-bold text-[#7C3AED] mb-0.5">
+                    <Paperclip className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <span>العائلة المباشرة — بيت النسب ({cleanFam})</span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
+                    📂 وثائق وصور هذا الفرد في خزانتي ({linkedFamilyMedia.length})
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDirectFamilyVaultModal(false)}
+                  className="w-8 h-8 rounded-xl bg-[#F7F2E9] hover:bg-[#EDE6DA] flex items-center justify-center text-[#252321] cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {familyVaultFeedback && (
+                <div className="rounded-xl bg-amber-50 border border-amber-300 px-3.5 py-2.5 text-xs font-bold text-amber-950">
+                  {familyVaultFeedback}
+                </div>
+              )}
+
+              {/* Linked Photos & Documents List */}
+              {linkedFamilyMedia.length === 0 ? (
+                <div className="rounded-xl bg-white border border-[#B98A78]/35 p-3.5 text-xs text-[#252321]/75">
+                  لا توجد صور أو وثائق مربوطة بالعائلة المباشرة ({cleanFam}) حالياً. يمكنك رفع صورة أو وثيقة جديدة أدناه أو ربط ملف موجود من «خزانتي».
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-0.5">
+                  {linkedFamilyMedia.map((media) => {
+                    const thumbSrc = media.thumbnailDataUrl || media.fileDataUrl;
+                    const showImg =
+                      media.mediaType === 'photo' ||
+                      thumbSrc.startsWith('data:image');
+                    return (
+                      <div
+                        key={media.id}
+                        className="rounded-xl bg-white border border-[#D4AF37]/60 p-2.5 flex items-center justify-between gap-2.5 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-11 h-11 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
+                            {showImg ? (
+                              <img
+                                src={thumbSrc}
+                                alt={media.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <FileText className="w-5 h-5 text-[#8D4925]" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                              {media.title}
+                            </div>
+                            <div className="text-[10px] text-[#8D4925] font-semibold">
+                              {media.mediaType === 'photo'
+                                ? '📸 صورة'
+                                : '📜 وثيقة'}{' '}
+                              · {media.dateOrOccasion}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleVaultItemForDirectFamily(media.id)
+                          }
+                          className="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold shrink-0 cursor-pointer"
+                        >
+                          فك الربط
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Direct Upload to Vault */}
+              <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-3.5 space-y-2.5">
+                <div className="text-xs font-display font-bold text-[#8D4925]">
+                  + رفع صورة أو وثيقة جديدة للعائلة المباشرة (تُحفظ وتُربط تلقائياً في خزانتي):
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={familyVaultUploadTitle}
+                    onChange={(e) => setFamilyVaultUploadTitle(e.target.value)}
+                    placeholder="عنوان الصورة أو الوثيقة..."
+                    className="px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-xs text-[#252321]"
+                  />
+                  <select
+                    value={familyVaultUploadFolderId}
+                    onChange={(e) =>
+                      setFamilyVaultUploadFolderId(e.target.value)
+                    }
+                    className="px-2.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-xs font-bold text-[#252321]"
+                  >
+                    {vaultFolders.map((vf) => (
+                      <option key={vf.id} value={vf.id}>
+                        {vf.icon} {vf.name}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="px-3 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                    {isUploadingFamilyVault ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>جاري الحفظ...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>اختيار ملف ورفعه</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      disabled={isUploadingFamilyVault}
+                      className="hidden"
+                      onChange={(e) => {
+                        handleUploadDirectFamilyVaultFile(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Link Existing Vault Items */}
+              {unlinkedVaultMedia.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-display font-bold text-[#252321] flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <span>أو اربط ملفاً موجوداً مسبقاً في «خزانتي»:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {unlinkedVaultMedia.map((uv) => (
+                      <button
+                        key={uv.id}
+                        type="button"
+                        onClick={() =>
+                          handleToggleVaultItemForDirectFamily(uv.id)
+                        }
+                        className="px-2.5 py-1 rounded-full bg-white hover:bg-[#252321] text-[#252321] hover:text-[#FEF3C7] border border-[#B98A78]/45 text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>{uv.mediaType === 'photo' ? '📸' : '📜'}</span>
+                        <span>+ {uv.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-[#B98A78]/30 flex flex-wrap items-center justify-between gap-2">
+                {onOpenVaultForPerson ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDirectFamilyVaultModal(false);
+                      onOpenVaultForPerson(DIRECT_FAMILY_VAULT_NODE_ID);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-xs font-display font-bold text-[#8D4925] cursor-pointer"
+                  >
+                    عرض في خزانتي ←
+                  </button>
+                ) : (
+                  <span />
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowDirectFamilyVaultModal(false)}
+                  className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-extrabold cursor-pointer shadow-2xs"
+                >
+                  تم وإغلاق ✓
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {!isResearcherDirectPreview && (
         <OfficialBrandedExportModal

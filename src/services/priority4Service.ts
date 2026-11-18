@@ -11,8 +11,10 @@ import {
   Unsubscribe,
   where,
 } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   auth,
+  mirrorAuth,
   db,
   mirrorDb,
   handleFirestoreError,
@@ -31,6 +33,8 @@ import {
   canonicalCustomerEmailUid,
   fetchUserFamilyTreeFromFirebase,
   fetchUserVaultArchive,
+  isCorporateStaffEmail,
+  isRuntimeStaffSession,
   readUserFamilyTreeFromLocal,
   saveUserFamilyTreeToFirebase,
   saveUserVaultArchive,
@@ -94,23 +98,85 @@ function fastTimeout<T>(promise: Promise<T>, ms = 2800): Promise<T> {
   });
 }
 
+const P4_PUBLIC_READ_COLLECTIONS = new Set([
+  'public_sites',
+  'public_site_directory',
+  'site_guestbook',
+  'test',
+]);
+
+const P4_PUBLIC_WRITE_COLLECTIONS = new Set([
+  'site_access_requests',
+  'enrichment_requests',
+  'tree_enrichment_requests',
+  'site_guestbook',
+]);
+
+function canP4Read(
+  targetAuth: typeof auth,
+  segments: [string, ...string[]]
+): boolean {
+  const root = segments[0];
+  if (P4_PUBLIC_READ_COLLECTIONS.has(root)) return true;
+  const user = targetAuth.currentUser;
+  if (!user) return false;
+  const isStaff = isCorporateStaffEmail(user.email);
+  if ((root === 'users' || root === 'kinship_circles') && segments[1]) {
+    return user.uid === segments[1] || isStaff;
+  }
+  return true;
+}
+
+function canP4Write(
+  targetAuth: typeof auth,
+  segments: [string, ...string[]]
+): boolean {
+  const root = segments[0];
+  if (P4_PUBLIC_WRITE_COLLECTIONS.has(root)) return true;
+  const user = targetAuth.currentUser;
+  if (!user) return false;
+  const isStaff = isCorporateStaffEmail(user.email);
+  if (root === 'users' && segments[1]) {
+    if (segments[2] === 'notifications') return true;
+    return user.uid === segments[1] || isStaff;
+  }
+  if (root === 'kinship_circles' && segments[1]) {
+    return user.uid === segments[1] || isStaff;
+  }
+  return true;
+}
+
 async function writeDualDoc(
   segments: [string, ...string[]],
   payload: Record<string, unknown>
 ): Promise<void> {
   const sanitized = cleanUndefined(payload);
-  await Promise.allSettled([
-    fastTimeout(setDoc(doc(db, ...segments), sanitized), 3200),
-    fastTimeout(setDoc(doc(mirrorDb, ...segments), sanitized), 3200),
-  ]);
+  const tasks: Promise<unknown>[] = [];
+  if (canP4Write(auth, segments)) {
+    tasks.push(fastTimeout(setDoc(doc(db, ...segments), sanitized), 3200));
+  }
+  if (canP4Write(mirrorAuth, segments)) {
+    tasks.push(fastTimeout(setDoc(doc(mirrorDb, ...segments), sanitized), 3200));
+  }
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks);
+  }
 }
 
 async function readDualDoc<T>(
   segments: [string, ...string[]]
 ): Promise<T | null> {
+  const allowPrimary = canP4Read(auth, segments);
+  const allowMirror = canP4Read(mirrorAuth, segments);
+  if (!allowPrimary && !allowMirror) return null;
+
   const [mirrorRes, primaryRes] = await Promise.allSettled([
-    fastTimeout(getDoc(doc(mirrorDb, ...segments)), 2500),
-    fastTimeout(getDoc(doc(db, ...segments)), 2500),
+    allowMirror
+      ? fastTimeout(getDoc(doc(mirrorDb, ...segments)), 2500)
+      : Promise.reject(new Error('SKIP_MIRROR')),
+    allowPrimary
+      ? fastTimeout(getDoc(doc(db, ...segments)), 2500)
+      : Promise.reject(new Error('SKIP_PRIMARY')),
   ]);
 
   if (primaryRes.status === 'fulfilled' && primaryRes.value.exists()) {
@@ -123,9 +189,18 @@ async function readDualDoc<T>(
 }
 
 async function readDualCollection<T>(collectionName: string): Promise<T[]> {
+  const isPublic = P4_PUBLIC_READ_COLLECTIONS.has(collectionName);
+  const allowPrimary = isPublic || isRuntimeStaffSession(auth);
+  const allowMirror = isPublic || isRuntimeStaffSession(mirrorAuth);
+  if (!allowPrimary && !allowMirror) return [];
+
   const [primaryRes, mirrorRes] = await Promise.allSettled([
-    fastTimeout(getDocs(collection(db, collectionName)), 3000),
-    fastTimeout(getDocs(collection(mirrorDb, collectionName)), 3000),
+    allowPrimary
+      ? fastTimeout(getDocs(collection(db, collectionName)), 3000)
+      : Promise.reject(new Error('SKIP_PRIMARY')),
+    allowMirror
+      ? fastTimeout(getDocs(collection(mirrorDb, collectionName)), 3000)
+      : Promise.reject(new Error('SKIP_MIRROR')),
   ]);
 
   if (primaryRes.status === 'fulfilled') {
@@ -138,10 +213,16 @@ async function readDualCollection<T>(collectionName: string): Promise<T[]> {
 }
 
 async function deleteDualDoc(segments: [string, ...string[]]): Promise<void> {
-  await Promise.allSettled([
-    fastTimeout(deleteDoc(doc(db, ...segments)), 2500),
-    fastTimeout(deleteDoc(doc(mirrorDb, ...segments)), 2500),
-  ]);
+  const tasks: Promise<unknown>[] = [];
+  if (canP4Write(auth, segments)) {
+    tasks.push(fastTimeout(deleteDoc(doc(db, ...segments)), 2500));
+  }
+  if (canP4Write(mirrorAuth, segments)) {
+    tasks.push(fastTimeout(deleteDoc(doc(mirrorDb, ...segments)), 2500));
+  }
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks);
+  }
 }
 
 // =============================================================================
@@ -282,6 +363,25 @@ export async function appendMessageToResearchTicket(params: {
         attachments: mergedAttachments,
         updatedAt: nowIso,
       } as unknown as Record<string, unknown>);
+
+      if (
+        params.senderRole !== 'customer' &&
+        existing.userId &&
+        existing.userId !== 'system_proactive_miner'
+      ) {
+        sendCustomerNotification({
+          userId: existing.userId,
+          recipientEmail: existing.userEmail,
+          recipientName: existing.userFullName,
+          familyName: existing.familyName,
+          ticketNumber: existing.ticketNumber,
+          senderName: msg.senderName,
+          title: `📜 رد جديد من مرصد البحوث حول تذكرة #${existing.ticketNumber}`,
+          body: msg.body,
+          category: 'ticket_update',
+          senderRole: 'researcher',
+        }).catch(() => {});
+      }
     }
 
     return msg;
@@ -369,6 +469,11 @@ export async function updateTicketLifecycleAndResolutionByStaff(params: {
   if (existing.userId) {
     sendCustomerNotification({
       userId: existing.userId,
+      recipientEmail: existing.userEmail,
+      recipientName: existing.userFullName,
+      familyName: existing.familyName,
+      ticketNumber: existing.ticketNumber,
+      senderName: params.researcherName,
       title:
         params.stage === 'RESOLVED'
           ? `تم اعتماد وتوثيق تذكرتك #${existing.ticketNumber} ✓`
@@ -582,10 +687,16 @@ export async function applyResolvedTicketToCustomerLineage(params: {
     });
   };
 
-  await Promise.allSettled([
-    fastTimeout(executeTxOnDb(mirrorDb), 4000),
-    fastTimeout(executeTxOnDb(db), 4000),
-  ]);
+  const txTasks: Promise<unknown>[] = [];
+  if (auth.currentUser) {
+    txTasks.push(fastTimeout(executeTxOnDb(db), 4000));
+  }
+  if (mirrorAuth.currentUser) {
+    txTasks.push(fastTimeout(executeTxOnDb(mirrorDb), 4000));
+  }
+  if (txTasks.length > 0) {
+    await Promise.allSettled(txTasks);
+  }
 
   return {
     alreadyApplied,
@@ -2294,27 +2405,43 @@ export async function fetchAuthorizedFamilyPortalsForEmail(
   const cleanEmail = (email || '').trim().toLowerCase();
   if (!cleanEmail) return [];
 
+  const allowPrimary = Boolean(
+    auth.currentUser &&
+      ((auth.currentUser.email || '').trim().toLowerCase() === cleanEmail ||
+        isCorporateStaffEmail(auth.currentUser.email))
+  );
+  const allowMirror = Boolean(
+    mirrorAuth.currentUser &&
+      ((mirrorAuth.currentUser.email || '').trim().toLowerCase() === cleanEmail ||
+        isCorporateStaffEmail(mirrorAuth.currentUser.email))
+  );
+  if (!allowPrimary && !allowMirror) return [];
+
   const [primarySnap, mirrorSnap] = await Promise.allSettled([
-    fastTimeout(
-      getDocs(
-        query(
-          collection(db, 'public_sites'),
-          where('isPublished', '==', true),
-          where('whitelistedEmails', 'array-contains', cleanEmail)
+    allowPrimary
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(db, 'public_sites'),
+              where('isPublished', '==', true),
+              where('whitelistedEmails', 'array-contains', cleanEmail)
+            )
+          ),
+          3000
         )
-      ),
-      3000
-    ),
-    fastTimeout(
-      getDocs(
-        query(
-          collection(mirrorDb, 'public_sites'),
-          where('isPublished', '==', true),
-          where('whitelistedEmails', 'array-contains', cleanEmail)
+      : Promise.reject(new Error('SKIP_PRIMARY')),
+    allowMirror
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(mirrorDb, 'public_sites'),
+              where('isPublished', '==', true),
+              where('whitelistedEmails', 'array-contains', cleanEmail)
+            )
+          ),
+          3000
         )
-      ),
-      3000
-    ),
+      : Promise.reject(new Error('SKIP_MIRROR')),
   ]);
 
   const map = new Map<string, PublicMicrositeData>();
@@ -2374,25 +2501,34 @@ export async function fetchPendingSiteAccessRequestsForOwner(
 ): Promise<SiteAccessRequestDoc[]> {
   const safeUid = (ownerId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   if (!safeUid) return [];
+
+  const allowPrimary = canP4Read(auth, ['users', safeUid]);
+  const allowMirror = canP4Read(mirrorAuth, ['users', safeUid]);
+  if (!allowPrimary && !allowMirror) return [];
+
   const [primarySnap, mirrorSnap] = await Promise.allSettled([
-    fastTimeout(
-      getDocs(
-        query(
-          collection(db, 'site_access_requests'),
-          where('ownerId', '==', safeUid)
+    allowPrimary
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(db, 'site_access_requests'),
+              where('ownerId', '==', safeUid)
+            )
+          ),
+          3000
         )
-      ),
-      3000
-    ),
-    fastTimeout(
-      getDocs(
-        query(
-          collection(mirrorDb, 'site_access_requests'),
-          where('ownerId', '==', safeUid)
+      : Promise.reject(new Error('SKIP_PRIMARY')),
+    allowMirror
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(mirrorDb, 'site_access_requests'),
+              where('ownerId', '==', safeUid)
+            )
+          ),
+          3000
         )
-      ),
-      3000
-    ),
+      : Promise.reject(new Error('SKIP_MIRROR')),
   ]);
 
   const map = new Map<string, SiteAccessRequestDoc>();
@@ -2535,8 +2671,12 @@ export function subscribeToOwnerEnrichmentRequests(
 
   let primaryCache: TreeEnrichmentRequestDoc[] = [];
   let mirrorCache: TreeEnrichmentRequestDoc[] = [];
+  let unsubPrimarySnap: Unsubscribe | null = null;
+  let unsubMirrorSnap: Unsubscribe | null = null;
+  let disposed = false;
 
   const emitMerged = () => {
+    if (disposed) return;
     const map = new Map<string, TreeEnrichmentRequestDoc>();
     for (const item of [...mirrorCache, ...primaryCache]) {
       if (item && item.id && item.ownerId === safeUid) {
@@ -2549,33 +2689,76 @@ export function subscribeToOwnerEnrichmentRequests(
     onUpdate(sorted);
   };
 
-  const unsubPrimary = onSnapshot(
-    query(
-      collection(db, 'enrichment_requests'),
-      where('ownerId', '==', safeUid)
-    ),
-    (snap) => {
-      primaryCache = snap.docs.map((d) => d.data() as TreeEnrichmentRequestDoc);
+  const unsubPrimaryAuth = onAuthStateChanged(auth, (user) => {
+    if (unsubPrimarySnap) {
+      unsubPrimarySnap();
+      unsubPrimarySnap = null;
+    }
+    if (
+      !disposed &&
+      user &&
+      (user.uid === safeUid || isCorporateStaffEmail(user.email))
+    ) {
+      unsubPrimarySnap = onSnapshot(
+        query(
+          collection(db, 'enrichment_requests'),
+          where('ownerId', '==', safeUid)
+        ),
+        (snap) => {
+          primaryCache = snap.docs.map(
+            (d) => d.data() as TreeEnrichmentRequestDoc
+          );
+          emitMerged();
+        },
+        () => {
+          primaryCache = [];
+          emitMerged();
+        }
+      );
+    } else {
+      primaryCache = [];
       emitMerged();
-    },
-    () => {}
-  );
+    }
+  });
 
-  const unsubMirror = onSnapshot(
-    query(
-      collection(mirrorDb, 'enrichment_requests'),
-      where('ownerId', '==', safeUid)
-    ),
-    (snap) => {
-      mirrorCache = snap.docs.map((d) => d.data() as TreeEnrichmentRequestDoc);
+  const unsubMirrorAuth = onAuthStateChanged(mirrorAuth, (mUser) => {
+    if (unsubMirrorSnap) {
+      unsubMirrorSnap();
+      unsubMirrorSnap = null;
+    }
+    if (
+      !disposed &&
+      mUser &&
+      (mUser.uid === safeUid || isCorporateStaffEmail(mUser.email))
+    ) {
+      unsubMirrorSnap = onSnapshot(
+        query(
+          collection(mirrorDb, 'enrichment_requests'),
+          where('ownerId', '==', safeUid)
+        ),
+        (snap) => {
+          mirrorCache = snap.docs.map(
+            (d) => d.data() as TreeEnrichmentRequestDoc
+          );
+          emitMerged();
+        },
+        () => {
+          mirrorCache = [];
+          emitMerged();
+        }
+      );
+    } else {
+      mirrorCache = [];
       emitMerged();
-    },
-    () => {}
-  );
+    }
+  });
 
   return () => {
-    unsubPrimary();
-    unsubMirror();
+    disposed = true;
+    unsubPrimaryAuth();
+    unsubMirrorAuth();
+    if (unsubPrimarySnap) unsubPrimarySnap();
+    if (unsubMirrorSnap) unsubMirrorSnap();
   };
 }
 
@@ -2888,7 +3071,7 @@ export async function fetchUserReferralDashboard(
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const referralCode = buildDeterministicReferralCode(safeUid || 'usr_guest');
 
-  if (!safeUid) {
+  if (!safeUid || (!auth.currentUser && !mirrorAuth.currentUser)) {
     return {
       referralCode,
       rewardPerAnnualSubUsd: REFERRAL_REWARD_USD,
@@ -2905,18 +3088,23 @@ export async function fetchUserReferralDashboard(
   ]);
 
   if (!existing) {
-    const seedDoc: ReferralCodeIndexDoc = {
-      code: referralCode,
-      ownerId: safeUid,
-      ownerName: ownerFullName.slice(0, 120),
-      invitees: [],
-      totalEarnedUsd: 0,
-      updatedAt: new Date().toISOString(),
-    };
-    writeDualDoc(
-      ['referral_codes', referralCode],
-      seedDoc as unknown as Record<string, unknown>
-    ).catch(() => {});
+    const isOwnerSignedIn =
+      auth.currentUser?.uid === safeUid ||
+      mirrorAuth.currentUser?.uid === safeUid;
+    if (isOwnerSignedIn) {
+      const seedDoc: ReferralCodeIndexDoc = {
+        code: referralCode,
+        ownerId: safeUid,
+        ownerName: ownerFullName.slice(0, 120),
+        invitees: [],
+        totalEarnedUsd: 0,
+        updatedAt: new Date().toISOString(),
+      };
+      writeDualDoc(
+        ['referral_codes', referralCode],
+        seedDoc as unknown as Record<string, unknown>
+      ).catch(() => {});
+    }
 
     return {
       referralCode,

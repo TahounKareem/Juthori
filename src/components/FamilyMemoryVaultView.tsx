@@ -313,7 +313,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     nextItems: FamilyVaultMediaItem[]
   ) => {
     const validPersonIds =
-      treePeople.length > 0 ? new Set(treePeople.map((p) => p.id)) : null;
+      treePeople.length > 0
+        ? new Set([
+            ...treePeople.map((p) => p.id),
+            'node-family-house',
+          ])
+        : null;
     const sanitizedItems = validPersonIds
       ? nextItems.map((it) => ({
           ...it,
@@ -611,24 +616,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#D4AF37]/60 text-[#8D4925] text-xs font-display font-extrabold shadow-2xs">
                 <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
-                <span>خزانة الذاكرة والأرشيف العائلي الحي · مربوطة تبادلياً مع «شجرتي»</span>
+                <span>خزانة الذاكرة والأرشيف العائلي</span>
               </div>
-              {caps && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#252321] text-[#F3D299] text-xs font-display font-bold">
-                  <span>
-                    سعة الخزانة:{' '}
-                    {caps.maxVaultDocuments !== null
-                      ? `${items.length} / ${caps.maxVaultDocuments} ملفات`
-                      : `${items.length} · سعة مفتوحة (أمين السجل ✦)`}
-                  </span>
-                </div>
-              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
               خزانة عائلة {result.familyName} للصور والوثائق التاريخية
             </h2>
             <p className="text-xs sm:text-sm text-[#252321]/75 leading-relaxed">
-              احفظ صور الأجداد، صكوك الأسرة، والوثائق النادرة في مجلدات منظمة، واربط كل صورة أو وثيقة مباشرة بأفراد شجرتك التفاعلية بنقرة واحدة ليظهر أرشيف كل فرد داخل بطاقته في «شجرتي».
+              احفظ صور الأجداد، صكوك الأسرة، والوثائق النادرة في مجلدات منظمة، واربط كل صورة أو وثيقة مباشرة بأفراد شجرتك التفاعلية.
             </p>
           </div>
 

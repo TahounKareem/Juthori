@@ -726,7 +726,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
               <div className="rounded-xl bg-[#EDE6DA]/70 border border-[#B98A78]/35 p-4 text-xs text-[#252321]/85 space-y-2 leading-relaxed">
                 <div>
                   <strong>البريد الرسمي للدعم:</strong>{' '}
-                  <span dir="ltr">support@juthori.com</span>
+                  <span dir="ltr">info@Juthori.com</span>
                 </div>
                 <div>
                   <strong>ساعات عمل لجنة التحقيق:</strong> الأحد – الخميس (9:00 ص – 6:00 م بتوقيت مكة المكرمة)

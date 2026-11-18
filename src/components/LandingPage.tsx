@@ -1256,7 +1256,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 يستقبل فريق التحقيق والأرشفة في منصة جذوري طلبات توثيق المشجرات الأسرية واستفسارات أمناء السجل في جميع الدول العربية.
               </p>
               <div className="pt-2 text-xs text-[#252321]/75 space-y-1">
-                <p>البريد الرسمي: support@juthori.com</p>
+                <p>البريد الرسمي: info@Juthori.com</p>
                 <p>ساعات عمل لجنة التحقيق: الأحد – الخميس (9:00 ص – 6:00 م بتوقيت مكة المكرمة)</p>
               </div>
               <div className="pt-2">
