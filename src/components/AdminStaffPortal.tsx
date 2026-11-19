@@ -273,6 +273,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [focusedResearchTicketId, setFocusedResearchTicketId] = useState<
     string | null
   >(null);
+  const [cmsFilterMode, setCmsFilterMode] = useState<
+    'all' | 'needs_work' | 'mine'
+  >('all');
 
   // Toast feedback
   const [toastBanner, setToastBanner] = useState<string | null>(null);
@@ -499,19 +502,135 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       .trim();
   };
 
+  // Shared live editorial rigor rubric (30% text richness, 25% verified references, 15% structure, 15% cover/media, 15% summary)
+  const computeArticleRigorScore = (input: {
+    type?: string;
+    content?: string;
+    description?: string;
+    summary?: string;
+    coverImageUrl?: string;
+    videoUrl?: string;
+  }) => {
+    const rawHtml = input.content || '';
+    const plain = extractPlainTextFromHtml(rawHtml);
+    const wordCount = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
+    const isVideo = input.type === 'فيديو';
+
+    // 1) Text richness / media core (30%)
+    const textPoints = isVideo
+      ? ((input.videoUrl || '').trim() ? 20 : 0) +
+        Math.round((Math.min(wordCount, 150) / 150) * 10)
+      : Math.round((Math.min(wordCount, 500) / 500) * 30);
+
+    // 2) Verified references / citations (25%)
+    const referencePattern =
+      /(المصدر|المراجع|مرجع|مخطوط|وثيقة|الوثائق|تحقيق|جمهرة|الأنساب|نهاية الأرب|ديوان|كتاب|تاريخ|موسوعة|سجل|صـ|ج\/|\[[0-9٠-٩]+\])/g;
+    const refMatches = plain.match(referencePattern) || [];
+    const hasLinkOrQuote = /<a\s+[^>]*href=|<blockquote|<cite/i.test(rawHtml);
+    const referencePoints =
+      refMatches.length >= 2 || (refMatches.length >= 1 && hasLinkOrQuote)
+        ? 25
+        : refMatches.length === 1 || hasLinkOrQuote
+          ? 15
+          : 0;
+
+    // 3) Structural headings / formatting (15%)
+    const hasHeading = /<h[2-4][\s>]/i.test(rawHtml);
+    const hasList = /<(ul|ol|li)[\s>]/i.test(rawHtml);
+    const paragraphCount = (rawHtml.match(/<p[\s>]/gi) || []).length;
+    const structurePoints =
+      hasHeading || (hasList && paragraphCount >= 2)
+        ? 15
+        : hasList || paragraphCount >= 2
+          ? 8
+          : 0;
+
+    // 4) Cover image or visual media (15%)
+    const hasCover = Boolean(
+      (input.coverImageUrl || '').trim() ||
+        /<img\s+[^>]*src=/i.test(rawHtml) ||
+        (isVideo && (input.videoUrl || '').trim())
+    );
+    const coverPoints = hasCover ? 15 : 0;
+
+    // 5) Short description / summary completeness (15%)
+    const summaryText = (input.description || input.summary || '').trim();
+    const summaryPoints =
+      summaryText.length >= 35 ? 15 : summaryText.length >= 15 ? 8 : 0;
+
+    const score = Math.min(
+      100,
+      textPoints + referencePoints + structurePoints + coverPoints + summaryPoints
+    );
+
+    const missingParts: string[] = [];
+    if (structurePoints < 15) missingParts.push('عنواناً فرعياً');
+    if (referencePoints < 25) missingParts.push('إشارة مرجعية أو مصدراً');
+    if (coverPoints < 15) missingParts.push('صورة غلاف');
+    if (summaryPoints < 15) missingParts.push('ملخصاً تعريفياً وافياً');
+    if (textPoints < 30) {
+      missingParts.push(
+        isVideo ? 'رابط الفيديو ونبذة تعريفية' : 'توسيع المتن إلى 500 كلمة'
+      );
+    }
+
+    const hint =
+      score >= 90
+        ? 'مادة محكّمة ومكتملة الأركان وفق معيار التميز التحريري لجذوري ✦'
+        : missingParts.length > 0
+          ? `أضف ${missingParts.slice(0, 2).join(' و')} لرفع درجة الرصانة إلى معيار التميز ✦`
+          : 'أكمل مراجعة الصياغة النهائية لبلوغ معيار التميز التحريري ✦';
+
+    return {
+      score,
+      wordCount,
+      textPoints,
+      referencePoints,
+      structurePoints,
+      coverPoints,
+      summaryPoints,
+      hint,
+    };
+  };
+
   const editorWordCount = useMemo(() => {
     const plain = extractPlainTextFromHtml(articleContent);
     if (!plain) return 0;
     return plain.split(/\s+/).filter(Boolean).length;
   }, [articleContent]);
 
-  const openNewArticleModal = () => {
+  const liveEditorRigor = useMemo(
+    () =>
+      computeArticleRigorScore({
+        type: articleType,
+        content: articleContent,
+        description: articleDescription,
+        coverImageUrl: articleCoverImageUrl,
+        videoUrl: articleVideoUrl,
+      }),
+    [
+      articleType,
+      articleContent,
+      articleDescription,
+      articleCoverImageUrl,
+      articleVideoUrl,
+    ]
+  );
+
+  const openNewArticleModal = (preselectedSection?: string) => {
+    const targetSection =
+      preselectedSection && KNOWLEDGE_BASE_SECTIONS[preselectedSection]
+        ? preselectedSection
+        : 'الروايات والذاكرة';
+    const defaultFilter =
+      KNOWLEDGE_BASE_SECTIONS[targetSection]?.baseFilters?.[0] || 'عام';
+
     setEditingArticleId(null);
     setArticleModalTab('edit');
     setArticleTitle('');
     setArticleType('مقال');
-    setArticleSection('الروايات والذاكرة');
-    setArticleFilter('عام');
+    setArticleSection(targetSection);
+    setArticleFilter(defaultFilter);
     setCustomArticleFilter('');
     setArticleDescription('');
     setArticleContent('');
@@ -1058,7 +1177,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     (t) => t.status !== 'مفتوح'
   ).length;
 
-  const roleSpecificRadarCards = useMemo(() => {
+  type RadarMetricCardItem = {
+    title: string;
+    value: string;
+    subLabel: string;
+    progressPercent: number;
+    badgeText: string;
+    badgeColor: string;
+    arcStrokeColor?: string;
+    onClick?: () => void;
+    actionTooltip?: string;
+  };
+
+  const roleSpecificRadarCards = useMemo<RadarMetricCardItem[]>(() => {
     const p1Done = researcherKpi.completedTodayP1 || 0;
     const p2Done = researcherKpi.completedTodayP2 || 0;
     const p3Done = researcherKpi.completedTodayP3 || 0;
@@ -1200,56 +1331,195 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       ];
     }
 
-    // Default: مدير تحرير المركز المعرفي — إحصائيات حقيقية مباشرة 100% من سجل المركز المعرفي
+    // Default: مدير تحرير المركز المعرفي — 6 مؤشرات تحريرية ذكية وحية 100% من قاعدة البيانات
+    type ArticleOptionalEngagement = KnowledgeArticleRecord & {
+      views?: number;
+      viewsCount?: number;
+      readCount?: number;
+      isFeatured?: boolean;
+      adminEndorsed?: boolean;
+    };
+
     const totalArticles = knowledgeArticles.length;
-    const totalSectionsCount = Math.max(
-      1,
-      Object.keys(KNOWLEDGE_BASE_SECTIONS).length
+    const publishedArticles = knowledgeArticles.filter(
+      (a) => a.status !== 'draft'
     );
-    const coveredSectionsCount = new Set(
-      knowledgeArticles
-        .filter((a) => a.status !== 'draft' && (a.section || '').trim())
-        .map((a) => a.section.trim())
-    ).size;
+
+    const nowDate = new Date();
+    const nowMs = nowDate.getTime();
+    const currentYear = nowDate.getFullYear();
+    const currentMonth = nowDate.getMonth();
+    const daysInCurrentMonth = new Date(
+      currentYear,
+      currentMonth + 1,
+      0
+    ).getDate();
+    const currentDayOfMonth = nowDate.getDate();
+
+    const parseArticleTime = (art: KnowledgeArticleRecord): number | null => {
+      const candidate = art.updatedAt || art.publishDate || art.createdAt || '';
+      if (!candidate) return null;
+      const ms = Date.parse(candidate);
+      return Number.isNaN(ms) ? null : ms;
+    };
+
+    const parsePublishTime = (art: KnowledgeArticleRecord): number | null => {
+      const candidate = art.publishDate || art.createdAt || art.updatedAt || '';
+      if (!candidate) return null;
+      const ms = Date.parse(candidate);
+      return Number.isNaN(ms) ? null : ms;
+    };
+
+    // 1) مستهدف النشر الشهري (هدف 12 مادة شهرياً)
+    const monthlyTarget = 12;
+    const monthlyPublishedCount = publishedArticles.filter((art) => {
+      const ms = parsePublishTime(art);
+      if (ms === null) return false;
+      const d = new Date(ms);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    }).length;
+    const monthlyPct = Math.min(
+      100,
+      Math.round((monthlyPublishedCount / monthlyTarget) * 100)
+    );
+    const expectedProratedTarget =
+      (currentDayOfMonth / Math.max(1, daysInCurrentMonth)) * monthlyTarget;
+    const monthlyStatus =
+      monthlyPublishedCount >= monthlyTarget ||
+      (monthlyPublishedCount > 0 &&
+        monthlyPublishedCount >= expectedProratedTarget)
+        ? {
+            badge: 'متقدم على الجدول ✓',
+            badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+            arc: '#2E7D5B',
+          }
+        : monthlyPublishedCount >= Math.max(1, expectedProratedTarget * 0.55)
+          ? {
+              badge: 'ضمن المسار',
+              badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]',
+              arc: '#C5A059',
+            }
+          : {
+              badge: 'يحتاج تعزيز النشر',
+              badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#D8755B]/60',
+              arc: '#D8755B',
+            };
+
+    // 2) مؤشر الانضباط والانتظام الزمني (أيام منذ آخر نشاط + أسابيع النشاط)
+    let latestActivityMs: number | null = null;
+    const activeWeekBuckets = new Set<string>();
+    const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
+    knowledgeArticles.forEach((art) => {
+      const ms = parseArticleTime(art);
+      if (ms !== null) {
+        if (latestActivityMs === null || ms > latestActivityMs) {
+          latestActivityMs = ms;
+        }
+        if (nowMs - ms <= sixtyDaysMs && ms <= nowMs + 86400000) {
+          const d = new Date(ms);
+          const weekIndex = Math.floor(d.getTime() / (7 * 24 * 60 * 60 * 1000));
+          activeWeekBuckets.add(String(weekIndex));
+        }
+      }
+    });
+
+    const daysSinceLastActivity =
+      latestActivityMs !== null
+        ? Math.max(0, Math.floor((nowMs - latestActivityMs) / 86400000))
+        : null;
+    const latestActivityFormatted =
+      latestActivityMs !== null
+        ? new Date(latestActivityMs).toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : 'لا يوجد سجل';
+    const activeWeeksCount = activeWeekBuckets.size;
+
+    const cadenceTone =
+      daysSinceLastActivity !== null && daysSinceLastActivity <= 5
+        ? {
+            arc: '#2E7D5B',
+            badge: 'انضباط نشط ✓',
+            badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+            pct: Math.max(75, 100 - daysSinceLastActivity * 4),
+          }
+        : daysSinceLastActivity !== null && daysSinceLastActivity <= 10
+          ? {
+              arc: '#C5A059',
+              badge: 'وتيرة متوسطة ⏳',
+              badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]',
+              pct: Math.max(40, 72 - (daysSinceLastActivity - 5) * 6),
+            }
+          : {
+              arc: '#B91C1C',
+              badge: 'يحتاج تنشيط ⚠️',
+              badgeColor: 'bg-red-50 text-red-800 border-red-300',
+              pct: daysSinceLastActivity === null ? 8 : 22,
+            };
+
+    // 3) ميزان الرصانة وجودة التوثيق (30/25/15/15/15)
+    let rigorScoreSum = 0;
+    let needsPolishCount = 0;
+    knowledgeArticles.forEach((art) => {
+      const { score } = computeArticleRigorScore(art);
+      rigorScoreSum += score;
+      if (score < 85 || art.status === 'draft') {
+        needsPolishCount += 1;
+      }
+    });
+    const avgRigorPct =
+      totalArticles > 0 ? Math.round(rigorScoreSum / totalArticles) : 0;
+    const rigorArc =
+      avgRigorPct >= 85
+        ? '#2E7D5B'
+        : avgRigorPct >= 65
+          ? '#C5A059'
+          : '#D8755B';
+
+    // 4) توازن الأقسام والقوالب العلمية (4 أقسام رئيسية + القسم الأقل تغطية + الدراسات المعمقة)
+    const sectionKeys = Object.keys(KNOWLEDGE_BASE_SECTIONS);
+    const totalSectionsCount = Math.max(1, sectionKeys.length);
+    const sectionCounts: Record<string, number> = {};
+    sectionKeys.forEach((k) => {
+      sectionCounts[k] = 0;
+    });
+    publishedArticles.forEach((art) => {
+      const sec = (art.section || '').trim();
+      if (sec in sectionCounts) {
+        sectionCounts[sec] += 1;
+      }
+    });
+    const coveredSectionsCount = sectionKeys.filter(
+      (k) => sectionCounts[k] > 0
+    ).length;
+    const leastCoveredSection = sectionKeys.reduce(
+      (minSec, candidate) =>
+        sectionCounts[candidate] < sectionCounts[minSec] ? candidate : minSec,
+      sectionKeys[0]
+    );
+    const deepStudyRegex =
+      /(دراسة|تحقيق|مخطوط|أنساب|نسبية|توثيق|شجرة|عمود النسب|وثائق)/;
+    const deepStudyCount = publishedArticles.filter((art) => {
+      const hay = `${art.filter || ''} ${art.title || ''}`;
+      const words = extractPlainTextFromHtml(art.content || '')
+        .split(/\s+/)
+        .filter(Boolean).length;
+      return deepStudyRegex.test(hay) || words >= 500;
+    }).length;
+    const deepStudyPct =
+      publishedArticles.length > 0
+        ? Math.round((deepStudyCount / publishedArticles.length) * 100)
+        : 0;
     const coveragePct = Math.round(
       (coveredSectionsCount / totalSectionsCount) * 100
     );
 
-    const milestoneTarget = Math.max(
-      10,
-      Math.ceil((publishedArticlesCount + 1) / 5) * 5
-    );
-    const pubPct = Math.min(
-      100,
-      Math.round((publishedArticlesCount / milestoneTarget) * 100)
-    );
-
-    let qualityPointsSum = 0;
-    let fullyCompleteArticles = 0;
-    knowledgeArticles.forEach((art) => {
-      let score = 0;
-      if ((art.coverImageUrl || '').trim()) score += 25;
-      if ((art.summary || art.description || '').trim().length >= 20) score += 25;
-      const plainBodyLen = (art.content || '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim().length;
-      if (
-        art.type === 'فيديو'
-          ? Boolean((art.videoUrl || '').trim())
-          : plainBodyLen >= 100
-      ) {
-        score += 25;
-      }
-      if ((art.author || art.authorName || art.editor || '').trim()) score += 25;
-      qualityPointsSum += score;
-      if (score === 100) fullyCompleteArticles += 1;
-    });
-    const qualityScorePct =
-      totalArticles > 0 ? Math.round(qualityPointsSum / totalArticles) : 0;
-
-    const normalizedMemberName = (loggedInMember?.name || '').trim().toLowerCase();
-    const myEditorialCount = normalizedMemberName
+    // 5) الرصيد المعرفي الموثّق باسمك (كلمات + دقائق قراءة + رتبة تحريرية متدرجة)
+    const normalizedMemberName = (loggedInMember?.name || '')
+      .trim()
+      .toLowerCase();
+    const myArticles = normalizedMemberName
       ? knowledgeArticles.filter((art) => {
           const fields = [art.editor, art.author, art.authorName]
             .filter(Boolean)
@@ -1257,89 +1527,171 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           return fields.some(
             (f) => f === normalizedMemberName || f.includes(normalizedMemberName)
           );
-        }).length
-      : 0;
+        })
+      : [];
+    const myEditorialCount = myArticles.length;
+    const myTotalWords = myArticles.reduce((acc, art) => {
+      const plain = extractPlainTextFromHtml(art.content || '');
+      return acc + (plain ? plain.split(/\s+/).filter(Boolean).length : 0);
+    }, 0);
+    const myReadingMinutes =
+      myTotalWords > 0 ? Math.max(1, Math.round(myTotalWords / 180)) : 0;
 
-    const nowMs = Date.now();
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    let recent30DaysCount = 0;
-    let latestUpdateMs = 0;
-    knowledgeArticles.forEach((art) => {
-      const tsStr = art.updatedAt || art.createdAt || art.publishDate || '';
-      const parsedMs = tsStr ? Date.parse(tsStr) : NaN;
-      if (!Number.isNaN(parsedMs)) {
-        if (nowMs - parsedMs <= thirtyDaysMs) recent30DaysCount += 1;
-        if (parsedMs > latestUpdateMs) latestUpdateMs = parsedMs;
-      }
-    });
-    const latestUpdateText =
-      latestUpdateMs > 0
-        ? new Date(latestUpdateMs).toLocaleDateString('ar-EG', {
-            day: 'numeric',
-            month: 'short',
-          })
-        : 'اليوم';
-    const personalSharePct =
-      myEditorialCount > 0
-        ? Math.min(
-            100,
-            Math.max(
-              25,
-              Math.round((myEditorialCount / Math.max(1, totalArticles)) * 100)
-            )
-          )
-        : Math.min(
-            100,
-            Math.max(
-              recent30DaysCount > 0 ? 30 : 12,
-              Math.round((recent30DaysCount / Math.max(1, totalArticles)) * 100)
-            )
-          );
+    const editorialRank =
+      myEditorialCount >= 30
+        ? { label: 'كبير المحررين 👑', nextGoal: 30, pct: 100 }
+        : myEditorialCount >= 15
+          ? {
+              label: 'محرر أول 🏅',
+              nextGoal: 30,
+              pct: Math.round((myEditorialCount / 30) * 100),
+            }
+          : myEditorialCount >= 5
+            ? {
+                label: 'محرر متقدم ✦',
+                nextGoal: 15,
+                pct: Math.round((myEditorialCount / 15) * 100),
+              }
+            : {
+                label: 'محرر مشارك ✍️',
+                nextGoal: 5,
+                pct: Math.max(
+                  myEditorialCount > 0 ? 20 : 8,
+                  Math.round((myEditorialCount / 5) * 100)
+                ),
+              };
+
+    // 6) صدى القراء وإشادة الإدارة (قراءة آمنة للحقول الاختيارية بدون كسر المستندات)
+    const engagementStats = publishedArticles.reduce(
+      (acc, rawArt) => {
+        const art = rawArt as ArticleOptionalEngagement;
+        const rawViews = Number(
+          art.views ?? art.viewsCount ?? art.readCount ?? 0
+        );
+        const safeViews = Number.isFinite(rawViews) && rawViews > 0 ? rawViews : 0;
+        const endorsed = Boolean(art.isFeatured || art.adminEndorsed);
+        return {
+          views: acc.views + safeViews,
+          endorsedCount: acc.endorsedCount + (endorsed ? 1 : 0),
+        };
+      },
+      { views: 0, endorsedCount: 0 }
+    );
+    const echoProgressPct =
+      engagementStats.views > 0
+        ? Math.min(100, Math.max(25, Math.round((engagementStats.views / 1000) * 100)))
+        : engagementStats.endorsedCount > 0
+          ? Math.min(100, engagementStats.endorsedCount * 25)
+          : publishedArticles.length > 0
+            ? 15
+            : 0;
 
     return [
       {
-        title: 'المواد المنشورة وجاهزية المسودات',
-        value: `${publishedArticlesCount} / ${milestoneTarget} منشورة`,
+        title: 'مستهدف النشر الشهري',
+        value: `${monthlyPublishedCount} / ${monthlyTarget}`,
         subLabel:
           draftArticlesCount > 0
-            ? `مسودات قيد التجهيز: ${draftArticlesCount} · إنجاز المرحلة ${pubPct}%`
-            : `صفر مسودات معلّقة · إنجاز المرحلة ${pubPct}%`,
-        progressPercent: pubPct,
-        badgeText: 'سجل النشر ✍️',
-        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+            ? `${draftArticlesCount} مسودة جاهزة · إنجاز ${monthlyPct}%`
+            : `إنجاز الشهر الحالي ${monthlyPct}%`,
+        progressPercent: monthlyPct,
+        badgeText: monthlyStatus.badge,
+        badgeColor: monthlyStatus.badgeColor,
+        arcStrokeColor: monthlyStatus.arc,
+        actionTooltip: 'انقر لاستعراض المسودات والمواد الجاهزة للنشر',
+        onClick: () => {
+          setCmsFilterMode('needs_work');
+          setActiveTab('knowledge_cms');
+        },
       },
       {
-        title: 'التغطية المعرفية لأقسام المركز',
-        value: `${coveredSectionsCount} / ${totalSectionsCount} أقسام`,
-        subLabel:
-          coveragePct === 100
-            ? 'تغطية شاملة لجميع أقسام المركز المعرفي'
-            : `تغطية ${coveragePct}% · ${totalSectionsCount - coveredSectionsCount} أقسام تنتظر الإثراء`,
-        progressPercent: coveragePct,
-        badgeText: coveragePct >= 80 ? 'شمول معرفي 🌟' : 'خريطة الأقسام 📚',
-        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
-      },
-      {
-        title: 'مؤشر اكتمال وجودة التوثيق',
-        value: `${qualityScorePct}% اكتمال`,
-        subLabel: `${fullyCompleteArticles} من ${totalArticles} مادة مكتملة (غلاف · ملخص · متن · توثيق)`,
-        progressPercent: qualityScorePct,
-        badgeText: qualityScorePct >= 85 ? 'اعتماد متميز 🏆' : 'رقابة الجودة 📜',
-        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
-      },
-      {
-        title: 'بصمتك ونشاطك التحريري',
+        title: 'الانضباط والانتظام الزمني',
         value:
-          myEditorialCount > 0
-            ? `${myEditorialCount} مادة ببصمتك`
-            : `${recent30DaysCount} تحديثاً حديثاً`,
+          daysSinceLastActivity === null
+            ? '—'
+            : daysSinceLastActivity === 0
+              ? 'نشط اليوم'
+              : `منذ ${daysSinceLastActivity} ي`,
+        subLabel: `آخر نشاط: ${latestActivityFormatted} · ${activeWeeksCount} أسابيع نشطة`,
+        progressPercent: cadenceTone.pct,
+        badgeText: cadenceTone.badge,
+        badgeColor: cadenceTone.badgeColor,
+        arcStrokeColor: cadenceTone.arc,
+        actionTooltip:
+          daysSinceLastActivity === null || daysSinceLastActivity > 10
+            ? 'انقر لفتح محرر مادة جديدة وتنشيط وتيرة النشر'
+            : 'انقر لاستعراض سجل النشاط التحريري',
+        onClick: () => {
+          setCmsFilterMode('all');
+          setActiveTab('knowledge_cms');
+          if (daysSinceLastActivity === null || daysSinceLastActivity > 10) {
+            openNewArticleModal();
+          }
+        },
+      },
+      {
+        title: 'ميزان الرصانة والتوثيق',
+        value: `${avgRigorPct}%`,
         subLabel:
-          myEditorialCount > 0
-            ? `نشاط آخر 30 يوماً: ${recent30DaysCount} · آخر تحديث ${latestUpdateText}`
-            : `أضف أو حرّر مادة لتوثيق بصمتك · آخر تحديث ${latestUpdateText}`,
-        progressPercent: personalSharePct,
-        badgeText: myEditorialCount > 0 ? 'جهدك مُقدّر ⭐' : 'رادار التقدير ✨',
-        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          needsPolishCount > 0
+            ? `${needsPolishCount} مادة قابلة لرفع الرصانة`
+            : `كافة المواد (${totalArticles}) بمعيار التميز`,
+        progressPercent: avgRigorPct,
+        badgeText: avgRigorPct >= 85 ? 'رصانة محكّمة 🏆' : 'تدقيق الجودة 📜',
+        badgeColor:
+          avgRigorPct >= 85
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+            : 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70',
+        arcStrokeColor: rigorArc,
+        actionTooltip: 'انقر لتصفية المسودات والمواد التي تقل رصانتها عن 85%',
+        onClick: () => {
+          setCmsFilterMode('needs_work');
+          setActiveTab('knowledge_cms');
+        },
+      },
+      {
+        title: 'توازن الأقسام والقوالب',
+        value: `${coveredSectionsCount} / ${totalSectionsCount} أقسام`,
+        subLabel: `الأقل: ${leastCoveredSection} · دراسات ${deepStudyPct}%`,
+        progressPercent: coveragePct,
+        badgeText:
+          coveragePct === 100 ? 'توازن شامل 🌟' : 'إثراء القسم الأقل ✍️',
+        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70',
+        arcStrokeColor: coveragePct === 100 ? '#2E7D5B' : '#C5A059',
+        actionTooltip: `انقر لفتح محرر موضوع جديد في قسم «${leastCoveredSection}» مباشرة`,
+        onClick: () => {
+          setActiveTab('knowledge_cms');
+          openNewArticleModal(leastCoveredSection);
+        },
+      },
+      {
+        title: 'الرصيد الموثّق باسمك',
+        value: `${myTotalWords.toLocaleString('ar-EG')} كلمة`,
+        subLabel: `${myEditorialCount} مادة · ${myReadingMinutes} د قراءة`,
+        progressPercent: editorialRank.pct,
+        badgeText: editorialRank.label,
+        badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]',
+        arcStrokeColor: '#8D4925',
+        actionTooltip: 'انقر لاستعراض المواد الموثّقة باسمك فقط',
+        onClick: () => {
+          setCmsFilterMode('mine');
+          setActiveTab('knowledge_cms');
+        },
+      },
+      {
+        title: 'صدى القراء والإشادة',
+        value: `${engagementStats.views.toLocaleString('ar-EG')} قراءة`,
+        subLabel: `إشادات الإدارة: ${engagementStats.endorsedCount} · منشور ${publishedArticles.length}`,
+        progressPercent: echoProgressPct,
+        badgeText:
+          engagementStats.endorsedCount > 0 ? 'إشادة متميزة ⭐' : 'رادار الأثر ✦',
+        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70',
+        arcStrokeColor: '#C5A059',
+        actionTooltip: 'انقر لفتح المركز المعرفي ومعاينة تفاعل القراء',
+        onClick: () => {
+          setCmsFilterMode('all');
+          setActiveTab('knowledge_cms');
+        },
       },
     ];
   }, [
@@ -1512,13 +1864,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-2 bg-white border border-[#B98A78]/50 px-3.5 py-2 rounded-xl shadow-2xs">
-              <Crown className="w-4 h-4 text-[#D8755B]" />
-              <div className="text-xs">
-                <span className="font-bold text-[#252321]">{loggedInMember.name}</span>
-                <span className="mx-1.5 text-[#D8755B]">·</span>
-                <span className="text-[#8D4925] font-extrabold">{loggedInMember.role}</span>
-              </div>
+            <div className="flex items-center gap-2 bg-white border border-[#B98A78]/50 px-3.5 py-1.5 rounded-xl shadow-2xs">
+              <span className="text-xs font-bold text-[#252321]">
+                مرحباً، {loggedInMember.name}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-[#C5A059]/70 text-[#8D4925] text-[11px] font-extrabold">
+                <span>{loggedInMember.role}</span>
+                <Crown className="w-3.5 h-3.5 text-[#D8755B]" />
+              </span>
             </div>
 
             <button
@@ -1542,27 +1895,39 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main
+        className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 ${
+          activeTab === 'command_hub' && visibleWorkspaceWindows.length === 1
+            ? 'py-3.5'
+            : 'py-6'
+        }`}
+      >
         {/* =====================================================================
             PANEL 0: بوابة القيادة الذكية المخصصة حسب الصلاحية (Role-Based Command Hub & Launchpad)
            ===================================================================== */}
         {activeTab === 'command_hub' && (
-          <div data-testid="role-based-command-hub" className="space-y-6">
+          <div
+            data-testid="role-based-command-hub"
+            className={
+              visibleWorkspaceWindows.length === 1 ? 'space-y-3' : 'space-y-6'
+            }
+          >
             {/* -----------------------------------------------------------------
-                أ) الشريط الترحيبي المدمج: الاسم + آخر تسجيل دخول + حكمة العمل اليومية
+                أ) الشريط الترحيبي المدمج: الترحيب والاسم أولاً (يميناً) ← شارة الصلاحية بالتاج ← آخر دخول ← الحكمة
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-welcome-banner"
-              className="rounded-2xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 border border-[#E2DACB] px-3.5 py-2.5 sm:px-4 sm:py-2.5 text-[#252321] shadow-2xs relative overflow-hidden"
+              className="rounded-2xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 border border-[#E2DACB] px-3.5 py-2 sm:px-4 sm:py-2.5 text-[#252321] shadow-2xs relative overflow-hidden"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-[10.5px] font-extrabold whitespace-nowrap">
-                    👑 {roleDisplayBadgeLabel}
-                  </span>
                   <h1 className="text-base sm:text-lg font-extrabold font-display text-[#252321] whitespace-nowrap">
                     مرحباً بك، {loggedInMember.name}
                   </h1>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-[10.5px] font-extrabold whitespace-nowrap">
+                    <span>{roleDisplayBadgeLabel}</span>
+                    <Crown className="w-3 h-3 text-[#D8755B]" />
+                  </span>
                   <span
                     title={`آخر تسجيل دخول: ${lastLoginTimestamp}`}
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-[#E2DACB] text-[10px] font-bold text-[#5C5346] whitespace-nowrap"
@@ -1599,73 +1964,93 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-workspace-launchpad"
-              className="relative py-4"
+              className={
+                visibleWorkspaceWindows.length === 1
+                  ? 'relative py-1'
+                  : 'relative py-4'
+              }
             >
-              {/* Tree Crown Header (تاج الشجرة القيادي) */}
-              <div className="flex flex-col items-center justify-center text-center relative z-10 mb-8">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FAF6F0] via-white to-[#EDE6DA] border-2 border-[#C5A059] shadow-md flex items-center justify-center text-2xl mb-3 relative">
-                  <span>🌳</span>
-                  <span className="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[10px] font-extrabold font-mono shadow-2xs">
-                    {visibleWorkspaceWindows.length}
-                  </span>
+              {/* Tree Crown Header (تاج الشجرة القيادي — مضغوط للبطاقة الواحدة لضمان الظهور Above the Fold) */}
+              {visibleWorkspaceWindows.length === 1 ? (
+                <div className="flex flex-col items-center justify-center text-center relative z-10 mb-2">
+                  <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] border border-[#C5A059] shadow-2xs">
+                    <span className="text-base">🌳</span>
+                    <h2 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+                      لوحة التحكم المخصصة لصلاحيتكم
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full bg-[#8D4925] text-white text-[10px] font-extrabold font-mono">
+                      1
+                    </span>
+                  </div>
+                  <div className="w-1 h-3 bg-gradient-to-b from-[#C5A059] to-[#8D4925] rounded-full mt-0.5" />
                 </div>
-                <div className="inline-block px-7 py-3 rounded-full bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] border-2 border-[#C5A059] shadow-sm">
-                  <h2 className="text-lg sm:text-xl font-extrabold font-display text-[#252321]">
-                    لوحات التحكم المخصصة لصلاحيتكم
-                  </h2>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center relative z-10 mb-8">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FAF6F0] via-white to-[#EDE6DA] border-2 border-[#C5A059] shadow-md flex items-center justify-center text-2xl mb-3 relative">
+                    <span>🌳</span>
+                    <span className="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[10px] font-extrabold font-mono shadow-2xs">
+                      {visibleWorkspaceWindows.length}
+                    </span>
+                  </div>
+                  <div className="inline-block px-7 py-3 rounded-full bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] border-2 border-[#C5A059] shadow-sm">
+                    <h2 className="text-lg sm:text-xl font-extrabold font-display text-[#252321]">
+                      لوحات التحكم المخصصة لصلاحيتكم
+                    </h2>
+                  </div>
+                  {/* Upper Trunk Stem */}
+                  <div className="w-1.5 h-8 bg-gradient-to-b from-[#C5A059] to-[#8D4925] rounded-full mt-1" />
                 </div>
-                {/* Upper Trunk Stem */}
-                <div className="w-1.5 h-8 bg-gradient-to-b from-[#C5A059] to-[#8D4925] rounded-full mt-1" />
-              </div>
+              )}
 
               {/* Tree Trunk & Alternating Organic Branches Container */}
               {visibleWorkspaceWindows.length === 1 ? (
-                <div className="relative max-w-xl mx-auto px-2 sm:px-4 flex flex-col items-center">
+                <div className="relative max-w-2xl mx-auto px-2 sm:px-4 flex flex-col items-center">
                   {visibleWorkspaceWindows.map((win) => (
                     <div key={win.id} className="w-full relative z-10">
                       <div
                         data-testid={`launchpad-window-card-${win.id}`}
                         onClick={() => setActiveTab(win.id)}
-                        className="group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 hover:border-[#D8755B] p-5 sm:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 overflow-hidden rounded-tr-[2.5rem] rounded-bl-[2.5rem] rounded-tl-2xl rounded-br-2xl"
+                        className="group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/75 hover:border-[#D8755B] p-4 sm:px-5 sm:py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col gap-3 overflow-hidden rounded-tr-[2rem] rounded-bl-[2rem] rounded-tl-2xl rounded-br-2xl"
                       >
                         <div
                           aria-hidden="true"
-                          className="pointer-events-none absolute -top-6 -left-6 w-24 h-24 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20"
+                          className="pointer-events-none absolute -top-6 -left-6 w-20 h-20 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20"
                         />
 
-                        <div className="space-y-3 relative z-10">
-                          <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 relative z-10">
+                          <div className="flex items-center gap-3 min-w-0">
                             {win.customLogoUrl ? (
-                              <div className="w-14 h-14 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                              <div className="w-11 h-11 rounded-xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
                                 <img
                                   src={win.customLogoUrl}
                                   alt={win.title}
-                                  className="w-full h-full object-cover rounded-xl"
+                                  className="w-full h-full object-cover rounded-lg"
                                 />
                               </div>
                             ) : (
-                              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/70 flex items-center justify-center text-2xl shrink-0 shadow-xs">
+                              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/70 flex items-center justify-center text-xl shrink-0 shadow-xs">
                                 {win.emoji}
                               </div>
                             )}
 
-                            <span className="px-3 py-1 rounded-full bg-white/90 border border-[#C5A059]/60 text-[#8D4925] text-[11px] font-extrabold shadow-2xs">
-                              🌿 {win.accentBadge}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3 className="text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
-                              {win.title}
-                            </h3>
-                            <p className="text-xs text-[#5C5346] leading-relaxed mt-1">
-                              {win.description}
-                            </p>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
+                                  {win.title}
+                                </h3>
+                                <span className="px-2.5 py-0.5 rounded-full bg-white/90 border border-[#C5A059]/60 text-[#8D4925] text-[10px] font-extrabold shadow-2xs">
+                                  🌿 {win.accentBadge}
+                                </span>
+                              </div>
+                              <p className="text-[11.5px] text-[#5C5346] leading-snug mt-0.5 line-clamp-2">
+                                {win.description}
+                              </p>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-3 pt-3 border-t border-[#E2DACB]/80 relative z-10">
-                          <div className="flex items-center justify-between gap-2 bg-white/90 px-3.5 py-2 rounded-xl border border-[#E2DACB]">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2.5 border-t border-[#E2DACB]/80 relative z-10">
+                          <div className="flex items-center gap-2 bg-white/90 px-3 py-1.5 rounded-xl border border-[#E2DACB]">
                             <span className="text-[11px] font-bold text-[#5C5346]">
                               {win.liveCounterLabel}:
                             </span>
@@ -1680,7 +2065,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               e.stopPropagation();
                               setActiveTab(win.id);
                             }}
-                            className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                            className="flex-1 sm:flex-initial sm:min-w-[200px] py-2 px-5 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <span>🚀 فتح لوحة التحكم</span>
                           </button>
@@ -1688,9 +2073,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       </div>
                     </div>
                   ))}
-                  {/* Lower Trunk Stem into Root Medallion */}
-                  <div className="w-1.5 h-7 bg-gradient-to-b from-[#8D4925] to-[#C5A059] rounded-full mt-2" />
-                  <div className="w-4 h-4 rounded-full bg-[#8D4925] border-2 border-[#C5A059] shadow-xs mt-1" />
+                  {/* Compact Lower Trunk Stem into Root Medallion */}
+                  <div className="w-1 h-3.5 bg-gradient-to-b from-[#8D4925] to-[#C5A059] rounded-full mt-1" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#8D4925] border border-[#C5A059] shadow-xs mt-0.5" />
                 </div>
               ) : (
               <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
@@ -1849,28 +2234,70 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </div>
 
             {/* -----------------------------------------------------------------
-                ج) دوائر المؤشرات الرقابية (Circular Metrics — Moved Below Launchpad, Headings Removed)
+                ج) دوائر المؤشرات الرقابية والتحريرية الحية
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-surveillance-radar"
-              className="pt-2 pb-4"
+              className={
+                effectiveHubRole === 'مدير تحرير المركز المعرفي'
+                  ? 'pt-1 pb-2'
+                  : 'pt-2 pb-4'
+              }
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 place-items-center">
+              {effectiveHubRole === 'مدير تحرير المركز المعرفي' && (
+                <div className="flex items-center justify-center mb-3">
+                  <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#FAF6F0] border border-[#E2DACB] text-[11px] font-bold text-[#6E6456] shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D5B]" />
+                    <span>
+                      مؤشرات الأداء التحريري الحية — متزامنة تلقائياً مع سجلات الإدارة العامة والمايسترو
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div
+                className={
+                  effectiveHubRole === 'مدير تحرير المركز المعرفي'
+                    ? 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5 place-items-center'
+                    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 place-items-center'
+                }
+              >
                 {roleSpecificRadarCards.map((card, idx) => {
                   const clampedPct = Math.max(
                     0,
                     Math.min(100, card.progressPercent || 0)
                   );
+                  const isCompactEditorial =
+                    effectiveHubRole === 'مدير تحرير المركز المعرفي';
                   const radius = 54;
                   const circumference = 2 * Math.PI * radius;
                   const strokeDashoffset =
                     circumference - (clampedPct / 100) * circumference;
+                  const strokeColor = card.arcStrokeColor || '#D8755B';
+                  const isInteractive = Boolean(card.onClick);
 
                   return (
                     <div
                       key={idx}
                       data-testid={`radar-metric-card-${idx}`}
-                      className="relative w-64 h-64 sm:w-68 sm:h-68 rounded-full bg-gradient-to-b from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 shadow-sm hover:shadow-md hover:border-[#D8755B] transition-all flex flex-col items-center justify-center text-center p-7 group"
+                      role={isInteractive ? 'button' : undefined}
+                      tabIndex={isInteractive ? 0 : undefined}
+                      title={card.actionTooltip}
+                      onClick={card.onClick}
+                      onKeyDown={(e) => {
+                        if (
+                          isInteractive &&
+                          (e.key === 'Enter' || e.key === ' ')
+                        ) {
+                          e.preventDefault();
+                          card.onClick?.();
+                        }
+                      }}
+                      className={`relative rounded-full bg-gradient-to-b from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 shadow-sm hover:shadow-md hover:border-[#D8755B] transition-all flex flex-col items-center justify-center text-center group ${
+                        isCompactEditorial
+                          ? 'w-[162px] h-[162px] sm:w-[166px] sm:h-[166px] p-3.5'
+                          : 'w-64 h-64 sm:w-68 sm:h-68 p-7'
+                      } ${isInteractive ? 'cursor-pointer hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#D8755B]/50' : ''}`}
                     >
                       {/* Circular Progress Ring SVG */}
                       <svg
@@ -1884,37 +2311,61 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           r={radius}
                           fill="none"
                           stroke="#E2DACB"
-                          strokeWidth="3.5"
+                          strokeWidth={isCompactEditorial ? '4' : '3.5'}
                         />
                         <circle
                           cx="60"
                           cy="60"
                           r={radius}
                           fill="none"
-                          stroke="#D8755B"
-                          strokeWidth="3.5"
+                          stroke={strokeColor}
+                          strokeWidth={isCompactEditorial ? '4' : '3.5'}
                           strokeLinecap="round"
                           strokeDasharray={circumference}
                           strokeDashoffset={strokeDashoffset}
                         />
                       </svg>
 
-                      <div className="relative z-10 flex flex-col items-center justify-center space-y-2 max-w-[195px]">
+                      <div
+                        className={`relative z-10 flex flex-col items-center justify-center ${
+                          isCompactEditorial
+                            ? 'space-y-1 max-w-[126px]'
+                            : 'space-y-2 max-w-[195px]'
+                        }`}
+                      >
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${card.badgeColor}`}
+                          className={`rounded-full font-extrabold border leading-tight ${
+                            isCompactEditorial
+                              ? 'px-2 py-0.5 text-[8.5px]'
+                              : 'px-2.5 py-0.5 text-[10px]'
+                          } ${card.badgeColor}`}
                         >
                           {card.badgeText}
                         </span>
 
-                        <h3 className="text-xs font-extrabold font-display text-[#252321] leading-snug line-clamp-2">
+                        <h3
+                          className={`font-extrabold font-display text-[#252321] leading-tight line-clamp-2 ${
+                            isCompactEditorial ? 'text-[10.5px]' : 'text-xs'
+                          }`}
+                        >
                           {card.title}
                         </h3>
 
-                        <div className="text-base sm:text-lg font-extrabold text-[#8D4925] font-mono bg-white/90 px-3 py-1 rounded-full border border-[#E2DACB] shadow-2xs">
+                        <div
+                          className={`font-extrabold text-[#8D4925] font-mono bg-white/95 rounded-full border border-[#E2DACB] shadow-2xs whitespace-nowrap ${
+                            isCompactEditorial
+                              ? 'text-xs px-2.5 py-0.5'
+                              : 'text-base sm:text-lg px-3 py-1'
+                          }`}
+                        >
                           {card.value}
                         </div>
 
-                        <p className="text-[10px] font-bold text-[#5C5346] leading-tight line-clamp-2">
+                        <p
+                          className={`font-bold text-[#5C5346] leading-tight line-clamp-2 ${
+                            isCompactEditorial ? 'text-[8.5px]' : 'text-[10px]'
+                          }`}
+                        >
                           {card.subLabel}
                         </p>
                       </div>
@@ -2401,33 +2852,103 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         {/* =====================================================================
             PANEL 4: إدارة تحرير المركز المعرفي (Knowledge Center CMS)
            ===================================================================== */}
-        {activeTab === 'knowledge_cms' && allowedTabs.includes('knowledge_cms') && (
+        {activeTab === 'knowledge_cms' && allowedTabs.includes('knowledge_cms') && (() => {
+          const normalizedName = (loggedInMember?.name || '').trim().toLowerCase();
+          const isMineArticle = (art: KnowledgeArticleRecord) => {
+            if (!normalizedName) return false;
+            return [art.editor, art.author, art.authorName]
+              .filter(Boolean)
+              .map((v) => String(v).trim().toLowerCase())
+              .some((f) => f === normalizedName || f.includes(normalizedName));
+          };
+          const articlesWithRigor = knowledgeArticles.map((art) => ({
+            article: art,
+            rigor: computeArticleRigorScore(art),
+          }));
+          const needsWorkCount = articlesWithRigor.filter(
+            ({ article, rigor }) => article.status === 'draft' || rigor.score < 85
+          ).length;
+          const mineCount = articlesWithRigor.filter(({ article }) =>
+            isMineArticle(article)
+          ).length;
+          const filteredCmsArticles = articlesWithRigor.filter(
+            ({ article, rigor }) => {
+              if (cmsFilterMode === 'needs_work') {
+                return article.status === 'draft' || rigor.score < 85;
+              }
+              if (cmsFilterMode === 'mine') {
+                return isMineArticle(article);
+              }
+              return true;
+            }
+          );
+
+          return (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-[#E2DACB] overflow-hidden">
-              <div className="p-5 sm:p-6 border-b border-[#E2DACB] flex flex-wrap justify-between items-center gap-3">
-                <h3 className="text-lg font-bold text-[#252321]">
-                  إدارة المقالات والمركز المعرفي
-                </h3>
-                <div className="flex items-center gap-2">
+              <div className="p-5 sm:p-6 border-b border-[#E2DACB] space-y-3">
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <h3 className="text-lg font-bold text-[#252321]">
+                    إدارة المقالات والمركز المعرفي
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewKnowledgeCenter((v) => !v)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] border border-[#B98A78]/50 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#8D4925]" />
+                      <span>
+                        {previewKnowledgeCenter
+                          ? 'إخفاء معاينة المركز المعرفي'
+                          : 'معاينة المركز المعرفي للزوار'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openNewArticleModal()}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl transition-colors text-xs sm:text-sm font-bold cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>إضافة موضوع</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* شريط التصفية الذكية المرتبط بالدوائر الإحصائية */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setPreviewKnowledgeCenter((v) => !v)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] border border-[#B98A78]/50 text-xs font-bold transition-colors cursor-pointer"
+                    onClick={() => setCmsFilterMode('all')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                      cmsFilterMode === 'all'
+                        ? 'bg-[#EDE6DA] text-[#8D4925] border-[#C5A059]'
+                        : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB] hover:bg-[#EDE6DA]/60'
+                    }`}
                   >
-                    <Eye className="w-3.5 h-3.5 text-[#8D4925]" />
-                    <span>
-                      {previewKnowledgeCenter
-                        ? 'إخفاء معاينة المركز المعرفي'
-                        : 'معاينة المركز المعرفي للزوار'}
-                    </span>
+                    الكل ({knowledgeArticles.length})
                   </button>
                   <button
                     type="button"
-                    onClick={openNewArticleModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl transition-colors text-xs sm:text-sm font-bold cursor-pointer shadow-xs"
+                    onClick={() => setCmsFilterMode('needs_work')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                      cmsFilterMode === 'needs_work'
+                        ? 'bg-[#EDE6DA] text-[#8D4925] border-[#D8755B]'
+                        : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB] hover:bg-[#EDE6DA]/60'
+                    }`}
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>إضافة موضوع</span>
+                    المسودات والقابلة لرفع الرصانة ({needsWorkCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCmsFilterMode('mine')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                      cmsFilterMode === 'mine'
+                        ? 'bg-[#EDE6DA] text-[#8D4925] border-[#C5A059]'
+                        : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB] hover:bg-[#EDE6DA]/60'
+                    }`}
+                  >
+                    الموثّقة باسمك ({mineCount})
                   </button>
                 </div>
               </div>
@@ -2444,7 +2965,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EFEAE0] text-xs sm:text-sm">
-                    {knowledgeArticles.map((article) => {
+                    {filteredCmsArticles.map(({ article, rigor }) => {
                       const artType = article.type || 'مقال';
                       const artSection = article.section || 'الروايات والذاكرة';
                       const artFilter = article.filter || 'عام';
@@ -2463,13 +2984,25 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                 />
                               </div>
                               <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <span>{article.title}</span>
                                   {article.status === 'draft' && (
                                     <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
                                       مسودة
                                     </span>
                                   )}
+                                  <span
+                                    title={rigor.hint}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-extrabold font-mono border ${
+                                      rigor.score >= 85
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                        : rigor.score >= 65
+                                          ? 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60'
+                                          : 'bg-[#FAF6F0] text-[#8D4925] border-[#D8755B]/50'
+                                    }`}
+                                  >
+                                    رصانة {rigor.score}%
+                                  </span>
                                 </div>
                                 {(article.author || article.authorName) && (
                                   <div className="text-[11px] font-normal text-[#6E6456] mt-0.5">
@@ -2534,13 +3067,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </tr>
                       );
                     })}
-                    {knowledgeArticles.length === 0 && (
+                    {filteredCmsArticles.length === 0 && (
                       <tr>
                         <td
                           colSpan={5}
                           className="p-8 text-center text-[#6E6456] font-bold"
                         >
-                          لا توجد مقالات مضافة بعد
+                          {cmsFilterMode === 'all'
+                            ? 'لا توجد مقالات مضافة بعد'
+                            : 'لا توجد مواد مطابقة لهذه التصفية حالياً'}
                         </td>
                       </tr>
                     )}
@@ -2555,7 +3090,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* =====================================================================
             PANEL 5: لوحة التقارير والإدارة العليا (Executive Reports)
@@ -3770,7 +4306,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     className="min-h-[210px] max-h-[380px] overflow-y-auto w-full p-4 rounded-xl bg-white border-2 border-[#8D4925] focus:border-[#D8755B] focus:outline-none text-sm text-[#252321] leading-relaxed prose max-w-none"
                   />
 
-                  <div className="flex items-center justify-between text-[11px] text-[#6E6456] px-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6E6456] px-1">
                     <span>
                       يمكنك تنسيق النصوص، وإدراج الصور والاقتباسات والروابط مباشرة داخل المحرر.
                     </span>
@@ -3778,6 +4314,44 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       عدد الكلمات: {editorWordCount} · وقت القراءة:{' '}
                       {Math.max(1, Math.ceil(editorWordCount / 180))} دقيقة
                     </span>
+                  </div>
+
+                  {/* مقياس الرصانة وجودة التوثيق الحي داخل المحرر */}
+                  <div
+                    data-testid="live-editor-rigor-meter"
+                    className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] px-3.5 py-2.5 space-y-1.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="font-extrabold text-[#252321]">
+                        درجة رصانة المادة الحالية:{' '}
+                        <span
+                          className={`font-mono ${
+                            liveEditorRigor.score >= 90
+                              ? 'text-emerald-700'
+                              : liveEditorRigor.score >= 65
+                                ? 'text-[#8D4925]'
+                                : 'text-[#D8755B]'
+                          }`}
+                        >
+                          {liveEditorRigor.score}%
+                        </span>
+                      </span>
+                      <span className="text-[11px] font-bold text-[#8D4925]">
+                        {liveEditorRigor.hint}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-[#EDE6DA] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          liveEditorRigor.score >= 90
+                            ? 'bg-emerald-600'
+                            : liveEditorRigor.score >= 65
+                              ? 'bg-[#C5A059]'
+                              : 'bg-[#D8755B]'
+                        }`}
+                        style={{ width: `${liveEditorRigor.score}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
 

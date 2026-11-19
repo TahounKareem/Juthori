@@ -1096,7 +1096,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   const treeDisplaySettingsStorageKey = useMemo(
     () =>
-      `juthori_tree_display_settings_v1_${userId || 'guest'}_${
+      `juthori_tree_display_settings_v2_${userId || 'guest'}_${
         result.familyName || 'default'
       }`,
     [userId, result.familyName]
@@ -1111,7 +1111,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         femalePrivacyMode: 'full_name',
         showHonorific: true,
         showKunya: true,
-        showDates: true,
+        showDates: false,
         showKinshipArrows: true,
         layoutOrientation: 'vertical',
         nodeShape: 'card',
@@ -1123,8 +1123,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         const parsed = JSON.parse(raw) as Partial<TreeDisplaySettings> & {
           showCardMeta?: boolean;
         };
-        const legacyMeta =
-          typeof parsed.showCardMeta === 'boolean' ? parsed.showCardMeta : true;
         return {
           cardTheme:
             parsed.cardTheme && parsed.cardTheme in TREE_CARD_THEMES
@@ -1148,13 +1146,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               ? parsed.showHonorific
               : true,
           showKunya:
-            typeof parsed.showKunya === 'boolean'
-              ? parsed.showKunya
-              : legacyMeta,
+            typeof parsed.showKunya === 'boolean' ? parsed.showKunya : true,
           showDates:
-            typeof parsed.showDates === 'boolean'
-              ? parsed.showDates
-              : legacyMeta,
+            typeof parsed.showDates === 'boolean' ? parsed.showDates : false,
           showKinshipArrows:
             typeof parsed.showKinshipArrows === 'boolean'
               ? parsed.showKinshipArrows
@@ -4561,15 +4555,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             </div>
           </div>
 
-          {/* Simplified, Calm & Uncluttered Expandable Settings Drawer (Warm Light Brand Selection — Zero Black Pills) */}
+          {/* Simplified, Calm & Uncluttered Expandable Settings Drawer (Ordered Rows & Text-Only Theme/Avatar Options) */}
           {isTreeSettingsOpen && (
             <div
               data-testid="tree-settings-drawer"
               className="border-t border-[#B98A78]/20 bg-[#FFFDF9] px-4 py-3 divide-y divide-[#B98A78]/15"
             >
-              {/* Row 1: مدى العرض */}
+              {/* 1. مدى العرض */}
               <div className="pb-2.5 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-display font-extrabold text-[#8D4925] min-w-[78px] shrink-0">
+                <span className="text-[11px] font-display font-extrabold text-[#8D4925] min-w-[84px] shrink-0">
                   مدى العرض:
                 </span>
                 <div
@@ -4603,75 +4597,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 </div>
               </div>
 
-              {/* Row 2: الخصوصية العائلية (للإناث) + إظهار (اللقب / الكنية / التواريخ / (بن/من)) */}
-              <div className="py-2.5 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-display font-extrabold text-[#252321] min-w-[78px]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#D8755B]" />
-                    <span>للإناث:</span>
-                  </span>
-                  <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          femalePrivacyMode: 'full_name',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
-                        treeDisplaySettings.femalePrivacyMode === 'full_name'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      الاسم الكامل
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          femalePrivacyMode: 'kunya_only',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
-                        treeDisplaySettings.femalePrivacyMode === 'kunya_only'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      الكنية فقط
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="female-privacy-hide-option-btn"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          femalePrivacyMode: 'hide_females',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
-                        treeDisplaySettings.femalePrivacyMode === 'hide_females'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      إخفاء
-                    </button>
-                  </div>
-                  {treeDisplaySettings.femalePrivacyMode === 'hide_females' && (
-                    <span className="text-[10px] font-semibold text-[#8D4925]">
-                      (مخفية عند الطباعة والتصدير والدعوة)
-                    </span>
-                  )}
-                </div>
-
+              {/* 2. إظهار */}
+              <div className="py-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
+                  إظهار:
+                </span>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-display font-extrabold text-[#252321]/80 ml-1">
-                    إظهار:
-                  </span>
                   <button
                     type="button"
                     data-testid="toggle-honorific-btn"
@@ -4743,198 +4674,241 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 </div>
               </div>
 
-              {/* Row 3: خيارات العرض (عمودي / جانبي) + شكل العقد (بطاقة / دائرة / ورقة شجر) */}
-              <div className="py-2.5 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[78px]">
-                    اتجاه العرض:
-                  </span>
-                  <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                    <button
-                      type="button"
-                      data-testid="layout-orientation-vertical-btn"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          layoutOrientation: 'vertical',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
-                        treeDisplaySettings.layoutOrientation === 'vertical'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      <MoveVertical className="w-3 h-3" />
-                      <span>عمودي</span>
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="layout-orientation-sideways-btn"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          layoutOrientation: 'sideways',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
-                        treeDisplaySettings.layoutOrientation === 'sideways'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      <MoveHorizontal className="w-3 h-3" />
-                      <span>جانبي</span>
-                    </button>
-                  </div>
+              {/* 3. إظهار الإناث */}
+              <div className="py-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
+                  إظهار الإناث:
+                </span>
+                <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        femalePrivacyMode: 'full_name',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
+                      treeDisplaySettings.femalePrivacyMode === 'full_name'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    الاسم الكامل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        femalePrivacyMode: 'kunya_only',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
+                      treeDisplaySettings.femalePrivacyMode === 'kunya_only'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    الكنية فقط
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="female-privacy-hide-option-btn"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        femalePrivacyMode: 'hide_females',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
+                      treeDisplaySettings.femalePrivacyMode === 'hide_females'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    إخفاء
+                  </button>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-display font-extrabold text-[#252321]">
-                    شكل العقد:
+                {treeDisplaySettings.femalePrivacyMode === 'hide_females' && (
+                  <span className="text-[10px] font-semibold text-[#8D4925]">
+                    (مخفية عند الطباعة والتصدير والدعوة)
                   </span>
-                  <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                    <button
-                      type="button"
-                      data-testid="node-shape-card-btn"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          nodeShape: 'card',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
-                        treeDisplaySettings.nodeShape === 'card'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      <LayoutGrid className="w-3 h-3" />
-                      <span>بطاقة</span>
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="node-shape-circle-btn"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          nodeShape: 'circle',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
-                        treeDisplaySettings.nodeShape === 'circle'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      <Circle className="w-3 h-3" />
-                      <span>دائرة</span>
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="node-shape-leaf-btn"
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => ({
-                          ...prev,
-                          nodeShape: 'leaf',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
-                        treeDisplaySettings.nodeShape === 'leaf'
-                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                          : 'border-transparent text-[#252321]/75 hover:bg-white'
-                      }`}
-                    >
-                      <Leaf className="w-3 h-3" />
-                      <span>ورقة شجر</span>
-                    </button>
-                  </div>
+                )}
+              </div>
+
+              {/* 4. اتجاه العرض */}
+              <div className="py-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
+                  اتجاه العرض:
+                </span>
+                <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
+                  <button
+                    type="button"
+                    data-testid="layout-orientation-vertical-btn"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        layoutOrientation: 'vertical',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
+                      treeDisplaySettings.layoutOrientation === 'vertical'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    <MoveVertical className="w-3 h-3" />
+                    <span>عمودي</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="layout-orientation-sideways-btn"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        layoutOrientation: 'sideways',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
+                      treeDisplaySettings.layoutOrientation === 'sideways'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    <MoveHorizontal className="w-3 h-3" />
+                    <span>جانبي</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Row 4: الألوان (5 ثيمات مدمجة) + الصور الرمزية (5 أنماط مدمجة) */}
-              <div className="pt-2.5 space-y-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-display font-extrabold text-[#252321] min-w-[78px]">
-                    <Palette className="w-3.5 h-3.5 text-[#D8755B]" />
-                    <span>الألوان:</span>
-                  </span>
-                  {(
-                    Object.entries(TREE_CARD_THEMES) as Array<
-                      [TreeCardThemeId, (typeof TREE_CARD_THEMES)[TreeCardThemeId]]
-                    >
-                  ).map(([themeId, theme]) => {
-                    const active = treeDisplaySettings.cardTheme === themeId;
-                    return (
-                      <button
-                        key={themeId}
-                        type="button"
-                        data-testid={`tree-theme-${themeId}`}
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            cardTheme: themeId,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg border text-[11px] font-display font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-                          active
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80 shadow-2xs'
-                            : 'bg-white text-[#252321]/80 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                        }`}
-                      >
-                        <span className="inline-flex items-center -space-x-1 rtl:space-x-reverse">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full border border-white/80"
-                            style={{ backgroundColor: theme.swatches[1] }}
-                          />
-                          <span
-                            className="w-2.5 h-2.5 rounded-full border border-white/80"
-                            style={{ backgroundColor: theme.swatches[2] }}
-                          />
-                        </span>
-                        <span>{theme.label}</span>
-                      </button>
-                    );
-                  })}
+              {/* 5. شكل العقد */}
+              <div className="py-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
+                  شكل العقد:
+                </span>
+                <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
+                  <button
+                    type="button"
+                    data-testid="node-shape-card-btn"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        nodeShape: 'card',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
+                      treeDisplaySettings.nodeShape === 'card'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3 h-3" />
+                    <span>بطاقة</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="node-shape-circle-btn"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        nodeShape: 'circle',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
+                      treeDisplaySettings.nodeShape === 'circle'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    <Circle className="w-3 h-3" />
+                    <span>دائرة</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="node-shape-leaf-btn"
+                    onClick={() =>
+                      setTreeDisplaySettings((prev) => ({
+                        ...prev,
+                        nodeShape: 'leaf',
+                      }))
+                    }
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
+                      treeDisplaySettings.nodeShape === 'leaf'
+                        ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
+                        : 'border-transparent text-[#252321]/75 hover:bg-white'
+                    }`}
+                  >
+                    <Leaf className="w-3 h-3" />
+                    <span>ورقة شجر</span>
+                  </button>
                 </div>
+              </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-display font-extrabold text-[#252321] min-w-[78px]">
-                    <Users className="w-3.5 h-3.5 text-[#D8755B]" />
-                    <span>الرموز:</span>
-                  </span>
-                  {TREE_AVATAR_STYLE_OPTIONS.map((styleOpt) => {
-                    const active =
-                      treeDisplaySettings.avatarStyle === styleOpt.id;
-                    return (
-                      <button
-                        key={styleOpt.id}
-                        type="button"
-                        data-testid={`tree-avatar-style-${styleOpt.id}`}
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            avatarStyle: styleOpt.id,
-                          }))
-                        }
-                        title={styleOpt.subtitle}
-                        className={`pl-2.5 pr-1.5 py-0.5 rounded-lg border text-[11px] font-display font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-                          active
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80 shadow-2xs'
-                            : 'bg-white text-[#252321]/80 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                        }`}
-                      >
-                        <HeritageNodeAvatar
-                          personRole="father"
-                          gender="male"
-                          avatarStyle={styleOpt.id}
-                          size="xs"
-                        />
-                        <span>{styleOpt.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* 6. الألوان (خيارات نصية فقط بدون دوائر ألوان) */}
+              <div className="py-2.5 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
+                  الألوان:
+                </span>
+                {(
+                  Object.entries(TREE_CARD_THEMES) as Array<
+                    [TreeCardThemeId, (typeof TREE_CARD_THEMES)[TreeCardThemeId]]
+                  >
+                ).map(([themeId, theme]) => {
+                  const active = treeDisplaySettings.cardTheme === themeId;
+                  return (
+                    <button
+                      key={themeId}
+                      type="button"
+                      data-testid={`tree-theme-${themeId}`}
+                      onClick={() =>
+                        setTreeDisplaySettings((prev) => ({
+                          ...prev,
+                          cardTheme: themeId,
+                        }))
+                      }
+                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-display font-bold transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80 shadow-2xs'
+                          : 'bg-white text-[#252321]/80 border-[#B98A78]/30 hover:border-[#D8755B]/60'
+                      }`}
+                    >
+                      {theme.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 7. الرموز (خيارات نصية فقط بدون عرض صورة الرمز) */}
+              <div className="pt-2.5 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
+                  الرموز:
+                </span>
+                {TREE_AVATAR_STYLE_OPTIONS.map((styleOpt) => {
+                  const active =
+                    treeDisplaySettings.avatarStyle === styleOpt.id;
+                  return (
+                    <button
+                      key={styleOpt.id}
+                      type="button"
+                      data-testid={`tree-avatar-style-${styleOpt.id}`}
+                      onClick={() =>
+                        setTreeDisplaySettings((prev) => ({
+                          ...prev,
+                          avatarStyle: styleOpt.id,
+                        }))
+                      }
+                      title={styleOpt.subtitle}
+                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-display font-bold transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80 shadow-2xs'
+                          : 'bg-white text-[#252321]/80 border-[#B98A78]/30 hover:border-[#D8755B]/60'
+                      }`}
+                    >
+                      {styleOpt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

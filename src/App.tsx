@@ -1153,12 +1153,19 @@ export function App() {
 
               setLineageResult(baseLineage);
 
-              if (profile.subscriptionTier === 'premium_annual') {
-                setDashboardStateMode(DashboardStateMode.AnnualVip);
-              } else if (
+              const profileIsAnnual =
+                profile.subscriptionTier === 'premium_annual' ||
+                (typeof profile.paidRevenueUsd === 'number' &&
+                  profile.paidRevenueUsd >= 55);
+              const profileIsRootPaid =
                 profile.subscriptionTier === 'basic_verified' ||
-                profile.isRootUnlocked
-              ) {
+                profile.isRootUnlocked === true ||
+                (typeof profile.paidRevenueUsd === 'number' &&
+                  profile.paidRevenueUsd >= 5);
+
+              if (profileIsAnnual) {
+                setDashboardStateMode(DashboardStateMode.AnnualVip);
+              } else if (profileIsRootPaid) {
                 setDashboardStateMode(DashboardStateMode.State1Paid5Basic);
               } else {
                 setDashboardStateMode(
@@ -1446,6 +1453,25 @@ export function App() {
     const existingCustomerProfile =
       existingByUid ||
       (cleanRegEmail ? await fetchUserProfileByEmail(cleanRegEmail) : null);
+
+    // Never downgrade an already-paid returning account back to unpaid!
+    if (
+      existingCustomerProfile?.subscriptionTier === 'premium_annual' ||
+      (typeof existingCustomerProfile?.paidRevenueUsd === 'number' &&
+        existingCustomerProfile.paidRevenueUsd >= 55)
+    ) {
+      effectiveMode = DashboardStateMode.AnnualVip;
+      setDashboardStateMode(DashboardStateMode.AnnualVip);
+    } else if (
+      existingCustomerProfile?.subscriptionTier === 'basic_verified' ||
+      existingCustomerProfile?.isRootUnlocked === true ||
+      (typeof existingCustomerProfile?.paidRevenueUsd === 'number' &&
+        existingCustomerProfile.paidRevenueUsd >= 5)
+    ) {
+      effectiveMode = DashboardStateMode.State1Paid5Basic;
+      setDashboardStateMode(DashboardStateMode.State1Paid5Basic);
+    }
+
     const shouldMigrateSearchToProfile =
       !existingCustomerProfile ||
       !existingCustomerProfile.familyName ||
@@ -1604,13 +1630,16 @@ export function App() {
           : effectiveMode === DashboardStateMode.State1Paid5Basic
           ? 'paid_5_root'
           : 'free',
-      walletBalanceUsd: effectiveMode === DashboardStateMode.AnnualVip ? 25 : 0,
+      walletBalanceUsd:
+        existingCustomerProfile?.walletBalance ??
+        (effectiveMode === DashboardStateMode.AnnualVip ? 25 : 0),
       paidRevenueUsd:
-        effectiveMode === DashboardStateMode.AnnualVip
+        existingCustomerProfile?.paidRevenueUsd ??
+        (effectiveMode === DashboardStateMode.AnnualVip
           ? 60
           : effectiveMode === DashboardStateMode.State1Paid5Basic
           ? 5
-          : 0,
+          : 0),
       matchStatus: !effectiveMatched
         ? 'open_research_ticket'
         : resolvedActiveResult.isAlphaOnlyBeforeMerge
@@ -1827,6 +1856,22 @@ export function App() {
         }
       }
 
+      const googleExistingAnnual =
+        existingProfile?.subscriptionTier === 'premium_annual' ||
+        (typeof existingProfile?.paidRevenueUsd === 'number' &&
+          existingProfile.paidRevenueUsd >= 55);
+      const googleExistingRootPaid =
+        existingProfile?.subscriptionTier === 'basic_verified' ||
+        existingProfile?.isRootUnlocked === true ||
+        (typeof existingProfile?.paidRevenueUsd === 'number' &&
+          existingProfile.paidRevenueUsd >= 5);
+
+      if (googleExistingAnnual) {
+        setDashboardStateMode(DashboardStateMode.AnnualVip);
+      } else if (googleExistingRootPaid) {
+        setDashboardStateMode(DashboardStateMode.State1Paid5Basic);
+      }
+
       await upsertCustomerOrderInFirebase({
         id: `ORD-${user.uid.slice(-6).toUpperCase()}`,
         userId: user.uid,
@@ -1839,10 +1884,19 @@ export function App() {
         originRegion: form.originRegion || '',
         email: user.email || 'user@juthori.com',
         phone: userPhone || '—',
-        legalRole: 'individual',
-        accountStatus: 'free',
-        walletBalanceUsd: 0,
-        paidRevenueUsd: 0,
+        legalRole:
+          existingProfile?.accountType === 'record_keeper'
+            ? 'record_keeper'
+            : 'individual',
+        accountStatus: googleExistingAnnual
+          ? 'annual_vip'
+          : googleExistingRootPaid
+          ? 'paid_5_root'
+          : 'free',
+        walletBalanceUsd: existingProfile?.walletBalance ?? 0,
+        paidRevenueUsd:
+          existingProfile?.paidRevenueUsd ??
+          (googleExistingAnnual ? 60 : googleExistingRootPaid ? 5 : 0),
         matchStatus: !lineageResult.matched
           ? 'open_research_ticket'
           : lineageResult.isAlphaOnlyBeforeMerge
@@ -1998,14 +2052,26 @@ export function App() {
       setForm(handoffForm);
       setLineageResult(handoffResult);
 
-      const handoffMode =
-        payload.subscriptionTier === 'premium_annual'
-          ? DashboardStateMode.AnnualVip
-          : payload.subscriptionTier === 'basic_verified' || payload.isRootUnlocked
-          ? DashboardStateMode.State1Paid5Basic
-          : handoffResult.matched
-          ? DashboardStateMode.State2MatchedUnpaid
-          : handoffResult.recommendedInitialState;
+      const handoffIsAnnual =
+        payload.subscriptionTier === 'premium_annual' ||
+        existingProfile?.subscriptionTier === 'premium_annual' ||
+        (typeof existingProfile?.paidRevenueUsd === 'number' &&
+          existingProfile.paidRevenueUsd >= 55);
+      const handoffIsRootPaid =
+        payload.subscriptionTier === 'basic_verified' ||
+        payload.isRootUnlocked === true ||
+        existingProfile?.subscriptionTier === 'basic_verified' ||
+        existingProfile?.isRootUnlocked === true ||
+        (typeof existingProfile?.paidRevenueUsd === 'number' &&
+          existingProfile.paidRevenueUsd >= 5);
+
+      const handoffMode = handoffIsAnnual
+        ? DashboardStateMode.AnnualVip
+        : handoffIsRootPaid
+        ? DashboardStateMode.State1Paid5Basic
+        : handoffResult.matched
+        ? DashboardStateMode.State2MatchedUnpaid
+        : handoffResult.recommendedInitialState;
 
       setDashboardStateMode(handoffMode);
       syncRoutingForPendingTicketOrLineage();
@@ -2065,14 +2131,26 @@ export function App() {
       });
     setLineageResult(immediateResult);
 
-    const targetMode =
-      payload.subscriptionTier === 'premium_annual'
-        ? DashboardStateMode.AnnualVip
-        : payload.subscriptionTier === 'basic_verified' || payload.isRootUnlocked
-        ? DashboardStateMode.State1Paid5Basic
-        : immediateResult.matched
-        ? DashboardStateMode.State2MatchedUnpaid
-        : immediateResult.recommendedInitialState;
+    const loginIsAnnual =
+      payload.subscriptionTier === 'premium_annual' ||
+      existingProfile?.subscriptionTier === 'premium_annual' ||
+      (typeof existingProfile?.paidRevenueUsd === 'number' &&
+        existingProfile.paidRevenueUsd >= 55);
+    const loginIsRootPaid =
+      payload.subscriptionTier === 'basic_verified' ||
+      payload.isRootUnlocked === true ||
+      existingProfile?.subscriptionTier === 'basic_verified' ||
+      existingProfile?.isRootUnlocked === true ||
+      (typeof existingProfile?.paidRevenueUsd === 'number' &&
+        existingProfile.paidRevenueUsd >= 5);
+
+    const targetMode = loginIsAnnual
+      ? DashboardStateMode.AnnualVip
+      : loginIsRootPaid
+      ? DashboardStateMode.State1Paid5Basic
+      : immediateResult.matched
+      ? DashboardStateMode.State2MatchedUnpaid
+      : immediateResult.recommendedInitialState;
 
     setDashboardStateMode(targetMode);
     setInitialDashboardTab(DashboardTab.Home);

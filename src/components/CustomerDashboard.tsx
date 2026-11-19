@@ -607,15 +607,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           if (Array.isArray(profile.blockedUsersMeta)) {
             setBlockedUsersMeta(profile.blockedUsersMeta);
           }
-          if (
-            profile.subscriptionTier === 'premium_annual' &&
-            stateMode !== DashboardStateMode.AnnualVip
-          ) {
+          const isPaidAnnual =
+            profile.subscriptionTier === 'premium_annual' ||
+            (typeof profile.paidRevenueUsd === 'number' &&
+              profile.paidRevenueUsd >= 55);
+          const isPaidBasicRoot =
+            profile.subscriptionTier === 'basic_verified' ||
+            profile.isRootUnlocked === true ||
+            (typeof profile.paidRevenueUsd === 'number' &&
+              profile.paidRevenueUsd >= 5);
+
+          if (isPaidAnnual && stateMode !== DashboardStateMode.AnnualVip) {
             onChangeStateMode(DashboardStateMode.AnnualVip);
           } else if (
-            (profile.subscriptionTier === 'basic_verified' ||
-              profile.isRootUnlocked) &&
-            stateMode === DashboardStateMode.State2MatchedUnpaid
+            isPaidBasicRoot &&
+            stateMode !== DashboardStateMode.AnnualVip &&
+            stateMode !== DashboardStateMode.State1Paid5Basic
           ) {
             onChangeStateMode(DashboardStateMode.State1Paid5Basic);
           }
@@ -1465,8 +1472,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     paymentMethod: 'wallet' | 'mada' | 'card' | 'apple_pay'
   ): Promise<CheckoutExecutionResult> => {
     const activeUid =
-      userId ||
       auth.currentUser?.uid ||
+      userId ||
       resolvedCustomerUid ||
       `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
     const fullName = [
