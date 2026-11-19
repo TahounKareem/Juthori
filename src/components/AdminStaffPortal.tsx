@@ -623,11 +623,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       setLastLoginTimestamp(nowStr);
       setPreviewRoleOverride(null);
       setPreviewKnowledgeCenter(false);
-      setActiveTab(
-        authenticatedMember.role === 'مدير تحرير المركز المعرفي'
-          ? 'knowledge_cms'
-          : 'command_hub'
-      );
+      setActiveTab('command_hub');
       setLoginPassword('');
       setLoggedInMember(authenticatedMember);
       if (typeof window !== 'undefined') {
@@ -829,7 +825,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         summary: autoSummary,
         content: currentHtmlContent || autoSummary,
         author: articleAuthor || loggedInMember?.name || 'هيئة تحرير المركز المعرفي',
-        editor: articleEditor,
+        editor: articleEditor.trim() || loggedInMember?.name || '',
         authorName:
           articleAuthor || loggedInMember?.name || 'هيئة تحرير المركز المعرفي',
         publishDate: articlePublishDate,
@@ -1204,48 +1200,151 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       ];
     }
 
-    // Default: مدير تحرير المركز المعرفي
-    const targetArticles = Math.max(10, knowledgeArticles.length + 2);
+    // Default: مدير تحرير المركز المعرفي — إحصائيات حقيقية مباشرة 100% من سجل المركز المعرفي
+    const totalArticles = knowledgeArticles.length;
+    const totalSectionsCount = Math.max(
+      1,
+      Object.keys(KNOWLEDGE_BASE_SECTIONS).length
+    );
+    const coveredSectionsCount = new Set(
+      knowledgeArticles
+        .filter((a) => a.status !== 'draft' && (a.section || '').trim())
+        .map((a) => a.section.trim())
+    ).size;
+    const coveragePct = Math.round(
+      (coveredSectionsCount / totalSectionsCount) * 100
+    );
+
+    const milestoneTarget = Math.max(
+      10,
+      Math.ceil((publishedArticlesCount + 1) / 5) * 5
+    );
     const pubPct = Math.min(
       100,
-      Math.round((publishedArticlesCount / targetArticles) * 100)
+      Math.round((publishedArticlesCount / milestoneTarget) * 100)
     );
+
+    let qualityPointsSum = 0;
+    let fullyCompleteArticles = 0;
+    knowledgeArticles.forEach((art) => {
+      let score = 0;
+      if ((art.coverImageUrl || '').trim()) score += 25;
+      if ((art.summary || art.description || '').trim().length >= 20) score += 25;
+      const plainBodyLen = (art.content || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim().length;
+      if (
+        art.type === 'فيديو'
+          ? Boolean((art.videoUrl || '').trim())
+          : plainBodyLen >= 100
+      ) {
+        score += 25;
+      }
+      if ((art.author || art.authorName || art.editor || '').trim()) score += 25;
+      qualityPointsSum += score;
+      if (score === 100) fullyCompleteArticles += 1;
+    });
+    const qualityScorePct =
+      totalArticles > 0 ? Math.round(qualityPointsSum / totalArticles) : 0;
+
+    const normalizedMemberName = (loggedInMember?.name || '').trim().toLowerCase();
+    const myEditorialCount = normalizedMemberName
+      ? knowledgeArticles.filter((art) => {
+          const fields = [art.editor, art.author, art.authorName]
+            .filter(Boolean)
+            .map((v) => String(v).trim().toLowerCase());
+          return fields.some(
+            (f) => f === normalizedMemberName || f.includes(normalizedMemberName)
+          );
+        }).length
+      : 0;
+
+    const nowMs = Date.now();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    let recent30DaysCount = 0;
+    let latestUpdateMs = 0;
+    knowledgeArticles.forEach((art) => {
+      const tsStr = art.updatedAt || art.createdAt || art.publishDate || '';
+      const parsedMs = tsStr ? Date.parse(tsStr) : NaN;
+      if (!Number.isNaN(parsedMs)) {
+        if (nowMs - parsedMs <= thirtyDaysMs) recent30DaysCount += 1;
+        if (parsedMs > latestUpdateMs) latestUpdateMs = parsedMs;
+      }
+    });
+    const latestUpdateText =
+      latestUpdateMs > 0
+        ? new Date(latestUpdateMs).toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : 'اليوم';
+    const personalSharePct =
+      myEditorialCount > 0
+        ? Math.min(
+            100,
+            Math.max(
+              25,
+              Math.round((myEditorialCount / Math.max(1, totalArticles)) * 100)
+            )
+          )
+        : Math.min(
+            100,
+            Math.max(
+              recent30DaysCount > 0 ? 30 : 12,
+              Math.round((recent30DaysCount / Math.max(1, totalArticles)) * 100)
+            )
+          );
+
     return [
       {
-        title: 'المقالات والمواد المعرفية المنشورة مقابل المستهدف',
-        value: `${publishedArticlesCount} / ${targetArticles} مادة منشورة`,
-        subLabel: `نسبة إنجاز الخطة التحريرية: ${pubPct}%`,
+        title: 'المواد المنشورة وجاهزية المسودات',
+        value: `${publishedArticlesCount} / ${milestoneTarget} منشورة`,
+        subLabel:
+          draftArticlesCount > 0
+            ? `مسودات قيد التجهيز: ${draftArticlesCount} · إنجاز المرحلة ${pubPct}%`
+            : `صفر مسودات معلّقة · إنجاز المرحلة ${pubPct}%`,
         progressPercent: pubPct,
         badgeText: 'سجل النشر ✍️',
         badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
       {
-        title: 'المسودات قيد المراجعة والتدقيق التاريخي',
-        value: `${draftArticlesCount} مسودات قيد التدقيق`,
-        subLabel: 'تخضع للمراجعة المرجعية ومعايرة الصور القياسية 16:9',
-        progressPercent: draftArticlesCount === 0 ? 100 : 80,
-        badgeText: 'تدقيق تاريخي 📜',
+        title: 'التغطية المعرفية لأقسام المركز',
+        value: `${coveredSectionsCount} / ${totalSectionsCount} أقسام`,
+        subLabel:
+          coveragePct === 100
+            ? 'تغطية شاملة لجميع أقسام المركز المعرفي'
+            : `تغطية ${coveragePct}% · ${totalSectionsCount - coveredSectionsCount} أقسام تنتظر الإثراء`,
+        progressPercent: coveragePct,
+        badgeText: coveragePct >= 80 ? 'شمول معرفي 🌟' : 'خريطة الأقسام 📚',
         badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
       {
-        title: 'متوسط زمن تحرير واعتماد المادة المعرفية',
-        value: '18:30 دقيقة / مادة',
-        subLabel: 'المعيار القياسي للتحرير والتدقيق: 25:00 دقيقة',
-        progressPercent: 91,
-        badgeText: 'إنجاز قياسي ⚡',
+        title: 'مؤشر اكتمال وجودة التوثيق',
+        value: `${qualityScorePct}% اكتمال`,
+        subLabel: `${fullyCompleteArticles} من ${totalArticles} مادة مكتملة (غلاف · ملخص · متن · توثيق)`,
+        progressPercent: qualityScorePct,
+        badgeText: qualityScorePct >= 85 ? 'اعتماد متميز 🏆' : 'رقابة الجودة 📜',
         badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
       {
-        title: 'مؤشر جودة التدقيق اللغوي والمرجعي',
-        value: '99.4% دقة مرجعية',
-        subLabel: 'توثيق الشواهد والمخطوطات وفق معايير مركز آدم',
-        progressPercent: 99,
-        badgeText: 'اعتماد علمي 🏆',
+        title: 'بصمتك ونشاطك التحريري',
+        value:
+          myEditorialCount > 0
+            ? `${myEditorialCount} مادة ببصمتك`
+            : `${recent30DaysCount} تحديثاً حديثاً`,
+        subLabel:
+          myEditorialCount > 0
+            ? `نشاط آخر 30 يوماً: ${recent30DaysCount} · آخر تحديث ${latestUpdateText}`
+            : `أضف أو حرّر مادة لتوثيق بصمتك · آخر تحديث ${latestUpdateText}`,
+        progressPercent: personalSharePct,
+        badgeText: myEditorialCount > 0 ? 'جهدك مُقدّر ⭐' : 'رادار التقدير ✨',
         badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
       },
     ];
   }, [
     effectiveHubRole,
+    loggedInMember?.name,
     orders.length,
     researchTicketsCount,
     metrics.openSupportCount,
@@ -1256,7 +1355,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     staffList.length,
     closedSupportCount,
     supportTickets.length,
-    knowledgeArticles.length,
+    knowledgeArticles,
     publishedArticlesCount,
     draftArticlesCount,
   ]);
@@ -1448,80 +1547,37 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             PANEL 0: بوابة القيادة الذكية المخصصة حسب الصلاحية (Role-Based Command Hub & Launchpad)
            ===================================================================== */}
         {activeTab === 'command_hub' && (
-          <div data-testid="role-based-command-hub" className="space-y-10">
+          <div data-testid="role-based-command-hub" className="space-y-6">
             {/* -----------------------------------------------------------------
-                أ) لافتة الترحيب، البصمة الزمنية، وحكمة العمل اليومية المتجددة (365 مقولة)
+                أ) الشريط الترحيبي المدمج: الاسم + آخر تسجيل دخول + حكمة العمل اليومية
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-welcome-banner"
-              className="rounded-3xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 border-2 border-[#E2DACB] p-6 sm:p-8 text-[#252321] shadow-sm space-y-5 relative overflow-hidden"
+              className="rounded-2xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 border border-[#E2DACB] px-3.5 py-2.5 sm:px-4 sm:py-2.5 text-[#252321] shadow-2xs relative overflow-hidden"
             >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="px-3.5 py-1 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-xs font-extrabold">
-                      👑{roleDisplayBadgeLabel}
-                    </span>
-                    {isMaestroOrGeneralManager && previewRoleOverride && (
-                      <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold">
-                        وضع معاينة الصلاحية مفعّل
-                      </span>
-                    )}
-                  </div>
-
-                  <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-[#252321]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-[10.5px] font-extrabold whitespace-nowrap">
+                    👑 {roleDisplayBadgeLabel}
+                  </span>
+                  <h1 className="text-base sm:text-lg font-extrabold font-display text-[#252321] whitespace-nowrap">
                     مرحباً بك، {loggedInMember.name}
                   </h1>
+                  <span
+                    title={`آخر تسجيل دخول: ${lastLoginTimestamp}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-[#E2DACB] text-[10px] font-bold text-[#5C5346] whitespace-nowrap"
+                  >
+                    <span>🕒 آخر دخول: {lastLoginTimestamp}</span>
+                  </span>
                 </div>
 
-                {/* REQUIREMENT 3: Fast Role Preview Selector for Maestro / General Manager Only */}
-                {isMaestroOrGeneralManager && (
-                  <div className="bg-white border border-[#B98A78]/50 rounded-2xl px-4 py-2.5 flex flex-wrap items-center gap-2.5 shadow-2xs">
-                    <label
-                      htmlFor="maestro-role-preview-select"
-                      className="text-xs font-extrabold text-[#8D4925] whitespace-nowrap"
-                    >
-                      👁️ معاينة البوابة بصلاحية:
-                    </label>
-                    <select
-                      id="maestro-role-preview-select"
-                      data-testid="maestro-role-preview-select"
-                      value={previewRoleOverride || 'المايسترو'}
-                      onChange={(e) => {
-                        const val = e.target.value as TeamRoleType;
-                        setPreviewRoleOverride(
-                          val === 'المايسترو' ? null : val
-                        );
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] text-[#252321] border border-[#E2DACB] text-xs font-extrabold focus:outline-none focus:border-[#D8755B] cursor-pointer"
-                    >
-                      <option value="المايسترو">المايسترو - كل اللوحات</option>
-                      <option value="مدير البحوث">مدير البحوث</option>
-                      <option value="مدير إدارة الطلبات وخدمة العملاء">
-                        مدير الطلبات وخدمة العملاء
-                      </option>
-                      <option value="مدير تحرير المركز المعرفي">
-                        مدير تحرير المركز المعرفي
-                      </option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Timestamp Fingerprint Bar & Compact Wisdom Quote Box Side-by-Side */}
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E2DACB] text-xs font-bold text-[#5C5346] shadow-2xs">
-                  <span>🕒 آخر تسجيل دخول: {lastLoginTimestamp}</span>
-                </div>
-
-                <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#C5A059]/60 shadow-2xs max-w-full">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#C5A059]/60 shadow-2xs max-w-full">
                   <p
                     data-testid="role-motivational-audit-quote"
-                    className="text-xs font-extrabold text-[#8D4925] leading-relaxed"
+                    className="text-[11px] font-extrabold text-[#8D4925] leading-snug"
                   >
                     &ldquo;{activeWisdomQuote.quote}&rdquo;
                   </p>
-
                   <button
                     type="button"
                     onClick={() => {
@@ -1530,9 +1586,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     }}
                     title="تحديث الحكمة"
                     aria-label="تحديث الحكمة"
-                    className="shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] transition cursor-pointer shadow-2xs"
+                    className="shrink-0 inline-flex items-center justify-center p-1 rounded-md bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] transition cursor-pointer"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <RefreshCw className="w-3 h-3 text-[#D8755B]" />
                   </button>
                 </div>
               </div>
@@ -1563,6 +1619,80 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               </div>
 
               {/* Tree Trunk & Alternating Organic Branches Container */}
+              {visibleWorkspaceWindows.length === 1 ? (
+                <div className="relative max-w-xl mx-auto px-2 sm:px-4 flex flex-col items-center">
+                  {visibleWorkspaceWindows.map((win) => (
+                    <div key={win.id} className="w-full relative z-10">
+                      <div
+                        data-testid={`launchpad-window-card-${win.id}`}
+                        onClick={() => setActiveTab(win.id)}
+                        className="group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 hover:border-[#D8755B] p-5 sm:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 overflow-hidden rounded-tr-[2.5rem] rounded-bl-[2.5rem] rounded-tl-2xl rounded-br-2xl"
+                      >
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -top-6 -left-6 w-24 h-24 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20"
+                        />
+
+                        <div className="space-y-3 relative z-10">
+                          <div className="flex items-start justify-between gap-3">
+                            {win.customLogoUrl ? (
+                              <div className="w-14 h-14 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                                <img
+                                  src={win.customLogoUrl}
+                                  alt={win.title}
+                                  className="w-full h-full object-cover rounded-xl"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/70 flex items-center justify-center text-2xl shrink-0 shadow-xs">
+                                {win.emoji}
+                              </div>
+                            )}
+
+                            <span className="px-3 py-1 rounded-full bg-white/90 border border-[#C5A059]/60 text-[#8D4925] text-[11px] font-extrabold shadow-2xs">
+                              🌿 {win.accentBadge}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
+                              {win.title}
+                            </h3>
+                            <p className="text-xs text-[#5C5346] leading-relaxed mt-1">
+                              {win.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 pt-3 border-t border-[#E2DACB]/80 relative z-10">
+                          <div className="flex items-center justify-between gap-2 bg-white/90 px-3.5 py-2 rounded-xl border border-[#E2DACB]">
+                            <span className="text-[11px] font-bold text-[#5C5346]">
+                              {win.liveCounterLabel}:
+                            </span>
+                            <span className="text-xs font-extrabold text-[#8D4925] font-mono">
+                              {win.liveCounterValue}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTab(win.id);
+                            }}
+                            className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span>🚀 فتح لوحة التحكم</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Lower Trunk Stem into Root Medallion */}
+                  <div className="w-1.5 h-7 bg-gradient-to-b from-[#8D4925] to-[#C5A059] rounded-full mt-2" />
+                  <div className="w-4 h-4 rounded-full bg-[#8D4925] border-2 border-[#C5A059] shadow-xs mt-1" />
+                </div>
+              ) : (
               <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
                 {/* Central Vertical Tree Trunk (Desktop Center / Mobile Right-Aligned) */}
                 <div
@@ -1715,6 +1845,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="w-4 h-4 rounded-full bg-[#8D4925] border-2 border-[#C5A059] shadow-xs" />
                 </div>
               </div>
+              )}
             </div>
 
             {/* -----------------------------------------------------------------
