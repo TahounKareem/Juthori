@@ -1370,8 +1370,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       return Number.isNaN(ms) ? null : ms;
     };
 
-    // 1) مستهدف النشر الشهري (هدف 240 مادة شهرياً)
-    const monthlyTarget = 240;
+    // 1) مستهدف النشر الشهري (هدف 12 مادة شهرياً افتراضياً للمحرر الفردي)
+    const monthlyTarget = 12;
     const monthlyPublishedCount = publishedArticles.filter((art) => {
       const ms = parsePublishTime(art);
       if (ms === null) return false;
@@ -1589,7 +1589,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     return [
       {
         title: 'مستهدف النشر الشهري',
-        value: `${monthlyPublishedCount} / ${monthlyTarget}`,
+        value: `${monthlyPublishedCount} من ${monthlyTarget}`,
         subLabel:
           draftArticlesCount > 0
             ? `${draftArticlesCount} مسودة جاهزة · إنجاز ${monthlyPct}%`
@@ -1994,77 +1994,114 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
               {/* Tree Trunk & Alternating Organic Branches Container */}
               {visibleWorkspaceWindows.length === 1 ? (
-                <div className="relative max-w-2xl mx-auto px-2 sm:px-4 flex flex-col items-center">
-                  {visibleWorkspaceWindows.map((win) => (
-                    <div key={win.id} className="w-full relative z-10">
-                      <div
-                        data-testid={`launchpad-window-card-${win.id}`}
-                        onClick={() => setActiveTab(win.id)}
-                        className="group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/75 hover:border-[#D8755B] p-4 sm:px-5 sm:py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col gap-3 overflow-hidden rounded-tr-[2rem] rounded-bl-[2rem] rounded-tl-2xl rounded-br-2xl"
-                      >
+                <div className="relative w-full max-w-[800px] mx-auto px-2 sm:px-0 flex flex-col items-center">
+                  {visibleWorkspaceWindows.map((win) => {
+                    const isKnowledgeHero = win.id === 'knowledge_cms';
+                    const livePublishedCount = knowledgeArticles.filter(
+                      (a) => a.status !== 'draft'
+                    ).length;
+
+                    return (
+                      <div key={win.id} className="w-full relative z-10">
                         <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute -top-6 -left-6 w-20 h-20 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20"
-                        />
+                          data-testid={`launchpad-window-card-${win.id}`}
+                          onClick={() => setActiveTab(win.id)}
+                          className="group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F5EFE4] border-2 border-[#C5A059]/85 hover:border-[#D8755B] p-6 sm:px-[34px] sm:py-[28px] shadow-md hover:shadow-lg transition-all cursor-pointer flex flex-col gap-5 overflow-hidden rounded-tr-[2.25rem] rounded-bl-[2.25rem] rounded-tl-2xl rounded-br-2xl"
+                        >
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -top-8 -left-8 w-28 h-28 rounded-full bg-[#C5A059]/12 border border-[#C5A059]/25"
+                          />
 
-                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 relative z-10">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {win.customLogoUrl ? (
-                              <div className="w-11 h-11 rounded-xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
-                                <img
-                                  src={win.customLogoUrl}
-                                  alt={win.title}
-                                  className="w-full h-full object-cover rounded-lg"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/70 flex items-center justify-center text-xl shrink-0 shadow-xs">
-                                {win.emoji}
-                              </div>
-                            )}
+                          <div className="flex flex-wrap sm:flex-nowrap items-start justify-between gap-4 relative z-10">
+                            <div className="flex items-start gap-4 min-w-0">
+                              {win.customLogoUrl ? (
+                                <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1.5 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                                  <img
+                                    src={win.customLogoUrl}
+                                    alt={win.title}
+                                    className="w-full h-full object-cover rounded-xl"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/85 flex items-center justify-center text-3xl sm:text-[34px] shrink-0 shadow-sm">
+                                  {win.emoji}
+                                </div>
+                              )}
 
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-base sm:text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
-                                  {win.title}
-                                </h3>
-                                <span className="px-2.5 py-0.5 rounded-full bg-white/90 border border-[#C5A059]/60 text-[#8D4925] text-[10px] font-extrabold shadow-2xs">
-                                  🌿 {win.accentBadge}
+                              <div className="min-w-0 pt-0.5">
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  <h3 className="text-[22px] sm:text-[24px] font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors leading-snug">
+                                    {win.title}
+                                  </h3>
+                                  <span className="px-3 py-1 rounded-full bg-white/95 border border-[#C5A059]/70 text-[#8D4925] text-[11px] font-extrabold shadow-2xs">
+                                    🌿 {win.accentBadge}
+                                  </span>
+                                </div>
+                                <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed mt-1.5">
+                                  {win.description}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#E2DACB] relative z-10">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="inline-flex items-center gap-2 bg-white/95 px-3.5 py-2 rounded-xl border border-[#E2DACB] shadow-2xs">
+                                <span className="text-xs font-bold text-[#5C5346]">
+                                  {win.liveCounterLabel}:
+                                </span>
+                                <span className="text-sm font-extrabold text-[#8D4925] font-mono">
+                                  {win.liveCounterValue}
                                 </span>
                               </div>
-                              <p className="text-[11.5px] text-[#5C5346] leading-snug mt-0.5 line-clamp-2">
-                                {win.description}
-                              </p>
+
+                              {isKnowledgeHero && (
+                                <div className="inline-flex items-center gap-1.5 bg-emerald-50/90 px-3 py-2 rounded-xl border border-emerald-200 shadow-2xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D5B]" />
+                                  <span className="text-xs font-bold text-emerald-900">
+                                    المنشور:
+                                  </span>
+                                  <span className="text-sm font-extrabold text-[#2E7D5B] font-mono">
+                                    {livePublishedCount}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                              {isKnowledgeHero && (
+                                <button
+                                  type="button"
+                                  data-testid="hero-quick-add-article-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openNewArticleModal();
+                                  }}
+                                  className="flex-1 sm:flex-initial py-2.5 sm:py-3 px-4 sm:px-5 rounded-xl bg-white hover:bg-[#FAF6F0] text-[#8D4925] border-2 border-[#C5A059]/80 hover:border-[#D8755B] text-xs sm:text-sm font-extrabold shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <span>+ إضافة مادة جديدة</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTab(win.id);
+                                }}
+                                className="flex-1 sm:flex-initial sm:min-w-[215px] py-2.5 sm:py-3 px-6 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-sm font-extrabold shadow-sm hover:shadow-md transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                <span>🚀 فتح لوحة التحكم</span>
+                              </button>
                             </div>
                           </div>
                         </div>
-
-                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 pt-2.5 border-t border-[#E2DACB]/80 relative z-10">
-                          <div className="flex items-center gap-2 bg-white/90 px-3 py-1.5 rounded-xl border border-[#E2DACB]">
-                            <span className="text-[11px] font-bold text-[#5C5346]">
-                              {win.liveCounterLabel}:
-                            </span>
-                            <span className="text-xs font-extrabold text-[#8D4925] font-mono">
-                              {win.liveCounterValue}
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTab(win.id);
-                            }}
-                            className="flex-1 sm:flex-initial sm:min-w-[200px] py-2 px-5 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            <span>🚀 فتح لوحة التحكم</span>
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {/* Compact Lower Trunk Stem into Root Medallion */}
-                  <div className="w-1 h-3.5 bg-gradient-to-b from-[#8D4925] to-[#C5A059] rounded-full mt-1" />
+                  <div className="w-1 h-4 bg-gradient-to-b from-[#8D4925] to-[#C5A059] rounded-full mt-1.5" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#8D4925] border border-[#C5A059] shadow-xs mt-0.5" />
                 </div>
               ) : (
@@ -2246,7 +2283,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div
                 className={
                   effectiveHubRole === 'مدير تحرير المركز المعرفي'
-                    ? 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5 place-items-center'
+                    ? 'max-w-[940px] mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-[14px] place-items-center'
                     : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 place-items-center'
                 }
               >
@@ -2257,7 +2294,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   );
                   const isCompactEditorial =
                     effectiveHubRole === 'مدير تحرير المركز المعرفي';
-                  const radius = 54;
+                  const radius = isCompactEditorial ? 52 : 54;
                   const circumference = 2 * Math.PI * radius;
                   const strokeDashoffset =
                     circumference - (clampedPct / 100) * circumference;
@@ -2283,14 +2320,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       }}
                       className={`relative rounded-full bg-gradient-to-b from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 shadow-sm hover:shadow-md hover:border-[#D8755B] transition-all flex flex-col items-center justify-center text-center group ${
                         isCompactEditorial
-                          ? 'w-[162px] h-[162px] sm:w-[166px] sm:h-[166px] p-3.5'
+                          ? 'w-[136px] h-[136px] sm:w-[140px] sm:h-[140px] p-2.5'
                           : 'w-64 h-64 sm:w-68 sm:h-68 p-7'
                       } ${isInteractive ? 'cursor-pointer hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#D8755B]/50' : ''}`}
                     >
                       {/* Circular Progress Ring SVG */}
                       <svg
                         aria-hidden="true"
-                        className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none p-1.5"
+                        className={`absolute inset-0 w-full h-full -rotate-90 pointer-events-none ${
+                          isCompactEditorial ? 'p-1' : 'p-1.5'
+                        }`}
                         viewBox="0 0 120 120"
                       >
                         <circle
@@ -2299,7 +2338,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           r={radius}
                           fill="none"
                           stroke="#E2DACB"
-                          strokeWidth={isCompactEditorial ? '4' : '3.5'}
+                          strokeWidth={isCompactEditorial ? '5.5' : '3.5'}
                         />
                         <circle
                           cx="60"
@@ -2307,7 +2346,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           r={radius}
                           fill="none"
                           stroke={strokeColor}
-                          strokeWidth={isCompactEditorial ? '4' : '3.5'}
+                          strokeWidth={isCompactEditorial ? '5.5' : '3.5'}
                           strokeLinecap="round"
                           strokeDasharray={circumference}
                           strokeDashoffset={strokeDashoffset}
@@ -2317,14 +2356,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <div
                         className={`relative z-10 flex flex-col items-center justify-center ${
                           isCompactEditorial
-                            ? 'space-y-1 max-w-[126px]'
+                            ? 'space-y-0.5 max-w-[106px]'
                             : 'space-y-2 max-w-[195px]'
                         }`}
                       >
                         <span
                           className={`rounded-full font-extrabold border leading-tight ${
                             isCompactEditorial
-                              ? 'px-2 py-0.5 text-[8.5px]'
+                              ? 'px-1.5 py-[1px] text-[7.5px]'
                               : 'px-2.5 py-0.5 text-[10px]'
                           } ${card.badgeColor}`}
                         >
@@ -2333,16 +2372,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                         <h3
                           className={`font-extrabold font-display text-[#252321] leading-tight line-clamp-2 ${
-                            isCompactEditorial ? 'text-[10.5px]' : 'text-xs'
+                            isCompactEditorial ? 'text-[9.5px]' : 'text-xs'
                           }`}
                         >
                           {card.title}
                         </h3>
 
                         <div
+                          dir="rtl"
                           className={`font-extrabold text-[#8D4925] font-mono bg-white/95 rounded-full border border-[#E2DACB] shadow-2xs whitespace-nowrap ${
                             isCompactEditorial
-                              ? 'text-xs px-2.5 py-0.5'
+                              ? 'text-[11px] px-2 py-0.5'
                               : 'text-base sm:text-lg px-3 py-1'
                           }`}
                         >
@@ -2351,7 +2391,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                         <p
                           className={`font-bold text-[#5C5346] leading-tight line-clamp-2 ${
-                            isCompactEditorial ? 'text-[8.5px]' : 'text-[10px]'
+                            isCompactEditorial ? 'text-[7.5px]' : 'text-[10px]'
                           }`}
                         >
                           {card.subLabel}
