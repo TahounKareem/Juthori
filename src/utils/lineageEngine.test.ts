@@ -960,3 +960,166 @@ test('Family Tree Pedigree Layout (شجرتي): Strict Parent->Children Downward
   assert.equal(new Set(collectedIds).size, sampleFamily.length);
 });
 
+test('Family Tree Top-Level Siblings & Cascading Subtree Deletion (Zero Synthetic Father, Zero Orphans)', async () => {
+  const {
+    buildPedigreeTreeLayout,
+    collectCascadeDeleteIds,
+    collectTopSiblingGroupIds,
+  } = await import('./familyTreeLayout');
+
+  // Topmost ancestor `خيري` has NO fatherId yet, plus brothers `محسن` (via siblingOfId) and `راشد` (legacy label)
+  const treeWithoutFakeFather = [
+    {
+      id: 'rk-kareem',
+      firstName: 'كريم',
+      gender: 'male' as const,
+      generationLevel: 1,
+      isRecordKeeper: true,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'أمين السجل',
+      fatherId: 'father-sharif',
+      spouseIds: ['wife-sara'],
+    },
+    {
+      id: 'wife-sara',
+      firstName: 'سارة',
+      gender: 'female' as const,
+      generationLevel: 1,
+      relationToTargetLabel: 'زوجة كريم',
+      spouseIds: ['rk-kareem'],
+    },
+    {
+      id: 'son-omar',
+      firstName: 'عمر',
+      gender: 'male' as const,
+      generationLevel: 0,
+      relationToTargetLabel: 'ابن كريم',
+      fatherId: 'rk-kareem',
+      motherId: 'wife-sara',
+      spouseIds: ['wife-omar'],
+    },
+    {
+      id: 'wife-omar',
+      firstName: 'سلمى',
+      gender: 'female' as const,
+      generationLevel: 0,
+      relationToTargetLabel: 'زوجة عمر',
+      spouseIds: ['son-omar'],
+    },
+    {
+      id: 'grandson-yousef',
+      firstName: 'يوسف',
+      gender: 'male' as const,
+      generationLevel: -1,
+      relationToTargetLabel: 'ابن عمر',
+      fatherId: 'son-omar',
+      motherId: 'wife-omar',
+      spouseIds: [],
+    },
+    {
+      id: 'father-sharif',
+      firstName: 'شريف',
+      gender: 'male' as const,
+      generationLevel: 2,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'الأب',
+      fatherId: 'gf1-khairi',
+      spouseIds: [],
+    },
+    {
+      id: 'uncle-faraj',
+      firstName: 'فرج',
+      gender: 'male' as const,
+      generationLevel: 2,
+      relationToTargetLabel: 'أخ لـ شريف',
+      fatherId: 'gf1-khairi',
+      spouseIds: [],
+    },
+    {
+      id: 'gf1-khairi',
+      firstName: 'خيري',
+      gender: 'male' as const,
+      generationLevel: 3,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'الجد الأول',
+      spouseIds: [],
+    },
+    {
+      id: 'bro-mohsen',
+      firstName: 'محسن',
+      gender: 'male' as const,
+      generationLevel: 3,
+      relationToTargetLabel: 'أخ لـ خيري',
+      siblingOfId: 'gf1-khairi',
+      spouseIds: [],
+    },
+    {
+      id: 'bro-rashid',
+      firstName: 'راشد',
+      gender: 'male' as const,
+      generationLevel: 3,
+      relationToTargetLabel: 'أخ لـ خيري',
+      spouseIds: [],
+    },
+    {
+      id: 'son-rashid',
+      firstName: 'خالد',
+      gender: 'male' as const,
+      generationLevel: 2,
+      relationToTargetLabel: 'ابن راشد',
+      fatherId: 'bro-rashid',
+      spouseIds: [],
+    },
+  ];
+
+  // 1. All 3 brothers [خيري, محسن, راشد] unite directly in topLevelRoots with ZERO detachedRoots
+  const layout = buildPedigreeTreeLayout(treeWithoutFakeFather);
+  assert.equal(layout.detachedRoots.length, 0);
+  assert.deepEqual(
+    layout.topLevelRoots.map((n) => n.person.id),
+    ['gf1-khairi', 'bro-mohsen', 'bro-rashid']
+  );
+  assert.deepEqual(
+    layout.topLevelRoots[2].children.map((c) => c.person.id),
+    ['son-rashid']
+  );
+
+  // 2. Adding a father later unites all 3 top siblings together
+  const sibGroup = collectTopSiblingGroupIds(
+    treeWithoutFakeFather,
+    treeWithoutFakeFather.find((p) => p.id === 'gf1-khairi')!
+  );
+  assert.deepEqual(
+    Array.from(sibGroup).sort(),
+    ['bro-mohsen', 'bro-rashid', 'gf1-khairi']
+  );
+
+  // 3. Cascading delete of `عمر` deletes `عمر` + `سلمى` + `يوسف`, leaving zero orphans
+  const delOmar = collectCascadeDeleteIds(treeWithoutFakeFather, 'son-omar');
+  assert.equal(delOmar.isProtectedSpineAncestor, false);
+  assert.deepEqual(
+    Array.from(delOmar.allDeletedIds).sort(),
+    ['grandson-yousef', 'son-omar', 'wife-omar']
+  );
+
+  // 4. Deleting spouse `سارة` ONLY deletes `سارة` because `عمر` still has living father `كريم`
+  const delSara = collectCascadeDeleteIds(treeWithoutFakeFather, 'wife-sara');
+  assert.deepEqual(Array.from(delSara.allDeletedIds), ['wife-sara']);
+
+  // 5. Deleting collateral top sibling `راشد` cascades to his son `خالد`, leaving `خيري` & `محسن` intact
+  const delRashid = collectCascadeDeleteIds(treeWithoutFakeFather, 'bro-rashid');
+  assert.deepEqual(
+    Array.from(delRashid.allDeletedIds).sort(),
+    ['bro-rashid', 'son-rashid']
+  );
+
+  // 6. Deleting direct-spine ancestor `خيري` protects `شريف` & `كريم` (& `كريم`'s branch), while cascading to collateral branch `فرج`
+  const delKhairi = collectCascadeDeleteIds(treeWithoutFakeFather, 'gf1-khairi');
+  assert.equal(delKhairi.isProtectedSpineAncestor, true);
+  assert.deepEqual(
+    Array.from(delKhairi.allDeletedIds).sort(),
+    ['gf1-khairi', 'uncle-faraj']
+  );
+});
+
+

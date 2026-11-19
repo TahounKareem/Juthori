@@ -82,6 +82,8 @@ import { ExportTreeMemberSummary } from '../utils/brandedExport';
 import {
   PedigreeTreeNode,
   buildPedigreeTreeLayout,
+  collectCascadeDeleteIds,
+  collectTopSiblingGroupIds,
 } from '../utils/familyTreeLayout';
 
 export type ArabicHonorificTitle =
@@ -151,6 +153,7 @@ export interface InteractiveTreePerson {
   relationToTargetLabel: string;
   fatherId?: string;
   motherId?: string;
+  siblingOfId?: string;
   motherNameFallback?: string;
   spouseIds: string[];
   vitalStatus: 'unspecified' | 'living' | 'deceased';
@@ -1425,6 +1428,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // Safe Delete Confirmation Modal & Quick Vault Media Preview Modal
   const [pendingDeletePrompt, setPendingDeletePrompt] = useState<{
     person: InteractiveTreePerson;
+    descendantNodes: InteractiveTreePerson[];
+    isProtectedSpineAncestor: boolean;
     linkedDocsCount: number;
   } | null>(null);
   const [quickVaultPreviewPersonId, setQuickVaultPreviewPersonId] = useState<
@@ -2029,6 +2034,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     let assignedMotherId: string | undefined = formMotherId || undefined;
     let assignedSpouseIds: string[] = [];
 
+    const targetTopSiblingGroupIds =
+      !isAddingBridgeAboveFamily &&
+      target &&
+      (rel === 'father' || rel === 'vertical_ancestor')
+        ? collectTopSiblingGroupIds(people, target)
+        : new Set<string>();
+
+    let assignedSiblingOfId: string | undefined;
+
     if (isAddingBridgeAboveFamily) {
       const assignedTier = Math.max(0, modalConfig.bridgeTier ?? 1);
       nextGenLevel = FIFTH_GRANDFATHER_LEVEL + 1 + assignedTier;
@@ -2041,7 +2055,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       assignedSpouseIds = [];
     } else if (target && (rel === 'father' || rel === 'vertical_ancestor')) {
       nextGenLevel = target.generationLevel + 1;
-      isDirectSpineLineage = Boolean(target.isDirectSpineLineage);
+      isDirectSpineLineage = Boolean(
+        target.isDirectSpineLineage ||
+          people.some(
+            (p) => targetTopSiblingGroupIds.has(p.id) && p.isDirectSpineLineage
+          )
+      );
       relationLabel = getNextVerticalGrandfatherLabel(nextGenLevel);
       if (nextGenLevel <= FIFTH_GRANDFATHER_LEVEL && target.motherId) {
         assignedSpouseIds = [target.motherId];
@@ -2070,6 +2089,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           : `أخت لـ ${target.firstName}`;
       assignedFatherId = target.fatherId;
       assignedMotherId = formMotherId || target.motherId;
+      // When adding a sibling to a top-level ancestor with no recorded father yet,
+      // link them directly as siblings connected to the preceding placeholder/ancestor node
+      // WITHOUT fabricating a synthetic father node.
+      if (!target.fatherId) {
+        assignedSiblingOfId = target.siblingOfId || target.id;
+      }
     } else if (target && (rel === 'son' || rel === 'daughter')) {
       nextGenLevel = target.generationLevel - 1;
       relationLabel =
@@ -2115,6 +2140,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         isAddingBridgeAboveFamily || nextGenLevel > FIFTH_GRANDFATHER_LEVEL
           ? undefined
           : assignedMotherId,
+      siblingOfId: assignedSiblingOfId,
       spouseIds:
         isAddingBridgeAboveFamily || nextGenLevel > FIFTH_GRANDFATHER_LEVEL
           ? []
@@ -2139,13 +2165,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     };
 
     // Tier Quota Check BEFORE mutating `people` — preserves all entered form fields!
-    const willCreateSharedFather =
-      !isAddingBridgeAboveFamily &&
-      target &&
-      (rel === 'brother' || rel === 'sister') &&
-      !target.fatherId;
-    const nodesToAddCount = willCreateSharedFather ? 2 : 1;
-    if (people.length + nodesToAddCount > effectiveMaxTreeMembers) {
+    if (people.length + 1 > effectiveMaxTreeMembers) {
       setQuotaUpgradePrompt({
         kind: 'tree_members',
         currentCount: people.length,
@@ -2182,58 +2202,18 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setPeople((prev) => {
       let updated = [...prev];
 
-      if (
-        !isAddingBridgeAboveFamily &&
-        target &&
-        (rel === 'brother' || rel === 'sister') &&
-        !target.fatherId
-      ) {
-        const autoFatherId = `node-father-shared-${Date.now()}`;
-        const parsedInitialAncestors = parseInitialRegistrationAncestors(
-          result.fatherName,
-          result.grandfatherName
-        );
-        const inferredFatherName =
-          target.isRecordKeeper && parsedInitialAncestors.fatherFirst
-            ? parsedInitialAncestors.fatherFirst
-            : target.generationLevel === 2 &&
-              parsedInitialAncestors.grandfatherFirst
-            ? parsedInitialAncestors.grandfatherFirst
-            : `والد ${target.firstName}`;
-        const sharedFather: InteractiveTreePerson = {
-          id: autoFatherId,
-          firstName: inferredFatherName,
-          familyName: '',
-          kunya: '',
-          honorificTitle: 'بدون',
-          gender: 'male',
-          generationLevel: target.generationLevel + 1,
-          isDirectSpineLineage: Boolean(target.isDirectSpineLineage),
-          relationToTargetLabel: getNextVerticalGrandfatherLabel(
-            target.generationLevel + 1
-          ),
-          spouseIds: target.motherId ? [target.motherId] : [],
-          vitalStatus: 'unspecified',
-          birthPrecision: 'year_only',
-          birthCalendar: 'hijri',
-          birthDateValue: '',
-          birthPlace: '',
-          femalePrivacyMasked: false,
-        };
-        newPerson.fatherId = autoFatherId;
-        updated = updated.map((p) =>
-          p.id === target.id ? { ...p, fatherId: autoFatherId } : p
-        );
-        updated.push(sharedFather);
-      }
-
       if (!isAddingBridgeAboveFamily && target) {
+        const sibGroupForFather =
+          rel === 'father' || rel === 'vertical_ancestor'
+            ? collectTopSiblingGroupIds(prev, target)
+            : new Set<string>();
+
         updated = updated.map((p) => {
           if (
             (rel === 'father' || rel === 'vertical_ancestor') &&
-            p.id === target.id
+            (p.id === target.id || sibGroupForFather.has(p.id))
           ) {
-            return { ...p, fatherId: newId };
+            return { ...p, fatherId: newId, siblingOfId: undefined };
           }
           if (rel === 'mother' && p.id === target.id) {
             return { ...p, motherId: newId };
@@ -2337,7 +2317,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   };
 
   // ============================================================================
-  // SAFE NODE DELETION WITH GENTLE CONFIRMATION & ATOMIC VAULT ORPHAN CLEANUP
+  // SAFE CASCADING SUBTREE DELETION WITH STRICT CONFIRMATION & VAULT CLEANUP
   // ============================================================================
   const handleDeleteNode = (person: InteractiveTreePerson) => {
     if (!isRecordKeeperCharterSigned) {
@@ -2346,12 +2326,17 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
     if (person.isRecordKeeper) return;
 
+    const { allDeletedIds, descendantNodes, isProtectedSpineAncestor } =
+      collectCascadeDeleteIds(people, person.id);
+
     const linkedDocsCount = vaultItems.filter((vi) =>
-      vi.linkedPersonIds.includes(person.id)
+      vi.linkedPersonIds.some((pid) => allDeletedIds.has(pid))
     ).length;
 
     setPendingDeletePrompt({
       person,
+      descendantNodes,
+      isProtectedSpineAncestor,
       linkedDocsCount,
     });
   };
@@ -2363,23 +2348,31 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     if (person.isRecordKeeper) return;
 
-    // Bridge upward `fatherId` if deleting an intermediate direct-spine ancestor so upper links stay connected
-    const bridgedFatherId = person.isDirectSpineLineage
+    const { allDeletedIds, descendantNodes, isProtectedSpineAncestor } =
+      collectCascadeDeleteIds(people, person.id);
+
+    // Bridge upward `fatherId` ONLY for the protected direct-spine child if deleting a direct-spine ancestor
+    const bridgedFatherId = isProtectedSpineAncestor
       ? person.fatherId
       : undefined;
 
     let nextPeople = people
-      .filter((p) => p.id !== person.id)
+      .filter((p) => !allDeletedIds.has(p.id))
       .map((p) => ({
         ...p,
         fatherId:
-          p.fatherId === person.id
-            ? p.isDirectSpineLineage
+          p.fatherId && allDeletedIds.has(p.fatherId)
+            ? p.isDirectSpineLineage && isProtectedSpineAncestor
               ? bridgedFatherId
               : undefined
             : p.fatherId,
-        motherId: p.motherId === person.id ? undefined : p.motherId,
-        spouseIds: p.spouseIds.filter((s) => s !== person.id),
+        motherId:
+          p.motherId && allDeletedIds.has(p.motherId) ? undefined : p.motherId,
+        siblingOfId:
+          p.siblingOfId && allDeletedIds.has(p.siblingOfId)
+            ? undefined
+            : p.siblingOfId,
+        spouseIds: p.spouseIds.filter((s) => !allDeletedIds.has(s)),
       }));
 
     // Recompute direct spine generation levels cleanly after deletion
@@ -2414,17 +2407,17 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     setPeople(nextPeople);
 
-    // Atomically scrub `person.id` from all vault items (`linkedPersonIds`) so zero Orphaned IDs remain
+    // Atomically scrub ALL deleted IDs from all vault items (`linkedPersonIds`) so zero Orphaned IDs remain
     const hadAnyVaultReferences = vaultItems.some((vi) =>
-      vi.linkedPersonIds.includes(person.id)
+      vi.linkedPersonIds.some((pid) => allDeletedIds.has(pid))
     );
     if (hadAnyVaultReferences) {
       const cleanedVaultItems = vaultItems.map((vi) =>
-        vi.linkedPersonIds.includes(person.id)
+        vi.linkedPersonIds.some((pid) => allDeletedIds.has(pid))
           ? {
               ...vi,
               linkedPersonIds: vi.linkedPersonIds.filter(
-                (pid) => pid !== person.id
+                (pid) => !allDeletedIds.has(pid)
               ),
             }
           : vi
@@ -2442,10 +2435,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
 
     onLogActivity(
-      'حذف عقدة من شجرتي وتنظيف الروابط',
-      linkedDocsCount > 0
-        ? `تمت إزالة «${person.firstName}» وفك ارتباطه من (${linkedDocsCount}) وثائق مع بقاء الملفات محفوظة في خزانتي`
-        : `تمت إزالة «${person.firstName}» من المشجرة`
+      'حذف عقدة وفروعها من شجرتي وتنظيف الروابط',
+      descendantNodes.length > 0
+        ? `تم حذف «${person.firstName}» و(${descendantNodes.length}) من الفروع والأبناء التابعين له بالكامل`
+        : linkedDocsCount > 0
+          ? `تمت إزالة «${person.firstName}» وفك ارتباطه من (${linkedDocsCount}) وثائق مع بقاء الملفات محفوظة في خزانتي`
+          : `تمت إزالة «${person.firstName}» من المشجرة`
     );
   };
 
@@ -3781,7 +3776,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   const renderTopAncestorAdditionBar = (
     topAncestor: InteractiveTreePerson,
-    unpairedTopMother: InteractiveTreePerson | null
+    unpairedTopMother: InteractiveTreePerson | null,
+    hasTopSiblings = false
   ) => {
     const isAtOrAboveFifth =
       topAncestor.generationLevel >= FIFTH_GRANDFATHER_LEVEL;
@@ -3832,11 +3828,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           </div>
         )}
 
-        {/* Downward stem with arrow pointing directly into the top ancestor */}
-        <div className="flex flex-col items-center">
-          <div className="w-[2px] h-6 bg-[#8D4925]/60" />
-          {renderDownwardArrowTip(true)}
-        </div>
+        {/* Downward stem: feeds into sibling horizontal bracket when multiple top-level siblings exist, or arrow into single top ancestor */}
+        {hasTopSiblings ? (
+          <div className={`w-[2px] h-5 ${activeTreeTheme.connectorSoft}`} />
+        ) : (
+          <div className="flex flex-col items-center">
+            <div className={`w-[2px] h-6 ${activeTreeTheme.connectorStrong}`} />
+            {renderDownwardArrowTip(true)}
+          </div>
+        )}
       </div>
     );
   };
@@ -4937,8 +4937,64 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 data-testid="pedigree-tree-root-container"
                 className="flex flex-row flex-nowrap items-center"
               >
-                {pedigreeLayout.root &&
-                  renderSidewaysPedigreeSubtree(pedigreeLayout.root)}
+                {pedigreeLayout.topLevelRoots.length > 1 ? (
+                  <div
+                    data-testid="pedigree-sideways-top-siblings-branch"
+                    className="flex flex-row flex-nowrap items-center"
+                  >
+                    <div className="flex flex-col items-end">
+                      {pedigreeLayout.topLevelRoots.map((topNode, idx) => {
+                        const isFirst = idx === 0;
+                        const isLast =
+                          idx === pedigreeLayout.topLevelRoots.length - 1;
+                        const childKinshipWord =
+                          topNode.person.gender === 'female' ? 'بنت' : 'بن';
+
+                        return (
+                          <div
+                            key={`sideways-top-col-${topNode.person.id}`}
+                            className="flex flex-row flex-nowrap items-center relative"
+                          >
+                            <div className="py-1.5">
+                              {renderSidewaysPedigreeSubtree(topNode)}
+                            </div>
+
+                            <div className="relative w-10 self-stretch flex flex-row items-center shrink-0">
+                              <div
+                                className={`h-[2px] flex-1 ${
+                                  topNode.isDirectSpineEdge
+                                    ? activeTreeTheme.connectorStrong
+                                    : activeTreeTheme.connectorSoft
+                                }`}
+                              />
+                              {treeDisplaySettings.showKinshipArrows && (
+                                <span
+                                  className={`absolute top-1/2 -translate-y-[16px] left-2 text-[9px] font-display font-extrabold px-1 leading-none ${activeTreeTheme.kinshipBadge}`}
+                                >
+                                  {childKinshipWord}
+                                </span>
+                              )}
+                              <div
+                                className={`absolute left-0 w-[2px] ${
+                                  activeTreeTheme.connectorSoft
+                                } ${
+                                  isFirst
+                                    ? 'top-[calc(50%-1px)] bottom-0'
+                                    : isLast
+                                    ? 'top-0 bottom-[calc(50%-1px)]'
+                                    : 'inset-y-0'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  pedigreeLayout.root &&
+                  renderSidewaysPedigreeSubtree(pedigreeLayout.root)
+                )}
                 {renderSidewaysFamilyAnchor()}
               </div>
 
@@ -4990,19 +5046,77 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               {topMostDirectAncestor &&
                 renderTopAncestorAdditionBar(
                   topMostDirectAncestor,
-                  pedigreeLayout.unpairedTopMother
+                  pedigreeLayout.unpairedTopMother,
+                  pedigreeLayout.topLevelRoots.length > 1
                 )}
 
               {/* ================================================================ */}
               {/* C. TRUE RECURSIVE TOP-DOWN PEDIGREE TREE (FATHERS -> CHILDREN)   */}
-              {/*    Downward arrows from every parent & top bracket over siblings */}
+              {/*    Top-level siblings unite directly under the preceding node    */}
               {/* ================================================================ */}
               <div
                 data-testid="pedigree-tree-root-container"
                 className="flex flex-col items-center"
               >
-                {pedigreeLayout.root &&
-                  renderPedigreeSubtree(pedigreeLayout.root)}
+                {pedigreeLayout.topLevelRoots.length > 1 ? (
+                  <div
+                    dir="rtl"
+                    data-testid="pedigree-top-siblings-row"
+                    className="flex flex-row flex-nowrap items-start justify-center"
+                  >
+                    {pedigreeLayout.topLevelRoots.map((topNode, idx) => {
+                      const isFirst = idx === 0;
+                      const isLast =
+                        idx === pedigreeLayout.topLevelRoots.length - 1;
+                      const childKinshipWord =
+                        topNode.person.gender === 'female' ? 'بنت' : 'بن';
+
+                      return (
+                        <div
+                          key={topNode.person.id}
+                          data-testid={`pedigree-top-sibling-col-${topNode.person.id}`}
+                          className="flex flex-col items-center relative"
+                        >
+                          <div className="relative w-full h-8 flex flex-col items-center justify-end">
+                            <div
+                              className={`absolute top-0 h-[2px] ${
+                                activeTreeTheme.connectorSoft
+                              } ${
+                                isFirst
+                                  ? 'start-[calc(50%-1px)] end-0'
+                                  : isLast
+                                  ? 'start-0 end-[calc(50%-1px)]'
+                                  : 'start-0 end-0'
+                              }`}
+                            />
+                            <div
+                              className={`w-[2px] flex-1 ${
+                                topNode.isDirectSpineEdge
+                                  ? activeTreeTheme.connectorStrong
+                                  : activeTreeTheme.connectorSoft
+                              }`}
+                            />
+                            {treeDisplaySettings.showKinshipArrows && (
+                              <span
+                                className={`absolute top-1.5 start-[calc(50%+5px)] text-[9.5px] font-display font-extrabold px-1 leading-none ${activeTreeTheme.kinshipBadge}`}
+                              >
+                                {childKinshipWord}
+                              </span>
+                            )}
+                            {renderDownwardArrowTip(topNode.isDirectSpineEdge)}
+                          </div>
+
+                          <div className="px-1.5 sm:px-2">
+                            {renderPedigreeSubtree(topNode)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  pedigreeLayout.root &&
+                  renderPedigreeSubtree(pedigreeLayout.root)
+                )}
               </div>
 
               {/* ================================================================ */}
@@ -6430,9 +6544,52 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             </div>
 
             <p className="text-xs sm:text-sm text-[#252321]/85 leading-relaxed">
-              هل تود إزالة{' '}
-              <strong>«{pendingDeletePrompt.person.firstName}»</strong> من مشجرة العائلة؟
+              هل تود حذف{' '}
+              <strong>«{pendingDeletePrompt.person.firstName}»</strong> من مشجرة العائلة نهائياً؟
             </p>
+
+            {pendingDeletePrompt.descendantNodes.length > 0 && (
+              <div
+                data-testid="cascade-delete-warning-box"
+                className="rounded-2xl bg-red-50 border-2 border-red-400 p-3.5 text-xs text-red-950 leading-relaxed space-y-2"
+              >
+                <div className="font-display font-extrabold text-red-800 flex items-center gap-1.5">
+                  <span>⚠️</span>
+                  <span>
+                    تنبيه صارم: حذف كامل لجميع الفروع والأبناء التابعين (
+                    {pendingDeletePrompt.descendantNodes.length} فرداً)
+                  </span>
+                </div>
+                <p className="font-semibold">
+                  بحذفك لعقدة{' '}
+                  <strong>«{pendingDeletePrompt.person.firstName}»</strong>، سيتم
+                  حذف <strong>جميع عقد الفروع والأبناء التابعة لها بالكامل</strong>{' '}
+                  ولن تبقى أي عقدة منها بشكل مستقل في المشجرة:
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {pendingDeletePrompt.descendantNodes
+                    .slice(0, 8)
+                    .map((desc) => (
+                      <span
+                        key={desc.id}
+                        className="px-2 py-0.5 rounded-md bg-white border border-red-200 text-red-900 text-[11px] font-bold"
+                      >
+                        {desc.firstName}
+                      </span>
+                    ))}
+                  {pendingDeletePrompt.descendantNodes.length > 8 && (
+                    <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-900 text-[11px] font-bold">
+                      +{pendingDeletePrompt.descendantNodes.length - 8} آخرين
+                    </span>
+                  )}
+                </div>
+                {pendingDeletePrompt.isProtectedSpineAncestor && (
+                  <p className="text-[11px] text-red-900/90 border-t border-red-200 pt-1.5">
+                    ملاحظة: عمود النسب المباشر المتصل بأمين السجل يبقى محفوظاً وموصولاً تلقائياً، بينما تُحذف الفروع الجانبية التابعة لهذه العقدة بالكامل.
+                  </p>
+                )}
+              </div>
+            )}
 
             {pendingDeletePrompt.linkedDocsCount > 0 && (
               <div className="rounded-2xl bg-[#FAF6F0] border border-[#D4AF37] p-3.5 text-xs text-[#252321] leading-relaxed space-y-1">
@@ -6440,7 +6597,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   📎 تنبيه بخصوص الوثائق والصور المرتبطة ({pendingDeletePrompt.linkedDocsCount}):
                 </div>
                 <p>
-                  سيتم تلقائياً فك ارتباط هذا الفرد من ({pendingDeletePrompt.linkedDocsCount}) وثيقة/صورة لمنع أي روابط يتيمة، مع بقاء الوثائق والصور نفسها محفوظة بأمان تام داخل «خزانتي».
+                  سيتم تلقائياً فك ارتباط الأفراد المحذوفين من ({pendingDeletePrompt.linkedDocsCount}) وثيقة/صورة لمنع أي روابط يتيمة، مع بقاء الوثائق والصور نفسها محفوظة بأمان تام داخل «خزانتي».
                 </p>
               </div>
             )}
@@ -6459,7 +6616,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 onClick={handleConfirmDeleteNode}
                 className="px-5 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-display font-extrabold cursor-pointer"
               >
-                تأكيد الحذف وفك الارتباط
+                {pendingDeletePrompt.descendantNodes.length > 0
+                  ? `تأكيد الحذف الكامل (${pendingDeletePrompt.descendantNodes.length + 1} عقدة)`
+                  : 'تأكيد الحذف وفك الارتباط'}
               </button>
             </div>
           </div>
