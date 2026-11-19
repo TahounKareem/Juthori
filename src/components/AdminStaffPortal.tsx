@@ -1370,8 +1370,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       return Number.isNaN(ms) ? null : ms;
     };
 
-    // 1) مستهدف النشر الشهري (هدف 12 مادة شهرياً افتراضياً للمحرر الفردي)
-    const monthlyTarget = 12;
+    // 1) مستهدف النشر الشهري (هدف 240 مادة شهرياً)
+    const monthlyTarget = 240;
     const monthlyPublishedCount = publishedArticles.filter((art) => {
       const ms = parsePublishTime(art);
       if (ms === null) return false;
