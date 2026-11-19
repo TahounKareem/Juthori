@@ -4,8 +4,20 @@ import {
   LineageSearchResult,
   UpperAncestorNode,
 } from '../types/juthori';
+import {
+  TreeCardThemeDefinition,
+  TreePosterSettings,
+  buildDeterministicQrMatrix,
+} from './treeStudioConfig';
 
 export type BrandedExportKind = 'lineage_spine' | 'family_tree';
+
+export interface ExportPosterOptions {
+  poster: TreePosterSettings;
+  theme?: TreeCardThemeDefinition;
+  layoutLabel?: string;
+  verificationUrl?: string;
+}
 
 export interface ExportTreeMemberSummary {
   id: string;
@@ -322,6 +334,26 @@ function escapeHtml(raw: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function renderQrSvgHtml(payload: string, darkColor: string, sizePx = 68): string {
+  const matrix = buildDeterministicQrMatrix(payload, 21);
+  const cell = sizePx / matrix.length;
+  const rects: string[] = [];
+  for (let r = 0; r < matrix.length; r++) {
+    for (let c = 0; c < matrix[r].length; c++) {
+      if (matrix[r][c]) {
+        rects.push(
+          `<rect x="${(c * cell).toFixed(2)}" y="${(r * cell).toFixed(2)}" width="${(
+            cell + 0.15
+          ).toFixed(2)}" height="${(cell + 0.15).toFixed(2)}" fill="${darkColor}"/>`
+        );
+      }
+    }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${sizePx}" height="${sizePx}" viewBox="0 0 ${sizePx} ${sizePx}" style="background:#FFFFFF;padding:3px;border-radius:6px;border:1px solid ${darkColor}44;display:block;">${rects.join(
+    ''
+  )}</svg>`;
+}
+
 /**
  * Prints an official branded RTL document via a hidden same-origin iframe
  * (strictly avoiding `window.open` to comply with iframe runtime constraints).
@@ -337,14 +369,87 @@ export function printOfficialBrandedDocumentViaIframe(params: {
     isRoot?: boolean;
   }>;
   treeMembers?: ExportTreeMemberSummary[];
+  posterOptions?: ExportPosterOptions;
 }): void {
   if (typeof document === 'undefined') return;
-  const { exportKind, meta, lineageRows = [], treeMembers = [] } = params;
+  const {
+    exportKind,
+    meta,
+    lineageRows = [],
+    treeMembers = [],
+    posterOptions,
+  } = params;
 
+  const poster = posterOptions?.poster;
+  const theme = posterOptions?.theme;
+  const inkSaver = Boolean(poster?.inkSaverMode);
+  const isDarkTheme = Boolean(theme?.isDarkSurface) && !inkSaver;
+
+  const primaryColor = theme?.primaryHex || '#8D4925';
+  const goldColor = theme?.goldAccentHex || '#D4AF37';
+  const pageBg = inkSaver
+    ? '#FFFFFF'
+    : isDarkTheme
+    ? '#181614'
+    : theme?.canvasBg || '#FAF6F0';
+  const sheetBg = inkSaver
+    ? '#FFFFFF'
+    : isDarkTheme
+    ? '#211D18'
+    : '#FFFDF9';
+  const textColor = isDarkTheme ? '#FAF3E3' : theme?.textPrimaryHex || '#252321';
+  const mutedTextColor = isDarkTheme ? '#D6C4A1' : theme?.textMutedHex || '#6B5E53';
+  const cardBg = isDarkTheme ? '#28231D' : '#FFFFFF';
+  const cardBorder = isDarkTheme ? `${goldColor}99` : theme?.cardStrokeHex || '#D5C5B5';
+
+  const paperCss =
+    poster?.paperSize === 'A3'
+      ? '@page { size: A3 landscape; margin: 14mm; }'
+      : poster?.paperSize === 'A2_A1'
+      ? '@page { size: 420mm 594mm; margin: 16mm; }'
+      : poster?.paperSize === 'panorama'
+      ? '@page { size: 594mm 297mm; margin: 10mm; }'
+      : '@page { size: A4 portrait; margin: 12mm; }';
+
+  const frameBorderCss =
+    poster?.borderStyle === 'modern_soft'
+      ? `border: 2px solid ${primaryColor}55; border-radius: 22px; box-shadow: inset 0 0 0 1px ${goldColor}35;`
+      : poster?.borderStyle === 'classic_double'
+      ? `border: 4px double ${primaryColor}; border-radius: 8px; outline: 1px solid ${goldColor}; outline-offset: -8px;`
+      : `border: 3px double ${goldColor}; border-radius: 18px; box-shadow: inset 0 0 0 5px ${sheetBg}, inset 0 0 0 7px ${primaryColor}88;`;
+
+  const customTitle = poster?.customTitle?.trim();
   const docTitle =
-    exportKind === 'lineage_spine'
+    customTitle ||
+    (exportKind === 'lineage_spine'
       ? `وثيقة عمود النسب المرجعي — عائلة ${meta.familyName}`
-      : `وثيقة المشجرة العائلية الموثقة — عائلة ${meta.familyName}`;
+      : `وثيقة المشجرة العائلية الموثقة — عائلة ${meta.familyName}`);
+
+  const headerCalligraphyHtml =
+    poster?.headerStyle === 'none'
+      ? ''
+      : poster?.headerStyle === 'basmala_only'
+      ? `<div class="calligraphy-banner"><div class="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div></div>`
+      : poster
+      ? `<div class="calligraphy-banner">
+           <div class="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+           <div class="verse">﴿ يَا أَيُّهَا النَّاسُ إِنَّا خَلَقْنَاكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَاكُمْ شُعُوبًا وَقَبَائِلَ لِتَعَارَفُوا ﴾</div>
+         </div>`
+      : '';
+
+  const showLegend = poster ? poster.showLegend : false;
+  const showQrCode = poster ? poster.showQrCode : false;
+  const showStampAndDates = poster ? poster.showStampAndDates : true;
+  const qrPayload =
+    posterOptions?.verificationUrl ||
+    `https://juthori.com/verify/${meta.verificationId}`;
+
+  const gridCols =
+    poster?.paperSize === 'panorama'
+      ? 4
+      : poster?.paperSize === 'A2_A1' || poster?.paperSize === 'A3'
+      ? 3
+      : 2;
 
   const bodyContentHtml =
     exportKind === 'lineage_spine'
@@ -365,7 +470,9 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       </div>
     `
       : `
-      <div class="section-heading">سجل أفراد وعُقد المشجرة العائلية (${treeMembers.length} فرداً وعقدة)</div>
+      <div class="section-heading">سجل أفراد وعُقد المشجرة العائلية (${treeMembers.length} فرداً وعقدة${
+          posterOptions?.layoutLabel ? ` · ${escapeHtml(posterOptions.layoutLabel)}` : ''
+        })</div>
       <div class="tree-grid">
         ${[...treeMembers]
           .sort((a, b) => b.generationLevel - a.generationLevel)
@@ -391,36 +498,71 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       </div>
     `;
 
+  const legendHtml = showLegend
+    ? `<div class="legend-strip">
+         <span class="legend-item"><i class="dot" style="background:${primaryColor}"></i>أمين السجل والعمود المباشر</span>
+         <span class="legend-item"><i class="dot" style="background:${goldColor}"></i>عقدة مرجعية موثقة ✦</span>
+         <span class="legend-item"><i class="dot" style="background:#64748B"></i>الراحلون (رحمهم الله)</span>
+         <span class="legend-item">المقاس: ${escapeHtml(
+           poster?.paperSize === 'A2_A1'
+             ? 'A2 / A1 جداري'
+             : poster?.paperSize === 'panorama'
+             ? 'بانوراما'
+             : poster?.paperSize || 'A4'
+         )}</span>
+       </div>`
+    : '';
+
   const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>${escapeHtml(docTitle)}</title>
   <style>
-    @page { size: A4 portrait; margin: 12mm; }
+    ${paperCss}
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body {
       margin: 0;
       padding: 0;
       font-family: 'Cairo', 'Tajawal', 'Amiri', system-ui, -apple-system, sans-serif;
-      background: #FAF6F0;
-      color: #252321;
+      background: ${pageBg};
+      color: ${textColor};
       direction: rtl;
     }
     .certificate-frame {
-      border: 3px double #8D4925;
-      border-radius: 18px;
-      padding: 22px 24px;
-      background: #FFFDF9;
+      ${frameBorderCss}
+      padding: 24px 26px;
+      background: ${sheetBg};
       min-height: 95vh;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      position: relative;
+    }
+    .calligraphy-banner {
+      text-align: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed ${goldColor}66;
+    }
+    .basmala {
+      font-family: 'Amiri', 'Cairo', serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: ${primaryColor};
+      letter-spacing: 0.3px;
+    }
+    .verse {
+      font-family: 'Amiri', 'Cairo', serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: ${mutedTextColor};
+      margin-top: 4px;
     }
     .header {
-      border-bottom: 2px solid #EDE6DA;
-      padding-bottom: 16px;
-      margin-bottom: 18px;
+      border-bottom: 2px solid ${goldColor}45;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -435,9 +577,9 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       width: 52px;
       height: 52px;
       border-radius: 14px;
-      background: #252321;
-      color: #F3D299;
-      border: 2px solid #D8755B;
+      background: ${inkSaver ? '#FFFFFF' : '#252321'};
+      color: ${inkSaver ? primaryColor : '#F3D299'};
+      border: 2px solid ${goldColor};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -445,14 +587,14 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       font-size: 16px;
     }
     .doc-title {
-      font-size: 20px;
+      font-size: 21px;
       font-weight: 800;
-      color: #252321;
+      color: ${textColor};
       margin: 2px 0;
     }
     .doc-sub {
-      font-size: 12px;
-      color: #8D4925;
+      font-size: 11.5px;
+      color: ${primaryColor};
       font-weight: 700;
     }
     .seal-pill {
@@ -460,17 +602,17 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       border-radius: 12px;
       font-size: 11px;
       font-weight: 800;
-      background: ${meta.isRegistrar ? '#252321' : '#FAF6F0'};
-      color: ${meta.isRegistrar ? '#F3D299' : '#8D4925'};
-      border: 1.5px solid ${meta.isRegistrar ? '#D4AF37' : '#B98A78'};
+      background: ${inkSaver ? '#FFFFFF' : meta.isRegistrar ? '#252321' : pageBg};
+      color: ${inkSaver ? primaryColor : meta.isRegistrar ? '#F3D299' : primaryColor};
+      border: 1.5px solid ${meta.isRegistrar ? goldColor : primaryColor};
       text-align: center;
     }
     .owner-banner {
-      background: #FAF6F0;
-      border: 1px solid #E5DCCB;
+      background: ${inkSaver ? '#FAFAFA' : isDarkTheme ? '#28231D' : pageBg};
+      border: 1px solid ${goldColor}55;
       border-radius: 14px;
-      padding: 12px 16px;
-      margin-bottom: 18px;
+      padding: 11px 16px;
+      margin-bottom: 16px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
@@ -480,7 +622,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
     .section-heading {
       font-size: 13px;
       font-weight: 800;
-      color: #8D4925;
+      color: ${primaryColor};
       margin-bottom: 12px;
       text-align: center;
     }
@@ -493,45 +635,45 @@ export function printOfficialBrandedDocumentViaIframe(params: {
     .spine-card {
       width: 100%;
       max-width: 420px;
-      border: 1.5px solid #B98A78;
-      background: #FFFFFF;
+      border: 1.5px solid ${cardBorder};
+      background: ${cardBg};
       border-radius: 12px;
       padding: 8px 14px;
       text-align: right;
       page-break-inside: avoid;
     }
     .spine-card.summit {
-      background: #252321;
-      color: #FFFFFF;
-      border-color: #D8755B;
+      background: ${inkSaver ? '#FFFFFF' : '#252321'};
+      color: ${inkSaver ? '#1A130F' : '#FFFFFF'};
+      border-color: ${goldColor};
     }
-    .spine-card.summit .spine-subtitle { color: #F3D299; }
+    .spine-card.summit .spine-subtitle { color: ${inkSaver ? primaryColor : '#F3D299'}; }
     .spine-card.root {
-      background: #FFF8F0;
-      border-color: #E67E22;
+      background: ${inkSaver ? '#FFFDF9' : '#FFF8F0'};
+      border-color: ${goldColor};
     }
-    .spine-subtitle { font-size: 10px; font-weight: 700; color: #8D4925; }
+    .spine-subtitle { font-size: 10px; font-weight: 700; color: ${primaryColor}; }
     .spine-title { font-size: 14px; font-weight: 800; margin-top: 2px; }
-    .connector { font-size: 11px; font-weight: 800; color: #8D4925; }
+    .connector { font-size: 11px; font-weight: 800; color: ${primaryColor}; }
     .tree-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));
       gap: 10px;
     }
     .member-card {
-      border: 1.5px solid #D5C5B5;
+      border: 1.5px solid ${cardBorder};
       border-radius: 12px;
       padding: 10px 12px;
-      background: #FFFFFF;
+      background: ${cardBg};
       page-break-inside: avoid;
     }
     .member-card.certified {
-      background: #FFFBEB;
-      border-color: #D4AF37;
+      background: ${isDarkTheme ? '#31291B' : '#FFFBEB'};
+      border-color: ${goldColor};
     }
     .member-card.keeper {
-      background: #FAF6F0;
-      border-color: #252321;
+      background: ${isDarkTheme ? '#332A1C' : pageBg};
+      border-color: ${primaryColor};
     }
     .member-badges {
       display: flex;
@@ -541,29 +683,51 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       font-size: 10px;
       font-weight: 700;
     }
-    .rel-badge { color: #8D4925; }
-    .cert-badge { background: #FEF3C7; color: #92400E; padding: 2px 7px; border-radius: 99px; border: 1px solid #D4AF37; }
-    .keeper-badge { background: #252321; color: #F3D299; padding: 2px 7px; border-radius: 99px; }
-    .member-name { font-size: 13px; font-weight: 800; color: #252321; }
-    .member-meta { font-size: 10px; color: #6B5E53; margin-top: 2px; }
+    .rel-badge { color: ${primaryColor}; }
+    .cert-badge { background: #FEF3C7; color: #92400E; padding: 2px 7px; border-radius: 99px; border: 1px solid ${goldColor}; }
+    .keeper-badge { background: ${inkSaver ? '#FFFFFF' : primaryColor}; color: ${inkSaver ? primaryColor : '#FFFDF9'}; border: 1px solid ${primaryColor}; padding: 2px 7px; border-radius: 99px; }
+    .member-name { font-size: 13px; font-weight: 800; color: ${textColor}; }
+    .member-meta { font-size: 10px; color: ${mutedTextColor}; margin-top: 2px; }
+    .legend-strip {
+      margin-top: 16px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px dashed ${goldColor}77;
+      background: ${inkSaver ? '#FFFFFF' : isDarkTheme ? '#26211B' : pageBg};
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: ${mutedTextColor};
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-item .dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; }
     .footer {
-      border-top: 2px solid #EDE6DA;
+      border-top: 2px solid ${goldColor}45;
       padding-top: 14px;
-      margin-top: 22px;
+      margin-top: 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 14px;
       font-size: 11px;
-      color: #574E46;
+      color: ${mutedTextColor};
+    }
+    .footer-qr-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .ver-code {
       font-family: monospace;
       font-weight: 800;
-      color: #252321;
-      background: #FAF6F0;
+      color: ${textColor};
+      background: ${inkSaver ? '#FFFFFF' : pageBg};
       padding: 4px 10px;
       border-radius: 8px;
-      border: 1px solid #B98A78;
+      border: 1px solid ${goldColor};
       direction: ltr;
       display: inline-block;
     }
@@ -572,6 +736,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
 <body>
   <div class="certificate-frame">
     <div>
+      ${headerCalligraphyHtml}
       <div class="header">
         <div class="brand-box">
           <div class="crest">جذوري</div>
@@ -580,24 +745,38 @@ export function printOfficialBrandedDocumentViaIframe(params: {
             <div class="doc-title">${escapeHtml(docTitle)}</div>
           </div>
         </div>
-        <div class="seal-pill">${escapeHtml(meta.membershipBadgeLabel)}</div>
+        ${showStampAndDates ? `<div class="seal-pill">${escapeHtml(meta.membershipBadgeLabel)}</div>` : ''}
       </div>
 
       <div class="owner-banner">
         <div><strong>صاحب السجل:</strong> ${escapeHtml(meta.ownerFullName)}</div>
         <div><strong>الموطن والمنشأ:</strong> ${escapeHtml(meta.originLabel)}</div>
-        <div><strong>تاريخ الإصدار:</strong> ${escapeHtml(meta.hijriDate)} (${escapeHtml(meta.gregorianDate)})</div>
+        ${
+          showStampAndDates
+            ? `<div><strong>تاريخ الإصدار:</strong> ${escapeHtml(meta.hijriDate)} (${escapeHtml(meta.gregorianDate)})</div>`
+            : ''
+        }
       </div>
 
       ${bodyContentHtml}
+      ${legendHtml}
     </div>
 
     <div class="footer">
       <div>
-        <strong>منصة جذوري (Juthori)</strong> — مستخرج رسمي صادر من السجل السحابي الموثق للعميل.
+        ${
+          showStampAndDates
+            ? `<strong>منصة جذوري (Juthori)</strong> — مستخرج رسمي صادر من السجل السحابي الموثق${
+                inkSaver ? ' (وضع توفير الحبر للمطابع)' : ''
+              }.`
+            : `<strong>مشجرة عائلة ${escapeHtml(meta.familyName)}</strong>`
+        }
       </div>
-      <div>
-        معرّف التوثيق المرجعي: <span class="ver-code">${escapeHtml(meta.verificationId)}</span>
+      <div class="footer-qr-wrap">
+        <div>
+          معرّف التوثيق المرجعي: <span class="ver-code">${escapeHtml(meta.verificationId)}</span>
+        </div>
+        ${showQrCode ? renderQrSvgHtml(qrPayload, isDarkTheme ? '#252321' : primaryColor, 62) : ''}
       </div>
     </div>
   </div>
@@ -641,7 +820,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
 }
 
 /**
- * Generates a high-resolution (2.5x DPI) RTL Heritage Certificate PNG DataURL
+ * Generates a high-resolution (2.5x DPI) RTL Heritage Certificate / Poster PNG DataURL
  * using HTML5 2D Canvas and triggers an instant file download.
  */
 export function downloadHighResBrandedPng(params: {
@@ -655,12 +834,44 @@ export function downloadHighResBrandedPng(params: {
     isRoot?: boolean;
   }>;
   treeMembers?: ExportTreeMemberSummary[];
+  posterOptions?: ExportPosterOptions;
 }): void {
   if (typeof document === 'undefined') return;
-  const { exportKind, meta, lineageRows = [], treeMembers = [] } = params;
+  const {
+    exportKind,
+    meta,
+    lineageRows = [],
+    treeMembers = [],
+    posterOptions,
+  } = params;
 
-  const scale = 2.5;
-  const logicalWidth = 1080;
+  const poster = posterOptions?.poster;
+  const theme = posterOptions?.theme;
+  const inkSaver = Boolean(poster?.inkSaverMode);
+  const isDarkTheme = Boolean(theme?.isDarkSurface) && !inkSaver;
+
+  const primaryHex = theme?.primaryHex || '#8D4925';
+  const goldHex = theme?.goldAccentHex || '#D4AF37';
+  const bgOuter = inkSaver
+    ? '#FFFFFF'
+    : isDarkTheme
+    ? '#181614'
+    : theme?.canvasBg || '#FAF6F0';
+  const bgSheet = inkSaver
+    ? '#FFFFFF'
+    : isDarkTheme
+    ? '#211D18'
+    : '#FFFDF9';
+  const textDark = isDarkTheme ? '#FAF3E3' : theme?.textPrimaryHex || '#252321';
+  const textMuted = isDarkTheme ? '#D6C4A1' : theme?.textMutedHex || '#6B5E53';
+
+  const scale = poster?.paperSize === 'A2_A1' ? 3 : 2.5;
+  const logicalWidth =
+    poster?.paperSize === 'panorama'
+      ? 1480
+      : poster?.paperSize === 'A2_A1' || poster?.paperSize === 'A3'
+      ? 1240
+      : 1080;
 
   const entries =
     exportKind === 'lineage_spine'
@@ -688,9 +899,24 @@ export function downloadHighResBrandedPng(params: {
           }));
 
   const rowHeight = exportKind === 'lineage_spine' ? 68 : 64;
-  const cols = exportKind === 'lineage_spine' ? 1 : 2;
+  const cols =
+    exportKind === 'lineage_spine'
+      ? 1
+      : poster?.paperSize === 'panorama'
+      ? 3
+      : 2;
   const rowsCount = Math.max(1, Math.ceil(entries.length / cols));
-  const logicalHeight = Math.max(860, 320 + rowsCount * rowHeight + 130);
+  const hasCalligraphy = poster && poster.headerStyle !== 'none';
+  const calligraphyOffset = hasCalligraphy
+    ? poster?.headerStyle === 'basmala_verse'
+      ? 64
+      : 36
+    : 0;
+  const legendOffset = poster?.showLegend ? 44 : 0;
+  const logicalHeight = Math.max(
+    880,
+    330 + calligraphyOffset + rowsCount * rowHeight + legendOffset + 150
+  );
 
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(logicalWidth * scale);
@@ -701,144 +927,200 @@ export function downloadHighResBrandedPng(params: {
   ctx.scale(scale, scale);
   ctx.direction = 'rtl';
 
-  // Background Parchment
-  ctx.fillStyle = '#FAF6F0';
+  // Background
+  ctx.fillStyle = bgOuter;
   ctx.fillRect(0, 0, logicalWidth, logicalHeight);
 
-  // Inner Certificate Sheet
-  ctx.fillStyle = '#FFFDF9';
+  // Inner Sheet
+  ctx.fillStyle = bgSheet;
   ctx.fillRect(28, 28, logicalWidth - 56, logicalHeight - 56);
 
-  // Double Heritage Frame
-  ctx.strokeStyle = '#8D4925';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(28, 28, logicalWidth - 56, logicalHeight - 56);
-  ctx.strokeStyle = '#D4AF37';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(36, 36, logicalWidth - 72, logicalHeight - 72);
+  // Poster Border Style
+  if (poster?.borderStyle === 'modern_soft') {
+    ctx.strokeStyle = primaryHex;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(30, 30, logicalWidth - 60, logicalHeight - 60);
+  } else if (poster?.borderStyle === 'classic_double') {
+    ctx.strokeStyle = primaryHex;
+    ctx.lineWidth = 3.5;
+    ctx.strokeRect(26, 26, logicalWidth - 52, logicalHeight - 52);
+    ctx.strokeStyle = primaryHex;
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(34, 34, logicalWidth - 68, logicalHeight - 68);
+  } else {
+    // Islamic Gold Ornate Frame
+    ctx.strokeStyle = primaryHex;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(28, 28, logicalWidth - 56, logicalHeight - 56);
+    ctx.strokeStyle = goldHex;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(36, 36, logicalWidth - 72, logicalHeight - 72);
+  }
+
+  // Optional Basmala & Quranic Verse Header
+  if (hasCalligraphy) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = primaryHex;
+    ctx.font = '800 22px Amiri, Cairo, serif';
+    ctx.fillText('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', logicalWidth / 2, 74);
+    if (poster?.headerStyle === 'basmala_verse') {
+      ctx.fillStyle = textMuted;
+      ctx.font = '700 13.5px Amiri, Cairo, serif';
+      ctx.fillText(
+        '﴿ يَا أَيُّهَا النَّاسُ إِنَّا خَلَقْنَاكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَاكُمْ شُعُوبًا وَقَبَائِلَ لِتَعَارَفُوا ﴾',
+        logicalWidth / 2,
+        102
+      );
+    }
+  }
+
+  const headY = 58 + calligraphyOffset;
 
   // Header Crest & Titles
-  ctx.fillStyle = '#252321';
-  ctx.fillRect(logicalWidth - 116, 58, 60, 60);
-  ctx.strokeStyle = '#D8755B';
+  ctx.fillStyle = inkSaver ? '#FFFFFF' : '#252321';
+  ctx.fillRect(logicalWidth - 116, headY, 60, 60);
+  ctx.strokeStyle = goldHex;
   ctx.lineWidth = 2;
-  ctx.strokeRect(logicalWidth - 116, 58, 60, 60);
+  ctx.strokeRect(logicalWidth - 116, headY, 60, 60);
 
-  ctx.fillStyle = '#F3D299';
+  ctx.fillStyle = inkSaver ? primaryHex : '#F3D299';
   ctx.font = '800 18px Cairo, Tajawal, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('جذوري', logicalWidth - 86, 95);
+  ctx.fillText('جذوري', logicalWidth - 86, headY + 37);
 
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#8D4925';
+  ctx.fillStyle = primaryHex;
   ctx.font = '700 14px Cairo, Tajawal, sans-serif';
   ctx.fillText(
     'منصة جذوري للأنساب العربية الموثقة · Juthori Official Export',
     logicalWidth - 134,
-    78
+    headY + 20
   );
 
-  ctx.fillStyle = '#252321';
+  ctx.fillStyle = textDark;
   ctx.font = '800 24px Cairo, Tajawal, sans-serif';
   const mainHeading =
-    exportKind === 'lineage_spine'
+    poster?.customTitle?.trim() ||
+    (exportKind === 'lineage_spine'
       ? `بطاقة عمود النسب الموثق — عائلة ${meta.familyName}`
-      : `لوحة المشجرة العائلية الموثقة — عائلة ${meta.familyName}`;
-  ctx.fillText(mainHeading, logicalWidth - 134, 110);
+      : `لوحة المشجرة العائلية الموثقة — عائلة ${meta.familyName}`);
+  ctx.fillText(mainHeading, logicalWidth - 134, headY + 52);
 
   // Official Membership Seal Box (Top Left)
-  const sealX = 56;
-  const sealY = 62;
-  const sealW = 300;
-  const sealH = 50;
-  ctx.fillStyle = meta.isRegistrar ? '#252321' : '#FAF6F0';
-  ctx.fillRect(sealX, sealY, sealW, sealH);
-  ctx.strokeStyle = meta.isRegistrar ? '#D4AF37' : '#8D4925';
-  ctx.lineWidth = 1.8;
-  ctx.strokeRect(sealX, sealY, sealW, sealH);
+  if (!poster || poster.showStampAndDates) {
+    const sealX = 56;
+    const sealY = headY + 4;
+    const sealW = 300;
+    const sealH = 50;
+    ctx.fillStyle = inkSaver ? '#FFFFFF' : meta.isRegistrar ? '#252321' : bgOuter;
+    ctx.fillRect(sealX, sealY, sealW, sealH);
+    ctx.strokeStyle = meta.isRegistrar ? goldHex : primaryHex;
+    ctx.lineWidth = 1.8;
+    ctx.strokeRect(sealX, sealY, sealW, sealH);
 
-  ctx.fillStyle = meta.isRegistrar ? '#F3D299' : '#8D4925';
-  ctx.font = '800 13px Cairo, Tajawal, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(meta.membershipBadgeLabel, sealX + sealW / 2, sealY + 30);
+    ctx.fillStyle = inkSaver ? primaryHex : meta.isRegistrar ? '#F3D299' : primaryHex;
+    ctx.font = '800 13px Cairo, Tajawal, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(meta.membershipBadgeLabel, sealX + sealW / 2, sealY + 30);
+  }
 
   // Owner Metadata Strip
-  ctx.fillStyle = '#FAF6F0';
-  ctx.fillRect(56, 136, logicalWidth - 112, 54);
-  ctx.strokeStyle = '#E5DCCB';
+  const metaY = headY + 78;
+  ctx.fillStyle = inkSaver ? '#FAFAFA' : isDarkTheme ? '#2A241D' : bgOuter;
+  ctx.fillRect(56, metaY, logicalWidth - 112, 54);
+  ctx.strokeStyle = `${goldHex}88`;
   ctx.lineWidth = 1.2;
-  ctx.strokeRect(56, 136, logicalWidth - 112, 54);
+  ctx.strokeRect(56, metaY, logicalWidth - 112, 54);
 
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#252321';
+  ctx.fillStyle = textDark;
   ctx.font = '700 14px Cairo, Tajawal, sans-serif';
   ctx.fillText(
     `صاحب السجل: ${meta.ownerFullName}   |   الموطن: ${meta.originLabel}`,
     logicalWidth - 76,
-    168
+    metaY + 32
   );
 
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#8D4925';
-  ctx.font = '700 13px Cairo, Tajawal, sans-serif';
-  ctx.fillText(`الإصدار: ${meta.hijriDate}`, 76, 168);
+  if (!poster || poster.showStampAndDates) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = primaryHex;
+    ctx.font = '700 13px Cairo, Tajawal, sans-serif';
+    ctx.fillText(`الإصدار: ${meta.hijriDate}`, 76, metaY + 32);
+  }
 
   // Section Subtitle
+  const subY = metaY + 86;
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#8D4925';
+  ctx.fillStyle = primaryHex;
   ctx.font = '800 15px Cairo, Tajawal, sans-serif';
   ctx.fillText(
     exportKind === 'lineage_spine'
       ? `السلسلة المرجعية المفتوحة (${entries.length} محطة موثقة)`
-      : `سجل عُقد وأفراد المشجرة (${entries.length} عقدة)`,
+      : `سجل عُقد وأفراد المشجرة (${entries.length} عقدة${
+          posterOptions?.layoutLabel ? ` · ${posterOptions.layoutLabel}` : ''
+        })`,
     logicalWidth / 2,
-    224
+    subY
   );
 
   // Draw Nodes
-  const startY = 248;
+  const startY = subY + 24;
+  const innerSpan = logicalWidth - 112;
+  const colGap = 18;
+  const cardW =
+    cols === 1 ? 520 : Math.floor((innerSpan - colGap * (cols - 1)) / cols);
+
   entries.forEach((entry, idx) => {
     const rowIdx = Math.floor(idx / cols);
     const colIdx = idx % cols;
 
-    const cardW = cols === 1 ? 520 : 466;
     const cardH = 52;
     const cardX =
       cols === 1
         ? (logicalWidth - cardW) / 2
-        : colIdx === 0
-        ? logicalWidth - 56 - cardW
-        : 56;
+        : logicalWidth - 56 - cardW - colIdx * (cardW + colGap);
     const cardY = startY + rowIdx * rowHeight;
 
     ctx.fillStyle =
       entry.tone === 'summit'
-        ? '#252321'
+        ? inkSaver
+          ? '#FFFFFF'
+          : '#252321'
         : entry.tone === 'root'
-        ? '#FFF8EB'
+        ? isDarkTheme
+          ? '#32291A'
+          : '#FFF8EB'
+        : isDarkTheme
+        ? '#28231D'
         : '#FFFFFF';
     ctx.fillRect(cardX, cardY, cardW, cardH);
 
     ctx.strokeStyle =
       entry.tone === 'summit'
-        ? '#D8755B'
+        ? goldHex
         : entry.tone === 'root'
-        ? '#D97706'
-        : '#B98A78';
+        ? goldHex
+        : theme?.cardStrokeHex || '#B98A78';
     ctx.lineWidth = 1.6;
     ctx.strokeRect(cardX, cardY, cardW, cardH);
 
     ctx.textAlign = 'right';
-    ctx.fillStyle = entry.tone === 'summit' ? '#F3D299' : '#8D4925';
+    ctx.fillStyle =
+      entry.tone === 'summit'
+        ? inkSaver
+          ? primaryHex
+          : '#F3D299'
+        : primaryHex;
     ctx.font = '700 11px Cairo, Tajawal, sans-serif';
-    ctx.fillText(entry.subtitle, cardX + cardW - 16, cardY + 19);
+    ctx.fillText(entry.subtitle, cardX + cardW - 14, cardY + 19);
 
-    ctx.fillStyle = entry.tone === 'summit' ? '#FFFFFF' : '#252321';
+    ctx.fillStyle =
+      entry.tone === 'summit' ? (inkSaver ? '#1A130F' : '#FFFFFF') : textDark;
     ctx.font = '800 15px Cairo, Tajawal, sans-serif';
-    ctx.fillText(entry.title, cardX + cardW - 16, cardY + 40);
+    ctx.fillText(entry.title, cardX + cardW - 14, cardY + 40);
 
     if (cols === 1 && idx < entries.length - 1) {
-      ctx.strokeStyle = '#8D4925';
+      ctx.strokeStyle = primaryHex;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(logicalWidth / 2, cardY + cardH);
@@ -847,9 +1129,27 @@ export function downloadHighResBrandedPng(params: {
     }
   });
 
+  // Optional Legend Bar
+  const footerY = logicalHeight - 108;
+  if (poster?.showLegend) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = textMuted;
+    ctx.font = '700 12px Cairo, Tajawal, sans-serif';
+    ctx.fillText(
+      `مفتاح اللوحة: ■ أمين السجل والعمود المباشر   ·   ✦ عقدة مرجعية موثقة   ·   مقاس الطباعة: ${
+        poster.paperSize === 'A2_A1'
+          ? 'A2 / A1 جداري'
+          : poster.paperSize === 'panorama'
+          ? 'بانوراما'
+          : poster.paperSize
+      }`,
+      logicalWidth / 2,
+      footerY - 18
+    );
+  }
+
   // Official Footer
-  const footerY = logicalHeight - 92;
-  ctx.strokeStyle = '#EDE6DA';
+  ctx.strokeStyle = `${goldHex}66`;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(56, footerY);
@@ -857,19 +1157,52 @@ export function downloadHighResBrandedPng(params: {
   ctx.stroke();
 
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#252321';
+  ctx.fillStyle = textDark;
   ctx.font = '700 13px Cairo, Tajawal, sans-serif';
   ctx.fillText(
-    `وثيقة رسمية صادرة من منصة جذوري (Juthori) — جميع الحقوق المرجعية محفوظة · ${meta.gregorianDate}`,
+    !poster || poster.showStampAndDates
+      ? `وثيقة رسمية صادرة من منصة جذوري (Juthori) — جميع الحقوق المرجعية محفوظة · ${meta.gregorianDate}`
+      : `مشجرة عائلة ${meta.familyName}`,
     logicalWidth - 56,
-    footerY + 34
+    footerY + 38
   );
+
+  // Optional Deterministic QR Matrix on Bottom-Left
+  const qrOffsetLeft = poster?.showQrCode ? 136 : 56;
+  if (poster?.showQrCode) {
+    const qrPayload =
+      posterOptions?.verificationUrl ||
+      `https://juthori.com/verify/${meta.verificationId}`;
+    const matrix = buildDeterministicQrMatrix(qrPayload, 21);
+    const qrBox = 64;
+    const qrX = 56;
+    const qrY = footerY + 12;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(qrX - 3, qrY - 3, qrBox + 6, qrBox + 6);
+    ctx.strokeStyle = goldHex;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(qrX - 3, qrY - 3, qrBox + 6, qrBox + 6);
+    const cell = qrBox / matrix.length;
+    ctx.fillStyle = isDarkTheme ? '#181614' : primaryHex;
+    for (let r = 0; r < matrix.length; r++) {
+      for (let c = 0; c < matrix[r].length; c++) {
+        if (matrix[r][c]) {
+          ctx.fillRect(
+            qrX + c * cell,
+            qrY + r * cell,
+            Math.ceil(cell),
+            Math.ceil(cell)
+          );
+        }
+      }
+    }
+  }
 
   ctx.direction = 'ltr';
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#8D4925';
+  ctx.fillStyle = primaryHex;
   ctx.font = '800 13px monospace';
-  ctx.fillText(`REF: ${meta.verificationId}`, 56, footerY + 34);
+  ctx.fillText(`REF: ${meta.verificationId}`, qrOffsetLeft, footerY + 42);
 
   const dataUrl = canvas.toDataURL('image/png');
   const link = document.createElement('a');

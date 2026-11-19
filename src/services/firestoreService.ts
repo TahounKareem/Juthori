@@ -2745,6 +2745,122 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
   return readUserFamilyTreeFromLocal<T>(userId, userEmail, familyName);
 }
 
+export async function saveUserTreeDisplaySettingsToFirebase(
+  userId: string,
+  familyName: string,
+  settings: Record<string, unknown>,
+  userEmail?: string
+): Promise<boolean> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const targetUids = resolveAuthorizedCloudUids(safeUid, emailUid);
+  if (targetUids.length === 0) return false;
+
+  const updatedAt = new Date().toISOString();
+  const payloadJson = JSON.stringify(settings);
+  if (payloadJson.length > 900000) return false;
+
+  let wroteAny = false;
+  for (const uid of targetUids) {
+    try {
+      const res = await dualSetDoc(
+        ['users', uid, 'family_tree', 'display_settings'],
+        {
+          userId: uid,
+          familyName: (familyName || 'العائلة').slice(0, 95),
+          peopleJson: payloadJson,
+          updatedAt,
+        }
+      );
+      if (res.primaryWritten || res.mirrorWritten) {
+        wroteAny = true;
+      }
+    } catch {
+      // Ignore transient error on secondary uid
+    }
+  }
+  return wroteAny;
+}
+
+export async function fetchUserTreeDisplaySettingsFromFirebase<T = Record<string, unknown>>(
+  userId: string,
+  userEmail?: string
+): Promise<T | null> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const candidateUids = resolveAuthorizedCloudUids(safeUid, emailUid);
+
+  for (const uid of candidateUids) {
+    try {
+      const data = await dualGetDoc<{ peopleJson?: string }>([
+        'users',
+        uid,
+        'family_tree',
+        'display_settings',
+      ]);
+      if (data?.peopleJson) {
+        const parsed = JSON.parse(data.peopleJson) as T;
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch {
+      // Try next uid
+    }
+  }
+  return null;
+}
+
+export async function saveMirrorDefaultTreeSettingsToFirebase(
+  userId: string,
+  familyName: string,
+  settings: Record<string, unknown>,
+  userEmail?: string
+): Promise<boolean> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const targetUids = resolveAuthorizedCloudUids(safeUid, emailUid);
+  if (targetUids.length === 0) return false;
+
+  const updatedAt = new Date().toISOString();
+  const payloadJson = JSON.stringify({
+    ...settings,
+    appliedAsMirrorDefaultAt: updatedAt,
+  });
+
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(
+        `juthori_mirror_tree_default_${safeUid || 'guest'}`,
+        payloadJson
+      );
+    } catch {
+      // ignore storage quota
+    }
+  }
+
+  let wroteAny = false;
+  for (const uid of targetUids) {
+    try {
+      const res = await dualSetDoc(
+        ['users', uid, 'family_tree', 'mirror_default_settings'],
+        {
+          userId: uid,
+          familyName: (familyName || 'العائلة').slice(0, 95),
+          peopleJson: payloadJson,
+          updatedAt,
+        }
+      );
+      if (res.primaryWritten || res.mirrorWritten) {
+        wroteAny = true;
+      }
+    } catch {
+      // Ignore secondary uid error
+    }
+  }
+  return wroteAny;
+}
+
 // =============================================================================
 // 3. REAL CUSTOMER ORDERS IN FIREBASE (/customer_orders)
 // =============================================================================

@@ -1370,8 +1370,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       return Number.isNaN(ms) ? null : ms;
     };
 
-    // 1) مستهدف النشر الشهري (هدف 12 مادة شهرياً)
-    const monthlyTarget = 12;
+    // 1) مستهدف النشر الشهري (هدف 240 مادة شهرياً)
+    const monthlyTarget = 240;
     const monthlyPublishedCount = publishedArticles.filter((art) => {
       const ms = parsePublishTime(art);
       if (ms === null) return false;
@@ -1864,16 +1864,6 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-2 bg-white border border-[#B98A78]/50 px-3.5 py-1.5 rounded-xl shadow-2xs">
-              <span className="text-xs font-bold text-[#252321]">
-                مرحباً، {loggedInMember.name}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-[#C5A059]/70 text-[#8D4925] text-[11px] font-extrabold">
-                <span>{loggedInMember.role}</span>
-                <Crown className="w-3.5 h-3.5 text-[#D8755B]" />
-              </span>
-            </div>
-
             <button
               type="button"
               onClick={handleTeamLogout}
@@ -2248,9 +2238,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <div className="flex items-center justify-center mb-3">
                   <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#FAF6F0] border border-[#E2DACB] text-[11px] font-bold text-[#6E6456] shadow-2xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D5B]" />
-                    <span>
-                      مؤشرات الأداء التحريري الحية — متزامنة تلقائياً مع سجلات الإدارة العامة والمايسترو
-                    </span>
+                    <span>مؤشرات الأداء التحريري الحية</span>
                   </div>
                 </div>
               )}

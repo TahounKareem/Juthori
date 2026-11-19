@@ -18,12 +18,14 @@ import {
 } from '../types/juthori';
 import {
   BrandedExportKind,
+  ExportPosterOptions,
   ExportTreeMemberSummary,
   buildOfficialExportMetadata,
   downloadHighResBrandedPng,
   extractUnlockedLineageNodesForExport,
   printOfficialBrandedDocumentViaIframe,
 } from '../utils/brandedExport';
+import { buildDeterministicQrMatrix } from '../utils/treeStudioConfig';
 
 interface OfficialBrandedExportModalProps {
   isOpen: boolean;
@@ -36,6 +38,7 @@ interface OfficialBrandedExportModalProps {
   unlockedCapsules?: string[];
   treeMembers?: ExportTreeMemberSummary[];
   femalePrivacyHidden?: boolean;
+  posterOptions?: ExportPosterOptions;
   onUnlockRoot5Usd?: () => void;
   onUpgradeAnnualVip?: () => void;
   onSignCharterAndEnableTree?: () => void;
@@ -55,6 +58,7 @@ export const OfficialBrandedExportModal: React.FC<
   unlockedCapsules = [],
   treeMembers = [],
   femalePrivacyHidden = false,
+  posterOptions,
   onUnlockRoot5Usd,
   onUpgradeAnnualVip,
   onSignCharterAndEnableTree,
@@ -88,9 +92,23 @@ export const OfficialBrandedExportModal: React.FC<
     [exportKind, result, caps, unlockedCapsules]
   );
 
+  const previewQrMatrix = useMemo(() => {
+    if (!posterOptions?.poster?.showQrCode) return null;
+    const payload =
+      posterOptions.verificationUrl ||
+      `https://juthori.com/verify/${meta.verificationId}`;
+    return buildDeterministicQrMatrix(payload, 21);
+  }, [posterOptions, meta.verificationId]);
+
   if (!isOpen) return null;
 
   const isFreeRestricted = !meta.isEligibleForCertifiedExport;
+  const poster = posterOptions?.poster;
+  const resolvedDocTitle =
+    poster?.customTitle?.trim() ||
+    (exportKind === 'lineage_spine'
+      ? `مستخرج عمود النسب الموثق — عائلة ${meta.familyName}`
+      : `مستخرج المشجرة العائلية — عائلة ${meta.familyName}`);
 
   const handlePrintPdf = () => {
     if (isFreeRestricted) return;
@@ -99,6 +117,7 @@ export const OfficialBrandedExportModal: React.FC<
       meta,
       lineageRows,
       treeMembers,
+      posterOptions,
     });
     setDownloadSuccessLabel(
       `تم فتح نافذة الطباعة وحفظ ملف PDF الموثق (${meta.verificationId})`
@@ -113,6 +132,7 @@ export const OfficialBrandedExportModal: React.FC<
       meta,
       lineageRows,
       treeMembers,
+      posterOptions,
     });
     setDownloadSuccessLabel(
       `تم تنزيل اللوحة عالية الدقة PNG بنجاح (${meta.verificationId})`
@@ -184,10 +204,35 @@ export const OfficialBrandedExportModal: React.FC<
                     منصة جذوري للأنساب العربية الموثقة · Juthori
                   </div>
                   <div className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
-                    {exportKind === 'lineage_spine'
-                      ? `مستخرج عمود النسب الموثق — عائلة ${meta.familyName}`
-                      : `مستخرج المشجرة العائلية — عائلة ${meta.familyName}`}
+                    {resolvedDocTitle}
                   </div>
+                  {poster && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[#8D4925]">
+                      <span>
+                        المقاس:{' '}
+                        {poster.paperSize === 'A2_A1'
+                          ? 'A2 / A1 جداري'
+                          : poster.paperSize === 'panorama'
+                          ? 'بانوراما'
+                          : poster.paperSize}
+                      </span>
+                      <span>·</span>
+                      <span>
+                        البرواز:{' '}
+                        {poster.borderStyle === 'islamic_gold'
+                          ? 'إسلامي مذهّب'
+                          : poster.borderStyle === 'classic_double'
+                          ? 'كلاسيكي مزدوج'
+                          : 'عصري ناعم'}
+                      </span>
+                      {poster.inkSaverMode && (
+                        <>
+                          <span>·</span>
+                          <span className="text-emerald-700">توفير الحبر للمطابع ✓</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -209,6 +254,19 @@ export const OfficialBrandedExportModal: React.FC<
                 <span>{meta.membershipBadgeLabel}</span>
               </div>
             </div>
+
+            {poster && poster.headerStyle !== 'none' && (
+              <div className="rounded-xl bg-[#FAF6F0]/80 border border-[#D4AF37]/40 px-3 py-2 text-center space-y-0.5">
+                <div className="text-sm font-serif font-extrabold text-[#8D4925]">
+                  بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                </div>
+                {poster.headerStyle === 'basmala_verse' && (
+                  <div className="text-[11px] font-serif text-[#252321]/80">
+                    ﴿ يَا أَيُّهَا النَّاسُ إِنَّا خَلَقْنَاكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَاكُمْ شُعُوبًا وَقَبَائِلَ لِتَعَارَفُوا ﴾
+                  </div>
+                )}
+              </div>
+            )}
 
             {exportKind === 'family_tree' && femalePrivacyHidden && (
               <div className="rounded-xl bg-[#FFF8F0] border border-[#D8755B]/45 px-3.5 py-2 flex items-center gap-2 text-xs font-display font-bold text-[#8D4925]">
@@ -327,13 +385,41 @@ export const OfficialBrandedExportModal: React.FC<
             )}
 
             {/* Official Footer */}
-            <div className="pt-3 border-t border-[#EDE6DA] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#252321]/75">
+            <div className="pt-3 border-t border-[#EDE6DA] flex flex-wrap items-center justify-between gap-3 text-[11px] text-[#252321]/75">
               <span>
-                منصة جذوري (Juthori) — ترويسة وتذييل رسميان معتمدان للحفظ والطباعة
+                {!poster || poster.showStampAndDates
+                  ? 'منصة جذوري (Juthori) — ترويسة وتذييل رسميان معتمدان للحفظ والطباعة'
+                  : `مشجرة عائلة ${meta.familyName}`}
               </span>
-              <span className="font-mono font-bold text-[#8D4925]" dir="ltr">
-                {meta.verificationId}
-              </span>
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono font-bold text-[#8D4925]" dir="ltr">
+                  {meta.verificationId}
+                </span>
+                {previewQrMatrix && (
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 21 21"
+                    className="rounded-md bg-white p-0.5 border border-[#D4AF37]/60 shrink-0"
+                    aria-label="باركود التحقق الرسمي"
+                  >
+                    {previewQrMatrix.map((row, rIdx) =>
+                      row.map((cell, cIdx) =>
+                        cell ? (
+                          <rect
+                            key={`${rIdx}-${cIdx}`}
+                            x={cIdx}
+                            y={rIdx}
+                            width={1.05}
+                            height={1.05}
+                            fill={posterOptions?.theme?.primaryHex || '#8D4925'}
+                          />
+                        ) : null
+                      )
+                    )}
+                  </svg>
+                )}
+              </div>
             </div>
           </div>
 

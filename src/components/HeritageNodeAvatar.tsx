@@ -6,7 +6,10 @@ export type TreeAvatarStyle =
   | 'gulf'
   | 'levantine'
   | 'contemporary'
-  | 'persian';
+  | 'persian'
+  | 'egyptian'
+  | 'maghrebi'
+  | 'calligraphy_gold';
 
 export type HistoricalEraCategory =
   | 'contemporary'
@@ -43,6 +46,9 @@ interface HeritageNodeAvatarProps {
   gender?: 'M' | 'F' | 'male' | 'female';
   avatarStyle?: TreeAvatarStyle;
   customImageUrl?: string;
+  preferRealPhoto?: boolean;
+  displayName?: string;
+  frameAccentHex?: string;
   isPrivacyMasked?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
@@ -305,6 +311,9 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
   gender = 'M',
   avatarStyle = 'heritage',
   customImageUrl,
+  preferRealPhoto = true,
+  displayName,
+  frameAccentHex,
   isPrivacyMasked = false,
   size = 'md',
   className = '',
@@ -316,14 +325,131 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
   const doubleGildedFrameClasses =
     'rounded-full shrink-0 relative overflow-hidden p-[2.5px] bg-gradient-to-br from-[#F7E3A1] via-[#D4AF37] to-[#8D5B1C] shadow-sm ring-1 ring-[#D4AF37]/50 flex items-center justify-center select-none';
 
-  if (customImageUrl && !isPrivacyMasked) {
+  if (customImageUrl && preferRealPhoto && !isPrivacyMasked) {
     return (
-      <div className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}>
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        style={
+          frameAccentHex
+            ? {
+                background: `linear-gradient(135deg, #F7E3A1 0%, ${frameAccentHex} 55%, #8D5B1C 100%)`,
+              }
+            : undefined
+        }
+      >
         <img
           src={customImageUrl}
-          alt={node?.name || 'صورة العضو'}
+          alt={displayName || node?.name || 'صورة العضو'}
           className="w-full h-full rounded-full object-cover border border-[#F5D78E]/80"
         />
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // CALLIGRAPHY GOLD SEAL (حروفيات ذهبية بدون وجوه — مثالي للعائلات المحافظة والمطبوعات)
+  // ==========================================================================
+  if (avatarStyle === 'calligraphy_gold') {
+    const rawLabel = (displayName || node?.name || 'جذوري')
+      .replace(/^(الشيخ|السيد|الشريف|الأمير|الدكتور|الحاج|أم|أبو)\s+/u, '')
+      .trim();
+    const firstWord = rawLabel.split(/\s+/)[0] || 'ج';
+    const sealText =
+      firstWord.length <= 6 ? firstWord : `${firstWord.slice(0, 5)}…`;
+    const isFemaleSeal =
+      gender === 'F' ||
+      gender === 'female' ||
+      personRole === 'daughter' ||
+      personRole === 'sister';
+    const bgTop = isFemaleSeal ? '#5B1F30' : '#1E2A22';
+    const bgBot = isFemaleSeal ? '#2C0D16' : '#0E1712';
+
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title={`ختم حروفي مذهّب — ${rawLabel}`}
+        data-era="calligraphy-gold"
+      >
+        <div
+          className="w-full h-full rounded-full flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/90"
+          style={{
+            background: `radial-gradient(circle at 35% 30%, ${bgTop}, ${bgBot})`,
+          }}
+        >
+          <svg
+            viewBox="0 0 64 64"
+            className="w-full h-full"
+            fill="none"
+            aria-label={`ختم حروفي ${rawLabel}`}
+          >
+            <defs>
+              <linearGradient
+                id={`calGold_${uid}`}
+                x1="10"
+                y1="10"
+                x2="54"
+                y2="54"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor="#FFF4C2" />
+                <stop offset="50%" stopColor="#E5C158" />
+                <stop offset="100%" stopColor="#B8862D" />
+              </linearGradient>
+            </defs>
+            {/* Outer Islamic 8-Pointed Rub-el-Hizb Geometric Seal */}
+            <rect
+              x="14"
+              y="14"
+              width="36"
+              height="36"
+              rx="3"
+              stroke={`url(#calGold_${uid})`}
+              strokeWidth="1.2"
+              strokeOpacity="0.65"
+            />
+            <rect
+              x="14"
+              y="14"
+              width="36"
+              height="36"
+              rx="3"
+              transform="rotate(45 32 32)"
+              stroke={`url(#calGold_${uid})`}
+              strokeWidth="1.2"
+              strokeOpacity="0.65"
+            />
+            <circle
+              cx="32"
+              cy="32"
+              r="21"
+              stroke="#F7E3A1"
+              strokeWidth="0.85"
+              strokeDasharray="2 2"
+              strokeOpacity="0.55"
+            />
+            <circle
+              cx="32"
+              cy="32"
+              r="18"
+              fill={bgBot}
+              fillOpacity="0.72"
+              stroke={`url(#calGold_${uid})`}
+              strokeWidth="1"
+            />
+            <text
+              x="32"
+              y="33.5"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#FFF3C4"
+              fontSize={sealText.length <= 3 ? '14' : sealText.length <= 5 ? '11.5' : '9.5'}
+              fontWeight="800"
+              fontFamily="Amiri, Cairo, serif"
+            >
+              {sealText}
+            </text>
+          </svg>
+        </div>
       </div>
     );
   }
@@ -983,6 +1109,221 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
               </>
             ) : (
               <path d="M29.6 31.4Q32 32.5 34.4 31.4" stroke="#8C5940" strokeWidth="1.15" strokeLinecap="round" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // CULTURAL AVATAR STYLE 5: EGYPTIAN CLASSICAL (مصري كلاسيكي — أزهري وطربوش وقور)
+  // ==========================================================================
+  if (avatarStyle === 'egyptian' && (personRole || isFemalePortrait)) {
+    if (isFemalePortrait) {
+      return (
+        <div
+          className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+          title="بورتريه نسائي مصري كلاسيكي بطرحة حريرية دافئة"
+          data-era="egyptian-female"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#6E3B2B] via-[#4A251A] to-[#26120C] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/80">
+            <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه نسائي مصري كلاسيكي">
+              <defs>
+                <linearGradient id={`egyFemVeil_${uid}`} x1="14" y1="14" x2="50" y2="58" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#9A3412" />
+                  <stop offset="55%" stopColor="#7C2D12" />
+                  <stop offset="100%" stopColor="#431407" />
+                </linearGradient>
+                <linearGradient id={`egyFemSkin_${uid}`} x1="24" y1="18" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FDECD9" />
+                  <stop offset="65%" stopColor="#E4BA94" />
+                  <stop offset="100%" stopColor="#BD8961" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M12 60C14 42 18 13.5 32 13.5C46 13.5 50 42 52 60H12Z"
+                fill={`url(#egyFemVeil_${uid})`}
+                stroke="#F5D78E"
+                strokeWidth="0.9"
+              />
+              <path d="M19 56C22 44 26 39 32 39C38 39 42 44 45 56" stroke="#F5D78E" strokeWidth="1.2" strokeOpacity="0.8" />
+              <path
+                d="M24.6 26C24.6 20.6 27.6 17.6 32 17.6C36.4 17.6 39.4 20.6 39.4 26C39.4 31.6 36.2 35.6 32 35.6C27.8 35.6 24.6 31.6 24.6 26Z"
+                fill={`url(#egyFemSkin_${uid})`}
+              />
+              <path d="M27.4 24.6Q29 23.6 30.6 24.4M33.4 24.4Q35 23.6 36.6 24.6" stroke="#3B2317" strokeWidth="1.15" strokeLinecap="round" />
+              <circle cx="29" cy="26.2" r="0.95" fill="#1F130D" />
+              <circle cx="35" cy="26.2" r="0.95" fill="#1F130D" />
+              <path d="M30.4 31.5Q32 32.4 33.6 31.5" stroke="#A64444" strokeWidth="1.1" strokeLinecap="round" />
+              <circle cx="32" cy="15.8" r="1.4" fill="#FDE68A" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const egyBeardFill = isGrandfatherElder ? '#E6E1D6' : '#261C17';
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title="بورتريه مصري كلاسيكي بالعمامة الأزهرية أو الطربوش المصري الأصيل"
+        data-era="egyptian-male"
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-b from-[#1E3A5F] via-[#152842] to-[#0C1726] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/80">
+          <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه مصري كلاسيكي">
+            <defs>
+              <linearGradient id={`egySkin_${uid}`} x1="24" y1="16" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FBE9D7" />
+                <stop offset="65%" stopColor="#E1B68E" />
+                <stop offset="100%" stopColor="#B8855D" />
+              </linearGradient>
+            </defs>
+            {/* Classical Azhari Jubbah / Egyptian Tailored Jacket */}
+            <path d="M10 60C12.5 44 20 38 32 38C44 38 51.5 44 54 60H10Z" fill="#2A2421" stroke="#D4AF37" strokeWidth="0.8" />
+            <path d="M26 38L32 52L38 38H26Z" fill="#F8F4EC" />
+            <path d="M31 40L32 51L33 40Z" fill="#8B1E2E" />
+            {/* Face */}
+            <path
+              d="M24.4 25.4C24.4 19.6 27.6 16 32 16C36.4 16 39.6 19.6 39.6 25.4C39.6 31.2 36.2 36.2 32 36.8C27.8 36.2 24.4 31.2 24.4 25.4Z"
+              fill={`url(#egySkin_${uid})`}
+            />
+            {/* Azhari Turban (عمامة أزهرية بيضاء بطربوش أحمر) for Elders OR Classic Red Tarboosh for Younger */}
+            {isElderMaleRole ? (
+              <>
+                <path d="M23 18L25 10.5H39L41 18H23Z" fill="#991B1B" />
+                <path
+                  d="M20 20.5C20 14.8 24.5 13 32 13C39.5 13 44 14.8 44 20.5C40.5 18.8 23.5 18.8 20 20.5Z"
+                  fill="#FDFBF7"
+                  stroke="#D6C7AE"
+                  strokeWidth="0.8"
+                />
+              </>
+            ) : (
+              <>
+                <path d="M22.8 18.8L25 10.2H39L41.2 18.8C37.5 17.8 26.5 17.8 22.8 18.8Z" fill="#991B1B" stroke="#7F1D1D" strokeWidth="0.8" />
+                <path d="M38.5 11.2Q42 15 41 21" stroke="#1C1917" strokeWidth="1.2" strokeLinecap="round" />
+              </>
+            )}
+            <path d="M27.2 24.2Q29 23.2 30.6 24M33.4 24Q35 23.2 36.8 24.2" stroke={egyBeardFill} strokeWidth="1.2" strokeLinecap="round" />
+            <circle cx="29" cy="25.8" r="1" fill="#1C1410" />
+            <circle cx="35" cy="25.8" r="1" fill="#1C1410" />
+            {!isYouthMaleRole ? (
+              <>
+                <path d="M27.6 29.8Q32 28.2 36.4 29.8" stroke={egyBeardFill} strokeWidth="1.5" strokeLinecap="round" />
+                {isGrandfatherElder && (
+                  <path d="M25.5 30C27 34 29.3 36.8 32 37.3C34.7 36.8 37 34 38.5 30C36.4 31.8 27.6 31.8 25.5 30Z" fill={egyBeardFill} />
+                )}
+              </>
+            ) : (
+              <path d="M29.6 31.4Q32 32.4 34.4 31.4" stroke="#8C5940" strokeWidth="1.1" strokeLinecap="round" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // CULTURAL AVATAR STYLE 6: MAGHREBI / ANDALUSIAN (مغاربي أندلسي — جلباب وشاشية)
+  // ==========================================================================
+  if (avatarStyle === 'maghrebi' && (personRole || isFemalePortrait)) {
+    if (isFemalePortrait) {
+      return (
+        <div
+          className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+          title="بورتريه نسائي مغاربي أندلسي بالقفطان المطرز"
+          data-era="maghrebi-female"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#14532D] via-[#0E3B20] to-[#082213] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/85">
+            <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه نسائي مغاربي أندلسي">
+              <defs>
+                <linearGradient id={`magFemKaftan_${uid}`} x1="12" y1="14" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#0F766E" />
+                  <stop offset="55%" stopColor="#115E59" />
+                  <stop offset="100%" stopColor="#093836" />
+                </linearGradient>
+                <linearGradient id={`magFemSkin_${uid}`} x1="24" y1="18" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFF7EE" />
+                  <stop offset="65%" stopColor="#EBCAB0" />
+                  <stop offset="100%" stopColor="#C49675" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M11.5 60C13.5 42 18 13.5 32 13.5C46 13.5 50.5 42 52.5 60H11.5Z"
+                fill={`url(#magFemKaftan_${uid})`}
+                stroke="#F5D78E"
+                strokeWidth="0.95"
+              />
+              {/* Golden Sfifa Moroccan Kaftan Center Trim */}
+              <path d="M32 37.5V59" stroke="#F5D78E" strokeWidth="2" strokeDasharray="2 1.2" />
+              <path d="M23.5 18Q32 14.5 40.5 18" stroke="#FDE68A" strokeWidth="1.2" />
+              <circle cx="32" cy="16.2" r="1.6" fill="#FDE68A" />
+              <path
+                d="M24.6 25.8C24.6 20.5 27.6 17.6 32 17.6C36.4 17.6 39.4 20.5 39.4 25.8C39.4 31.6 36.2 35.6 32 35.6C27.8 35.6 24.6 31.6 24.6 25.8Z"
+                fill={`url(#magFemSkin_${uid})`}
+              />
+              <path d="M27.3 24.4Q29 23.4 30.6 24.2M33.4 24.2Q35 23.4 36.7 24.4" stroke="#3B2317" strokeWidth="1.15" strokeLinecap="round" />
+              <circle cx="28.9" cy="26" r="0.9" fill="#23140D" />
+              <circle cx="35.1" cy="26" r="0.9" fill="#23140D" />
+              <path d="M30.4 31.5Q32 32.4 33.6 31.5" stroke="#B94A5A" strokeWidth="1.1" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const magBeardFill = isGrandfatherElder ? '#E6E2D8' : '#231A15';
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title="بورتريه مغاربي أندلسي بالجلباب والسلهام والشاشية"
+        data-era="maghrebi-male"
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-b from-[#7C2D12] via-[#531E0C] to-[#2C1006] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/85">
+          <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه مغاربي أندلسي">
+            <defs>
+              <linearGradient id={`magSkin_${uid}`} x1="24" y1="16" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FFF5EB" />
+                <stop offset="65%" stopColor="#E6C2A3" />
+                <stop offset="100%" stopColor="#BE8F6B" />
+              </linearGradient>
+            </defs>
+            {/* White/Ivory Moroccan Djellaba & Selham Cloak */}
+            <path d="M10 60C12.5 43.5 19.5 37.5 32 37.5C44.5 37.5 51.5 43.5 54 60H10Z" fill="#F8F5EE" stroke="#D4AF37" strokeWidth="0.9" />
+            <path d="M32 38V59" stroke="#C59B5F" strokeWidth="1.6" strokeDasharray="2 1.2" />
+            <path d="M22 39.5Q32 45 42 39.5" stroke="#D4AF37" strokeWidth="1" fill="none" />
+            {/* Face */}
+            <path
+              d="M24.4 25.4C24.4 19.6 27.6 16 32 16C36.4 16 39.6 19.6 39.6 25.4C39.6 31.2 36.2 36.2 32 36.8C27.8 36.2 24.4 31.2 24.4 25.4Z"
+              fill={`url(#magSkin_${uid})`}
+            />
+            {/* Maghrebi Rezza White Turban for Elders OR Crimson Chechia Cap */}
+            {isElderMaleRole ? (
+              <path
+                d="M19.8 20.6C19.8 13.6 24.5 10 32 10C39.5 10 44.2 13.6 44.2 20.6C40.6 18.3 23.4 18.3 19.8 20.6Z"
+                fill="#FAF7F0"
+                stroke="#D4AF37"
+                strokeWidth="0.85"
+              />
+            ) : (
+              <path
+                d="M22.2 18.8C22.6 12.6 26.2 10.6 32 10.6C37.8 10.6 41.4 12.6 41.8 18.8C38.4 17.6 25.6 17.6 22.2 18.8Z"
+                fill="#9F1239"
+                stroke="#F5D78E"
+                strokeWidth="0.8"
+              />
+            )}
+            <path d="M27.2 24.2Q29 23.2 30.6 24M33.4 24Q35 23.2 36.8 24.2" stroke={magBeardFill} strokeWidth="1.2" strokeLinecap="round" />
+            <circle cx="29" cy="25.8" r="1" fill="#1C1410" />
+            <circle cx="35" cy="25.8" r="1" fill="#1C1410" />
+            {!isYouthMaleRole ? (
+              <path
+                d="M25.2 28.8C26.8 31 29.2 31.8 32 31.8C34.8 31.8 37.2 31 38.8 28.8C38 33.8 35.4 36.9 32 37.5C28.6 36.9 26 33.8 25.2 28.8Z"
+                fill={magBeardFill}
+              />
+            ) : (
+              <path d="M29.6 31.4Q32 32.4 34.4 31.4" stroke="#8C5940" strokeWidth="1.1" strokeLinecap="round" />
             )}
           </svg>
         </div>
