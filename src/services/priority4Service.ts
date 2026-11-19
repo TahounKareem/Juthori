@@ -14,8 +14,10 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import {
   auth,
+  staffAuth,
   mirrorAuth,
   db,
+  staffDb,
   mirrorDb,
   handleFirestoreError,
   OperationType,
@@ -150,14 +152,40 @@ function canP4Write(
   return true;
 }
 
+function isP4StaffPortalRoute(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = (window.location.pathname || '').toLowerCase();
+  return p === '/team' || p.startsWith('/team/');
+}
+
+function resolveP4PrimaryHandle(
+  segments: [string, ...string[]],
+  mode: 'read' | 'write'
+): { primaryDb: typeof db; allowed: boolean } {
+  const check = mode === 'read' ? canP4Read : canP4Write;
+  const staffAllowed = isRuntimeStaffSession(staffAuth) && check(staffAuth, segments);
+  const customerAllowed = check(auth, segments);
+  if (isP4StaffPortalRoute() && staffAllowed) {
+    return { primaryDb: staffDb, allowed: true };
+  }
+  if (customerAllowed) {
+    return { primaryDb: db, allowed: true };
+  }
+  if (staffAllowed) {
+    return { primaryDb: staffDb, allowed: true };
+  }
+  return { primaryDb: db, allowed: false };
+}
+
 async function writeDualDoc(
   segments: [string, ...string[]],
   payload: Record<string, unknown>
 ): Promise<void> {
   const sanitized = cleanUndefined(payload);
   const tasks: Promise<unknown>[] = [];
-  if (canP4Write(auth, segments)) {
-    tasks.push(fastTimeout(setDoc(doc(db, ...segments), sanitized), 3200));
+  const primary = resolveP4PrimaryHandle(segments, 'write');
+  if (primary.allowed) {
+    tasks.push(fastTimeout(setDoc(doc(primary.primaryDb, ...segments), sanitized), 3500));
   }
   if (canP4Write(mirrorAuth, segments)) {
     tasks.push(fastTimeout(setDoc(doc(mirrorDb, ...segments), sanitized), 3200));
@@ -170,7 +198,8 @@ async function writeDualDoc(
 async function readDualDoc<T>(
   segments: [string, ...string[]]
 ): Promise<T | null> {
-  const allowPrimary = canP4Read(auth, segments);
+  const primary = resolveP4PrimaryHandle(segments, 'read');
+  const allowPrimary = primary.allowed;
   const allowMirror = canP4Read(mirrorAuth, segments);
   if (!allowPrimary && !allowMirror) return null;
 
@@ -179,7 +208,7 @@ async function readDualDoc<T>(
       ? fastTimeout(getDoc(doc(mirrorDb, ...segments)), 2500)
       : Promise.reject(new Error('SKIP_MIRROR')),
     allowPrimary
-      ? fastTimeout(getDoc(doc(db, ...segments)), 2500)
+      ? fastTimeout(getDoc(doc(primary.primaryDb, ...segments)), 2800)
       : Promise.reject(new Error('SKIP_PRIMARY')),
   ]);
 
@@ -194,13 +223,20 @@ async function readDualDoc<T>(
 
 async function readDualCollection<T>(collectionName: string): Promise<T[]> {
   const isPublic = P4_PUBLIC_READ_COLLECTIONS.has(collectionName);
-  const allowPrimary = isPublic || isRuntimeStaffSession(auth);
+  const staffActive = isRuntimeStaffSession(staffAuth);
+  const customerStaffActive = isRuntimeStaffSession(auth);
+  const allowPrimary = isPublic || staffActive || customerStaffActive;
   const allowMirror = isPublic || isRuntimeStaffSession(mirrorAuth);
   if (!allowPrimary && !allowMirror) return [];
 
+  const targetPrimaryDb =
+    staffActive && (isP4StaffPortalRoute() || !customerStaffActive)
+      ? staffDb
+      : db;
+
   const [primaryRes, mirrorRes] = await Promise.allSettled([
     allowPrimary
-      ? fastTimeout(getDocs(collection(db, collectionName)), 3000)
+      ? fastTimeout(getDocs(collection(targetPrimaryDb, collectionName)), 3500)
       : Promise.reject(new Error('SKIP_PRIMARY')),
     allowMirror
       ? fastTimeout(getDocs(collection(mirrorDb, collectionName)), 3000)
@@ -218,8 +254,9 @@ async function readDualCollection<T>(collectionName: string): Promise<T[]> {
 
 async function deleteDualDoc(segments: [string, ...string[]]): Promise<void> {
   const tasks: Promise<unknown>[] = [];
-  if (canP4Write(auth, segments)) {
-    tasks.push(fastTimeout(deleteDoc(doc(db, ...segments)), 2500));
+  const primary = resolveP4PrimaryHandle(segments, 'write');
+  if (primary.allowed) {
+    tasks.push(fastTimeout(deleteDoc(doc(primary.primaryDb, ...segments)), 2500));
   }
   if (canP4Write(mirrorAuth, segments)) {
     tasks.push(fastTimeout(deleteDoc(doc(mirrorDb, ...segments)), 2500));

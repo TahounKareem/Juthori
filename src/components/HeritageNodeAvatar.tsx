@@ -1,5 +1,12 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { UpperAncestorNode } from '../types/juthori';
+
+export type TreeAvatarStyle =
+  | 'heritage'
+  | 'gulf'
+  | 'levantine'
+  | 'contemporary'
+  | 'persian';
 
 export type HistoricalEraCategory =
   | 'contemporary'
@@ -34,6 +41,7 @@ interface HeritageNodeAvatarProps {
   eraOverride?: ExtendedEraType;
   personRole?: PersonRoleAvatar;
   gender?: 'M' | 'F' | 'male' | 'female';
+  avatarStyle?: TreeAvatarStyle;
   customImageUrl?: string;
   isPrivacyMasked?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
@@ -295,11 +303,13 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
   eraOverride,
   personRole,
   gender = 'M',
+  avatarStyle = 'heritage',
   customImageUrl,
   isPrivacyMasked = false,
   size = 'md',
   className = '',
 }) => {
+  const uid = useId().replace(/:/g, '');
   const sizeClasses = SIZE_MAP[size];
 
   // Double gilded circular frame (إطار دائري مذهب مزدوج)
@@ -318,15 +328,672 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
     );
   }
 
-  // ==========================================================================
-  // A) FEMALE CAMEO PORTRAIT (For daughters / sisters in family tree)
-  // ==========================================================================
-  if (
+  const isFemalePortrait =
     gender === 'F' ||
     gender === 'female' ||
     personRole === 'daughter' ||
-    personRole === 'sister'
-  ) {
+    personRole === 'sister';
+
+  const isElderMaleRole =
+    personRole === 'father' ||
+    personRole === 'grandfather' ||
+    personRole === 'great_grandfather' ||
+    personRole === 'near_ancestor' ||
+    personRole === 'uncle' ||
+    personRole === 'grandfather_uncle';
+
+  const isGrandfatherElder =
+    personRole === 'grandfather' ||
+    personRole === 'great_grandfather' ||
+    personRole === 'near_ancestor' ||
+    personRole === 'grandfather_uncle';
+
+  const isYouthMaleRole = personRole === 'son' || personRole === 'child';
+
+  // ==========================================================================
+  // CULTURAL AVATAR STYLE 1: GULF (خليجي — شماغ أحمر وأبيض / بشت مذهب / عباءة وشيلة خليجية)
+  // ==========================================================================
+  if (avatarStyle === 'gulf' && (personRole || isFemalePortrait)) {
+    if (isFemalePortrait) {
+      return (
+        <div
+          className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+          title="بورتريه نسائي خليجي محتشم بالعباءة والشيلة المذهبة"
+          data-era="gulf-female"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#16382C] via-[#0F261E] to-[#091812] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/80">
+            <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه نسائي خليجي">
+              <defs>
+                <radialGradient id={`gulfFemGlow_${uid}`} cx="50%" cy="34%" r="54%">
+                  <stop offset="0%" stopColor="#F7E3A1" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#091812" stopOpacity="0" />
+                </radialGradient>
+                <linearGradient id={`gulfAbaya_${uid}`} x1="12" y1="12" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#262426" />
+                  <stop offset="55%" stopColor="#141315" />
+                  <stop offset="100%" stopColor="#080709" />
+                </linearGradient>
+                <linearGradient id={`gulfFemSkin_${uid}`} x1="24" y1="18" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFF6EC" />
+                  <stop offset="65%" stopColor="#E9C7A8" />
+                  <stop offset="100%" stopColor="#C1916F" />
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="30" r="26" fill={`url(#gulfFemGlow_${uid})`} />
+              <circle cx="32" cy="32" r="28.5" stroke="#D4AF37" strokeWidth="0.65" strokeOpacity="0.55" />
+              {/* Gulf Black Shayla & Embroidered Abaya */}
+              <path
+                d="M11.5 59C13 40 18.2 12.5 32 12.5C45.8 12.5 51 40 52.5 59H11.5Z"
+                fill={`url(#gulfAbaya_${uid})`}
+                stroke="#E5C068"
+                strokeWidth="0.95"
+              />
+              {/* Gold Zari Trim Along Shayla & Shoulders */}
+              <path
+                d="M17 57C19.5 44 24 37.5 32 37.5C40 37.5 44.5 44 47 57"
+                stroke="#F5D78E"
+                strokeWidth="1.35"
+                strokeLinecap="round"
+              />
+              <path
+                d="M23 19C26 16.4 29 15.6 32 15.6C35 15.6 38 16.4 41 19"
+                stroke="#F5D78E"
+                strokeWidth="1.2"
+                strokeDasharray="1.8 1.4"
+                strokeLinecap="round"
+              />
+              <circle cx="32" cy="16.2" r="1.35" fill="#F5D78E" />
+              {/* Face */}
+              <path
+                d="M24.6 25.8C24.6 20.5 27.6 17.6 32 17.6C36.4 17.6 39.4 20.5 39.4 25.8C39.4 31.6 36.2 35.6 32 35.6C27.8 35.6 24.6 31.6 24.6 25.8Z"
+                fill={`url(#gulfFemSkin_${uid})`}
+              />
+              <path
+                d="M27.2 24.4Q29 23.5 30.6 24.3M33.4 24.3Q35 23.5 36.8 24.4"
+                stroke="#3A2216"
+                strokeWidth="1.15"
+                strokeLinecap="round"
+              />
+              <circle cx="28.9" cy="26" r="0.9" fill="#2A170E" />
+              <circle cx="35.1" cy="26" r="0.9" fill="#2A170E" />
+              <path d="M30.3 31.5Q32 32.4 33.7 31.5" stroke="#9C5040" strokeWidth="1.1" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const gulfBeardFill = isGrandfatherElder ? '#E6E2DA' : '#1E1A18';
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title="بورتريه خليجي أصيل بالشماغ والعقال والبشت المذهب"
+        data-era="gulf-male"
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-b from-[#134232] via-[#0D2E23] to-[#081C15] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/85">
+          <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه خليجي بالشماغ والبشت">
+            <defs>
+              <radialGradient id={`gulfMaleGlow_${uid}`} cx="50%" cy="32%" r="54%">
+                <stop offset="0%" stopColor="#F5D78E" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#081C15" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id={`gulfBisht_${uid}`} x1="10" y1="36" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor={isElderMaleRole ? '#3B281A' : '#1F1E1E'} />
+                <stop offset="100%" stopColor="#0D0C0C" />
+              </linearGradient>
+              <linearGradient id={`gulfSkin_${uid}`} x1="24" y1="16" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FFF5EA" />
+                <stop offset="60%" stopColor="#E6C2A2" />
+                <stop offset="100%" stopColor="#B88762" />
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="28" r="27" fill={`url(#gulfMaleGlow_${uid})`} />
+            {/* Iconic Red & White Checkered Gulf Shemagh Canopy */}
+            <path
+              d="M14.5 43C15 22.5 20.5 11.2 32 11.2C43.5 11.2 49 22.5 49.5 43H14.5Z"
+              fill="#FFFFFF"
+              stroke="#B91C1C"
+              strokeWidth="0.9"
+            />
+            {/* Crisp Red Shemagh Checkered Weave */}
+            <path
+              d="M17.5 19L23 14M46.5 19L41 14M16 26L22 20M48 26L42 20M15.5 33L21.5 27M48.5 33L42.5 27M18 39L22.5 34.5M46 39L41.5 34.5"
+              stroke="#B91C1C"
+              strokeWidth="1.45"
+              strokeLinecap="round"
+            />
+            <path
+              d="M17 22L21 26M47 22L43 26M16.5 30L20.5 34M47.5 30L43.5 34"
+              stroke="#DC2626"
+              strokeWidth="1"
+              strokeOpacity="0.7"
+              strokeLinecap="round"
+            />
+            {/* Formal Gulf Bisht + Crisp White Thobe */}
+            <path
+              d="M9.5 60C12 44 19.5 38 32 38C44.5 38 52 44 54.5 60H9.5Z"
+              fill={`url(#gulfBisht_${uid})`}
+              stroke="#E5C068"
+              strokeWidth="0.95"
+            />
+            <path d="M25.5 38L32 51.5L38.5 38H25.5Z" fill="#FFFFFF" />
+            <circle cx="32" cy="41.4" r="0.95" fill="#D4AF37" />
+            <path
+              d="M23.5 38.5L28 58M40.5 38.5L36 58"
+              stroke="#F5D78E"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+            />
+            {/* Face */}
+            <path
+              d="M24.4 24.4C24.4 18.7 27.6 15.2 32 15.2C36.4 15.2 39.6 18.7 39.6 24.4C39.6 30.5 36.3 35.6 32 36.3C27.7 35.6 24.4 30.5 24.4 24.4Z"
+              fill={`url(#gulfSkin_${uid})`}
+            />
+            {/* Red-Edged Shemagh Side Drapes */}
+            <path d="M21 15.5C19 22.5 18.8 31 19.8 40L24.4 38C23.8 31 24 22.5 25 16.5Z" fill="#FFF7F7" stroke="#B91C1C" strokeWidth="0.55" />
+            <path d="M43 15.5C45 22.5 45.2 31 44.2 40L39.6 38C40.2 31 40 22.5 39 16.5Z" fill="#FFF1F1" stroke="#B91C1C" strokeWidth="0.55" />
+            {/* Sleek Black Double Gulf Iqal */}
+            <path d="M20.5 14.8C23.8 12.9 27.8 12 32 12C36.2 12 40.2 12.9 43.5 14.8" stroke="#111111" strokeWidth="3.2" strokeLinecap="round" />
+            <path d="M21.2 17C24.4 15.2 28.1 14.4 32 14.4C35.9 14.4 39.6 15.2 42.8 17" stroke="#222222" strokeWidth="2.6" strokeLinecap="round" />
+            {/* Brows & Eyes */}
+            <path d="M26.9 23.2Q28.9 22.1 30.6 23M33.4 23Q35.1 22.1 37.1 23.2" stroke={gulfBeardFill} strokeWidth="1.25" strokeLinecap="round" />
+            <circle cx="28.9" cy="24.7" r="1.05" fill="#1A1512" />
+            <circle cx="35.1" cy="24.7" r="1.05" fill="#1A1512" />
+            {/* Beard */}
+            {!isYouthMaleRole ? (
+              <>
+                <path
+                  d="M24.6 27.2C26.2 29.6 28.9 30.7 32 30.7C35.1 30.7 37.8 29.6 39.4 27.2C38.8 32.6 36.1 36.2 32 36.9C27.9 36.2 25.2 32.6 24.6 27.2Z"
+                  fill={gulfBeardFill}
+                />
+                <path d="M28.4 28.9Q32 27.7 35.6 28.9" stroke={isGrandfatherElder ? '#B8B2A8' : '#111'} strokeWidth="1.35" strokeLinecap="round" />
+              </>
+            ) : (
+              <path d="M29.6 30.8Q32 32 34.4 30.8" stroke="#8C5940" strokeWidth="1.15" strokeLinecap="round" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // CULTURAL AVATAR STYLE 2: LEVANTINE (شامي — طربوش أغباني / حطة شامية / شال مطرز)
+  // ==========================================================================
+  if (avatarStyle === 'levantine' && (personRole || isFemalePortrait)) {
+    if (isFemalePortrait) {
+      return (
+        <div
+          className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+          title="بورتريه نسائي شامي أصيل بالشال الدمشقي المطرز"
+          data-era="levantine-female"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#4B1D2C] via-[#34131E] to-[#1E0B12] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/80">
+            <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه نسائي شامي مطرز">
+              <defs>
+                <radialGradient id={`levFemGlow_${uid}`} cx="50%" cy="34%" r="54%">
+                  <stop offset="0%" stopColor="#FBE6C2" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#1E0B12" stopOpacity="0" />
+                </radialGradient>
+                <linearGradient id={`levScarf_${uid}`} x1="12" y1="12" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FBF5EB" />
+                  <stop offset="55%" stopColor="#EFE0CB" />
+                  <stop offset="100%" stopColor="#D6B892" />
+                </linearGradient>
+                <linearGradient id={`levDress_${uid}`} x1="12" y1="38" x2="52" y2="60" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#7A1C32" />
+                  <stop offset="100%" stopColor="#3B0D18" />
+                </linearGradient>
+                <linearGradient id={`levFemSkin_${uid}`} x1="24" y1="18" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFF8F0" />
+                  <stop offset="65%" stopColor="#EED0B7" />
+                  <stop offset="100%" stopColor="#C99B7B" />
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="30" r="26" fill={`url(#levFemGlow_${uid})`} />
+              {/* Ivory Embroidered Levantine Veil (الشال الشامي) */}
+              <path
+                d="M12.5 56C14 39 18.8 13 32 13C45.2 13 50 39 51.5 56H12.5Z"
+                fill={`url(#levScarf_${uid})`}
+                stroke="#9F1239"
+                strokeWidth="0.95"
+              />
+              {/* Burgundy Embroidered Levantine Thobe Shoulders */}
+              <path
+                d="M11 60C13.5 45 20.5 39 32 39C43.5 39 50.5 45 53 60H11Z"
+                fill={`url(#levDress_${uid})`}
+                stroke="#F5D78E"
+                strokeWidth="0.9"
+              />
+              {/* Traditional Levantine Tatreez Geometric Gold/Crimson Chest Motif */}
+              <path d="M27 42L32 48L37 42M28.5 51L32 55L35.5 51" stroke="#F5D78E" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+              {/* Embroidered Veil Headband */}
+              <path d="M22.5 18.5C25.5 16 28.7 15 32 15C35.3 15 38.5 16 41.5 18.5" stroke="#9F1239" strokeWidth="1.6" strokeDasharray="2 1.4" strokeLinecap="round" />
+              {/* Face */}
+              <path
+                d="M24.6 25.8C24.6 20.5 27.6 17.6 32 17.6C36.4 17.6 39.4 20.5 39.4 25.8C39.4 31.6 36.2 35.6 32 35.6C27.8 35.6 24.6 31.6 24.6 25.8Z"
+                fill={`url(#levFemSkin_${uid})`}
+              />
+              <path d="M27.2 24.4Q29 23.5 30.6 24.3M33.4 24.3Q35 23.5 36.8 24.4" stroke="#47281C" strokeWidth="1.15" strokeLinecap="round" />
+              <circle cx="28.9" cy="26" r="0.9" fill="#321B12" />
+              <circle cx="35.1" cy="26" r="0.9" fill="#321B12" />
+              <path d="M30.3 31.5Q32 32.4 33.7 31.5" stroke="#A64B4B" strokeWidth="1.1" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const levBeardFill = isGrandfatherElder ? '#DFDBD2' : '#2C221D';
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title={
+          isElderMaleRole
+            ? 'بورتريه شامي أصيل بالطربوش الدمشقي والأغباني والدامر المطرز'
+            : 'بورتريه شامي بالحطة الشامية والزي الدمشقي'
+        }
+        data-era="levantine-male"
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-b from-[#2F3E46] via-[#212D33] to-[#131B1F] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/80">
+          <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه شامي دمشقي">
+            <defs>
+              <radialGradient id={`levMaleGlow_${uid}`} cx="50%" cy="32%" r="55%">
+                <stop offset="0%" stopColor="#F5D78E" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#131B1F" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id={`levJacket_${uid}`} x1="10" y1="38" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#4A3728" />
+                <stop offset="100%" stopColor="#1F1610" />
+              </linearGradient>
+              <linearGradient id={`levSkin_${uid}`} x1="24" y1="16" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FFF7EE" />
+                <stop offset="65%" stopColor="#E9C7AA" />
+                <stop offset="100%" stopColor="#BE8F6C" />
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="28" r="27" fill={`url(#levMaleGlow_${uid})`} />
+            {/* Levantine Checkered Black-White Hatta for Contemporary/Youth OR Damascene Coat for Elders */}
+            {!isElderMaleRole && (
+              <>
+                <path
+                  d="M16 42C16.5 24 21 13.5 32 13.5C43 13.5 47.5 24 48 42H16Z"
+                  fill="#F8FAFC"
+                  stroke="#334155"
+                  strokeWidth="0.85"
+                />
+                <path
+                  d="M18 22L22 18M46 22L42 18M17 29L21 25M47 29L43 25M17.5 36L21.5 32M46.5 36L42.5 32"
+                  stroke="#1E293B"
+                  strokeWidth="1.25"
+                  strokeLinecap="round"
+                />
+              </>
+            )}
+            {/* Embroidered Damascene Damer Vest & Crisp Ivory Shirt */}
+            <path
+              d="M10 60C12.5 44 20 38.5 32 38.5C44 38.5 51.5 44 54 60H10Z"
+              fill={`url(#levJacket_${uid})`}
+              stroke="#E5C068"
+              strokeWidth="0.9"
+            />
+            <path d="M25.5 38.5L32 51L38.5 38.5H25.5Z" fill="#FAF6EF" />
+            <path
+              d="M23.5 40L27.5 58M40.5 40L36.5 58"
+              stroke="#D4AF37"
+              strokeWidth="1.5"
+              strokeDasharray="2 1.2"
+              strokeLinecap="round"
+            />
+            {/* Face */}
+            <path
+              d="M24.4 25.2C24.4 19.6 27.6 16.2 32 16.2C36.4 16.2 39.6 19.6 39.6 25.2C39.6 31.2 36.3 36 32 36.8C27.7 36 24.4 31.2 24.4 25.2Z"
+              fill={`url(#levSkin_${uid})`}
+            />
+            {isElderMaleRole ? (
+              <>
+                {/* Authentic Damascene Crimson Tarboosh (طربوش دمشقي) + Silk Agabani Wrap */}
+                <path
+                  d="M22.5 18.2L24.5 9.8C27 9 37 9 39.5 9.8L41.5 18.2H22.5Z"
+                  fill="#991B1B"
+                  stroke="#7F1D1D"
+                  strokeWidth="0.8"
+                />
+                {/* Silk Tassel */}
+                <path d="M39 10.5Q42.5 12.5 42.2 17.5" stroke="#111827" strokeWidth="1.4" strokeLinecap="round" />
+                {/* Cream Agabani Wrap around Tarboosh base */}
+                <path
+                  d="M21.2 18.8C24.8 16.8 39.2 16.8 42.8 18.8C42.4 21 21.6 21 21.2 18.8Z"
+                  fill="#FBF4E4"
+                  stroke="#D4AF37"
+                  strokeWidth="0.85"
+                />
+              </>
+            ) : (
+              /* Levantine Black Iqal over Hatta */
+              <path
+                d="M21 16.2C24.4 14.4 28.2 13.6 32 13.6C35.8 13.6 39.6 14.4 43 16.2"
+                stroke="#0F172A"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            )}
+            {/* Brows & Eyes */}
+            <path d="M27 24Q28.9 23 30.6 23.8M33.4 23.8Q35.1 23 37 24" stroke={levBeardFill} strokeWidth="1.25" strokeLinecap="round" />
+            <circle cx="28.9" cy="25.5" r="1.05" fill="#1F1612" />
+            <circle cx="35.1" cy="25.5" r="1.05" fill="#1F1612" />
+            {/* Dignified Levantine Mustache & Beard */}
+            {!isYouthMaleRole ? (
+              <>
+                <path
+                  d="M25.2 28.4C26.8 30.4 29.2 31.4 32 31.4C34.8 31.4 37.2 30.4 38.8 28.4C38.2 33 35.8 36.2 32 36.8C28.2 36.2 25.8 33 25.2 28.4Z"
+                  fill={levBeardFill}
+                />
+                <path d="M27.4 29.8Q32 27.6 36.6 29.8" stroke={isGrandfatherElder ? '#A8A29E' : '#1A130F'} strokeWidth="1.75" strokeLinecap="round" />
+              </>
+            ) : (
+              <path d="M29.6 31.4Q32 32.5 34.4 31.4" stroke="#8C5940" strokeWidth="1.15" strokeLinecap="round" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // CULTURAL AVATAR STYLE 3: CONTEMPORARY (معاصر — بدلة رسمية أنيقة / حجاب عصري راقٍ)
+  // ==========================================================================
+  if (avatarStyle === 'contemporary' && (personRole || isFemalePortrait)) {
+    if (isFemalePortrait) {
+      return (
+        <div
+          className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+          title="بورتريه نسائي معاصر أنيق"
+          data-era="contemporary-modern-female"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#334155] via-[#1E293B] to-[#0F172A] flex items-center justify-center relative overflow-hidden border border-[#E2E8F0]/75">
+            <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه نسائي معاصر">
+              <defs>
+                <radialGradient id={`modFemGlow_${uid}`} cx="50%" cy="32%" r="54%">
+                  <stop offset="0%" stopColor="#FDE68A" stopOpacity="0.32" />
+                  <stop offset="100%" stopColor="#0F172A" stopOpacity="0" />
+                </radialGradient>
+                <linearGradient id={`modScarf_${uid}`} x1="14" y1="12" x2="50" y2="54" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#E6CCB2" />
+                  <stop offset="55%" stopColor="#B08968" />
+                  <stop offset="100%" stopColor="#7F5539" />
+                </linearGradient>
+                <linearGradient id={`modBlazer_${uid}`} x1="12" y1="39" x2="52" y2="60" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#1E3A5F" />
+                  <stop offset="100%" stopColor="#0F1D30" />
+                </linearGradient>
+                <linearGradient id={`modFemSkin_${uid}`} x1="24" y1="18" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFF8F1" />
+                  <stop offset="65%" stopColor="#EED0B7" />
+                  <stop offset="100%" stopColor="#C89B7C" />
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="30" r="26" fill={`url(#modFemGlow_${uid})`} />
+              {/* Contemporary Silk Wrap Hijab */}
+              <path
+                d="M15.5 52C16.5 34 20.2 13.5 32 13.5C43.8 13.5 47.5 34 48.5 52H15.5Z"
+                fill={`url(#modScarf_${uid})`}
+                stroke="#F5EFE6"
+                strokeWidth="0.7"
+              />
+              {/* Modern Tailored Blazer */}
+              <path
+                d="M10.5 60C13 45 20.5 39.5 32 39.5C43.5 39.5 51 45 53.5 60H10.5Z"
+                fill={`url(#modBlazer_${uid})`}
+              />
+              <path d="M26 39.5L32 50L38 39.5H26Z" fill="#F8FAFC" />
+              {/* Face */}
+              <path
+                d="M24.8 25.8C24.8 20.6 27.8 17.6 32 17.6C36.2 17.6 39.2 20.6 39.2 25.8C39.2 31.4 36.1 35.4 32 35.4C27.9 35.4 24.8 31.4 24.8 25.8Z"
+                fill={`url(#modFemSkin_${uid})`}
+              />
+              <path d="M27.3 24.4Q29 23.5 30.6 24.3M33.4 24.3Q35 23.5 36.7 24.4" stroke="#4A2E1E" strokeWidth="1.15" strokeLinecap="round" />
+              <circle cx="29" cy="26" r="0.9" fill="#2A1A12" />
+              <circle cx="35" cy="26" r="0.9" fill="#2A1A12" />
+              <path d="M30.4 31.4Q32 32.3 33.6 31.4" stroke="#A65A52" strokeWidth="1.1" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const modHairFill = isGrandfatherElder ? '#CBD5E1' : '#1E293B';
+    const modBeardFill = isGrandfatherElder ? '#CBD5E1' : '#262626';
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title="بورتريه معاصر ببدلة رسمية أنيقة"
+        data-era="contemporary-modern-male"
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-b from-[#2B3A4E] via-[#1B2636] to-[#0F172A] flex items-center justify-center relative overflow-hidden border border-[#CBD5E1]/75">
+          <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه معاصر ببدلة رسمية">
+            <defs>
+              <radialGradient id={`modMaleGlow_${uid}`} cx="50%" cy="32%" r="54%">
+                <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#0F172A" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id={`modSuit_${uid}`} x1="10" y1="38" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#1E293B" />
+                <stop offset="100%" stopColor="#0B1120" />
+              </linearGradient>
+              <linearGradient id={`modSkin_${uid}`} x1="24" y1="16" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FFF6EC" />
+                <stop offset="65%" stopColor="#E8C5A7" />
+                <stop offset="100%" stopColor="#BE8E6B" />
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="28" r="26" fill={`url(#modMaleGlow_${uid})`} />
+            {/* Modern Suit & Crisp White Shirt + Tie */}
+            <path
+              d="M10 60C12.5 44 20 38.5 32 38.5C44 38.5 51.5 44 54 60H10Z"
+              fill={`url(#modSuit_${uid})`}
+              stroke="#475569"
+              strokeWidth="0.7"
+            />
+            <path d="M25.5 38.5L32 52L38.5 38.5H25.5Z" fill="#FFFFFF" />
+            {/* Silk Tie */}
+            <path d="M30.5 40.5H33.5L34.4 51.5L32 54.5L29.6 51.5L30.5 40.5Z" fill="#991B1B" />
+            {/* Suit Lapels */}
+            <path d="M25.5 38.5L23.5 46L29 52M38.5 38.5L40.5 46L35 52" stroke="#64748B" strokeWidth="1" strokeLinecap="round" />
+            {/* Neck & Face */}
+            <rect x="28.5" y="33.5" width="7" height="6" rx="2" fill="#D5A986" />
+            <path
+              d="M24 24.5C24 18.6 27.4 14.8 32 14.8C36.6 14.8 40 18.6 40 24.5C40 30.6 36.5 35.6 32 36.3C27.5 35.6 24 30.6 24 24.5Z"
+              fill={`url(#modSkin_${uid})`}
+            />
+            {/* Modern Styled Hair */}
+            <path
+              d="M23.5 23C23.2 15.8 26.8 11.8 32.5 11.8C37.8 11.8 40.8 15.5 40.5 23C39.2 19 37 16.5 32 16.2C27.2 16 24.8 18.8 23.5 23Z"
+              fill={modHairFill}
+            />
+            {/* Brows & Eyes */}
+            <path d="M26.9 23.5Q28.9 22.5 30.6 23.3M33.4 23.3Q35.1 22.5 37.1 23.5" stroke={modBeardFill} strokeWidth="1.2" strokeLinecap="round" />
+            <circle cx="28.9" cy="25.1" r="1" fill="#1E293B" />
+            <circle cx="35.1" cy="25.1" r="1" fill="#1E293B" />
+            {/* Trimmed Modern Beard or Clean Smile */}
+            {!isYouthMaleRole ? (
+              <path
+                d="M25.2 28.2C26.8 30.4 29.2 31.3 32 31.3C34.8 31.3 37.2 30.4 38.8 28.2C38.2 32.8 35.8 35.8 32 36.4C28.2 35.8 25.8 32.8 25.2 28.2Z"
+                fill={modBeardFill}
+                fillOpacity="0.9"
+              />
+            ) : (
+              <path d="M29.6 30.8Q32 32 34.4 30.8" stroke="#9A6147" strokeWidth="1.15" strokeLinecap="round" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // CULTURAL AVATAR STYLE 4: PERSIAN (فارسي — عمامة / كلاه مطرزة وقباء فيروزي ومذهب)
+  // ==========================================================================
+  if (avatarStyle === 'persian' && (personRole || isFemalePortrait)) {
+    if (isFemalePortrait) {
+      return (
+        <div
+          className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+          title="بورتريه نسائي فارسي تراثي بالوشاح الفيروزي المطرز"
+          data-era="persian-female"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-b from-[#0F4C5C] via-[#0B3540] to-[#072028] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/85">
+            <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه نسائي فارسي">
+              <defs>
+                <radialGradient id={`perFemGlow_${uid}`} cx="50%" cy="32%" r="54%">
+                  <stop offset="0%" stopColor="#F5D78E" stopOpacity="0.45" />
+                  <stop offset="100%" stopColor="#072028" stopOpacity="0" />
+                </radialGradient>
+                <linearGradient id={`perVeil_${uid}`} x1="12" y1="11" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#155E75" />
+                  <stop offset="55%" stopColor="#0E7490" />
+                  <stop offset="100%" stopColor="#164E63" />
+                </linearGradient>
+                <linearGradient id={`perFemSkin_${uid}`} x1="24" y1="18" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFF9F2" />
+                  <stop offset="65%" stopColor="#F0D4BC" />
+                  <stop offset="100%" stopColor="#CCA080" />
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="30" r="26" fill={`url(#perFemGlow_${uid})`} />
+              {/* Embroidered Turquoise Persian Rusari / Shawl */}
+              <path
+                d="M12 58C13.5 40 18.5 12.5 32 12.5C45.5 12.5 50.5 40 52 58H12Z"
+                fill={`url(#perVeil_${uid})`}
+                stroke="#F5D78E"
+                strokeWidth="1"
+              />
+              {/* Termeh Gold Paisley Border */}
+              <path
+                d="M17.5 56C20 43.5 24.5 37.5 32 37.5C39.5 37.5 44 43.5 46.5 56"
+                stroke="#F5D78E"
+                strokeWidth="1.4"
+                strokeDasharray="2.2 1.2"
+                strokeLinecap="round"
+              />
+              {/* Delicate Persian Headpiece Gem */}
+              <path d="M23.5 18.5Q32 14.2 40.5 18.5" stroke="#F5D78E" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="32" cy="16.2" r="1.6" fill="#E11D48" stroke="#F5D78E" strokeWidth="0.6" />
+              {/* Face */}
+              <path
+                d="M24.6 25.8C24.6 20.5 27.6 17.6 32 17.6C36.4 17.6 39.4 20.5 39.4 25.8C39.4 31.6 36.2 35.6 32 35.6C27.8 35.6 24.6 31.6 24.6 25.8Z"
+                fill={`url(#perFemSkin_${uid})`}
+              />
+              <path d="M27.2 24.4Q29 23.4 30.6 24.2M33.4 24.2Q35 23.4 36.8 24.4" stroke="#3B2317" strokeWidth="1.15" strokeLinecap="round" />
+              <circle cx="28.9" cy="26" r="0.9" fill="#23140D" />
+              <circle cx="35.1" cy="26" r="0.9" fill="#23140D" />
+              <path d="M30.4 31.5Q32 32.4 33.6 31.5" stroke="#B94A5A" strokeWidth="1.1" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const perBeardFill = isGrandfatherElder ? '#E5E0D5' : '#1F1713';
+    return (
+      <div
+        className={`${doubleGildedFrameClasses} ${sizeClasses} ${className}`}
+        title="بورتريه فارسي تراثي بالقباء المطرز والكلاه / العمامة المذهبة"
+        data-era="persian-male"
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-b from-[#115E59] via-[#0F3F3C] to-[#082422] flex items-center justify-center relative overflow-hidden border border-[#F5D78E]/85">
+          <svg viewBox="0 0 64 64" className="w-full h-full" fill="none" aria-label="بورتريه فارسي تراثي">
+            <defs>
+              <radialGradient id={`perMaleGlow_${uid}`} cx="50%" cy="32%" r="55%">
+                <stop offset="0%" stopColor="#FDE68A" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#082422" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id={`perQaba_${uid}`} x1="10" y1="37" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#1E3A5F" />
+                <stop offset="55%" stopColor="#172554" />
+                <stop offset="100%" stopColor="#0C142E" />
+              </linearGradient>
+              <linearGradient id={`perTurban_${uid}`} x1="19" y1="9" x2="45" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FEF3C7" />
+                <stop offset="60%" stopColor="#E5C068" />
+                <stop offset="100%" stopColor="#B48332" />
+              </linearGradient>
+              <linearGradient id={`perSkin_${uid}`} x1="24" y1="16" x2="40" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#FFF7EE" />
+                <stop offset="65%" stopColor="#EAC9AC" />
+                <stop offset="100%" stopColor="#BF906D" />
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="28" r="27" fill={`url(#perMaleGlow_${uid})`} />
+            {/* Embroidered Persian Qaba Coat with Gold Termeh Collar */}
+            <path
+              d="M9.5 60C12 44 19.5 38 32 38C44.5 38 52 44 54.5 60H9.5Z"
+              fill={`url(#perQaba_${uid})`}
+              stroke="#F5D78E"
+              strokeWidth="0.95"
+            />
+            <path d="M26 38L32 51L38 38H26Z" fill="#0F766E" />
+            <path
+              d="M24 39.2L28.5 58M40 39.2L35.5 58"
+              stroke="#F5D78E"
+              strokeWidth="1.8"
+              strokeDasharray="2.5 1.3"
+              strokeLinecap="round"
+            />
+            {/* Face */}
+            <path
+              d="M24.4 25.2C24.4 19.4 27.6 15.8 32 15.8C36.4 15.8 39.6 19.4 39.6 25.2C39.6 31.2 36.3 36.2 32 36.9C27.7 36.2 24.4 31.2 24.4 25.2Z"
+              fill={`url(#perSkin_${uid})`}
+            />
+            {/* Sculpted Persian Turban (عمامة فارسية) for Elders OR Traditional Brocade Kulah Cap for Youth */}
+            {isElderMaleRole ? (
+              <>
+                <path
+                  d="M19.8 21C19.5 13.8 24.2 9.4 32 9.4C39.8 9.4 44.5 13.8 44.2 21C40.8 18.4 36.5 17.4 32 17.4C27.5 17.4 23.2 18.4 19.8 21Z"
+                  fill={`url(#perTurban_${uid})`}
+                  stroke="#92400E"
+                  strokeWidth="0.75"
+                />
+                <path d="M21 16.5Q32 12 43 16.5M22.5 13.5Q32 10.5 41.5 13.5" stroke="#92400E" strokeWidth="0.9" strokeOpacity="0.6" strokeLinecap="round" />
+                <circle cx="32" cy="14.2" r="1.7" fill="#0F766E" stroke="#FFFBEB" strokeWidth="0.6" />
+              </>
+            ) : (
+              <>
+                <path
+                  d="M22.2 18.8C22.4 12.6 26.2 10 32 10C37.8 10 41.6 12.6 41.8 18.8C38.5 17.6 25.5 17.6 22.2 18.8Z"
+                  fill="#1E293B"
+                  stroke="#F5D78E"
+                  strokeWidth="0.95"
+                />
+                <path d="M24 16.2Q32 14.5 40 16.2" stroke="#F5D78E" strokeWidth="1" strokeDasharray="1.8 1.2" />
+              </>
+            )}
+            {/* Brows & Eyes */}
+            <path d="M27 24Q28.9 22.9 30.6 23.7M33.4 23.7Q35.1 22.9 37 24" stroke={perBeardFill} strokeWidth="1.25" strokeLinecap="round" />
+            <circle cx="28.9" cy="25.5" r="1.05" fill="#1C1410" />
+            <circle cx="35.1" cy="25.5" r="1.05" fill="#1C1410" />
+            {/* Persian Pointed Beard & Mustache */}
+            {!isYouthMaleRole ? (
+              <>
+                <path
+                  d="M24.8 28C26.5 30.4 29 31.4 32 31.4C35 31.4 37.5 30.4 39.2 28C38.5 33.4 35.6 37.2 32 38C28.4 37.2 25.5 33.4 24.8 28Z"
+                  fill={perBeardFill}
+                />
+                <path d="M27.8 29.6Q32 27.6 36.2 29.6" stroke={isGrandfatherElder ? '#B5ADA0' : '#140E0B'} strokeWidth="1.5" strokeLinecap="round" />
+              </>
+            ) : (
+              <path d="M29.6 31.4Q32 32.5 34.4 31.4" stroke="#8C5940" strokeWidth="1.15" strokeLinecap="round" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // A) FEMALE CAMEO PORTRAIT (Heritage Default — For daughters / sisters in family tree)
+  // ==========================================================================
+  if (isFemalePortrait) {
     const isYoungFemale = personRole === 'daughter' || personRole === 'child';
     return (
       <div

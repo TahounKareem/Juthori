@@ -25,8 +25,10 @@ import {
 } from 'firebase/auth';
 import {
   db,
+  staffDb,
   mirrorDb,
   auth,
+  staffAuth,
   mirrorAuth,
   provisionerAuth,
   mirrorProvisionerAuth,
@@ -215,6 +217,41 @@ export function isRuntimeStaffSession(
   );
 }
 
+export function isAnyStaffSessionActive(): boolean {
+  return (
+    isRuntimeStaffSession(staffAuth) ||
+    isRuntimeStaffSession(auth) ||
+    isRuntimeStaffSession(mirrorAuth)
+  );
+}
+
+function isStaffPortalRouteActive(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = (window.location.pathname || '').toLowerCase();
+  return p === '/team' || p.startsWith('/team/');
+}
+
+function selectPrimaryFirestoreChannel(
+  pathSegments: [string, ...string[]],
+  mode: 'read' | 'write'
+): { primaryDb: typeof db; primaryAuth: typeof auth; allowed: boolean } {
+  const check = mode === 'read' ? canReadOnAuth : canWriteOnAuth;
+  const staffAllowed = isRuntimeStaffSession(staffAuth) && check(staffAuth, pathSegments);
+  const customerAllowed = check(auth, pathSegments);
+
+  // Inside /Team, always prefer the isolated juthori-com staff channel so staff never rely on customer `auth`
+  if (isStaffPortalRouteActive() && staffAllowed) {
+    return { primaryDb: staffDb, primaryAuth: staffAuth, allowed: true };
+  }
+  if (customerAllowed) {
+    return { primaryDb: db, primaryAuth: auth, allowed: true };
+  }
+  if (staffAllowed) {
+    return { primaryDb: staffDb, primaryAuth: staffAuth, allowed: true };
+  }
+  return { primaryDb: db, primaryAuth: auth, allowed: false };
+}
+
 function canReadOnAuth(
   targetAuth: typeof auth,
   pathSegments: [string, ...string[]]
@@ -270,7 +307,7 @@ function resolveAuthorizedCloudUids(
   safeUid: string,
   emailUid: string
 ): string[] {
-  if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+  if (isAnyStaffSessionActive()) {
     return Array.from(new Set([safeUid, emailUid].filter(Boolean)));
   }
   const activeUids = new Set<string>();
@@ -305,7 +342,8 @@ async function dualSetDoc(
   let primaryError: string | undefined;
   let mirrorError: string | undefined;
 
-  const allowPrimary = canWriteOnAuth(auth, pathSegments);
+  const primaryChannel = selectPrimaryFirestoreChannel(pathSegments, 'write');
+  const allowPrimary = primaryChannel.allowed;
   const allowMirror = canWriteOnAuth(mirrorAuth, pathSegments);
 
   const mirrorTask = allowMirror
@@ -324,7 +362,7 @@ async function dualSetDoc(
   if (allowPrimary) {
     try {
       await withFastTimeout(
-        setDoc(doc(db, ...pathSegments), cleanData),
+        setDoc(doc(primaryChannel.primaryDb, ...pathSegments), cleanData),
         timeoutMs
       );
       primaryWritten = true;
@@ -344,7 +382,8 @@ async function dualGetDoc<T = Record<string, unknown>>(
   pathSegments: [string, ...string[]],
   timeoutMs: number = 1800
 ): Promise<T | null> {
-  const allowPrimary = canReadOnAuth(auth, pathSegments);
+  const primaryChannel = selectPrimaryFirestoreChannel(pathSegments, 'read');
+  const allowPrimary = primaryChannel.allowed;
   const allowMirror = canReadOnAuth(mirrorAuth, pathSegments);
 
   // Immediately catch mirrorPromise on creation so browser NEVER fires unhandledrejection
@@ -358,7 +397,7 @@ async function dualGetDoc<T = Record<string, unknown>>(
   if (allowPrimary) {
     try {
       const primarySnap = await withFastTimeout(
-        getDoc(doc(db, ...pathSegments)),
+        getDoc(doc(primaryChannel.primaryDb, ...pathSegments)),
         timeoutMs
       );
       if (primarySnap.exists()) {
@@ -414,7 +453,8 @@ async function dualQueryByField<T extends { id?: string }>(
   );
   if (uniqueCandidates.length === 0) return [];
 
-  const allowPrimary = canReadOnAuth(auth, [collectionName]);
+  const primaryChannel = selectPrimaryFirestoreChannel([collectionName], 'read');
+  const allowPrimary = primaryChannel.allowed;
   const allowMirror = canReadOnAuth(mirrorAuth, [collectionName]);
   if (!allowPrimary && !allowMirror) return [];
 
@@ -441,7 +481,7 @@ async function dualQueryByField<T extends { id?: string }>(
   if (allowPrimary) {
     try {
       const primarySnap = await withFastTimeout(
-        getDocs(buildQuery(db)),
+        getDocs(buildQuery(primaryChannel.primaryDb)),
         timeoutMs
       );
       return primarySnap.docs.map((d) => {
@@ -465,8 +505,11 @@ async function dualQueryByField<T extends { id?: string }>(
 
 async function dualDeleteDoc(pathSegments: [string, ...string[]]): Promise<void> {
   const tasks: Promise<unknown>[] = [];
-  if (canWriteOnAuth(auth, pathSegments)) {
-    tasks.push(withFastTimeout(deleteDoc(doc(db, ...pathSegments)), 2500));
+  const primaryChannel = selectPrimaryFirestoreChannel(pathSegments, 'write');
+  if (primaryChannel.allowed) {
+    tasks.push(
+      withFastTimeout(deleteDoc(doc(primaryChannel.primaryDb, ...pathSegments)), 2500)
+    );
   }
   if (canWriteOnAuth(mirrorAuth, pathSegments)) {
     tasks.push(withFastTimeout(deleteDoc(doc(mirrorDb, ...pathSegments)), 2500));
@@ -478,14 +521,22 @@ async function dualDeleteDoc(pathSegments: [string, ...string[]]): Promise<void>
 
 async function dualGetCollection<T extends { id?: string }>(
   collectionName: string,
-  timeoutMs: number = 3000
+  timeoutMs: number = 3500
 ): Promise<T[]> {
   const isPublicCol = PUBLIC_READ_COLLECTIONS.has(collectionName);
-  const allowPrimary = isPublicCol || isRuntimeStaffSession(auth);
+  const staffActive = isRuntimeStaffSession(staffAuth);
+  const customerStaffActive = isRuntimeStaffSession(auth);
+  const allowPrimary = isPublicCol || staffActive || customerStaffActive;
   const allowMirror = isPublicCol || isRuntimeStaffSession(mirrorAuth);
   if (!allowPrimary && !allowMirror) {
     return [];
   }
+
+  // Prefer the dedicated juthori-com staffDb whenever staffAuth is signed in (especially in /Team)
+  const primaryTargetDb =
+    staffActive && (isStaffPortalRouteActive() || !customerStaffActive)
+      ? staffDb
+      : db;
 
   const mergedMap = new Map<string, T>();
   const primaryIds = new Set<string>();
@@ -496,7 +547,7 @@ async function dualGetCollection<T extends { id?: string }>(
       ? withFastTimeout(getDocs(collection(mirrorDb, collectionName)), timeoutMs)
       : Promise.reject(new Error('SKIP_MIRROR')),
     allowPrimary
-      ? withFastTimeout(getDocs(collection(db, collectionName)), timeoutMs)
+      ? withFastTimeout(getDocs(collection(primaryTargetDb, collectionName)), timeoutMs)
       : Promise.reject(new Error('SKIP_PRIMARY')),
   ]);
 
@@ -569,6 +620,7 @@ export interface UserProfileData {
   familyBranch?: string;
   subscriptionTier: 'free' | 'basic_verified' | 'premium_annual';
   walletBalance: number;
+  extraTreeCapacity?: number;
   paidRevenueUsd?: number;
   unlockedCapsules?: string[];
   bridgedAncestors?: string[];
@@ -1138,6 +1190,23 @@ export const DEFAULT_GENERAL_MANAGER_MEMBER: TeamMemberRecord = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
+export const DEFAULT_KNOWLEDGE_EDITOR_MEMBER: TeamMemberRecord = {
+  id: 'team_usr_kaouther_douzi_adamresearchcenter_net',
+  name: 'كوثر دوزي',
+  email: 'kaouther.douzi@adamresearchcenter.net',
+  passwordHash: 'vELTd4gVFPTcJg4@',
+  role: 'مدير تحرير المركز المعرفي',
+  status: 'نشط',
+  assignedTickets: 0,
+  completedTickets: 0,
+  avgCompletionTime: 'جديد',
+  permissions: [
+    'لوحة تحكم مدير تحرير المركز المعرفي حصراً',
+    'إضافة وتعديل وحذف ونشر مقالات ودراسات الأنساب',
+  ],
+  createdAt: '2026-11-19T00:00:00.000Z',
+};
+
 export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
   switch (role) {
     case 'المايسترو':
@@ -1217,13 +1286,15 @@ export async function findTeamMemberByEmail(
   if (cleanEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase()) {
     return DEFAULT_GENERAL_MANAGER_MEMBER;
   }
+  if (cleanEmail === DEFAULT_KNOWLEDGE_EDITOR_MEMBER.email.toLowerCase()) {
+    return DEFAULT_KNOWLEDGE_EDITOR_MEMBER;
+  }
 
   // Non-staff emails (@gmail.com, etc.) can never exist in `team_members` under Zero-Trust rules;
   // skip Firestore `team_members` reads unless checking a corporate staff email or running as staff.
   if (
     !isCorporateStaffEmail(cleanEmail) &&
-    !isRuntimeStaffSession(auth) &&
-    !isRuntimeStaffSession(mirrorAuth)
+    !isAnyStaffSessionActive()
   ) {
     teamEmailLookupCache.set(cleanEmail, {
       value: null,
@@ -1451,7 +1522,7 @@ export async function fetchUserProfileByEmail(
 
   // Cross-UID email queries (`users` by email, `customer_orders` by email, `research_tickets` by userEmail)
   // are permitted strictly for verified staff under Zero-Trust rules.
-  if (!isRuntimeStaffSession(auth) && !isRuntimeStaffSession(mirrorAuth)) {
+  if (!isAnyStaffSessionActive()) {
     return null;
   }
 
@@ -2009,11 +2080,10 @@ export async function updateUserProfile(
   updates: Partial<UserProfileData>
 ): Promise<boolean> {
   if (!userId) return false;
-  if (!auth.currentUser && !mirrorAuth.currentUser) return false;
+  if (!auth.currentUser && !staffAuth.currentUser && !mirrorAuth.currentUser) return false;
 
   let safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const isStaff =
-    isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth);
+  const isStaff = isAnyStaffSessionActive();
   if (!isStaff && auth.currentUser?.uid && safeUid !== auth.currentUser.uid) {
     const authEmail = (auth.currentUser.email || '').trim().toLowerCase();
     const updateEmail = (updates.email || '').trim().toLowerCase();
@@ -2596,10 +2666,124 @@ export async function upsertCustomerOrderInFirebase(
 }
 
 export async function fetchAllCustomerOrdersFromFirebase(): Promise<CustomerOrderRecord[]> {
-  const list = await dualGetCollection<CustomerOrderRecord>('customer_orders');
-  return list
-    .filter((o) => o.id !== 'ord_seed_almuqit_01')
-    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  if (!isAnyStaffSessionActive()) {
+    const storedStaff = readStoredActiveTeamMemberSession();
+    if (storedStaff) {
+      await ensureActiveStaffMirrorAuthSession(storedStaff);
+    }
+  }
+  const [rawOrders, rawUsers] = await Promise.all([
+    dualGetCollection<CustomerOrderRecord>('customer_orders'),
+    dualGetCollection<UserProfileData & { id?: string }>('users'),
+  ]);
+
+  const byCustomerKey = new Map<string, CustomerOrderRecord>();
+  const rankOrder = (o: CustomerOrderRecord): number => {
+    let score = 0;
+    if ((o.id || '').startsWith('ORD-')) score += 10;
+    if (o.ticketId && o.ticketId !== '—') score += 5;
+    if (o.paidRevenueUsd && o.paidRevenueUsd > 0) score += 4;
+    if (o.walletBalanceUsd && o.walletBalanceUsd > 0) score += 2;
+    return score;
+  };
+
+  for (const o of rawOrders) {
+    if (!o || o.id === 'ord_seed_almuqit_01') continue;
+    const emailKey = (o.email || '').trim().toLowerCase();
+    if (emailKey && isCorporateStaffEmail(emailKey)) continue;
+    const dedupKey = o.userId || emailKey || o.id;
+    const existing = byCustomerKey.get(dedupKey);
+    if (!existing) {
+      byCustomerKey.set(dedupKey, o);
+    } else {
+      const existingTime = existing.createdAt || '';
+      const nextTime = o.createdAt || '';
+      if (
+        rankOrder(o) > rankOrder(existing) ||
+        (rankOrder(o) === rankOrder(existing) && nextTime > existingTime)
+      ) {
+        byCustomerKey.set(dedupKey, {
+          ...existing,
+          ...o,
+          ticketId:
+            o.ticketId && o.ticketId !== '—'
+              ? o.ticketId
+              : existing.ticketId || '—',
+        });
+      }
+    }
+  }
+
+  // Ensure every registered customer in `/users` appears in Orders Management even if their initial order upsert was interrupted
+  for (const u of rawUsers) {
+    if (!u) continue;
+    const uid = u.userId || u.id || '';
+    const emailKey = (u.email || '').trim().toLowerCase();
+    if (!uid || isTeamAccountDocInUsers(uid, u.email, u.fullName)) continue;
+    const hasMatch =
+      byCustomerKey.has(uid) ||
+      (emailKey &&
+        Array.from(byCustomerKey.values()).some(
+          (o) => (o.email || '').trim().toLowerCase() === emailKey
+        ));
+    if (hasMatch) continue;
+
+    const snap = u.verifiedLineageSnapshot || u.lineageSnapshot;
+    const matched = snap ? Boolean(snap.matched) : false;
+    const isAlpha = snap ? Boolean(snap.isAlphaOnlyBeforeMerge) : false;
+    const synthesizedOrder: CustomerOrderRecord = {
+      id: `ORD-${uid.slice(-6).toUpperCase()}`,
+      userId: uid,
+      fullName: u.fullName || u.familyName || 'عميل جذوري',
+      firstName: u.firstName || (u.fullName || '').split(' ')[0] || 'عميل',
+      fatherName: u.fatherName || '—',
+      grandfatherName: u.grandfatherName || '—',
+      familyName: u.familyName || snap?.familyName || 'جذوري',
+      originCountry: u.originCountry || u.defaultCountry || 'السعودية',
+      originRegion: u.originRegion || '',
+      email: u.email || '',
+      phone: u.phone || '—',
+      legalRole: u.accountType === 'record_keeper' ? 'record_keeper' : 'individual',
+      accountStatus:
+        u.subscriptionTier === 'premium_annual'
+          ? 'annual_vip'
+          : u.isRootUnlocked || u.subscriptionTier === 'basic_verified'
+          ? 'paid_5_root'
+          : 'free',
+      walletBalanceUsd: u.walletBalance || 0,
+      paidRevenueUsd: u.paidRevenueUsd || 0,
+      matchStatus: !matched
+        ? 'open_research_ticket'
+        : isAlpha
+        ? 'staged_3_nodes'
+        : 'auto_adam_full',
+      ticketId: '—',
+      ticketType: !matched
+        ? 'طلب عميل P1'
+        : isAlpha
+        ? 'إثراء شجرة آدم P2'
+        : 'آلي مكتمل',
+      assignedResearcher: 'فريق التحقيق النَّسبي',
+      slaStatus: !matched
+        ? 'جديدة'
+        : isAlpha
+        ? 'قيد العمل'
+        : 'مكتملة وتمت تغذية شجرة آدم',
+      nodesCountLabel: !matched
+        ? 'تذكرة بحث مفتوحة'
+        : isAlpha
+        ? '3 عُقد (مشاريع ألفا)'
+        : 'عمود موثق (شجرة آدم)',
+      createdAt: u.createdAt || new Date().toISOString(),
+    };
+    byCustomerKey.set(uid, synthesizedOrder);
+    // Backfill to customer_orders in background so future reads are O(1)
+    upsertCustomerOrderInFirebase(synthesizedOrder).catch(() => {});
+  }
+
+  return Array.from(byCustomerKey.values()).sort((a, b) =>
+    (b.createdAt || '').localeCompare(a.createdAt || '')
+  );
 }
 
 export async function updateCustomerOrderInFirebase(
@@ -2689,7 +2873,7 @@ export async function fetchUserResearchTickets(
   const cleanEmail = (userEmail || '').trim().toLowerCase();
   if (!safeUid && !cleanEmail) return [];
 
-  if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+  if (isAnyStaffSessionActive()) {
     const all = await dualGetCollection<ResearchTicketData>('research_tickets');
     const matchedFromDual = all.filter((t) => {
       if (!t || t.id === 'ticket_seed_1042') return false;
@@ -2878,7 +3062,7 @@ export function normalizeResearchTicketDocId(rawIdOrKey: string): string {
 }
 
 export async function fetchAllResearchTicketsForStaff(): Promise<ResearchTicketData[]> {
-  if (!isRuntimeStaffSession(auth) && !isRuntimeStaffSession(mirrorAuth)) {
+  if (!isAnyStaffSessionActive()) {
     const storedStaff = readStoredActiveTeamMemberSession();
     if (storedStaff) {
       await ensureActiveStaffMirrorAuthSession(storedStaff);
@@ -3203,7 +3387,7 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
   precomputedDiagnostic?: unknown;
   additionalNotes?: string;
 }): Promise<ResearchTicketData> {
-  if (!isRuntimeStaffSession(auth) && !isRuntimeStaffSession(mirrorAuth)) {
+  if (!isAnyStaffSessionActive()) {
     const storedStaff = readStoredActiveTeamMemberSession();
     if (storedStaff) {
       await ensureActiveStaffMirrorAuthSession(storedStaff);
@@ -3283,10 +3467,16 @@ export async function saveGeneratedResearchTicketToFirebase(params: {
     updatedAt: new Date().toISOString(),
   };
 
-  await dualSetDoc(
+  const writeRes = await dualSetDoc(
     ['research_tickets', docId],
-    record as unknown as Record<string, unknown>
+    record as unknown as Record<string, unknown>,
+    4500
   );
+  if (!writeRes.primaryWritten && !writeRes.mirrorWritten) {
+    throw new Error(
+      `RESEARCH_TICKET_WRITE_FAILED: ${writeRes.primaryError || writeRes.mirrorError || 'UNKNOWN'}`
+    );
+  }
   return record;
 }
 
@@ -4167,7 +4357,7 @@ export async function executeAtomicWalletOperation(
           ? 'paid_5_root'
           : 'free';
 
-      if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+      if (isAnyStaffSessionActive()) {
         const orders = await dualGetCollection<CustomerOrderRecord>('customer_orders');
         const emailLower = (prof.email || '').trim().toLowerCase();
         for (const ord of orders) {
@@ -4612,9 +4802,15 @@ export async function purgeLegacyDummySeedsFromFirestore(): Promise<void> {
 export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecord> {
   hasEnsuredMaestroInSession = true;
   try {
-    const existingGm = await dualGetDoc<TeamMemberRecord>([
-      'team_members',
-      DEFAULT_GENERAL_MANAGER_MEMBER.id,
+    const [existingGm, existingKnowledgeEditor] = await Promise.all([
+      dualGetDoc<TeamMemberRecord>([
+        'team_members',
+        DEFAULT_GENERAL_MANAGER_MEMBER.id,
+      ]),
+      dualGetDoc<TeamMemberRecord>([
+        'team_members',
+        DEFAULT_KNOWLEDGE_EDITOR_MEMBER.id,
+      ]),
     ]);
     const gmRecordToSave: TeamMemberRecord = existingGm?.email
       ? {
@@ -4630,7 +4826,21 @@ export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecor
         }
       : DEFAULT_GENERAL_MANAGER_MEMBER;
 
-    // Architectural Separation Rule: Founding Maestro & General Manager belong strictly to `team_members`, NEVER to `users` (which is strictly for Customers)
+    const knowledgeEditorRecordToSave: TeamMemberRecord = existingKnowledgeEditor?.email
+      ? {
+          ...existingKnowledgeEditor,
+          id: DEFAULT_KNOWLEDGE_EDITOR_MEMBER.id,
+          name: existingKnowledgeEditor.name || DEFAULT_KNOWLEDGE_EDITOR_MEMBER.name,
+          role: 'مدير تحرير المركز المعرفي',
+          status: existingKnowledgeEditor.status || 'نشط',
+          passwordHash:
+            existingKnowledgeEditor.passwordHash ||
+            DEFAULT_KNOWLEDGE_EDITOR_MEMBER.passwordHash,
+          permissions: getPermissionsForTeamRole('مدير تحرير المركز المعرفي'),
+        }
+      : DEFAULT_KNOWLEDGE_EDITOR_MEMBER;
+
+    // Architectural Separation Rule: Staff accounts belong strictly to `team_members`, NEVER to `users` (which is strictly for Customers)
     await Promise.allSettled([
       dualSetDoc(
         ['team_members', FOUNDING_MAESTRO_MEMBER.id],
@@ -4639,6 +4849,10 @@ export async function ensureFoundingMaestroInFirebase(): Promise<TeamMemberRecor
       dualSetDoc(
         ['team_members', DEFAULT_GENERAL_MANAGER_MEMBER.id],
         gmRecordToSave as unknown as Record<string, unknown>
+      ),
+      dualSetDoc(
+        ['team_members', DEFAULT_KNOWLEDGE_EDITOR_MEMBER.id],
+        knowledgeEditorRecordToSave as unknown as Record<string, unknown>
       ),
       dualDeleteDoc(['users', 'usr_maestro_kareem']),
     ]);
@@ -4749,10 +4963,14 @@ export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecor
     ).catch(() => {});
   }
 
-  // Ensure Founding Maestro is always present
+  // Ensure Founding Maestro & default core team accounts are always present
   const maestroKey = FOUNDING_MAESTRO_MEMBER.email.toLowerCase();
   if (!byEmailMap.has(maestroKey)) {
     byEmailMap.set(maestroKey, FOUNDING_MAESTRO_MEMBER);
+  }
+  const knowledgeEditorKey = DEFAULT_KNOWLEDGE_EDITOR_MEMBER.email.toLowerCase();
+  if (!byEmailMap.has(knowledgeEditorKey)) {
+    byEmailMap.set(knowledgeEditorKey, DEFAULT_KNOWLEDGE_EDITOR_MEMBER);
   }
 
   const dedupedList = Array.from(byEmailMap.values());
@@ -4773,12 +4991,19 @@ export async function fetchAllTeamMembersFromFirebase(): Promise<TeamMemberRecor
   return dedupedList;
 }
 
+export async function signOutStaffPortalSession(): Promise<void> {
+  await Promise.allSettled([
+    signOut(staffAuth),
+    signOut(mirrorAuth),
+  ]);
+}
+
 export async function ensureActiveStaffMirrorAuthSession(
   staffRecord: TeamMemberRecord,
   explicitPassword?: string
-): Promise<void> {
+): Promise<boolean> {
   const staffEmail = (staffRecord.email || '').trim().toLowerCase();
-  if (!staffEmail) return;
+  if (!staffEmail) return false;
 
   const rawPass =
     explicitPassword?.trim() ||
@@ -4787,9 +5012,80 @@ export async function ensureActiveStaffMirrorAuthSession(
       ? FOUNDING_MAESTRO_MEMBER.passwordHash
       : staffEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase()
       ? DEFAULT_GENERAL_MANAGER_MEMBER.passwordHash
+      : staffEmail === DEFAULT_KNOWLEDGE_EDITOR_MEMBER.email.toLowerCase()
+      ? DEFAULT_KNOWLEDGE_EDITOR_MEMBER.passwordHash
       : 'Juthori@2026');
   const authPass = rawPass.length >= 6 ? rawPass : rawPass.padEnd(6, '0');
 
+  let staffSignedIn = false;
+
+  // 1. PRIMARY: Sign into the isolated `staffAuth` instance on juthori-com!
+  // Keeps customer `auth` 100% untouched while giving /Team full authenticated Firestore access on juthori-com.
+  try {
+    let staffUid = staffAuth.currentUser?.uid;
+    if (
+      !staffUid ||
+      (staffAuth.currentUser?.email || '').trim().toLowerCase() !== staffEmail
+    ) {
+      try {
+        const cred = await withFastTimeout(
+          signInWithEmailAndPassword(staffAuth, staffEmail, authPass),
+          4500
+        );
+        staffUid = cred.user.uid;
+      } catch (signInErr: unknown) {
+        const code =
+          typeof signInErr === 'object' && signInErr && 'code' in signInErr
+            ? String((signInErr as { code?: string }).code || '')
+            : '';
+        // Only try creating the Firebase Auth user if it doesn't exist yet (avoid silent failures on wrong password)
+        if (
+          code.includes('user-not-found') ||
+          code.includes('invalid-credential') ||
+          code.includes('invalid-login-credentials')
+        ) {
+          try {
+            const cred = await withFastTimeout(
+              createUserWithEmailAndPassword(staffAuth, staffEmail, authPass),
+              4500
+            );
+            staffUid = cred.user.uid;
+          } catch {
+            // Existing user with different Auth password; fall back to existing session if any
+          }
+        }
+      }
+    }
+
+    if (staffUid && (staffAuth.currentUser?.email || '').trim().toLowerCase() === staffEmail) {
+      staffSignedIn = true;
+      const canonicalId =
+        staffEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
+          ? FOUNDING_MAESTRO_MEMBER.id
+          : staffRecord.id || getTeamMemberDocIdByEmail(staffEmail);
+
+      // Bind `team_members/{staffUid}` on primary juthori-com staffDb so non-corporate staff emails pass Zero-Trust `isActiveTeamMemberUid()`
+      if (canonicalId !== staffUid) {
+        await withFastTimeout(
+          setDoc(
+            doc(staffDb, 'team_members', staffUid),
+            sanitizeFirestoreData({
+              ...staffRecord,
+              id: staffUid,
+              canonicalMemberId: canonicalId,
+              isAuthUidBinding: true,
+              status: 'نشط',
+            } as unknown as Record<string, unknown>)
+          ),
+          2500
+        ).catch(() => {});
+      }
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+
+  // 2. SECONDARY (Best-Effort): Try mirrorAuth silently if Email/Password is enabled on mirror project
   try {
     let mirrorUid = mirrorAuth.currentUser?.uid;
     if (
@@ -4799,19 +5095,15 @@ export async function ensureActiveStaffMirrorAuthSession(
       try {
         const cred = await withFastTimeout(
           signInWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
-          2500
+          1500
         );
         mirrorUid = cred.user.uid;
       } catch {
-        const cred = await withFastTimeout(
-          createUserWithEmailAndPassword(mirrorAuth, staffEmail, authPass),
-          2500
-        );
-        mirrorUid = cred.user.uid;
+        // Mirror AI Studio project typically only has Google OAuth enabled; ignore auth/operation-not-allowed
       }
     }
 
-    if (mirrorUid) {
+    if (mirrorUid && (mirrorAuth.currentUser?.email || '').trim().toLowerCase() === staffEmail) {
       const canonicalId =
         staffEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
           ? FOUNDING_MAESTRO_MEMBER.id
@@ -4830,8 +5122,10 @@ export async function ensureActiveStaffMirrorAuthSession(
       ).catch(() => {});
     }
   } catch {
-    // Non-blocking fallback
+    // Non-blocking
   }
+
+  return staffSignedIn;
 }
 
 export async function authenticateTeamMemberInFirebase(
@@ -4841,9 +5135,7 @@ export async function authenticateTeamMemberInFirebase(
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = password.trim();
 
-  // 1. Instant Fast-Path for Founding Maestro
-  // IMPORTANT: Never call signInWithEmailAndPassword on the primary customer `auth` instance here,
-  // so logging into `/Team` never logs the customer portal in as "كريم طاحون"!
+  // 1. Instant Fast-Path for Founding Maestro (authenticates on isolated `staffAuth`, NEVER customer `auth`)
   if (
     cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() &&
     (cleanPass === FOUNDING_MAESTRO_MEMBER.passwordHash || cleanPass === 'Kareem123@')
@@ -4856,7 +5148,7 @@ export async function authenticateTeamMemberInFirebase(
     return { member: FOUNDING_MAESTRO_MEMBER };
   }
 
-  // 1.B. Instant Fast-Path for General Manager (hassan.alamri@adamresearchcenter.net) with temporary password 123456
+  // 1.B. Instant Fast-Path for General Manager (hassan.alamri@adamresearchcenter.net)
   if (
     cleanEmail === DEFAULT_GENERAL_MANAGER_MEMBER.email.toLowerCase() &&
     cleanPass === '123456'
@@ -4889,36 +5181,88 @@ export async function authenticateTeamMemberInFirebase(
     }
   }
 
-  // 2. Fast Direct Canonical Doc Lookup (~80ms) with Collection Fallback
+  // 1.C. Instant Fast-Path for Knowledge Center Editorial Manager (kaouther.douzi@adamresearchcenter.net)
+  if (
+    cleanEmail === DEFAULT_KNOWLEDGE_EDITOR_MEMBER.email.toLowerCase() &&
+    cleanPass === DEFAULT_KNOWLEDGE_EDITOR_MEMBER.passwordHash
+  ) {
+    try {
+      await ensureActiveStaffMirrorAuthSession(
+        DEFAULT_KNOWLEDGE_EDITOR_MEMBER,
+        DEFAULT_KNOWLEDGE_EDITOR_MEMBER.passwordHash
+      );
+      const existingEditor = await dualGetDoc<TeamMemberRecord>([
+        'team_members',
+        DEFAULT_KNOWLEDGE_EDITOR_MEMBER.id,
+      ]);
+      const resolvedEditor: TeamMemberRecord = existingEditor?.email
+        ? {
+            ...existingEditor,
+            id: DEFAULT_KNOWLEDGE_EDITOR_MEMBER.id,
+            name: existingEditor.name || DEFAULT_KNOWLEDGE_EDITOR_MEMBER.name,
+            role: 'مدير تحرير المركز المعرفي',
+            status: existingEditor.status || 'نشط',
+            passwordHash: DEFAULT_KNOWLEDGE_EDITOR_MEMBER.passwordHash,
+            permissions: getPermissionsForTeamRole('مدير تحرير المركز المعرفي'),
+          }
+        : DEFAULT_KNOWLEDGE_EDITOR_MEMBER;
+      if (resolvedEditor.status !== 'نشط') {
+        return {
+          member: null,
+          error: 'هذا الحساب الإداري موقوف حالياً. يرجى مراجعة المايسترو أو المدير العام.',
+        };
+      }
+      dualSetDoc(
+        ['team_members', DEFAULT_KNOWLEDGE_EDITOR_MEMBER.id],
+        resolvedEditor as unknown as Record<string, unknown>
+      ).catch(() => {});
+      return { member: resolvedEditor };
+    } catch {
+      return { member: DEFAULT_KNOWLEDGE_EDITOR_MEMBER };
+    }
+  }
+
+  // 2. Authenticate directly against isolated `staffAuth` on juthori-com FIRST so Zero-Trust `team_members` read succeeds
   try {
+    const authPass = cleanPass.length >= 6 ? cleanPass : cleanPass.padEnd(6, '0');
+    try {
+      await withFastTimeout(
+        signInWithEmailAndPassword(staffAuth, cleanEmail, authPass),
+        4000
+      );
+    } catch {
+      // Fall through to canonical lookup in case staffAuth already has a session or password differs
+    }
+
     const canonicalDocId = getTeamMemberDocIdByEmail(cleanEmail);
-    let matched = await dualGetDoc<TeamMemberRecord>([
-      'team_members',
-      canonicalDocId,
-    ]);
+    let matched: TeamMemberRecord | null = null;
+
+    // Direct lookup via staffDb (authenticated as the signing-in staff member whose email matches `existing().email.lower()`)
+    if (staffAuth.currentUser) {
+      try {
+        const directSnap = await withFastTimeout(
+          getDoc(doc(staffDb, 'team_members', canonicalDocId)),
+          2500
+        );
+        if (directSnap.exists()) {
+          matched = directSnap.data() as TeamMemberRecord;
+        }
+      } catch {
+        // Fallback below
+      }
+    }
+
+    if (!matched || !matched.email) {
+      matched = await dualGetDoc<TeamMemberRecord>([
+        'team_members',
+        canonicalDocId,
+      ]);
+    }
 
     if (!matched || !matched.email) {
       const members = await fetchAllTeamMembersFromFirebase();
       matched =
         members.find((m) => m.email.trim().toLowerCase() === cleanEmail) || null;
-    }
-
-    // If not yet readable before mirrorAuth sign-in (e.g. non-corporate researcher email), sign in on mirrorAuth first then verify `/team_members`
-    if (!matched) {
-      try {
-        const authPass =
-          cleanPass.length >= 6 ? cleanPass : cleanPass.padEnd(6, '0');
-        await withFastTimeout(
-          signInWithEmailAndPassword(mirrorAuth, cleanEmail, authPass),
-          2500
-        );
-        matched = await dualGetDoc<TeamMemberRecord>([
-          'team_members',
-          canonicalDocId,
-        ]);
-      } catch {
-        // Invalid credentials or not a registered team member
-      }
     }
 
     if (!matched) {
@@ -5830,7 +6174,7 @@ export async function fetchUserLegalAuditTrailFromFirebase(
   }
 
   try {
-    if (isRuntimeStaffSession(auth) || isRuntimeStaffSession(mirrorAuth)) {
+    if (isAnyStaffSessionActive()) {
       const centralList = await dualGetCollection<LegalAuditTrailEntry>(
         'audit_trail',
         2500

@@ -7151,9 +7151,7 @@ export function getDashboardCapabilities(
     ? 'basic_5usd'
     : 'free';
 
-  const maxTreeMembers = isRecordKeeper
-    ? null
-    : isVip
+  const maxTreeMembers = isRecordKeeper || isVip
     ? 250
     : isRootUnlocked
     ? 50

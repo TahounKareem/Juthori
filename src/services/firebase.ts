@@ -45,6 +45,12 @@ const mirrorApp: FirebaseApp =
   getApps().find((a) => a.name === 'aistudio-mirror') ||
   initializeApp(appletFirebaseConfig, 'aistudio-mirror');
 
+// Dedicated isolated /Team Staff Portal App pointing to primary juthori-com
+// Keeps staff Firebase Auth sessions 100% isolated from customer `auth` while reading/writing live juthori-com Firestore!
+const staffApp: FirebaseApp =
+  getApps().find((a) => a.name === 'juthori-staff-portal') ||
+  initializeApp(JUTHORI_FIREBASE_CONFIG, 'juthori-staff-portal');
+
 // Dedicated secondary apps for provisioning new users in Firebase Authentication without signing out the active admin
 const provisionerApp: FirebaseApp =
   getApps().find((a) => a.name === 'juthori-user-provisioner') ||
@@ -67,13 +73,15 @@ if (typeof window !== 'undefined') {
 }
 
 export const auth = getAuth(app);
+export const staffAuth = getAuth(staffApp);
 export const mirrorAuth = getAuth(mirrorApp);
 export const provisionerAuth = getAuth(provisionerApp);
 export const mirrorProvisionerAuth = getAuth(mirrorProvisionerApp);
 
-// Enforce local persistence for main auth and mirrorAuth, and in-memory persistence for provisioner auth
+// Enforce local persistence for main auth, staffAuth, and mirrorAuth, and in-memory persistence for provisioner auth
 try {
   setPersistence(auth, browserLocalPersistence).catch(() => {});
+  setPersistence(staffAuth, browserLocalPersistence).catch(() => {});
   setPersistence(mirrorAuth, browserLocalPersistence).catch(() => {});
   setPersistence(provisionerAuth, inMemoryPersistence).catch(() => {});
   setPersistence(mirrorProvisionerAuth, inMemoryPersistence).catch(() => {});
@@ -101,8 +109,11 @@ function initResilientFirestore(targetApp: FirebaseApp, databaseId?: string): Fi
   }
 }
 
-// Primary Firestore database on juthori-com ((default) database)
+// Primary Firestore database on juthori-com ((default) database) for customer portal
 export const db: Firestore = initResilientFirestore(app);
+
+// Isolated Staff Firestore handle on the exact same juthori-com ((default) database) using staffAuth token
+export const staffDb: Firestore = initResilientFirestore(staffApp);
 
 // Mirror Firestore database provisioned in AI Studio environment
 export const mirrorDb: Firestore = initResilientFirestore(

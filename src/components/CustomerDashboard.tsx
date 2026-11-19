@@ -242,6 +242,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [walletBalance, setWalletBalance] = useState<number>(
     stateMode === DashboardStateMode.AnnualVip ? 25 : 0
   );
+  const [extraTreeCapacity, setExtraTreeCapacity] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const saved = window.localStorage.getItem(
+        `juthori_extra_tree_capacity_${userEmail || 'guest'}`
+      );
+      const parsed = Number(saved || 0);
+      return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+    } catch {
+      return 0;
+    }
+  });
   const [unlockedCapsules, setUnlockedCapsules] = useState<string[]>(() =>
     initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.unlockedCapsules)
       ? initialWorkspace!.unlockedCapsules!
@@ -489,6 +501,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
           if (typeof profile.walletBalance === 'number') {
             setWalletBalance(profile.walletBalance);
+          }
+          if (
+            typeof profile.extraTreeCapacity === 'number' &&
+            profile.extraTreeCapacity >= 0
+          ) {
+            setExtraTreeCapacity(Math.floor(profile.extraTreeCapacity));
           }
           if (
             Array.isArray(profile.unlockedCapsules) &&
@@ -1878,7 +1896,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
       appendActivity(
         `التوقيع الإلكتروني الموثق على عقد أمين السجل (${auditEntry.certificateCode})`,
-        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «أمين سجل العائلة ✦» بسعة غير محدودة`
+        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «أمين سجل العائلة ✦» بسعة تصل إلى 250 فرداً`
       );
 
       return auditEntry;
@@ -3774,6 +3792,66 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               onRequestUnlockCapsule={handleRequestUnlockCapsule}
               onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
               walletBalance={walletBalance}
+              extraTreeCapacity={extraTreeCapacity}
+              onPurchaseExtraTreeCapacity={async (
+                extraSlots: number,
+                priceUsd: number
+              ) => {
+                const fullName = [
+                  activeResult.clientName,
+                  activeResult.fatherName,
+                  activeResult.grandfatherName,
+                  activeResult.familyName,
+                ]
+                  .filter((s) => s && s !== '—')
+                  .join(' ');
+                const atomicRes = await executeAtomicWalletOperation({
+                  userId: resolvedCustomerUid,
+                  userEmail,
+                  userFullName: fullName,
+                  operationType: 'UNLOCK_CAPSULE',
+                  amountUsd: priceUsd,
+                  paymentMethod: 'wallet',
+                  descriptionAr: `إضافة سعة إضافية لشجرة العائلة (+${extraSlots} فرداً)`,
+                  skipFeatureIdempotency: true,
+                });
+                if (atomicRes.status === 'INSUFFICIENT_FUNDS') {
+                  setWalletBalance(atomicRes.balanceBefore);
+                  return {
+                    ok: false,
+                    shortfallUsd:
+                      atomicRes.shortfallUsd ??
+                      Math.max(0, Number((priceUsd - atomicRes.balanceBefore).toFixed(2))),
+                    balanceAfter: atomicRes.balanceBefore,
+                  };
+                }
+                const nextExtra = extraTreeCapacity + extraSlots;
+                setWalletBalance(atomicRes.balanceAfter);
+                setExtraTreeCapacity(nextExtra);
+                if (typeof window !== 'undefined') {
+                  try {
+                    window.localStorage.setItem(
+                      `juthori_extra_tree_capacity_${userEmail || 'guest'}`,
+                      String(nextExtra)
+                    );
+                  } catch {
+                    // ignore storage errors
+                  }
+                }
+                updateUserProfile(resolvedCustomerUid, {
+                  extraTreeCapacity: nextExtra,
+                }).catch(() => {});
+                appendActivity(
+                  `إضافة سعة شجرة (+${extraSlots} فرداً · $${priceUsd})`,
+                  `تم خصم $${priceUsd} من رصيد المحفظة ورفع السعة الإجمالية للشجرة إلى ${
+                    (caps.maxTreeMembers || 250) + nextExtra
+                  } فرداً`
+                );
+                return {
+                  ok: true,
+                  balanceAfter: atomicRes.balanceAfter,
+                };
+              }}
               userAvatarUrl={avatarUrl || undefined}
               userId={resolvedCustomerUid}
               userEmail={userEmail}

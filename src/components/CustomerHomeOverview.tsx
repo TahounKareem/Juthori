@@ -55,6 +55,7 @@ interface CustomerHomeOverviewProps {
   accountType: AccountLegalType;
   caps: DashboardAccessCapabilities;
   walletBalance: number;
+  extraTreeCapacity?: number;
   unlockedCapsules: string[];
   unlockedAddonSourceIds?: string[];
   userId?: string;
@@ -82,6 +83,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   accountType,
   caps,
   walletBalance,
+  extraTreeCapacity = 0,
   unlockedCapsules,
   unlockedAddonSourceIds = [],
   userId = '',
@@ -633,11 +635,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     incomingMessagesAndAlerts.filter((m) => m.unread).length +
     adminAnnouncements.filter((a) => !a.isRead).length;
 
-  const treeCapacityLabel = isRecordKeeper
-    ? caps.maxTreeMembers
-      ? `${treeMembersCount} / ${caps.maxTreeMembers} فرداً`
-      : `${treeMembersCount} فرداً (سعة مفتوحة)`
-    : `${treeMembersCount} / 250 فرداً`;
+  const effectiveTreeMax = (caps.maxTreeMembers ?? 250) + extraTreeCapacity;
+  const treeCapacityLabel = `${treeMembersCount} / ${effectiveTreeMax} فرداً`;
 
   return (
     <div

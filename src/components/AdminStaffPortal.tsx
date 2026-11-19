@@ -64,6 +64,7 @@ import {
   processAndUploadKnowledgeImage,
   resolveSupportTicketInFirebase,
   saveKnowledgeArticleToFirebase,
+  signOutStaffPortalSession,
   updateCustomerOrderInFirebase,
   updateTeamMemberStatusInFirebase,
 } from '../services/firestoreService';
@@ -622,7 +623,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       setLastLoginTimestamp(nowStr);
       setPreviewRoleOverride(null);
       setPreviewKnowledgeCenter(false);
-      setActiveTab('command_hub');
+      setActiveTab(
+        authenticatedMember.role === 'مدير تحرير المركز المعرفي'
+          ? 'knowledge_cms'
+          : 'command_hub'
+      );
       setLoginPassword('');
       setLoggedInMember(authenticatedMember);
       if (typeof window !== 'undefined') {
@@ -632,7 +637,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       }
     };
 
-    // 1. Instant in-memory check against pre-loaded staffList / Founding Maestro (< 5ms)
+    // 1. Fast-path check against pre-loaded staffList / Founding Maestro — STILL awaits isolated `staffAuth` sign-in on juthori-com!
     const cachedMatch = staffList.find(
       (m) => m.email.trim().toLowerCase() === cleanEmail
     );
@@ -643,7 +648,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         (cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase() &&
           cleanPass === 'Kareem123@'))
     ) {
-      completeLoginRedirect(cachedMatch);
+      setIsLoggingIn(true);
+      try {
+        await ensureActiveStaffMirrorAuthSession(
+          cachedMatch,
+          cleanEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()
+            ? FOUNDING_MAESTRO_MEMBER.passwordHash
+            : cleanPass
+        );
+        completeLoginRedirect(cachedMatch);
+      } finally {
+        setIsLoggingIn(false);
+      }
       return;
     }
 
@@ -668,6 +684,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   };
 
   const handleTeamLogout = () => {
+    signOutStaffPortalSession().catch(() => {});
     setLoggedInMember(null);
     setPreviewRoleOverride(null);
     setActiveTab('command_hub');

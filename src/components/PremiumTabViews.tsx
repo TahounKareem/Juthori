@@ -33,6 +33,16 @@ interface PremiumTabViewsProps {
   onRequestUnlockCapsule?: (capsule: AncestorCapsule) => void;
   onRequestUnlockAllCapsulesBundle?: () => void;
   walletBalance?: number;
+  extraTreeCapacity?: number;
+  onPurchaseExtraTreeCapacity?: (
+    extraSlots: number,
+    priceUsd: number
+  ) => Promise<{
+    ok: boolean;
+    shortfallUsd?: number;
+    balanceAfter?: number;
+    errorMessage?: string;
+  }>;
   userAvatarUrl?: string;
   userId?: string;
   userEmail?: string;
@@ -79,6 +89,8 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   onRequestUnlockCapsule,
   onRequestUnlockAllCapsulesBundle,
   walletBalance = 0,
+  extraTreeCapacity = 0,
+  onPurchaseExtraTreeCapacity,
   userAvatarUrl,
   userId,
   userEmail = '',
@@ -107,6 +119,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         accountType={accountType}
         caps={caps}
         walletBalance={walletBalance}
+        extraTreeCapacity={extraTreeCapacity}
         unlockedCapsules={unlockedCapsules}
         unlockedAddonSourceIds={unlockedAddonSourceIds}
         userId={userId}
@@ -143,6 +156,9 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         onRequestUnlockCapsule={onRequestUnlockCapsule}
         onRequestUnlockAllCapsulesBundle={onRequestUnlockAllCapsulesBundle}
         walletBalance={walletBalance}
+        extraTreeCapacity={extraTreeCapacity}
+        onPurchaseExtraTreeCapacity={onPurchaseExtraTreeCapacity}
+        onOpenWalletDrawer={onOpenWalletDrawer}
         userAvatarUrl={userAvatarUrl}
         userId={userId}
         userEmail={userEmail}

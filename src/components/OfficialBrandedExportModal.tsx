@@ -35,6 +35,7 @@ interface OfficialBrandedExportModalProps {
   userId?: string;
   unlockedCapsules?: string[];
   treeMembers?: ExportTreeMemberSummary[];
+  femalePrivacyHidden?: boolean;
   onUnlockRoot5Usd?: () => void;
   onUpgradeAnnualVip?: () => void;
   onSignCharterAndEnableTree?: () => void;
@@ -53,6 +54,7 @@ export const OfficialBrandedExportModal: React.FC<
   userId,
   unlockedCapsules = [],
   treeMembers = [],
+  femalePrivacyHidden = false,
   onUnlockRoot5Usd,
   onUpgradeAnnualVip,
   onSignCharterAndEnableTree,
@@ -207,6 +209,15 @@ export const OfficialBrandedExportModal: React.FC<
                 <span>{meta.membershipBadgeLabel}</span>
               </div>
             </div>
+
+            {exportKind === 'family_tree' && femalePrivacyHidden && (
+              <div className="rounded-xl bg-[#FFF8F0] border border-[#D8755B]/45 px-3.5 py-2 flex items-center gap-2 text-xs font-display font-bold text-[#8D4925]">
+                <ShieldCheck className="w-4 h-4 text-[#D8755B] shrink-0" />
+                <span>
+                  خيار الخصوصية العائلية «إخفاء» مفعّل — تم إخفاء أسماء الإناث من هذه النسخة عند الطباعة والتصدير.
+                </span>
+              </div>
+            )}
 
             {/* Owner & Issue Metadata Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-xl bg-[#FAF6F0] border border-[#E5DCCB] p-3 text-xs">

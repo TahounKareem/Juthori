@@ -162,7 +162,7 @@ test('Dashboard capabilities enforce exact Basic vs VIP and Individual vs Record
   );
   assert.equal(vipKeeper.canAccessTreeDirectly, true);
   assert.equal(vipKeeper.requiresCharterUpgradeForTree, false);
-  assert.equal(vipKeeper.maxTreeMembers, null);
+  assert.equal(vipKeeper.maxTreeMembers, 250);
   assert.equal(vipKeeper.maxVaultDocuments, null);
   assert.equal(vipKeeper.canPublishPublicSite, true);
   assert.equal(vipKeeper.canInviteFamilyContributors, true);
@@ -772,3 +772,191 @@ test('Assigned Research Tickets (#ASG-<Arabic>): ASCII Firestore DocId Normaliza
   assert.ok(firestoreRules.includes('function isActiveTeamMemberUid()'));
   assert.ok(firestoreRules.includes('canonicalMemberId'));
 });
+
+test('Family Tree Pedigree Layout (شجرتي): Strict Parent->Children Downward Branches & Horizontal Sibling Grouping', async () => {
+  const { buildPedigreeTreeLayout } = await import('./familyTreeLayout');
+
+  // Reconstruct the exact hierarchy from user screenshot + collateral branch + grandchildren + spouse
+  const sampleFamily = [
+    {
+      id: 'rk-kareem',
+      firstName: 'كريم',
+      gender: 'male' as const,
+      generationLevel: 1,
+      isRecordKeeper: true,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'أمين السجل',
+      fatherId: 'father-sharif',
+      spouseIds: ['wife-kareem'],
+    },
+    {
+      id: 'wife-kareem',
+      firstName: 'سارة',
+      gender: 'female' as const,
+      generationLevel: 1,
+      relationToTargetLabel: 'زوجة كريم',
+      spouseIds: ['rk-kareem'],
+    },
+    {
+      id: 'father-sharif',
+      firstName: 'شريف',
+      gender: 'male' as const,
+      generationLevel: 2,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'الأب',
+      fatherId: 'gf1-khairi',
+      spouseIds: [],
+    },
+    {
+      id: 'uncle-faraj',
+      firstName: 'فرج',
+      gender: 'male' as const,
+      generationLevel: 2,
+      isDirectSpineLineage: false,
+      relationToTargetLabel: 'أخ لـ شريف',
+      fatherId: 'gf1-khairi',
+      spouseIds: [],
+    },
+    {
+      id: 'gf1-khairi',
+      firstName: 'خيري',
+      gender: 'male' as const,
+      generationLevel: 3,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'الجد الأول',
+      fatherId: 'gf2-sharif',
+      spouseIds: [],
+    },
+    {
+      id: 'great-uncle-rashid',
+      firstName: 'راشد',
+      gender: 'male' as const,
+      generationLevel: 3,
+      isDirectSpineLineage: false,
+      relationToTargetLabel: 'أخ لـ خيري',
+      fatherId: 'gf2-sharif',
+      spouseIds: [],
+    },
+    {
+      id: 'great-uncle-mohsen',
+      firstName: 'محسن',
+      gender: 'male' as const,
+      generationLevel: 3,
+      isDirectSpineLineage: false,
+      relationToTargetLabel: 'أخ لـ خيري',
+      fatherId: 'gf2-sharif',
+      spouseIds: [],
+    },
+    {
+      id: 'gf2-sharif',
+      firstName: 'شريف',
+      gender: 'male' as const,
+      generationLevel: 4,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'الجد الثاني',
+      spouseIds: [],
+    },
+    // Collateral son under `راشد` (must hang strictly under `راشد`, NEVER under `خيري` or `كريم`)
+    {
+      id: 'son-of-rashid',
+      firstName: 'خالد',
+      gender: 'male' as const,
+      generationLevel: 2,
+      isDirectSpineLineage: false,
+      relationToTargetLabel: 'ابن راشد',
+      fatherId: 'great-uncle-rashid',
+      spouseIds: [],
+    },
+    // Sons & grandchild under Record Keeper `كريم`
+    {
+      id: 'son-kareem-1',
+      firstName: 'عمر',
+      gender: 'male' as const,
+      generationLevel: 0,
+      relationToTargetLabel: 'ابن كريم',
+      fatherId: 'rk-kareem',
+      motherId: 'wife-kareem',
+      spouseIds: [],
+    },
+    {
+      id: 'daughter-kareem-1',
+      firstName: 'لينا',
+      gender: 'female' as const,
+      generationLevel: 0,
+      relationToTargetLabel: 'ابنة كريم',
+      fatherId: 'rk-kareem',
+      motherId: 'wife-kareem',
+      spouseIds: [],
+    },
+    {
+      id: 'grandson-kareem-1',
+      firstName: 'يوسف',
+      gender: 'male' as const,
+      generationLevel: -1,
+      relationToTargetLabel: 'ابن عمر',
+      fatherId: 'son-kareem-1',
+      spouseIds: [],
+    },
+  ];
+
+  const layout = buildPedigreeTreeLayout(sampleFamily);
+  assert.ok(layout.root);
+  assert.equal(layout.root.person.id, 'gf2-sharif');
+  assert.equal(layout.detachedRoots.length, 0);
+
+  // 1) `الجد الثاني (شريف)` has 3 siblings on the exact same horizontal level: `[خيري, راشد, محسن]`
+  assert.deepEqual(
+    layout.root.children.map((c) => c.person.id),
+    ['gf1-khairi', 'great-uncle-rashid', 'great-uncle-mohsen']
+  );
+
+  // 2) `خيري` (direct spine) has 2 children: `[الأب شريف, فرج]`, while `راشد` has ONLY `[خالد]` and `محسن` has `[]`
+  const [khairiNode, rashidNode, mohsenNode] = layout.root.children;
+  assert.equal(khairiNode.isDirectSpineEdge, true);
+  assert.equal(rashidNode.isDirectSpineEdge, false);
+  assert.deepEqual(
+    khairiNode.children.map((c) => c.person.id),
+    ['father-sharif', 'uncle-faraj']
+  );
+  assert.deepEqual(
+    rashidNode.children.map((c) => c.person.id),
+    ['son-of-rashid']
+  );
+  assert.equal(mohsenNode.children.length, 0);
+
+  // 3) `الأب (شريف)` has child `[كريم]`; `فرج` has no children
+  const [fatherSharifNode, farajNode] = khairiNode.children;
+  assert.equal(farajNode.children.length, 0);
+  assert.deepEqual(
+    fatherSharifNode.children.map((c) => c.person.id),
+    ['rk-kareem']
+  );
+
+  // 4) `كريم` has spouse `سارة` attached to his couple unit, children `[عمر, لينا]`, and `عمر` has grandchild `[يوسف]` (ZERO duplication!)
+  const kareemNode = fatherSharifNode.children[0];
+  assert.deepEqual(
+    kareemNode.spouses.map((s) => s.id),
+    ['wife-kareem']
+  );
+  assert.deepEqual(
+    kareemNode.children.map((c) => c.person.id),
+    ['son-kareem-1', 'daughter-kareem-1']
+  );
+  assert.deepEqual(
+    kareemNode.children[0].children.map((c) => c.person.id),
+    ['grandson-kareem-1']
+  );
+
+  // 5) Verify every person in `sampleFamily` is rendered EXACTLY ONCE
+  const collectedIds: string[] = [];
+  const walk = (n: typeof layout.root) => {
+    if (!n) return;
+    collectedIds.push(n.person.id);
+    n.spouses.forEach((s) => collectedIds.push(s.id));
+    n.children.forEach(walk);
+  };
+  walk(layout.root);
+  assert.equal(collectedIds.length, sampleFamily.length);
+  assert.equal(new Set(collectedIds).size, sampleFamily.length);
+});
+

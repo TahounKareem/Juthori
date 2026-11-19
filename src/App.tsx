@@ -1352,7 +1352,11 @@ export function App() {
 
     const pendingHandoff = readPendingLineageHandoff();
 
-    let uid = auth.currentUser?.uid || userId;
+    const currentAuthEmail = (auth.currentUser?.email || '').trim().toLowerCase();
+    const isSameAuthEmail = Boolean(
+      auth.currentUser?.uid && currentAuthEmail === cleanRegEmail.toLowerCase()
+    );
+    let uid = isSameAuthEmail ? auth.currentUser!.uid : '';
     if (!uid) {
       try {
         const cred = await createUserWithEmailAndPassword(auth, cleanRegEmail, password);
@@ -1362,7 +1366,7 @@ export function App() {
           const cred = await signInWithEmailAndPassword(auth, cleanRegEmail, password);
           uid = cred.user.uid;
         } catch {
-          uid = canonicalCustomerEmailUid(cleanRegEmail) || `usr_${Date.now()}`;
+          uid = auth.currentUser?.uid || canonicalCustomerEmailUid(cleanRegEmail) || `usr_${Date.now()}`;
         }
       }
     }
@@ -1526,6 +1530,7 @@ export function App() {
     let createdTicketNumber =
       resolvedActiveResult.alphaBackgroundTicketCode || '—';
     if (
+      !effectiveMatched ||
       selectedDisambiguation === 'not_sure_ticket' ||
       effectiveMode === DashboardStateMode.AnnualVip
     ) {
@@ -1566,6 +1571,8 @@ export function App() {
             selectedDisambiguation === 'not_sure_ticket'
               ? lineageResult.disambiguationPathsSummaryForTicket ||
                 'طلب تحرٍّ أرشيفي أولي (P1) مفتوح من آلية حسم الشك الثنائية.'
+              : !effectiveMatched
+              ? `طلب تحرٍّ وبحث عميل مباشر (P1) لعائلة (${resolvedActiveResult.familyName || form.familyName}) بعد تسجيل الحساب.`
               : undefined,
         });
         if (syncedTicket) {
@@ -1576,8 +1583,8 @@ export function App() {
       }
     }
 
-    // Record real customer order in Firebase (/customer_orders) non-blockingly for /Team visibility
-    upsertCustomerOrderInFirebase({
+    // Record real customer order in Firebase (/customer_orders) for /Team Orders Management visibility
+    await upsertCustomerOrderInFirebase({
       id: `ORD-${safeUid.slice(-6).toUpperCase()}`,
       userId: safeUid,
       fullName: fullName || form.familyName,
@@ -1773,9 +1780,54 @@ export function App() {
         verificationMethod: 'google_oauth',
       }).catch(() => {});
 
-      const ticketNum = lineageResult.alphaBackgroundTicketCode || '—';
+      let ticketNum = lineageResult.alphaBackgroundTicketCode || '—';
+      const googleActiveResult = pendingHandoff?.result || lineageResult;
+      const isGoogleDisambigTicket =
+        pendingHandoff?.disambiguation_choice_id === 'not_sure_ticket';
+      if (!googleActiveResult.matched || isGoogleDisambigTicket) {
+        try {
+          const syncedGoogleTicket = await syncClientLineageTicketToFirebase({
+            userId: user.uid,
+            userFullName: fullName,
+            userEmail: user.email || '',
+            userPhone: userPhone,
+            familyName: googleActiveResult.familyName || form.familyName || 'جذوري',
+            originCountry:
+              googleActiveResult.originCountry ||
+              form.originCountry ||
+              selectedPortalCountry,
+            originRegion: googleActiveResult.originRegion || form.originRegion,
+            rootBranchName: googleActiveResult.rootBranchName || form.branchName,
+            rootTribeName: googleActiveResult.rootTribeName || form.tribeName,
+            matched: Boolean(googleActiveResult.matched && !isGoogleDisambigTicket),
+            isAlphaOnlyBeforeMerge: googleActiveResult.isAlphaOnlyBeforeMerge,
+            isAlphaMergedIntoAdam: googleActiveResult.isAlphaMergedIntoAdam,
+            adamNodeId: googleActiveResult.adamNodeId,
+            alphaBackgroundTicketCode:
+              googleActiveResult.alphaBackgroundTicketCode,
+            verifiedSources: googleActiveResult.verified_sources,
+            corroboratingAlphaEvidence:
+              googleActiveResult.corroborating_alpha_evidence_for_researcher,
+            siblingBranches: googleActiveResult.sibling_branches_in_record,
+            notablesInRecord: googleActiveResult.notables_in_record,
+            enrichedLocations: googleActiveResult.enrichedLocations,
+            adamSpineNodesCount: googleActiveResult.adamSpineNodes?.length || 1,
+            subscriptionTier: 'free',
+            isEscalatedDisambiguation: isGoogleDisambigTicket,
+            additionalNotes: isGoogleDisambigTicket
+              ? googleActiveResult.disambiguationPathsSummaryForTicket ||
+                'طلب تحرٍّ أرشيفي أولي (P1) مفتوح عبر التسجيل بحساب Google.'
+              : `طلب تحرٍّ وبحث عميل مباشر (P1) لعائلة (${googleActiveResult.familyName || form.familyName}) بعد تسجيل الحساب عبر Google.`,
+          });
+          if (syncedGoogleTicket) {
+            ticketNum = syncedGoogleTicket.ticketNumber;
+          }
+        } catch (ticketErr) {
+          console.warn('Could not auto-sync Google research ticket:', ticketErr);
+        }
+      }
 
-      upsertCustomerOrderInFirebase({
+      await upsertCustomerOrderInFirebase({
         id: `ORD-${user.uid.slice(-6).toUpperCase()}`,
         userId: user.uid,
         fullName,

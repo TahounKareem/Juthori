@@ -345,7 +345,7 @@ export interface DashboardAccessCapabilities {
   requiresCharterUpgradeForTree: boolean;
   tierHeaderTitle: string;
   membershipTierKey: MembershipTierGovernanceKey;
-  maxTreeMembers: number | null;
+  maxTreeMembers: number;
   maxVaultDocuments: number | null;
   canPublishPublicSite: boolean;
   canInviteFamilyContributors: boolean;
