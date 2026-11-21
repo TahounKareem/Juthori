@@ -46,7 +46,9 @@ export type TreePrestigeBadgeId =
   | 'none'
   | 'family_dean'
   | 'historical_figure'
-  | 'heritage_keeper';
+  | 'heritage_keeper'
+  | 'noble_lady'
+  | 'memory_narrator';
 
 export interface TreeArabicFontDefinition {
   id: TreeArabicFontId;
@@ -106,15 +108,17 @@ export function getTreeArabicFontDefinition(
   );
 }
 
-export const TREE_PRESTIGE_BADGE_OPTIONS: Array<{
+export interface TreePrestigeBadgeOption {
   id: TreePrestigeBadgeId;
   label: string;
   shortLabel: string;
   description: string;
-}> = [
+}
+
+export const TREE_PRESTIGE_BADGE_OPTIONS: TreePrestigeBadgeOption[] = [
   {
     id: 'none',
-    label: 'بدون وسام إضافي',
+    label: 'بدون وسام',
     shortLabel: 'بدون',
     description: 'بطاقة نظيفة بالاسم فقط',
   },
@@ -137,6 +141,67 @@ export const TREE_PRESTIGE_BADGE_OPTIONS: Array<{
     description: 'وسام لمن أسهم في جمع وتوثيق إرث الأسرة',
   },
 ];
+
+export const FEMALE_TREE_PRESTIGE_BADGE_OPTIONS: TreePrestigeBadgeOption[] = [
+  {
+    id: 'none',
+    label: 'بدون وسام',
+    shortLabel: 'بدون',
+    description: 'بطاقة نظيفة بالاسم فقط',
+  },
+  {
+    id: 'noble_lady',
+    label: 'كريمة الأسرة',
+    shortLabel: 'كريمة الأسرة',
+    description: 'وسام تقديري لكريمات الأسرة ومكانتهن',
+  },
+  {
+    id: 'family_dean',
+    label: 'عميدة فاضلة',
+    shortLabel: 'عميدة فاضلة',
+    description: 'وسام تقديري لكبيرة الأسرة وعميدتها',
+  },
+  {
+    id: 'heritage_keeper',
+    label: 'حافظة للإرث',
+    shortLabel: 'حافظة للإرث',
+    description: 'وسام لمن أسهمت في حفظ وتوثيق إرث الأسرة',
+  },
+  {
+    id: 'historical_figure',
+    label: 'شخصية بارزة',
+    shortLabel: 'شخصية بارزة',
+    description: 'وسام للأعلام النسائية والشخصيات البارزة',
+  },
+  {
+    id: 'memory_narrator',
+    label: 'راوية للذاكرة',
+    shortLabel: 'راوية للذاكرة',
+    description: 'وسام لراويات تاريخ الأسرة وذكرياتها الشفهية',
+  },
+];
+
+export function getPrestigeBadgeOptionsForGender(
+  gender: 'male' | 'female'
+): TreePrestigeBadgeOption[] {
+  return gender === 'female'
+    ? FEMALE_TREE_PRESTIGE_BADGE_OPTIONS
+    : TREE_PRESTIGE_BADGE_OPTIONS;
+}
+
+export function resolvePrestigeBadgeMeta(
+  badgeId: TreePrestigeBadgeId | undefined,
+  gender: 'male' | 'female'
+): TreePrestigeBadgeOption | null {
+  if (!badgeId || badgeId === 'none') return null;
+  const list = getPrestigeBadgeOptionsForGender(gender);
+  return (
+    list.find((b) => b.id === badgeId) ||
+    TREE_PRESTIGE_BADGE_OPTIONS.find((b) => b.id === badgeId) ||
+    FEMALE_TREE_PRESTIGE_BADGE_OPTIONS.find((b) => b.id === badgeId) ||
+    null
+  );
+}
 
 export interface TreePosterSettings {
   paperSize: PosterPaperSize;

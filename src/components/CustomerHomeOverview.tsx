@@ -1,19 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Wallet,
-  GitBranch,
-  TreePine,
-  FolderArchive,
-  Globe,
-  Users,
-  Compass,
-  Bell,
-  ArrowLeft,
-  ShieldCheck,
-  Clock,
-  CheckCircle2,
-  Scroll,
   AlertCircle,
+  ArrowLeft,
+  Bell,
+  Check,
+  CheckCircle2,
+  Clock,
+  Compass,
+  FolderArchive,
+  GitBranch,
+  Globe,
+  Scroll,
+  ShieldCheck,
+  Sparkles,
+  TreePine,
+  Users,
+  Wallet,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -34,8 +36,10 @@ import {
 } from '../services/firestoreService';
 import {
   KinshipCircleMember,
+  PublicMicrositeData,
   TreeEnrichmentRequestDoc,
   fetchKinshipCircleForOwner,
+  fetchOwnerMicrositeForCommunity,
   resolveTicketLifecycleStage,
   subscribeToOwnerEnrichmentRequests,
 } from '../services/priority4Service';
@@ -48,7 +52,16 @@ import {
   fetchCustomerKashafiItems,
   fetchCustomerKashafiOrders,
 } from '../services/kashafiService';
+import { FamilySiteThemeId } from '../config/referralAndSiteConfig';
 import { auth } from '../services/firebase';
+import {
+  KashafiRadarVisual,
+  KinshipOrbitVisual,
+  LineageGlowPathVisual,
+  SiteMiniBrowserVisual,
+  TreeBranchGaugeVisual,
+  VaultPolaroidFanVisual,
+} from './HomeBentoMicroVisuals';
 
 interface CustomerHomeOverviewProps {
   result: LineageSearchResult;
@@ -96,6 +109,14 @@ function getTicketProgressPercent(
   }
 }
 
+function normalizeLocationToken(val?: string): string {
+  return (val || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^ال/, '')
+    .toLowerCase();
+}
+
 export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   result,
   accountType,
@@ -118,7 +139,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     canonicalCustomerEmailUid(userEmail) ||
     `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
-  // 1. Live Real Counts across the 6 Workspace Pillars
+  // 1. Live Real Data Across the 6 Workspace Pillars (STRICT ZERO MOCKUPS)
   const [treeMembersCount, setTreeMembersCount] = useState<number>(() => {
     const local = readUserFamilyTreeFromLocal(
       resolvedUid,
@@ -128,35 +149,37 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     return Array.isArray(local) ? local.length : 0;
   });
 
-  const [vaultStats, setVaultStats] = useState<{
+  const [vaultState, setVaultState] = useState<{
     itemsCount: number;
     foldersCount: number;
+    previewPhotos: Array<{ id: string; title: string; url: string }>;
   }>(() => {
     const local = readVaultArchiveFromLocal(
       resolvedUid,
       result.familyName,
       userEmail
     );
+    const items = local?.items || [];
+    const previews = items
+      .filter((it) => Boolean(it.thumbnailDataUrl || it.fileDataUrl))
+      .slice(0, 3)
+      .map((it) => ({
+        id: it.id,
+        title: it.title || 'صورة عائلية',
+        url: it.thumbnailDataUrl || it.fileDataUrl,
+      }));
     return {
-      itemsCount: local?.items?.length || 0,
+      itemsCount: items.length,
       foldersCount: local?.folders?.length || 0,
+      previewPhotos: previews,
     };
   });
 
-  const siteInfo = useMemo(
-    () => ({
-      isPublished: Boolean(siteSettings?.isPublished),
-      slug: siteSettings?.siteSubdomain || '',
-    }),
-    [siteSettings?.isPublished, siteSettings?.siteSubdomain]
-  );
+  const [ownerMicrosite, setOwnerMicrosite] =
+    useState<PublicMicrositeData | null>(null);
 
-  const [relativesCount, setRelativesCount] = useState<number>(0);
+  const [circleMembers, setCircleMembers] = useState<KinshipCircleMember[]>([]);
   const [pendingEnrichments, setPendingEnrichments] = useState<number>(0);
-  const communityStats = useMemo(
-    () => ({ relativesCount, pendingEnrichments }),
-    [relativesCount, pendingEnrichments]
-  );
 
   const [tickets, setTickets] = useState<ResearchTicketData[]>([]);
   const [kashafiItems, setKashafiItems] = useState<KashafiItemRecord[]>([]);
@@ -181,7 +204,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       try {
         unsub();
       } catch {
-        // ignore unsubscribe cleanup error
+        // Ignore cleanup error
       }
     };
   }, [resolvedUid]);
@@ -194,6 +217,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         treeRes,
         vaultRes,
         kinshipRes,
+        micrositeRes,
         ticketsRes,
         kItemsRes,
         kCampaignsRes,
@@ -201,11 +225,15 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       ] = await Promise.allSettled([
         fetchUserFamilyTreeFromFirebase(
           resolvedUid,
-          result.familyName,
-          userEmail
+          userEmail,
+          result.familyName
         ),
         fetchUserVaultArchive(resolvedUid, result.familyName, userEmail),
         fetchKinshipCircleForOwner(resolvedUid),
+        fetchOwnerMicrositeForCommunity(
+          resolvedUid,
+          siteSettings?.siteSubdomain
+        ),
         fetchUserResearchTickets(resolvedUid, userEmail),
         fetchCustomerKashafiItems(resolvedUid, userEmail),
         fetchActiveKashafiCampaignsForClient(),
@@ -219,19 +247,32 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       }
 
       if (vaultRes.status === 'fulfilled' && vaultRes.value) {
-        setVaultStats({
-          itemsCount: vaultRes.value.items?.length || 0,
+        const items = vaultRes.value.items || [];
+        const previews = items
+          .filter((it) => Boolean(it.thumbnailDataUrl || it.fileDataUrl))
+          .slice(0, 3)
+          .map((it) => ({
+            id: it.id,
+            title: it.title || 'صورة عائلية',
+            url: it.thumbnailDataUrl || it.fileDataUrl,
+          }));
+        setVaultState({
+          itemsCount: items.length,
           foldersCount: vaultRes.value.folders?.length || 0,
+          previewPhotos: previews,
         });
       }
 
-      const relatives =
-        kinshipRes.status === 'fulfilled' && kinshipRes.value?.members
-          ? kinshipRes.value.members.filter(
-              (m: KinshipCircleMember) => m.status !== 'OPTED_OUT'
-            ).length
-          : 0;
-      setRelativesCount(relatives);
+      if (kinshipRes.status === 'fulfilled' && kinshipRes.value?.members) {
+        const activeMembers = kinshipRes.value.members.filter(
+          (m: KinshipCircleMember) => m.status !== 'OPTED_OUT'
+        );
+        setCircleMembers(activeMembers);
+      }
+
+      if (micrositeRes.status === 'fulfilled' && micrositeRes.value) {
+        setOwnerMicrosite(micrositeRes.value);
+      }
 
       const realTickets =
         ticketsRes.status === 'fulfilled' && Array.isArray(ticketsRes.value)
@@ -267,7 +308,27 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [resolvedUid, userEmail, result.familyName]);
+  }, [resolvedUid, userEmail, result.familyName, siteSettings?.siteSubdomain]);
+
+  // Derived Real State
+  const siteInfo = useMemo(
+    () => ({
+      isPublished: Boolean(
+        ownerMicrosite?.isPublished ?? siteSettings?.isPublished
+      ),
+      slug: ownerMicrosite?.siteSlug || siteSettings?.siteSubdomain || '',
+      themeId: (ownerMicrosite?.themeId || 'golden_parchment') as FamilySiteThemeId,
+    }),
+    [
+      ownerMicrosite?.isPublished,
+      ownerMicrosite?.siteSlug,
+      ownerMicrosite?.themeId,
+      siteSettings?.isPublished,
+      siteSettings?.siteSubdomain,
+    ]
+  );
+
+  const relativesCount = circleMembers.length;
 
   const activeTicket = useMemo(() => {
     return (
@@ -288,7 +349,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         doesCampaignMatchClient(cmp, {
           familyName: result.familyName,
           isVip: caps.isVip,
-          vaultItemsCount: vaultStats.itemsCount,
+          vaultItemsCount: vaultState.itemsCount,
           treeMembersCount,
         })
       ).length,
@@ -296,7 +357,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       kashafiCampaigns,
       result.familyName,
       caps.isVip,
-      vaultStats.itemsCount,
+      vaultState.itemsCount,
       treeMembersCount,
     ]
   );
@@ -313,17 +374,128 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   const totalCapsules = result.capsules?.length || 0;
   const unlockedCapsulesCount = unlockedCapsules?.length || 0;
 
-  const clientDisplayName =
-    [result.clientName, result.familyName]
-      .filter((s) => s && s !== '—')
-      .join(' ') ||
-    result.familyName ||
-    'عضو جذوري';
+  // Clean De-duplicated Identity & Location Copy
+  const cleanLocationLabel = useMemo(() => {
+    const country = (result.originCountry || '').trim();
+    const region = (result.originRegion || '').trim();
+    if (!country && !region) return '';
+    if (!region) return country;
+    if (!country) return region;
+    const normCountry = normalizeLocationToken(country);
+    const normRegion = normalizeLocationToken(region);
+    if (
+      normCountry === normRegion ||
+      normCountry.includes(normRegion) ||
+      normRegion.includes(normCountry)
+    ) {
+      return country;
+    }
+    return `${country} — ${region}`;
+  }, [result.originCountry, result.originRegion]);
 
-  const roleLabel =
-    accountType === AccountLegalType.RecordKeeper
-      ? 'رب أسرة / أمين سجل'
-      : 'حساب فردي';
+  const identityMetaParts = useMemo(() => {
+    const parts: string[] = [];
+    const tierTitle = (caps.tierHeaderTitle || 'عضوية جذوري').trim();
+    parts.push(tierTitle);
+
+    const roleLabel =
+      accountType === AccountLegalType.RecordKeeper
+        ? 'أمين سجل العائلة'
+        : 'حساب فردي';
+    const tierAlreadyHasRole =
+      tierTitle.includes('أمين سجل') ||
+      tierTitle.includes('رب أسرة') ||
+      tierTitle.includes('فردي');
+    if (!tierAlreadyHasRole) {
+      parts.push(roleLabel);
+    }
+
+    if (cleanLocationLabel) {
+      parts.push(cleanLocationLabel);
+    }
+    return parts;
+  }, [caps.tierHeaderTitle, accountType, cleanLocationLabel]);
+
+  const greetingHeading = useMemo(() => {
+    const client = (result.clientName || '').trim();
+    const fam = (result.familyName || '').trim();
+    const cleanClient = client && client !== '—' ? client : '';
+    const cleanFam = fam && fam !== '—' ? fam : '';
+    if (cleanClient && cleanFam) {
+      if (cleanClient.includes(cleanFam)) {
+        return `أهلاً بك، ${cleanClient}`;
+      }
+      return `أهلاً بك، ${cleanClient} — أسرة ${cleanFam}`;
+    }
+    if (cleanClient) return `أهلاً بك، ${cleanClient}`;
+    if (cleanFam) return `أهلاً بك في ديوان أسرة ${cleanFam}`;
+    return 'أهلاً بك في منصتك التراثية';
+  }, [result.clientName, result.familyName]);
+
+  // Interactive 5-Milestone Family Legacy Journey (100% Real Firestore State)
+  const legacyMilestones = useMemo(() => {
+    const list: Array<{
+      id: string;
+      stepNum: number;
+      label: string;
+      completed: boolean;
+      tab: DashboardTab;
+    }> = [
+      {
+        id: 'root',
+        stepNum: 1,
+        label: 'توثيق الجذر',
+        completed: Boolean(caps.isRootUnlocked || (result.matched && caps.isVip)),
+        tab: DashboardTab.Lineage,
+      },
+      {
+        id: 'tree',
+        stepNum: 2,
+        label: 'تأسيس المشجرة',
+        completed: treeMembersCount > 0,
+        tab: DashboardTab.MyTree,
+      },
+      {
+        id: 'vault',
+        stepNum: 3,
+        label: 'إيداع الخزانة',
+        completed: vaultState.itemsCount > 0,
+        tab: DashboardTab.MyVault,
+      },
+      {
+        id: 'site',
+        stepNum: 4,
+        label: 'تدشين بوابة موقعي',
+        completed: siteInfo.isPublished,
+        tab: DashboardTab.MySite,
+      },
+      {
+        id: 'community',
+        stepNum: 5,
+        label: 'تفعيل دائرة الرحم',
+        completed: relativesCount > 0,
+        tab: DashboardTab.MyCommunity,
+      },
+    ];
+    return list;
+  }, [
+    caps.isRootUnlocked,
+    caps.isVip,
+    result.matched,
+    treeMembersCount,
+    vaultState.itemsCount,
+    siteInfo.isPublished,
+    relativesCount,
+  ]);
+
+  const completedMilestonesCount = legacyMilestones.filter(
+    (m) => m.completed
+  ).length;
+  const legacyCompletionPercent = Math.round(
+    (completedMilestonesCount / legacyMilestones.length) * 100
+  );
+  const nextPendingMilestoneId =
+    legacyMilestones.find((m) => !m.completed)?.id || null;
 
   const latestThreeAlerts = useMemo(
     () => (dashboardNotifications || []).slice(0, 3),
@@ -334,100 +506,248 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     ? getTicketProgressPercent(activeTicket)
     : null;
 
+  const verifiedRootDisplay = result.matched
+    ? result.rootTribeName || result.rootBranchName || 'موثق بالمرصد'
+    : 'قيد الفحص والتحقيق المرجعي';
+
   return (
     <div
       data-testid="customer-home-executive-hub"
       className="space-y-6 text-[#252321]"
     >
       {/* ===================================================================
-          TIER 1 — Hero Welcome & Wallet Strip
+          TIER 1 — Royal Hero & Gamified Legacy Journey Compass
          =================================================================== */}
-      <section className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[#8D4925]">
-            <span className="font-display font-bold">
-              {caps.tierHeaderTitle || 'عضوية جذوري'}
-            </span>
-            <span aria-hidden="true" className="text-[#D8D0C0]">
-              ·
-            </span>
-            <span className="text-[#5C5346] font-semibold">{roleLabel}</span>
-            {result.originCountry && (
-              <>
-                <span aria-hidden="true" className="text-[#D8D0C0]">
-                  ·
-                </span>
-                <span className="text-[#6E6456]">
-                  {result.originCountry}
-                  {result.originRegion ? ` — ${result.originRegion}` : ''}
-                </span>
-              </>
-            )}
-          </div>
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#FCF9F2] via-[#F7EFE2] to-[#F1E4CE] border border-[#C8A666]/55 shadow-xs">
+        {/* Thin gilded crown hairline */}
+        <div
+          className="h-[2px] w-full bg-gradient-to-l from-[#8D4925]/35 via-[#D4AF6A] to-[#8D4925]/35"
+          aria-hidden="true"
+        />
 
-          <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
-            أهلاً بك، {clientDisplayName} — أسرة {result.familyName}
-          </h1>
-        </div>
+        {/* Ultra-subtle Islamic geometric lattice watermark */}
+        <svg
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.055] text-[#8D4925]"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <pattern
+              id="juthoriRoyalLattice"
+              width="56"
+              height="56"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M28 0 L56 28 L28 56 L0 28 Z M28 10 L46 28 L28 46 L10 28 Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="0.9"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#juthoriRoyalLattice)" />
+        </svg>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <div className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center gap-2.5">
-            <Wallet className="w-4 h-4 text-[#8D4925]" />
-            <div className="text-xs">
-              <span className="text-[#6E6456] ml-1.5">رصيد المحفظة:</span>
-              <strong className="font-mono tabular-nums text-sm font-bold text-[#252321]">
-                ${walletBalance.toFixed(2)}
-              </strong>
+        <div className="relative z-10 p-5 sm:p-7 space-y-6">
+          {/* Top Row: Clean Identity + Wallet & Subscriptions */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {identityMetaParts.map((part, idx) => (
+                  <React.Fragment key={`${part}-${idx}`}>
+                    {idx > 0 && (
+                      <span aria-hidden="true" className="text-[#C8A666]">
+                        ·
+                      </span>
+                    )}
+                    <span
+                      className={
+                        idx === 0
+                          ? 'font-display font-bold text-[#8D4925]'
+                          : 'font-semibold text-[#5C5346]'
+                      }
+                    >
+                      {part}
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
+
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321] leading-snug">
+                {greetingHeading}
+              </h1>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <div className="px-4 py-2.5 rounded-xl bg-white/80 backdrop-blur-xs border border-[#D4BC93]/70 flex items-center gap-2.5">
+                <Wallet className="w-4 h-4 text-[#8D4925] shrink-0" />
+                <div className="text-xs flex items-center gap-1.5">
+                  <span className="text-[#6E6456]">رصيد المحفظة:</span>
+                  <strong
+                    dir="ltr"
+                    className="inline-block font-mono tabular-nums text-sm font-bold text-[#252321]"
+                  >
+                    ${walletBalance.toFixed(2)}
+                  </strong>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenWalletDrawer}
+                className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
+              >
+                الاشتراكات والمكافآت
+              </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onOpenWalletDrawer}
-            className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0"
-          >
-            الاشتراكات والمكافآت
-          </button>
+          {/* Interactive Family Legacy Milestones Compass */}
+          <div className="pt-4 border-t border-[#D8C4A0]/60 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs">
+                <Sparkles className="w-3.5 h-3.5 text-[#9E6B2B]" />
+                <span className="font-display font-bold text-[#252321]">
+                  مسار اكتمال صرح الأسرة
+                </span>
+                <span className="text-[#6E6456] hidden sm:inline">
+                  — انقر على أي محطة للانتقال المباشر وإنجازها
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs tabular-nums">
+                <span className="text-[#6E6456]">
+                  {completedMilestonesCount} من {legacyMilestones.length} محطات
+                </span>
+                <span className="font-mono font-bold text-[#8D4925]">
+                  {legacyCompletionPercent}%
+                </span>
+              </div>
+            </div>
+
+            {/* 5 Connected Golden Milestones */}
+            <div className="relative">
+              {/* Connecting golden horizontal line (visible on md+) */}
+              <div
+                aria-hidden="true"
+                className="hidden md:block absolute top-4.5 inset-x-10 h-[2px] bg-[#DFCFAF]"
+              >
+                <div
+                  className="h-full bg-gradient-to-l from-[#D4AF6A] to-[#8D4925] transition-all duration-500"
+                  style={{ width: `${legacyCompletionPercent}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                {legacyMilestones.map((m) => {
+                  const isNext = m.id === nextPendingMilestoneId;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => onNavigateTab(m.tab)}
+                      className={`group relative z-10 rounded-xl px-3 py-2.5 flex md:flex-col items-center gap-2 text-right md:text-center transition-all duration-300 cursor-pointer border ${
+                        m.completed
+                          ? 'bg-white/85 border-[#D4AF6A]/65 hover:border-[#8D4925]'
+                          : isNext
+                          ? 'bg-white border-[#D4AF6A] shadow-xs ring-2 ring-[#D4AF6A]/30 hover:-translate-y-0.5'
+                          : 'bg-white/55 border-[#DFD2BC]/75 hover:bg-white/85 hover:border-[#C8A666]'
+                      }`}
+                    >
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold shrink-0 transition-transform duration-300 group-hover:scale-105 ${
+                          m.completed
+                            ? 'bg-gradient-to-br from-[#D4AF6A] to-[#9E6B2B] text-white shadow-xs'
+                            : isNext
+                            ? 'bg-[#252321] text-[#F3D299] ring-4 ring-[#D4AF6A]/25'
+                            : 'bg-[#EFE6D6] text-[#6E6456]'
+                        }`}
+                      >
+                        {m.completed ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          m.stepNum
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div
+                          className={`text-[11px] font-display font-bold truncate ${
+                            m.completed
+                              ? 'text-[#252321]'
+                              : isNext
+                              ? 'text-[#8D4925]'
+                              : 'text-[#5C5346]'
+                          }`}
+                        >
+                          {m.label}
+                        </div>
+                        <div className="text-[10px] text-[#7A6F5F] hidden sm:block">
+                          {m.completed
+                            ? 'مكتمل ✓'
+                            : isNext
+                            ? 'الخطوة التالية'
+                            : 'بانتظار الإنجاز'}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ===================================================================
-          TIER 2 — 6 Equal-Height Summary Cards (3 × 2 Grid)
+          TIER 2 — Asymmetric Luxury Bento Grid (12 Columns) + Micro-Canvases
          =================================================================== */}
       <section
-        aria-label="ملخص أركان الحساب الستة"
-        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch"
+        aria-label="أجنحة وحزم منصة جذوري"
+        className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-stretch"
       >
-        {/* Card 1: عمود نسبي */}
-        <div className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
-                  <GitBranch className="w-4 h-4" />
+        {/* 1. جناح «عمود نسبي» (Row 1 — 6 Columns, Warm Antique Manuscript Parchment) */}
+        <article className="group lg:col-span-6 h-full rounded-2xl bg-gradient-to-bl from-[#FCF8F0] via-[#F9F2E4] to-[#F3E8D3] border border-[#D4BC91]/70 p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#C59B47]">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#252321] text-[#E5C17A] flex items-center justify-center shrink-0 shadow-xs">
+                  <GitBranch className="w-4.5 h-4.5" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321]">
-                  عمود نسبي
-                </h2>
+                <div>
+                  <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                    عمود نسبي
+                  </h2>
+                  <p className="text-[11px] text-[#6E6456]">
+                    سلسلة النسب التاريخية الموثقة والمصادر المرجعية
+                  </p>
+                </div>
               </div>
-              <span className="text-[11px] font-display font-bold text-[#8D4925]">
-                {result.matched ? 'ربط مرجعي متاح' : 'قيد التحقيق'}
+              <span className="text-[11px] font-display font-bold text-[#8D4925] whitespace-nowrap">
+                {result.matched ? 'ربط مرجعي موثق' : 'قيد التحقيق'}
               </span>
             </div>
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
+            {/* Live Micro-Visual: Glowing Lineage Nodes Path */}
+            <LineageGlowPathVisual
+              familyName={result.familyName || 'العائلة'}
+              rootLabel={verifiedRootDisplay}
+              matched={result.matched}
+              totalCapsules={totalCapsules}
+              unlockedCapsulesCount={unlockedCapsulesCount}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#5C5346]">
               <div>
                 الجذر الموثق:{' '}
-                <strong className="text-[#252321]">
-                  {result.matched
-                    ? result.rootTribeName || result.rootBranchName || 'موثق بالمرصد'
-                    : 'قيد الفحص والتحقيق المرجعي'}
+                <strong className="font-display text-[#252321]">
+                  {verifiedRootDisplay}
                 </strong>
               </div>
               <div className="tabular-nums">
-                كبسولات الأجداد الوسيطين:{' '}
-                <strong className="text-[#252321]">
-                  {unlockedCapsulesCount} / {totalCapsules}
+                الحلقات الوسطية:{' '}
+                <strong className="font-display text-[#8D4925]">
+                  {unlockedCapsulesCount} مفتوحة من {totalCapsules}
                 </strong>
               </div>
             </div>
@@ -436,84 +756,101 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.Lineage)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] inline-flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#8D4925] hover:bg-[#733a1d] text-[#FAF4E4] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
-            <span>استعراض العمود</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>استعراض عمود النسب الموثق</span>
+            <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
-        </div>
+        </article>
 
-        {/* Card 2: شجرتي */}
-        <div className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
-                  <TreePine className="w-4 h-4" />
+        {/* 2. جناح «شجرتي» (Row 1 — 6 Columns, Calm Botanical Ivory & Tree Gauge) */}
+        <article className="group lg:col-span-6 h-full rounded-2xl bg-gradient-to-bl from-[#FBFBF7] via-[#F4F6EE] to-[#EAEFE2] border border-[#C1CCB5]/75 p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#8AA07C]">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#2E4234] text-[#E5C17A] flex items-center justify-center shrink-0 shadow-xs">
+                  <TreePine className="w-4.5 h-4.5" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321]">
-                  شجرتي
-                </h2>
+                <div>
+                  <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                    شجرتي
+                  </h2>
+                  <p className="text-[11px] text-[#556150]">
+                    استوديو المشجرة المعاصرة وتفريعات الأجيال
+                  </p>
+                </div>
               </div>
-              <span className="text-[11px] font-mono tabular-nums font-bold text-[#6E6456]">
-                {treeMembersCount} / {totalTreeCapacity}
+              <span className="text-[11px] font-display font-bold text-[#2E4234] tabular-nums whitespace-nowrap">
+                {treeMembersCount} فرداً
               </span>
             </div>
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
-              <div className="tabular-nums">
-                الأفراد المسجلون في المشجرة:{' '}
-                <strong className="text-[#252321]">
-                  {treeMembersCount} فرداً
+            {/* Live Micro-Visual: Mini Tree Branch SVG + Sleek Radial Gauge */}
+            <TreeBranchGaugeVisual
+              treeMembersCount={treeMembersCount}
+              totalTreeCapacity={totalTreeCapacity}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#4C5847] tabular-nums">
+              <span>
+                الأفراد المسجلون:{' '}
+                <strong className="font-display text-[#252321]">
+                  {treeMembersCount} أفراد من سعة {totalTreeCapacity}
                 </strong>
-              </div>
-              <div className="tabular-nums">
-                السعة المتاحة حالياً:{' '}
-                <strong className="text-[#252321]">
+              </span>
+              <span>
+                السعة المتاحة:{' '}
+                <strong className="font-display text-[#2E4234]">
                   {Math.max(0, totalTreeCapacity - treeMembersCount)} مقعداً
                 </strong>
-              </div>
+              </span>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyTree)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] inline-flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#2E4234] hover:bg-[#233428] text-[#F5F2E9] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>فتح استوديو الشجرة</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
-        </div>
+        </article>
 
-        {/* Card 3: خزانتي */}
-        <div className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors">
-          <div className="space-y-3">
+        {/* 3. حزمة «خزانتي» (Row 2 — 3 Columns on XL / 6 on LG, Stacked Polaroid Fan) */}
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#DFD1BA] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#C59B47]">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#FAF3E6] border border-[#E0CEAE] text-[#8D4925] flex items-center justify-center shrink-0">
                   <FolderArchive className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-display font-bold text-[#252321]">
                   خزانتي
                 </h2>
               </div>
-              <span className="text-[11px] font-mono tabular-nums font-bold text-[#6E6456]">
-                {vaultStats.itemsCount} وثيقة
+              <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+                {vaultState.itemsCount} مقتنى
               </span>
             </div>
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
-              <div className="tabular-nums">
-                الوثائق والصور المؤرشفة:{' '}
+            {/* Live Micro-Visual: Stacked Polaroid / Museum Album Fan */}
+            <VaultPolaroidFanVisual
+              previewPhotos={vaultState.previewPhotos}
+              itemsCount={vaultState.itemsCount}
+            />
+
+            <div className="space-y-1 text-xs text-[#5C5346] tabular-nums">
+              <div>
+                الصور والوثائق:{' '}
                 <strong className="text-[#252321]">
-                  {vaultStats.itemsCount} ملفاً
+                  {vaultState.itemsCount} ملفاً
                 </strong>
               </div>
-              <div className="tabular-nums">
-                مجلدات الأرشيف العائلي:{' '}
+              <div>
+                مجلدات الأرشيف:{' '}
                 <strong className="text-[#252321]">
-                  {vaultStats.foldersCount} مجلدات
+                  {vaultState.foldersCount} مجلدات
                 </strong>
               </div>
             </div>
@@ -522,19 +859,19 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyVault)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] inline-flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F7EFE0] hover:bg-[#8D4925] text-[#8D4925] hover:text-white border border-[#DEC9A4] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>إدارة الخزانة</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
-        </div>
+        </article>
 
-        {/* Card 4: موقعي */}
-        <div className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors">
-          <div className="space-y-3">
+        {/* 4. حزمة «موقعي» (Row 2 — 3 Columns on XL / 6 on LG, Live Mini Portal Mockup) */}
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#DDD4C7] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#8D6E48]">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#F5F2EC] border border-[#DDD4C7] text-[#252321] flex items-center justify-center shrink-0">
                   <Globe className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-display font-bold text-[#252321]">
@@ -543,26 +880,35 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               </div>
               <span
                 className={`text-[11px] font-display font-bold ${
-                  siteInfo.isPublished ? 'text-emerald-700' : 'text-[#8C8272]'
+                  siteInfo.isPublished ? 'text-emerald-800' : 'text-[#7A6F5F]'
                 }`}
               >
-                {siteInfo.isPublished ? 'منشور' : 'مسودة خاصة'}
+                {siteInfo.isPublished ? 'منشور ✓' : 'مسودة'}
               </span>
             </div>
 
+            {/* Live Micro-Visual: Miniature Theme-Matched Portal Browser */}
+            <SiteMiniBrowserVisual
+              familyName={result.familyName || 'العائلة'}
+              slug={siteInfo.slug}
+              isPublished={siteInfo.isPublished}
+              themeId={siteInfo.themeId}
+            />
+
             <div className="space-y-1 text-xs text-[#5C5346]">
-              <div>
-                الرابط السيادي:{' '}
-                <strong className="font-mono text-[#252321]" dir="ltr">
+              <div className="truncate">
+                الرابط:{' '}
+                <strong
+                  dir="ltr"
+                  className="inline-block font-mono text-[11px] text-[#252321]"
+                >
                   {siteInfo.slug ? `juthori.com/${siteInfo.slug}` : 'لم يُحجز بعد'}
                 </strong>
               </div>
-              <div>
-                حالة النشر:{' '}
+              <div className="truncate">
+                الحالة:{' '}
                 <strong className="text-[#252321]">
-                  {siteInfo.isPublished
-                    ? 'متاح وفق ضوابط الخصوصية'
-                    : 'بانتظار التفعيل والنشر'}
+                  {siteInfo.isPublished ? 'بوابة عائلية نشطة' : 'جاهز للتخصيص'}
                 </strong>
               </div>
             </div>
@@ -571,41 +917,48 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MySite)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] inline-flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F4F0E8] hover:bg-[#252321] text-[#252321] hover:text-[#F3D299] border border-[#D8CEBF] hover:border-[#252321] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
-            <span>إعدادات موقعي</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>تخصيص موقعي</span>
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
-        </div>
+        </article>
 
-        {/* Card 5: مجتمعي */}
-        <div className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors">
-          <div className="space-y-3">
+        {/* 5. حزمة «مجتمعي» (Row 2 — 3 Columns on XL / 6 on LG, Kinship Orbit & Avatars) */}
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#E2CFC2] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D8755B]">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#FDF1EC] border border-[#EBCBC0] text-[#D8755B] flex items-center justify-center shrink-0">
                   <Users className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-display font-bold text-[#252321]">
                   مجتمعي
                 </h2>
               </div>
-              <span className="text-[11px] font-mono tabular-nums font-bold text-[#6E6456]">
-                {communityStats.relativesCount} قريب
+              <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+                {relativesCount} قريب
               </span>
             </div>
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
-              <div className="tabular-nums">
-                الأقارب المنضمون للدائرة:{' '}
+            {/* Live Micro-Visual: Kinship Orbit & Overlapping Avatars */}
+            <KinshipOrbitVisual
+              memberNames={circleMembers.map((m) => m.name)}
+              relativesCount={relativesCount}
+              pendingEnrichments={pendingEnrichments}
+            />
+
+            <div className="space-y-1 text-xs text-[#5C5346] tabular-nums">
+              <div>
+                أفراد الدائرة:{' '}
                 <strong className="text-[#252321]">
-                  {communityStats.relativesCount} عضواً
+                  {relativesCount} عضواً
                 </strong>
               </div>
-              <div className="tabular-nums">
-                طلبات الإثراء بانتظار المراجعة:{' '}
+              <div>
+                مقترحات الإثراء:{' '}
                 <strong className="text-[#252321]">
-                  {communityStats.pendingEnrichments} طلب
+                  {pendingEnrichments} بانتظار المراجعة
                 </strong>
               </div>
             </div>
@@ -614,45 +967,56 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyCommunity)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] inline-flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#FCF0EA] hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#E8C8B9] hover:border-[#D8755B] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>إدارة دائرة الأقارب</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
-        </div>
+        </article>
 
-        {/* Card 6: كشّافي ✦ (Distinct Soft Gold Border) */}
-        <div className="h-full rounded-2xl bg-gradient-to-br from-[#FFFDF9] to-[#FAF4E4] border-2 border-[#C5A059] p-5 flex flex-col justify-between gap-4">
-          <div className="space-y-3">
+        {/* 6. حزمة «كشّافي ✦» (Row 2 — 3 Columns on XL / 6 on LG, Royal Obsidian & Gold Spotlight Card) */}
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#1A1B20] via-[#1E222B] to-[#131418] border border-[#D4AF6A]/65 text-[#F7F2E9] p-5 flex flex-col justify-between gap-4 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:border-[#E5C17A]">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#8D4925] text-[#F3D299] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#D4AF6A]/20 border border-[#D4AF6A]/45 text-[#E5C17A] flex items-center justify-center shrink-0">
                   <Compass className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321]">
+                <h2 className="text-base font-display font-bold text-white tracking-wide">
                   كشّافي ✦
                 </h2>
               </div>
-              {unreadKashafiItemsCount > 0 && (
-                <span className="text-[11px] font-display font-bold text-[#D8755B] tabular-nums">
+              {unreadKashafiItemsCount > 0 ? (
+                <span className="text-[11px] font-display font-bold text-[#E5C17A] tabular-nums">
                   {unreadKashafiItemsCount} جديد
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-[#E5C17A]/75">
+                  رادار البحوث
                 </span>
               )}
             </div>
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
-              <div>
-                حالة التحقيق:{' '}
-                <strong className="text-[#252321]">
+            {/* Live Micro-Visual: Subtle Radar Rings & Royal Compass */}
+            <KashafiRadarVisual
+              hasActiveTicket={Boolean(activeTicket)}
+              discoveriesCount={kashafiItems.length}
+              matchingCampaignsCount={matchingCampaignsCount}
+            />
+
+            <div className="space-y-1 text-xs text-[#F7F2E9]/75">
+              <div className="truncate">
+                التحقيق:{' '}
+                <strong className="text-white">
                   {activeTicket
                     ? `بعثة جارية (#${activeTicket.ticketNumber})`
                     : 'لا توجد بعثة مفتوحة'}
                 </strong>
               </div>
-              <div className="tabular-nums">
-                رادار الاكتشافات والخدمات:{' '}
-                <strong className="text-[#252321]">
-                  {kashafiItems.length} اكتشاف · {matchingCampaignsCount} خدمة متاحة
+              <div className="tabular-nums truncate">
+                المرصد:{' '}
+                <strong className="text-[#E5C17A]">
+                  {kashafiItems.length} اكتشاف · {matchingCampaignsCount} خدمة
                 </strong>
               </div>
             </div>
@@ -661,174 +1025,210 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#8D4925] hover:bg-[#733a1d] text-[#FAF4E4] text-xs font-display font-bold inline-flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-l from-[#D4AF6A] to-[#E5C17A] hover:from-[#e0be7c] hover:to-[#eed08f] text-[#17161A] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
           >
             <span>استكشاف كشّافي</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
-        </div>
+        </article>
       </section>
 
       {/* ===================================================================
-          TIER 3 — 2 Compact Bottom Columns (NO chat boxes or forms!)
+          TIER 3 — Luxury Glassmorphic Bottom Deck (Kashafi Pulse + Telegrams)
          =================================================================== */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         {/* Right Column: نبض كشّافي الجاري */}
         <div
           data-testid="home-kashafi-pulse-card"
-          className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4"
+          className="relative overflow-hidden h-full rounded-2xl bg-[#FFFDF9]/85 backdrop-blur-md border border-[#DAC8AA]/70 shadow-xs flex flex-col justify-between transition-all duration-300 hover:border-[#C59B47]/80"
         >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE6DA]">
-              <div className="flex items-center gap-2">
-                <Scroll className="w-4 h-4 text-[#D8755B]" />
-                <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
-                  نبض كشّافي الجاري
-                </h2>
+          {/* Fine gilded top hairline */}
+          <div
+            className="h-[2px] w-full bg-gradient-to-l from-[#D4AF6A] via-[#D8755B]/70 to-transparent"
+            aria-hidden="true"
+          />
+
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE4D4]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#FAF2E4] border border-[#DFCCA8] text-[#8D4925] flex items-center justify-center shrink-0">
+                    <Scroll className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                    نبض كشّافي الجاري
+                  </h2>
+                </div>
+                {activeTicket && (
+                  <span
+                    dir="ltr"
+                    className="font-mono tabular-nums text-xs font-bold text-[#8D4925]"
+                  >
+                    #{activeTicket.ticketNumber}
+                  </span>
+                )}
               </div>
-              {activeTicket && (
-                <span
-                  dir="ltr"
-                  className="font-mono tabular-nums text-xs font-bold text-[#8D4925]"
-                >
-                  #{activeTicket.ticketNumber}
-                </span>
+
+              {activeTicket && activeTicketProgress ? (
+                <div className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <div className="text-sm font-display font-bold text-[#252321]">
+                      {activeTicket.targetAncestor ||
+                        `بعثة تحقيق نسب أسرة ${result.familyName}`}
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-[#6E6456]">
+                      <span className="inline-flex items-center gap-1.5">
+                        {resolveTicketLifecycleStage(activeTicket) ===
+                        'NEEDS_INFO' ? (
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+                        ) : (
+                          <Clock className="w-3.5 h-3.5 text-[#D8755B]" />
+                        )}
+                        <span>المرحلة الحالية: {activeTicketProgress.label}</span>
+                      </span>
+                      <span className="font-mono tabular-nums font-bold text-[#8D4925]">
+                        {activeTicketProgress.percent}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Gilded Progress Track */}
+                  <div className="h-2 rounded-full bg-[#EFE6D6] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-l from-[#D4AF6A] to-[#D8755B] transition-all duration-500"
+                      style={{ width: `${activeTicketProgress.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : activeKashafiOrder ? (
+                <div className="rounded-xl bg-[#FAF6EE]/80 border border-[#E6D9C3] p-4 space-y-1.5 text-xs">
+                  <div className="text-sm font-display font-bold text-[#252321]">
+                    {activeKashafiOrder.campaignTitle}
+                  </div>
+                  <p className="text-[#6E6456]">
+                    الطلب{' '}
+                    <span dir="ltr" className="font-mono font-bold text-[#252321]">
+                      #{activeKashafiOrder.orderNumber}
+                    </span>{' '}
+                    — قيد المتابعة لدى{' '}
+                    <strong className="text-[#8D4925]">
+                      {activeKashafiOrder.assignedResearcherName || 'مدير البحوث'}
+                    </strong>
+                  </p>
+                </div>
+              ) : latestKashafiItem ? (
+                <div className="rounded-xl bg-[#FAF6EE]/80 border border-[#E6D9C3] p-4 space-y-1.5 text-xs">
+                  <div className="text-sm font-display font-bold text-[#252321]">
+                    {latestKashafiItem.title}
+                  </div>
+                  <p className="text-[#6E6456] line-clamp-2 leading-relaxed">
+                    {latestKashafiItem.summary}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-[#6E6456] leading-relaxed py-2">
+                  لا توجد بعثة تحقيق مفتوحة حالياً — يتابع مرصد البحوث سجلات عائلتكم ويعرض أي مستجدات أو بشارات مرجعية هنا تلقائياً.
+                </p>
               )}
             </div>
 
-            {activeTicket && activeTicketProgress ? (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <div className="text-sm font-display font-bold text-[#252321]">
-                    {activeTicket.targetAncestor ||
-                      `بعثة تحقيق نسب أسرة ${result.familyName}`}
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-[#6E6456]">
-                    <span className="inline-flex items-center gap-1.5">
-                      {resolveTicketLifecycleStage(activeTicket) ===
-                      'NEEDS_INFO' ? (
-                        <AlertCircle className="w-3.5 h-3.5 text-orange-600" />
-                      ) : (
-                        <Clock className="w-3.5 h-3.5 text-[#D8755B]" />
-                      )}
-                      <span>المرحلة الحالية: {activeTicketProgress.label}</span>
-                    </span>
-                    <span className="font-mono tabular-nums font-bold text-[#8D4925]">
-                      {activeTicketProgress.percent}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Slim Horizontal Progress Bar */}
-                <div className="h-2 rounded-full bg-[#EDE6DA] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#D8755B] transition-all duration-300"
-                    style={{ width: `${activeTicketProgress.percent}%` }}
-                  />
-                </div>
-              </div>
-            ) : activeKashafiOrder ? (
-              <div className="space-y-1.5 text-xs">
-                <div className="text-sm font-display font-bold text-[#252321]">
-                  {activeKashafiOrder.campaignTitle}
-                </div>
-                <p className="text-[#6E6456]">
-                  الطلب #{activeKashafiOrder.orderNumber} — قيد المتابعة لدى{' '}
-                  <strong className="text-[#8D4925]">
-                    {activeKashafiOrder.assignedResearcherName || 'مدير البحوث'}
-                  </strong>
-                </p>
-              </div>
-            ) : latestKashafiItem ? (
-              <div className="space-y-1.5 text-xs">
-                <div className="text-sm font-display font-bold text-[#252321]">
-                  {latestKashafiItem.title}
-                </div>
-                <p className="text-[#6E6456] line-clamp-2">
-                  {latestKashafiItem.summary}
-                </p>
-              </div>
-            ) : (
-              <p className="text-xs text-[#6E6456] py-2">
-                لا توجد بعثة تحقيق مفتوحة حالياً — يتابع مرصد البحوث سجلات عائلتكم ويعرض أي مستجدات هنا تلقائياً.
-              </p>
-            )}
-          </div>
-
-          <div className="pt-2 border-t border-[#EDE6DA] flex justify-end">
-            <button
-              type="button"
-              onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-              className="text-xs font-display font-bold text-[#8D4925] hover:text-[#D8755B] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <span>متابعة التفاصيل والمحادثة في كشّافي</span>
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
+            <div className="pt-3 border-t border-[#EDE4D4] flex justify-end">
+              <button
+                type="button"
+                onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
+                className="px-4 py-2 rounded-xl bg-[#FAF4E8] hover:bg-[#8D4925] text-[#8D4925] hover:text-white border border-[#DEC9A4] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
+              >
+                <span>متابعة التفاصيل والمحادثة في كشّافي</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Left Column: أحدث التنبيهات والرسائل الواردة (Max 3 Real Alerts) */}
+        {/* Left Column: برقيات وتنبيهات المنصة (Authenticated Telegram Cards) */}
         <div
           data-testid="home-latest-alerts-card"
-          className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4"
+          className="relative overflow-hidden h-full rounded-2xl bg-[#FFFDF9]/85 backdrop-blur-md border border-[#DAC8AA]/70 shadow-xs flex flex-col justify-between transition-all duration-300 hover:border-[#C59B47]/80"
         >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE6DA]">
-              <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#8D4925]" />
-                <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
-                  أحدث التنبيهات والرسائل الواردة
-                </h2>
+          {/* Fine gilded top hairline */}
+          <div
+            className="h-[2px] w-full bg-gradient-to-l from-[#C8A666] via-[#8D4925]/60 to-transparent"
+            aria-hidden="true"
+          />
+
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE4D4]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#FAF2E4] border border-[#DFCCA8] text-[#8D4925] flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                    برقيات وتنبيهات المنصة
+                  </h2>
+                </div>
+                {dashboardNotifications.length > 0 && (
+                  <span className="text-[11px] font-mono tabular-nums text-[#7A6F5F]">
+                    {dashboardNotifications.length} برقية
+                  </span>
+                )}
               </div>
-              {dashboardNotifications.length > 0 && (
-                <span className="text-[11px] font-mono tabular-nums text-[#8C8272]">
-                  {dashboardNotifications.length} سجل
-                </span>
+
+              {latestThreeAlerts.length === 0 ? (
+                <p className="text-xs text-[#6E6456] leading-relaxed py-2">
+                  لا توجد برقيات أو تنبيهات واردة في السجل حالياً.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {latestThreeAlerts.map((alert) => (
+                    <li
+                      key={alert.id}
+                      onClick={onOpenNotificationsDrawer}
+                      className="group/item rounded-xl px-3 py-2.5 bg-[#FAF6EE]/65 hover:bg-[#F5ECDC] border border-transparent hover:border-[#DECBA9] flex items-start justify-between gap-3 transition-all duration-300 cursor-pointer"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                            alert.unread
+                              ? 'bg-[#D8755B]/15 text-[#8D4925] border border-[#D8755B]/35'
+                              : 'bg-white text-[#8C8272] border border-[#E2D6C3]'
+                          }`}
+                        >
+                          {alert.unread ? (
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          )}
+                        </div>
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="text-xs font-display font-bold text-[#252321] truncate group-hover/item:text-[#8D4925] transition-colors">
+                            {alert.title}
+                          </div>
+                          <p className="text-[11px] text-[#6E6456] line-clamp-1">
+                            {alert.body}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="text-[10px] text-[#8C8272] whitespace-nowrap shrink-0 tabular-nums mt-0.5">
+                        {alert.timestamp}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
 
-            {latestThreeAlerts.length === 0 ? (
-              <p className="text-xs text-[#6E6456] py-2">
-                لا توجد تنبيهات أو رسائل واردة في السجل حالياً.
-              </p>
-            ) : (
-              <ul className="divide-y divide-[#EDE6DA]">
-                {latestThreeAlerts.map((alert) => (
-                  <li
-                    key={alert.id}
-                    className="py-2.5 first:pt-0 last:pb-0 flex items-start justify-between gap-3"
-                  >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="text-xs font-display font-bold text-[#252321] truncate flex items-center gap-1.5">
-                        {alert.unread ? (
-                          <ShieldCheck className="w-3.5 h-3.5 text-[#D8755B] shrink-0" />
-                        ) : (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#8C8272] shrink-0" />
-                        )}
-                        <span className="truncate">{alert.title}</span>
-                      </div>
-                      <p className="text-[11px] text-[#6E6456] line-clamp-1">
-                        {alert.body}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-[#8C8272] whitespace-nowrap shrink-0 tabular-nums">
-                      {alert.timestamp}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="pt-2 border-t border-[#EDE6DA] flex justify-end">
-            <button
-              type="button"
-              onClick={onOpenNotificationsDrawer}
-              className="text-xs font-display font-bold text-[#8D4925] hover:text-[#D8755B] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <span>عرض السجل الكامل</span>
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
+            <div className="pt-3 border-t border-[#EDE4D4] flex justify-end">
+              <button
+                type="button"
+                onClick={onOpenNotificationsDrawer}
+                className="px-4 py-2 rounded-xl bg-[#FAF4E8] hover:bg-[#252321] text-[#252321] hover:text-[#F3D299] border border-[#DEC9A4] hover:border-[#252321] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
+              >
+                <span>عرض سجل البرقيات الكامل</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </section>

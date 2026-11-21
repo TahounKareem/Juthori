@@ -41,6 +41,220 @@ export interface PedigreeTreeLayoutResult<T extends PedigreePersonLike> {
 }
 
 /**
+ * Husband-Anchored Marital Hub Partition:
+ * Guarantees the primary bloodline anchor (husband/parent) ALWAYS occupies the
+ * exact geometric center, and NO spouse is ever chained through another spouse.
+ *
+ * - 0 spouses: right=[], left=[]
+ * - 1 spouse:  right=[], left=[wife1] (classic side-by-side bridge on left in RTL)
+ * - 2 spouses: right=[wife1], left=[wife2] (husband dead-center with 2 independent bridges)
+ * - 3+ spouses: balanced right & left flanks using elevated golden marital rails
+ *   branching from husband's lateral ports (zero wife-to-wife pass-through).
+ */
+export interface SpouseHubPartition<T extends PedigreePersonLike> {
+  mode: 'none' | 'single' | 'dual' | 'multi_bus';
+  rightSpouses: T[];
+  leftSpouses: T[];
+}
+
+export function partitionSpousesAroundHusband<T extends PedigreePersonLike>(
+  spouses: T[]
+): SpouseHubPartition<T> {
+  if (!spouses || spouses.length === 0) {
+    return { mode: 'none', rightSpouses: [], leftSpouses: [] };
+  }
+  if (spouses.length === 1) {
+    return { mode: 'single', rightSpouses: [], leftSpouses: [spouses[0]] };
+  }
+  if (spouses.length === 2) {
+    return {
+      mode: 'dual',
+      rightSpouses: [spouses[0]],
+      leftSpouses: [spouses[1]],
+    };
+  }
+  // 3 or 4+ spouses: alternate across right & left flanks around the centered husband
+  const rightSpouses: T[] = [];
+  const leftSpouses: T[] = [];
+  spouses.forEach((sp, idx) => {
+    if (idx % 2 === 0) {
+      rightSpouses.push(sp);
+    } else {
+      leftSpouses.push(sp);
+    }
+  });
+  return { mode: 'multi_bus', rightSpouses, leftSpouses };
+}
+
+export interface MaternalChildUnionGroup<T extends PedigreePersonLike> {
+  spouse: T;
+  side: 'right' | 'left';
+  children: PedigreeTreeNode<T>[];
+}
+
+export interface ChildUnionRoutingResult<T extends PedigreePersonLike> {
+  /** Children with unspecified mother OR when spouses are hidden — descend strictly from Father's center */
+  paternalOnlyChildren: PedigreeTreeNode<T>[];
+  /** Children linked to specific visible spouses on the right side (RTL) */
+  rightMaternalGroups: MaternalChildUnionGroup<T>[];
+  /** Children linked to specific visible spouses on the left side (RTL) */
+  leftMaternalGroups: MaternalChildUnionGroup<T>[];
+  /** True when at least one child routes through a visible maternal union bridge */
+  hasVisibleMaternalRouting: boolean;
+}
+
+/**
+ * Strict Paternal vs. Maternal-Union Child Routing:
+ * - When `shouldShowSpouses` is false (or no visible spouses exist), ALL children route strictly
+ *   from the father's bottom-center (`paternalOnlyChildren`).
+ * - When `shouldShowSpouses` is true:
+ *   - Any child with `!child.person.motherId` (or whose partner ID isn't in `visibleSpouses`)
+ *     routes strictly from the father's bottom-center (`paternalOnlyChildren`).
+ *   - Any child whose `motherId` (or `fatherId` when primary person is female) matches a
+ *     visible spouse routes specifically from that spouse's marital bridge group!
+ */
+export function partitionChildrenByMotherUnion<T extends PedigreePersonLike>(
+  primaryPerson: T,
+  children: PedigreeTreeNode<T>[],
+  visibleSpouses: T[],
+  shouldShowSpouses: boolean
+): ChildUnionRoutingResult<T> {
+  if (!shouldShowSpouses || visibleSpouses.length === 0 || children.length === 0) {
+    return {
+      paternalOnlyChildren: children,
+      rightMaternalGroups: [],
+      leftMaternalGroups: [],
+      hasVisibleMaternalRouting: false,
+    };
+  }
+
+  const spousePartition = partitionSpousesAroundHusband(visibleSpouses);
+  const sideBySpouseId = new Map<string, 'right' | 'left'>();
+  spousePartition.rightSpouses.forEach((s) => sideBySpouseId.set(s.id, 'right'));
+  spousePartition.leftSpouses.forEach((s) => sideBySpouseId.set(s.id, 'left'));
+
+  const childrenBySpouseId = new Map<string, PedigreeTreeNode<T>[]>();
+  const paternalOnlyChildren: PedigreeTreeNode<T>[] = [];
+
+  for (const childNode of children) {
+    const matchedSpouseId =
+      primaryPerson.gender === 'male'
+        ? childNode.person.motherId && sideBySpouseId.has(childNode.person.motherId)
+          ? childNode.person.motherId
+          : undefined
+        : childNode.person.fatherId && sideBySpouseId.has(childNode.person.fatherId)
+        ? childNode.person.fatherId
+        : undefined;
+
+    if (matchedSpouseId) {
+      const bucket = childrenBySpouseId.get(matchedSpouseId) || [];
+      bucket.push(childNode);
+      childrenBySpouseId.set(matchedSpouseId, bucket);
+    } else {
+      paternalOnlyChildren.push(childNode);
+    }
+  }
+
+  // Right flank rendered in RTL order (outermost right -> inner right toward husband)
+  const rightMaternalGroups: MaternalChildUnionGroup<T>[] = [];
+  for (const sp of [...spousePartition.rightSpouses].reverse()) {
+    const grp = childrenBySpouseId.get(sp.id);
+    if (grp && grp.length > 0) {
+      rightMaternalGroups.push({ spouse: sp, side: 'right', children: grp });
+    }
+  }
+
+  // Left flank rendered in RTL order (inner left next to husband -> outermost left)
+  const leftMaternalGroups: MaternalChildUnionGroup<T>[] = [];
+  for (const sp of spousePartition.leftSpouses) {
+    const grp = childrenBySpouseId.get(sp.id);
+    if (grp && grp.length > 0) {
+      leftMaternalGroups.push({ spouse: sp, side: 'left', children: grp });
+    }
+  }
+
+  return {
+    paternalOnlyChildren,
+    rightMaternalGroups,
+    leftMaternalGroups,
+    hasVisibleMaternalRouting:
+      rightMaternalGroups.length > 0 || leftMaternalGroups.length > 0,
+  };
+}
+
+export interface NodeQuickActionPolicy<T extends PedigreePersonLike> {
+  hasFatherInTree: boolean;
+  hasMotherInTree: boolean;
+  hasHusband: boolean;
+  linkedHusband: T | null;
+  /** True when the node is a married-in wife (no blood-line father in tree) */
+  isMarriedInWife: boolean;
+  /** False for any female who already has a registered husband in the tree */
+  canAddSpouse: boolean;
+  /** False for married-in wives so external family trees never branch inside the family column */
+  canAddParentsAndSiblingsInMenu: boolean;
+}
+
+/**
+ * Resolves exact quick-action (+) menu capabilities for any tree node:
+ * 1. A female node who already has a registered husband NEVER shows "+ إضافة زوج".
+ * 2. A married-in wife (no blood-line father in the family tree) has a focused menu
+ *    strictly showing "+ إضافة ابن" and "+ إضافة ابنة" (bound to her husband + herself).
+ */
+export function resolveNodeQuickActionPolicy<T extends PedigreePersonLike>(
+  people: T[],
+  person: T
+): NodeQuickActionPolicy<T> {
+  const byId = new Map<string, T>();
+  people.forEach((p) => byId.set(p.id, p));
+
+  const hasFatherInTree = Boolean(person.fatherId && byId.has(person.fatherId));
+  const hasMotherInTree = Boolean(person.motherId && byId.has(person.motherId));
+
+  const linkedSpouses: T[] = [];
+  const seenSpouseIds = new Set<string>();
+  (person.spouseIds || []).forEach((sid) => {
+    const sp = byId.get(sid);
+    if (sp && sp.id !== person.id && !seenSpouseIds.has(sp.id)) {
+      seenSpouseIds.add(sp.id);
+      linkedSpouses.push(sp);
+    }
+  });
+  people.forEach((other) => {
+    if (
+      other.id !== person.id &&
+      !seenSpouseIds.has(other.id) &&
+      (other.spouseIds || []).includes(person.id)
+    ) {
+      seenSpouseIds.add(other.id);
+      linkedSpouses.push(other);
+    }
+  });
+
+  const linkedHusband =
+    person.gender === 'female'
+      ? linkedSpouses.find((sp) => sp.gender === 'male') || null
+      : null;
+  const hasHusband = Boolean(linkedHusband);
+
+  const label = (person.relationToTargetLabel || '').trim();
+  const isMarriedInWife =
+    person.gender === 'female' &&
+    !hasFatherInTree &&
+    (hasHusband || label.startsWith('زوجة') || label.startsWith('والدة'));
+
+  return {
+    hasFatherInTree,
+    hasMotherInTree,
+    hasHusband,
+    linkedHusband,
+    isMarriedInWife,
+    canAddSpouse: person.gender === 'male' ? true : !hasHusband,
+    canAddParentsAndSiblingsInMenu: !isMarriedInWife,
+  };
+}
+
+/**
  * Collects all IDs in the same top-level sibling group as `target`
  * (siblings sharing the topmost level with no recorded father yet).
  */

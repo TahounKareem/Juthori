@@ -1,0 +1,494 @@
+import React from 'react';
+import {
+  Camera,
+  Check,
+  Compass,
+  FolderArchive,
+  Globe,
+  Lock,
+  Sparkles,
+  UserPlus,
+} from 'lucide-react';
+import {
+  FAMILY_SITE_THEMES,
+  FamilySiteThemeId,
+} from '../config/referralAndSiteConfig';
+
+// =============================================================================
+// 1. LINEAGE GLOWING NODES PATH (عمود نسبي)
+// =============================================================================
+interface LineageGlowPathVisualProps {
+  familyName: string;
+  rootLabel: string;
+  matched: boolean;
+  totalCapsules: number;
+  unlockedCapsulesCount: number;
+}
+
+export const LineageGlowPathVisual: React.FC<LineageGlowPathVisualProps> = ({
+  familyName,
+  rootLabel,
+  matched,
+  totalCapsules,
+  unlockedCapsulesCount,
+}) => {
+  const middleNodeCount = Math.min(4, Math.max(3, totalCapsules || 3));
+  const litMiddleNodes =
+    totalCapsules > 0
+      ? Math.round((unlockedCapsulesCount / totalCapsules) * middleNodeCount)
+      : matched
+      ? 1
+      : 0;
+
+  return (
+    <div
+      aria-hidden="true"
+      className="relative rounded-xl bg-gradient-to-l from-[#F7EFE0]/90 via-[#FCF8F0] to-[#F5E9D3]/90 border border-[#D9C39A]/50 px-4 py-4 overflow-hidden"
+    >
+      {/* Subtle parchment grid lines */}
+      <div className="relative flex items-center justify-between gap-2">
+        {/* Connecting golden thread */}
+        <div className="absolute inset-x-10 top-5 h-[2px] bg-gradient-to-l from-[#D4AF6A] via-[#C59B47]/65 to-[#8D4925]/60 transition-opacity duration-300 group-hover:opacity-100 opacity-80" />
+
+        {/* Origin Node: Client Family */}
+        <div className="relative z-10 flex flex-col items-center gap-1.5 max-w-[34%]">
+          <div className="w-10 h-10 rounded-full bg-[#252321] text-[#F3D299] border-2 border-[#D4AF6A] shadow-sm flex items-center justify-center text-xs font-display font-bold transition-transform duration-300 group-hover:scale-105">
+            {familyName.slice(0, 1) || 'أ'}
+          </div>
+          <span className="text-[11px] font-display font-bold text-[#252321] truncate max-w-full">
+            أسرة {familyName}
+          </span>
+        </div>
+
+        {/* Intermediate Capsule Nodes */}
+        <div className="relative z-10 flex items-center gap-2.5 sm:gap-4 -mt-4">
+          {Array.from({ length: middleNodeCount }).map((_, idx) => {
+            const isLit = idx < litMiddleNodes;
+            return (
+              <div
+                key={idx}
+                className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-300 ${
+                  isLit
+                    ? 'bg-[#D4AF6A] border-[#8D4925]/40 text-white shadow-[0_0_12px_rgba(212,175,106,0.55)] group-hover:scale-110'
+                    : 'bg-[#FFFDF9] border-[#C8A666]/60 text-[#8D4925]/60 group-hover:border-[#D4AF6A]'
+                }`}
+              >
+                {isLit ? (
+                  <Check className="w-3 h-3" />
+                ) : (
+                  <Lock className="w-2.5 h-2.5" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Verified Root Node */}
+        <div className="relative z-10 flex flex-col items-center gap-1.5 max-w-[34%]">
+          <div
+            className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 ${
+              matched
+                ? 'bg-gradient-to-br from-[#D4AF6A] to-[#9E6B2B] border-[#F3D299] text-white shadow-[0_0_16px_rgba(212,175,106,0.45)]'
+                : 'bg-[#EFE7D8] border-[#C8A666]/60 text-[#8D4925]'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <span className="text-[11px] font-display font-bold text-[#8D4925] truncate max-w-full">
+            {rootLabel}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// 2. MINI TREE BRANCH SVG + GOLDEN RADIAL GAUGE (شجرتي)
+// =============================================================================
+interface TreeBranchGaugeVisualProps {
+  treeMembersCount: number;
+  totalTreeCapacity: number;
+}
+
+export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
+  treeMembersCount,
+  totalTreeCapacity,
+}) => {
+  const safeCap = Math.max(1, totalTreeCapacity);
+  const ratio = Math.min(1, Math.max(0, treeMembersCount / safeCap));
+  const percent = Math.round(ratio * 100);
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - Math.max(ratio, treeMembersCount > 0 ? 0.04 : 0));
+
+  return (
+    <div
+      aria-hidden="true"
+      className="rounded-xl bg-white/75 border border-[#C5CEB8]/60 px-4 py-3 flex items-center justify-between gap-4 overflow-hidden"
+    >
+      {/* Mini Interactive Pedigree Branch SVG */}
+      <div className="flex-1 min-w-0 flex items-center gap-3">
+        <svg
+          viewBox="0 0 132 76"
+          className="w-28 sm:w-32 h-[72px] shrink-0 transition-transform duration-300 group-hover:scale-[1.03]"
+          fill="none"
+        >
+          {/* Golden branch connectors */}
+          <path
+            d="M66 16 V34 M34 34 H98 M34 34 V46 M66 34 V46 M98 34 V46 M22 58 V50 H46 V58 M86 58 V50 H110 V58"
+            stroke="#B69253"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.75"
+          />
+          {/* Root ancestor node */}
+          <rect
+            x="48"
+            y="4"
+            width="36"
+            height="14"
+            rx="7"
+            fill="#2E4234"
+            stroke="#D4AF6A"
+            strokeWidth="1.2"
+          />
+          {/* Second generation nodes */}
+          <circle
+            cx="34"
+            cy="46"
+            r="5.5"
+            fill={treeMembersCount >= 1 ? '#6A8363' : '#E6ECE0'}
+            stroke="#4F6849"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="66"
+            cy="46"
+            r="5.5"
+            fill={treeMembersCount >= 2 ? '#D4AF6A' : '#E6ECE0'}
+            stroke="#8D692F"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="98"
+            cy="46"
+            r="5.5"
+            fill={treeMembersCount >= 3 ? '#6A8363' : '#E6ECE0'}
+            stroke="#4F6849"
+            strokeWidth="1.2"
+          />
+          {/* Third generation leaf nodes */}
+          {[22, 46, 86, 110].map((cx, idx) => (
+            <circle
+              key={cx}
+              cx={cx}
+              cy="63"
+              r="4"
+              fill={treeMembersCount >= idx + 4 ? '#8A9E7D' : '#EEF2E8'}
+              stroke="#6E8264"
+              strokeWidth="1"
+            />
+          ))}
+        </svg>
+
+        <div className="space-y-0.5 min-w-0">
+          <div className="text-xs font-display font-bold text-[#252321] tabular-nums">
+            {treeMembersCount} أفراد من سعة {totalTreeCapacity}
+          </div>
+          <div className="text-[11px] text-[#556150] tabular-nums">
+            المتبقي: {Math.max(0, totalTreeCapacity - treeMembersCount)} مقعداً
+          </div>
+        </div>
+      </div>
+
+      {/* Sleek Golden Radial Gauge */}
+      <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+        <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+          <circle
+            cx="32"
+            cy="32"
+            r={radius}
+            fill="none"
+            stroke="#E3E8DC"
+            strokeWidth="5"
+          />
+          <circle
+            cx="32"
+            cy="32"
+            r={radius}
+            fill="none"
+            stroke="url(#treeGoldGauge)"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            className="transition-all duration-500"
+          />
+          <defs>
+            <linearGradient id="treeGoldGauge" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#8D4925" />
+              <stop offset="100%" stopColor="#D4AF6A" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span className="absolute text-[11px] font-mono font-bold text-[#2E4234] tabular-nums">
+          {percent}%
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// 3. STACKED POLAROID / FRAME FAN (خزانتي)
+// =============================================================================
+interface VaultPolaroidFanVisualProps {
+  previewPhotos: Array<{ id: string; title: string; url: string }>;
+  itemsCount: number;
+}
+
+export const VaultPolaroidFanVisual: React.FC<VaultPolaroidFanVisualProps> = ({
+  previewPhotos,
+  itemsCount,
+}) => {
+  if (previewPhotos.length === 0) {
+    return (
+      <div
+        aria-hidden="true"
+        className="h-28 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/60 flex items-center justify-center relative overflow-hidden"
+      >
+        <div className="relative flex items-center justify-center">
+          <div className="w-24 h-16 rounded-lg bg-white/80 border border-[#C8A666]/55 shadow-xs -rotate-6 -translate-x-4 transition-transform duration-300 group-hover:-rotate-12 group-hover:-translate-x-6" />
+          <div className="w-24 h-16 rounded-lg bg-white/95 border border-[#D4AF6A]/75 shadow-sm absolute flex flex-col items-center justify-center gap-1 transition-transform duration-300 group-hover:scale-105">
+            <FolderArchive className="w-4.5 h-4.5 text-[#8D4925]" />
+            <span className="text-[9px] font-display font-bold text-[#6E5A4C]">
+              ألبوم متحفي مذهّب
+            </span>
+          </div>
+          <div className="w-24 h-16 rounded-lg bg-white/80 border border-[#C8A666]/55 shadow-xs rotate-6 translate-x-4 transition-transform duration-300 group-hover:rotate-12 group-hover:translate-x-6" />
+        </div>
+      </div>
+    );
+  }
+
+  const stack = previewPhotos.slice(0, 3);
+  return (
+    <div
+      aria-hidden="true"
+      className="h-28 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/55 flex items-center justify-center relative overflow-hidden"
+    >
+      <div className="relative w-40 h-22 flex items-center justify-center">
+        {stack.map((photo, idx) => {
+          const transformClass =
+            stack.length === 1
+              ? 'rotate-0 group-hover:scale-105 z-20'
+              : idx === 0
+              ? '-rotate-6 -translate-x-5 group-hover:-rotate-12 group-hover:-translate-x-8 z-10'
+              : idx === 1
+              ? 'rotate-0 translate-y-0 group-hover:-translate-y-1.5 group-hover:scale-105 z-30'
+              : 'rotate-6 translate-x-5 group-hover:rotate-12 group-hover:translate-x-8 z-20';
+          return (
+            <div
+              key={photo.id}
+              className={`absolute w-20 h-20 rounded-lg bg-white p-1 pb-3 border border-[#D2B990]/75 shadow-md transition-all duration-300 ${transformClass}`}
+            >
+              <img
+                src={photo.url}
+                alt={photo.title}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover rounded-[4px] bg-[#EFE8DC]"
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="absolute bottom-1.5 left-2.5 inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#8D4925]/80 tabular-nums">
+        <Camera className="w-3 h-3" />
+        <span>{itemsCount}</span>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// 4. MINI PORTAL BROWSER MOCKUP (موقعي)
+// =============================================================================
+interface SiteMiniBrowserVisualProps {
+  familyName: string;
+  slug: string;
+  isPublished: boolean;
+  themeId?: FamilySiteThemeId;
+}
+
+export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
+  familyName,
+  slug,
+  isPublished,
+  themeId,
+}) => {
+  const theme =
+    FAMILY_SITE_THEMES.find((t) => t.id === themeId) || FAMILY_SITE_THEMES[0];
+
+  return (
+    <div
+      aria-hidden="true"
+      className="h-28 rounded-xl border border-[#D8CBB8] overflow-hidden shadow-xs flex flex-col transition-transform duration-300 group-hover:-translate-y-0.5"
+      style={{ backgroundColor: theme.swatchCanvas }}
+    >
+      {/* Mini browser top chrome */}
+      <div className="px-2.5 py-1.5 bg-[#252321]/90 text-[#F7F2E9] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#D8755B]/80" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#E5C17A]/80" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/75" />
+        </div>
+        <div
+          dir="ltr"
+          className="text-[9px] font-mono text-[#F7F2E9]/85 truncate max-w-[155px]"
+        >
+          {slug ? `juthori.com/${slug}` : 'juthori.com/your-family'}
+        </div>
+      </div>
+
+      {/* Mini portal hero preview painted in user's active theme */}
+      <div
+        className="flex-1 px-3 py-2.5 flex flex-col justify-between relative overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, ${theme.swatchHero} 0%, ${theme.swatchHero}e6 65%, ${theme.swatchAccent}99 100%)`,
+        }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-display font-bold text-white truncate">
+            ديوان أسرة {familyName}
+          </span>
+          <Globe className="w-3 h-3 text-white/75 shrink-0" />
+        </div>
+
+        {/* Mini simulated content bars */}
+        <div className="flex items-end justify-between gap-2 pt-2">
+          <div className="space-y-1 flex-1">
+            <div className="h-1.5 w-3/4 rounded-full bg-white/30" />
+            <div className="h-1.5 w-1/2 rounded-full bg-white/20" />
+          </div>
+          <span
+            className="text-[9px] font-display font-bold px-2 py-0.5 rounded-md text-white shrink-0"
+            style={{ backgroundColor: theme.swatchAccent }}
+          >
+            {isPublished ? 'منشور' : 'مسودة'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// 5. KINSHIP ORBIT & AVATAR STACK (مجتمعي)
+// =============================================================================
+interface KinshipOrbitVisualProps {
+  memberNames: string[];
+  relativesCount: number;
+  pendingEnrichments: number;
+}
+
+export const KinshipOrbitVisual: React.FC<KinshipOrbitVisualProps> = ({
+  memberNames,
+  relativesCount,
+  pendingEnrichments,
+}) => {
+  const initials = memberNames
+    .slice(0, 4)
+    .map((n) => (n || '').trim().slice(0, 1) || 'ع');
+
+  return (
+    <div
+      aria-hidden="true"
+      className="h-28 rounded-xl bg-gradient-to-b from-[#FAF5EE] to-[#F3E9DC] border border-[#DAC4AE]/60 flex items-center justify-center relative overflow-hidden"
+    >
+      {/* Concentric delicate golden orbit rings */}
+      <div className="absolute w-36 h-36 rounded-full border border-dashed border-[#C8A666]/45 transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute w-24 h-24 rounded-full border border-[#D8755B]/30 transition-transform duration-500 group-hover:scale-110" />
+
+      {initials.length > 0 ? (
+        <div className="relative z-10 flex items-center -space-x-2 space-x-reverse">
+          {initials.map((ch, idx) => (
+            <div
+              key={idx}
+              className="w-10 h-10 rounded-full bg-[#252321] text-[#E5C17A] border-2 border-[#FAF5EE] font-display font-bold text-xs flex items-center justify-center shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5"
+            >
+              {ch}
+            </div>
+          ))}
+          {relativesCount > 4 && (
+            <div className="w-10 h-10 rounded-full bg-[#D8755B] text-white border-2 border-[#FAF5EE] font-mono font-bold text-[10px] flex items-center justify-center shadow-sm tabular-nums">
+              +{relativesCount - 4}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative z-10 flex items-center gap-2">
+          {[0, 1, 2].map((slot) => (
+            <div
+              key={slot}
+              className={`rounded-full border border-dashed border-[#B98A78] flex items-center justify-center transition-transform duration-300 ${
+                slot === 1
+                  ? 'w-11 h-11 bg-white/90 text-[#8D4925] shadow-xs group-hover:scale-105'
+                  : 'w-8 h-8 bg-[#FFFDF9]/75 text-[#B98A78]'
+              }`}
+            >
+              <UserPlus className={slot === 1 ? 'w-4 h-4' : 'w-3 h-3'} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pendingEnrichments > 0 && (
+        <span className="absolute top-2 left-2.5 text-[10px] font-display font-bold text-[#8D4925] tabular-nums">
+          {pendingEnrichments} إثراء وارد
+        </span>
+      )}
+    </div>
+  );
+};
+
+// =============================================================================
+// 6. ROYAL OBSIDIAN & GOLD RADAR SCENE (كشّافي ✦)
+// =============================================================================
+interface KashafiRadarVisualProps {
+  hasActiveTicket: boolean;
+  discoveriesCount: number;
+  matchingCampaignsCount: number;
+}
+
+export const KashafiRadarVisual: React.FC<KashafiRadarVisualProps> = ({
+  hasActiveTicket,
+  discoveriesCount,
+  matchingCampaignsCount,
+}) => {
+  return (
+    <div
+      aria-hidden="true"
+      className="h-28 rounded-xl bg-black/30 border border-[#D4AF6A]/25 flex items-center justify-center relative overflow-hidden"
+    >
+      {/* Subtle concentric radar rings */}
+      <div className="absolute w-40 h-40 rounded-full border border-[#D4AF6A]/15 transition-transform duration-500 group-hover:scale-110" />
+      <div className="absolute w-28 h-28 rounded-full border border-[#D4AF6A]/25 transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute w-16 h-16 rounded-full border border-[#E5C17A]/40" />
+
+      {/* Center royal compass emblem */}
+      <div className="relative z-10 w-11 h-11 rounded-full bg-gradient-to-br from-[#E5C17A] to-[#9E6B2B] text-[#17161A] flex items-center justify-center shadow-[0_0_24px_rgba(229,193,122,0.45)] transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
+        <Compass className="w-5 h-5" />
+      </div>
+
+      {/* Bottom unobtrusive real status caption */}
+      <div className="absolute bottom-2 inset-x-3 flex items-center justify-between text-[10px] text-[#E5C17A]/85 tabular-nums">
+        <span>{hasActiveTicket ? 'بعثة نشطة' : 'المرصد متأهب'}</span>
+        <span>
+          {discoveriesCount} رصد · {matchingCampaignsCount} خدمة
+        </span>
+      </div>
+    </div>
+  );
+};

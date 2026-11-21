@@ -1122,4 +1122,313 @@ test('Family Tree Top-Level Siblings & Cascading Subtree Deletion (Zero Syntheti
   );
 });
 
+test('Multi-Spouse Hub, Strict Paternal vs Maternal-Union Child Routing & Gender-Aware Prestige Badges', async () => {
+  const {
+    buildPedigreeTreeLayout,
+    partitionSpousesAroundHusband,
+    partitionChildrenByMotherUnion,
+  } = await import('./familyTreeLayout');
+  const {
+    getPrestigeBadgeOptionsForGender,
+    resolvePrestigeBadgeMeta,
+  } = await import('./treeStudioConfig');
+
+  const mkSpouse = (id: string, name: string) => ({
+    id,
+    firstName: name,
+    gender: 'female' as const,
+    generationLevel: 2,
+    relationToTargetLabel: 'زوجة شريف',
+    spouseIds: ['husband-sharif'],
+  });
+
+  // 1. Husband-Anchored Spouse Partitioning (0, 1, 2, 3, 4 wives — ZERO wife-to-wife chaining)
+  const w1 = mkSpouse('w1', 'تغريد');
+  const w2 = mkSpouse('w2', 'محاسن');
+  const w3 = mkSpouse('w3', 'هدى');
+  const w4 = mkSpouse('w4', 'سلمى');
+
+  assert.equal(partitionSpousesAroundHusband([]).mode, 'none');
+
+  const p1 = partitionSpousesAroundHusband([w1]);
+  assert.equal(p1.mode, 'single');
+  assert.deepEqual(p1.rightSpouses, []);
+  assert.deepEqual(p1.leftSpouses.map((s) => s.id), ['w1']);
+
+  // 2 wives: Husband dead-center, Wife 1 on Right, Wife 2 on Left
+  const p2 = partitionSpousesAroundHusband([w1, w2]);
+  assert.equal(p2.mode, 'dual');
+  assert.deepEqual(p2.rightSpouses.map((s) => s.id), ['w1']);
+  assert.deepEqual(p2.leftSpouses.map((s) => s.id), ['w2']);
+
+  // 3 wives: Balanced multi-bus around Husband (2 right, 1 left)
+  const p3 = partitionSpousesAroundHusband([w1, w2, w3]);
+  assert.equal(p3.mode, 'multi_bus');
+  assert.deepEqual(p3.rightSpouses.map((s) => s.id), ['w1', 'w3']);
+  assert.deepEqual(p3.leftSpouses.map((s) => s.id), ['w2']);
+
+  // 4 wives: Symmetric multi-bus around Husband (2 right, 2 left)
+  const p4 = partitionSpousesAroundHusband([w1, w2, w3, w4]);
+  assert.equal(p4.mode, 'multi_bus');
+  assert.deepEqual(p4.rightSpouses.map((s) => s.id), ['w1', 'w3']);
+  assert.deepEqual(p4.leftSpouses.map((s) => s.id), ['w2', 'w4']);
+
+  // 2. Strict Paternal vs. Maternal-Union Child Routing
+  const familyPeople = [
+    {
+      id: 'husband-sharif',
+      firstName: 'شريف',
+      gender: 'male' as const,
+      generationLevel: 2,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'الأب',
+      spouseIds: ['w1', 'w2'],
+    },
+    w1,
+    w2,
+    {
+      id: 'child-unassigned',
+      firstName: 'كريم',
+      gender: 'male' as const,
+      generationLevel: 1,
+      isRecordKeeper: true,
+      isDirectSpineLineage: true,
+      relationToTargetLabel: 'ابن شريف',
+      fatherId: 'husband-sharif',
+      motherId: undefined,
+      spouseIds: [],
+    },
+    {
+      id: 'child-from-w1',
+      firstName: 'أحمد',
+      gender: 'male' as const,
+      generationLevel: 1,
+      relationToTargetLabel: 'ابن شريف',
+      fatherId: 'husband-sharif',
+      motherId: 'w1',
+      spouseIds: [],
+    },
+    {
+      id: 'child-from-w2',
+      firstName: 'ليلى',
+      gender: 'female' as const,
+      generationLevel: 1,
+      relationToTargetLabel: 'ابنة شريف',
+      fatherId: 'husband-sharif',
+      motherId: 'w2',
+      spouseIds: [],
+    },
+  ];
+
+  const tree = buildPedigreeTreeLayout(familyPeople);
+  assert.ok(tree.root);
+  const sharifNode = tree.root!;
+
+  // When spouses are visible: w1's child routes right, unassigned child routes strictly paternal center, w2's child routes left
+  const routingVisible = partitionChildrenByMotherUnion(
+    sharifNode.person,
+    sharifNode.children,
+    sharifNode.spouses,
+    true
+  );
+  assert.equal(routingVisible.hasVisibleMaternalRouting, true);
+  assert.deepEqual(
+    routingVisible.paternalOnlyChildren.map((c) => c.person.id),
+    ['child-unassigned']
+  );
+  assert.deepEqual(
+    routingVisible.rightMaternalGroups.map((g) => ({
+      spouseId: g.spouse.id,
+      childIds: g.children.map((c) => c.person.id),
+    })),
+    [{ spouseId: 'w1', childIds: ['child-from-w1'] }]
+  );
+  assert.deepEqual(
+    routingVisible.leftMaternalGroups.map((g) => ({
+      spouseId: g.spouse.id,
+      childIds: g.children.map((c) => c.person.id),
+    })),
+    [{ spouseId: 'w2', childIds: ['child-from-w2'] }]
+  );
+
+  // When spouses are hidden: ALL children fall back strictly to paternal center routing
+  const routingHidden = partitionChildrenByMotherUnion(
+    sharifNode.person,
+    sharifNode.children,
+    sharifNode.spouses,
+    false
+  );
+  assert.equal(routingHidden.hasVisibleMaternalRouting, false);
+  assert.equal(routingHidden.paternalOnlyChildren.length, 3);
+  assert.equal(routingHidden.rightMaternalGroups.length, 0);
+  assert.equal(routingHidden.leftMaternalGroups.length, 0);
+
+  // 3. Gender-Aware Arabic Prestige Badges
+  const femaleBadges = getPrestigeBadgeOptionsForGender('female');
+  assert.deepEqual(
+    femaleBadges.map((b) => b.label),
+    [
+      'بدون وسام',
+      'كريمة الأسرة',
+      'عميدة فاضلة',
+      'حافظة للإرث',
+      'شخصية بارزة',
+      'راوية للذاكرة',
+    ]
+  );
+  assert.equal(resolvePrestigeBadgeMeta('family_dean', 'female')?.label, 'عميدة فاضلة');
+  assert.equal(resolvePrestigeBadgeMeta('family_dean', 'male')?.label, 'عميد الأسرة');
+  assert.equal(resolvePrestigeBadgeMeta('heritage_keeper', 'female')?.label, 'حافظة للإرث');
+  assert.equal(resolvePrestigeBadgeMeta('noble_lady', 'female')?.label, 'كريمة الأسرة');
+});
+
+test('Smart Genealogical Relationship & Maternal/Spousal Binding Engine: Wife Quick-Action Rules & Instant Re-routing', async () => {
+  const {
+    buildPedigreeTreeLayout,
+    partitionChildrenByMotherUnion,
+    resolveNodeQuickActionPolicy,
+  } = await import('./familyTreeLayout');
+
+  const sharif = {
+    id: 'sharif',
+    firstName: 'شريف',
+    gender: 'male' as const,
+    generationLevel: 2,
+    isDirectSpineLineage: true,
+    relationToTargetLabel: 'الأب',
+    spouseIds: ['taghreed', 'mahasen'],
+  };
+  const taghreed = {
+    id: 'taghreed',
+    firstName: 'تغريد',
+    gender: 'female' as const,
+    generationLevel: 2,
+    relationToTargetLabel: 'زوجة شريف',
+    spouseIds: ['sharif'],
+  };
+  const mahasen = {
+    id: 'mahasen',
+    firstName: 'محاسن',
+    gender: 'female' as const,
+    generationLevel: 2,
+    relationToTargetLabel: 'زوجة شريف',
+    spouseIds: ['sharif'],
+  };
+  const karim = {
+    id: 'karim',
+    firstName: 'كريم',
+    gender: 'male' as const,
+    generationLevel: 1,
+    isRecordKeeper: true,
+    isDirectSpineLineage: true,
+    relationToTargetLabel: 'ابن شريف',
+    fatherId: 'sharif',
+    motherId: undefined as string | undefined,
+    spouseIds: [],
+  };
+  const marriedDaughter = {
+    id: 'noura',
+    firstName: 'نورة',
+    gender: 'female' as const,
+    generationLevel: 1,
+    relationToTargetLabel: 'ابنة شريف',
+    fatherId: 'sharif',
+    motherId: 'taghreed',
+    spouseIds: ['husband-faisal'],
+  };
+  const faisal = {
+    id: 'husband-faisal',
+    firstName: 'فيصل',
+    gender: 'male' as const,
+    generationLevel: 1,
+    relationToTargetLabel: 'زوج نورة',
+    spouseIds: ['noura'],
+  };
+  const unmarriedDaughter = {
+    id: 'sara',
+    firstName: 'سارة',
+    gender: 'female' as const,
+    generationLevel: 1,
+    relationToTargetLabel: 'ابنة شريف',
+    fatherId: 'sharif',
+    motherId: 'mahasen',
+    spouseIds: [],
+  };
+
+  const people = [
+    sharif,
+    taghreed,
+    mahasen,
+    karim,
+    marriedDaughter,
+    faisal,
+    unmarriedDaughter,
+  ];
+
+  // 1. Married-in wife: NO "+ إضافة زوج", focused menu (no parents/siblings), linkedHusband = شريف
+  const taghreedPolicy = resolveNodeQuickActionPolicy(people, taghreed);
+  assert.equal(taghreedPolicy.isMarriedInWife, true);
+  assert.equal(taghreedPolicy.hasHusband, true);
+  assert.equal(taghreedPolicy.linkedHusband?.id, 'sharif');
+  assert.equal(taghreedPolicy.canAddSpouse, false);
+  assert.equal(taghreedPolicy.canAddParentsAndSiblingsInMenu, false);
+
+  // 2. Blood-line daughter who ALREADY has a husband: NO "+ إضافة زوج", still keeps parents/siblings
+  const marriedDaughterPolicy = resolveNodeQuickActionPolicy(
+    people,
+    marriedDaughter
+  );
+  assert.equal(marriedDaughterPolicy.isMarriedInWife, false);
+  assert.equal(marriedDaughterPolicy.hasHusband, true);
+  assert.equal(marriedDaughterPolicy.linkedHusband?.id, 'husband-faisal');
+  assert.equal(marriedDaughterPolicy.canAddSpouse, false);
+  assert.equal(marriedDaughterPolicy.canAddParentsAndSiblingsInMenu, true);
+
+  // 3. Unmarried blood-line daughter: CAN add husband
+  const unmarriedDaughterPolicy = resolveNodeQuickActionPolicy(
+    people,
+    unmarriedDaughter
+  );
+  assert.equal(unmarriedDaughterPolicy.isMarriedInWife, false);
+  assert.equal(unmarriedDaughterPolicy.hasHusband, false);
+  assert.equal(unmarriedDaughterPolicy.canAddSpouse, true);
+
+  // 4. Male husband: CAN add additional wives
+  const sharifPolicy = resolveNodeQuickActionPolicy(people, sharif);
+  assert.equal(sharifPolicy.canAddSpouse, true);
+
+  // 5. Instant Visual Re-routing: before binding motherId, كريم is strictly paternal center;
+  // after binding كريم.motherId = 'mahasen' (Smart Add-Mother existing wife selection), كريم immediately routes from محاسن's maternal union!
+  const beforeTree = buildPedigreeTreeLayout(people);
+  const beforeRouting = partitionChildrenByMotherUnion(
+    beforeTree.root!.person,
+    beforeTree.root!.children,
+    beforeTree.root!.spouses,
+    true
+  );
+  assert.deepEqual(
+    beforeRouting.paternalOnlyChildren.map((c) => c.person.id),
+    ['karim']
+  );
+
+  const afterBindingMother = people.map((p) =>
+    p.id === 'karim' ? { ...p, motherId: 'mahasen' } : p
+  );
+  const afterTree = buildPedigreeTreeLayout(afterBindingMother);
+  const afterRouting = partitionChildrenByMotherUnion(
+    afterTree.root!.person,
+    afterTree.root!.children,
+    afterTree.root!.spouses,
+    true
+  );
+  assert.equal(afterRouting.paternalOnlyChildren.length, 0);
+  const mahasenGroup = afterRouting.leftMaternalGroups.find(
+    (g) => g.spouse.id === 'mahasen'
+  );
+  assert.ok(mahasenGroup);
+  assert.ok(mahasenGroup!.children.some((c) => c.person.id === 'karim'));
+});
+
+
+
 
