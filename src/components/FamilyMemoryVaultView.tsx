@@ -1,15 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowUpDown,
   Camera,
   Check,
   CheckCircle2,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
   Download,
   ExternalLink,
   FileText,
-  FolderOpen,
+  FolderInput,
   FolderPlus,
+  Grid2x2,
   Image as ImageIcon,
+  LayoutGrid,
   Link2,
+  Maximize2,
+  Pencil,
   Plus,
   Search,
   Sparkles,
@@ -69,61 +77,10 @@ interface PendingUploadDraft {
   linkedPersonIds: string[];
 }
 
-const FOLDER_ICONS = ['📜', '📸', '🏡', '🎖️', '📂', '🕌', '💍', '✈️', '🏛️', '🌴'];
+type VaultSortMode = 'newest' | 'historical_asc' | 'alphabetical';
+type VaultGridDensity = 'standard' | 'large';
 
-const FOLDER_THEME_STYLES: Record<
-  VaultFolderRecord['colorTheme'],
-  {
-    bg: string;
-    border: string;
-    activeBorder: string;
-    badgeBg: string;
-    badgeText: string;
-  }
-> = {
-  amber: {
-    bg: 'from-[#FFFDF9] via-[#FEF9EE] to-[#FDE68A]/35',
-    border: 'border-[#D97706]/35',
-    activeBorder: 'border-[#D97706] ring-2 ring-[#D97706]/25',
-    badgeBg: 'bg-[#FEF3C7]',
-    badgeText: 'text-[#92400E]',
-  },
-  terracotta: {
-    bg: 'from-[#FFFDF9] via-[#FDF4F0] to-[#F5D0C5]/40',
-    border: 'border-[#D8755B]/35',
-    activeBorder: 'border-[#D8755B] ring-2 ring-[#D8755B]/25',
-    badgeBg: 'bg-[#D8755B]/15',
-    badgeText: 'text-[#8D4925]',
-  },
-  emerald: {
-    bg: 'from-[#FFFDF9] via-[#F2FBF7] to-[#D1FAE5]/45',
-    border: 'border-emerald-500/35',
-    activeBorder: 'border-emerald-600 ring-2 ring-emerald-500/25',
-    badgeBg: 'bg-emerald-100',
-    badgeText: 'text-emerald-900',
-  },
-  stone: {
-    bg: 'from-[#FFFDF9] via-[#FAF6F0] to-[#EDE6DA]/70',
-    border: 'border-[#B98A78]/45',
-    activeBorder: 'border-[#8D4925] ring-2 ring-[#8D4925]/25',
-    badgeBg: 'bg-[#EDE6DA]',
-    badgeText: 'text-[#252321]',
-  },
-  indigo: {
-    bg: 'from-[#FFFDF9] via-[#F5F7FF] to-[#E0E7FF]/50',
-    border: 'border-indigo-400/35',
-    activeBorder: 'border-indigo-600 ring-2 ring-indigo-500/25',
-    badgeBg: 'bg-indigo-100',
-    badgeText: 'text-indigo-900',
-  },
-  rose: {
-    bg: 'from-[#FFFDF9] via-[#FFF5F7] to-[#FFE4E6]/50',
-    border: 'border-rose-400/35',
-    activeBorder: 'border-rose-600 ring-2 ring-rose-500/25',
-    badgeBg: 'bg-rose-100',
-    badgeText: 'text-rose-900',
-  },
-};
+const FOLDER_ICONS = ['📜', '📸', '🏡', '🎖️', '📂', '🕌', '💍', '✈️', '🏛️', '🌴'];
 
 function isRenderableImageSource(
   src?: string,
@@ -138,6 +95,29 @@ function isRenderableImageSource(
     return mediaType === 'photo' || !mimeType || mimeType.startsWith('image/');
   }
   return false;
+}
+
+/**
+ * Extracts a numeric year from free-form Arabic/English date strings (e.g. "1967", "١٩٧٢", "شتاء 1985")
+ * to enable accurate historical ascending sorting, falling back gracefully to item creation year.
+ */
+function extractHistoricalTimestamp(item: FamilyVaultMediaItem): number {
+  const raw = (item.dateOrOccasion || '')
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .trim();
+  const yearMatch = raw.match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
+  if (yearMatch) {
+    const parsedYear = Number(yearMatch[1]);
+    if (!Number.isNaN(parsedYear)) {
+      return parsedYear * 10000;
+    }
+  }
+  const createdMs = Date.parse(item.createdAt || '');
+  if (!Number.isNaN(createdMs)) {
+    const d = new Date(createdMs);
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
@@ -177,7 +157,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     })
   );
 
-  // Filters & Search
+  // Filters, Search, Sort & Gallery View Controls
   const [selectedFolderId, setSelectedFolderId] = useState<string>('ALL');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<
     'ALL' | 'photo' | 'document'
@@ -186,9 +166,29 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     initialSelectedPersonId || 'ALL'
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<VaultSortMode>('newest');
+  const [gridDensity, setGridDensity] = useState<VaultGridDensity>('standard');
 
-  // Multi-Upload Drag & Drop state
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  // Multi-Select Mode & Bulk Actions
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [bulkMoveTargetFolderId, setBulkMoveTargetFolderId] =
+    useState<string>('');
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  // Inline Quick Rename (Card & Lightbox)
+  const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
+  const [renameDraftValue, setRenameDraftValue] = useState('');
+  const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<string | null>(
+    null
+  );
+  const [brokenImageIds, setBrokenImageIds] = useState<Record<string, boolean>>(
+    {}
+  );
+
+  // Full-Page Smart Drag & Drop Overlay + Staging Queue
+  const [isGlobalDragActive, setIsGlobalDragActive] = useState(false);
+  const dragDepthRef = useRef(0);
   const [pendingDrafts, setPendingDrafts] = useState<PendingUploadDraft[]>([]);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const [isSavingDraftsToCloud, setIsSavingDraftsToCloud] = useState(false);
@@ -207,14 +207,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     useState<VaultFolderRecord['colorTheme']>('amber');
   const [newFolderDesc, setNewFolderDesc] = useState('');
 
-  // Person Linker Modal (`🔗 ربط بأفراد مشجرتي`)
+  // Person Linker Modal (`🔗 ربط بأفراد شجرتي`)
   const [linkingItemId, setLinkingItemId] = useState<string | null>(null);
   const [personSearchInModal, setPersonSearchInModal] = useState('');
 
   // Lightbox Modal state
   const [lightboxItemId, setLightboxItemId] = useState<string | null>(null);
 
-  // Apply incoming person filter when jumping from a card in `مشجرتي`
+  // Apply incoming person filter when jumping from a card in `شجرتي`
   useEffect(() => {
     if (initialSelectedPersonId) {
       setSelectedPersonFilterId(initialSelectedPersonId);
@@ -284,7 +284,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     };
 
     const handleVaultUpdated = () => {
-      const latest = readVaultArchiveFromLocal(userId, result.familyName, userEmail);
+      const latest = readVaultArchiveFromLocal(
+        userId,
+        result.familyName,
+        userEmail
+      );
       setFolders(latest.folders);
       setItems(latest.items);
     };
@@ -308,16 +312,22 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     userAvatarUrl,
   ]);
 
+  // Auto-reset inline delete confirm after 4 seconds
+  useEffect(() => {
+    if (!confirmDeleteItemId) return;
+    const timer = window.setTimeout(() => {
+      setConfirmDeleteItemId(null);
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirmDeleteItemId]);
+
   const persistVaultChange = (
     nextFolders: VaultFolderRecord[],
     nextItems: FamilyVaultMediaItem[]
   ) => {
     const validPersonIds =
       treePeople.length > 0
-        ? new Set([
-            ...treePeople.map((p) => p.id),
-            'node-family-house',
-          ])
+        ? new Set([...treePeople.map((p) => p.id), 'node-family-house'])
         : null;
     const sanitizedItems = validPersonIds
       ? nextItems.map((it) => ({
@@ -387,10 +397,65 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     }
   };
 
+  // Keep latest file handler ref for full-page drag & drop listeners
+  const handleFilesSelectedRef = useRef(handleFilesSelected);
+  handleFilesSelectedRef.current = handleFilesSelected;
+
+  // Full-Page Smart Drag & Drop Overlay listeners
+  useEffect(() => {
+    const isFileDrag = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types || []).includes('Files');
+
+    const handleWindowDragEnter = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      dragDepthRef.current += 1;
+      setIsGlobalDragActive(true);
+    };
+
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    };
+
+    const handleWindowDragLeave = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setIsGlobalDragActive(false);
+      }
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setIsGlobalDragActive(false);
+      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        handleFilesSelectedRef.current(e.dataTransfer.files);
+      }
+    };
+
+    window.addEventListener('dragenter', handleWindowDragEnter);
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('dragleave', handleWindowDragLeave);
+    window.addEventListener('drop', handleWindowDrop);
+    return () => {
+      window.removeEventListener('dragenter', handleWindowDragEnter);
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('dragleave', handleWindowDragLeave);
+      window.removeEventListener('drop', handleWindowDrop);
+    };
+  }, []);
+
   const handleSaveAllPendingDrafts = async () => {
     if (pendingDrafts.length === 0 || isSavingDraftsToCloud) return;
 
-    // Enforce tier document quota BEFORE saving — keep all pendingDrafts intact so zero user work is lost!
+    // Enforce tier document quota BEFORE saving — keep all pendingDrafts intact so zero user work is lost
     if (
       caps &&
       caps.maxVaultDocuments !== null &&
@@ -530,10 +595,38 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     persistVaultChange(folders, nextItems);
   };
 
+  const handleStartInlineRename = (item: FamilyVaultMediaItem) => {
+    setRenamingItemId(item.id);
+    setRenameDraftValue(item.title);
+  };
+
+  const handleCommitInlineRename = (itemId: string) => {
+    const cleaned = renameDraftValue.trim();
+    const target = items.find((i) => i.id === itemId);
+    setRenamingItemId(null);
+    if (!target || !cleaned || cleaned === target.title) return;
+
+    const nextItems = items.map((it) =>
+      it.id === itemId ? { ...it, title: cleaned } : it
+    );
+    persistVaultChange(folders, nextItems);
+    onLogActivity(
+      'تعديل عنوان مقتنى في خزانتي',
+      `إعادة تسمية «${target.title}» إلى «${cleaned}»`
+    );
+  };
+
+  const handleCancelInlineRename = () => {
+    setRenamingItemId(null);
+    setRenameDraftValue('');
+  };
+
   const handleDeleteItem = (itemId: string) => {
     const target = items.find((i) => i.id === itemId);
     const nextItems = items.filter((i) => i.id !== itemId);
     persistVaultChange(folders, nextItems);
+    setConfirmDeleteItemId(null);
+    setSelectedItemIds((prev) => prev.filter((id) => id !== itemId));
     if (lightboxItemId === itemId) {
       setLightboxItemId(null);
     }
@@ -548,8 +641,74 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     }
   };
 
+  const handleToggleSelectItem = (itemId: string) => {
+    setSelectedItemIds((prev) =>
+      prev.includes(itemId)
+        ? prev.filter((id) => id !== itemId)
+        : [...prev, itemId]
+    );
+    setConfirmBulkDelete(false);
+  };
+
+  const handleToggleMultiSelectMode = () => {
+    setIsMultiSelectMode((prev) => {
+      if (prev) {
+        setSelectedItemIds([]);
+        setConfirmBulkDelete(false);
+      }
+      return !prev;
+    });
+  };
+
+  const handleBulkMoveSelected = (targetFolderId: string) => {
+    if (!targetFolderId || selectedItemIds.length === 0) return;
+    const selectedSet = new Set(selectedItemIds);
+    const nextItems = items.map((it) =>
+      selectedSet.has(it.id) ? { ...it, folderId: targetFolderId } : it
+    );
+    const folderName =
+      folders.find((f) => f.id === targetFolderId)?.name || 'المجلد المحدد';
+    persistVaultChange(folders, nextItems);
+    onLogActivity(
+      'نقل مقتنيات في خزانتي',
+      `نقل (${selectedItemIds.length}) مقتنيات إلى مجلد «${folderName}»`
+    );
+    setBulkMoveTargetFolderId('');
+    setSelectedItemIds([]);
+  };
+
+  const handleBulkDeleteSelected = () => {
+    if (selectedItemIds.length === 0) return;
+    const selectedSet = new Set(selectedItemIds);
+    const count = selectedItemIds.length;
+    const nextItems = items.filter((it) => !selectedSet.has(it.id));
+    persistVaultChange(folders, nextItems);
+    if (lightboxItemId && selectedSet.has(lightboxItemId)) {
+      setLightboxItemId(null);
+    }
+    if (linkingItemId && selectedSet.has(linkingItemId)) {
+      setLinkingItemId(null);
+    }
+    setSelectedItemIds([]);
+    setConfirmBulkDelete(false);
+    setIsMultiSelectMode(false);
+    onLogActivity(
+      'حذف متعدد من خزانتي',
+      `حذف (${count}) مقتنيات من خزانة الذاكرة العائلية`
+    );
+  };
+
+  // Folder item counts map for fast O(1) lookup
+  const folderCountsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of items) {
+      map.set(item.folderId, (map.get(item.folderId) || 0) + 1);
+    }
+    return map;
+  }, [items]);
+
   const filteredItems = useMemo(() => {
-    return items.filter((it) => {
+    const matched = items.filter((it) => {
       if (selectedFolderId !== 'ALL' && it.folderId !== selectedFolderId) {
         return false;
       }
@@ -568,17 +727,33 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           .map((pid) => treePeople.find((p) => p.id === pid)?.fullName || '')
           .join(' ')
           .toLowerCase();
-        const haystack = `${it.title} ${it.dateOrOccasion} ${it.description || ''} ${linkedNames}`.toLowerCase();
+        const haystack =
+          `${it.title} ${it.dateOrOccasion} ${it.description || ''} ${linkedNames}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
+
+    const sorted = [...matched];
+    if (sortBy === 'newest') {
+      sorted.sort((a, b) =>
+        (b.createdAt || '').localeCompare(a.createdAt || '')
+      );
+    } else if (sortBy === 'historical_asc') {
+      sorted.sort(
+        (a, b) => extractHistoricalTimestamp(a) - extractHistoricalTimestamp(b)
+      );
+    } else if (sortBy === 'alphabetical') {
+      sorted.sort((a, b) => a.title.localeCompare(b.title, 'ar'));
+    }
+    return sorted;
   }, [
     items,
     selectedFolderId,
     selectedTypeFilter,
     selectedPersonFilterId,
     searchQuery,
+    sortBy,
     treePeople,
   ]);
 
@@ -587,613 +762,781 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     [items, linkingItemId]
   );
 
+  const activeLightboxIndex = useMemo(
+    () =>
+      lightboxItemId
+        ? filteredItems.findIndex((i) => i.id === lightboxItemId)
+        : -1,
+    [filteredItems, lightboxItemId]
+  );
+
   const activeLightboxItem = useMemo(
     () => items.find((i) => i.id === lightboxItemId) || null,
     [items, lightboxItemId]
   );
 
-  const totalPhotosCount = items.filter((i) => i.mediaType === 'photo').length;
-  const totalDocsCount = items.filter((i) => i.mediaType === 'document').length;
-  const totalLinkedItemsCount = items.filter(
-    (i) => i.linkedPersonIds.length > 0
-  ).length;
+  const activeFolderLabel = useMemo(() => {
+    if (selectedFolderId === 'ALL') return 'كل الخزانة العائلية';
+    const found = folders.find((f) => f.id === selectedFolderId);
+    return found ? `${found.icon} ${found.name}` : 'كل الخزانة العائلية';
+  }, [folders, selectedFolderId]);
+
+  const totalPhotosCount = useMemo(
+    () => items.filter((i) => i.mediaType === 'photo').length,
+    [items]
+  );
+  const totalDocsCount = useMemo(
+    () => items.filter((i) => i.mediaType === 'document').length,
+    [items]
+  );
+  const totalLinkedItemsCount = useMemo(
+    () => items.filter((i) => i.linkedPersonIds.length > 0).length,
+    [items]
+  );
+
+  const hasActiveFilters =
+    selectedFolderId !== 'ALL' ||
+    selectedTypeFilter !== 'ALL' ||
+    selectedPersonFilterId !== 'ALL' ||
+    searchQuery.trim().length > 0;
 
   return (
     <div
       data-testid="family-memory-vault-view"
-      className="space-y-6 text-right"
+      className="space-y-4 text-right relative"
     >
+      {/* Hidden Multi-File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        multiple
+        className="hidden"
+        onChange={(e) => handleFilesSelected(e.target.files)}
+      />
+
       {/* =================================================================== */}
-      {/* 1. HERO HEADER & LIVE ARCHIVE STATS                                 */}
+      {/* FULL-PAGE SMART DRAG & DROP OVERLAY (Activates smoothly on file drag) */}
       {/* =================================================================== */}
-      <div className="rounded-3xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF6F0] to-[#F5E6C8]/65 border-2 border-[#D4AF37]/50 p-6 sm:p-8 shadow-xs relative overflow-hidden">
+      {isGlobalDragActive && (
         <div
-          className="absolute -top-16 -left-16 w-52 h-52 rounded-full bg-[#D8755B]/10 blur-2xl pointer-events-none"
-          aria-hidden="true"
-        />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#D4AF37]/60 text-[#8D4925] text-xs font-display font-extrabold shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
-                <span>خزانة الذاكرة والأرشيف العائلي</span>
-              </div>
+          className="fixed inset-0 z-50 bg-[#252321]/65 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-none transition-opacity duration-150"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-xl rounded-3xl bg-[#FFFDF9]/95 border-2 border-dashed border-[#C5A059] p-10 text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#D8755B] to-[#8D4925] text-[#FFFDF9] flex items-center justify-center mx-auto shadow-md">
+              <Upload className="w-8 h-8" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
-              خزانة عائلة {result.familyName} للصور والوثائق التاريخية
-            </h2>
-            <p className="text-xs sm:text-sm text-[#252321]/75 leading-relaxed">
-              احفظ صور الأجداد، صكوك الأسرة، والوثائق النادرة في مجلدات منظمة، واربط كل صورة أو وثيقة مباشرة بأفراد شجرتك التفاعلية.
-            </p>
-          </div>
-
-          {/* Live Archive Counters */}
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3 shrink-0">
-            <div className="rounded-2xl bg-white/90 border border-[#B98A78]/35 px-4 py-3 text-center shadow-2xs">
-              <div className="text-lg sm:text-xl font-display font-extrabold text-[#252321] tabular-nums">
-                {totalPhotosCount}
-              </div>
-              <div className="text-[11px] font-bold text-[#8D4925]">
-                📸 صور عائلية
-              </div>
-            </div>
-            <div className="rounded-2xl bg-white/90 border border-[#B98A78]/35 px-4 py-3 text-center shadow-2xs">
-              <div className="text-lg sm:text-xl font-display font-extrabold text-[#252321] tabular-nums">
-                {totalDocsCount}
-              </div>
-              <div className="text-[11px] font-bold text-[#8D4925]">
-                📜 وثائق وصكوك
-              </div>
-            </div>
-            <div className="rounded-2xl bg-white/90 border border-[#D8755B]/45 px-4 py-3 text-center shadow-2xs">
-              <div className="text-lg sm:text-xl font-display font-extrabold text-[#D8755B] tabular-nums">
-                {totalLinkedItemsCount}
-              </div>
-              <div className="text-[11px] font-bold text-[#252321]">
-                🔗 مربوطة بشجرتي
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* =================================================================== */}
-      {/* 2. INTERACTIVE DRAG & DROP + MULTI-UPLOAD ZONE                      */}
-      {/* =================================================================== */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDraggingOver(true);
-        }}
-        onDragLeave={() => setIsDraggingOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsDraggingOver(false);
-          handleFilesSelected(e.dataTransfer.files);
-        }}
-        className={`rounded-3xl border-2 border-dashed transition-all p-5 sm:p-6 ${
-          isDraggingOver
-            ? 'bg-[#FEF3C7]/60 border-[#D97706] scale-[1.005] shadow-md'
-            : 'bg-white border-[#B98A78]/55 hover:border-[#D8755B]'
-        }`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.pdf"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFilesSelected(e.target.files)}
-        />
-
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 text-right">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#D8755B] to-[#8D4925] text-white flex items-center justify-center shrink-0 shadow-sm">
-              <Upload className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
-                اسحب وأفلت الصور والوثائق هنا أو اختر عدة ملفات دفعة واحدة
+            <div className="space-y-1.5">
+              <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+                أفلت الصور أو الوثائق هنا لإيداعها في الخزانة
               </h3>
-              <p className="text-xs text-[#252321]/70">
-                يدعم رفع الصور الفوتوغرافية، صور المخطوطات، وصكوك الأسرة مع معاينة فورية وتصنيف ذكي وربط مباشر بأفراد «شجرتي».
+              <p className="text-xs sm:text-sm text-[#8D4925] font-semibold">
+                المجلد المستهدف: {activeFolderLabel} · يدعم رفع عدة ملفات دفعة واحدة
               </p>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full md:w-auto justify-end">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isProcessingFiles}
-              className="flex-1 md:flex-initial px-5 py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-60"
-            >
-              <Camera className="w-4 h-4" />
-              <span>
-                {isProcessingFiles
-                  ? 'جاري تجهيز الملفات...'
-                  : 'رفع صور أو وثائق جديدة'}
+      {/* =================================================================== */}
+      {/* TIER 1 — COMPACT EXECUTIVE HEADER (Title + Inline Stats + Primary CTA) */}
+      {/* =================================================================== */}
+      <header className="rounded-2xl bg-[#FFFDF9] border border-[#C5A059]/45 px-4 sm:px-5 py-3.5 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FBF3E0] to-[#F3E2BC] border border-[#C5A059]/60 text-[#8D4925] flex items-center justify-center shrink-0">
+              <ImageIcon className="w-4.5 h-4.5" />
+            </div>
+            <h2 className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
+              خزانة عائلة {result.familyName}
+            </h2>
+          </div>
+
+          <span
+            className="hidden sm:inline-block h-5 w-px bg-[#D9CCB9]"
+            aria-hidden="true"
+          />
+
+          {/* Compact Museum Archive Stat Chips */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6F0] border border-[#E5DAC8] text-[11px] font-bold text-[#252321] whitespace-nowrap">
+              <span className="text-[#8D4925]">إجمالي المقتنيات</span>
+              <span className="font-display font-extrabold tabular-nums text-[#252321]">
+                {items.length}
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowNewFolderModal(true)}
-              className="px-4 py-3 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[#252321] text-xs sm:text-sm font-display font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <FolderPlus className="w-4 h-4 text-[#8D4925]" />
-              <span>مجلد جديد</span>
-            </button>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6F0] border border-[#E5DAC8] text-[11px] font-bold text-[#252321] whitespace-nowrap">
+              <span className="text-[#8D4925]">الصور العائلية</span>
+              <span className="font-display font-extrabold tabular-nums text-[#252321]">
+                {totalPhotosCount}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6F0] border border-[#E5DAC8] text-[11px] font-bold text-[#252321] whitespace-nowrap">
+              <span className="text-[#8D4925]">الوثائق والصكوك</span>
+              <span className="font-display font-extrabold tabular-nums text-[#252321]">
+                {totalDocsCount}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FBF3E0]/80 border border-[#C5A059]/45 text-[11px] font-bold text-[#8D4925] whitespace-nowrap">
+              <span>المربوطة بشجرتي</span>
+              <span className="font-display font-extrabold tabular-nums text-[#252321]">
+                {totalLinkedItemsCount}
+              </span>
+            </span>
           </div>
         </div>
 
-        {/* Pending Multi-Upload Staging Queue */}
-        {pendingDrafts.length > 0 && (
-          <div className="mt-6 pt-5 border-t border-[#B98A78]/30 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs sm:text-sm font-display font-extrabold text-[#8D4925]">
-                قائمة الملفات الجاهزة للحفظ ({pendingDrafts.length}) — يمكنك تسميتها وربطها بأفراد مشجرتك قبل الاعتماد:
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPendingDrafts([])}
-                  className="px-3 py-1.5 rounded-lg bg-[#FAF6F0] hover:bg-red-50 text-xs font-bold text-red-700 border border-[#B98A78]/35 cursor-pointer"
-                >
-                  إلغاء الكل
-                </button>
-                <button
-                  type="button"
-                  disabled={isSavingDraftsToCloud}
-                  onClick={handleSaveAllPendingDrafts}
-                  className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] disabled:opacity-60 text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-[#F3D299]" />
-                  <span>
-                    {isSavingDraftsToCloud
-                      ? 'جاري الضغط والحفظ السحابي...'
-                      : `حفظ وإيداع في الخزانة الآن (${pendingDrafts.length})`}
-                  </span>
-                </button>
-              </div>
-            </div>
+        {/* Single Prominent Primary CTA */}
+        <div className="flex items-center justify-end shrink-0">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessingFiles}
+            className="w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
+          >
+            <Plus className="w-4 h-4" />
+            <span>
+              {isProcessingFiles
+                ? 'جاري تجهيز الملفات...'
+                : 'رفع صور أو وثائق'}
+            </span>
+          </button>
+        </div>
+      </header>
 
-            {vaultQuotaAlert && (
-              <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF6F0] to-[#FEF3C7]/45 border-2 border-[#D4AF37] p-4 sm:p-5 space-y-3 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-display font-extrabold text-[#252321]">
-                      تجاوزت الحد الأقصى لسعة الخزانة في باقتك الحالية ({vaultQuotaAlert.currentCount} / {vaultQuotaAlert.maxAllowed} ملفات)
-                    </h4>
-                    <p className="text-xs text-[#252321]/80 leading-relaxed">
-                      ملفاتك الجاهزة أعلاه ({vaultQuotaAlert.tryingToAdd}) وعناوينها محفوظة بالكامل في قائمة الانتظار ولن تضيع. قم بترقية باقتك الآن لحفظها فوراً:
-                    </p>
-                  </div>
+      {/* =================================================================== */}
+      {/* STAGING QUEUE (Only shown when user selected/dropped new files)     */}
+      {/* =================================================================== */}
+      {pendingDrafts.length > 0 && (
+        <section className="rounded-2xl bg-[#FFFDF9] border-2 border-[#C5A059]/75 p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="text-xs sm:text-sm font-display font-extrabold text-[#8D4925]">
+              قائمة الملفات الجاهزة للإيداع ({pendingDrafts.length}) — سمّها واربطها بأفراد شجرتك قبل الحفظ:
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingDrafts([])}
+                className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-red-50 text-xs font-bold text-red-700 border border-[#B98A78]/35 cursor-pointer whitespace-nowrap"
+              >
+                إلغاء الكل
+              </button>
+              <button
+                type="button"
+                disabled={isSavingDraftsToCloud}
+                onClick={handleSaveAllPendingDrafts}
+                className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] disabled:opacity-60 text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors whitespace-nowrap"
+              >
+                <CheckCircle2 className="w-4 h-4 text-[#F3D299]" />
+                <span>
+                  {isSavingDraftsToCloud
+                    ? 'جاري الضغط والحفظ السحابي...'
+                    : `حفظ وإيداع الآن (${pendingDrafts.length})`}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {vaultQuotaAlert && (
+            <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF6F0] to-[#FEF3C7]/45 border border-[#C5A059] p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-display font-extrabold text-[#252321]">
+                    تجاوزت الحد الأقصى لسعة الخزانة في باقتك الحالية ({vaultQuotaAlert.currentCount} / {vaultQuotaAlert.maxAllowed} ملفات)
+                  </h4>
+                  <p className="text-xs text-[#252321]/80 leading-relaxed">
+                    ملفاتك الجاهزة ({vaultQuotaAlert.tryingToAdd}) وعناوينها محفوظة في قائمة الانتظار ولن تضيع. قم بترقية باقتك الآن لحفظها فوراً:
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVaultQuotaAlert(null)}
+                  className="p-1.5 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#252321] cursor-pointer shrink-0"
+                  aria-label="إغلاق تنبيه السعة"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {caps && !caps.isRootUnlocked && onUnlockRoot5Usd && (
                   <button
                     type="button"
-                    onClick={() => setVaultQuotaAlert(null)}
-                    className="p-1.5 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#252321] cursor-pointer shrink-0"
+                    onClick={onUnlockRoot5Usd}
+                    className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
+                    فتح الجذر ($5) ← رفع السعة إلى 20 وثيقة
                   </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                  {caps && !caps.isRootUnlocked && onUnlockRoot5Usd && (
-                    <button
-                      type="button"
-                      onClick={onUnlockRoot5Usd}
-                      className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
-                    >
-                      فتح الجذر ($5) ← رفع السعة إلى 20 وثيقة
-                    </button>
-                  )}
-                  {caps && !caps.isVip && onUpgradeAnnualVip && (
-                    <button
-                      type="button"
-                      onClick={onUpgradeAnnualVip}
-                      className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold cursor-pointer"
-                    >
-                      الباقة السنوية بريميوم ← 100 وثيقة
-                    </button>
-                  )}
-                  {caps && !caps.hasRegistrarBadge && onSignCharterAndEnableTree && (
-                    <button
-                      type="button"
-                      onClick={onSignCharterAndEnableTree}
-                      className="px-4 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1c] text-white text-xs font-display font-bold cursor-pointer"
-                    >
-                      تفعيل أمين سجل العائلة ✦ ← سعة غير محدودة
-                    </button>
-                  )}
-                </div>
+                )}
+                {caps && !caps.isVip && onUpgradeAnnualVip && (
+                  <button
+                    type="button"
+                    onClick={onUpgradeAnnualVip}
+                    className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold cursor-pointer"
+                  >
+                    الباقة السنوية بريميوم ← 100 وثيقة
+                  </button>
+                )}
+                {caps && !caps.hasRegistrarBadge && onSignCharterAndEnableTree && (
+                  <button
+                    type="button"
+                    onClick={onSignCharterAndEnableTree}
+                    className="px-3.5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1c] text-white text-xs font-display font-bold cursor-pointer"
+                  >
+                    تفعيل أمين سجل العائلة ✦ ← سعة غير محدودة
+                  </button>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pendingDrafts.map((draft) => (
-                <div
-                  key={draft.tempId}
-                  className="rounded-2xl bg-[#FAF6F0] border border-[#D4AF37]/60 p-4 space-y-3 shadow-2xs"
-                >
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-20 h-20 rounded-xl bg-white border border-[#B98A78]/40 overflow-hidden shrink-0 flex items-center justify-center">
-                      {draft.fileDataUrl.startsWith('data:image') ? (
-                        <img
-                          src={draft.fileDataUrl}
-                          alt={draft.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <FileText className="w-8 h-8 text-[#8D4925]" />
-                      )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {pendingDrafts.map((draft) => (
+              <div
+                key={draft.tempId}
+                className="rounded-2xl bg-[#FAF6F0] border border-[#D9CCB9] p-3.5 space-y-3"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-18 h-18 rounded-xl bg-white border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
+                    {draft.fileDataUrl.startsWith('data:image') ? (
+                      <img
+                        src={draft.fileDataUrl}
+                        alt={draft.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FileText className="w-7 h-7 text-[#8D4925]" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <input
+                        type="text"
+                        value={draft.title}
+                        onChange={(e) =>
+                          setPendingDrafts((prev) =>
+                            prev.map((p) =>
+                              p.tempId === draft.tempId
+                                ? { ...p, title: e.target.value }
+                                : p
+                            )
+                          )
+                        }
+                        placeholder="عنوان الصورة أو الوثيقة..."
+                        className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-xs font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingDrafts((prev) =>
+                            prev.filter((p) => p.tempId !== draft.tempId)
+                          )
+                        }
+                        className="p-1.5 rounded-lg hover:bg-red-100 text-red-700 cursor-pointer shrink-0"
+                        title="إزالة من القائمة"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <input
-                          type="text"
-                          value={draft.title}
-                          onChange={(e) =>
-                            setPendingDrafts((prev) =>
-                              prev.map((p) =>
-                                p.tempId === draft.tempId
-                                  ? { ...p, title: e.target.value }
-                                  : p
-                              )
+                    <div className="grid grid-cols-3 gap-2">
+                      <select
+                        value={draft.mediaType}
+                        onChange={(e) =>
+                          setPendingDrafts((prev) =>
+                            prev.map((p) =>
+                              p.tempId === draft.tempId
+                                ? {
+                                    ...p,
+                                    mediaType: e.target.value as
+                                      | 'photo'
+                                      | 'document',
+                                  }
+                                : p
                             )
-                          }
-                          placeholder="عنوان الصورة أو الوثيقة..."
-                          className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-xs font-bold text-[#252321] focus:outline-none focus:border-[#D8755B]"
-                        />
+                          )
+                        }
+                        className="px-2 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
+                      >
+                        <option value="photo">صورة عائلية</option>
+                        <option value="document">وثيقة / صك</option>
+                      </select>
+
+                      <select
+                        value={draft.folderId}
+                        onChange={(e) =>
+                          setPendingDrafts((prev) =>
+                            prev.map((p) =>
+                              p.tempId === draft.tempId
+                                ? { ...p, folderId: e.target.value }
+                                : p
+                            )
+                          )
+                        }
+                        className="px-2 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
+                      >
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.icon} {f.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <input
+                        type="text"
+                        value={draft.dateOrOccasion}
+                        onChange={(e) =>
+                          setPendingDrafts((prev) =>
+                            prev.map((p) =>
+                              p.tempId === draft.tempId
+                                ? { ...p, dateOrOccasion: e.target.value }
+                                : p
+                            )
+                          )
+                        }
+                        placeholder="السنة أو المناسبة"
+                        className="px-2 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Multi-Select Person Linking for this Draft */}
+                <div className="pt-2 border-t border-[#B98A78]/20 space-y-1.5">
+                  <div className="text-[11px] font-display font-bold text-[#8D4925] flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <span>ربط مباشر بأفراد «شجرتي» (اختياري):</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                    {treePeople.map((person) => {
+                      const isChecked = draft.linkedPersonIds.includes(
+                        person.id
+                      );
+                      return (
                         <button
+                          key={person.id}
                           type="button"
                           onClick={() =>
                             setPendingDrafts((prev) =>
-                              prev.filter((p) => p.tempId !== draft.tempId)
+                              prev.map((p) => {
+                                if (p.tempId !== draft.tempId) return p;
+                                const exists = p.linkedPersonIds.includes(
+                                  person.id
+                                );
+                                return {
+                                  ...p,
+                                  linkedPersonIds: exists
+                                    ? p.linkedPersonIds.filter(
+                                        (id) => id !== person.id
+                                      )
+                                    : [...p.linkedPersonIds, person.id],
+                                };
+                              })
                             )
                           }
-                          className="p-1.5 rounded-lg hover:bg-red-100 text-red-700 cursor-pointer shrink-0"
-                          title="إزالة"
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer border ${
+                            isChecked
+                              ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
+                              : 'bg-white text-[#252321] border-[#B98A78]/35 hover:border-[#C5A059]'
+                          }`}
                         >
-                          <X className="w-4 h-4" />
+                          {isChecked && <Check className="w-3 h-3" />}
+                          <span>{person.fullName}</span>
                         </button>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <select
-                          value={draft.mediaType}
-                          onChange={(e) =>
-                            setPendingDrafts((prev) =>
-                              prev.map((p) =>
-                                p.tempId === draft.tempId
-                                  ? {
-                                      ...p,
-                                      mediaType: e.target.value as
-                                        | 'photo'
-                                        | 'document',
-                                    }
-                                  : p
-                              )
-                            )
-                          }
-                          className="px-2.5 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
-                        >
-                          <option value="photo">📸 صورة عائلية</option>
-                          <option value="document">📜 وثيقة / صك</option>
-                        </select>
-
-                        <select
-                          value={draft.folderId}
-                          onChange={(e) =>
-                            setPendingDrafts((prev) =>
-                              prev.map((p) =>
-                                p.tempId === draft.tempId
-                                  ? { ...p, folderId: e.target.value }
-                                  : p
-                              )
-                            )
-                          }
-                          className="px-2.5 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
-                        >
-                          {folders.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.icon} {f.name}
-                            </option>
-                          ))}
-                        </select>
-
-                        <input
-                          type="text"
-                          value={draft.dateOrOccasion}
-                          onChange={(e) =>
-                            setPendingDrafts((prev) =>
-                              prev.map((p) =>
-                                p.tempId === draft.tempId
-                                  ? { ...p, dateOrOccasion: e.target.value }
-                                  : p
-                              )
-                            )
-                          }
-                          placeholder="السنة أو المناسبة"
-                          className="px-2.5 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick Multi-Select Person Linking for this Draft */}
-                  <div className="pt-2 border-t border-[#B98A78]/25 space-y-1.5">
-                    <div className="text-[11px] font-display font-bold text-[#8D4925] flex items-center gap-1.5">
-                      <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
-                      <span>ربط مباشر بأفراد «شجرتي» (اختياري — متعدد):</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                      {treePeople.map((person) => {
-                        const isChecked = draft.linkedPersonIds.includes(
-                          person.id
-                        );
-                        return (
-                          <button
-                            key={person.id}
-                            type="button"
-                            onClick={() =>
-                              setPendingDrafts((prev) =>
-                                prev.map((p) => {
-                                  if (p.tempId !== draft.tempId) return p;
-                                  const exists = p.linkedPersonIds.includes(
-                                    person.id
-                                  );
-                                  return {
-                                    ...p,
-                                    linkedPersonIds: exists
-                                      ? p.linkedPersonIds.filter(
-                                          (id) => id !== person.id
-                                        )
-                                      : [...p.linkedPersonIds, person.id],
-                                  };
-                                })
-                              )
-                            }
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer border ${
-                              isChecked
-                                ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-                                : 'bg-white text-[#252321] border-[#B98A78]/40 hover:border-[#D8755B]'
-                            }`}
-                          >
-                            {isChecked && <Check className="w-3 h-3" />}
-                            <span>{person.fullName}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </section>
+      )}
 
       {/* =================================================================== */}
-      {/* 3. SMART VISUAL COLLECTIONS (BENTO FOLDERS BAR)                     */}
+      {/* TIER 2 — SLEEK HORIZONTAL ALBUM/FOLDER STRIP (56px Height)          */}
       {/* =================================================================== */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321] flex items-center gap-2">
-            <FolderOpen className="w-4 h-4 text-[#D8755B]" />
-            <span>مجلدات ومجموعات الخزانة الذكية</span>
-          </h3>
-          <button
-            type="button"
-            onClick={() => setShowNewFolderModal(true)}
-            className="text-xs font-display font-bold text-[#D8755B] hover:text-[#8D4925] inline-flex items-center gap-1 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>إضافة مجلد مخصص</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {/* "All Vault" Bento Card */}
-          <button
-            type="button"
-            onClick={() => setSelectedFolderId('ALL')}
-            className={`rounded-2xl p-4 text-right transition-all cursor-pointer border-2 flex flex-col justify-between min-h-[112px] bg-gradient-to-br from-[#FFFDF9] via-[#FAF6F0] to-[#EDE6DA] ${
+      <nav
+        aria-label="ألبومات ومجلدات الخزانة"
+        className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 [scrollbar-width:thin]"
+      >
+        {/* "All Vault" Album Tab */}
+        <button
+          type="button"
+          onClick={() => setSelectedFolderId('ALL')}
+          className={`h-[56px] shrink-0 px-3.5 rounded-2xl border transition-all duration-150 inline-flex items-center gap-2.5 cursor-pointer whitespace-nowrap ${
+            selectedFolderId === 'ALL'
+              ? 'border-[#C5A059] bg-gradient-to-l from-[#FFFDF9] to-[#FBF2DC] ring-1 ring-[#C5A059]/35 shadow-2xs text-[#252321]'
+              : 'border-[#E5DAC8] bg-[#FFFDF9] hover:border-[#C5A059]/70 text-[#252321]/85'
+          }`}
+        >
+          <span className="text-lg leading-none" aria-hidden="true">
+            🏛️
+          </span>
+          <span className="text-xs sm:text-sm font-display font-extrabold">
+            كل الخزانة
+          </span>
+          <span
+            className={`min-w-[24px] h-6 px-1.5 rounded-full text-[11px] font-display font-extrabold tabular-nums inline-flex items-center justify-center ${
               selectedFolderId === 'ALL'
-                ? 'border-[#252321] ring-2 ring-[#252321]/15 shadow-sm'
-                : 'border-[#B98A78]/40 hover:border-[#8D4925]'
+                ? 'bg-[#252321] text-[#F3D299]'
+                : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E5DAC8]'
             }`}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-2xl">🏛️</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#252321] text-[#F3D299] tabular-nums">
-                {items.length} ملف
+            {items.length}
+          </span>
+        </button>
+
+        {/* Individual Compact Folder Album Chips */}
+        {folders.map((folder) => {
+          const count = folderCountsMap.get(folder.id) || 0;
+          const isSelected = selectedFolderId === folder.id;
+          const isEmpty = count === 0;
+          const isCustomFolder = !DEFAULT_STARTER_VAULT_FOLDERS.some(
+            (df) => df.id === folder.id
+          );
+
+          return (
+            <div
+              key={folder.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedFolderId(folder.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedFolderId(folder.id);
+                }
+              }}
+              className={`group h-[56px] shrink-0 px-3.5 rounded-2xl border transition-all duration-150 inline-flex items-center gap-2.5 cursor-pointer whitespace-nowrap ${
+                isSelected
+                  ? 'border-[#C5A059] bg-gradient-to-l from-[#FFFDF9] to-[#FBF2DC] ring-1 ring-[#C5A059]/35 shadow-2xs text-[#252321]'
+                  : isEmpty
+                    ? 'border-[#E7DFD2] bg-[#FAF6F0]/75 text-[#252321]/60 hover:text-[#252321] hover:bg-[#FFFDF9] hover:border-[#C5A059]/55'
+                    : 'border-[#E5DAC8] bg-[#FFFDF9] text-[#252321] hover:border-[#C5A059]/75'
+              }`}
+            >
+              <span
+                className={`text-lg leading-none transition-opacity ${
+                  isEmpty && !isSelected ? 'opacity-70 group-hover:opacity-100' : ''
+                }`}
+                aria-hidden="true"
+              >
+                {folder.icon}
               </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
-                كل الخزانة العائلية
-              </div>
-              <div className="text-[11px] text-[#252321]/65 truncate">
-                جميع الصور والوثائق المحفوظة
-              </div>
-            </div>
-          </button>
-
-          {/* Folder Bento Cards with Stacked Thumbnail Preview */}
-          {folders.map((folder) => {
-            const folderItems = items.filter((i) => i.folderId === folder.id);
-            const previewImages = folderItems
-              .filter((i) => i.fileDataUrl.startsWith('data:image'))
-              .slice(0, 3);
-            const theme =
-              FOLDER_THEME_STYLES[folder.colorTheme] ||
-              FOLDER_THEME_STYLES.amber;
-            const isSelected = selectedFolderId === folder.id;
-            const isCustomFolder = !DEFAULT_STARTER_VAULT_FOLDERS.some(
-              (df) => df.id === folder.id
-            );
-
-            return (
-              <div
-                key={folder.id}
-                onClick={() => setSelectedFolderId(folder.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedFolderId(folder.id);
-                  }
-                }}
-                className={`rounded-2xl p-4 text-right transition-all cursor-pointer border-2 flex flex-col justify-between min-h-[112px] bg-gradient-to-br ${
-                  theme.bg
-                } ${
+              <span className="text-xs sm:text-sm font-display font-bold">
+                {folder.name}
+              </span>
+              <span
+                className={`min-w-[24px] h-6 px-1.5 rounded-full text-[11px] font-display font-extrabold tabular-nums inline-flex items-center justify-center ${
                   isSelected
-                    ? `${theme.activeBorder} shadow-sm`
-                    : `${theme.border} hover:border-[#8D4925]`
+                    ? 'bg-[#8D4925] text-[#FFFDF9]'
+                    : isEmpty
+                      ? 'bg-[#EFE8DC] text-[#8D4925]/65'
+                      : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E5DAC8]'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-2xl">{folder.icon}</span>
-                    {previewImages.length > 0 && (
-                      <div className="flex -space-x-2 space-x-reverse overflow-hidden">
-                        {previewImages.map((imgItem) => (
-                          <img
-                            key={imgItem.id}
-                            src={imgItem.fileDataUrl}
-                            alt={imgItem.title}
-                            className="inline-block w-6 h-6 rounded-full ring-2 ring-white object-cover"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                {count}
+              </span>
 
-                  <div className="flex items-center gap-1">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${theme.badgeBg} ${theme.badgeText}`}
-                    >
-                      {folderItems.length}
-                    </span>
-                    {isCustomFolder && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteFolder(folder.id);
-                        }}
-                        title="حذف المجلد"
-                        className="p-1 rounded-lg hover:bg-red-100 text-red-700 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+              {isCustomFolder && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFolder(folder.id);
+                  }}
+                  title="حذف المجلد المخصص"
+                  aria-label={`حذف مجلد ${folder.name}`}
+                  className="w-5 h-5 rounded-full hover:bg-red-100 text-[#8D4925]/55 hover:text-red-700 inline-flex items-center justify-center transition-colors cursor-pointer -ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          );
+        })}
 
-                <div className="mt-3">
-                  <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] truncate">
-                    {folder.name}
-                  </div>
-                  <div className="text-[11px] text-[#252321]/65 truncate">
-                    {folder.description || 'مجموعة أرشيفية للعائلة'}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        {/* Single Unified "+ مجلد خاص" Capsule at End of Strip */}
+        <button
+          type="button"
+          onClick={() => setShowNewFolderModal(true)}
+          className="h-[56px] shrink-0 px-4 rounded-2xl border border-dashed border-[#C5A059]/80 bg-[#FFFDF9] hover:bg-[#FBF2DC]/65 text-[#8D4925] text-xs sm:text-sm font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+        >
+          <FolderPlus className="w-4 h-4 text-[#D8755B]" />
+          <span>+ مجلد خاص</span>
+        </button>
+      </nav>
 
       {/* =================================================================== */}
-      {/* 4. FILTER BAR (SEARCH, TYPE FILTER, TREE PERSON FILTER)             */}
+      {/* TIER 3 — UNIFIED FILTER, SORT, GRID DENSITY & MULTI-SELECT BAR      */}
       {/* =================================================================== */}
-      <div className="rounded-2xl bg-white border border-[#B98A78]/40 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs">
-        {/* Search Input */}
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] px-3.5 py-2.5 flex flex-wrap items-center gap-2 shadow-2xs">
+        {/* Quick Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 text-[#8D4925]/75 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث بعنوان الصورة أو الوثيقة، المناسبة، أو اسم الفرد المربوط في شجرتي..."
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/40 text-xs sm:text-sm text-[#252321] focus:outline-none focus:border-[#D8755B]"
+            placeholder="بحث سريع داخل الألبوم أو الخزانة..."
+            className="w-full h-9 pr-9 pl-8 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs sm:text-sm text-[#252321] placeholder:text-[#252321]/45 focus:outline-none focus:border-[#C5A059]"
           />
-        </div>
-
-        {/* Media Type Pills + Person Filter Dropdown */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl bg-[#FAF6F0] p-1 border border-[#B98A78]/35">
-            {(
-              [
-                { id: 'ALL', label: 'الكل' },
-                { id: 'photo', label: '📸 الصور' },
-                { id: 'document', label: '📜 الوثائق' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSelectedTypeFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
-                  selectedTypeFilter === tab.id
-                    ? 'bg-[#252321] text-[#F3D299]'
-                    : 'text-[#252321]/75 hover:text-[#252321]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <select
-            value={selectedPersonFilterId}
-            onChange={(e) => setSelectedPersonFilterId(e.target.value)}
-            aria-label="تصفية حسب الفرد في شجرتي"
-            className="px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/40 text-xs font-display font-bold text-[#252321] cursor-pointer"
-          >
-            <option value="ALL">👥 كل أفراد مشجرتي ({treePeople.length})</option>
-            {treePeople.map((person) => (
-              <option key={person.id} value={person.id}>
-                👤 {person.fullName} ({person.relationLabel})
-              </option>
-            ))}
-          </select>
-
-          {onNavigateTab && (
+          {searchQuery && (
             <button
               type="button"
-              onClick={() => onNavigateTab(DashboardTab.MyTree)}
-              className="px-3.5 py-2 rounded-xl bg-[#D8755B]/15 hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#D8755B]/40 text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              onClick={() => setSearchQuery('')}
+              aria-label="مسح البحث"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8D4925]/60 hover:text-[#252321] cursor-pointer"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>فتح مشجرتي</span>
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
+
+        {/* Media Type Segmented Control */}
+        <div
+          role="group"
+          aria-label="تصفية حسب النوع"
+          className="inline-flex h-9 items-center rounded-xl bg-[#FAF6F0] p-1 border border-[#E5DAC8] shrink-0"
+        >
+          {(
+            [
+              { id: 'ALL', label: 'الكل' },
+              { id: 'photo', label: 'صور' },
+              { id: 'document', label: 'وثائق' },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSelectedTypeFilter(tab.id)}
+              className={`h-7 px-3 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                selectedTypeFilter === tab.id
+                  ? 'bg-[#252321] text-[#F3D299] shadow-2xs'
+                  : 'text-[#252321]/75 hover:text-[#252321]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tree Members Filter */}
+        <select
+          value={selectedPersonFilterId}
+          onChange={(e) => setSelectedPersonFilterId(e.target.value)}
+          aria-label="تصفية حسب أفراد شجرتي"
+          className="h-9 px-3 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-display font-bold text-[#252321] focus:outline-none focus:border-[#C5A059] cursor-pointer max-w-[185px]"
+        >
+          <option value="ALL">أفراد شجرتي ({treePeople.length})</option>
+          {treePeople.map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.fullName} ({person.relationLabel})
+            </option>
+          ))}
+        </select>
+
+        {/* Sort Selector */}
+        <div className="relative inline-flex items-center shrink-0">
+          <ArrowUpDown className="w-3.5 h-3.5 text-[#8D4925] absolute right-2.5 pointer-events-none" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as VaultSortMode)}
+            aria-label="ترتيب المقتنيات"
+            className="h-9 pr-8 pl-3 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-display font-bold text-[#252321] focus:outline-none focus:border-[#C5A059] cursor-pointer"
+          >
+            <option value="newest">الأحدث إضافة</option>
+            <option value="historical_asc">الأقدم تاريخياً</option>
+            <option value="alphabetical">أبجدياً</option>
+          </select>
+        </div>
+
+        {/* Grid Density Toggle (4 Columns Default | 3 Columns Enlarged) */}
+        <div
+          role="group"
+          aria-label="حجم عرض الشبكة"
+          className="inline-flex h-9 items-center rounded-xl bg-[#FAF6F0] p-1 border border-[#E5DAC8] shrink-0"
+        >
+          <button
+            type="button"
+            onClick={() => setGridDensity('standard')}
+            title="شبكة قياسية (4 أعمدة)"
+            aria-label="شبكة قياسية 4 أعمدة"
+            className={`h-7 px-2.5 rounded-lg inline-flex items-center gap-1 text-[11px] font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
+              gridDensity === 'standard'
+                ? 'bg-[#FFFDF9] text-[#252321] shadow-2xs border border-[#C5A059]/40'
+                : 'text-[#252321]/60 hover:text-[#252321]'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">4 أعمدة</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setGridDensity('large')}
+            title="شبكة مكبرة (3 أعمدة)"
+            aria-label="شبكة مكبرة 3 أعمدة"
+            className={`h-7 px-2.5 rounded-lg inline-flex items-center gap-1 text-[11px] font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
+              gridDensity === 'large'
+                ? 'bg-[#FFFDF9] text-[#252321] shadow-2xs border border-[#C5A059]/40'
+                : 'text-[#252321]/60 hover:text-[#252321]'
+            }`}
+          >
+            <Grid2x2 className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">3 أعمدة</span>
+          </button>
+        </div>
+
+        {/* Multi-Select Toggle */}
+        <button
+          type="button"
+          onClick={handleToggleMultiSelectMode}
+          disabled={items.length === 0}
+          className={`h-9 px-3 rounded-xl border text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-45 disabled:cursor-not-allowed ${
+            isMultiSelectMode
+              ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
+              : 'bg-[#FAF6F0] text-[#252321] border-[#E5DAC8] hover:border-[#C5A059]'
+          }`}
+        >
+          <CheckSquare className="w-3.5 h-3.5" />
+          <span>
+            {isMultiSelectMode && selectedItemIds.length > 0
+              ? `تحديد (${selectedItemIds.length})`
+              : 'تحديد متعدد'}
+          </span>
+        </button>
+
+        {onNavigateTab && (
+          <button
+            type="button"
+            onClick={() => onNavigateTab(DashboardTab.MyTree)}
+            title="الانتقال إلى شجرتي"
+            className="h-9 px-3 rounded-xl bg-transparent hover:bg-[#FAF6F0] text-[#8D4925] border border-transparent hover:border-[#E5DAC8] text-xs font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">شجرتي</span>
+          </button>
+        )}
       </div>
 
+      {/* Contextual Multi-Select Bulk Action Bar */}
+      {isMultiSelectMode && filteredItems.length > 0 && (
+        <div className="rounded-2xl bg-[#252321] text-[#FAF6F0] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3 text-xs font-display font-bold">
+            <span className="text-[#F3D299] tabular-nums">
+              تم تحديد {selectedItemIds.length} من {filteredItems.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedItemIds.length === filteredItems.length) {
+                  setSelectedItemIds([]);
+                } else {
+                  setSelectedItemIds(filteredItems.map((i) => i.id));
+                }
+              }}
+              className="underline decoration-[#F3D299]/50 hover:text-[#F3D299] cursor-pointer"
+            >
+              {selectedItemIds.length === filteredItems.length
+                ? 'إلغاء تحديد الكل'
+                : 'تحديد كل الظاهر'}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1.5">
+              <FolderInput className="w-3.5 h-3.5 text-[#F3D299]" />
+              <select
+                value={bulkMoveTargetFolderId}
+                disabled={selectedItemIds.length === 0}
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  setBulkMoveTargetFolderId(targetId);
+                  if (targetId) {
+                    handleBulkMoveSelected(targetId);
+                  }
+                }}
+                aria-label="نقل المحدد إلى مجلد"
+                className="h-8 px-2.5 rounded-lg bg-[#35322F] border border-[#C5A059]/40 text-xs font-bold text-[#FAF6F0] focus:outline-none disabled:opacity-45 cursor-pointer"
+              >
+                <option value="">نقل إلى مجلد...</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.icon} {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {!confirmBulkDelete ? (
+              <button
+                type="button"
+                disabled={selectedItemIds.length === 0}
+                onClick={() => setConfirmBulkDelete(true)}
+                className="h-8 px-3 rounded-lg bg-red-600/90 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>حذف المحدد</span>
+              </button>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 bg-red-950/80 border border-red-400/50 rounded-lg px-2.5 py-1">
+                <span className="text-[11px] font-bold text-red-100">
+                  تأكيد حذف ({selectedItemIds.length})؟
+                </span>
+                <button
+                  type="button"
+                  onClick={handleBulkDeleteSelected}
+                  className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold cursor-pointer"
+                >
+                  نعم، احذف
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmBulkDelete(false)}
+                  className="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold cursor-pointer"
+                >
+                  تراجع
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleToggleMultiSelectMode}
+              className="h-8 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold cursor-pointer"
+            >
+              إنهاء
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* =================================================================== */}
-      {/* 5. POLAROID / MASONRY MEMORY CARDS OR CLEAN INVITING EMPTY STATE    */}
+      {/* TIER 4 — BALANCED 4-COLUMN MUSEUM GALLERY OR INVITING EMPTY STATE   */}
       {/* =================================================================== */}
       {items.length === 0 ? (
         <div
           data-testid="vault-clean-empty-state"
-          className="rounded-3xl bg-gradient-to-b from-white to-[#FAF6F0] border-2 border-[#EDE6DA] p-8 sm:p-12 text-center space-y-5 shadow-2xs"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleFilesSelected(e.dataTransfer.files);
+          }}
+          className="rounded-3xl bg-gradient-to-b from-[#FFFDF9] to-[#FAF6F0] border-2 border-dashed border-[#C5A059]/60 hover:border-[#D8755B] p-8 sm:p-12 text-center space-y-5 transition-colors shadow-2xs"
         >
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#FEF3C7] via-[#FDE68A] to-[#F59E0B]/40 border-2 border-[#D97706]/50 text-[#92400E] flex items-center justify-center mx-auto shadow-sm">
-            <ImageIcon className="w-9 h-9" />
+          <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-[#FBF3E0] via-[#F4E1B8] to-[#E6C782]/60 border border-[#C5A059]/70 text-[#8D4925] flex items-center justify-center mx-auto shadow-xs">
+            <Upload className="w-8 h-8" />
           </div>
 
           <div className="space-y-2 max-w-lg mx-auto">
             <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
-              خزانة عائلة {result.familyName} جاهزة لحفظ ذكرياتكم ووثائقكم الأصيلة
+              خزانة عائلة {result.familyName} جاهزة لحفظ ذكرياتكم ووثائقكم
             </h3>
-            <p className="text-xs sm:text-sm text-[#252321]/75 leading-relaxed">
-              تبدأ خزانتك نظيفة تماماً وخاصة بأسرتك وحدها. ابدأ برفع أول صورة لأجدادك أو وثيقة تاريخية لعائلتك، واربطها مباشرة بأفراد «شجرتي» لتبقى إرثاً حياً وموثقاً للأجيال القادمة.
+            <p className="text-xs sm:text-sm text-[#252321]/70 leading-relaxed">
+              اسحب وأفلت صور الأجداد أو الصكوك والوثائق هنا مباشرة، أو اختر ملفاتك لرفعها وتصنيفها وربطها بأفراد «شجرتي» لتبقى أرشيفاً عائلياً موثقاً.
             </p>
           </div>
 
@@ -1201,134 +1544,268 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-6 py-3.5 rounded-2xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold shadow-sm inline-flex items-center gap-2 cursor-pointer transition-all"
+              className="px-6 py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold shadow-xs inline-flex items-center gap-2 cursor-pointer transition-colors"
             >
-              <Upload className="w-4 h-4" />
-              <span>ارفع أول صورة أو وثيقة عائلية الآن</span>
+              <Camera className="w-4 h-4" />
+              <span>رفع أول صورة أو وثيقة عائلية</span>
             </button>
             <button
               type="button"
               onClick={() => setShowNewFolderModal(true)}
-              className="px-5 py-3.5 rounded-2xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-[#252321] text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all"
+              className="px-5 py-3 rounded-xl bg-[#FFFDF9] hover:bg-[#F3EBE0] border border-[#D9CCB9] text-[#252321] text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
             >
               <FolderPlus className="w-4 h-4 text-[#8D4925]" />
-              <span>إنشاء مجلد مخصص</span>
+              <span>إنشاء مجلد خاص</span>
             </button>
           </div>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="rounded-2xl bg-white border border-[#B98A78]/40 p-8 text-center space-y-3">
+        <div className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-8 text-center space-y-3">
           <div className="text-sm font-display font-bold text-[#252321]">
-            لا توجد ملفات مطابقة لفلتر البحث الحالي في هذا المجلد.
+            لا توجد مقتنيات مطابقة لخيارات البحث أو التصفية الحالية.
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedFolderId('ALL');
-              setSelectedTypeFilter('ALL');
-              setSelectedPersonFilterId('ALL');
-              setSearchQuery('');
-            }}
-            className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/40 text-xs font-bold text-[#8D4925] cursor-pointer"
-          >
-            إعادة ضبط الفلاتر وعرض كل الخزانة
-          </button>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFolderId('ALL');
+                setSelectedTypeFilter('ALL');
+                setSelectedPersonFilterId('ALL');
+                setSearchQuery('');
+              }}
+              className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D9CCB9] text-xs font-display font-bold text-[#8D4925] cursor-pointer"
+            >
+              إعادة ضبط الفلاتر وعرض كل الخزانة
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div
+          className={
+            gridDensity === 'large'
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5'
+              : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'
+          }
+        >
           {filteredItems.map((item) => {
             const folderObj = folders.find((f) => f.id === item.folderId);
             const linkedPeopleObjs = item.linkedPersonIds
               .map((pid) => treePeople.find((p) => p.id === pid))
               .filter((p): p is TreePersonSummaryForVault => Boolean(p));
+            const isSelectedForBulk = selectedItemIds.includes(item.id);
+            const isRenaming = renamingItemId === item.id;
+            const isConfirmingDelete = confirmDeleteItemId === item.id;
+            const canRenderImg =
+              !brokenImageIds[item.id] &&
+              isRenderableImageSource(
+                item.thumbnailDataUrl || item.fileDataUrl,
+                item.fileMimeType,
+                item.mediaType
+              );
 
             return (
-              <div
+              <article
                 key={item.id}
-                className="group rounded-3xl bg-white border-2 border-[#EDE6DA] hover:border-[#D8755B] p-3.5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3.5"
+                onClick={
+                  isMultiSelectMode
+                    ? () => handleToggleSelectItem(item.id)
+                    : undefined
+                }
+                className={`group rounded-2xl bg-[#FFFDF9] border transition-all duration-200 flex flex-col overflow-hidden ${
+                  isMultiSelectMode ? 'cursor-pointer' : ''
+                } ${
+                  isSelectedForBulk
+                    ? 'border-[#C5A059] ring-2 ring-[#C5A059]/35 shadow-md'
+                    : 'border-[#E5DAC8] hover:border-[#C5A059] shadow-2xs hover:shadow-md'
+                }`}
               >
-                {/* Polaroid Visual Frame */}
-                <div className="space-y-3">
+                {/* Museum-Framed 4:3 Visual Stage */}
+                <div
+                  onClick={(e) => {
+                    if (isMultiSelectMode) return;
+                    e.stopPropagation();
+                    setLightboxItemId(item.id);
+                  }}
+                  className="relative aspect-[4/3] w-full bg-[#F4EEE4] border-b border-[#EDE6DA] overflow-hidden cursor-pointer flex items-center justify-center"
+                >
+                  {canRenderImg ? (
+                    <img
+                      src={item.thumbnailDataUrl || item.fileDataUrl}
+                      alt={item.title}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={() =>
+                        setBrokenImageIds((prev) => ({
+                          ...prev,
+                          [item.id]: true,
+                        }))
+                      }
+                      className={`w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ${
+                        item.enhanced
+                          ? 'contrast-125 brightness-105 saturate-110'
+                          : ''
+                      }`}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 text-[#8D4925] p-4 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-[#FFFDF9] border border-[#E5DAC8] flex items-center justify-center shadow-2xs">
+                        <FileText className="w-6 h-6 text-[#D8755B]" />
+                      </div>
+                      <span className="text-[11px] font-display font-bold line-clamp-1 max-w-[180px]">
+                        {item.fileName || 'وثيقة عائلية محفوظة'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Measured Subtle Top Gradient on Hover */}
                   <div
-                    onClick={() => setLightboxItemId(item.id)}
-                    className="relative h-52 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/30 overflow-hidden cursor-pointer flex items-center justify-center"
-                  >
-                    {isRenderableImageSource(
-                      item.thumbnailDataUrl || item.fileDataUrl,
-                      item.fileMimeType,
-                      item.mediaType
-                    ) ? (
-                      <img
-                        src={item.thumbnailDataUrl || item.fileDataUrl}
-                        alt={item.title}
-                        loading="lazy"
-                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-                          item.enhanced
-                            ? 'contrast-125 brightness-105 saturate-110'
-                            : ''
+                    className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/35 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                    aria-hidden="true"
+                  />
+
+                  {/* Top-Right: Multi-Select Checkbox OR Calm Media Type Indicator */}
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                    {isMultiSelectMode ? (
+                      <span
+                        className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors shadow-xs ${
+                          isSelectedForBulk
+                            ? 'bg-[#C5A059] border-[#FFFDF9] text-[#252321]'
+                            : 'bg-[#FFFDF9]/90 border-[#8D4925]/50 text-transparent'
                         }`}
-                      />
+                      >
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </span>
                     ) : (
-                      <div className="flex flex-col items-center gap-2 text-[#8D4925] p-4 text-center">
-                        <FileText className="w-12 h-12 text-[#D8755B]" />
-                        <span className="text-xs font-display font-bold">
-                          {item.fileName || 'وثيقة عائلية محفوظة'}
-                        </span>
+                      <span className="px-2 py-0.5 rounded-md bg-[#252321]/75 backdrop-blur-xs text-[#FAF6F0] text-[10px] font-display font-bold">
+                        {item.mediaType === 'photo' ? 'صورة' : 'وثيقة'}
+                      </span>
+                    )}
+                    {item.enhanced && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-800/85 text-white text-[10px] font-bold">
+                        مرمّمة ✦
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Top-Left: Subtle Quick Zoom Trigger on Hover */}
+                  {!isMultiSelectMode && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightboxItemId(item.id);
+                      }}
+                      title="معاينة مكبرة"
+                      aria-label={`معاينة ${item.title}`}
+                      className="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] text-[#252321] flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-150 shadow-xs cursor-pointer"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Archival Caption, Quick Inline Rename & Linked Members */}
+                <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
+                  <div className="space-y-1">
+                    {isRenaming ? (
+                      <div
+                        className="flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="text"
+                          value={renameDraftValue}
+                          autoFocus
+                          onChange={(e) => setRenameDraftValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCommitInlineRename(item.id);
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              handleCancelInlineRename();
+                            }
+                          }}
+                          aria-label="تعديل عنوان المقتنى"
+                          className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-[#FAF6F0] border border-[#C5A059] text-xs font-display font-bold text-[#252321] focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleCommitInlineRename(item.id)}
+                          title="حفظ الاسم"
+                          aria-label="حفظ العنوان الجديد"
+                          className="w-6 h-6 rounded-md bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelInlineRename}
+                          title="إلغاء"
+                          aria-label="إلغاء التعديل"
+                          className="w-6 h-6 rounded-md bg-[#FAF6F0] text-[#8D4925] border border-[#E5DAC8] flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-1.5">
+                        <h4
+                          onClick={(e) => {
+                            if (isMultiSelectMode) return;
+                            e.stopPropagation();
+                            handleStartInlineRename(item);
+                          }}
+                          title="انقر لتعديل العنوان مباشرة"
+                          className="text-xs sm:text-sm font-display font-extrabold text-[#252321] hover:text-[#8D4925] transition-colors cursor-text truncate flex-1"
+                        >
+                          {item.title}
+                        </h4>
+                        {!isMultiSelectMode && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartInlineRename(item);
+                            }}
+                            title="إعادة تسمية سريعة"
+                            aria-label={`تعديل عنوان ${item.title}`}
+                            className="w-6 h-6 rounded-md text-[#8D4925]/55 hover:text-[#8D4925] hover:bg-[#FAF6F0] flex items-center justify-center shrink-0 opacity-75 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     )}
 
-                    {/* Top Floating Badges */}
-                    <div className="absolute top-2.5 right-2.5 left-2.5 flex items-center justify-between gap-2 pointer-events-none">
-                      <span className="px-2.5 py-1 rounded-full bg-[#252321]/85 backdrop-blur-xs text-[#FEF3C7] text-[10px] font-display font-bold">
-                        {item.mediaType === 'photo'
-                          ? '📸 صورة'
-                          : '📜 وثيقة'}
+                    {/* Clean Unboxed Archival Metadata */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#8D4925]/80 truncate">
+                      <span className="tabular-nums shrink-0">
+                        {item.dateOrOccasion}
                       </span>
-
                       {folderObj && (
-                        <span className="px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-xs text-[#252321] border border-[#B98A78]/40 text-[10px] font-display font-bold truncate max-w-[150px]">
-                          {folderObj.icon} {folderObj.name}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bottom Floating Date & Enhancement Badge */}
-                    <div className="absolute bottom-2.5 right-2.5 left-2.5 flex items-center justify-between gap-2 pointer-events-none">
-                      <span className="px-2.5 py-0.5 rounded-lg bg-white/90 backdrop-blur-xs text-[#8D4925] text-[10px] font-bold">
-                        🗓️ {item.dateOrOccasion}
-                      </span>
-                      {item.enhanced && (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-700/90 text-white text-[10px] font-bold">
-                          مرمّمة رقمياً ✦
-                        </span>
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="truncate">{folderObj.name}</span>
+                        </>
                       )}
                     </div>
                   </div>
 
-                  {/* Title & Linked Tree Members Avatars */}
-                  <div className="px-1 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4
-                        onClick={() => setLightboxItemId(item.id)}
-                        className="text-sm sm:text-base font-display font-extrabold text-[#252321] group-hover:text-[#8D4925] transition-colors cursor-pointer line-clamp-1"
-                      >
-                        {item.title}
-                      </h4>
-                    </div>
-
-                    {/* Linked Family Tree Individuals Pills */}
-                    <div className="min-h-[30px] flex flex-wrap items-center gap-1.5">
-                      {linkedPeopleObjs.length === 0 ? (
-                        <span className="text-[11px] text-[#252321]/55">
-                          غير مربوطة بفرد محدد في المشجرة بعد
-                        </span>
-                      ) : (
-                        linkedPeopleObjs.map((person) => (
+                  {/* Calm Tree-Link Summary Row */}
+                  <div className="min-h-[24px] flex items-center gap-1.5 flex-wrap">
+                    {linkedPeopleObjs.length === 0 ? (
+                      <span className="text-[11px] text-[#252321]/45">
+                        غير مربوط بفرد في الشجرة
+                      </span>
+                    ) : (
+                      <>
+                        {linkedPeopleObjs.slice(0, 2).map((person) => (
                           <span
                             key={person.id}
-                            className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-full bg-[#FAF6F0] border border-[#D4AF37]/60 text-[11px] font-display font-bold text-[#252321]"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#252321] max-w-[125px]"
                           >
-                            <span className="w-5 h-5 rounded-full bg-[#252321] text-[#F3D299] text-[10px] flex items-center justify-center overflow-hidden shrink-0">
+                            <span className="w-4.5 h-4.5 rounded-full bg-[#252321] text-[#F3D299] text-[9px] flex items-center justify-center overflow-hidden shrink-0">
                               {person.avatarDataUrl ? (
                                 <img
                                   src={person.avatarDataUrl}
@@ -1339,18 +1816,24 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                                 person.fullName.charAt(0)
                               )}
                             </span>
-                            <span className="truncate max-w-[125px]">
-                              {person.fullName}
-                            </span>
+                            <span className="truncate">{person.fullName}</span>
                           </span>
-                        ))
-                      )}
-                    </div>
+                        ))}
+                        {linkedPeopleObjs.length > 2 && (
+                          <span className="text-[10px] font-display font-bold text-[#8D4925] tabular-nums">
+                            +{linkedPeopleObjs.length - 2}
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Card Bottom Actions Bar: Two-Way Link to Tree + Enhance + Delete */}
-                <div className="pt-2.5 border-t border-[#EDE6DA] flex items-center justify-between gap-2">
+                {/* Calm Bottom Action Toolbar */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-3 py-2 border-t border-[#EDE6DA] bg-[#FAF6F0]/55 flex items-center justify-between gap-1.5"
+                >
                   <button
                     type="button"
                     data-testid={`vault-card-link-tree-btn-${item.id}`}
@@ -1358,44 +1841,70 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                       setPersonSearchInModal('');
                       setLinkingItemId(item.id);
                     }}
-                    className="flex-1 py-2 px-3 rounded-xl bg-[#FAF6F0] hover:bg-[#252321] text-[#252321] hover:text-[#FEF3C7] border border-[#B98A78]/45 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className={`h-7 px-2.5 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
+                      linkedPeopleObjs.length > 0
+                        ? 'bg-[#FBF2DC] text-[#8D4925] border border-[#C5A059]/50 hover:bg-[#252321] hover:text-[#F3D299]'
+                        : 'bg-[#FFFDF9] text-[#252321]/80 border border-[#E5DAC8] hover:border-[#C5A059] hover:text-[#252321]'
+                    }`}
                   >
-                    <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
-                    <span>
-                      ربط أفراد من مشجرتي ({linkedPeopleObjs.length})
+                    <Link2 className="w-3 h-3 text-[#D8755B]" />
+                    <span className="tabular-nums">
+                      {linkedPeopleObjs.length > 0
+                        ? `شجرتي (${linkedPeopleObjs.length})`
+                        : 'ربط بشجرتي'}
                     </span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleToggleEnhancement(item.id)}
-                    title="تحسين الوضوح والتباين رقمياً"
-                    className={`p-2 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-                      item.enhanced
-                        ? 'bg-emerald-50 border-emerald-400 text-emerald-800'
-                        : 'bg-[#FAF6F0] border-[#B98A78]/40 text-[#8D4925] hover:bg-[#EDE6DA]'
-                    }`}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxItemId(item.id)}
+                      title="معاينة مكبرة"
+                      aria-label={`معاينة مكبرة لـ ${item.title}`}
+                      className="w-7 h-7 rounded-lg text-[#252321]/70 hover:text-[#252321] hover:bg-[#FFFDF9] border border-transparent hover:border-[#E5DAC8] flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteItem(item.id)}
-                    title="حذف من الخزانة"
-                    className="p-2 rounded-xl bg-[#FAF6F0] hover:bg-red-50 border border-[#B98A78]/40 hover:border-red-300 text-red-700 cursor-pointer transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <a
+                      href={item.fileDataUrl}
+                      download={item.fileName || `${item.title}.jpg`}
+                      title="تنزيل نسخة أصلية"
+                      aria-label={`تنزيل ${item.title}`}
+                      className="w-7 h-7 rounded-lg text-[#252321]/70 hover:text-[#252321] hover:bg-[#FFFDF9] border border-transparent hover:border-[#E5DAC8] flex items-center justify-center transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </a>
+
+                    {isConfirmingDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="h-7 px-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-display font-bold cursor-pointer whitespace-nowrap"
+                      >
+                        تأكيد الحذف
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteItemId(item.id)}
+                        title="حذف من الخزانة"
+                        aria-label={`حذف ${item.title}`}
+                        className="w-7 h-7 rounded-lg text-[#8D4925]/65 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
       )}
 
       {/* =================================================================== */}
-      {/* MODAL A: TWO-WAY PERSON LINKING (`🔗 ربط بأفراد مشجرتي`)            */}
+      {/* MODAL A: TWO-WAY PERSON LINKING (`ربط بأفراد شجرتي`)                */}
       {/* =================================================================== */}
       {activeLinkingItem && (
         <div
@@ -1403,24 +1912,25 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-lg rounded-3xl bg-[#FFFDF9] border-2 border-[#D4AF37] p-6 shadow-2xl space-y-4 text-right">
-            <div className="flex items-start justify-between gap-3 border-b border-[#B98A78]/30 pb-3.5">
+          <div className="w-full max-w-lg rounded-3xl bg-[#FFFDF9] border-2 border-[#C5A059] p-6 shadow-2xl space-y-4 text-right">
+            <div className="flex items-start justify-between gap-3 border-b border-[#E5DAC8] pb-3.5">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-display font-extrabold text-[#252321]">
-                    🔗 ربط «{activeLinkingItem.title}» بأفراد مشجرتي
+                    ربط «{activeLinkingItem.title}» بأفراد شجرتي
                   </h3>
                   <p className="text-xs text-[#252321]/70">
-                    اختر فرداً أو أكثر من شجرة عائلتك ليظهر هذا الملف تلقائياً في بطاقته داخل «شجرتي»
+                    اختر فرداً أو أكثر ليظهر هذا المقتنى تلقائياً في بطاقته داخل «شجرتي»
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setLinkingItemId(null)}
+                aria-label="إغلاق نافذة الربط"
                 className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1434,7 +1944,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 value={personSearchInModal}
                 onChange={(e) => setPersonSearchInModal(e.target.value)}
                 placeholder="ابحث عن اسم الفرد في شجرتي..."
-                className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-xs font-bold text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#D9CCB9] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
               />
             </div>
 
@@ -1464,11 +1974,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                       className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-3 transition-all cursor-pointer ${
                         isLinked
                           ? 'bg-emerald-50/90 border-emerald-500 shadow-2xs'
-                          : 'bg-white hover:bg-[#FAF6F0] border-[#B98A78]/40'
+                          : 'bg-white hover:bg-[#FAF6F0] border-[#E5DAC8]'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-[#252321] text-[#F3D299] flex items-center justify-center font-display font-bold text-xs overflow-hidden shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[#252321] text-[#F3D299] flex items-center justify-center font-display font-bold text-xs overflow-hidden shrink-0">
                           {person.avatarDataUrl ? (
                             <img
                               src={person.avatarDataUrl}
@@ -1483,8 +1993,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] truncate flex items-center gap-1.5">
                             <span className="truncate">{person.fullName}</span>
                             {person.isCertifiedReference && (
-                              <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D4AF37] text-[10px] font-bold text-[#92400E] shrink-0">
-                                مرجع موثق ✦
+                              <span className="text-[10px] font-bold text-[#92400E] shrink-0">
+                                · مرجع موثق ✦
                               </span>
                             )}
                           </div>
@@ -1498,16 +2008,16 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         className={`px-3 py-1 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1 shrink-0 ${
                           isLinked
                             ? 'bg-emerald-700 text-white'
-                            : 'bg-[#FAF6F0] text-[#252321] border border-[#B98A78]/40'
+                            : 'bg-[#FAF6F0] text-[#252321] border border-[#E5DAC8]'
                         }`}
                       >
                         {isLinked ? (
                           <>
                             <UserCheck className="w-3.5 h-3.5" />
-                            <span>مربوط ✓</span>
+                            <span>مربوط</span>
                           </>
                         ) : (
-                          <span>+ ربط بالفرد</span>
+                          <span>+ ربط</span>
                         )}
                       </span>
                     </button>
@@ -1515,17 +2025,16 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 })}
             </div>
 
-            <div className="pt-2 border-t border-[#B98A78]/30 flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-[#8D4925]">
-                إجمالي الأفراد المربوطين بهذا الملف:{' '}
-                {activeLinkingItem.linkedPersonIds.length}
+            <div className="pt-2 border-t border-[#E5DAC8] flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-[#8D4925] tabular-nums">
+                الأفراد المربوطون: {activeLinkingItem.linkedPersonIds.length}
               </span>
               <button
                 type="button"
                 onClick={() => setLinkingItemId(null)}
-                className="px-5 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold cursor-pointer"
               >
-                تم الحفظ والمزامنة ✓
+                تم الحفظ والمزامنة
               </button>
             </div>
           </div>
@@ -1543,15 +2052,16 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         >
           <form
             onSubmit={handleCreateFolder}
-            className="w-full max-w-md rounded-3xl bg-[#FFFDF9] border-2 border-[#D4AF37] p-6 shadow-2xl space-y-4 text-right"
+            className="w-full max-w-md rounded-3xl bg-[#FFFDF9] border-2 border-[#C5A059] p-6 shadow-2xl space-y-4 text-right"
           >
-            <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+            <div className="flex items-center justify-between border-b border-[#E5DAC8] pb-3">
               <h3 className="text-base font-display font-extrabold text-[#252321]">
-                إنشاء مجلد جديد في خزانتي
+                إنشاء مجلد خاص في خزانتي
               </h3>
               <button
                 type="button"
                 onClick={() => setShowNewFolderModal(false)}
+                aria-label="إغلاق نافذة إنشاء مجلد"
                 className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1568,20 +2078,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="مثال: وثائق الجد الأول، صور مجلس العائلة..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#B98A78]/50 text-xs sm:text-sm font-bold text-[#252321] focus:outline-none focus:border-[#D8755B]"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#252321]">
-                وصف مختصر للمجلد
-              </label>
-              <input
-                type="text"
-                value={newFolderDesc}
-                onChange={(e) => setNewFolderDesc(e.target.value)}
-                placeholder="وصف اختياري لمحتويات المجلد..."
-                className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#B98A78]/50 text-xs text-[#252321]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9CCB9] text-xs sm:text-sm font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
               />
             </div>
 
@@ -1598,7 +2095,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center border cursor-pointer transition-all ${
                       newFolderIcon === ic
                         ? 'bg-[#252321] border-[#252321] scale-105 shadow-xs'
-                        : 'bg-[#FAF6F0] border-[#B98A78]/40 hover:border-[#D8755B]'
+                        : 'bg-[#FAF6F0] border-[#E5DAC8] hover:border-[#C5A059]'
                     }`}
                   >
                     {ic}
@@ -1629,7 +2126,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     className={`py-2 px-3 rounded-xl text-xs font-bold border cursor-pointer ${
                       newFolderTheme === t.id
                         ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-                        : 'bg-[#FAF6F0] text-[#252321] border-[#B98A78]/40'
+                        : 'bg-[#FAF6F0] text-[#252321] border-[#E5DAC8]'
                     }`}
                   >
                     {t.label}
@@ -1641,14 +2138,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <div className="pt-2 flex items-center gap-2">
               <button
                 type="submit"
-                className="flex-1 py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold cursor-pointer"
               >
                 إنشاء وحفظ المجلد
               </button>
               <button
                 type="button"
                 onClick={() => setShowNewFolderModal(false)}
-                className="px-4 py-3 rounded-xl bg-[#FAF6F0] text-xs font-bold text-[#252321] cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-bold text-[#252321] cursor-pointer"
               >
                 إلغاء
               </button>
@@ -1658,17 +2155,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       )}
 
       {/* =================================================================== */}
-      {/* MODAL C: FULL LIGHTBOX VIEWER & ARCHIVE INSPECTOR                   */}
+      {/* MODAL C: MUSEUM LIGHTBOX VIEWER & ARCHIVE INSPECTOR                 */}
       {/* =================================================================== */}
       {activeLightboxItem && (
         <div
-          className="fixed inset-0 z-50 bg-[#252321]/80 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[#252321]/85 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
+          onClick={() => setLightboxItemId(null)}
         >
-          <div className="w-full max-w-4xl rounded-3xl bg-[#FFFDF9] border-2 border-[#D4AF37] overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-12 max-h-[90vh]">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-5xl rounded-3xl bg-[#FFFDF9] border-2 border-[#C5A059] overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-12 max-h-[90vh]"
+          >
             {/* Visual Preview Column */}
-            <div className="lg:col-span-7 bg-[#1C1917] flex items-center justify-center p-4 relative min-h-[280px] lg:min-h-[460px]">
+            <div className="lg:col-span-7 bg-[#181614] flex items-center justify-center p-5 relative min-h-[280px] lg:min-h-[480px]">
               {isRenderableImageSource(
                 activeLightboxItem.fileDataUrl,
                 activeLightboxItem.fileMimeType,
@@ -1677,7 +2178,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 <img
                   src={activeLightboxItem.fileDataUrl}
                   alt={activeLightboxItem.title}
-                  className={`max-h-[72vh] w-auto object-contain rounded-xl ${
+                  referrerPolicy="no-referrer"
+                  className={`max-h-[74vh] w-auto object-contain rounded-xl ${
                     activeLightboxItem.enhanced
                       ? 'contrast-125 brightness-105 saturate-110'
                       : ''
@@ -1694,25 +2196,107 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Previous / Next Museum Gallery Navigation */}
+              {filteredItems.length > 1 && activeLightboxIndex >= 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prevIdx =
+                        (activeLightboxIndex - 1 + filteredItems.length) %
+                        filteredItems.length;
+                      setLightboxItemId(filteredItems[prevIdx].id);
+                    }}
+                    title="السابق"
+                    aria-label="المقتنى السابق"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#252321]/80 hover:bg-[#C5A059] text-[#FFFDF9] hover:text-[#252321] border border-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextIdx =
+                        (activeLightboxIndex + 1) % filteredItems.length;
+                      setLightboxItemId(filteredItems[nextIdx].id);
+                    }}
+                    title="التالي"
+                    aria-label="المقتنى التالي"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#252321]/80 hover:bg-[#C5A059] text-[#FFFDF9] hover:text-[#252321] border border-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#252321]/80 text-[#FAF6F0] text-[11px] font-display font-bold tabular-nums">
+                    {activeLightboxIndex + 1} / {filteredItems.length}
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Metadata & Two-Way Tree Links Column */}
+            {/* Metadata, Inline Rename & Two-Way Tree Links Column */}
             <div className="lg:col-span-5 p-6 flex flex-col justify-between space-y-5 overflow-y-auto text-right">
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-2 border-b border-[#B98A78]/30 pb-3">
-                  <div>
-                    <span className="text-[11px] font-bold text-[#D8755B]">
+                <div className="flex items-start justify-between gap-2 border-b border-[#E5DAC8] pb-3.5">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[11px] font-bold text-[#8D4925]">
                       {activeLightboxItem.mediaType === 'photo'
-                        ? '📸 صورة فوتوغرافية عائلية'
-                        : '📜 وثيقة أو صك تاريخي'}
+                        ? 'صورة فوتوغرافية عائلية'
+                        : 'وثيقة أو صك تاريخي'}
                     </span>
-                    <h3 className="text-lg font-display font-extrabold text-[#252321] mt-0.5">
-                      {activeLightboxItem.title}
-                    </h3>
+
+                    {renamingItemId === activeLightboxItem.id ? (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <input
+                          type="text"
+                          value={renameDraftValue}
+                          autoFocus
+                          onChange={(e) => setRenameDraftValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCommitInlineRename(activeLightboxItem.id);
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              handleCancelInlineRename();
+                            }
+                          }}
+                          className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#C5A059] text-sm font-display font-extrabold text-[#252321] focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleCommitInlineRename(activeLightboxItem.id)
+                          }
+                          className="px-2.5 py-1.5 rounded-lg bg-[#252321] text-[#F3D299] text-xs font-bold cursor-pointer"
+                        >
+                          حفظ
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <h3 className="text-lg font-display font-extrabold text-[#252321] truncate">
+                          {activeLightboxItem.title}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleStartInlineRename(activeLightboxItem)
+                          }
+                          title="تعديل العنوان"
+                          aria-label="تعديل عنوان المقتنى"
+                          className="w-7 h-7 rounded-lg hover:bg-[#FAF6F0] text-[#8D4925] flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
+
                   <button
                     type="button"
                     onClick={() => setLightboxItemId(null)}
+                    aria-label="إغلاق المعاينة"
                     className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer shrink-0"
                   >
                     <X className="w-5 h-5" />
@@ -1720,15 +2304,15 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 text-xs">
-                  <div className="rounded-xl bg-[#FAF6F0] p-3 border border-[#B98A78]/30">
+                  <div className="rounded-xl bg-[#FAF6F0] p-3 border border-[#E5DAC8]">
                     <div className="text-[10px] text-[#8D4925] font-bold">
                       التاريخ / المناسبة
                     </div>
-                    <div className="font-display font-extrabold text-[#252321] mt-0.5">
+                    <div className="font-display font-extrabold text-[#252321] mt-0.5 tabular-nums">
                       {activeLightboxItem.dateOrOccasion}
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#FAF6F0] p-3 border border-[#B98A78]/30">
+                  <div className="rounded-xl bg-[#FAF6F0] p-3 border border-[#E5DAC8]">
                     <div className="text-[10px] text-[#8D4925] font-bold">
                       المجلد الحالي
                     </div>
@@ -1754,14 +2338,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 {/* Linked Individuals in `شجرتي` */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-display font-extrabold text-[#252321]">
-                      الأفراد المربوطون في «شجرتي» ({activeLightboxItem.linkedPersonIds.length}):
+                    <span className="text-xs font-display font-extrabold text-[#252321] tabular-nums">
+                      الأفراد المربوطون في «شجرتي» ({activeLightboxItem.linkedPersonIds.length})
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        setLinkingItemId(activeLightboxItem.id);
-                      }}
+                      onClick={() => setLinkingItemId(activeLightboxItem.id)}
                       className="text-xs font-bold text-[#D8755B] hover:underline cursor-pointer"
                     >
                       + تعديل الربط
@@ -1770,8 +2352,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
 
                   <div className="flex flex-wrap gap-1.5">
                     {activeLightboxItem.linkedPersonIds.length === 0 ? (
-                      <div className="text-xs text-[#252321]/60 bg-[#FAF6F0] rounded-xl p-3 w-full border border-[#B98A78]/25">
-                        لم يتم ربط هذا الملف بفرد في الشجرة بعد. اضغط «+ تعديل الربط» لربطه بأفراد مشجرتك.
+                      <div className="text-xs text-[#252321]/60 bg-[#FAF6F0] rounded-xl p-3 w-full border border-[#E5DAC8]">
+                        لم يتم ربط هذا الملف بفرد في الشجرة بعد. اضغط «+ تعديل الربط» لربطه بأفراد شجرتك.
                       </div>
                     ) : (
                       activeLightboxItem.linkedPersonIds.map((pid) => {
@@ -1780,11 +2362,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         return (
                           <span
                             key={pid}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#D4AF37]/60 text-xs font-display font-bold text-[#252321]"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#C5A059]/55 text-xs font-display font-bold text-[#252321]"
                           >
-                            <span>👤 {person.fullName}</span>
+                            <span>{person.fullName}</span>
                             <span className="text-[10px] text-[#8D4925]">
-                              ({person.relationLabel})
+                              · {person.relationLabel}
                             </span>
                           </span>
                         );
@@ -1794,14 +2376,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-[#B98A78]/30 flex flex-wrap items-center gap-2">
+              <div className="pt-4 border-t border-[#E5DAC8] flex flex-wrap items-center gap-2">
                 <a
                   href={activeLightboxItem.fileDataUrl}
                   download={
                     activeLightboxItem.fileName ||
                     `${activeLightboxItem.title}.jpg`
                   }
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
                 >
                   <Download className="w-4 h-4" />
                   <span>تنزيل نسخة أصلية</span>
@@ -1810,7 +2392,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleToggleEnhancement(activeLightboxItem.id)}
-                  className="py-2.5 px-3.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/45 text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer"
+                  className="py-2.5 px-3.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D9CCB9] text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>
@@ -1823,7 +2405,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleDeleteItem(activeLightboxItem.id)}
-                  className="py-2.5 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-700 inline-flex items-center gap-1 cursor-pointer"
+                  className="py-2.5 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-700 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>حذف</span>

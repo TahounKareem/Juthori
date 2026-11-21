@@ -4715,49 +4715,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-[#D8755B]" />
-              <span>✦ استوديو وإعدادات شجرتي</span>
+              <span>إعدادات شجرتي</span>
             </button>
-
-            <div className="hidden xl:flex items-center gap-2 text-[11px] font-semibold text-[#252321]/75 min-w-0">
-              <span className="truncate">
-                المدى:{' '}
-                <strong className="text-[#8D4925]">
-                  {DEPTH_SELECTOR_OPTIONS.find((o) => o.id === spineDepth)
-                    ?.label || 'العائلة'}
-                </strong>
-              </span>
-              <span className="text-[#B98A78]/70">·</span>
-              <span className="truncate">
-                <strong className="text-[#252321]">
-                  {treeDisplaySettings.layoutOrientation === 'sideways'
-                    ? 'جانبي'
-                    : treeDisplaySettings.layoutOrientation === 'fan_180'
-                    ? 'مروحة 180°'
-                    : treeDisplaySettings.layoutOrientation === 'radial_360'
-                    ? 'هالة 360°'
-                    : 'عمودي'}
-                </strong>
-              </span>
-              <span className="text-[#B98A78]/70">·</span>
-              <span className="truncate">
-                <strong className="text-[#252321]">
-                  {activeTreeTheme.label}
-                </strong>
-              </span>
-              {settingsSyncStatus !== 'idle' && (
-                <>
-                  <span className="text-[#B98A78]/70">·</span>
-                  <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-700 whitespace-nowrap">
-                    <Cloud className="w-3 h-3" />
-                    <span>
-                      {settingsSyncStatus === 'syncing'
-                        ? 'مزامنة سحابية...'
-                        : 'متزامن سحابياً ✓'}
-                    </span>
-                  </span>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Left Cluster: Smart Node Search & Spotlight + Kinship Calculator Button */}
@@ -5173,57 +5132,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </div>
             )}
 
-            {/* Quiet Canvas Bottom Edge: Optional Generation Layer Strip + Floating Glass Studio Dock */}
+            {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock */}
             <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex flex-col items-center gap-2">
-              {treeDisplaySettings.showGenerationBar && (
-                <div
-                  data-testid="tree-generation-layer-bar"
-                  className={`pointer-events-auto max-w-full overflow-x-auto no-scrollbar rounded-xl border px-3 py-1.5 backdrop-blur-md flex items-center gap-1.5 text-[10.5px] font-display font-bold shadow-xs ${
-                    activeTreeTheme.isDarkSurface
-                      ? 'bg-[#221D18]/85 border-[#D4AF37]/35 text-[#FAF3E3]'
-                      : 'bg-white/88 border-[#B98A78]/35 text-[#252321]'
-                  }`}
-                >
-                  <span
-                    className={`inline-flex items-center gap-1 shrink-0 ${activeTreeTheme.accentText}`}
-                  >
-                    <Layers className="w-3 h-3" />
-                    <span>طبقات الأجيال:</span>
-                  </span>
-                  {Array.from(
-                    new Set(visiblePeopleForTree.map((p) => p.generationLevel))
-                  )
-                    .sort((a, b) => b - a)
-                    .map((genLevel, idx) => {
-                      const count = visiblePeopleForTree.filter(
-                        (p) => p.generationLevel === genLevel
-                      ).length;
-                      const genOrdinal =
-                        [
-                          'الجيل الأول',
-                          'الجيل الثاني',
-                          'الجيل الثالث',
-                          'الجيل الرابع',
-                          'الجيل الخامس',
-                          'الجيل السادس',
-                          'الجيل السابع',
-                          'الجيل الثامن',
-                        ][idx] || `الجيل ${idx + 1}`;
-                      return (
-                        <span
-                          key={`gen-pill-${genLevel}`}
-                          className={`px-2 py-0.5 rounded-md border text-[10px] tabular-nums shrink-0 ${
-                            activeTreeTheme.isDarkSurface
-                              ? 'bg-[#2C251D] border-[#D4AF37]/40 text-[#F3D299]'
-                              : 'bg-[#FAF6F0] border-[#B98A78]/30 text-[#8D4925]'
-                          }`}
-                        >
-                          {genOrdinal} ({count})
-                        </span>
-                      );
-                    })}
-                </div>
-              )}
 
               <div className="pointer-events-auto">
                 <TreeFloatingStudioDock

@@ -169,7 +169,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
       <aside
         dir="rtl"
         data-testid="tree-settings-drawer"
-        aria-label="استوديو تخصيص شجرتي"
+        aria-label="إعدادات شجرتي"
         className="fixed inset-x-0 bottom-0 z-50 max-h-[82vh] rounded-t-3xl border-t-2 border-[#C5A059]/60 bg-[#FAF6F0] text-[#252321] shadow-2xl flex flex-col lg:static lg:z-20 lg:w-[370px] lg:shrink-0 lg:max-h-none lg:rounded-none lg:rounded-s-3xl lg:border-t-0 lg:border-e lg:border-[#B98A78]/35 lg:shadow-none overflow-hidden"
       >
         {/* Mobile Sheet Handle */}
@@ -178,7 +178,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
         </div>
 
         {/* ================================================================ */}
-        {/* STUDIO INSPECTOR HEADER                                          */}
+        {/* SETTINGS INSPECTOR HEADER                                        */}
         {/* ================================================================ */}
         <div className="px-4 pt-3 pb-3 bg-white border-b border-[#E5DDD0] shrink-0">
           <div className="flex items-center justify-between gap-2">
@@ -188,7 +188,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </span>
               <div className="min-w-0">
                 <h3 className="text-[13px] font-display font-extrabold text-[#252321] truncate">
-                  استوديو تخصيص شجرتي
+                  إعدادات شجرتي
                 </h3>
                 <p className="text-[10px] text-[#252321]/60 truncate">
                   تخصيص لحظي متزامن مع السحابة
@@ -198,8 +198,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
             <button
               type="button"
               onClick={onClose}
-              title="إغلاق الاستوديو"
-              aria-label="إغلاق استوديو شجرتي"
+              title="إغلاق إعدادات شجرتي"
+              aria-label="إغلاق إعدادات شجرتي"
               className="w-7 h-7 rounded-lg bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#E5DDD0] flex items-center justify-center text-[#252321]/75 hover:text-[#8D4925] transition-colors cursor-pointer shrink-0"
             >
               <X className="w-3.5 h-3.5" />
@@ -452,10 +452,10 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                 </div>
               </div>
 
-              {/* Group 5: Canvas Surface & Generation Margin */}
+              {/* Group 5: Canvas Surface */}
               <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-3">
                 <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
-                  خلفية مساحة الرسم وطبقات الأجيال
+                  خلفية مساحة الرسم
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {(
@@ -483,21 +483,6 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       {bg.label}
                     </button>
                   ))}
-                </div>
-
-                <div className="pt-2 border-t border-[#F0EAE0]">
-                  <LuxurySwitchRow
-                    label="شارات ترقيم طبقات الأجيال"
-                    description="عرض شريط هادئ لطبقات الأجيال وعدد أفراد كل جيل على هامش اللوحة"
-                    checked={settings.showGenerationBar}
-                    testId="toggle-generation-bar-btn"
-                    onToggle={() =>
-                      onUpdateSettings((prev) => ({
-                        ...prev,
-                        showGenerationBar: !prev.showGenerationBar,
-                      }))
-                    }
-                  />
                 </div>
               </div>
             </>
