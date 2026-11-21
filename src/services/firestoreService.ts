@@ -379,13 +379,26 @@ async function dualSetDoc(
   return { primaryWritten, mirrorWritten, primaryError, mirrorError };
 }
 
-async function dualGetDoc<T = Record<string, unknown>>(
+type DualDocReadStatus = 'found' | 'not_found' | 'transient_error';
+
+interface DualDocReadResult<T> {
+  status: DualDocReadStatus;
+  data: T | null;
+  primaryData?: T | null;
+  mirrorData?: T | null;
+}
+
+async function dualGetDocWithStatus<T = Record<string, unknown>>(
   pathSegments: [string, ...string[]],
-  timeoutMs: number = 1800
-): Promise<T | null> {
+  timeoutMs: number = 5500
+): Promise<DualDocReadResult<T>> {
   const primaryChannel = selectPrimaryFirestoreChannel(pathSegments, 'read');
   const allowPrimary = primaryChannel.allowed;
   const allowMirror = canReadOnAuth(mirrorAuth, pathSegments);
+
+  if (!allowPrimary && !allowMirror) {
+    return { status: 'transient_error', data: null };
+  }
 
   // Immediately catch mirrorPromise on creation so browser NEVER fires unhandledrejection
   const safeMirrorPromise = allowMirror
@@ -395,51 +408,64 @@ async function dualGetDoc<T = Record<string, unknown>>(
       )
     : Promise.resolve({ ok: false as const, snap: null });
 
+  let primaryOk = false;
+  let primaryExists = false;
+  let primaryData: T | null = null;
+
   if (allowPrimary) {
     try {
       const primarySnap = await withFastTimeout(
         getDoc(doc(primaryChannel.primaryDb, ...pathSegments)),
         timeoutMs
       );
+      primaryOk = true;
       if (primarySnap.exists()) {
-        const primaryData = primarySnap.data() as T;
-        if (canWriteOnAuth(mirrorAuth, pathSegments)) {
-          safeMirrorPromise
-            .then((mRes) => {
-              if (mRes.ok && mRes.snap && !mRes.snap.exists()) {
-                return setDoc(
-                  doc(mirrorDb, ...pathSegments),
-                  sanitizeFirestoreData(primaryData as Record<string, unknown>)
-                );
-              }
-              return undefined;
-            })
-            .catch(() => {});
-        }
-        return primaryData;
-      } else {
-        if (canWriteOnAuth(mirrorAuth, pathSegments)) {
-          safeMirrorPromise
-            .then((mRes) => {
-              if (mRes.ok && mRes.snap && mRes.snap.exists()) {
-                return deleteDoc(doc(mirrorDb, ...pathSegments));
-              }
-              return undefined;
-            })
-            .catch(() => {});
-        }
-        return null;
+        primaryExists = true;
+        primaryData = primarySnap.data() as T;
       }
     } catch {
-      // Fall back to mirrorDb below
+      primaryOk = false;
     }
   }
 
-  const mirrorRes = await safeMirrorPromise;
-  if (mirrorRes.ok && mirrorRes.snap && mirrorRes.snap.exists()) {
-    return mirrorRes.snap.data() as T;
+  const mirrorRes = allowMirror ? await safeMirrorPromise : { ok: false as const, snap: null };
+  const mirrorData =
+    mirrorRes.ok && mirrorRes.snap && mirrorRes.snap.exists()
+      ? (mirrorRes.snap.data() as T)
+      : null;
+
+  if (primaryExists && primaryData) {
+    if (allowMirror && mirrorRes.ok && mirrorRes.snap && !mirrorRes.snap.exists() && canWriteOnAuth(mirrorAuth, pathSegments)) {
+      setDoc(
+        doc(mirrorDb, ...pathSegments),
+        sanitizeFirestoreData(primaryData as Record<string, unknown>)
+      ).catch(() => {});
+    }
+    return { status: 'found', data: primaryData, primaryData, mirrorData };
   }
-  return null;
+
+  if (mirrorData) {
+    // Only delete mirror doc if primary definitively confirmed NOT_FOUND on a non-user collection
+    if (primaryOk && !primaryExists && pathSegments[0] !== 'users' && canWriteOnAuth(mirrorAuth, pathSegments)) {
+      deleteDoc(doc(mirrorDb, ...pathSegments)).catch(() => {});
+      return { status: 'not_found', data: null, primaryData: null, mirrorData: null };
+    }
+    return { status: 'found', data: mirrorData, primaryData: null, mirrorData };
+  }
+
+  if (primaryOk || mirrorRes.ok) {
+    return { status: 'not_found', data: null, primaryData: null, mirrorData: null };
+  }
+
+  return { status: 'transient_error', data: null, primaryData: null, mirrorData: null };
+}
+
+async function dualGetDoc<T = Record<string, unknown>>(
+  pathSegments: [string, ...string[]],
+  timeoutMs: number = 5500
+): Promise<T | null> {
+  const res = await dualGetDocWithStatus<T>(pathSegments, timeoutMs);
+  return res.data;
 }
 
 async function dualQueryByField<T extends { id?: string }>(
@@ -1459,15 +1485,249 @@ function autoHealCorruptedProfileIfNeeded(
   return profile;
 }
 
+function rankSubscriptionTier(
+  tier?: UserProfileData['subscriptionTier']
+): number {
+  if (tier === 'premium_annual') return 2;
+  if (tier === 'basic_verified') return 1;
+  return 0;
+}
+
+function normalizeUserProfileForFirestoreWrite(
+  raw: Partial<UserProfileData>,
+  safeUid: string,
+  fallbackEmail: string,
+  fallbackFullName: string,
+  nowIso: string
+): UserProfileData {
+  // Strip any null optional fields that violate `field is string` / `field is list` in firestore.rules
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v !== undefined && v !== null) {
+      cleaned[k] = v;
+    }
+  }
+  const src = cleaned as Partial<UserProfileData>;
+
+  const clampStr = (val: unknown, maxLen: number): string | undefined => {
+    if (typeof val !== 'string') return undefined;
+    return val.trim().slice(0, maxLen);
+  };
+
+  const ensuredFullName = (
+    clampStr(src.fullName, 150) ||
+    [
+      clampStr(src.firstName, 60),
+      clampStr(src.fatherName, 60),
+      clampStr(src.grandfatherName, 60),
+      clampStr(src.familyName, 80),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .slice(0, 150) ||
+    clampStr(fallbackFullName, 150) ||
+    'مستخدم جذوري'
+  ).slice(0, 150);
+
+  const ensuredEmail = (
+    clampStr(src.email, 100) ||
+    clampStr(fallbackEmail, 100) ||
+    'user@juthori.com'
+  ).slice(0, 100);
+
+  const ensuredCreatedAt = (
+    clampStr(src.createdAt, 60) || nowIso
+  ).slice(0, 60);
+
+  const safeWallet =
+    typeof src.walletBalance === 'number' &&
+    Number.isFinite(src.walletBalance) &&
+    src.walletBalance >= 0
+      ? Number(src.walletBalance.toFixed(2))
+      : 0;
+
+  const safeTier: UserProfileData['subscriptionTier'] =
+    src.subscriptionTier === 'premium_annual' ||
+    src.subscriptionTier === 'basic_verified' ||
+    src.subscriptionTier === 'free'
+      ? src.subscriptionTier
+      : 'free';
+
+  const safeAccountType: UserProfileData['accountType'] =
+    src.accountType === 'record_keeper' ? 'record_keeper' : 'individual';
+
+  const normalized: UserProfileData = {
+    ...(src as UserProfileData),
+    userId: safeUid.slice(0, 128),
+    fullName: ensuredFullName,
+    email: ensuredEmail,
+    accountType: safeAccountType,
+    subscriptionTier: safeTier,
+    walletBalance: safeWallet,
+    createdAt: ensuredCreatedAt,
+    updatedAt: (clampStr(src.updatedAt, 60) || nowIso).slice(0, 60),
+  };
+
+  if (typeof normalized.firstName === 'string') {
+    normalized.firstName = normalized.firstName.trim().slice(0, 60);
+  }
+  if (typeof normalized.fatherName === 'string') {
+    normalized.fatherName = normalized.fatherName.trim().slice(0, 60);
+  }
+  if (typeof normalized.grandfatherName === 'string') {
+    normalized.grandfatherName = normalized.grandfatherName.trim().slice(0, 60);
+  }
+  if (typeof normalized.familyName === 'string') {
+    normalized.familyName = normalized.familyName.trim().slice(0, 80);
+  }
+  if (typeof normalized.phone === 'string') {
+    normalized.phone = normalized.phone.trim().slice(0, 30);
+  }
+  if (typeof normalized.defaultCountry === 'string') {
+    normalized.defaultCountry = normalized.defaultCountry.trim().slice(0, 60);
+  }
+  if (typeof normalized.residenceCity === 'string') {
+    normalized.residenceCity = normalized.residenceCity.trim().slice(0, 80);
+  }
+  if (typeof normalized.profession === 'string') {
+    normalized.profession = normalized.profession.trim().slice(0, 100);
+  }
+  if (typeof normalized.originCountry === 'string') {
+    normalized.originCountry = normalized.originCountry.trim().slice(0, 60);
+  }
+  if (typeof normalized.originRegion === 'string') {
+    normalized.originRegion = normalized.originRegion.trim().slice(0, 100);
+  }
+  if (typeof normalized.tribeName === 'string') {
+    normalized.tribeName = normalized.tribeName.trim().slice(0, 100);
+  }
+  if (typeof normalized.familyBranch === 'string') {
+    normalized.familyBranch = normalized.familyBranch.trim().slice(0, 100);
+  }
+  if (typeof normalized.avatarUrl === 'string' && normalized.avatarUrl.length > 350000) {
+    delete normalized.avatarUrl;
+  }
+  if (typeof normalized.paidRevenueUsd === 'number') {
+    normalized.paidRevenueUsd = Math.max(0, Number(normalized.paidRevenueUsd.toFixed(2)));
+  }
+  if (Array.isArray(normalized.unlockedCapsules)) {
+    normalized.unlockedCapsules = normalized.unlockedCapsules.slice(0, 100);
+  }
+  if (Array.isArray(normalized.bridgedAncestors)) {
+    normalized.bridgedAncestors = normalized.bridgedAncestors.slice(0, 100);
+  }
+  if (Array.isArray(normalized.unlockedAddonSourceIds)) {
+    normalized.unlockedAddonSourceIds = normalized.unlockedAddonSourceIds.slice(0, 200);
+  }
+  if (Array.isArray(normalized.blockedUserIds)) {
+    normalized.blockedUserIds = normalized.blockedUserIds.slice(0, 500);
+  }
+  if (Array.isArray(normalized.blockedUsersMeta)) {
+    normalized.blockedUsersMeta = normalized.blockedUsersMeta.slice(0, 500);
+  }
+  if (typeof normalized.lastWalletTransactionId === 'string') {
+    normalized.lastWalletTransactionId = normalized.lastWalletTransactionId.trim().slice(0, 60);
+  }
+
+  return sanitizeFirestoreData(normalized);
+}
+
+function mergeMonotonicPaidProfiles(
+  primary: UserProfileData | null | undefined,
+  mirror: UserProfileData | null | undefined
+): UserProfileData | null {
+  if (!primary && !mirror) return null;
+  if (!primary) return mirror || null;
+  if (!mirror) return primary;
+
+  const mergedTier: UserProfileData['subscriptionTier'] =
+    rankSubscriptionTier(mirror.subscriptionTier) > rankSubscriptionTier(primary.subscriptionTier)
+      ? mirror.subscriptionTier
+      : primary.subscriptionTier;
+
+  const mergedRootUnlocked = Boolean(
+    primary.isRootUnlocked ||
+      mirror.isRootUnlocked ||
+      mergedTier === 'basic_verified' ||
+      mergedTier === 'premium_annual'
+  );
+
+  const mergedPaidRevenue = Math.max(
+    Number(primary.paidRevenueUsd ?? 0),
+    Number(mirror.paidRevenueUsd ?? 0)
+  );
+
+  const mergedCapsules = Array.from(
+    new Set([
+      ...(Array.isArray(primary.unlockedCapsules) ? primary.unlockedCapsules : []),
+      ...(Array.isArray(mirror.unlockedCapsules) ? mirror.unlockedCapsules : []),
+    ])
+  ).slice(0, 100);
+
+  const mergedBridged = Array.from(
+    new Set([
+      ...(Array.isArray(primary.bridgedAncestors) ? primary.bridgedAncestors : []),
+      ...(Array.isArray(mirror.bridgedAncestors) ? mirror.bridgedAncestors : []),
+    ])
+  ).slice(0, 100);
+
+  const mergedAddons = Array.from(
+    new Set([
+      ...(Array.isArray(primary.unlockedAddonSourceIds) ? primary.unlockedAddonSourceIds : []),
+      ...(Array.isArray(mirror.unlockedAddonSourceIds) ? mirror.unlockedAddonSourceIds : []),
+    ])
+  ).slice(0, 200);
+
+  const mergedAccountType: UserProfileData['accountType'] =
+    primary.accountType === 'record_keeper' || mirror.accountType === 'record_keeper'
+      ? 'record_keeper'
+      : 'individual';
+
+  return {
+    ...primary,
+    accountType: mergedAccountType,
+    recordKeeperCharterSigned: Boolean(
+      primary.recordKeeperCharterSigned || mirror.recordKeeperCharterSigned
+    ),
+    subscriptionTier: mergedTier,
+    isRootUnlocked: mergedRootUnlocked,
+    paidRevenueUsd: mergedPaidRevenue > 0 ? mergedPaidRevenue : primary.paidRevenueUsd,
+    unlockedCapsules: mergedCapsules.length > 0 ? mergedCapsules : primary.unlockedCapsules,
+    bridgedAncestors: mergedBridged.length > 0 ? mergedBridged : primary.bridgedAncestors,
+    unlockedAddonSourceIds: mergedAddons.length > 0 ? mergedAddons : primary.unlockedAddonSourceIds,
+    lastWalletTransactionId:
+      rankSubscriptionTier(mirror.subscriptionTier) > rankSubscriptionTier(primary.subscriptionTier) &&
+      mirror.lastWalletTransactionId
+        ? mirror.lastWalletTransactionId
+        : primary.lastWalletTransactionId || mirror.lastWalletTransactionId,
+  };
+}
+
+export interface FetchUserProfileDetailedResult {
+  status: DualDocReadStatus;
+  profile: UserProfileData | null;
+}
+
 // =============================================================================
 // 1. USER PROFILE & AVATAR MANAGEMENT (Firebase Firestore + Storage)
 // =============================================================================
-export async function fetchUserProfile(userId: string): Promise<UserProfileData | null> {
-  if (!userId) return null;
+export async function fetchUserProfileDetailed(
+  userId: string
+): Promise<FetchUserProfileDetailedResult> {
+  if (!userId) return { status: 'not_found', profile: null };
   const safeUid = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (isTeamAccountDocInUsers(safeUid)) return null;
-  const docData = await dualGetDoc<UserProfileData>(['users', safeUid]);
-  if (!docData) return null;
+  if (isTeamAccountDocInUsers(safeUid)) return { status: 'not_found', profile: null };
+
+  // Generous timeout + 1 automatic retry so VPN / cold WebChannel handshakes NEVER return a false null
+  let readRes = await dualGetDocWithStatus<UserProfileData>(['users', safeUid], 6500);
+  if (readRes.status === 'transient_error') {
+    readRes = await dualGetDocWithStatus<UserProfileData>(['users', safeUid], 8500);
+  }
+
+  const docData = mergeMonotonicPaidProfiles(readRes.primaryData, readRes.mirrorData) || readRes.data;
+  if (!docData) {
+    return { status: readRes.status, profile: null };
+  }
   if (
     isTeamAccountDocInUsers(
       docData.userId || safeUid,
@@ -1476,17 +1736,17 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
     )
   ) {
     dualDeleteDoc(['users', safeUid]).catch(() => {});
-    return null;
+    return { status: 'not_found', profile: null };
   }
   if (docData.email) {
     const teamMatch = await findTeamMemberByEmail(docData.email);
     if (teamMatch) {
       dualDeleteDoc(['users', safeUid]).catch(() => {});
-      return null;
+      return { status: 'not_found', profile: null };
     }
   }
   const healed = autoHealCorruptedProfileIfNeeded(docData);
-  if (!healed) return null;
+  if (!healed) return { status: 'not_found', profile: null };
 
   // Self-healing paid-entitlement hydration:
   // Ensure a user who already paid $5 (PURCHASE_ROOT_5USD) or upgraded to Annual VIP ($60)
@@ -1494,6 +1754,7 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
   let nextTier = healed.subscriptionTier || 'free';
   let nextRootUnlocked = Boolean(healed.isRootUnlocked);
   let nextPaidRevenue = Number(healed.paidRevenueUsd ?? 0);
+  let proofTransactionId: string | undefined = healed.lastWalletTransactionId;
 
   if (nextPaidRevenue >= 55 && nextTier !== 'premium_annual') {
     nextTier = 'premium_annual';
@@ -1505,68 +1766,135 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
     }
   }
 
+  const isCurrentUserPrimary = auth.currentUser?.uid === safeUid;
+  const isCurrentUserMirror = mirrorAuth.currentUser?.uid === safeUid;
+
   if (
-    nextTier === 'free' &&
-    !nextRootUnlocked &&
-    auth.currentUser?.uid === safeUid
+    (nextTier === 'free' || !nextRootUnlocked) &&
+    (isCurrentUserPrimary || isCurrentUserMirror)
   ) {
     try {
-      const [txSnap, ordSnap] = await Promise.all([
-        withFastTimeout(
-          getDocs(collection(db, 'users', safeUid, 'wallet_transactions')),
-          2000
-        ).catch(() => null),
-        withFastTimeout(
-          getDocs(
-            query(
-              collection(db, 'customer_orders'),
-              where('userId', '==', safeUid),
-              limit(6)
-            )
-          ),
-          2000
-        ).catch(() => null),
-      ]);
+      const queries: Array<Promise<{ kind: 'tx' | 'ord'; docs: Array<Record<string, unknown>> } | null>> = [];
+
+      if (isCurrentUserPrimary) {
+        queries.push(
+          withFastTimeout(
+            getDocs(collection(db, 'users', safeUid, 'wallet_transactions')),
+            6000
+          )
+            .then((s) => ({ kind: 'tx' as const, docs: s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) }))
+            .catch(() => null),
+          withFastTimeout(
+            getDocs(
+              query(
+                collection(db, 'wallet_transactions'),
+                where('userId', '==', safeUid),
+                limit(25)
+              )
+            ),
+            6000
+          )
+            .then((s) => ({ kind: 'tx' as const, docs: s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) }))
+            .catch(() => null),
+          withFastTimeout(
+            getDocs(
+              query(
+                collection(db, 'customer_orders'),
+                where('userId', '==', safeUid),
+                limit(10)
+              )
+            ),
+            6000
+          )
+            .then((s) => ({ kind: 'ord' as const, docs: s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) }))
+            .catch(() => null)
+        );
+      }
+
+      if (isCurrentUserMirror) {
+        queries.push(
+          withFastTimeout(
+            getDocs(collection(mirrorDb, 'users', safeUid, 'wallet_transactions')),
+            5000
+          )
+            .then((s) => ({ kind: 'tx' as const, docs: s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) }))
+            .catch(() => null),
+          withFastTimeout(
+            getDocs(
+              query(
+                collection(mirrorDb, 'wallet_transactions'),
+                where('userId', '==', safeUid),
+                limit(25)
+              )
+            ),
+            5000
+          )
+            .then((s) => ({ kind: 'tx' as const, docs: s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) }))
+            .catch(() => null),
+          withFastTimeout(
+            getDocs(
+              query(
+                collection(mirrorDb, 'customer_orders'),
+                where('userId', '==', safeUid),
+                limit(10)
+              )
+            ),
+            5000
+          )
+            .then((s) => ({ kind: 'ord' as const, docs: s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) }))
+            .catch(() => null)
+        );
+      }
+
+      const settled = await Promise.all(queries);
 
       let detectedAnnual = false;
       let detectedRoot5 = false;
       let detectedMaxRevenue = nextPaidRevenue;
+      let annualTxId: string | undefined;
+      let root5TxId: string | undefined;
 
-      if (txSnap) {
-        txSnap.forEach((d) => {
-          const t = d.data() as Partial<WalletTransactionData>;
-          if (t.status && t.status !== 'COMPLETED') return;
-          if (t.type === 'UPGRADE_ANNUAL_VIP') {
-            detectedAnnual = true;
-            detectedMaxRevenue = Math.max(detectedMaxRevenue, Number(t.amount || 60));
-          } else if (t.type === 'PURCHASE_ROOT_5USD') {
-            detectedRoot5 = true;
-            detectedMaxRevenue = Math.max(detectedMaxRevenue, Number(t.amount || 5));
+      for (const batch of settled) {
+        if (!batch) continue;
+        if (batch.kind === 'tx') {
+          for (const rawDoc of batch.docs) {
+            const t = rawDoc as Partial<WalletTransactionData> & { id?: string };
+            if (t.status && t.status !== 'COMPLETED') continue;
+            const txIdCandidate = t.transactionId || t.id;
+            if (t.type === 'UPGRADE_ANNUAL_VIP') {
+              detectedAnnual = true;
+              annualTxId = annualTxId || txIdCandidate;
+              detectedMaxRevenue = Math.max(detectedMaxRevenue, Number(t.amount || 60));
+            } else if (t.type === 'PURCHASE_ROOT_5USD') {
+              detectedRoot5 = true;
+              root5TxId = root5TxId || txIdCandidate;
+              detectedMaxRevenue = Math.max(detectedMaxRevenue, Number(t.amount || 5));
+            }
           }
-        });
-      }
-
-      if (ordSnap) {
-        ordSnap.forEach((d) => {
-          const o = d.data() as Partial<CustomerOrderRecord>;
-          const ordRev = Number(o.paidRevenueUsd || 0);
-          if (ordRev > detectedMaxRevenue) detectedMaxRevenue = ordRev;
-          if (o.accountStatus === 'annual_vip' || ordRev >= 55) {
-            detectedAnnual = true;
-          } else if (o.accountStatus === 'paid_5_root' || ordRev >= 5) {
-            detectedRoot5 = true;
+        } else if (batch.kind === 'ord') {
+          for (const rawDoc of batch.docs) {
+            const o = rawDoc as Partial<CustomerOrderRecord>;
+            const ordRev = Number(o.paidRevenueUsd || 0);
+            if (ordRev > detectedMaxRevenue) detectedMaxRevenue = ordRev;
+            if (o.accountStatus === 'annual_vip' || ordRev >= 55) {
+              detectedAnnual = true;
+            } else if (o.accountStatus === 'paid_5_root' || ordRev >= 5) {
+              detectedRoot5 = true;
+            }
           }
-        });
+        }
       }
 
       if (detectedAnnual) {
         nextTier = 'premium_annual';
         nextRootUnlocked = true;
         nextPaidRevenue = Math.max(nextPaidRevenue, detectedMaxRevenue, 60);
+        proofTransactionId = annualTxId || proofTransactionId;
       } else if (detectedRoot5) {
         nextTier = 'basic_verified';
         nextRootUnlocked = true;
         nextPaidRevenue = Math.max(nextPaidRevenue, detectedMaxRevenue, 5);
+        proofTransactionId = root5TxId || proofTransactionId;
       }
     } catch {
       // Non-blocking fallback
@@ -1577,15 +1905,37 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
     nextTier !== healed.subscriptionTier ||
     nextRootUnlocked !== Boolean(healed.isRootUnlocked)
   ) {
-    return {
-      ...healed,
-      subscriptionTier: nextTier,
-      isRootUnlocked: nextRootUnlocked,
-      paidRevenueUsd: nextPaidRevenue > 0 ? nextPaidRevenue : healed.paidRevenueUsd,
-    };
+    const repairedProfile: UserProfileData = normalizeUserProfileForFirestoreWrite(
+      {
+        ...healed,
+        subscriptionTier: nextTier,
+        isRootUnlocked: nextRootUnlocked,
+        paidRevenueUsd: nextPaidRevenue > 0 ? nextPaidRevenue : healed.paidRevenueUsd,
+        lastWalletTransactionId: proofTransactionId || healed.lastWalletTransactionId,
+        updatedAt: new Date().toISOString(),
+      },
+      safeUid,
+      healed.email || auth.currentUser?.email || 'user@juthori.com',
+      healed.fullName || 'مستخدم جذوري',
+      new Date().toISOString()
+    );
+
+    // Non-blocking permanent Firestore repair so subsequent loads immediately read the unlocked profile
+    dualSetDoc(
+      ['users', safeUid],
+      repairedProfile as unknown as Record<string, unknown>,
+      6000
+    ).catch(() => {});
+
+    return { status: 'found', profile: repairedProfile };
   }
 
-  return healed;
+  return { status: 'found', profile: healed };
+}
+
+export async function fetchUserProfile(userId: string): Promise<UserProfileData | null> {
+  const res = await fetchUserProfileDetailed(userId);
+  return res.profile;
 }
 
 export async function fetchUserProfileByEmail(
@@ -2205,10 +2555,17 @@ export async function updateUserProfile(
   }
   const path = `users/${safeUid}`;
   try {
-    const existingData = await dualGetDoc<UserProfileData>(
+    const existingRead = await dualGetDocWithStatus<UserProfileData>(
       ['users', safeUid],
       8000
     );
+    if (existingRead.status === 'transient_error') {
+      // Never synthesize a fresh `free` profile when Firestore is temporarily unreachable / timed out
+      return false;
+    }
+    const existingData =
+      mergeMonotonicPaidProfiles(existingRead.primaryData, existingRead.mirrorData) ||
+      existingRead.data;
     if (!existingData) {
       await createUserProfileIfMissing(
         {
@@ -2234,61 +2591,34 @@ export async function updateUserProfile(
     delete safeNonFinancialUpdates.subscriptionTier;
     delete safeNonFinancialUpdates.isRootUnlocked;
 
-    if (typeof safeNonFinancialUpdates.phone === 'string') {
-      safeNonFinancialUpdates.phone = safeNonFinancialUpdates.phone
-        .trim()
-        .slice(0, 30);
-    }
-    if (typeof safeNonFinancialUpdates.defaultCountry === 'string') {
-      safeNonFinancialUpdates.defaultCountry =
-        safeNonFinancialUpdates.defaultCountry.trim().slice(0, 60);
-    }
-
-    const ensuredFullName = (
-      safeNonFinancialUpdates.fullName ||
-      existingData.fullName ||
-      [
-        safeNonFinancialUpdates.firstName ?? existingData.firstName,
-        safeNonFinancialUpdates.fatherName ?? existingData.fatherName,
-        safeNonFinancialUpdates.grandfatherName ?? existingData.grandfatherName,
-        safeNonFinancialUpdates.familyName ?? existingData.familyName,
-      ]
-        .filter(Boolean)
-        .join(' ') ||
-      'مستخدم جذوري'
-    )
-      .trim()
-      .slice(0, 150);
-
-    const ensuredEmail = (
-      existingData.email ||
-      candidateEmail ||
-      'user@juthori.com'
-    )
-      .trim()
-      .slice(0, 100);
-
-    const merged: UserProfileData = {
-      ...existingData,
-      ...safeNonFinancialUpdates,
-      userId: existingData.userId || safeUid,
-      fullName: ensuredFullName,
-      email: ensuredEmail,
-      accountType:
-        existingData.accountType === 'record_keeper'
-          ? 'record_keeper'
-          : safeNonFinancialUpdates.accountType === 'record_keeper'
-          ? 'record_keeper'
-          : 'individual',
-      subscriptionTier: existingData.subscriptionTier || 'free',
-      walletBalance:
-        typeof existingData.walletBalance === 'number' &&
-        existingData.walletBalance >= 0
-          ? existingData.walletBalance
-          : 0,
-      createdAt: existingData.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const nowIso = new Date().toISOString();
+    const merged: UserProfileData = normalizeUserProfileForFirestoreWrite(
+      {
+        ...existingData,
+        ...safeNonFinancialUpdates,
+        userId: existingData.userId || safeUid,
+        email: existingData.email || candidateEmail || 'user@juthori.com',
+        accountType:
+          existingData.accountType === 'record_keeper'
+            ? 'record_keeper'
+            : safeNonFinancialUpdates.accountType === 'record_keeper'
+            ? 'record_keeper'
+            : 'individual',
+        subscriptionTier: existingData.subscriptionTier || 'free',
+        isRootUnlocked: existingData.isRootUnlocked,
+        walletBalance:
+          typeof existingData.walletBalance === 'number' &&
+          existingData.walletBalance >= 0
+            ? existingData.walletBalance
+            : 0,
+        createdAt: existingData.createdAt || nowIso,
+        updatedAt: nowIso,
+      },
+      safeUid,
+      existingData.email || candidateEmail || 'user@juthori.com',
+      safeNonFinancialUpdates.fullName || existingData.fullName || 'مستخدم جذوري',
+      nowIso
+    );
     const writeRes = await dualSetDoc(
       ['users', safeUid],
       merged as unknown as Record<string, unknown>,
@@ -4019,39 +4349,46 @@ export async function executeAtomicWalletOperation(
         candidateReferrerUid && referrerSnap && referrerSnap.exists()
       );
 
-      const updatedUserDoc: UserProfileData = sanitizeFirestoreData({
-        ...liveUser,
-        userId: safeUid,
-        email: resolvedEmail,
-        accountType: nextAccountType,
-        subscriptionTier: nextSubscriptionTier,
-        isRootUnlocked: nextRootUnlocked,
-        walletBalance: balanceAfter,
-        paidRevenueUsd: nextRevenue,
-        referralCode:
-          liveUser.referralCode || buildDeterministicReferralCode(safeUid),
-        referralRewardClaimed: willCreditReferrer
-          ? true
-          : liveUser.referralRewardClaimed,
-        unlockedCapsules: nextCapsules.length > 0 ? nextCapsules : liveUser.unlockedCapsules,
-        unlockedAddonSourceIds:
-          nextAddons.length > 0 ? nextAddons : liveUser.unlockedAddonSourceIds,
-        recordKeeperCharterSigned:
-          params.operationType === 'UPGRADE_REGISTRAR'
+      const updatedUserDoc: UserProfileData = normalizeUserProfileForFirestoreWrite(
+        {
+          ...liveUser,
+          userId: safeUid,
+          email: resolvedEmail,
+          accountType: nextAccountType,
+          subscriptionTier: nextSubscriptionTier,
+          isRootUnlocked: nextRootUnlocked,
+          walletBalance: balanceAfter,
+          paidRevenueUsd: nextRevenue,
+          referralCode:
+            liveUser.referralCode || buildDeterministicReferralCode(safeUid),
+          referralRewardClaimed: willCreditReferrer
             ? true
-            : liveUser.recordKeeperCharterSigned,
-        recordKeeperCharterSignedAt:
-          params.charterSignatureMeta?.signedAt ||
-          liveUser.recordKeeperCharterSignedAt,
-        recordKeeperCharterCode:
-          params.charterSignatureMeta?.charterCode ||
-          liveUser.recordKeeperCharterCode,
-        recordKeeperContractVersion:
-          params.charterSignatureMeta?.contractVersion ||
-          liveUser.recordKeeperContractVersion,
-        lastWalletTransactionId: transactionId,
-        updatedAt: nowIso,
-      });
+            : liveUser.referralRewardClaimed,
+          unlockedCapsules:
+            nextCapsules.length > 0 ? nextCapsules : liveUser.unlockedCapsules,
+          unlockedAddonSourceIds:
+            nextAddons.length > 0 ? nextAddons : liveUser.unlockedAddonSourceIds,
+          recordKeeperCharterSigned:
+            params.operationType === 'UPGRADE_REGISTRAR'
+              ? true
+              : liveUser.recordKeeperCharterSigned,
+          recordKeeperCharterSignedAt:
+            params.charterSignatureMeta?.signedAt ||
+            liveUser.recordKeeperCharterSignedAt,
+          recordKeeperCharterCode:
+            params.charterSignatureMeta?.charterCode ||
+            liveUser.recordKeeperCharterCode,
+          recordKeeperContractVersion:
+            params.charterSignatureMeta?.contractVersion ||
+            liveUser.recordKeeperContractVersion,
+          lastWalletTransactionId: transactionId,
+          updatedAt: nowIso,
+        },
+        safeUid,
+        resolvedEmail,
+        liveUser.fullName || params.userFullName || 'مستخدم جذوري',
+        nowIso
+      );
 
       const direction: 'credit' | 'debit' =
         params.operationType === 'TOPUP' || params.operationType === 'REFERRAL_REWARD'
@@ -4442,37 +4779,45 @@ export async function executeAtomicWalletOperation(
       'user@juthori.com'
     ).trim();
 
-    const updatedUserDoc: UserProfileData = sanitizeFirestoreData({
-      ...liveUser,
-      userId: safeUid,
-      email: resolvedEmail,
-      accountType: nextAccountType,
-      subscriptionTier: nextSubscriptionTier,
-      isRootUnlocked: nextRootUnlocked,
-      walletBalance: balanceAfter,
-      paidRevenueUsd: nextRevenue,
-      referralCode:
-        liveUser.referralCode || buildDeterministicReferralCode(safeUid),
-      unlockedCapsules:
-        nextCapsules.length > 0 ? nextCapsules : liveUser.unlockedCapsules,
-      unlockedAddonSourceIds:
-        nextAddons.length > 0 ? nextAddons : liveUser.unlockedAddonSourceIds,
-      recordKeeperCharterSigned:
-        params.operationType === 'UPGRADE_REGISTRAR'
-          ? true
-          : liveUser.recordKeeperCharterSigned,
-      recordKeeperCharterSignedAt:
-        params.charterSignatureMeta?.signedAt ||
-        liveUser.recordKeeperCharterSignedAt,
-      recordKeeperCharterCode:
-        params.charterSignatureMeta?.charterCode ||
-        liveUser.recordKeeperCharterCode,
-      recordKeeperContractVersion:
-        params.charterSignatureMeta?.contractVersion ||
-        liveUser.recordKeeperContractVersion,
-      lastWalletTransactionId: transactionId,
-      updatedAt: nowIso,
-    });
+    const fallbackTxId = generateWalletTransactionId();
+
+    const updatedUserDoc: UserProfileData = normalizeUserProfileForFirestoreWrite(
+      {
+        ...liveUser,
+        userId: safeUid,
+        email: resolvedEmail,
+        accountType: nextAccountType,
+        subscriptionTier: nextSubscriptionTier,
+        isRootUnlocked: nextRootUnlocked,
+        walletBalance: balanceAfter,
+        paidRevenueUsd: nextRevenue,
+        referralCode:
+          liveUser.referralCode || buildDeterministicReferralCode(safeUid),
+        unlockedCapsules:
+          nextCapsules.length > 0 ? nextCapsules : liveUser.unlockedCapsules,
+        unlockedAddonSourceIds:
+          nextAddons.length > 0 ? nextAddons : liveUser.unlockedAddonSourceIds,
+        recordKeeperCharterSigned:
+          params.operationType === 'UPGRADE_REGISTRAR'
+            ? true
+            : liveUser.recordKeeperCharterSigned,
+        recordKeeperCharterSignedAt:
+          params.charterSignatureMeta?.signedAt ||
+          liveUser.recordKeeperCharterSignedAt,
+        recordKeeperCharterCode:
+          params.charterSignatureMeta?.charterCode ||
+          liveUser.recordKeeperCharterCode,
+        recordKeeperContractVersion:
+          params.charterSignatureMeta?.contractVersion ||
+          liveUser.recordKeeperContractVersion,
+        lastWalletTransactionId: fallbackTxId,
+        updatedAt: nowIso,
+      },
+      safeUid,
+      resolvedEmail,
+      liveUser.fullName || params.userFullName || 'مستخدم جذوري',
+      nowIso
+    );
 
     const direction: 'credit' | 'debit' =
       params.operationType === 'TOPUP' ||
@@ -4481,8 +4826,8 @@ export async function executeAtomicWalletOperation(
         : 'debit';
 
     const txRecord: WalletTransactionData = sanitizeFirestoreData({
-      id: transactionId,
-      transactionId,
+      id: fallbackTxId,
+      transactionId: fallbackTxId,
       userId: safeUid,
       userEmail: resolvedEmail,
       type: params.operationType,
@@ -4498,12 +4843,12 @@ export async function executeAtomicWalletOperation(
       status: 'COMPLETED',
       descriptionAr: params.descriptionAr,
       reason: params.descriptionAr,
-      referenceId: params.referenceId || transactionId,
+      referenceId: params.referenceId || fallbackTxId,
       createdAt: nowIso,
     });
 
-    // Commit atomically using Firestore `writeBatch` so Pillar 7 `isLedgerBackedWalletOrTierUpdate`
-    // (`existsAfter` / `getAfter` on `/wallet_transactions/{txId}`) succeeds 100% on primary Firestore!
+    // Commit atomically using Firestore `writeBatch` with a fresh txId so Pillar 7
+    // `isLedgerBackedWalletOrTierUpdate` (`!exists` + `existsAfter`/`getAfter`) succeeds 100%!
     const cleanUserDoc = sanitizeFirestoreData(
       updatedUserDoc as unknown as Record<string, unknown>
     );
@@ -4515,12 +4860,12 @@ export async function executeAtomicWalletOperation(
       try {
         const batch = writeBatch(targetDb);
         batch.set(doc(targetDb, 'users', safeUid), cleanUserDoc);
-        batch.set(doc(targetDb, 'wallet_transactions', transactionId), cleanTxDoc);
+        batch.set(doc(targetDb, 'wallet_transactions', fallbackTxId), cleanTxDoc);
         batch.set(
-          doc(targetDb, 'users', safeUid, 'wallet_transactions', transactionId),
+          doc(targetDb, 'users', safeUid, 'wallet_transactions', fallbackTxId),
           cleanTxDoc
         );
-        await withFastTimeout(batch.commit(), 10000);
+        await withFastTimeout(batch.commit(), 12000);
         return true;
       } catch (batchErr) {
         console.warn('[executeAtomicWalletOperation] atomic batch commit note:', batchErr);
@@ -4528,26 +4873,26 @@ export async function executeAtomicWalletOperation(
       }
     };
 
-    const primaryBatchOk = await commitAtomicBatch(db);
-    if (mirrorAuth.currentUser) {
-      commitAtomicBatch(mirrorDb).catch(() => {});
-    }
+    const [primaryBatchOk] = await Promise.all([
+      commitAtomicBatch(db),
+      mirrorAuth.currentUser ? commitAtomicBatch(mirrorDb) : Promise.resolve(false),
+    ]);
 
     if (!primaryBatchOk) {
-      // Ensure at least the per-user immutable ledger & mirror are recorded so self-healing hydration catches it
+      // Ensure immutable ledger receipts are recorded so self-healing hydration always restores entitlement
       await Promise.allSettled([
         dualSetDoc(
-          ['users', safeUid, 'wallet_transactions', transactionId],
-          cleanTxDoc
+          ['users', safeUid, 'wallet_transactions', fallbackTxId],
+          cleanTxDoc,
+          8000
         ),
-        dualSetDoc(['wallet_transactions', transactionId], cleanTxDoc),
-        dualSetDoc(['users', safeUid], cleanUserDoc),
+        dualSetDoc(['wallet_transactions', fallbackTxId], cleanTxDoc, 8000),
       ]);
     }
 
     return {
       status: 'COMPLETED',
-      transactionId,
+      transactionId: fallbackTxId,
       balanceBefore,
       balanceAfter,
       updatedProfile: updatedUserDoc,

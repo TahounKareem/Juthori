@@ -41,6 +41,7 @@ import {
   fetchCustomerDashboardWorkspace,
   fetchUserLegalAuditTrailFromFirebase,
   fetchUserProfile,
+  fetchUserProfileDetailed,
   fetchUserProfileByEmail,
   fetchUserResearchTickets,
   hydrateLineageResultFromSnapshot,
@@ -485,14 +486,29 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     let cancelled = false;
     const activeUid = resolvedCustomerUid;
 
-    async function hydrateFromFirestore() {
+    let retryTimer: number | null = null;
+
+    async function hydrateFromFirestore(isRetry = false) {
       try {
-        const [profile, workspace] = await Promise.all([
-          (activeUid ? fetchUserProfile(activeUid) : Promise.resolve(null)).then(
-            (p) => p || (userEmail ? fetchUserProfileByEmail(userEmail) : null)
-          ),
+        const [profileDetailed, workspace] = await Promise.all([
+          activeUid
+            ? fetchUserProfileDetailed(activeUid)
+            : Promise.resolve({ status: 'not_found' as const, profile: null }),
           fetchCustomerDashboardWorkspace(activeUid, userEmail),
         ]);
+        if (cancelled) return;
+
+        if (profileDetailed.status === 'transient_error' && !isRetry) {
+          retryTimer = window.setTimeout(() => {
+            if (!cancelled) {
+              hydrateFromFirestore(true);
+            }
+          }, 4000);
+        }
+
+        const profile =
+          profileDetailed.profile ||
+          (userEmail ? await fetchUserProfileByEmail(userEmail) : null);
         if (cancelled) return;
 
         if (profile) {
@@ -778,6 +794,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     hydrateFromFirestore();
     return () => {
       cancelled = true;
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+      }
     };
   }, [resolvedCustomerUid, userEmail]);
 
@@ -1495,7 +1514,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     ]
       .filter((s) => s && s !== '—')
       .join(' ');
-    const orderDocId = `ord_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}_${result.familyName.replace(/\s+/g, '_')}`;
+    const orderDocId = `ord_${activeUid.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48)}`;
 
     const allCapsuleIds = (
       result.capsules?.length ? result.capsules : AL_MUQIT_8_CAPSULES

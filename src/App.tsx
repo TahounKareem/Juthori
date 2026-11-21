@@ -10,6 +10,7 @@ import { auth, googleProvider } from './services/firebase';
 import {
   buildVerifiedLineageSnapshot,
   fetchUserProfile,
+  fetchUserProfileDetailed,
   fetchUserProfileByEmail,
   findTeamMemberByEmail,
   hydrateLineageResultFromSnapshot,
@@ -581,7 +582,13 @@ export function App() {
           return;
         }
 
-        const byUid = cachedUid ? await fetchUserProfile(cachedUid) : null;
+        const uidCheck = cachedUid
+          ? await fetchUserProfileDetailed(cachedUid)
+          : { status: 'not_found' as const, profile: null };
+        if (cancelled) return;
+        // If Firestore temporarily timed out (e.g. behind VPN), NEVER wipe or synthesize a free profile!
+        if (uidCheck.status === 'transient_error') return;
+        const byUid = uidCheck.profile;
         const byEmail =
           !byUid && cachedEmail
             ? await fetchUserProfileByEmail(cachedEmail)
@@ -713,7 +720,38 @@ export function App() {
               cleanUserEmail
             );
 
-          const profileByUid = await fetchUserProfile(user.uid);
+          const profileRead = await fetchUserProfileDetailed(user.uid);
+          if (profileRead.status === 'transient_error') {
+            // Firestore was temporarily slow/unreachable (e.g. VPN handshake).
+            // Keep any existing paid session intact and retry once cleanly without synthesizing a free profile.
+            window.setTimeout(() => {
+              fetchUserProfileDetailed(user.uid)
+                .then((retryRes) => {
+                  const p = retryRes.profile;
+                  if (!p) return;
+                  const retryAnnual =
+                    p.subscriptionTier === 'premium_annual' ||
+                    (typeof p.paidRevenueUsd === 'number' && p.paidRevenueUsd >= 55);
+                  const retryRoot =
+                    p.subscriptionTier === 'basic_verified' ||
+                    p.isRootUnlocked === true ||
+                    (typeof p.paidRevenueUsd === 'number' && p.paidRevenueUsd >= 5);
+                  if (retryAnnual) {
+                    setDashboardStateMode(DashboardStateMode.AnnualVip);
+                  } else if (retryRoot) {
+                    setDashboardStateMode((curr) =>
+                      curr === DashboardStateMode.AnnualVip
+                        ? curr
+                        : DashboardStateMode.State1Paid5Basic
+                    );
+                  }
+                })
+                .catch(() => {});
+            }, 4000);
+            return;
+          }
+
+          const profileByUid = profileRead.profile;
           const uidHasValidArabicFamily =
             Boolean(profileByUid?.familyName) &&
             !isEmailPrefixOrAsciiPlaceholder(
@@ -1166,13 +1204,26 @@ export function App() {
               if (profileIsAnnual) {
                 setDashboardStateMode(DashboardStateMode.AnnualVip);
               } else if (profileIsRootPaid) {
-                setDashboardStateMode(DashboardStateMode.State1Paid5Basic);
-              } else {
-                setDashboardStateMode(
-                  baseLineage.matched
-                    ? DashboardStateMode.State2MatchedUnpaid
-                    : baseLineage.recommendedInitialState
+                setDashboardStateMode((curr) =>
+                  curr === DashboardStateMode.AnnualVip
+                    ? curr
+                    : DashboardStateMode.State1Paid5Basic
                 );
+              } else {
+                setDashboardStateMode((curr) => {
+                  // Only reset to unpaid if we read a real existing Firestore profile (never downgrade on synthetic fallback)
+                  if (
+                    !profileByUid &&
+                    !profileByEmail &&
+                    (curr === DashboardStateMode.State1Paid5Basic ||
+                      curr === DashboardStateMode.AnnualVip)
+                  ) {
+                    return curr;
+                  }
+                  return baseLineage.matched
+                    ? DashboardStateMode.State2MatchedUnpaid
+                    : baseLineage.recommendedInitialState;
+                });
               }
 
               // Instant Firestore Snapshot Rule:

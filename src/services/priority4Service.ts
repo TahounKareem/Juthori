@@ -2339,6 +2339,27 @@ export async function submitVaultPhotoFaceIdentification(params: {
 // =============================================================================
 // 4. PRIVATE KINSHIP CIRCLE, SMART OPT-OUT INVITES & ENRICHMENT WORKFLOW («مجتمعي»)
 // =============================================================================
+export type KinshipCircleMemberRole =
+  | 'assistant_registrar'
+  | 'memory_contributor'
+  | 'family_viewer';
+
+export type MemoryQuestCategory =
+  | 'newborns'
+  | 'heritage_photos'
+  | 'elders_stories'
+  | 'custom';
+
+export interface FamilyMemoryQuest {
+  id: string;
+  title: string;
+  promptText: string;
+  category: MemoryQuestCategory;
+  status: 'ACTIVE' | 'ARCHIVED';
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface KinshipCircleMember {
   id: string;
   name: string;
@@ -2347,6 +2368,9 @@ export interface KinshipCircleMember {
   inviteToken: string;
   addedAt: string;
   approvedEnrichmentsCount: number;
+  role?: KinshipCircleMemberRole;
+  linkedTreePersonId?: string;
+  linkedTreePersonName?: string;
   status?: 'SENT' | 'ACTIVE' | 'OPTED_OUT';
   claimedByUid?: string;
   claimedAt?: string;
@@ -2387,6 +2411,9 @@ export interface KinshipCircleDoc {
   familyName?: string;
   siteSlug?: string;
   members: KinshipCircleMember[];
+  majlisInviteToken?: string;
+  majlisInviteRotatedAt?: string;
+  memoryQuests?: FamilyMemoryQuest[];
   updatedAt: string;
 }
 
@@ -2619,6 +2646,9 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
   relativeName: string;
   kinshipRelation: string;
   relativeEmail: string;
+  role?: KinshipCircleMemberRole;
+  linkedTreePersonId?: string;
+  linkedTreePersonName?: string;
   customPublicBaseUrl?: string;
 }): Promise<{
   ok: boolean;
@@ -2662,28 +2692,35 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
     params.siteSlug || current.siteSlug || ''
   );
 
+  const existingMember = existingIdx >= 0 ? current.members[existingIdx] : null;
+  const resolvedRole: KinshipCircleMemberRole =
+    params.role || existingMember?.role || 'memory_contributor';
+  const resolvedLinkedId =
+    params.linkedTreePersonId !== undefined
+      ? params.linkedTreePersonId.trim() || undefined
+      : existingMember?.linkedTreePersonId;
+  const resolvedLinkedName =
+    params.linkedTreePersonName !== undefined
+      ? params.linkedTreePersonName.trim().slice(0, 120) || undefined
+      : existingMember?.linkedTreePersonName;
+
   const memberObj: KinshipCircleMember = cleanUndefined({
+    ...(existingMember || {}),
     id:
-      existingIdx >= 0
-        ? current.members[existingIdx].id
-        : `kin_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      existingMember?.id ||
+      `kin_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     name: cleanName,
     email: cleanEmail,
     kinshipRelation: cleanRel,
     inviteToken,
-    addedAt: existingIdx >= 0 ? current.members[existingIdx].addedAt : nowIso,
-    approvedEnrichmentsCount:
-      existingIdx >= 0
-        ? current.members[existingIdx].approvedEnrichmentsCount || 0
-        : 0,
-    status:
-      existingIdx >= 0 && current.members[existingIdx].status === 'ACTIVE'
-        ? 'ACTIVE'
-        : 'SENT',
-    claimedByUid:
-      existingIdx >= 0 ? current.members[existingIdx].claimedByUid : undefined,
-    claimedAt:
-      existingIdx >= 0 ? current.members[existingIdx].claimedAt : undefined,
+    addedAt: existingMember?.addedAt || nowIso,
+    approvedEnrichmentsCount: existingMember?.approvedEnrichmentsCount || 0,
+    role: resolvedRole,
+    linkedTreePersonId: resolvedLinkedId,
+    linkedTreePersonName: resolvedLinkedName,
+    status: existingMember?.status === 'ACTIVE' ? 'ACTIVE' : 'SENT',
+    claimedByUid: existingMember?.claimedByUid,
+    claimedAt: existingMember?.claimedAt,
   });
 
   const nextMembers =
@@ -2692,6 +2729,7 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
       : [...current.members, memberObj].slice(0, 450);
 
   const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...current,
     ownerId: safeUid,
     familyName: cleanFamilyName,
     siteSlug: targetSlug || current.siteSlug,
@@ -2890,6 +2928,232 @@ export async function removeRelativeFromKinshipCircle(params: {
   }
 
   return updatedCircle;
+}
+
+export async function updateKinshipCircleMemberMeta(params: {
+  ownerId: string;
+  memberId: string;
+  role?: KinshipCircleMemberRole;
+  linkedTreePersonId?: string | null;
+  linkedTreePersonName?: string | null;
+}): Promise<KinshipCircleDoc> {
+  const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  const current = await fetchKinshipCircleForOwner(safeUid);
+
+  const nextMembers = current.members.map((m) => {
+    if (m.id !== params.memberId) return m;
+    const nextLinkedId =
+      params.linkedTreePersonId === undefined
+        ? m.linkedTreePersonId
+        : params.linkedTreePersonId || undefined;
+    const nextLinkedName =
+      params.linkedTreePersonName === undefined
+        ? m.linkedTreePersonName
+        : params.linkedTreePersonName?.slice(0, 120) || undefined;
+    return cleanUndefined({
+      ...m,
+      role: params.role || m.role || 'memory_contributor',
+      linkedTreePersonId: nextLinkedId,
+      linkedTreePersonName: nextLinkedName,
+    });
+  });
+
+  const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...current,
+    ownerId: safeUid,
+    familyName: current.familyName || 'العائلة',
+    members: nextMembers,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_circles', safeUid],
+    updatedCircle as unknown as Record<string, unknown>
+  );
+  return updatedCircle;
+}
+
+export async function rotateKinshipMajlisInviteToken(params: {
+  ownerId: string;
+  familyName?: string;
+  siteSlug?: string;
+}): Promise<KinshipCircleDoc> {
+  const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  const current = await fetchKinshipCircleForOwner(safeUid);
+  const freshToken = `mj_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+
+  const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...current,
+    ownerId: safeUid,
+    familyName: (params.familyName || current.familyName || 'العائلة').slice(
+      0,
+      90
+    ),
+    siteSlug:
+      normalizePublicSiteSlug(params.siteSlug || current.siteSlug || '') ||
+      current.siteSlug,
+    majlisInviteToken: freshToken,
+    majlisInviteRotatedAt: nowIso,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_circles', safeUid],
+    updatedCircle as unknown as Record<string, unknown>
+  );
+  return updatedCircle;
+}
+
+export async function createFamilyMemoryQuest(params: {
+  ownerId: string;
+  familyName?: string;
+  siteSlug?: string;
+  title: string;
+  promptText: string;
+  category: MemoryQuestCategory;
+}): Promise<KinshipCircleDoc> {
+  const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  const current = await fetchKinshipCircleForOwner(safeUid);
+
+  const newQuest: FamilyMemoryQuest = {
+    id: `qst_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    title: params.title.trim().slice(0, 140),
+    promptText: params.promptText.trim().slice(0, 600),
+    category: params.category,
+    status: 'ACTIVE',
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  const nextQuests = [newQuest, ...(current.memoryQuests || [])].slice(0, 40);
+
+  const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...current,
+    ownerId: safeUid,
+    familyName: (params.familyName || current.familyName || 'العائلة').slice(
+      0,
+      90
+    ),
+    siteSlug:
+      normalizePublicSiteSlug(params.siteSlug || current.siteSlug || '') ||
+      current.siteSlug,
+    memoryQuests: nextQuests,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_circles', safeUid],
+    updatedCircle as unknown as Record<string, unknown>
+  );
+  return updatedCircle;
+}
+
+export async function updateFamilyMemoryQuestStatus(params: {
+  ownerId: string;
+  questId: string;
+  action: 'ACTIVE' | 'ARCHIVED' | 'DELETE';
+}): Promise<KinshipCircleDoc> {
+  const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  const current = await fetchKinshipCircleForOwner(safeUid);
+
+  const prevQuests = Array.isArray(current.memoryQuests)
+    ? current.memoryQuests
+    : [];
+  const nextQuests: FamilyMemoryQuest[] =
+    params.action === 'DELETE'
+      ? prevQuests.filter((q) => q.id !== params.questId)
+      : prevQuests.map((q) => {
+          if (q.id !== params.questId) return q;
+          const nextStatus: 'ACTIVE' | 'ARCHIVED' =
+            params.action === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE';
+          return { ...q, status: nextStatus, updatedAt: nowIso };
+        });
+
+  const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...current,
+    ownerId: safeUid,
+    familyName: current.familyName || 'العائلة',
+    memoryQuests: nextQuests,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_circles', safeUid],
+    updatedCircle as unknown as Record<string, unknown>
+  );
+  return updatedCircle;
+}
+
+export async function fetchOwnerMicrositeForCommunity(
+  ownerId: string,
+  preferredSlug?: string
+): Promise<PublicMicrositeData | null> {
+  const safeUid = (ownerId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeUid) return null;
+
+  const cleanSlug = normalizePublicSiteSlug(preferredSlug || '');
+  if (cleanSlug && cleanSlug.length >= 3 && !PROTECTED_SYSTEM_PATHS.has(cleanSlug)) {
+    const direct = await readDualDoc<PublicMicrositeData>([
+      'public_sites',
+      cleanSlug,
+    ]);
+    if (
+      direct &&
+      (direct.ownerId === safeUid || direct.ownerUid === safeUid)
+    ) {
+      return direct;
+    }
+  }
+
+  const allowPrimary = Boolean(
+    auth.currentUser &&
+      (auth.currentUser.uid === safeUid || isRuntimeStaffSession(auth))
+  );
+  const allowMirror = Boolean(
+    mirrorAuth.currentUser &&
+      (mirrorAuth.currentUser.uid === safeUid ||
+        isRuntimeStaffSession(mirrorAuth))
+  );
+  if (!allowPrimary && !allowMirror) return null;
+
+  const [pSnap, mSnap] = await Promise.allSettled([
+    allowPrimary
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(db, 'public_sites'),
+              where('ownerId', '==', safeUid)
+            )
+          ),
+          2800
+        )
+      : Promise.reject(new Error('SKIP')),
+    allowMirror
+      ? fastTimeout(
+          getDocs(
+            query(
+              collection(mirrorDb, 'public_sites'),
+              where('ownerId', '==', safeUid)
+            )
+          ),
+          2800
+        )
+      : Promise.reject(new Error('SKIP')),
+  ]);
+
+  if (pSnap.status === 'fulfilled' && !pSnap.value.empty) {
+    return pSnap.value.docs[0].data() as PublicMicrositeData;
+  }
+  if (mSnap.status === 'fulfilled' && !mSnap.value.empty) {
+    return mSnap.value.docs[0].data() as PublicMicrositeData;
+  }
+  return null;
 }
 
 /**
@@ -3698,12 +3962,9 @@ export async function reviewAndMergeEnrichmentRequest(params: {
 // =============================================================================
 // 5. $10 ATOMIC REFERRAL DASHBOARD LOADER (`referral_codes/{code}`)
 // =============================================================================
-export async function fetchUserReferralDashboard(
-  userId: string,
-  ownerFullName = ''
-): Promise<{
+export interface ReferralDashboardStats {
   referralCode: string;
-  rewardPerAnnualSubUsd: number;
+  rewardPerAnnualSubUsd?: number;
   invitees: Array<{
     userId: string;
     fullName: string;
@@ -3714,7 +3975,12 @@ export async function fetchUserReferralDashboard(
   registeredCount: number;
   rewardedAnnualCount: number;
   totalEarnedUsd: number;
-}> {
+}
+
+export async function fetchUserReferralDashboard(
+  userId: string,
+  ownerFullName = ''
+): Promise<ReferralDashboardStats> {
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const referralCode = buildDeterministicReferralCode(safeUid || 'usr_guest');
 

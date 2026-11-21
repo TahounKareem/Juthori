@@ -229,6 +229,45 @@ service cloud.firestore {
         );
     }
 
+    // Verified Ledger Entitlement Self-Heal:
+    // If an immutable, already-existing COMPLETED wallet_transactions record owned by this user proves
+    // a $5 Root Unlock or $60 Annual VIP payment, allow syncing subscriptionTier/isRootUnlocked ONLY
+    // while keeping walletBalance strictly unchanged.
+    function isVerifiedExistingLedgerEntitlementSync(userId, data, prev) {
+      return data.walletBalance == prev.walletBalance
+        && 'lastWalletTransactionId' in data
+        && data.lastWalletTransactionId is string
+        && data.lastWalletTransactionId.size() > 0
+        && data.lastWalletTransactionId.size() <= 60
+        && exists(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId))
+        && get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.userId == userId
+        && (
+          !('status' in get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data)
+          || get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.status == 'COMPLETED'
+        )
+        && (
+          !(data.subscriptionTier == 'premium_annual' && prev.subscriptionTier != 'premium_annual')
+          || (
+            get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.type in ['UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR']
+            && get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.amount >= 55
+          )
+        )
+        && (
+          !('isRootUnlocked' in data && data.isRootUnlocked == true && (!('isRootUnlocked' in prev) || prev.isRootUnlocked == false))
+          || (
+            get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.type in ['PURCHASE_ROOT_5USD', 'UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR']
+            && get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.amount >= 5
+          )
+        )
+        && (
+          !(data.subscriptionTier == 'basic_verified' && prev.subscriptionTier == 'free')
+          || (
+            get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.type in ['PURCHASE_ROOT_5USD', 'UPGRADE_ANNUAL_VIP', 'UPGRADE_REGISTRAR']
+            && get(/databases/$(database)/documents/wallet_transactions/$(data.lastWalletTransactionId)).data.amount >= 5
+          )
+        );
+    }
+
     // Allows invitee B's atomic `UPGRADE_ANNUAL_VIP` transaction to credit +$10 to referrer A's wallet exactly once
     function isAtomicReferrerRewardCredit(referrerUid, data, prev) {
       return isSignedIn()
@@ -703,6 +742,7 @@ service cloud.firestore {
             && (
               isNonFinancialProfileUpdate(incoming(), existing())
               || isLedgerBackedWalletOrTierUpdate(userId, incoming(), existing())
+              || isVerifiedExistingLedgerEntitlementSync(userId, incoming(), existing())
             )
           )
           || isAtomicReferrerRewardCredit(userId, incoming(), existing())
