@@ -214,7 +214,10 @@ export interface TreePosterSettings {
   inkSaverMode: boolean;
 }
 
+export const TREE_DISPLAY_SETTINGS_SCHEMA_VERSION = 3;
+
 export interface TreeDisplaySettings {
+  defaultsSchemaVersion?: number;
   cardTheme: TreeCardThemeId;
   avatarStyle: TreeAvatarStyle;
   fontFamily: TreeArabicFontId;
@@ -811,27 +814,28 @@ export const DEFAULT_POSTER_SETTINGS: TreePosterSettings = {
 };
 
 export const DEFAULT_TREE_DISPLAY_SETTINGS: TreeDisplaySettings = {
-  cardTheme: 'heritage',
+  defaultsSchemaVersion: TREE_DISPLAY_SETTINGS_SCHEMA_VERSION,
+  cardTheme: 'diriyah_oasis',
   avatarStyle: 'heritage',
   fontFamily: 'cairo_modern',
   preferRealPhotos: true,
   femalePrivacyMode: 'full_name',
   showHonorific: true,
   showKunya: true,
-  showDates: false,
+  showDates: true,
   showKinshipArrows: true,
   layoutOrientation: 'vertical',
   nodeShape: 'card',
-  cardDensity: 'balanced',
+  cardDensity: 'detailed',
   connectorStyle: 'orthogonal',
-  canvasBackground: 'dots',
+  canvasBackground: 'marble',
   showGenerationBar: false,
-  highlightDirectCompass: false,
+  highlightDirectCompass: true,
   vitalStatusFilter: 'all',
   showDeceasedDignityFrame: true,
   spouseDisplayMode: 'always',
-  calendarDisplayMode: 'gregorian',
-  siblingSortOrder: 'added',
+  calendarDisplayMode: 'dual',
+  siblingSortOrder: 'birth_oldest',
   showPrestigeBadges: true,
   poster: { ...DEFAULT_POSTER_SETTINGS },
 };
@@ -848,6 +852,21 @@ export function normalizeTreeDisplaySettings(
   const p = raw as Partial<TreeDisplaySettings> & {
     poster?: Partial<TreePosterSettings>;
   };
+
+  // Upgrade legacy auto-saved v1/v2 payloads cleanly to v3 museum defaults
+  if (p.defaultsSchemaVersion !== TREE_DISPLAY_SETTINGS_SCHEMA_VERSION) {
+    const customTitle =
+      p.poster && typeof p.poster.customTitle === 'string'
+        ? p.poster.customTitle.slice(0, 120)
+        : '';
+    return {
+      ...DEFAULT_TREE_DISPLAY_SETTINGS,
+      poster: {
+        ...DEFAULT_POSTER_SETTINGS,
+        customTitle,
+      },
+    };
+  }
 
   const validAvatars = new Set<TreeAvatarStyle>([
     'heritage',
@@ -878,6 +897,7 @@ export function normalizeTreeDisplaySettings(
     p.poster && typeof p.poster === 'object' ? p.poster : {};
 
   return {
+    defaultsSchemaVersion: TREE_DISPLAY_SETTINGS_SCHEMA_VERSION,
     cardTheme:
       p.cardTheme && p.cardTheme in TREE_CARD_THEMES
         ? (p.cardTheme as TreeCardThemeId)
@@ -896,59 +916,92 @@ export function normalizeTreeDisplaySettings(
         : DEFAULT_TREE_DISPLAY_SETTINGS.preferRealPhotos,
     femalePrivacyMode:
       p.femalePrivacyMode === 'kunya_only' ||
-      p.femalePrivacyMode === 'hide_females'
+      p.femalePrivacyMode === 'hide_females' ||
+      p.femalePrivacyMode === 'full_name'
         ? p.femalePrivacyMode
-        : 'full_name',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.femalePrivacyMode,
     showHonorific:
-      typeof p.showHonorific === 'boolean' ? p.showHonorific : true,
-    showKunya: typeof p.showKunya === 'boolean' ? p.showKunya : true,
-    showDates: typeof p.showDates === 'boolean' ? p.showDates : false,
+      typeof p.showHonorific === 'boolean'
+        ? p.showHonorific
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showHonorific,
+    showKunya:
+      typeof p.showKunya === 'boolean'
+        ? p.showKunya
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showKunya,
+    showDates:
+      typeof p.showDates === 'boolean'
+        ? p.showDates
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showDates,
     showKinshipArrows:
-      typeof p.showKinshipArrows === 'boolean' ? p.showKinshipArrows : true,
+      typeof p.showKinshipArrows === 'boolean'
+        ? p.showKinshipArrows
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showKinshipArrows,
     layoutOrientation:
       p.layoutOrientation && validLayouts.has(p.layoutOrientation)
         ? p.layoutOrientation
-        : 'vertical',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.layoutOrientation,
     nodeShape:
-      p.nodeShape === 'circle' || p.nodeShape === 'leaf' ? p.nodeShape : 'card',
+      p.nodeShape === 'circle' ||
+      p.nodeShape === 'leaf' ||
+      p.nodeShape === 'card'
+        ? p.nodeShape
+        : DEFAULT_TREE_DISPLAY_SETTINGS.nodeShape,
     cardDensity:
-      p.cardDensity === 'detailed' || p.cardDensity === 'compact'
+      p.cardDensity === 'detailed' ||
+      p.cardDensity === 'balanced' ||
+      p.cardDensity === 'compact'
         ? p.cardDensity
-        : 'balanced',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.cardDensity,
     connectorStyle:
-      p.connectorStyle === 'curved' || p.connectorStyle === 'heritage_branch'
+      p.connectorStyle === 'curved' ||
+      p.connectorStyle === 'heritage_branch' ||
+      p.connectorStyle === 'orthogonal'
         ? p.connectorStyle
-        : 'orthogonal',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.connectorStyle,
     canvasBackground:
-      p.canvasBackground === 'parchment' || p.canvasBackground === 'marble'
+      p.canvasBackground === 'dots' ||
+      p.canvasBackground === 'parchment' ||
+      p.canvasBackground === 'marble'
         ? p.canvasBackground
-        : 'dots',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.canvasBackground,
     showGenerationBar:
-      typeof p.showGenerationBar === 'boolean' ? p.showGenerationBar : false,
+      typeof p.showGenerationBar === 'boolean'
+        ? p.showGenerationBar
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showGenerationBar,
     highlightDirectCompass:
       typeof p.highlightDirectCompass === 'boolean'
         ? p.highlightDirectCompass
-        : false,
+        : DEFAULT_TREE_DISPLAY_SETTINGS.highlightDirectCompass,
     vitalStatusFilter:
-      p.vitalStatusFilter === 'living' || p.vitalStatusFilter === 'deceased'
+      p.vitalStatusFilter === 'living' ||
+      p.vitalStatusFilter === 'deceased' ||
+      p.vitalStatusFilter === 'all'
         ? p.vitalStatusFilter
-        : 'all',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.vitalStatusFilter,
     showDeceasedDignityFrame:
       typeof p.showDeceasedDignityFrame === 'boolean'
         ? p.showDeceasedDignityFrame
-        : true,
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showDeceasedDignityFrame,
     spouseDisplayMode:
-      p.spouseDisplayMode === 'on_select' || p.spouseDisplayMode === 'hidden'
+      p.spouseDisplayMode === 'on_select' ||
+      p.spouseDisplayMode === 'hidden' ||
+      p.spouseDisplayMode === 'always'
         ? p.spouseDisplayMode
-        : 'always',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.spouseDisplayMode,
     calendarDisplayMode:
-      p.calendarDisplayMode === 'hijri' || p.calendarDisplayMode === 'dual'
+      p.calendarDisplayMode === 'hijri' ||
+      p.calendarDisplayMode === 'gregorian' ||
+      p.calendarDisplayMode === 'dual'
         ? p.calendarDisplayMode
-        : 'gregorian',
+        : DEFAULT_TREE_DISPLAY_SETTINGS.calendarDisplayMode,
     siblingSortOrder:
-      p.siblingSortOrder === 'birth_oldest' ? 'birth_oldest' : 'added',
+      p.siblingSortOrder === 'added' || p.siblingSortOrder === 'birth_oldest'
+        ? p.siblingSortOrder
+        : DEFAULT_TREE_DISPLAY_SETTINGS.siblingSortOrder,
     showPrestigeBadges:
-      typeof p.showPrestigeBadges === 'boolean' ? p.showPrestigeBadges : true,
+      typeof p.showPrestigeBadges === 'boolean'
+        ? p.showPrestigeBadges
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showPrestigeBadges,
     poster: {
       paperSize:
         rawPoster.paperSize === 'A4' ||

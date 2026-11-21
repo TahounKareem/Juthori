@@ -12,7 +12,6 @@ import {
   Lock,
   Palette,
   Printer,
-  Sparkles,
   Type,
   X,
 } from 'lucide-react';
@@ -178,43 +177,13 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
         </div>
 
         {/* ================================================================ */}
-        {/* SETTINGS INSPECTOR HEADER                                        */}
+        {/* 4 SEGMENTED ICON TABS + CLOSE BUTTON (DIRECT TOP BAR)            */}
         {/* ================================================================ */}
-        <div className="px-4 pt-3 pb-3 bg-white border-b border-[#E5DDD0] shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-7 h-7 rounded-xl bg-[#F5E6DC] border border-[#D8755B]/40 flex items-center justify-center text-[#8D4925] shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="text-[13px] font-display font-extrabold text-[#252321] truncate">
-                  إعدادات شجرتي
-                </h3>
-                <p className="text-[10px] text-[#252321]/60 truncate">
-                  تخصيص لحظي متزامن مع السحابة
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              title="إغلاق إعدادات شجرتي"
-              aria-label="إغلاق إعدادات شجرتي"
-              className="w-7 h-7 rounded-lg bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#E5DDD0] flex items-center justify-center text-[#252321]/75 hover:text-[#8D4925] transition-colors cursor-pointer shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* ================================================================ */}
-        {/* 4 SEGMENTED ICON TABS                                            */}
-        {/* ================================================================ */}
-        <div className="px-3 py-2 bg-[#FAF6F0] border-b border-[#E5DDD0] shrink-0">
+        <div className="px-2.5 py-2 bg-white border-b border-[#E5DDD0] shrink-0 flex items-stretch gap-1.5">
           <div
             role="tablist"
-            aria-label="تبويبات استوديو شجرتي"
-            className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#EFE8DC] border border-[#DFD4C2]"
+            aria-label="تبويبات إعدادات شجرتي"
+            className="flex-1 grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#EFE8DC] border border-[#DFD4C2]"
           >
             {(
               [
@@ -262,6 +231,15 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               );
             })}
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            title="إغلاق إعدادات شجرتي"
+            aria-label="إغلاق إعدادات شجرتي"
+            className="w-8 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#DFD4C2] flex items-center justify-center text-[#252321]/75 hover:text-[#8D4925] transition-colors cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* ================================================================ */}
@@ -351,7 +329,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       },
                       {
                         id: 'leaf',
-                        label: 'ورقة شجر',
+                        label: 'ورقة',
                         icon: Leaf,
                         testId: 'node-shape-leaf-btn',
                       },

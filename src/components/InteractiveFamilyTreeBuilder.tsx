@@ -856,7 +856,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // ============================================================================
   const treeDisplaySettingsStorageKey = useMemo(
     () =>
-      `juthori_tree_display_settings_v2_${userId || 'guest'}_${
+      `juthori_tree_display_settings_v3_${userId || 'guest'}_${
         result.familyName || 'default'
       }`,
     [userId, result.familyName]
@@ -1331,11 +1331,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // Display Depth Selector State (محدّد مدى العرض فوق الشجرة)
   const computeDefaultSpineDepth = (): TreeSpineDepthMode => {
     if (!result.matched) return 'family';
-    if (result.isAlphaOnlyBeforeMerge && !result.isAlphaMergedIntoAdam) {
-      return caps.isRootUnlocked || caps.isVip ? 'mother_tribe' : 'family';
+    if (caps.isRootUnlocked || caps.isVip || caps.areUpperAncestorsUnlocked) {
+      return 'mother_tribe';
     }
-    if (caps.isVip || caps.areUpperAncestorsUnlocked) return 'adam_full';
-    if (caps.isRootUnlocked) return 'mother_tribe';
     return 'family';
   };
 
@@ -4669,7 +4667,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           className="flex flex-col items-center w-9 sm:w-11 self-stretch shrink-0 relative"
           aria-label={`جسر اقتران ${person.firstName} و${spouse.firstName}`}
         >
-          <div className="w-full mt-9 flex items-center justify-center relative">
+          {/* Vertical golden descent stem starting seamlessly behind the 💍 medallion down to the bottom of Row 1 */}
+          {hasUnionChildren && (
+            <div
+              data-testid={`marital-bridge-offspring-stem-${spouse.id}`}
+              className="absolute top-[48px] bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-[#C5A059] z-10"
+            />
+          )}
+          <div className="w-full mt-9 flex items-center justify-center relative z-20">
             <div className="w-full flex flex-col gap-[3px]">
               <div className="w-full h-[1.5px] bg-[#C5A059]/85" />
               <div className="w-full h-[1.5px] bg-[#C5A059]/85" />
@@ -4678,12 +4683,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               {renderMaritalRingMedallion(spouse)}
             </div>
           </div>
-          {hasUnionChildren && (
-            <div
-              data-testid={`marital-bridge-offspring-stem-${spouse.id}`}
-              className="w-[2px] flex-1 min-h-[24px] bg-gradient-to-b from-[#C5A059] to-[#C5A059]/60 mt-2"
-            />
-          )}
         </div>
       );
     };
@@ -4942,45 +4941,117 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           )}
 
         {/* ================================================================= */}
-        {/* HUSBAND-ANCHORED MARITAL HUB (`grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]`) */}
-        {/* Guarantees incoming paternal stem ALWAYS lands on exact center of Husband!  */}
+        {/* HUSBAND-ANCHORED MARITAL HUB + PIXEL-ALIGNED GOLDEN ELBOW JUNCTION */}
+        {/* Guarantees incoming paternal stem lands on Husband center (X=50%)  */}
+        {/* AND active wife 💍 stems physically curve & connect into children! */}
         {/* ================================================================= */}
         {shouldShowSpouses ? (
-          <div
-            dir="rtl"
-            data-testid={`pedigree-couple-unit-${person.id}`}
-            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start"
-          >
-            {/* RIGHT FLANK (Column 1 in RTL) */}
-            <div className="flex flex-row justify-end items-start">
-              {renderMultiWifeSideFlank(spouseHub.rightSpouses, 'right')}
-            </div>
+          (() => {
+            const showActiveMaternalElbow =
+              !isBranchCollapsed &&
+              children.length > 0 &&
+              childRouting.hasVisibleMaternalRouting;
+            const hasRightBridgeElbow =
+              showActiveMaternalElbow &&
+              spouseHub.rightSpouses.length === 1 &&
+              childRouting.rightMaternalGroups.length > 0;
+            const hasLeftBridgeElbow =
+              showActiveMaternalElbow &&
+              spouseHub.leftSpouses.length === 1 &&
+              childRouting.leftMaternalGroups.length > 0;
+            const hasCenterPaternalDrop =
+              showActiveMaternalElbow &&
+              (childRouting.paternalOnlyChildren.length > 0 ||
+                (spouseHub.rightSpouses.length >= 2 &&
+                  childRouting.rightMaternalGroups.length > 0) ||
+                (spouseHub.leftSpouses.length >= 2 &&
+                  childRouting.leftMaternalGroups.length > 0));
 
-            {/* EXACT CENTER ANCHOR (Column 2 = X: 50% ALWAYS = Husband/Primary Bloodline) */}
-            <div
-              data-testid={`husband-center-anchor-${person.id}`}
-              className={`flex flex-col items-center relative ${
-                hasElevatedMultiBus ? 'pt-9' : ''
-              }`}
-            >
-              {hasElevatedMultiBus && (
-                /* Vertical extension connecting top paternal arrow cleanly down into the husband card */
+            return (
+              <div
+                dir="rtl"
+                data-testid={`pedigree-couple-unit-${person.id}`}
+                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch"
+              >
+                {/* ROW 1 — COL 1: RIGHT FLANK (physical right in RTL) */}
+                <div className="flex flex-row justify-end items-stretch">
+                  {renderMultiWifeSideFlank(spouseHub.rightSpouses, 'right')}
+                </div>
+
+                {/* ROW 1 — COL 2: EXACT CENTER ANCHOR (Husband) */}
                 <div
-                  className={`absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-9 ${
-                    treeNode.isDirectSpineEdge
-                      ? activeTreeTheme.connectorStrong
-                      : activeTreeTheme.connectorSoft
-                  }`}
-                />
-              )}
-              {renderPersonCard(person)}
-            </div>
+                  data-testid={`husband-center-anchor-${person.id}`}
+                  className={`flex flex-col items-center relative ${
+                    hasElevatedMultiBus ? 'pt-9' : ''
+                  } ${showActiveMaternalElbow ? 'pb-6' : ''}`}
+                >
+                  {hasElevatedMultiBus && (
+                    /* Vertical extension connecting top paternal arrow cleanly down into the husband card */
+                    <div
+                      className={`absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-9 ${
+                        treeNode.isDirectSpineEdge
+                          ? activeTreeTheme.connectorStrong
+                          : activeTreeTheme.connectorSoft
+                      }`}
+                    />
+                  )}
+                  {renderPersonCard(person)}
+                </div>
 
-            {/* LEFT FLANK (Column 3 in RTL) */}
-            <div className="flex flex-row justify-start items-start">
-              {renderMultiWifeSideFlank(spouseHub.leftSpouses, 'left')}
-            </div>
-          </div>
+                {/* ROW 1 — COL 3: LEFT FLANK (physical left in RTL) */}
+                <div className="flex flex-row justify-start items-stretch">
+                  {renderMultiWifeSideFlank(spouseHub.leftSpouses, 'left')}
+                </div>
+
+                {/* ROW 2: CONTINUOUS GOLDEN ELBOW CONNECTING 💍 STEM(S) -> EXACT CENTER OF CHILDREN */}
+                {showActiveMaternalElbow && (
+                  <>
+                    {/* ROW 2 — COL 1: Smooth 90° Golden Elbow from Right Wife 💍 Stem -> Center */}
+                    <div className="flex flex-row justify-end items-stretch h-4">
+                      {hasRightBridgeElbow && (
+                        <div
+                          data-testid={`marital-elbow-right-${person.id}`}
+                          className="w-9 sm:w-11 h-full relative shrink-0"
+                        >
+                          <div className="absolute top-0 bottom-0 left-0 right-[calc(50%-1px)] border-r-2 border-b-2 border-[#C5A059] rounded-br-xl" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ROW 2 — COL 2: Horizontal Collector Rail under Husband meeting at exact X = 50% */}
+                    <div
+                      data-testid={`marital-union-elbow-junction-${person.id}`}
+                      className="h-4 relative"
+                    >
+                      {hasRightBridgeElbow && (
+                        <div className="absolute bottom-0 right-0 left-[calc(50%-1px)] h-[2px] bg-[#C5A059]" />
+                      )}
+                      {hasLeftBridgeElbow && (
+                        <div className="absolute bottom-0 left-0 right-[calc(50%-1px)] h-[2px] bg-[#C5A059]" />
+                      )}
+                      {hasCenterPaternalDrop && (
+                        <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-[#C5A059]" />
+                      )}
+                      {/* Crisp junction dot where marital elbow(s) descend into the offspring stem */}
+                      <div className="absolute -bottom-[3px] left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-[#C5A059] ring-2 ring-[#FAF6F0]" />
+                    </div>
+
+                    {/* ROW 2 — COL 3: Smooth 90° Golden Elbow from Left Wife 💍 Stem -> Center */}
+                    <div className="flex flex-row justify-start items-stretch h-4">
+                      {hasLeftBridgeElbow && (
+                        <div
+                          data-testid={`marital-elbow-left-${person.id}`}
+                          className="w-9 sm:w-11 h-full relative shrink-0"
+                        >
+                          <div className="absolute top-0 bottom-0 right-0 left-[calc(50%-1px)] border-l-2 border-b-2 border-[#C5A059] rounded-bl-xl" />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <div className="relative flex flex-col items-center">
             {renderPersonCard(person)}
@@ -4999,37 +5070,46 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           </div>
         )}
 
-        {/* Branch Collapse / Expand Control for Parents with Descendants */}
+        {/* Branch Collapse / Expand Control Inline on Continuous Stem (Zero Visual Gaps) */}
         {children.length > 0 && (
-          <button
-            type="button"
-            data-testid={`toggle-branch-collapse-${person.id}`}
-            onClick={() => toggleBranchCollapse(person.id)}
-            title={
-              isBranchCollapsed
-                ? `إظهار ذرية ${person.firstName} (${descendantCount})`
-                : `طيّ فرع ${person.firstName} (${descendantCount})`
-            }
-            className={`mt-1 mb-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-display font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
-              isBranchCollapsed
-                ? 'bg-[#D8755B] text-white border-[#B85A42] shadow-xs'
-                : activeTreeTheme.isDarkSurface
-                ? 'bg-[#262019]/90 hover:bg-[#332B21] text-[#F3D299] border-[#D4AF37]/40'
-                : 'bg-white/90 hover:bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/40'
-            }`}
-          >
-            {isBranchCollapsed ? (
-              <>
-                <ChevronLeft className="w-2.5 h-2.5" />
-                <span>إظهار الذرية ({descendantCount})</span>
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-2.5 h-2.5" />
-                <span>{descendantCount}</span>
-              </>
+          <div className="flex flex-col items-center">
+            {!isBranchCollapsed && childRouting.hasVisibleMaternalRouting && (
+              <div className="w-[2px] h-2.5 bg-[#C5A059]" />
             )}
-          </button>
+            <button
+              type="button"
+              data-testid={`toggle-branch-collapse-${person.id}`}
+              onClick={() => toggleBranchCollapse(person.id)}
+              title={
+                isBranchCollapsed
+                  ? `إظهار ذرية ${person.firstName} (${descendantCount})`
+                  : `طيّ فرع ${person.firstName} (${descendantCount})`
+              }
+              className={`${
+                !isBranchCollapsed && childRouting.hasVisibleMaternalRouting
+                  ? ''
+                  : 'mt-1 mb-0.5'
+              } px-2 py-0.5 rounded-full text-[9.5px] font-display font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
+                isBranchCollapsed
+                  ? 'bg-[#D8755B] text-white border-[#B85A42] shadow-xs'
+                  : activeTreeTheme.isDarkSurface
+                  ? 'bg-[#262019]/90 hover:bg-[#332B21] text-[#F3D299] border-[#D4AF37]/40'
+                  : 'bg-white/95 hover:bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/55'
+              }`}
+            >
+              {isBranchCollapsed ? (
+                <>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                  <span>إظهار الذرية ({descendantCount})</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-2.5 h-2.5" />
+                  <span>{descendantCount}</span>
+                </>
+              )}
+            </button>
+          </div>
         )}
 
         {/* ================================================================= */}
@@ -5092,9 +5172,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     data-testid={`pedigree-maternal-union-single-${onlyLane.key}`}
                     className="flex flex-col items-center"
                   >
-                    {/* Golden marital union stem descending with union caption */}
+                    {/* Continuous golden union stem descending with couple caption */}
                     <div className="flex flex-col items-center">
-                      <div className="w-[2px] h-3.5 bg-[#C5A059]" />
+                      <div className="w-[2px] h-2.5 bg-[#C5A059]" />
                       <div className="px-2.5 py-0.5 rounded-full bg-[#FEF9EC] border border-[#C5A059]/65 text-[10px] font-display font-extrabold text-[#78350F] inline-flex items-center gap-1 shadow-2xs">
                         <span aria-hidden="true">💍</span>
                         <span>{onlyLane.label}</span>

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Award,
   BookOpen,
   Camera,
   Check,
@@ -14,7 +13,6 @@ import {
   MapPin,
   Paperclip,
   RotateCcw,
-  Sparkles,
   Upload,
   User,
   X,
@@ -27,9 +25,7 @@ import type {
 import {
   TreeCardThemeDefinition,
   TreePrestigeBadgeId,
-  formatTreeDateByCalendarMode,
   getPrestigeBadgeOptionsForGender,
-  resolvePrestigeBadgeMeta,
 } from '../utils/treeStudioConfig';
 
 export type MaleHonorificTitle =
@@ -344,86 +340,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
     : null;
 
   const isCreatingInlineMother = formMotherId === NEW_MOTHER_SENTINEL;
-  const selectedMother =
-    !isCreatingInlineMother
-      ? motherOptions.find((m) => m.id === formMotherId) || null
-      : null;
-  const previewMotherLabel = isCreatingInlineMother
-    ? inlineNewMotherName.trim()
-      ? `${inlineNewMotherName.trim()} (جديدة)`
-      : 'أم جديدة'
-    : selectedMother
-    ? selectedMother.firstName
-    : '';
-  const activePrestigeMeta = showPrestigeBadges
-    ? resolvePrestigeBadgeMeta(formPrestigeBadge, formGender)
-    : null;
-
-  // Live preview computed labels (automatically reflects selected existing wife when linking mother!)
-  const cleanPreviewFirst = chosenExistingWifeForMotherFlow
-    ? chosenExistingWifeForMotherFlow.firstName
-    : formFirstName.trim();
-  const previewName = cleanPreviewFirst
-    ? !chosenExistingWifeForMotherFlow &&
-      showHonorific &&
-      formHonorific &&
-      formHonorific !== 'بدون'
-      ? `${formHonorific} ${cleanPreviewFirst}`
-      : cleanPreviewFirst
-    : 'الاسم الكريم...';
-  const previewPhoto = chosenExistingWifeForMotherFlow
-    ? chosenExistingWifeForMotherFlow.photoThumbnailUrl ||
-      chosenExistingWifeForMotherFlow.photoUrl ||
-      ''
-    : formPhotoUrl;
-  const previewKunya = chosenExistingWifeForMotherFlow
-    ? chosenExistingWifeForMotherFlow.kunya || ''
-    : formKunya.trim();
-
-  const previewDateParts: string[] = [];
-  if (formBirthDate.trim()) {
-    const formatted = formatTreeDateByCalendarMode(
-      formBirthDate.trim(),
-      formBirthCalendar,
-      calendarDisplayMode
-    );
-    if (formatted) {
-      const prefix =
-        formBirthPrecision === 'approximate'
-          ? 'قرابة '
-          : formBirthPrecision === 'era'
-          ? 'حقبة '
-          : '';
-      previewDateParts.push(`${prefix}${formatted}`);
-    }
-  }
-  if (formVitalStatus === 'deceased' && showDeceasedDignityFrame) {
-    previewDateParts.push(isFemale ? 'رحمها الله' : 'رحمه الله');
-  } else if (formVitalStatus === 'living') {
-    previewDateParts.push(isFemale ? 'حفظها الله' : 'حفظه الله');
-  }
-  const previewMetaLine = previewDateParts.join(' · ');
-
-  const previewSubAlliance = isSpouseRole
-    ? formMaidenFamilyLine.trim()
-    : isDaughterRole
-    ? formMarriageAllianceNote.trim()
-    : '';
-
-  const previewSurfaceClass = isRecordKeeperTarget
-    ? activeTreeTheme.recordKeeperCard
-    : isVerticalOnlyModal
-    ? activeTreeTheme.verticalCard
-    : isFemale
-    ? activeTreeTheme.femaleCard
-    : activeTreeTheme.defaultCard;
-
-  const deceasedPreviewFrame =
-    formVitalStatus === 'deceased' && showDeceasedDignityFrame
-      ? activeTreeTheme.isDarkSurface
-        ? 'ring-2 ring-[#D4AF37]/45 border-[#9CA3AF]/80'
-        : 'ring-2 ring-[#94A3B8]/40 border-[#64748B]/80'
-      : '';
+  const cleanPreviewFirst = formFirstName.trim();
 
   const handleAppendBioPrompt = (snippet: string) => {
     const trimmed = formBiography.trim();
@@ -445,153 +362,20 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
         className="bg-[#FBF9F5] border border-[#C5A059]/60 rounded-3xl max-w-2xl w-full shadow-[0_24px_70px_-15px_rgba(28,25,23,0.45)] my-4 max-h-[93vh] overflow-y-auto text-right flex flex-col"
       >
         {/* ================================================================= */}
-        {/* 1. ROYAL STUDIO HEADER + LIVE INTERACTIVE NODE PREVIEW            */}
+        {/* 1. COMPACT SINGLE-LINE TOP BAR (DIRECTLY INTO 3 TABS)             */}
         {/* ================================================================= */}
-        <div
-          className="relative px-5 pt-4 pb-5 border-b border-[#C5A059]/30 overflow-hidden shrink-0"
-          style={{
-            backgroundColor: '#F7F2E8',
-            backgroundImage:
-              'radial-gradient(rgba(197,160,89,0.28) 1px, transparent 1px)',
-            backgroundSize: '18px 18px',
-          }}
-        >
-          {/* Top Bar: Contextual Binding Kicker + Close */}
-          <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-display font-bold text-[#8D4925]">
-                <Sparkles className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
-                <span className="truncate">{bindingHeadline}</span>
-              </div>
-              <p className="text-[11px] text-[#1C1917]/55 mt-0.5 truncate">
-                استوديو بطاقة الفرد الملكي · شجرة عائلة {familyName}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="إغلاق النافذة"
-              className="w-9 h-9 rounded-xl bg-white/90 hover:bg-white border border-[#C5A059]/35 text-[#1C1917] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Centered Live Interactive Card Preview */}
-          <div className="flex flex-col items-center justify-center relative z-10">
-            <div
-              data-testid="studio-live-card-preview"
-              className={`w-[244px] sm:w-[272px] rounded-2xl p-3.5 shadow-md transition-all duration-200 ${previewSurfaceClass} ${deceasedPreviewFrame}`}
-            >
-              {/* Top subtle row inside preview card */}
-              <div className="flex items-center justify-between gap-2 min-h-[16px] mb-1.5">
-                <span
-                  className={`text-[9.5px] font-display font-bold truncate ${activeTreeTheme.accentText}`}
-                >
-                  {isRecordKeeperTarget
-                    ? 'أمين السجل'
-                    : isSpouseRole
-                    ? 'مصاهرة كريمة'
-                    : isDaughterRole
-                    ? 'كريمة الأسرة'
-                    : formVitalStatus === 'deceased' && showDeceasedDignityFrame
-                    ? isFemale
-                      ? 'رحمها الله'
-                      : 'رحمه الله'
-                    : 'معاينة حية للبطاقة'}
-                </span>
-                {previewMotherLabel && !isSelectingExistingMother && (
-                  <span
-                    className={`text-[9px] font-semibold truncate ${activeTreeTheme.metaText}`}
-                  >
-                    الأم: {previewMotherLabel}
-                  </span>
-                )}
-              </div>
-
-              {/* Card Body: Portrait + Live Text */}
-              <div className="flex items-center gap-3">
-                <HeritageNodeAvatar
-                  personRole={
-                    isRecordKeeperTarget
-                      ? 'client'
-                      : isDaughterRole
-                      ? 'daughter'
-                      : 'child'
-                  }
-                  gender={formGender}
-                  avatarStyle={avatarStyle}
-                  customImageUrl={previewPhoto || undefined}
-                  preferRealPhoto={preferRealPhotos || Boolean(previewPhoto)}
-                  displayName={cleanPreviewFirst || (isFemale ? 'ك' : 'ف')}
-                  frameAccentHex={activeTreeTheme.primaryHex}
-                  isPrivacyMasked={false}
-                  size="md"
-                />
-
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <div
-                    className={`text-sm font-display font-extrabold truncate ${
-                      cleanPreviewFirst
-                        ? activeTreeTheme.nameText
-                        : `${activeTreeTheme.metaText} opacity-60`
-                    }`}
-                  >
-                    {previewName}
-                  </div>
-
-                  {showKunya && previewKunya && (
-                    <div
-                      className={`text-[10.5px] font-semibold truncate ${activeTreeTheme.accentText}`}
-                    >
-                      {previewKunya}
-                    </div>
-                  )}
-
-                  {(chosenExistingWifeForMotherFlow?.maidenFamilyLine ||
-                    previewSubAlliance) && (
-                    <div
-                      className={`text-[10px] font-medium truncate ${activeTreeTheme.accentText}`}
-                    >
-                      {chosenExistingWifeForMotherFlow?.maidenFamilyLine ||
-                        previewSubAlliance}
-                    </div>
-                  )}
-
-                  {showDates && previewMetaLine && (
-                    <div
-                      className={`text-[10px] font-medium tabular-nums truncate ${activeTreeTheme.metaText}`}
-                    >
-                      {previewMetaLine}
-                    </div>
-                  )}
-
-                  {formBirthPlace.trim() && (
-                    <div
-                      className={`text-[9.5px] truncate ${activeTreeTheme.metaText}`}
-                    >
-                      {formBirthPlace.trim()}
-                    </div>
-                  )}
-
-                  {activePrestigeMeta && (
-                    <div className="pt-1">
-                      <span
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-display font-extrabold border ${
-                          activeTreeTheme.isDarkSurface
-                            ? 'bg-[#D4AF37]/15 border-[#D4AF37]/45 text-[#F3D299]'
-                            : 'bg-[#FEF9EC] border-[#C5A059]/55 text-[#8D4925]'
-                        }`}
-                      >
-                        <Award className="w-2.5 h-2.5 shrink-0 text-[#C5A059]" />
-                        <span className="truncate">{activePrestigeMeta.label}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="px-5 py-3 bg-[#F7F2E8]/80 border-b border-[#C5A059]/25 flex items-center justify-between gap-3 shrink-0">
+          <h3 className="text-sm font-display font-extrabold text-[#1C1917] truncate">
+            {bindingHeadline}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="إغلاق النافذة"
+            className="w-8 h-8 rounded-xl bg-white hover:bg-[#F5E6DC] border border-[#C5A059]/35 text-[#1C1917] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* ================================================================= */}
@@ -983,15 +767,18 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 </div>
               )}
 
-              {/* Smart Mother Selector (ALWAYS present for son/daughter/child with a father, NEVER on wife!) */}
+              {/* Compact Smart Mother Selector (Single Quiet Control Row + Optional Inline New Mother) */}
               {showMotherSelector && !isSpouseRole && (
                 <div
                   data-testid="studio-mother-selector"
-                  className="space-y-2.5 pt-1"
+                  className="rounded-xl bg-[#FAF7F2] border border-[#C5A059]/35 px-3 py-2.5 space-y-2"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="text-xs font-display font-extrabold text-[#1C1917] flex items-center gap-1.5">
-                      <Heart className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <div className="flex items-center justify-between gap-2">
+                    <label
+                      htmlFor="studio-mother-select"
+                      className="text-[11.5px] font-display font-extrabold text-[#1C1917] flex items-center gap-1.5"
+                    >
+                      <Heart className="w-3 h-3 text-[#C5A059] shrink-0" />
                       <span>
                         تحديد الأم
                         {motherSelectorFatherName
@@ -999,191 +786,142 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           : ''}
                       </span>
                     </label>
-                    <span className="text-[11px] text-[#1C1917]/50">
-                      يُحدّد نقطة تفرع المولود في الشجرة
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {/* Option 1: Always-first default option — Unspecified (directly linked to Father) */}
-                    <button
-                      type="button"
-                      data-testid="studio-mother-option-unspecified"
-                      onClick={() => onChangeMotherId('')}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-display font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-                        formMotherId === ''
-                          ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917] shadow-xs'
-                          : 'bg-white text-[#1C1917]/80 border-[#C5A059]/40 hover:border-[#8D4925]'
-                      }`}
-                    >
-                      {formMotherId === '' && (
-                        <Check className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      )}
-                      <span>غير محدد (يرتبط بالأب مباشرة)</span>
-                    </button>
-
-                    {/* Option 2: All registered wives of the father */}
-                    {motherOptions.map((mom) => {
-                      const isActive = formMotherId === mom.id;
-                      return (
-                        <button
-                          key={mom.id}
-                          type="button"
-                          data-testid={`studio-mother-option-${mom.id}`}
-                          onClick={() => onChangeMotherId(mom.id)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-display font-bold border transition-all cursor-pointer inline-flex items-center gap-2 ${
-                            isActive
-                              ? 'bg-[#F7E7CE] text-[#5C2D12] border-[#C5A059] shadow-xs ring-1 ring-[#C5A059]/40'
-                              : 'bg-white text-[#1C1917]/80 border-[#C5A059]/40 hover:border-[#8D4925]'
-                          }`}
-                        >
-                          <span className="text-[11px]" aria-hidden="true">
-                            💍
-                          </span>
-                          <span>
-                            {mom.firstName}
-                            {mom.kunya ? ` (${mom.kunya})` : ''}
-                          </span>
-                          {isActive && (
-                            <Check className="w-3.5 h-3.5 text-[#8D4925]" />
-                          )}
-                        </button>
-                      );
-                    })}
-
-                    {/* Option 3: Smart Inline New-Mother Creation chip */}
                     {motherSelectorFatherName && (
                       <button
                         type="button"
                         data-testid="studio-mother-option-create-new"
-                        onClick={() => onChangeMotherId(NEW_MOTHER_SENTINEL)}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                        onClick={() =>
+                          onChangeMotherId(
+                            isCreatingInlineMother ? '' : NEW_MOTHER_SENTINEL
+                          )
+                        }
+                        className={`px-2 py-0.5 rounded-lg text-[10.5px] font-display font-bold border transition-colors cursor-pointer ${
                           isCreatingInlineMother
-                            ? 'bg-[#8D4925] text-white border-[#8D4925] shadow-xs'
-                            : 'bg-[#FEF9EC] text-[#8D4925] border-dashed border-[#C5A059] hover:bg-[#F7E7CE]'
+                            ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917]'
+                            : 'bg-white text-[#8D4925] border-[#C5A059]/50 hover:bg-[#FEF9EC]'
                         }`}
                       >
-                        <span>
-                          + أم جديدة (تُضاف كزوجة لـ {motherSelectorFatherName})
-                        </span>
+                        {isCreatingInlineMother ? 'إلغاء الإضافة' : '+ أم جديدة'}
                       </button>
                     )}
                   </div>
 
-                  {/* Inline Compact New-Mother Fields */}
-                  {isCreatingInlineMother && (
+                  {!isCreatingInlineMother ? (
+                    <select
+                      id="studio-mother-select"
+                      data-testid="studio-mother-select"
+                      value={formMotherId}
+                      onChange={(e) => onChangeMotherId(e.target.value)}
+                      className="w-full rounded-lg bg-white border border-[#C5A059]/40 px-3 py-1.5 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                    >
+                      <option value="">غير محدد (يرتبط بالأب مباشرة)</option>
+                      {motherOptions.map((mom) => (
+                        <option key={mom.id} value={mom.id}>
+                          💍 {mom.firstName}
+                          {mom.kunya ? ` (${mom.kunya})` : ''}
+                        </option>
+                      ))}
+                      {motherSelectorFatherName && (
+                        <option value={NEW_MOTHER_SENTINEL}>
+                          + أم جديدة (تُضاف كزوجة لـ {motherSelectorFatherName})
+                        </option>
+                      )}
+                    </select>
+                  ) : (
                     <div
                       data-testid="studio-inline-new-mother-box"
-                      className="rounded-2xl bg-[#FEF9EC] border border-[#C5A059]/60 p-3.5 space-y-2.5"
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5"
                     >
-                      <div className="text-[11px] font-display font-extrabold text-[#78350F]">
-                        بيانات الأم الجديدة — ستُنشأ كزوجة لـ {motherSelectorFatherName} وتُربط بالمولود فوراً عند الحفظ
+                      <div>
+                        <label className="block text-[10.5px] font-display font-bold text-[#78350F] mb-1">
+                          اسم الأم الكريمة <span className="text-[#9A3412]">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          data-testid="studio-inline-new-mother-name"
+                          value={inlineNewMotherName}
+                          onChange={(e) =>
+                            onChangeInlineNewMotherName(e.target.value)
+                          }
+                          placeholder="مثال: أمينة / فاطمة"
+                          className="w-full rounded-lg bg-white border border-[#C5A059]/50 px-2.5 py-1.5 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
+                        />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <div>
-                          <label className="block text-[11px] font-display font-bold text-[#1C1917] mb-1">
-                            اسم الأم الكريمة <span className="text-[#9A3412]">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            data-testid="studio-inline-new-mother-name"
-                            value={inlineNewMotherName}
-                            onChange={(e) =>
-                              onChangeInlineNewMotherName(e.target.value)
-                            }
-                            placeholder="مثال: أمينة / فاطمة"
-                            className="w-full rounded-xl bg-white border border-[#C5A059]/50 px-3 py-2 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-display font-bold text-[#1C1917]/80 mb-1">
-                            أسرتها الكريمة / نسب المصاهرة (اختياري)
-                          </label>
-                          <input
-                            type="text"
-                            value={inlineNewMotherMaidenLine}
-                            onChange={(e) =>
-                              onChangeInlineNewMotherMaidenLine(e.target.value)
-                            }
-                            placeholder="مثال: كريمة الشيخ... / من أسرة آل..."
-                            className="w-full rounded-xl bg-white border border-[#C5A059]/45 px-3 py-2 text-xs text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-[10.5px] font-display font-bold text-[#1C1917]/75 mb-1">
+                          أسرتها الكريمة / المصاهرة (اختياري)
+                        </label>
+                        <input
+                          type="text"
+                          value={inlineNewMotherMaidenLine}
+                          onChange={(e) =>
+                            onChangeInlineNewMotherMaidenLine(e.target.value)
+                          }
+                          placeholder="مثال: من أسرة آل..."
+                          className="w-full rounded-lg bg-white border border-[#C5A059]/40 px-2.5 py-1.5 text-xs text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
+                        />
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Honorific Title Interactive Chips (Gender-Aware, ZERO native <select>) */}
-              <div className="space-y-2">
-                <label className="block text-xs font-display font-extrabold text-[#1C1917]">
-                  اللقب {isFemale ? 'الكريم' : 'التشريفي'}{' '}
-                  <span className="text-[11px] font-normal text-[#1C1917]/45">
-                    (اختياري)
-                  </span>
-                </label>
-                <div
-                  data-testid="studio-honorific-chips"
-                  className="flex flex-wrap gap-1.5"
-                >
-                  {honorificChoices.map((title) => {
-                    const selected = formHonorific === title;
-                    return (
-                      <button
-                        key={title}
-                        type="button"
-                        onClick={() => onChangeHonorific(title)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold border transition-all cursor-pointer ${
-                          selected
-                            ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917] shadow-2xs'
-                            : 'bg-white text-[#1C1917]/75 border-[#C5A059]/35 hover:border-[#8D4925] hover:text-[#1C1917]'
-                        }`}
-                      >
+              {/* Compact 2-Column Row: Honorific Title + Prestige Badge (Calm, Zero Chip Clutter) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="studio-honorific-select"
+                    className="block text-[11.5px] font-display font-bold text-[#1C1917]/85 mb-1"
+                  >
+                    اللقب {isFemale ? 'الكريم' : 'التشريفي'}{' '}
+                    <span className="text-[10.5px] font-normal text-[#1C1917]/45">
+                      (اختياري)
+                    </span>
+                  </label>
+                  <select
+                    id="studio-honorific-select"
+                    data-testid="studio-honorific-chips"
+                    value={formHonorific}
+                    onChange={(e) =>
+                      onChangeHonorific(e.target.value as ArabicHonorificTitle)
+                    }
+                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3 py-2 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                  >
+                    {honorificChoices.map((title) => (
+                      <option key={title} value={title}>
                         {title}
-                      </button>
-                    );
-                  })}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              {/* Prestige Badge Interactive Chips (Gender-Aware, ZERO native <select>) */}
-              <div className="space-y-2">
-                <label className="block text-xs font-display font-extrabold text-[#1C1917]">
-                  وسام البطاقة التقديري{' '}
-                  <span className="text-[11px] font-normal text-[#1C1917]/45">
-                    (اختياري)
-                  </span>
-                </label>
-                <div
-                  data-testid="studio-prestige-badge-chips"
-                  className="flex flex-wrap gap-2"
-                >
-                  {prestigeChoices.map((opt) => {
-                    const selected = formPrestigeBadge === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        data-testid={`studio-prestige-chip-${opt.id}`}
-                        onClick={() => onChangePrestigeBadge(opt.id)}
-                        className={`px-3 py-2 rounded-xl text-xs font-display font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-                          selected
-                            ? 'bg-[#FEF6E4] text-[#78350F] border-[#C5A059] ring-1 ring-[#C5A059]/45 shadow-2xs'
-                            : 'bg-white text-[#1C1917]/75 border-[#C5A059]/35 hover:border-[#8D4925]'
-                        }`}
-                      >
-                        {opt.id !== 'none' && (
-                          <Award
-                            className={`w-3.5 h-3.5 shrink-0 ${
-                              selected ? 'text-[#B47B2B]' : 'text-[#C5A059]'
-                            }`}
-                          />
-                        )}
-                        <span>{opt.label}</span>
-                      </button>
-                    );
-                  })}
+                <div>
+                  <label
+                    htmlFor="studio-prestige-select"
+                    className="block text-[11.5px] font-display font-bold text-[#1C1917]/85 mb-1"
+                  >
+                    وسام البطاقة التقديري{' '}
+                    <span className="text-[10.5px] font-normal text-[#1C1917]/45">
+                      (اختياري)
+                    </span>
+                  </label>
+                  <select
+                    id="studio-prestige-select"
+                    data-testid="studio-prestige-badge-chips"
+                    value={formPrestigeBadge}
+                    onChange={(e) =>
+                      onChangePrestigeBadge(
+                        e.target.value as TreePrestigeBadgeId
+                      )
+                    }
+                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3 py-2 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                  >
+                    {prestigeChoices.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
