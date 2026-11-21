@@ -71,6 +71,8 @@ import {
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResilientImage } from './ResilientImage';
 import { ResearcherStudio } from './ResearcherStudio';
+import { KashafiAdminStudio } from './KashafiAdminStudio';
+import { fetchAllKashafiOrdersForStaff } from '../services/kashafiService';
 import { resolveTicketLifecycleStage } from '../services/priority4Service';
 import {
   KNOWLEDGE_BASE_SECTIONS,
@@ -94,6 +96,7 @@ export type AdminModuleTab =
   | 'direct_search_inspection'
   | 'orders_support'
   | 'knowledge_cms'
+  | 'kashafi_studio'
   | 'executive_reports';
 
 interface AdminStaffPortalProps {
@@ -153,6 +156,7 @@ function getAllowedTabsForRole(role: TeamRoleType): AdminModuleTab[] {
         'adam_tree_management',
         'orders_support',
         'knowledge_cms',
+        'kashafi_studio',
         'users_rbac',
         'executive_reports',
       ];
@@ -267,6 +271,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     []
   );
   const [researchTicketsCount, setResearchTicketsCount] = useState(0);
+  const [kashafiOpenOrdersCount, setKashafiOpenOrdersCount] = useState(0);
   const [researchTicketsList, setResearchTicketsList] = useState<
     ResearchTicketData[]
   >([]);
@@ -299,6 +304,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         fetchedArticles,
         fetchedResearchTickets,
         fetchedAuditTrail,
+        fetchedKashafiOrders,
       ] = await Promise.all([
         fetchAllTeamMembersFromFirebase(),
         fetchAllCustomerOrdersFromFirebase(),
@@ -307,6 +313,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         fetchKnowledgeArticlesFromFirebase(),
         fetchAllResearchTicketsForStaff(),
         fetchAllLegalAuditTrailForStaff(),
+        fetchAllKashafiOrdersForStaff().catch(() => []),
       ]);
 
       setStaffList(fetchedStaff);
@@ -315,6 +322,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       setSupportTickets(fetchedSupport);
       setKnowledgeArticles(fetchedArticles);
       setResearchTicketsCount(fetchedResearchTickets.length);
+      setKashafiOpenOrdersCount(
+        fetchedKashafiOrders.filter(
+          (o) => o.status === 'NEW' || o.status === 'IN_PROGRESS'
+        ).length
+      );
       setResearchTicketsList(fetchedResearchTickets);
       setLegalAuditTrailList(fetchedAuditTrail);
     } catch (err) {
@@ -1145,6 +1157,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       liveCounterLabel: 'أعضاء الفريق المسجلون',
       liveCounterValue: `${staffList.length} عضو فريق`,
       accentBadge: 'الحوكمة والصلاحيات السيادية',
+    },
+    {
+      id: 'kashafi_studio',
+      emoji: '✦',
+      title: '✦ استوديو كشّافي والخدمات الموجهة',
+      description:
+        'مكتبة المقترحات الجاهزة (12 قالباً)، نشر الخدمات البحثية والمزايا الرقمية للعملاء المؤهلين، والإسناد التلقائي لمدير البحوث.',
+      liveCounterLabel: 'طلبات وبعثات كشّافي',
+      liveCounterValue: `${kashafiOpenOrdersCount} طلب قيد التنفيذ`,
+      accentBadge: 'إدارة كشّافي والإسناد الآلي',
     },
     {
       id: 'executive_reports',
@@ -3120,6 +3142,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           </div>
           );
         })()}
+
+        {/* =====================================================================
+            PANEL 4B: استوديو كشّافي ومكتبة المقترحات والإسناد التلقائي
+           ===================================================================== */}
+        {activeTab === 'kashafi_studio' &&
+          allowedTabs.includes('kashafi_studio') && (
+            <KashafiAdminStudio
+              activeAdminName={loggedInMember?.name || 'الإدارة العامة'}
+              customerOrders={orders}
+              staffList={staffList}
+              onToast={triggerToast}
+            />
+          )}
 
         {/* =====================================================================
             PANEL 5: لوحة التقارير والإدارة العليا (Executive Reports)

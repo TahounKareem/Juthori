@@ -1220,6 +1220,108 @@
         }
       },
       "required": ["id", "title", "category", "summary", "content", "authorName", "status", "createdAt"]
+    },
+    "KashafiItem": {
+      "title": "KashafiItem",
+      "description": "Real client-specific scientific discovery, automatic research ticket milestone, or delivered Kashafi report shown in the customer Kashafi radar.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "targetUserId": { "type": "string", "maxLength": 128 },
+        "targetUserEmail": { "type": "string", "maxLength": 120 },
+        "targetFamilyName": { "type": "string", "maxLength": 100 },
+        "type": {
+          "type": "string",
+          "enum": ["ticket_update", "lineage_discovery", "service_deliverable", "researcher_note"]
+        },
+        "title": { "type": "string", "maxLength": 240 },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "details": { "type": "string", "maxLength": 6000 },
+        "sourceCitation": { "type": "string", "maxLength": 1000 },
+        "deliverableUrl": { "type": "string", "maxLength": 1500 },
+        "relatedTicketId": { "type": "string", "maxLength": 128 },
+        "relatedOrderId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 140 },
+        "authorRole": { "type": "string", "maxLength": 80 },
+        "isRead": { "type": "boolean" },
+        "readAt": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "targetUserId", "targetFamilyName", "type", "title", "summary", "authorName", "isRead", "createdAt"]
+    },
+    "KashafiCampaign": {
+      "title": "KashafiCampaign",
+      "description": "Admin-published Kashafi research service, digital upgrade, or platform announcement targeted to eligible client segments.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "blueprintId": { "type": "string", "maxLength": 80 },
+        "title": { "type": "string", "maxLength": 220 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "category": {
+          "type": "string",
+          "enum": ["research_service", "digital_feature", "platform_announcement"]
+        },
+        "priceUsd": { "type": "number" },
+        "freeForPremium": { "type": "boolean" },
+        "targetSegment": {
+          "type": "string",
+          "enum": ["all", "specific_family", "vault_owners", "active_trees", "premium_members"]
+        },
+        "targetFamilyName": { "type": "string", "maxLength": 100 },
+        "executionMode": {
+          "type": "string",
+          "enum": ["instant_tech", "research_execution"]
+        },
+        "targetTab": { "type": "string", "maxLength": 60 },
+        "ctaLabel": { "type": "string", "maxLength": 80 },
+        "assignedRole": { "type": "string", "maxLength": 60 },
+        "assignedResearcherId": { "type": "string", "maxLength": 128 },
+        "assignedResearcherName": { "type": "string", "maxLength": 140 },
+        "status": {
+          "type": "string",
+          "enum": ["active", "paused"]
+        },
+        "createdByName": { "type": "string", "maxLength": 140 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "title", "description", "category", "priceUsd", "targetSegment", "executionMode", "status", "createdAt"]
+    },
+    "KashafiServiceOrder": {
+      "title": "KashafiServiceOrder",
+      "description": "Customer order for a Kashafi research execution service, auto-assigned to the Research Manager inbox.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 50 },
+        "campaignId": { "type": "string", "maxLength": 128 },
+        "campaignTitle": { "type": "string", "maxLength": 220 },
+        "campaignCategory": { "type": "string", "maxLength": 60 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "userFullName": { "type": "string", "maxLength": 150 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "originCountry": { "type": "string", "maxLength": 60 },
+        "originRegion": { "type": "string", "maxLength": 100 },
+        "pricePaidUsd": { "type": "number" },
+        "includedInPremium": { "type": "boolean" },
+        "walletTransactionId": { "type": "string", "maxLength": 80 },
+        "customerNotes": { "type": "string", "maxLength": 2000 },
+        "status": {
+          "type": "string",
+          "enum": ["NEW", "IN_PROGRESS", "COMPLETED", "CANCELLED"]
+        },
+        "assignedRole": { "type": "string", "maxLength": 60 },
+        "assignedResearcherId": { "type": "string", "maxLength": 128 },
+        "assignedResearcherName": { "type": "string", "maxLength": 140 },
+        "researcherReport": { "type": "string", "maxLength": 6000 },
+        "deliverableUrl": { "type": "string", "maxLength": 1500 },
+        "deliveredAt": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "orderNumber", "campaignId", "campaignTitle", "userId", "userFullName", "familyName", "pricePaidUsd", "status", "assignedRole", "createdAt"]
     }
   },
   "firestore": {
@@ -1306,6 +1408,18 @@
     "/knowledge_articles/{articleId}": {
       "schema": { "$ref": "entities/KnowledgeArticle" },
       "description": "Articles and studies for the Knowledge Center."
+    },
+    "/kashafi_items/{itemId}": {
+      "schema": { "$ref": "entities/KashafiItem" },
+      "description": "Real client-targeted scientific discoveries, automatic ticket milestones, and delivered Kashafi reports."
+    },
+    "/kashafi_campaigns/{campaignId}": {
+      "schema": { "$ref": "entities/KashafiCampaign" },
+      "description": "Admin-published Kashafi services, digital features, and platform announcements."
+    },
+    "/kashafi_service_orders/{orderId}": {
+      "schema": { "$ref": "entities/KashafiServiceOrder" },
+      "description": "Customer Kashafi research service orders auto-assigned to the Research Manager inbox."
     }
   }
 }

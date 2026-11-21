@@ -1,0 +1,859 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Compass,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  BookOpen,
+  Wallet,
+  X,
+  ArrowLeft,
+  Clock,
+  Check,
+  Sparkles,
+  FileCheck2,
+  AlertCircle,
+} from 'lucide-react';
+import {
+  AccountLegalType,
+  DashboardAccessCapabilities,
+  DashboardTab,
+  LineageSearchResult,
+} from '../types/juthori';
+import {
+  canonicalCustomerEmailUid,
+  executeAtomicWalletOperation,
+  fetchUserFamilyTreeFromFirebase,
+  fetchUserVaultArchive,
+  readUserFamilyTreeFromLocal,
+  readVaultArchiveFromLocal,
+} from '../services/firestoreService';
+import {
+  KashafiCampaignRecord,
+  KashafiItemRecord,
+  KashafiServiceOrderRecord,
+  createKashafiServiceOrder,
+  doesCampaignMatchClient,
+  fetchActiveKashafiCampaignsForClient,
+  fetchCustomerKashafiItems,
+  fetchCustomerKashafiOrders,
+  getKashafiCategoryLabelAr,
+  getKashafiOrderStatusLabelAr,
+  markKashafiItemRead,
+} from '../services/kashafiService';
+import { ResearchTicketsView } from './ResearchTicketsView';
+import { auth } from '../services/firebase';
+
+interface KashafiHubViewProps {
+  result: LineageSearchResult;
+  accountType: AccountLegalType;
+  caps: DashboardAccessCapabilities;
+  walletBalance: number;
+  userId?: string;
+  userEmail: string;
+  userPhone?: string;
+  onNavigateTab: (tab: DashboardTab) => void;
+  onOpenWalletDrawer: () => void;
+  onUpgradeAnnualVip: () => void;
+  onWalletBalanceUpdated?: (nextBalance: number) => void;
+  onLogActivity: (action: string, detail: string) => void;
+  onAdoptResolvedLineage?: (enrichedResult: LineageSearchResult) => void;
+  onTicketsStatusChange?: (status: {
+    hasAnyTicket: boolean;
+    hasResearcherReplyWaiting: boolean;
+  }) => void;
+  onKashafiUnreadCountChange?: (count: number) => void;
+}
+
+export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
+  result,
+  accountType,
+  caps,
+  walletBalance,
+  userId,
+  userEmail,
+  userPhone = '',
+  onNavigateTab,
+  onOpenWalletDrawer,
+  onUpgradeAnnualVip,
+  onWalletBalanceUpdated,
+  onLogActivity,
+  onAdoptResolvedLineage,
+  onTicketsStatusChange,
+  onKashafiUnreadCountChange,
+}) => {
+  const resolvedUid =
+    userId ||
+    auth.currentUser?.uid ||
+    canonicalCustomerEmailUid(userEmail) ||
+    `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+
+  const [kashafiItems, setKashafiItems] = useState<KashafiItemRecord[]>([]);
+  const [campaigns, setCampaigns] = useState<KashafiCampaignRecord[]>([]);
+  const [orders, setOrders] = useState<KashafiServiceOrderRecord[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const [vaultCount, setVaultCount] = useState<number>(() => {
+    const local = readVaultArchiveFromLocal(
+      resolvedUid,
+      result.familyName,
+      userEmail
+    );
+    return local?.items?.length || 0;
+  });
+
+  const [treeCount, setTreeCount] = useState<number>(() => {
+    const local = readUserFamilyTreeFromLocal(
+      resolvedUid,
+      result.familyName,
+      userEmail
+    );
+    return Array.isArray(local) ? local.length : 0;
+  });
+
+  // Service Order Modal state
+  const [selectedCampaignForOrder, setSelectedCampaignForOrder] =
+    useState<KashafiCampaignRecord | null>(null);
+  const [orderCustomerNotes, setOrderCustomerNotes] = useState('');
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderSuccessToast, setOrderSuccessToast] = useState<string | null>(
+    null
+  );
+
+  // Expanded discovery item details
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+
+  const loadKashafiData = async () => {
+    setIsLoadingData(true);
+    try {
+      const [itemsRes, campaignsRes, ordersRes, vaultRes, treeRes] =
+        await Promise.allSettled([
+          fetchCustomerKashafiItems(resolvedUid, userEmail),
+          fetchActiveKashafiCampaignsForClient(),
+          fetchCustomerKashafiOrders(resolvedUid, userEmail),
+          fetchUserVaultArchive(resolvedUid, result.familyName, userEmail),
+          fetchUserFamilyTreeFromFirebase(
+            resolvedUid,
+            result.familyName,
+            userEmail
+          ),
+        ]);
+
+      const realItems =
+        itemsRes.status === 'fulfilled' ? itemsRes.value : [];
+      const realCampaigns =
+        campaignsRes.status === 'fulfilled' ? campaignsRes.value : [];
+      const realOrders =
+        ordersRes.status === 'fulfilled' ? ordersRes.value : [];
+
+      setKashafiItems(realItems);
+      setCampaigns(realCampaigns);
+      setOrders(realOrders);
+
+      if (vaultRes.status === 'fulfilled' && vaultRes.value?.items) {
+        setVaultCount(vaultRes.value.items.length);
+      }
+      if (treeRes.status === 'fulfilled' && Array.isArray(treeRes.value)) {
+        setTreeCount(treeRes.value.length);
+      }
+
+      const unreadItemsCount = realItems.filter((i) => !i.isRead).length;
+      onKashafiUnreadCountChange?.(unreadItemsCount);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    loadKashafiData();
+  }, [resolvedUid, userEmail, result.familyName]);
+
+  // Filter strictly to active campaigns matching this client's REAL profile & assets
+  const eligibleCampaigns = useMemo(
+    () =>
+      campaigns.filter((cmp) =>
+        doesCampaignMatchClient(cmp, {
+          familyName: result.familyName,
+          isVip: caps.isVip,
+          vaultItemsCount: vaultCount,
+          treeMembersCount: treeCount,
+        })
+      ),
+    [campaigns, result.familyName, caps.isVip, vaultCount, treeCount]
+  );
+
+  const ordersByCampaignId = useMemo(() => {
+    const map = new Map<string, KashafiServiceOrderRecord>();
+    for (const ord of orders) {
+      if (!map.has(ord.campaignId)) {
+        map.set(ord.campaignId, ord);
+      }
+    }
+    return map;
+  }, [orders]);
+
+  const handleMarkItemRead = async (item: KashafiItemRecord) => {
+    if (item.isRead) return;
+    setKashafiItems((prev) => {
+      const next = prev.map((x) =>
+        x.id === item.id
+          ? { ...x, isRead: true, readAt: new Date().toISOString() }
+          : x
+      );
+      onKashafiUnreadCountChange?.(next.filter((i) => !i.isRead).length);
+      return next;
+    });
+    await markKashafiItemRead(item.id);
+  };
+
+  const handleCampaignCtaClick = (campaign: KashafiCampaignRecord) => {
+    if (campaign.executionMode === 'instant_tech') {
+      if (campaign.targetTab === 'wallet') {
+        onOpenWalletDrawer();
+      } else if (campaign.targetTab) {
+        onNavigateTab(campaign.targetTab as DashboardTab);
+      } else {
+        onNavigateTab(DashboardTab.Lineage);
+      }
+      return;
+    }
+
+    // Research execution service -> open confirmation modal
+    setOrderError(null);
+    setOrderCustomerNotes('');
+    setSelectedCampaignForOrder(campaign);
+  };
+
+  const handleConfirmResearchServiceOrder = async () => {
+    if (!selectedCampaignForOrder || isSubmittingOrder) return;
+    const cmp = selectedCampaignForOrder;
+    const isCoveredByVip = cmp.freeForPremium && caps.isVip;
+    const effectivePrice = isCoveredByVip ? 0 : Math.max(0, cmp.priceUsd);
+
+    setOrderError(null);
+    setIsSubmittingOrder(true);
+
+    try {
+      let walletTxId: string | undefined;
+
+      if (effectivePrice > 0) {
+        if (walletBalance < effectivePrice) {
+          setOrderError(
+            `رصيد محفظتك الحالي ($${walletBalance.toFixed(
+              2
+            )}) غير كافٍ لتغطية رسوم الخدمة ($${effectivePrice}). يرجى شحن المحفظة أولاً.`
+          );
+          setIsSubmittingOrder(false);
+          return;
+        }
+
+        const fullName =
+          [
+            result.clientName,
+            result.fatherName,
+            result.grandfatherName,
+            result.familyName,
+          ]
+            .filter((s) => s && s !== '—')
+            .join(' ') || result.familyName;
+
+        const atomicRes = await executeAtomicWalletOperation({
+          userId: resolvedUid,
+          userEmail,
+          userFullName: fullName,
+          operationType: 'UNLOCK_CAPSULE',
+          amountUsd: effectivePrice,
+          paymentMethod: 'wallet',
+          descriptionAr: `طلب خدمة كشّافي: ${cmp.title}`,
+          referenceId: cmp.id,
+          skipFeatureIdempotency: true,
+        });
+
+        if (atomicRes.status === 'INSUFFICIENT_FUNDS') {
+          setOrderError(
+            `رصيد محفظتك الحالي ($${atomicRes.balanceBefore.toFixed(
+              2
+            )}) غير كافٍ لتغطية رسوم الخدمة ($${effectivePrice}).`
+          );
+          onWalletBalanceUpdated?.(atomicRes.balanceBefore);
+          setIsSubmittingOrder(false);
+          return;
+        }
+
+        walletTxId = atomicRes.transactionId;
+        onWalletBalanceUpdated?.(atomicRes.balanceAfter);
+      }
+
+      const fullName =
+        [
+          result.clientName,
+          result.fatherName,
+          result.grandfatherName,
+          result.familyName,
+        ]
+          .filter((s) => s && s !== '—')
+          .join(' ') || result.familyName;
+
+      const createdOrder = await createKashafiServiceOrder({
+        campaign: cmp,
+        userId: resolvedUid,
+        userEmail,
+        userFullName: fullName,
+        familyName: result.familyName || 'العائلة',
+        originCountry: result.originCountry,
+        originRegion: result.originRegion,
+        pricePaidUsd: effectivePrice,
+        includedInPremium: isCoveredByVip,
+        walletTransactionId: walletTxId,
+        customerNotes: orderCustomerNotes,
+      });
+
+      setOrders((prev) => [createdOrder, ...prev]);
+      setSelectedCampaignForOrder(null);
+      setOrderCustomerNotes('');
+      setOrderSuccessToast(
+        `تم تسجيل طلبك #${createdOrder.orderNumber} وإسناده تلقائياً إلى مدير البحوث — ستصلك النتيجة فور اعتمادها في رادار الاكتشافات أعلاه ✓`
+      );
+      onLogActivity(
+        'طلب خدمة كشّافي بحثية',
+        `طلب «${cmp.title}» (#${createdOrder.orderNumber}) — إسناد تلقائي لمدير البحوث`
+      );
+    } catch {
+      setOrderError(
+        'تعذّر إرسال الطلب حالياً. يرجى المحاولة مرة أخرى بعد قليل.'
+      );
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
+
+  const getItemTypeLabelAr = (type: KashafiItemRecord['type']): string => {
+    switch (type) {
+      case 'lineage_discovery':
+        return 'كشّاف وبشارة نسبية معتمدة';
+      case 'service_deliverable':
+        return 'تقرير ونتيجة خدمة كشّافي';
+      case 'researcher_note':
+        return 'ملاحظة علمية من مرصد البحوث';
+      case 'ticket_update':
+        return 'تحديث بعثة التحقيق';
+    }
+  };
+
+  const unreadItemsCount = kashafiItems.filter((i) => !i.isRead).length;
+
+  return (
+    <div
+      data-testid="kashafi-hub-view"
+      className="space-y-8 text-[#252321]"
+    >
+      {/* Clean Page Title Header */}
+      <div className="rounded-2xl bg-[#FFFDF9] border border-[#C5A059]/70 p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-[#FAF4E4] border border-[#C5A059]/60 flex items-center justify-center text-[#8D4925] shrink-0">
+            <Compass className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
+              كشّافي — مركز البعثات البحثية والاكتشافات العلمية
+            </h1>
+            <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed max-w-2xl">
+              مساحتكم المخصصة لمتابعة بعثة تحقيق نسب أسرة {result.familyName}، واستقبال البشارات والوثائق المرصودة من مرصد البحوث، وطلب الخدمات البحثية المتخصصة.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-xs text-[#5C5346] shrink-0">
+          <div className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center gap-2">
+            <Wallet className="w-3.5 h-3.5 text-[#8D4925]" />
+            <span>رصيد المحفظة:</span>
+            <strong className="font-mono tabular-nums text-[#252321]">
+              ${walletBalance.toFixed(2)}
+            </strong>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenWalletDrawer}
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#8D4925] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+          >
+            إدارة المحفظة
+          </button>
+        </div>
+      </div>
+
+      {orderSuccessToast && (
+        <div className="rounded-2xl bg-emerald-50 border border-emerald-400 p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-display font-bold text-emerald-950">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>{orderSuccessToast}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOrderSuccessToast(null)}
+            className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-900 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ===================================================================
+          SECTION 1: بعثة التحقيق والربط المرجعي الجارية (Redesigned Ticket)
+         =================================================================== */}
+      <section className="space-y-3">
+        <ResearchTicketsView
+          kashafiMode
+          result={result}
+          accountType={accountType}
+          userEmail={userEmail}
+          userId={resolvedUid}
+          userPhone={userPhone}
+          isVip={caps.isVip}
+          onRequestUpgradeVip={onUpgradeAnnualVip}
+          onLogActivity={onLogActivity}
+          onAdoptResolvedLineage={onAdoptResolvedLineage}
+          onTicketsStatusChange={onTicketsStatusChange}
+        />
+      </section>
+
+      {/* ===================================================================
+          SECTION 2: رادار الاكتشافات والبشارات العلمية لعائلتكم (100% Real Data)
+         =================================================================== */}
+      <section className="space-y-4 pt-2 border-t border-[#E2DACB]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF4E4] border border-[#C5A059]/60 flex items-center justify-center text-[#8D4925] shrink-0">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                رادار الاكتشافات والبشارات العلمية لعائلتكم
+              </h2>
+              <p className="text-xs text-[#6E6456]">
+                التحديثات الفعلية المعتمدة من مرصد البحوث لأسرة {result.familyName}
+                {unreadItemsCount > 0 ? ` · ${unreadItemsCount} جديد غير مقروء` : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {isLoadingData ? (
+          <div className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-6 text-center">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#D8755B]" />
+          </div>
+        ) : kashafiItems.length === 0 ? (
+          <div
+            data-testid="kashafi-radar-empty-state"
+            className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-6 text-right"
+          >
+            <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed max-w-3xl">
+              رادار كشّافي يتابع سجلات عائلتكم لدى مرصد البحوث — ستظهر هنا تلقائياً أي حلقات نسب مكتشفة أو وثائق مرجعية فور رصدها واعتمادها.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {kashafiItems.map((item) => {
+              const isExpanded = expandedItemId === item.id;
+              return (
+                <article
+                  key={item.id}
+                  className={`rounded-2xl border p-5 transition-colors ${
+                    item.isRead
+                      ? 'bg-[#FFFDF9] border-[#E2DACB]'
+                      : 'bg-[#FFFDF9] border-[#C5A059]'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#8D4925]">
+                        <span className="font-display font-bold">
+                          {getItemTypeLabelAr(item.type)}
+                        </span>
+                        <span aria-hidden="true" className="text-[#D8D0C0]">
+                          ·
+                        </span>
+                        <span className="text-[#6E6456]">{item.authorName}</span>
+                        <span aria-hidden="true" className="text-[#D8D0C0]">
+                          ·
+                        </span>
+                        <span className="text-[#8C8272] tabular-nums">
+                          {new Date(item.createdAt).toLocaleDateString('ar-SA', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
+                        {!item.isRead && (
+                          <>
+                            <span aria-hidden="true" className="text-[#D8D0C0]">
+                              ·
+                            </span>
+                            <span className="font-display font-bold text-[#D8755B]">
+                              جديد
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      <h3 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                        {item.title}
+                      </h3>
+
+                      <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed">
+                        {item.summary}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {(item.details || item.sourceCitation || item.deliverableUrl) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpandedItemId(isExpanded ? null : item.id);
+                            if (!item.isRead) handleMarkItemRead(item);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] cursor-pointer whitespace-nowrap shrink-0"
+                        >
+                          {isExpanded ? 'إخفاء التفاصيل' : 'عرض التقرير والمصادر'}
+                        </button>
+                      )}
+                      {!item.isRead && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkItemRead(item)}
+                          className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#5C5346] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>تمت القراءة</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-[#EDE6DA] space-y-2.5 text-xs">
+                      {item.details && (
+                        <div className="text-[#252321] leading-relaxed whitespace-pre-line">
+                          {item.details}
+                        </div>
+                      )}
+                      {item.sourceCitation && (
+                        <div className="text-[#5C5346]">
+                          <strong className="text-[#8D4925]">
+                            المصدر والمرجع المعتمد:
+                          </strong>{' '}
+                          {item.sourceCitation}
+                        </div>
+                      )}
+                      {item.deliverableUrl && (
+                        <div>
+                          <a
+                            href={item.deliverableUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[#8D4925] hover:text-[#D8755B] font-display font-bold underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>فتح الملف أو الوثيقة المرفقة</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ===================================================================
+          ACTIVE KASHAFI SERVICE ORDERS TRACKER (Only when real orders exist)
+         =================================================================== */}
+      {orders.length > 0 && (
+        <section className="space-y-3 pt-2 border-t border-[#E2DACB]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+              <FileCheck2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-display font-bold text-[#252321]">
+                طلباتك البحثية الجارية في كشّافي ({orders.length})
+              </h2>
+              <p className="text-xs text-[#6E6456]">
+                حالة الخدمات البحثية المسندة تلقائياً إلى مدير البحوث
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {orders.map((ord) => (
+              <div
+                key={ord.id}
+                className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-4 flex flex-col justify-between gap-3"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-mono tabular-nums font-bold text-[#8D4925]">
+                      #{ord.orderNumber}
+                    </span>
+                    <span
+                      className={`font-display font-bold ${
+                        ord.status === 'COMPLETED'
+                          ? 'text-emerald-700'
+                          : 'text-[#D8755B]'
+                      }`}
+                    >
+                      {getKashafiOrderStatusLabelAr(ord.status)}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-display font-bold text-[#252321]">
+                    {ord.campaignTitle}
+                  </h3>
+                  <div className="text-[11px] text-[#6E6456] flex flex-wrap items-center gap-2">
+                    <span>المسؤول: {ord.assignedResearcherName || 'مدير البحوث'}</span>
+                    <span>·</span>
+                    <span className="tabular-nums">
+                      {ord.includedInPremium
+                        ? 'مشمول ضمن الباقة السنوية'
+                        : ord.pricePaidUsd > 0
+                        ? `$${ord.pricePaidUsd} من المحفظة`
+                        : 'مجاني'}
+                    </span>
+                  </div>
+                </div>
+                {ord.status === 'COMPLETED' && ord.researcherReport && (
+                  <p className="text-xs text-[#5C5346] pt-2 border-t border-[#EDE6DA] line-clamp-2">
+                    {ord.researcherReport}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ===================================================================
+          SECTION 3: خدمات ومزايا متاحة للإضافة وإعلانات المنصة (100% Real Published Campaigns ONLY)
+         =================================================================== */}
+      <section className="space-y-4 pt-2 border-t border-[#E2DACB]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+              خدمات ومزايا متاحة للإضافة وإعلانات المنصة
+            </h2>
+            <p className="text-xs text-[#6E6456]">
+              البرامج البحثية والخدمات المنشورة فعلياً من إدارة منصة جذوري والمناسبة لحسابكم
+            </p>
+          </div>
+        </div>
+
+        {isLoadingData ? (
+          <div className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-6 text-center">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#D8755B]" />
+          </div>
+        ) : eligibleCampaigns.length === 0 ? (
+          <p
+            data-testid="kashafi-campaigns-empty-note"
+            className="text-xs text-[#8C8272] py-2"
+          >
+            لا توجد خدمات إضافية أو إعلانات موجهة منشورة لحسابكم في الوقت الحالي.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+            {eligibleCampaigns.map((cmp) => {
+              const existingOrder = ordersByCampaignId.get(cmp.id);
+              const isCoveredByVip = cmp.freeForPremium && caps.isVip;
+              const priceText = isCoveredByVip
+                ? 'مشمول للبريميوم'
+                : cmp.priceUsd > 0
+                ? `$${cmp.priceUsd} من المحفظة`
+                : 'مجاني';
+
+              return (
+                <div
+                  key={cmp.id}
+                  className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 text-xs text-[#8D4925]">
+                      <span className="font-display font-bold">
+                        {getKashafiCategoryLabelAr(cmp.category)}
+                      </span>
+                      <span className="font-mono tabular-nums font-bold text-[#252321]">
+                        {priceText}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm sm:text-base font-display font-bold text-[#252321] leading-snug">
+                      {cmp.title}
+                    </h3>
+
+                    <p className="text-xs text-[#5C5346] leading-relaxed">
+                      {cmp.description}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#EDE6DA]">
+                    {existingOrder &&
+                    existingOrder.status !== 'CANCELLED' ? (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1.5 font-display font-bold text-[#8D4925]">
+                          {existingOrder.status === 'COMPLETED' ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-[#D8755B]" />
+                          )}
+                          <span>
+                            {getKashafiOrderStatusLabelAr(existingOrder.status)}
+                          </span>
+                        </span>
+                        <span className="font-mono tabular-nums text-[11px] text-[#8C8272]">
+                          #{existingOrder.orderNumber}
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCampaignCtaClick(cmp)}
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        <span>
+                          {cmp.ctaLabel ||
+                            (cmp.executionMode === 'research_execution'
+                              ? 'طلب الخدمة الآن'
+                              : 'الانتقال للتفعيل')}
+                        </span>
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ===================================================================
+          RESEARCH SERVICE ORDER CONFIRMATION MODAL
+         =================================================================== */}
+      {selectedCampaignForOrder && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#252321]/65 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-[#FFFDF9] border border-[#C5A059] p-6 shadow-2xl space-y-4 text-right">
+            <div className="flex items-start justify-between gap-3 border-b border-[#EDE6DA] pb-3">
+              <div>
+                <div className="text-xs font-display font-bold text-[#8D4925]">
+                  تأكيد طلب خدمة بحثية وإسنادها لمدير البحوث
+                </div>
+                <h3 className="text-base font-display font-bold text-[#252321] mt-1">
+                  {selectedCampaignForOrder.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCampaignForOrder(null)}
+                className="w-8 h-8 rounded-lg hover:bg-[#FAF6F0] flex items-center justify-center text-[#252321] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#5C5346] leading-relaxed">
+              {selectedCampaignForOrder.description}
+            </p>
+
+            <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#6E6456]">جهة التنفيذ المعتمدة:</span>
+                <strong className="text-[#252321]">
+                  {selectedCampaignForOrder.assignedResearcherName ||
+                    'مدير البحوث (إسناد تلقائي)'}
+                </strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6E6456]">التكلفة المطلوبة:</span>
+                <strong className="font-mono tabular-nums text-[#8D4925]">
+                  {selectedCampaignForOrder.freeForPremium && caps.isVip
+                    ? '$0 (مشمول في الباقة السنوية)'
+                    : selectedCampaignForOrder.priceUsd > 0
+                    ? `$${selectedCampaignForOrder.priceUsd} (خصم من المحفظة)`
+                    : 'مجاني ($0)'}
+                </strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6E6456]">رصيد محفظتك الحالي:</span>
+                <strong className="font-mono tabular-nums text-[#252321]">
+                  ${walletBalance.toFixed(2)}
+                </strong>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                ملاحظات أو تفاصيل إضافية للباحث (اختياري)
+              </label>
+              <textarea
+                rows={3}
+                value={orderCustomerNotes}
+                onChange={(e) => setOrderCustomerNotes(e.target.value)}
+                placeholder="أضف أي تفاصيل تساعد مدير البحوث في تنفيذ طلبكم بدقة..."
+                className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+              />
+            </div>
+
+            {orderError && (
+              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="space-y-1.5">
+                  <p>{orderError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCampaignForOrder(null);
+                      onOpenWalletDrawer();
+                    }}
+                    className="underline font-bold text-[#8D4925] cursor-pointer"
+                  >
+                    فتح المحفظة لشحن الرصيد ←
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EDE6DA]">
+              <button
+                type="button"
+                onClick={() => setSelectedCampaignForOrder(null)}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#5C5346] cursor-pointer"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingOrder}
+                onClick={handleConfirmResearchServiceOrder}
+                className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                {isSubmittingOrder ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                )}
+                <span>اعتماد الطلب وإرساله لمدير البحوث</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

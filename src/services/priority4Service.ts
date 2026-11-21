@@ -43,6 +43,7 @@ import {
   sendCustomerNotification,
   updateUserProfile,
 } from './firestoreService';
+import { createKashafiItem } from './kashafiService';
 import {
   DashboardAccessCapabilities,
   DashboardStateMode,
@@ -422,6 +423,19 @@ export async function appendMessageToResearchTicket(params: {
           category: 'ticket_update',
           senderRole: 'researcher',
         }).catch(() => {});
+
+        createKashafiItem({
+          targetUserId: existing.userId,
+          targetUserEmail: existing.userEmail,
+          targetFamilyName: existing.familyName || 'العائلة',
+          type: 'ticket_update',
+          title: `تحديث ومراسلة باحث على تذكرة #${existing.ticketNumber}`,
+          summary: msg.body.slice(0, 400),
+          details: msg.body,
+          relatedTicketId: existing.id,
+          authorName: msg.senderName,
+          authorRole: 'مرصد البحوث',
+        }).catch(() => {});
       }
     }
 
@@ -507,7 +521,7 @@ export async function updateTicketLifecycleAndResolutionByStaff(params: {
     updatedTicket as unknown as Record<string, unknown>
   );
 
-  if (existing.userId) {
+  if (existing.userId && existing.userId !== 'system_proactive_miner') {
     sendCustomerNotification({
       userId: existing.userId,
       recipientEmail: existing.userEmail,
@@ -527,6 +541,48 @@ export async function updateTicketLifecycleAndResolutionByStaff(params: {
         'تم تحديث مسار التذكرة في مرصد البحوث.',
       category: 'ticket_update',
       senderRole: 'researcher',
+    }).catch(() => {});
+
+    const isResolvedStage = params.stage === 'RESOLVED';
+    const rootSummary = [
+      params.resolutionPayload?.certifiedAncestorName,
+      params.resolutionPayload?.verifiedRootBranch,
+      params.resolutionPayload?.verifiedRootTribe,
+    ]
+      .filter(Boolean)
+      .join(' ← ');
+
+    createKashafiItem({
+      targetUserId: existing.userId,
+      targetUserEmail: existing.userEmail,
+      targetFamilyName: existing.familyName || 'العائلة',
+      type: isResolvedStage ? 'lineage_discovery' : 'ticket_update',
+      title: isResolvedStage
+        ? params.resolutionPayload?.decisionTitle ||
+          `اعتماد توثيق وربط نسبي لعائلة ${existing.familyName || ''} (#${existing.ticketNumber})`
+        : params.stage === 'NEEDS_INFO'
+        ? `مطلوب توضيح إضافي لاستكمال فحص التذكرة #${existing.ticketNumber}`
+        : `تقدم جديد في فحص التذكرة #${existing.ticketNumber}`,
+      summary:
+        (isResolvedStage && rootSummary
+          ? `المسار الموثق: ${rootSummary}. ${params.researchFindings || params.messageBody || ''}`
+          : params.messageBody?.trim() ||
+            params.researchFindings?.trim() ||
+            'انتقلت تذكرتكم إلى مرحلة جديدة في مرصد البحوث.')
+          .trim()
+          .slice(0, 600),
+      details:
+        params.researchFindings?.trim() ||
+        params.resolutionPayload?.summaryNotes ||
+        params.messageBody?.trim() ||
+        undefined,
+      sourceCitation:
+        params.resolutionPayload?.verifiedCitation ||
+        params.verifiedSources?.trim() ||
+        undefined,
+      relatedTicketId: existing.id,
+      authorName: params.researcherName,
+      authorRole: 'مدير البحوث',
     }).catch(() => {});
   }
 

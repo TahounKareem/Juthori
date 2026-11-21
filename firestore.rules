@@ -1229,6 +1229,120 @@ service cloud.firestore {
       allow update, delete: if isValidId(ticketId) && isStaffOrAdmin();
     }
 
+    match /kashafi_items/{itemId} {
+      allow get: if isValidId(itemId)
+        && isSignedIn()
+        && (
+          existing().targetUserId == request.auth.uid
+          || (
+            request.auth.token.email != null
+            && 'targetUserEmail' in existing()
+            && existing().targetUserEmail.lower() == request.auth.token.email.lower()
+          )
+          || isStaffOrAdmin()
+        );
+      allow list: if isSignedIn()
+        && (
+          existing().targetUserId == request.auth.uid
+          || (
+            request.auth.token.email != null
+            && 'targetUserEmail' in existing()
+            && existing().targetUserEmail.lower() == request.auth.token.email.lower()
+          )
+          || isVerifiedStaffEmail()
+        );
+      allow create: if isValidId(itemId)
+        && isStaffOrAdmin()
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().targetUserId is string && incoming().targetUserId.size() <= 128
+        && incoming().targetFamilyName is string && incoming().targetFamilyName.size() <= 100
+        && incoming().type in ['ticket_update', 'lineage_discovery', 'service_deliverable', 'researcher_note']
+        && incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 240
+        && incoming().summary is string && incoming().summary.size() <= 2000
+        && incoming().authorName is string && incoming().authorName.size() <= 140
+        && incoming().isRead is bool
+        && incoming().createdAt is string && incoming().createdAt.size() <= 60;
+      allow update: if isValidId(itemId)
+        && (
+          isStaffOrAdmin()
+          || (
+            isSignedIn()
+            && (
+              existing().targetUserId == request.auth.uid
+              || (
+                request.auth.token.email != null
+                && 'targetUserEmail' in existing()
+                && existing().targetUserEmail.lower() == request.auth.token.email.lower()
+              )
+            )
+            && incoming().diff(existing()).affectedKeys().hasOnly(['isRead', 'readAt'])
+            && incoming().isRead is bool
+          )
+        );
+      allow delete: if isValidId(itemId) && isStaffOrAdmin();
+    }
+
+    match /kashafi_campaigns/{campaignId} {
+      allow get: if isValidId(campaignId)
+        && isSignedIn()
+        && (existing().status == 'active' || isStaffOrAdmin());
+      allow list: if isSignedIn()
+        && (existing().status == 'active' || isVerifiedStaffEmail());
+      allow create, update: if isValidId(campaignId)
+        && isStaffOrAdmin()
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 220
+        && incoming().description is string && incoming().description.size() <= 2000
+        && incoming().category in ['research_service', 'digital_feature', 'platform_announcement']
+        && incoming().priceUsd is number && incoming().priceUsd >= 0 && incoming().priceUsd <= 10000
+        && incoming().targetSegment in ['all', 'specific_family', 'vault_owners', 'active_trees', 'premium_members']
+        && incoming().executionMode in ['instant_tech', 'research_execution']
+        && incoming().status in ['active', 'paused']
+        && incoming().createdAt is string && incoming().createdAt.size() <= 60;
+      allow delete: if isValidId(campaignId) && isStaffOrAdmin();
+    }
+
+    match /kashafi_service_orders/{orderId} {
+      allow get: if isValidId(orderId)
+        && isSignedIn()
+        && (
+          existing().userId == request.auth.uid
+          || (
+            request.auth.token.email != null
+            && 'userEmail' in existing()
+            && existing().userEmail.lower() == request.auth.token.email.lower()
+          )
+          || isStaffOrAdmin()
+        );
+      allow list: if isSignedIn()
+        && (
+          existing().userId == request.auth.uid
+          || (
+            request.auth.token.email != null
+            && 'userEmail' in existing()
+            && existing().userEmail.lower() == request.auth.token.email.lower()
+          )
+          || isVerifiedStaffEmail()
+        );
+      allow create: if isValidId(orderId)
+        && isSignedIn()
+        && (incoming().userId == request.auth.uid || isStaffOrAdmin())
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().orderNumber is string && incoming().orderNumber.size() <= 50
+        && incoming().campaignId is string && incoming().campaignId.size() <= 128
+        && incoming().campaignTitle is string && incoming().campaignTitle.size() <= 220
+        && incoming().userFullName is string && incoming().userFullName.size() <= 150
+        && incoming().familyName is string && incoming().familyName.size() <= 100
+        && incoming().pricePaidUsd is number && incoming().pricePaidUsd >= 0 && incoming().pricePaidUsd <= 10000
+        && incoming().status == 'NEW'
+        && incoming().assignedRole == 'research_manager'
+        && incoming().createdAt is string && incoming().createdAt.size() <= 60;
+      allow update: if isValidId(orderId)
+        && isStaffOrAdmin()
+        && incoming().status in ['NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+      allow delete: if isValidId(orderId) && isStaffOrAdmin();
+    }
+
     match /test/{docId} {
       allow get: if docId == 'connection';
     }

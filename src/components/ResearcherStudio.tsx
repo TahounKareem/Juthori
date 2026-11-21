@@ -111,6 +111,8 @@ import {
   resolveTicketLifecycleStage,
   updateTicketLifecycleAndResolutionByStaff,
 } from '../services/priority4Service';
+import { KashafiResearcherInbox } from './KashafiResearcherInbox';
+import { fetchAllKashafiOrdersForStaff } from '../services/kashafiService';
 import {
   P3ProactiveCandidate,
   P3StrategicSelectionMeta,
@@ -254,6 +256,7 @@ interface ResearcherStudioProps {
 type ResearcherStudioSubTab =
   | 'direct_search'
   | 'ticket_inbox'
+  | 'kashafi_orders'
   | 'adam_tree_explorer'
   | 'drag_drop_linker'
   | 'adam_prime_bridge';
@@ -366,6 +369,25 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   }, [activeSubTab, activePortalSection]);
 
   const [toastBanner, setToastBanner] = useState<string | null>(null);
+  const [openKashafiOrdersCount, setOpenKashafiOrdersCount] =
+    useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllKashafiOrdersForStaff()
+      .then((ords) => {
+        if (cancelled) return;
+        setOpenKashafiOrdersCount(
+          ords.filter((o) => o.status === 'NEW' || o.status === 'IN_PROGRESS')
+            .length
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSubTab]);
+
   const showToast = (msg: string) => {
     setToastBanner(msg);
     setTimeout(() => setToastBanner(null), 6000);
@@ -10796,6 +10818,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
              "بوصلة الجذور" and "شجرة آدم للأجداد")
         =================================================================== */}
         {(activeSubTab === 'ticket_inbox' ||
+          activeSubTab === 'kashafi_orders' ||
           activeSubTab === 'adam_prime_bridge') && (
           <div
             data-testid="research-observatory-identity-header"
@@ -10819,7 +10842,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   مرصد البحوث — غرفة عمليات الباحثين
                 </h2>
                 <p className="text-xs text-[#5C5346] mt-0.5 font-medium">
-                  غرفة عمليات التذاكر البحثية وتوثيق المصادر وإثراء شجرة آدم للأجداد.
+                  غرفة عمليات التذاكر البحثية وطلبات كشّافي المسندة وتوثيق المصادر وإثراء شجرة آدم للأجداد.
                 </p>
               </div>
             </div>
@@ -10853,6 +10876,30 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     ).length
                   }
                 </span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="researcher-kashafi-orders-subtab-btn"
+                onClick={() => setActiveSubTab('kashafi_orders')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeSubTab === 'kashafi_orders'
+                    ? 'bg-[#D8755B] text-white shadow-2xs'
+                    : 'bg-white text-[#8D4925] hover:bg-[#EDE6DA] border border-[#C5A059]/50'
+                }`}
+              >
+                <span>طلبات وبعثات كشّافي</span>
+                {openKashafiOrdersCount > 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-extrabold ${
+                      activeSubTab === 'kashafi_orders'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-[#8D4925] text-[#FAF4E4]'
+                    }`}
+                  >
+                    {openKashafiOrdersCount}
+                  </span>
+                )}
               </button>
 
               <button
@@ -13304,6 +13351,17 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </div>
             )}
           </div>
+        )}
+
+        {/* ===================================================================
+            SUB-TAB 4B: طلبات وبعثات كشّافي المسندة لمدير البحوث
+        =================================================================== */}
+        {activeSubTab === 'kashafi_orders' && (
+          <KashafiResearcherInbox
+            researcherId={activeStaffMember?.id || 'research_manager'}
+            researcherName={activeStaffMember?.name || 'مدير البحوث'}
+            onToast={showToast}
+          />
         )}
 
         {/* ===================================================================

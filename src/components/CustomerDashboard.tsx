@@ -58,6 +58,8 @@ import {
   RECORD_KEEPER_CONTRACT_VERSION,
 } from '../data/recordKeeperContractData';
 import { RecordKeeperContractModal } from './RecordKeeperContractModal';
+import { KashafiHubView } from './KashafiHubView';
+import { fetchCustomerKashafiItems } from '../services/kashafiService';
 import {
   AccountLegalType,
   ActivityLogEntry,
@@ -139,6 +141,7 @@ const DASHBOARD_TABS: Array<{
   { id: DashboardTab.MyVault, label: 'خزانتي', premium: false },
   { id: DashboardTab.MySite, label: 'موقعي', premium: false },
   { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false },
+  { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false },
 ];
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
@@ -184,9 +187,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     initialWorkspace.familyName.trim() === result.familyName.trim();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() =>
-    initialTab && initialTab !== DashboardTab.MyExplorer
-      ? initialTab
-      : DashboardTab.Home
+    initialTab ? initialTab : DashboardTab.Home
   );
   const [vaultPersonFilterId, setVaultPersonFilterId] =
     useState<string | null>(null);
@@ -194,6 +195,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     useState<boolean>(false);
   const [hasResearcherReplyWaiting, setHasResearcherReplyWaiting] =
     useState<boolean>(false);
+  const [kashafiUnreadItemsCount, setKashafiUnreadItemsCount] =
+    useState<number>(0);
 
   useEffect(() => {
     if (initialTicketDraft) {
@@ -202,7 +205,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   }, [initialTicketDraft, onClearInitialTicketDraft]);
 
   useEffect(() => {
-    if (initialTab && initialTab !== DashboardTab.MyExplorer) {
+    if (initialTab) {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
@@ -226,6 +229,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         setHasResearcherReplyWaiting(waiting);
       })
       .catch(() => {});
+
+    fetchCustomerKashafiItems(resolvedCustomerUid, userEmail)
+      .then((items) => {
+        if (cancelled) return;
+        setKashafiUnreadItemsCount(items.filter((i) => !i.isRead).length);
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
@@ -2579,7 +2590,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </div>
           </div>
 
-          {/* Main Dashboard Navigation Tabs (No كشافي or مرصد البحوث in horizontal tabs) */}
+          {/* Main Dashboard Navigation Tabs (7 Tabs including كشّافي) */}
           <nav
             aria-label="تبويبات لوحة تحكم العميل"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth touch-pan-x py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0"
@@ -2587,6 +2598,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {DASHBOARD_TABS.map((tab) => {
               const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
               const isSelected = activeUtilityDrawer === null && activeTab === tab.id;
+              const isKashafiTab = tab.id === DashboardTab.MyExplorer;
+              const kashafiDynamicCount =
+                kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
 
               let buttonClasses =
                 'relative px-4 py-2.5 rounded-xl text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] ';
@@ -2597,6 +2611,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               } else if (isLocked) {
                 buttonClasses +=
                   'bg-[#EDE6DA]/60 text-[#252321]/50 hover:bg-[#EDE6DA]';
+              } else if (isKashafiTab) {
+                buttonClasses +=
+                  'text-[#8D4925] bg-[#FAF4E4]/80 border border-[#C5A059]/60 hover:bg-[#FAF4E4]';
               } else {
                 buttonClasses += 'text-[#252321] hover:bg-[#EDE6DA]';
               }
@@ -2613,13 +2630,19 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   }
                   className={buttonClasses}
                 >
-                  {isSelected && (
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-[#F3D299] shrink-0"
-                      aria-hidden="true"
-                    />
-                  )}
                   <span>{tab.label}</span>
+                  {isKashafiTab && kashafiDynamicCount > 0 && (
+                    <span
+                      data-testid="kashafi-tab-unread-badge"
+                      className={`px-1.5 py-0.5 rounded-md font-mono tabular-nums text-[10px] font-extrabold leading-none ${
+                        isSelected
+                          ? 'bg-white/25 text-white'
+                          : 'bg-[#8D4925] text-[#FAF4E4]'
+                      }`}
+                    >
+                      {kashafiDynamicCount}
+                    </span>
+                  )}
                   {isLocked && (
                     <Lock
                       className="w-3.5 h-3.5 text-[#DC2626]/80"
@@ -3704,7 +3727,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
             onOpenResearchTicketsTab={() => {
               setActiveUtilityDrawer(null);
-              setActiveTab(DashboardTab.ResearchTickets);
+              setActiveTab(DashboardTab.MyExplorer);
             }}
             onResyncLineage={onResyncLineageFromEngine}
             isResyncingLineage={isResyncingLineage}
@@ -3717,6 +3740,44 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
             onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
             onLogActivity={appendActivity}
+          />
+        ) : activeTab === DashboardTab.MyExplorer ? (
+          <KashafiHubView
+            result={activeResult}
+            accountType={accountType}
+            caps={caps}
+            walletBalance={walletBalance}
+            userId={resolvedCustomerUid}
+            userEmail={userEmail}
+            userPhone={editPhone}
+            onNavigateTab={(t) => {
+              if (t === DashboardTab.ResearchTickets) {
+                setActiveUtilityDrawer(null);
+                setActiveTab(DashboardTab.MyExplorer);
+                return;
+              }
+              const found = DASHBOARD_TABS.find((x) => x.id === t);
+              if (found) handleTabClick(found);
+            }}
+            onOpenWalletDrawer={() => setActiveUtilityDrawer('cart')}
+            onUpgradeAnnualVip={handleUpgradeAnnualVip}
+            onWalletBalanceUpdated={(nextBal) => setWalletBalance(nextBal)}
+            onLogActivity={appendActivity}
+            onAdoptResolvedLineage={(enriched) => {
+              setVerifiedResultOverride(enriched);
+              onUpdateLineageResult?.(enriched);
+              setHasResearcherReplyWaiting(false);
+            }}
+            onTicketsStatusChange={({
+              hasAnyTicket,
+              hasResearcherReplyWaiting: waiting,
+            }) => {
+              setHasCustomerResearchTicket(hasAnyTicket);
+              setHasResearcherReplyWaiting(waiting);
+            }}
+            onKashafiUnreadCountChange={(count) =>
+              setKashafiUnreadItemsCount(count)
+            }
           />
         ) : activeTab === DashboardTab.ResearchTickets ? (
           <ResearchTicketsView
