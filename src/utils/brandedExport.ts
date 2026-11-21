@@ -5,9 +5,11 @@ import {
   UpperAncestorNode,
 } from '../types/juthori';
 import {
+  TreeArabicFontId,
   TreeCardThemeDefinition,
   TreePosterSettings,
   buildDeterministicQrMatrix,
+  getTreeArabicFontDefinition,
 } from './treeStudioConfig';
 
 export type BrandedExportKind = 'lineage_spine' | 'family_tree';
@@ -15,6 +17,7 @@ export type BrandedExportKind = 'lineage_spine' | 'family_tree';
 export interface ExportPosterOptions {
   poster: TreePosterSettings;
   theme?: TreeCardThemeDefinition;
+  fontFamily?: TreeArabicFontId;
   layoutLabel?: string;
   verificationUrl?: string;
 }
@@ -382,6 +385,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
 
   const poster = posterOptions?.poster;
   const theme = posterOptions?.theme;
+  const fontDef = getTreeArabicFontDefinition(posterOptions?.fontFamily);
   const inkSaver = Boolean(poster?.inkSaverMode);
   const isDarkTheme = Boolean(theme?.isDarkSurface) && !inkSaver;
 
@@ -518,13 +522,16 @@ export function printOfficialBrandedDocumentViaIframe(params: {
 <head>
   <meta charset="UTF-8" />
   <title>${escapeHtml(docTitle)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800&family=Noto+Naskh+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     ${paperCss}
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body {
       margin: 0;
       padding: 0;
-      font-family: 'Cairo', 'Tajawal', 'Amiri', system-ui, -apple-system, sans-serif;
+      font-family: ${fontDef.cssFamily};
       background: ${pageBg};
       color: ${textColor};
       direction: rtl;
@@ -546,14 +553,14 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       border-bottom: 1px dashed ${goldColor}66;
     }
     .basmala {
-      font-family: 'Amiri', 'Cairo', serif;
+      font-family: ${fontDef.cssFamily};
       font-size: 20px;
       font-weight: 800;
       color: ${primaryColor};
       letter-spacing: 0.3px;
     }
     .verse {
-      font-family: 'Amiri', 'Cairo', serif;
+      font-family: ${fontDef.cssFamily};
       font-size: 13px;
       font-weight: 700;
       color: ${mutedTextColor};
@@ -847,6 +854,8 @@ export function downloadHighResBrandedPng(params: {
 
   const poster = posterOptions?.poster;
   const theme = posterOptions?.theme;
+  const fontDef = getTreeArabicFontDefinition(posterOptions?.fontFamily);
+  const canvasFontStack = `'${fontDef.canvasFontName}', Cairo, Tajawal, serif`;
   const inkSaver = Boolean(poster?.inkSaverMode);
   const isDarkTheme = Boolean(theme?.isDarkSurface) && !inkSaver;
 
@@ -961,11 +970,11 @@ export function downloadHighResBrandedPng(params: {
   if (hasCalligraphy) {
     ctx.textAlign = 'center';
     ctx.fillStyle = primaryHex;
-    ctx.font = '800 22px Amiri, Cairo, serif';
+    ctx.font = `800 22px ${canvasFontStack}`;
     ctx.fillText('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', logicalWidth / 2, 74);
     if (poster?.headerStyle === 'basmala_verse') {
       ctx.fillStyle = textMuted;
-      ctx.font = '700 13.5px Amiri, Cairo, serif';
+      ctx.font = `700 13.5px ${canvasFontStack}`;
       ctx.fillText(
         '﴿ يَا أَيُّهَا النَّاسُ إِنَّا خَلَقْنَاكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَاكُمْ شُعُوبًا وَقَبَائِلَ لِتَعَارَفُوا ﴾',
         logicalWidth / 2,
@@ -984,13 +993,13 @@ export function downloadHighResBrandedPng(params: {
   ctx.strokeRect(logicalWidth - 116, headY, 60, 60);
 
   ctx.fillStyle = inkSaver ? primaryHex : '#F3D299';
-  ctx.font = '800 18px Cairo, Tajawal, sans-serif';
+  ctx.font = `800 18px ${canvasFontStack}`;
   ctx.textAlign = 'center';
   ctx.fillText('جذوري', logicalWidth - 86, headY + 37);
 
   ctx.textAlign = 'right';
   ctx.fillStyle = primaryHex;
-  ctx.font = '700 14px Cairo, Tajawal, sans-serif';
+  ctx.font = `700 14px ${canvasFontStack}`;
   ctx.fillText(
     'منصة جذوري للأنساب العربية الموثقة · Juthori Official Export',
     logicalWidth - 134,
@@ -998,7 +1007,7 @@ export function downloadHighResBrandedPng(params: {
   );
 
   ctx.fillStyle = textDark;
-  ctx.font = '800 24px Cairo, Tajawal, sans-serif';
+  ctx.font = `800 24px ${canvasFontStack}`;
   const mainHeading =
     poster?.customTitle?.trim() ||
     (exportKind === 'lineage_spine'
@@ -1111,12 +1120,12 @@ export function downloadHighResBrandedPng(params: {
           ? primaryHex
           : '#F3D299'
         : primaryHex;
-    ctx.font = '700 11px Cairo, Tajawal, sans-serif';
+    ctx.font = `700 11px ${canvasFontStack}`;
     ctx.fillText(entry.subtitle, cardX + cardW - 14, cardY + 19);
 
     ctx.fillStyle =
       entry.tone === 'summit' ? (inkSaver ? '#1A130F' : '#FFFFFF') : textDark;
-    ctx.font = '800 15px Cairo, Tajawal, sans-serif';
+    ctx.font = `800 15px ${canvasFontStack}`;
     ctx.fillText(entry.title, cardX + cardW - 14, cardY + 40);
 
     if (cols === 1 && idx < entries.length - 1) {

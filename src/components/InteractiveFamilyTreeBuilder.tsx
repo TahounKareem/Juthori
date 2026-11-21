@@ -2,52 +2,43 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowDown,
   ArrowLeft,
+  Award,
   Camera,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ChevronUp,
-  Circle,
   Clock,
   Cloud,
   Compass,
   Copy,
+  Crosshair,
   Crown,
   Download,
   Edit2,
   FileSignature,
   FileText,
-  Filter,
-  Globe,
+  GitFork,
   Heart,
   Layers,
-  LayoutGrid,
-  Leaf,
   Link2,
   Loader2,
   Lock,
   MapPin,
-  MoveHorizontal,
-  MoveVertical,
-  Palette,
   Paperclip,
   Plus,
-  Printer,
-  Radar,
   Save,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  Sun,
   Trash2,
   Upload,
   UserPlus,
   Users,
   Wallet,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import {
   AccountLegalType,
@@ -92,22 +83,31 @@ import { ExportTreeMemberSummary } from '../utils/brandedExport';
 import {
   PedigreeTreeNode,
   buildPedigreeTreeLayout,
+  calculateKinshipPath,
   collectCascadeDeleteIds,
   collectTopSiblingGroupIds,
+  countTreeNodeDescendants,
 } from '../utils/familyTreeLayout';
 import {
   DEFAULT_TREE_DISPLAY_SETTINGS,
-  TREE_AVATAR_STYLE_OPTIONS,
   TREE_CARD_THEMES,
-  TREE_QUICK_PRESETS,
-  TreeCardThemeId,
+  TREE_PRESTIGE_BADGE_OPTIONS,
   TreeDisplaySettings,
+  TreePrestigeBadgeId,
   TreeSettingsTabId,
   formatTreeDateByCalendarMode,
+  getTreeArabicFontDefinition,
   getTreeCanvasBackgroundStyle,
   normalizeTreeDisplaySettings,
 } from '../utils/treeStudioConfig';
 import { RadialFamilyTreeCharts } from './RadialFamilyTreeCharts';
+import { TreeStudioSideInspector } from './TreeStudioSideInspector';
+import {
+  TreeFloatingStudioDock,
+  TreeInteractiveMinimap,
+  TreeKinshipCalculatorModal,
+  TreeSmartNodeSearch,
+} from './TreeCanvasPowerTools';
 
 export type ArabicHonorificTitle =
   | 'بدون'
@@ -157,6 +157,7 @@ export interface InteractiveTreePerson {
   familyName: string;
   kunya: string;
   honorificTitle: ArabicHonorificTitle;
+  prestigeBadge?: TreePrestigeBadgeId;
   gender: 'male' | 'female';
   /**
    * Generational level relative to the Record Keeper:
@@ -874,7 +875,46 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [selectedPersonIdForSpouses, setSelectedPersonIdForSpouses] = useState<
     string | null
   >(null);
+  const [isCinemaMode, setIsCinemaMode] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(false);
+  const [spotlightPersonId, setSpotlightPersonId] = useState<string | null>(
+    null
+  );
+  const [collapsedBranchIds, setCollapsedBranchIds] = useState<Set<string>>(
+    () => new Set<string>()
+  );
+  const [focusSubtreeRootId, setFocusSubtreeRootId] = useState<string | null>(
+    null
+  );
+  const [showKinshipModal, setShowKinshipModal] = useState(false);
+  const [kinshipPersonAId, setKinshipPersonAId] = useState<string>('');
+  const [kinshipPersonBId, setKinshipPersonBId] = useState<string>('');
+  const [isKinshipHighlightedOnCanvas, setIsKinshipHighlightedOnCanvas] =
+    useState(false);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
+  const canvasContentRef = useRef<HTMLDivElement | null>(null);
+  const spotlightTimerRef = useRef<number | null>(null);
   const hasHydratedCloudSettingsRef = useRef(false);
+
+  // Escape key exits Fullscreen Cinema Mode gracefully
+  useEffect(() => {
+    if (!isCinemaMode) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCinemaMode(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isCinemaMode]);
+
+  useEffect(() => {
+    return () => {
+      if (spotlightTimerRef.current) {
+        window.clearTimeout(spotlightTimerRef.current);
+      }
+    };
+  }, []);
 
   const [treeDisplaySettings, setTreeDisplaySettings] =
     useState<TreeDisplaySettings>(() => {
@@ -1009,6 +1049,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   ]);
 
   const activeTreeTheme = TREE_CARD_THEMES[treeDisplaySettings.cardTheme];
+  const activeTreeFont = getTreeArabicFontDefinition(
+    treeDisplaySettings.fontFamily
+  );
 
   // Direct lineage compass spine (from Record Keeper upward to topmost ancestor)
   const directCompassIds = useMemo(() => {
@@ -1031,6 +1074,88 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     });
     return ids;
   }, [people]);
+
+  const toggleBranchCollapse = (personId: string) => {
+    setCollapsedBranchIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(personId)) {
+        next.delete(personId);
+      } else {
+        next.add(personId);
+      }
+      return next;
+    });
+  };
+
+  const handleFitAndCenterCanvas = () => {
+    const viewport = canvasViewportRef.current;
+    const content = canvasContentRef.current;
+    if (!viewport || !content) {
+      setZoomPercent(100);
+      return;
+    }
+    const contentWidth = content.scrollWidth || content.offsetWidth;
+    const viewportWidth = viewport.clientWidth || 1;
+    if (contentWidth > viewportWidth && contentWidth > 0) {
+      const idealZoom = Math.max(
+        55,
+        Math.min(100, Math.floor(((viewportWidth - 32) / contentWidth) * 100))
+      );
+      setZoomPercent(idealZoom);
+    } else {
+      setZoomPercent(100);
+    }
+    window.requestAnimationFrame(() => {
+      const vp = canvasViewportRef.current;
+      if (!vp) return;
+      const maxScroll = Math.max(0, vp.scrollWidth - vp.clientWidth);
+      if (maxScroll > 0) {
+        vp.scrollTo({ left: -maxScroll / 2, top: 0, behavior: 'smooth' });
+      }
+    });
+  };
+
+  const handleSpotlightPerson = (personId: string) => {
+    // Expand any collapsed ancestors so the target card is guaranteed visible
+    setCollapsedBranchIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set(prev);
+      const byId = new Map(people.map((p) => [p.id, p]));
+      let cur = byId.get(personId);
+      const guard = new Set<string>();
+      while (cur && !guard.has(cur.id)) {
+        guard.add(cur.id);
+        next.delete(cur.id);
+        cur = cur.fatherId ? byId.get(cur.fatherId) : undefined;
+      }
+      return next;
+    });
+
+    if (focusSubtreeRootId) {
+      setFocusSubtreeRootId(null);
+    }
+
+    setSpotlightPersonId(personId);
+    if (spotlightTimerRef.current) {
+      window.clearTimeout(spotlightTimerRef.current);
+    }
+    spotlightTimerRef.current = window.setTimeout(() => {
+      setSpotlightPersonId((cur) => (cur === personId ? null : cur));
+    }, 3600);
+
+    window.setTimeout(() => {
+      const cardEl = document.querySelector(
+        `[data-testid="tree-person-card-${personId}"]`
+      );
+      if (cardEl && typeof cardEl.scrollIntoView === 'function') {
+        cardEl.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'center',
+        });
+      }
+    }, 90);
+  };
 
   const handleToggleVaultItemForModalPerson = (
     itemId: string,
@@ -1424,6 +1549,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [formKunya, setFormKunya] = useState('');
   const [formHonorific, setFormHonorific] =
     useState<ArabicHonorificTitle>('بدون');
+  const [formPrestigeBadge, setFormPrestigeBadge] =
+    useState<TreePrestigeBadgeId>('none');
   const [formMotherId, setFormMotherId] = useState<string>('');
   const [formVitalStatus, setFormVitalStatus] = useState<
     'unspecified' | 'living' | 'deceased'
@@ -1514,6 +1641,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setFormFamilyName('');
     setFormKunya('');
     setFormHonorific('بدون');
+    setFormPrestigeBadge('none');
 
     let candidateWives: InteractiveTreePerson[] = [];
     if (resolvedRelationKind === 'son' || resolvedRelationKind === 'daughter') {
@@ -1589,6 +1717,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setFormFamilyName('');
     setFormKunya('');
     setFormHonorific('بدون');
+    setFormPrestigeBadge('none');
     setFormMotherId('');
     setFormVitalStatus('unspecified');
     setFormBirthPrecision('year_only');
@@ -1628,6 +1757,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setFormFamilyName('');
     setFormKunya(person.kunya || '');
     setFormHonorific(person.honorificTitle || 'بدون');
+    setFormPrestigeBadge(person.prestigeBadge || 'none');
     setFormMotherId(person.motherId || '');
     setFormVitalStatus(person.vitalStatus || 'unspecified');
     setFormBirthPrecision(person.birthPrecision);
@@ -1778,6 +1908,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             familyName: '',
             kunya: formKunya.trim(),
             honorificTitle: formHonorific,
+            prestigeBadge:
+              formPrestigeBadge !== 'none' ? formPrestigeBadge : undefined,
             gender: isVerticalOnly ? 'male' : formGender,
             motherId: isVerticalOnly ? undefined : formMotherId || p.motherId,
             vitalStatus: formVitalStatus,
@@ -1950,6 +2082,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       familyName: '',
       kunya: formKunya.trim(),
       honorificTitle: formHonorific,
+      prestigeBadge:
+        formPrestigeBadge !== 'none' ? formPrestigeBadge : undefined,
       gender: effectiveGender,
       generationLevel: nextGenLevel,
       isDirectSpineLineage,
@@ -2982,6 +3116,28 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       ? 'ring-3 ring-[#D4AF37]/80 border-[#D4AF37] shadow-[0_0_22px_rgba(212,175,55,0.42)]'
       : '';
 
+    const isSpotlighted = spotlightPersonId === person.id;
+    const isKinshipNodeHighlighted =
+      isKinshipHighlightedOnCanvas &&
+      Boolean(kinshipPathResult?.pathNodeIds.has(person.id));
+
+    const spotlightGlowClass = isSpotlighted
+      ? 'ring-4 ring-[#D4AF37] border-[#D4AF37] shadow-[0_0_28px_rgba(212,175,55,0.7)] scale-[1.03]'
+      : '';
+
+    const kinshipPathGlowClass = isKinshipNodeHighlighted
+      ? 'ring-3 ring-[#C5A059] border-[#C5A059] shadow-[0_0_24px_rgba(197,160,89,0.58)]'
+      : '';
+
+    const prestigeBadgeMeta =
+      treeDisplaySettings.showPrestigeBadges &&
+      person.prestigeBadge &&
+      person.prestigeBadge !== 'none'
+        ? TREE_PRESTIGE_BADGE_OPTIONS.find(
+            (b) => b.id === person.prestigeBadge
+          ) || null
+        : null;
+
     const cardSurfaceClass = `${
       person.isRecordKeeper
         ? activeTreeTheme.recordKeeperCard
@@ -2992,7 +3148,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         : person.generationLevel >= 4
         ? activeTreeTheme.elderCard
         : activeTreeTheme.defaultCard
-    } ${deceasedDignityClass} ${compassGlowClass} ${
+    } ${deceasedDignityClass} ${compassGlowClass} ${kinshipPathGlowClass} ${spotlightGlowClass} ${
       isVitalDimmed ? 'opacity-35 saturate-50' : ''
     }`;
 
@@ -3467,10 +3623,27 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                       {person.birthPlace || person.biography}
                     </div>
                   )}
+
+                {/* 5. Optional Dignified Prestige Badge */}
+                {prestigeBadgeMeta && (
+                  <div className="pt-1">
+                    <span
+                      data-testid={`tree-card-prestige-${person.id}`}
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8.5px] font-display font-extrabold border ${
+                        activeTreeTheme.isDarkSurface
+                          ? 'bg-[#D4AF37]/15 border-[#D4AF37]/45 text-[#F3D299]'
+                          : 'bg-[#FEF9EC] border-[#C5A059]/50 text-[#8D4925]'
+                      }`}
+                    >
+                      <Award className="w-2.5 h-2.5 shrink-0 text-[#C5A059]" />
+                      <span className="truncate">{prestigeBadgeMeta.label}</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* 5. Linked Vault Media Badge Pinned to Bottom-Left so ALL Sibling Names Stay Aligned */}
+            {/* 6. Linked Vault Media Badge Pinned to Bottom-Left so ALL Sibling Names Stay Aligned */}
             {renderVaultCornerBadge('bottom-1.5 left-1.5')}
 
             {/* Compact Circular (+) Button ONLY within the Branching Zone (<= 5th Grandfather) */}
@@ -3630,8 +3803,33 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   );
 
   const pedigreeLayout = useMemo(
-    () => buildPedigreeTreeLayout(visiblePeopleForTree),
-    [visiblePeopleForTree]
+    () =>
+      buildPedigreeTreeLayout(visiblePeopleForTree, {
+        siblingSortOrder: treeDisplaySettings.siblingSortOrder,
+        focusRootId: focusSubtreeRootId,
+      }),
+    [
+      visiblePeopleForTree,
+      treeDisplaySettings.siblingSortOrder,
+      focusSubtreeRootId,
+    ]
+  );
+
+  const kinshipPathResult = useMemo(() => {
+    if (!kinshipPersonAId || !kinshipPersonBId) return null;
+    return calculateKinshipPath(
+      visiblePeopleForTree,
+      kinshipPersonAId,
+      kinshipPersonBId
+    );
+  }, [visiblePeopleForTree, kinshipPersonAId, kinshipPersonBId]);
+
+  const focusedSubtreePerson = useMemo(
+    () =>
+      focusSubtreeRootId
+        ? visiblePeopleForTree.find((p) => p.id === focusSubtreeRootId) || null
+        : null,
+    [visiblePeopleForTree, focusSubtreeRootId]
   );
 
   const renderDownwardArrowTip = (isDirectSpine = false) => (
@@ -3741,6 +3939,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const { person, spouses, children } = treeNode;
     const isVerticalOnlyZone =
       person.generationLevel > FIFTH_GRANDFATHER_LEVEL;
+    const descendantCount =
+      children.length > 0 ? countTreeNodeDescendants(treeNode) : 0;
+    const isBranchCollapsed =
+      children.length > 0 && collapsedBranchIds.has(person.id);
 
     const shouldShowSpouses =
       !isVerticalOnlyZone &&
@@ -3760,6 +3962,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         : 'h-[2px]';
     const connectorRadiusClass =
       treeDisplaySettings.connectorStyle === 'curved' ? 'rounded-full' : '';
+
+    const isKinshipEdge = (childId: string) =>
+      isKinshipHighlightedOnCanvas &&
+      Boolean(
+        kinshipPathResult?.pathNodeIds.has(person.id) &&
+          kinshipPathResult?.pathNodeIds.has(childId)
+      );
 
     return (
       <div
@@ -3814,8 +4023,41 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           </div>
         )}
 
+        {/* Branch Collapse / Expand Pill for Parents with Descendants */}
+        {children.length > 0 && (
+          <button
+            type="button"
+            data-testid={`toggle-branch-collapse-${person.id}`}
+            onClick={() => toggleBranchCollapse(person.id)}
+            title={
+              isBranchCollapsed
+                ? `إظهار ذرية ${person.firstName} (${descendantCount})`
+                : `طيّ فرع ${person.firstName} (${descendantCount})`
+            }
+            className={`mt-1 mb-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-display font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
+              isBranchCollapsed
+                ? 'bg-[#D8755B] text-white border-[#B85A42] shadow-xs'
+                : activeTreeTheme.isDarkSurface
+                ? 'bg-[#262019]/90 hover:bg-[#332B21] text-[#F3D299] border-[#D4AF37]/40'
+                : 'bg-white/90 hover:bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/40'
+            }`}
+          >
+            {isBranchCollapsed ? (
+              <>
+                <ChevronLeft className="w-2.5 h-2.5" />
+                <span>إظهار الذرية ({descendantCount})</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-2.5 h-2.5" />
+                <span>{descendantCount}</span>
+              </>
+            )}
+          </button>
+        )}
+
         {/* Children / Siblings Branch descending directly from THIS parent with downward arrows */}
-        {children.length === 1 ? (
+        {!isBranchCollapsed && children.length === 1 ? (
           <div
             data-testid={`pedigree-single-child-branch-${person.id}`}
             className="flex flex-col items-center"
@@ -3825,9 +4067,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 className={`${connectorLineThickness} ${connectorRadiusClass} ${
                   treeDisplaySettings.showKinshipArrows ? 'h-3' : 'h-6'
                 } ${
-                  treeDisplaySettings.highlightDirectCompass &&
-                  directCompassIds.has(children[0].person.id)
-                    ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.7)]'
+                  isKinshipEdge(children[0].person.id) ||
+                  (treeDisplaySettings.highlightDirectCompass &&
+                    directCompassIds.has(children[0].person.id))
+                    ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
                     : children[0].isDirectSpineEdge
                     ? activeTreeTheme.connectorStrong
                     : activeTreeTheme.connectorSoft
@@ -3845,24 +4088,35 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   </span>
                   <div
                     className={`w-[2px] h-2.5 ${
-                      children[0].isDirectSpineEdge
+                      isKinshipEdge(children[0].person.id)
+                        ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
+                        : children[0].isDirectSpineEdge
                         ? activeTreeTheme.connectorStrong
                         : activeTreeTheme.connectorSoft
                     }`}
                   />
                 </>
               )}
-              {renderDownwardArrowTip(children[0].isDirectSpineEdge)}
+              {renderDownwardArrowTip(
+                children[0].isDirectSpineEdge ||
+                  isKinshipEdge(children[0].person.id)
+              )}
             </div>
             {renderPedigreeSubtree(children[0])}
           </div>
-        ) : children.length > 1 ? (
+        ) : !isBranchCollapsed && children.length > 1 ? (
           <div
             data-testid={`pedigree-siblings-branch-${person.id}`}
             className="flex flex-col items-center"
           >
             {/* Vertical stem descending from the parent center straight into the continuous siblings top bar */}
-            <div className={`w-[2px] h-5 ${activeTreeTheme.connectorSoft}`} />
+            <div
+              className={`w-[2px] h-5 ${
+                children.some((c) => isKinshipEdge(c.person.id))
+                  ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
+                  : activeTreeTheme.connectorSoft
+              }`}
+            />
 
             {/* Siblings Row: zero gap between outer columns so top horizontal bar is 100% continuous */}
             <div
@@ -3875,6 +4129,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 const isLast = idx === children.length - 1;
                 const childKinshipWord =
                   childNode.person.gender === 'female' ? 'بنت' : 'بن';
+                const childOnKinship = isKinshipEdge(childNode.person.id);
 
                 return (
                   <div
@@ -3887,7 +4142,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                       {/* Continuous horizontal top bar uniting all siblings under their shared parent */}
                       <div
                         className={`absolute top-0 h-[2px] ${
-                          activeTreeTheme.connectorSoft
+                          childOnKinship
+                            ? 'bg-[#D4AF37]'
+                            : activeTreeTheme.connectorSoft
                         } ${
                           isFirst
                             ? 'start-[calc(50%-1px)] end-0'
@@ -3899,7 +4156,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                       {/* Vertical stem dropping straight down into this child's top center */}
                       <div
                         className={`w-[2px] flex-1 ${
-                          childNode.isDirectSpineEdge
+                          childOnKinship
+                            ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
+                            : childNode.isDirectSpineEdge
                             ? activeTreeTheme.connectorStrong
                             : activeTreeTheme.connectorSoft
                         }`}
@@ -3911,7 +4170,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                           {childKinshipWord}
                         </span>
                       )}
-                      {renderDownwardArrowTip(childNode.isDirectSpineEdge)}
+                      {renderDownwardArrowTip(
+                        childNode.isDirectSpineEdge || childOnKinship
+                      )}
                     </div>
 
                     {/* Horizontal card spacing lives BELOW the connector bar so the line above never breaks */}
@@ -3923,7 +4184,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               })}
             </div>
           </div>
-        ) : person.isRecordKeeper ? (
+        ) : children.length === 0 && person.isRecordKeeper ? (
           /* Quiet quick-add action directly beneath Record Keeper when no children exist yet */
           <div className="flex flex-col items-center">
             <div className="w-[2px] h-6 border-r-2 border-dashed border-[#B98A78]/75" />
@@ -3961,6 +4222,17 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const { person, spouses, children } = treeNode;
     const isVerticalOnlyZone =
       person.generationLevel > FIFTH_GRANDFATHER_LEVEL;
+    const descendantCount =
+      children.length > 0 ? countTreeNodeDescendants(treeNode) : 0;
+    const isBranchCollapsed =
+      children.length > 0 && collapsedBranchIds.has(person.id);
+
+    const isKinshipEdge = (childId: string) =>
+      isKinshipHighlightedOnCanvas &&
+      Boolean(
+        kinshipPathResult?.pathNodeIds.has(person.id) &&
+          kinshipPathResult?.pathNodeIds.has(childId)
+      );
 
     return (
       <div
@@ -3970,7 +4242,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         className="flex flex-row flex-nowrap items-center"
       >
         {/* 1. RIGHT SIDE (Children / Record Keeper & Branches feeding LEFT into their Father) */}
-        {children.length === 1 ? (
+        {!isBranchCollapsed && children.length === 1 ? (
           <div
             data-testid={`pedigree-sideways-single-branch-${person.id}`}
             className="flex flex-row flex-nowrap items-center"
@@ -3981,7 +4253,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 className={`h-[2px] ${
                   treeDisplaySettings.showKinshipArrows ? 'w-4' : 'w-7'
                 } ${
-                  children[0].isDirectSpineEdge
+                  isKinshipEdge(children[0].person.id)
+                    ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
+                    : children[0].isDirectSpineEdge
                     ? activeTreeTheme.connectorStrong
                     : activeTreeTheme.connectorSoft
                 }`}
@@ -3998,17 +4272,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   </span>
                   <div
                     className={`h-[2px] w-3 ${
-                      children[0].isDirectSpineEdge
+                      isKinshipEdge(children[0].person.id)
+                        ? 'bg-[#D4AF37]'
+                        : children[0].isDirectSpineEdge
                         ? activeTreeTheme.connectorStrong
                         : activeTreeTheme.connectorSoft
                     }`}
                   />
                 </>
               )}
-              {renderLeftwardArrowTip(children[0].isDirectSpineEdge)}
+              {renderLeftwardArrowTip(
+                children[0].isDirectSpineEdge ||
+                  isKinshipEdge(children[0].person.id)
+              )}
             </div>
           </div>
-        ) : children.length > 1 ? (
+        ) : !isBranchCollapsed && children.length > 1 ? (
           <div
             data-testid={`pedigree-sideways-siblings-branch-${person.id}`}
             className="flex flex-row flex-nowrap items-center"
@@ -4020,6 +4299,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 const isLast = idx === children.length - 1;
                 const childKinshipWord =
                   childNode.person.gender === 'female' ? 'بنت' : 'بن';
+                const childOnKinship = isKinshipEdge(childNode.person.id);
 
                 return (
                   <div
@@ -4035,7 +4315,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     <div className="relative w-10 self-stretch flex flex-row items-center shrink-0">
                       <div
                         className={`h-[2px] flex-1 ${
-                          childNode.isDirectSpineEdge
+                          childOnKinship
+                            ? 'bg-[#D4AF37]'
+                            : childNode.isDirectSpineEdge
                             ? activeTreeTheme.connectorStrong
                             : activeTreeTheme.connectorSoft
                         }`}
@@ -4049,7 +4331,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                       )}
                       <div
                         className={`absolute left-0 w-[2px] ${
-                          activeTreeTheme.connectorSoft
+                          childOnKinship
+                            ? 'bg-[#D4AF37]'
+                            : activeTreeTheme.connectorSoft
                         } ${
                           isFirst
                             ? 'top-[calc(50%-1px)] bottom-0'
@@ -4066,7 +4350,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
             {/* Horizontal stem + leftward arrow exiting the continuous vertical bracket directly into the Father on the LEFT */}
             <div className="flex flex-row items-center shrink-0">
-              <div className={`h-[2px] w-5 ${activeTreeTheme.connectorSoft}`} />
+              <div
+                className={`h-[2px] w-5 ${
+                  children.some((c) => isKinshipEdge(c.person.id))
+                    ? 'bg-[#D4AF37]'
+                    : activeTreeTheme.connectorSoft
+                }`}
+              />
               {renderLeftwardArrowTip(true)}
             </div>
           </div>
@@ -4075,6 +4365,29 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         {/* 2. LEFT SIDE: This Parent / Ancestor Node (+ Spouses stacked cleanly below) */}
         <div className="flex flex-col items-center shrink-0">
           {renderPersonCard(person)}
+          {children.length > 0 && (
+            <button
+              type="button"
+              onClick={() => toggleBranchCollapse(person.id)}
+              className={`mt-1 px-2 py-0.5 rounded-full text-[9.5px] font-display font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
+                isBranchCollapsed
+                  ? 'bg-[#D8755B] text-white border-[#B85A42]'
+                  : 'bg-white/90 hover:bg-[#FAF6F0] text-[#8D4925] border-[#B98A78]/40'
+              }`}
+            >
+              {isBranchCollapsed ? (
+                <>
+                  <ChevronRight className="w-2.5 h-2.5" />
+                  <span>إظهار الذرية ({descendantCount})</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-2.5 h-2.5" />
+                  <span>{descendantCount}</span>
+                </>
+              )}
+            </button>
+          )}
           {!isVerticalOnlyZone &&
             (treeDisplaySettings.spouseDisplayMode === 'always' ||
               (treeDisplaySettings.spouseDisplayMode === 'on_select' &&
@@ -4374,1187 +4687,228 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       )}
 
       {/* ==================================================================== */}
-      {/* 2. INTERACTIVE TREE CANVAS WITH COMPACT 4-TAB «إعدادات شجرتي» STUDIO */}
+      {/* 2. PREMIUM STUDIO WORKSPACE: SIDE INSPECTOR + FLOATING CANVAS HUD    */}
       {/* ==================================================================== */}
       <div
-        className={`rounded-3xl border-2 ${activeTreeTheme.canvasBorder} p-3 sm:p-5 shadow-sm relative overflow-x-auto touch-pan-x touch-pan-y scroll-smooth transition-colors`}
-        style={getTreeCanvasBackgroundStyle(
-          activeTreeTheme,
-          treeDisplaySettings.canvasBackground
-        )}
+        data-testid="tree-studio-workspace"
+        className={
+          isCinemaMode
+            ? 'fixed inset-0 z-[60] flex flex-col bg-[#FAF6F0] overflow-hidden'
+            : `rounded-3xl border-2 ${activeTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
+        }
       >
-        {/* Collapsible «إعدادات شجرتي» 4-Tab Studio Bar (Collapsed by default to maximize canvas space) */}
+        {/* Clean Non-Overlapping Studio Top Header Bar */}
         <div
           data-testid="tree-settings-collapsible-bar"
-          className="rounded-2xl bg-white/95 backdrop-blur-xs border border-[#B98A78]/35 mb-4 shadow-2xs overflow-hidden text-[#252321]"
+          className="px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20"
         >
-          {/* Compact Always-Visible Top Row */}
-          <div className="px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-              <button
-                type="button"
-                data-testid="toggle-tree-settings-btn"
-                onClick={() => setIsTreeSettingsOpen((open) => !open)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors border ${
-                  isTreeSettingsOpen
-                    ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                    : 'bg-[#FAF6F0] hover:bg-[#F5E6DC]/70 text-[#252321] border-[#B98A78]/40'
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#D8755B]" />
-                <span>إعدادات شجرتي</span>
-                {isTreeSettingsOpen ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </button>
+          {/* Right Cluster: Studio Inspector Toggle + Clean Inline Metadata Summary */}
+          <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              data-testid="toggle-tree-settings-btn"
+              onClick={() => setIsTreeSettingsOpen((open) => !open)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
+                isTreeSettingsOpen
+                  ? 'bg-[#252321] text-white border-[#252321] shadow-xs'
+                  : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#D8755B]" />
+              <span>✦ استوديو وإعدادات شجرتي</span>
+            </button>
 
-              {/* Concise Live Summary of Active Settings */}
-              <div className="hidden sm:flex items-center gap-2 text-[11px] font-semibold text-[#252321]/75">
-                <span>
-                  المدى:{' '}
-                  <strong className="text-[#8D4925]">
-                    {DEPTH_SELECTOR_OPTIONS.find((o) => o.id === spineDepth)
-                      ?.label || 'العائلة'}
-                  </strong>
-                </span>
-                <span className="text-[#B98A78]">·</span>
-                <span>
-                  <strong className="text-[#252321]">
-                    {treeDisplaySettings.layoutOrientation === 'sideways'
-                      ? 'جانبي'
-                      : treeDisplaySettings.layoutOrientation === 'fan_180'
-                      ? 'مروحة 180°'
-                      : treeDisplaySettings.layoutOrientation === 'radial_360'
-                      ? 'هالة 360°'
-                      : 'عمودي'}
-                  </strong>
-                </span>
-                <span className="text-[#B98A78]">·</span>
-                <span>
-                  <strong className="text-[#252321]">
-                    {activeTreeTheme.label}
-                  </strong>
-                </span>
-                {treeDisplaySettings.highlightDirectCompass && (
-                  <>
-                    <span className="text-[#B98A78]">·</span>
-                    <span className="inline-flex items-center gap-1 text-[#92400E] font-bold">
-                      <Compass className="w-3 h-3 text-[#D4AF37]" />
-                      <span>بوصلة مساري</span>
+            <div className="hidden xl:flex items-center gap-2 text-[11px] font-semibold text-[#252321]/75 min-w-0">
+              <span className="truncate">
+                المدى:{' '}
+                <strong className="text-[#8D4925]">
+                  {DEPTH_SELECTOR_OPTIONS.find((o) => o.id === spineDepth)
+                    ?.label || 'العائلة'}
+                </strong>
+              </span>
+              <span className="text-[#B98A78]/70">·</span>
+              <span className="truncate">
+                <strong className="text-[#252321]">
+                  {treeDisplaySettings.layoutOrientation === 'sideways'
+                    ? 'جانبي'
+                    : treeDisplaySettings.layoutOrientation === 'fan_180'
+                    ? 'مروحة 180°'
+                    : treeDisplaySettings.layoutOrientation === 'radial_360'
+                    ? 'هالة 360°'
+                    : 'عمودي'}
+                </strong>
+              </span>
+              <span className="text-[#B98A78]/70">·</span>
+              <span className="truncate">
+                <strong className="text-[#252321]">
+                  {activeTreeTheme.label}
+                </strong>
+              </span>
+              {settingsSyncStatus !== 'idle' && (
+                <>
+                  <span className="text-[#B98A78]/70">·</span>
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-700 whitespace-nowrap">
+                    <Cloud className="w-3 h-3" />
+                    <span>
+                      {settingsSyncStatus === 'syncing'
+                        ? 'مزامنة سحابية...'
+                        : 'متزامن سحابياً ✓'}
                     </span>
-                  </>
-                )}
-                {treeDisplaySettings.femalePrivacyMode !== 'full_name' && (
-                  <>
-                    <span className="text-[#B98A78]">·</span>
-                    <span className="inline-flex items-center gap-1 text-[#8D4925] font-bold">
-                      <ShieldCheck className="w-3 h-3 text-[#D8755B]" />
-                      <span>
-                        {treeDisplaySettings.femalePrivacyMode === 'hide_females'
-                          ? 'إخفاء الإناث'
-                          : 'الكنية فقط'}
-                      </span>
-                    </span>
-                  </>
-                )}
-                {settingsSyncStatus !== 'idle' && (
-                  <>
-                    <span className="text-[#B98A78]">·</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                      <Cloud className="w-3 h-3" />
-                      <span>
-                        {settingsSyncStatus === 'syncing'
-                          ? 'مزامنة...'
-                          : 'متزامن سحابياً'}
-                      </span>
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Compact Zoom Control */}
-            <div className="inline-flex items-center rounded-xl bg-[#FAF6F0] border border-[#B98A78]/40 p-0.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setZoomPercent((z) => Math.max(50, z - 10))}
-                title="تصغير"
-                className="p-1 rounded-lg hover:bg-white text-[#252321] cursor-pointer"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomPercent(100)}
-                title="إعادة ضبط التكبير إلى 100%"
-                className="px-1.5 text-[11px] font-mono font-bold text-[#252321] tabular-nums hover:text-[#D8755B] cursor-pointer"
-              >
-                {zoomPercent}%
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomPercent((z) => Math.min(130, z + 10))}
-                title="تكبير"
-                className="p-1 rounded-lg hover:bg-white text-[#252321] cursor-pointer"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
-          {/* ============================================================== */}
-          {/* COMPACT 4-TAB STUDIO DRAWER + QUICK PRESETS + MIRROR DEFAULT   */}
-          {/* ============================================================== */}
-          {isTreeSettingsOpen && (
-            <div
-              data-testid="tree-settings-drawer"
-              className="border-t border-[#B98A78]/20 bg-[#FFFDF9]"
+          {/* Left Cluster: Smart Node Search & Spotlight + Kinship Calculator Button */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            <TreeSmartNodeSearch
+              people={visiblePeopleForTree}
+              onSelectPerson={handleSpotlightPerson}
+            />
+
+            <button
+              type="button"
+              data-testid="open-kinship-calculator-btn"
+              onClick={() => {
+                if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
+                  const keeper =
+                    visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
+                    visiblePeopleForTree[0];
+                  setKinshipPersonAId(keeper.id);
+                }
+                if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
+                  const other =
+                    visiblePeopleForTree.find(
+                      (p) =>
+                        p.id !==
+                        (kinshipPersonAId || visiblePeopleForTree[0]?.id)
+                    ) || visiblePeopleForTree[1];
+                  if (other) setKinshipPersonBId(other.id);
+                }
+                setShowKinshipModal(true);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-display font-extrabold inline-flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap ${
+                isKinshipHighlightedOnCanvas
+                  ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
+                  : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#B98A78]/45'
+              }`}
             >
-              {/* Top Quick Presets Strip & Record Keeper Mirror Button */}
-              <div className="px-3.5 py-2 bg-[#FAF6F0]/80 border-b border-[#B98A78]/20 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10.5px] font-display font-extrabold text-[#8D4925] inline-flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-[#D8755B]" />
-                    <span>قوالب جاهزة:</span>
-                  </span>
-                  {TREE_QUICK_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      data-testid={`tree-preset-${preset.id}`}
-                      onClick={() =>
-                        setTreeDisplaySettings((prev) => preset.patch(prev))
-                      }
-                      title={preset.description}
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#F5E6DC] border border-[#B98A78]/35 hover:border-[#D8755B]/70 text-[10.5px] font-display font-bold text-[#252321] hover:text-[#8D4925] transition-colors cursor-pointer"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-
-                {(isRecordKeeperCharterSigned || caps.hasRegistrarBadge) && (
-                  <button
-                    type="button"
-                    data-testid="apply-mirror-default-btn"
-                    onClick={handleApplyAsMirrorDefault}
-                    className="px-2.5 py-1 rounded-lg bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#D8755B]/60 text-[10.5px] font-display font-extrabold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Globe className="w-3 h-3 shrink-0" />
-                    <span>اعتماد هذا المظهر كإعداد افتراضي لمرآة موقعي</span>
-                  </button>
-                )}
-              </div>
-
-              {mirrorPresetFeedback && (
-                <div className="px-4 py-1.5 bg-emerald-50 border-b border-emerald-200 text-[11px] font-display font-bold text-emerald-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>{mirrorPresetFeedback}</span>
-                </div>
-              )}
-
-              {/* 4 Compact Horizontal Studio Tabs */}
-              <div
-                role="tablist"
-                aria-label="تبويبات إعدادات شجرتي"
-                className="px-3.5 pt-2 flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-[#B98A78]/20 bg-white"
-              >
-                {(
-                  [
-                    {
-                      id: 'layout' as TreeSettingsTabId,
-                      label: 'التخطيط وطرق العرض',
-                      icon: LayoutGrid,
-                    },
-                    {
-                      id: 'filters' as TreeSettingsTabId,
-                      label: 'البيانات والفلاتر الذكية',
-                      icon: Filter,
-                    },
-                    {
-                      id: 'identity' as TreeSettingsTabId,
-                      label: 'الألوان والأفاتار والهوية',
-                      icon: Palette,
-                    },
-                    {
-                      id: 'poster' as TreeSettingsTabId,
-                      label: 'إعدادات الطباعة والبوستر',
-                      icon: Printer,
-                    },
-                  ] as const
-                ).map((tab) => {
-                  const Icon = tab.icon;
-                  const active = activeSettingsTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      data-testid={`tree-settings-tab-${tab.id}`}
-                      onClick={() => setActiveSettingsTab(tab.id)}
-                      className={`px-3 py-2 rounded-t-xl text-[11.5px] font-display font-extrabold inline-flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                        active
-                          ? 'bg-[#FAF6F0] text-[#8D4925] border-[#D8755B]'
-                          : 'text-[#252321]/70 border-transparent hover:text-[#8D4925] hover:bg-[#FAF6F0]/50'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5 shrink-0" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* TAB 1: التخطيط وطرق العرض */}
-              {activeSettingsTab === 'layout' && (
-                <div className="px-4 py-3 space-y-2.5">
-                  {/* 4 Interactive View Modes */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[96px] shrink-0">
-                      طريقة العرض:
-                    </span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {(
-                        [
-                          {
-                            id: 'vertical',
-                            label: 'عمودي متدرج',
-                            icon: MoveVertical,
-                            testId: 'layout-orientation-vertical-btn',
-                          },
-                          {
-                            id: 'sideways',
-                            label: 'جانبي أفقي',
-                            icon: MoveHorizontal,
-                            testId: 'layout-orientation-sideways-btn',
-                          },
-                          {
-                            id: 'fan_180',
-                            label: 'مروحة الأنساب التراثية 180°',
-                            icon: Sun,
-                            testId: 'layout-orientation-fan-btn',
-                          },
-                          {
-                            id: 'radial_360',
-                            label: 'الهالة الدائرية الكاملة 360°',
-                            icon: Radar,
-                            testId: 'layout-orientation-radial-btn',
-                          },
-                        ] as const
-                      ).map((opt) => {
-                        const Icon = opt.icon;
-                        const active =
-                          treeDisplaySettings.layoutOrientation === opt.id;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            data-testid={opt.testId}
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                layoutOrientation: opt.id,
-                              }))
-                            }
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors border ${
-                              active
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80 shadow-2xs'
-                                : 'bg-white text-[#252321]/80 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                            }`}
-                          >
-                            <Icon className="w-3 h-3 shrink-0" />
-                            <span>{opt.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Row 2: Card Shape + Card Density */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-2 border-t border-[#B98A78]/15">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[96px] shrink-0">
-                        شكل العقد:
-                      </span>
-                      <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                        {(
-                          [
-                            { id: 'card', label: 'بطاقة', icon: LayoutGrid, testId: 'node-shape-card-btn' },
-                            { id: 'circle', label: 'دائرة', icon: Circle, testId: 'node-shape-circle-btn' },
-                            { id: 'leaf', label: 'ورقة شجر', icon: Leaf, testId: 'node-shape-leaf-btn' },
-                          ] as const
-                        ).map((sh) => {
-                          const Icon = sh.icon;
-                          const active = treeDisplaySettings.nodeShape === sh.id;
-                          return (
-                            <button
-                              key={sh.id}
-                              type="button"
-                              data-testid={sh.testId}
-                              onClick={() =>
-                                setTreeDisplaySettings((prev) => ({
-                                  ...prev,
-                                  nodeShape: sh.id,
-                                }))
-                              }
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border ${
-                                active
-                                  ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                                  : 'border-transparent text-[#252321]/75 hover:bg-white'
-                              }`}
-                            >
-                              <Icon className="w-3 h-3" />
-                              <span>{sh.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[96px] shrink-0">
-                        كثافة البطاقات:
-                      </span>
-                      <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                        {(
-                          [
-                            { id: 'detailed', label: 'مفصّل وفاخر' },
-                            { id: 'balanced', label: 'متوازن' },
-                            { id: 'compact', label: 'مضغوط للشجرات الكبيرة' },
-                          ] as const
-                        ).map((den) => (
-                          <button
-                            key={den.id}
-                            type="button"
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                cardDensity: den.id,
-                              }))
-                            }
-                            className={`px-2 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
-                              treeDisplaySettings.cardDensity === den.id
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                                : 'border-transparent text-[#252321]/75 hover:bg-white'
-                            }`}
-                          >
-                            {den.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Row 3: Connector Style + Canvas Background + Generation Bar */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 pt-2 border-t border-[#B98A78]/15">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] shrink-0">
-                        خطوط الربط:
-                      </span>
-                      {(
-                        [
-                          { id: 'curved', label: 'منحنية انسيابية' },
-                          { id: 'orthogonal', label: 'هندسية قائمة' },
-                          { id: 'heritage_branch', label: 'غصن تراثي' },
-                        ] as const
-                      ).map((cs) => (
-                        <button
-                          key={cs.id}
-                          type="button"
-                          onClick={() =>
-                            setTreeDisplaySettings((prev) => ({
-                              ...prev,
-                              connectorStyle: cs.id,
-                            }))
-                          }
-                          className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                            treeDisplaySettings.connectorStyle === cs.id
-                              ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                              : 'bg-white text-[#252321]/75 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                          }`}
-                        >
-                          {cs.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] shrink-0">
-                        خلفية اللوحة:
-                      </span>
-                      {(
-                        [
-                          { id: 'dots', label: 'شبكة نقطية هادئة' },
-                          { id: 'parchment', label: 'رقّ مخطوطة عتيق' },
-                          { id: 'marble', label: 'رخامي صافي' },
-                        ] as const
-                      ).map((bg) => (
-                        <button
-                          key={bg.id}
-                          type="button"
-                          onClick={() =>
-                            setTreeDisplaySettings((prev) => ({
-                              ...prev,
-                              canvasBackground: bg.id,
-                            }))
-                          }
-                          className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                            treeDisplaySettings.canvasBackground === bg.id
-                              ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                              : 'bg-white text-[#252321]/75 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                          }`}
-                        >
-                          {bg.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        data-testid="toggle-generation-bar-btn"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            showGenerationBar: !prev.showGenerationBar,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1.5 border cursor-pointer transition-colors ${
-                          treeDisplaySettings.showGenerationBar
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35 hover:border-[#D8755B]/60'
-                        }`}
-                      >
-                        <Layers className="w-3.5 h-3.5 shrink-0" />
-                        <span>
-                          {treeDisplaySettings.showGenerationBar ? '✓ ' : ''}
-                          شريط ترقيم طبقات الأجيال
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: البيانات والفلاتر الذكية */}
-              {activeSettingsTab === 'filters' && (
-                <div className="px-4 py-3 space-y-2.5">
-                  {/* 1. مدى العرض */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-display font-extrabold text-[#8D4925] min-w-[100px] shrink-0">
-                      مدى العرض:
-                    </span>
-                    <div
-                      role="group"
-                      aria-label="عرض الشجرة من أمين السجل وحتى"
-                      className="flex items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x sm:flex-wrap bg-[#FAF6F0] p-0.5 rounded-lg border border-[#B98A78]/25 flex-1 min-w-0"
-                    >
-                      {DEPTH_SELECTOR_OPTIONS.map((opt) => {
-                        const isSelected = spineDepth === opt.id;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() =>
-                              handleSelectSpineDepth(opt.id, `حتى ${opt.label}`)
-                            }
-                            title={`${opt.label} (${opt.detail})`}
-                            className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold transition-colors cursor-pointer inline-flex items-center gap-1 shrink-0 border ${
-                              isSelected
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                                : 'border-transparent text-[#252321]/75 hover:bg-white hover:text-[#8D4925]'
-                            }`}
-                          >
-                            <span>{opt.label}</span>
-                            {opt.locked && (
-                              <Lock className="w-2.5 h-2.5 text-[#D8755B] shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 2. إظهار + إظهار الإناث */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pt-2 border-t border-[#B98A78]/15">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[100px] shrink-0">
-                        إظهار البيانات:
-                      </span>
-                      <button
-                        type="button"
-                        data-testid="toggle-honorific-btn"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            showHonorific: !prev.showHonorific,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold border cursor-pointer transition-colors ${
-                          treeDisplaySettings.showHonorific
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35'
-                        }`}
-                      >
-                        {treeDisplaySettings.showHonorific ? '✓ ' : ''}اللقب
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="toggle-kunya-btn"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            showKunya: !prev.showKunya,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold border cursor-pointer transition-colors ${
-                          treeDisplaySettings.showKunya
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35'
-                        }`}
-                      >
-                        {treeDisplaySettings.showKunya ? '✓ ' : ''}الكنية
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="toggle-dates-btn"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            showDates: !prev.showDates,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold border cursor-pointer transition-colors ${
-                          treeDisplaySettings.showDates
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35'
-                        }`}
-                      >
-                        {treeDisplaySettings.showDates ? '✓ ' : ''}التواريخ
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="toggle-kinship-arrows-btn"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            showKinshipArrows: !prev.showKinshipArrows,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold border cursor-pointer transition-colors ${
-                          treeDisplaySettings.showKinshipArrows
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35'
-                        }`}
-                      >
-                        {treeDisplaySettings.showKinshipArrows ? '✓ ' : ''}(بن/من)
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[84px] shrink-0">
-                        إظهار الإناث:
-                      </span>
-                      <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                        {(
-                          [
-                            { id: 'full_name', label: 'الاسم الكامل' },
-                            { id: 'kunya_only', label: 'الكنية فقط' },
-                            {
-                              id: 'hide_females',
-                              label: 'إخفاء',
-                              testId: 'female-privacy-hide-option-btn',
-                            },
-                          ] as const
-                        ).map((fm) => (
-                          <button
-                            key={fm.id}
-                            type="button"
-                            data-testid={'testId' in fm ? fm.testId : undefined}
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                femalePrivacyMode: fm.id,
-                              }))
-                            }
-                            className={`px-2.5 py-1 rounded-md text-[11px] font-display font-bold cursor-pointer transition-colors border ${
-                              treeDisplaySettings.femalePrivacyMode === fm.id
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75 shadow-2xs'
-                                : 'border-transparent text-[#252321]/75 hover:bg-white'
-                            }`}
-                          >
-                            {fm.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3. Smart Lineage Compass + Vital Status & Loyalty */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pt-2 border-t border-[#B98A78]/15">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[100px] shrink-0">
-                        بوصلة النسب:
-                      </span>
-                      <button
-                        type="button"
-                        data-testid="toggle-direct-compass-btn"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            highlightDirectCompass:
-                              !prev.highlightDirectCompass,
-                          }))
-                        }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-display font-extrabold inline-flex items-center gap-1.5 border cursor-pointer transition-colors ${
-                          treeDisplaySettings.highlightDirectCompass
-                            ? 'bg-[#FEF3C7] text-[#92400E] border-[#D4AF37] shadow-2xs'
-                            : 'bg-white text-[#252321]/80 border-[#B98A78]/35 hover:border-[#D4AF37]'
-                        }`}
-                      >
-                        <Compass className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        <span>
-                          {treeDisplaySettings.highlightDirectCompass
-                            ? '✓ بوصلة مساري الشخصي مفعّلة'
-                            : 'تفعيل بوصلة مساري الشخصي (توهج ذهبي)'}
-                        </span>
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] shrink-0">
-                        حالة الحياة والوفاء:
-                      </span>
-                      <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                        {(
-                          [
-                            { id: 'all', label: 'عرض الكل' },
-                            { id: 'living', label: 'الأحياء فقط' },
-                            { id: 'deceased', label: 'الراحلون فقط' },
-                          ] as const
-                        ).map((vf) => (
-                          <button
-                            key={vf.id}
-                            type="button"
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                vitalStatusFilter: vf.id,
-                              }))
-                            }
-                            className={`px-2 py-1 rounded-md text-[10.5px] font-display font-bold cursor-pointer transition-colors border ${
-                              treeDisplaySettings.vitalStatusFilter === vf.id
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                                : 'border-transparent text-[#252321]/75 hover:bg-white'
-                            }`}
-                          >
-                            {vf.label}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            showDeceasedDignityFrame:
-                              !prev.showDeceasedDignityFrame,
-                          }))
-                        }
-                        className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                          treeDisplaySettings.showDeceasedDignityFrame
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35'
-                        }`}
-                      >
-                        {treeDisplaySettings.showDeceasedDignityFrame
-                          ? '✓ '
-                          : ''}
-                        إطار وقور ودعاء (رحمه الله)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 4. Spouses & Mothers Display + Calendar System */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pt-2 border-t border-[#B98A78]/15">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[100px] shrink-0">
-                        المصاهرة والأمهات:
-                      </span>
-                      <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                        {(
-                          [
-                            { id: 'always', label: 'إظهار دائم' },
-                            { id: 'on_select', label: 'عند تحديد البطاقة فقط' },
-                            { id: 'hidden', label: 'إخفاء لتقليص العرض' },
-                          ] as const
-                        ).map((sp) => (
-                          <button
-                            key={sp.id}
-                            type="button"
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                spouseDisplayMode: sp.id,
-                              }))
-                            }
-                            className={`px-2 py-1 rounded-md text-[10.5px] font-display font-bold cursor-pointer transition-colors border ${
-                              treeDisplaySettings.spouseDisplayMode === sp.id
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                                : 'border-transparent text-[#252321]/75 hover:bg-white'
-                            }`}
-                          >
-                            {sp.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] shrink-0">
-                        نظام التقويم في التواريخ:
-                      </span>
-                      <div className="inline-flex rounded-lg bg-[#FAF6F0] border border-[#B98A78]/25 p-0.5 gap-0.5">
-                        {(
-                          [
-                            { id: 'hijri', label: 'هجري' },
-                            { id: 'gregorian', label: 'ميلادي' },
-                            { id: 'dual', label: 'مزدوج هجري/ميلادي' },
-                          ] as const
-                        ).map((cal) => (
-                          <button
-                            key={cal.id}
-                            type="button"
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                calendarDisplayMode: cal.id,
-                              }))
-                            }
-                            className={`px-2 py-1 rounded-md text-[10.5px] font-display font-bold cursor-pointer transition-colors border ${
-                              treeDisplaySettings.calendarDisplayMode === cal.id
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                                : 'border-transparent text-[#252321]/75 hover:bg-white'
-                            }`}
-                          >
-                            {cal.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: الألوان والأفاتار والهوية */}
-              {activeSettingsTab === 'identity' && (
-                <div className="px-4 py-3 space-y-3">
-                  {/* 10 Museum-Grade Color Themes with Mini Color Swatch Dots */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321]">
-                        ثيمات الألوان المتحفية (10 لوحات فنية معزولة داخل الشجرة):
-                      </span>
-                      <span className="text-[10px] font-semibold text-[#8D4925]">
-                        {activeTreeTheme.subtitle}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {(
-                        Object.entries(TREE_CARD_THEMES) as Array<
-                          [
-                            TreeCardThemeId,
-                            (typeof TREE_CARD_THEMES)[TreeCardThemeId]
-                          ]
-                        >
-                      ).map(([themeId, theme]) => {
-                        const active = treeDisplaySettings.cardTheme === themeId;
-                        return (
-                          <button
-                            key={themeId}
-                            type="button"
-                            data-testid={`tree-theme-${themeId}`}
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                cardTheme: themeId,
-                              }))
-                            }
-                            title={theme.subtitle}
-                            className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
-                              active
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/85 shadow-2xs'
-                                : 'bg-white text-[#252321]/85 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                            }`}
-                          >
-                            <span
-                              className="inline-flex items-center -space-x-1 rtl:space-x-reverse shrink-0"
-                              aria-hidden="true"
-                            >
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-black/20"
-                                style={{ backgroundColor: theme.swatches[0] }}
-                              />
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-black/15"
-                                style={{ backgroundColor: theme.swatches[1] }}
-                              />
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-black/15"
-                                style={{ backgroundColor: theme.swatches[2] }}
-                              />
-                            </span>
-                            <span>{theme.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 8 Cultural & Calligraphy Avatars + Real Photo Priority */}
-                  <div className="pt-2.5 border-t border-[#B98A78]/15 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321]">
-                        الرموز التراثية والحروفيات (8 أنماط):
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            preferRealPhotos: !prev.preferRealPhotos,
-                          }))
-                        }
-                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                          treeDisplaySettings.preferRealPhotos
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/75'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/35'
-                        }`}
-                      >
-                        {treeDisplaySettings.preferRealPhotos ? '✓ ' : ''}
-                        أولوية الصور الحقيقية المرفوعة داخل إطار الثيم
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {TREE_AVATAR_STYLE_OPTIONS.map((styleOpt) => {
-                        const active =
-                          treeDisplaySettings.avatarStyle === styleOpt.id;
-                        return (
-                          <button
-                            key={styleOpt.id}
-                            type="button"
-                            data-testid={`tree-avatar-style-${styleOpt.id}`}
-                            onClick={() =>
-                              setTreeDisplaySettings((prev) => ({
-                                ...prev,
-                                avatarStyle: styleOpt.id,
-                              }))
-                            }
-                            title={styleOpt.subtitle}
-                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-display font-bold transition-colors cursor-pointer ${
-                              active
-                                ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/85 shadow-2xs'
-                                : 'bg-white text-[#252321]/80 border-[#B98A78]/30 hover:border-[#D8755B]/60'
-                            }`}
-                          >
-                            {styleOpt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 4: إعدادات الطباعة والبوستر */}
-              {activeSettingsTab === 'poster' && (
-                <div className="px-4 py-3 space-y-2.5">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-                    {/* Paper Size */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[92px] shrink-0">
-                        مقاس الطباعة:
-                      </span>
-                      {(
-                        [
-                          { id: 'A4', label: 'A4 قياسية' },
-                          { id: 'A3', label: 'A3 مكتب' },
-                          { id: 'A2_A1', label: 'A2 / A1 جداري' },
-                          { id: 'panorama', label: 'بانوراما بلا قصّ' },
-                        ] as const
-                      ).map((ps) => (
-                        <button
-                          key={ps.id}
-                          type="button"
-                          onClick={() =>
-                            setTreeDisplaySettings((prev) => ({
-                              ...prev,
-                              poster: { ...prev.poster, paperSize: ps.id },
-                            }))
-                          }
-                          className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                            treeDisplaySettings.poster.paperSize === ps.id
-                              ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80'
-                              : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                          }`}
-                        >
-                          {ps.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Wall Frame Style */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[92px] shrink-0">
-                        برواز اللوحة:
-                      </span>
-                      {(
-                        [
-                          { id: 'islamic_gold', label: 'زخرفي إسلامي مذهب' },
-                          { id: 'classic_double', label: 'كلاسيكي مزدوج' },
-                          { id: 'modern_soft', label: 'عصري ناعم' },
-                        ] as const
-                      ).map((br) => (
-                        <button
-                          key={br.id}
-                          type="button"
-                          onClick={() =>
-                            setTreeDisplaySettings((prev) => ({
-                              ...prev,
-                              poster: { ...prev.poster, borderStyle: br.id },
-                            }))
-                          }
-                          className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                            treeDisplaySettings.poster.borderStyle === br.id
-                              ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80'
-                              : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                          }`}
-                        >
-                          {br.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Header Calligraphy + Custom Title */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pt-2 border-t border-[#B98A78]/15">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-display font-extrabold text-[#252321] min-w-[92px] shrink-0">
-                        الاستهلال:
-                      </span>
-                      {(
-                        [
-                          { id: 'basmala_verse', label: 'البسملة وآية التعارف' },
-                          { id: 'basmala_only', label: 'البسملة فقط' },
-                          { id: 'none', label: 'بدون استهلال' },
-                        ] as const
-                      ).map((hd) => (
-                        <button
-                          key={hd.id}
-                          type="button"
-                          onClick={() =>
-                            setTreeDisplaySettings((prev) => ({
-                              ...prev,
-                              poster: { ...prev.poster, headerStyle: hd.id },
-                            }))
-                          }
-                          className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer transition-colors ${
-                            treeDisplaySettings.poster.headerStyle === hd.id
-                              ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80'
-                              : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                          }`}
-                        >
-                          {hd.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <label
-                        htmlFor="poster-custom-title-input"
-                        className="text-[11px] font-display font-extrabold text-[#252321] shrink-0"
-                      >
-                        عنوان اللوحة:
-                      </label>
-                      <input
-                        id="poster-custom-title-input"
-                        type="text"
-                        value={treeDisplaySettings.poster.customTitle}
-                        onChange={(e) =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            poster: {
-                              ...prev.poster,
-                              customTitle: e.target.value,
-                            },
-                          }))
-                        }
-                        placeholder={`مثال: مشجرة ذرية آل ${result.familyName} الكرام`}
-                        className="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/40 focus:border-[#D8755B] focus:outline-none text-[11px] font-display font-bold text-[#252321]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Footer Toggles + Direct Export Action */}
-                  <div className="pt-2 border-t border-[#B98A78]/15 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            poster: {
-                              ...prev.poster,
-                              showLegend: !prev.poster.showLegend,
-                            },
-                          }))
-                        }
-                        className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer ${
-                          treeDisplaySettings.poster.showLegend
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                        }`}
-                      >
-                        {treeDisplaySettings.poster.showLegend ? '✓ ' : ''}
-                        مفتاح الرموز والأجيال
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            poster: {
-                              ...prev.poster,
-                              showQrCode: !prev.poster.showQrCode,
-                            },
-                          }))
-                        }
-                        className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer ${
-                          treeDisplaySettings.poster.showQrCode
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                        }`}
-                      >
-                        {treeDisplaySettings.poster.showQrCode ? '✓ ' : ''}
-                        باركود QR الرسمي
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            poster: {
-                              ...prev.poster,
-                              showStampAndDates:
-                                !prev.poster.showStampAndDates,
-                            },
-                          }))
-                        }
-                        className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer ${
-                          treeDisplaySettings.poster.showStampAndDates
-                            ? 'bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/80'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                        }`}
-                      >
-                        {treeDisplaySettings.poster.showStampAndDates
-                          ? '✓ '
-                          : ''}
-                        ختم جذوري والتاريخ
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setTreeDisplaySettings((prev) => ({
-                            ...prev,
-                            poster: {
-                              ...prev.poster,
-                              inkSaverMode: !prev.poster.inkSaverMode,
-                            },
-                          }))
-                        }
-                        className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border cursor-pointer ${
-                          treeDisplaySettings.poster.inkSaverMode
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-500/70'
-                            : 'bg-white text-[#252321]/75 border-[#B98A78]/30'
-                        }`}
-                      >
-                        {treeDisplaySettings.poster.inkSaverMode ? '✓ ' : ''}
-                        توفير الحبر للمطابع (Ink-Saver)
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      data-testid="poster-tab-open-export-btn"
-                      onClick={() => setShowOfficialExportModal(true)}
-                      className="px-3.5 py-1.5 rounded-xl bg-[#8D4925] hover:bg-[#D8755B] text-white text-[11px] font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>معاينة وتصدير البوستر (PDF / PNG)</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+              <GitFork className="w-3.5 h-3.5 text-[#D8755B]" />
+              <span>صلة القرابة بين فردين ✦</span>
+            </button>
+          </div>
         </div>
 
-        {/* Optional Generation Layer Indicator Bar (`شريط ترقيم طبقات الأجيال`) */}
-        {treeDisplaySettings.showGenerationBar && (
+        {/* Active Sub-tree Focus Banner */}
+        {focusedSubtreePerson && (
           <div
-            data-testid="tree-generation-layer-bar"
-            className={`mb-4 rounded-xl border px-3 py-2 flex flex-wrap items-center gap-2 text-[11px] font-display font-bold ${
-              activeTreeTheme.isDarkSurface
-                ? 'bg-[#221D18]/90 border-[#D4AF37]/40 text-[#FAF3E3]'
-                : 'bg-white/90 border-[#B98A78]/35 text-[#252321]'
-            }`}
+            data-testid="subtree-focus-banner"
+            className="px-4 py-2 bg-[#FEF9EC] border-b border-[#C5A059]/45 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321] shrink-0"
           >
-            <span className={`inline-flex items-center gap-1 ${activeTreeTheme.accentText}`}>
-              <Layers className="w-3.5 h-3.5" />
-              <span>طبقات الأجيال:</span>
-            </span>
-            {Array.from(
-              new Set(visiblePeopleForTree.map((p) => p.generationLevel))
-            )
-              .sort((a, b) => b - a)
-              .map((genLevel, idx) => {
-                const count = visiblePeopleForTree.filter(
-                  (p) => p.generationLevel === genLevel
-                ).length;
-                const genOrdinal = [
-                  'الجيل الأول',
-                  'الجيل الثاني',
-                  'الجيل الثالث',
-                  'الجيل الرابع',
-                  'الجيل الخامس',
-                  'الجيل السادس',
-                  'الجيل السابع',
-                  'الجيل الثامن',
-                ][idx] || `الجيل ${idx + 1}`;
-                return (
-                  <span
-                    key={`gen-pill-${genLevel}`}
-                    className={`px-2 py-0.5 rounded-md border text-[10.5px] tabular-nums ${
-                      activeTreeTheme.isDarkSurface
-                        ? 'bg-[#2C251D] border-[#D4AF37]/45 text-[#F3D299]'
-                        : 'bg-[#FAF6F0] border-[#B98A78]/35 text-[#8D4925]'
-                    }`}
-                  >
-                    {genOrdinal} ({count})
-                  </span>
-                );
-              })}
+            <div className="flex items-center gap-2 font-display font-bold">
+              <Crosshair className="w-4 h-4 text-[#D8755B] shrink-0" />
+              <span>
+                وضع التركيز الفرعي: عرض ذرية{' '}
+                <strong className="text-[#8D4925]">
+                  «{focusedSubtreePerson.firstName}»
+                </strong>{' '}
+                فقط
+              </span>
+            </div>
+            <button
+              type="button"
+              data-testid="exit-subtree-focus-btn"
+              onClick={() => setFocusSubtreeRootId(null)}
+              className="px-3 py-1 rounded-lg bg-[#8D4925] hover:bg-[#73391b] text-white text-[11px] font-display font-extrabold cursor-pointer transition-colors"
+            >
+              العودة إلى الشجرة الكاملة
+            </button>
           </div>
         )}
 
-        {/* Horizontally Scrollable Pedigree Viewport (Vertical, Sideways RTL, 180° Fan, 360° Radial) */}
+        {/* Active Kinship Path Highlight Banner */}
+        {isKinshipHighlightedOnCanvas && kinshipPathResult && (
+          <div
+            data-testid="kinship-active-banner"
+            className="px-4 py-2 bg-[#252321] text-white border-b border-[#C5A059]/50 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0"
+          >
+            <div className="flex flex-wrap items-center gap-2 font-display">
+              <Sparkles className="w-3.5 h-3.5 text-[#F3D299] shrink-0" />
+              <span className="font-extrabold text-[#F3D299]">
+                {kinshipPathResult.relationshipLabel}
+              </span>
+              {kinshipPathResult.commonAncestor && (
+                <span className="text-white/75 text-[11px]">
+                  · الجد الجامع: {kinshipPathResult.commonAncestor.firstName} (
+                  {kinshipPathResult.degreeCount} درجات)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowKinshipModal(true)}
+                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[#F3D299] text-[11px] font-bold cursor-pointer"
+              >
+                تفاصيل المسار
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsKinshipHighlightedOnCanvas(false)}
+                className="px-2.5 py-1 rounded-lg bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-bold cursor-pointer"
+              >
+                إلغاء الإضاءة
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Split Studio Workspace: Side Inspector (Desktop 370px / Mobile Bottom Sheet) + 100%-Height Live Tree Canvas */}
         <div
-          dir="rtl"
-          className="w-full overflow-x-auto touch-pan-x pb-6"
+          className={`flex flex-col lg:flex-row relative flex-1 min-w-0 ${
+            isCinemaMode ? 'min-h-0' : 'min-h-[580px]'
+          }`}
         >
+          <TreeStudioSideInspector
+            isOpen={isTreeSettingsOpen}
+            onClose={() => setIsTreeSettingsOpen(false)}
+            activeTab={activeSettingsTab}
+            onTabChange={setActiveSettingsTab}
+            settings={treeDisplaySettings}
+            onUpdateSettings={setTreeDisplaySettings}
+            depthOptions={DEPTH_SELECTOR_OPTIONS}
+            spineDepth={spineDepth}
+            onSelectSpineDepth={handleSelectSpineDepth}
+            canApplyMirrorDefault={
+              isRecordKeeperCharterSigned || caps.hasRegistrarBadge
+            }
+            onApplyMirrorDefault={handleApplyAsMirrorDefault}
+            mirrorPresetFeedback={mirrorPresetFeedback}
+            familyName={result.familyName}
+            onOpenExportModal={() => setShowOfficialExportModal(true)}
+          />
+
+          {/* Live Tree Canvas Stage */}
+          <div
+            className="flex-1 min-w-0 relative flex flex-col overflow-hidden transition-colors"
+            style={{
+              ...getTreeCanvasBackgroundStyle(
+                activeTreeTheme,
+                treeDisplaySettings.canvasBackground
+              ),
+              fontFamily: activeTreeFont.cssFamily,
+            }}
+          >
+            {/* Scrollable Pedigree Viewport (Vertical, Sideways RTL, 180° Fan, 360° Radial) */}
+            <div
+              ref={canvasViewportRef}
+              dir="rtl"
+              className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y scroll-smooth px-2 sm:px-4 pt-4 pb-24 ${
+                isCinemaMode ? 'min-h-0' : 'min-h-[540px]'
+              }`}
+            >
+              <div ref={canvasContentRef} className="w-max min-w-full">
           {treeDisplaySettings.layoutOrientation === 'fan_180' ||
           treeDisplaySettings.layoutOrientation === 'radial_360' ? (
             <RadialFamilyTreeCharts
@@ -5651,21 +5005,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   pedigreeLayout.root &&
                   renderSidewaysPedigreeSubtree(pedigreeLayout.root)
                 )}
-                {renderSidewaysFamilyAnchor()}
+                {!focusedSubtreePerson && renderSidewaysFamilyAnchor()}
               </div>
 
-              {pedigreeLayout.detachedRoots.length > 0 && (
-                <div className="mt-8 pt-5 border-t border-dashed border-[#B98A78]/55 flex flex-col items-start gap-4">
-                  <div className="text-xs font-display font-bold text-[#8D4925]">
-                    فروع مسجلة أخرى في المشجرة
+              {!focusedSubtreePerson &&
+                pedigreeLayout.detachedRoots.length > 0 && (
+                  <div className="mt-8 pt-5 border-t border-dashed border-[#B98A78]/55 flex flex-col items-start gap-4">
+                    <div className="text-xs font-display font-bold text-[#8D4925]">
+                      فروع مسجلة أخرى في المشجرة
+                    </div>
+                    <div className="flex flex-col items-start gap-5">
+                      {pedigreeLayout.detachedRoots.map((detachedNode) =>
+                        renderSidewaysPedigreeSubtree(detachedNode)
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col items-start gap-5">
-                    {pedigreeLayout.detachedRoots.map((detachedNode) =>
-                      renderSidewaysPedigreeSubtree(detachedNode)
-                    )}
-                  </div>
-                </div>
-              )}
+                )}
             </div>
           ) : (
             <div
@@ -5677,29 +5032,31 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               {/* ================================================================ */}
               {/* A. NATURAL LINEAGE SPINE + LEFT-SIDE COLLAPSIBLE FOLLOW-UP NOTE  */}
               {/* ================================================================ */}
-              {sideNoteElement ? (
-                <div className="w-full max-w-[1160px] flex flex-col lg:grid lg:grid-cols-[1fr_minmax(0,560px)_1fr] items-start gap-4">
-                  {/* Right Spacer in RTL so Spine remains dead-center */}
-                  <div className="hidden lg:block lg:order-1" aria-hidden="true" />
+              {!focusedSubtreePerson &&
+                (sideNoteElement ? (
+                  <div className="w-full max-w-[1160px] flex flex-col lg:grid lg:grid-cols-[1fr_minmax(0,560px)_1fr] items-start gap-4">
+                    {/* Right Spacer in RTL so Spine remains dead-center */}
+                    <div className="hidden lg:block lg:order-1" aria-hidden="true" />
 
-                  {/* Center Spine & Bridge Zone */}
-                  <div className="w-full order-2 lg:order-2">
-                    {renderNaturalLineageSpineAboveTree()}
-                  </div>
+                    {/* Center Spine & Bridge Zone */}
+                    <div className="w-full order-2 lg:order-2">
+                      {renderNaturalLineageSpineAboveTree()}
+                    </div>
 
-                  {/* Left Column in RTL (`على يسار عمود النسب والشجرة`): Collapsed by default & unfolds leftward */}
-                  <div className="w-full flex justify-end lg:justify-start lg:sticky lg:top-4 order-1 lg:order-3">
-                    {sideNoteElement}
+                    {/* Left Column in RTL (`على يسار عمود النسب والشجرة`): Collapsed by default & unfolds leftward */}
+                    <div className="w-full flex justify-end lg:justify-start lg:sticky lg:top-4 order-1 lg:order-3">
+                      {sideNoteElement}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                renderNaturalLineageSpineAboveTree()
-              )}
+                ) : (
+                  renderNaturalLineageSpineAboveTree()
+                ))}
 
               {/* ================================================================ */}
               {/* B. SINGLE CONSOLIDATED UPWARD PARENT PLACEHOLDER (NO DUPLICATES) */}
               {/* ================================================================ */}
-              {topMostDirectAncestor &&
+              {!focusedSubtreePerson &&
+                topMostDirectAncestor &&
                 renderTopAncestorAdditionBar(
                   topMostDirectAncestor,
                   pedigreeLayout.unpairedTopMother,
@@ -5778,23 +5135,112 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               {/* ================================================================ */}
               {/* D. DETACHED / UNATTACHED LEGACY SUBTREES (ZERO DATA LOSS)        */}
               {/* ================================================================ */}
-              {pedigreeLayout.detachedRoots.length > 0 && (
-                <div className="mt-10 pt-6 border-t border-dashed border-[#B98A78]/55 flex flex-col items-center gap-4">
-                  <div className="text-xs font-display font-bold text-[#8D4925]">
-                    فروع مسجلة أخرى في المشجرة
+              {!focusedSubtreePerson &&
+                pedigreeLayout.detachedRoots.length > 0 && (
+                  <div className="mt-10 pt-6 border-t border-dashed border-[#B98A78]/55 flex flex-col items-center gap-4">
+                    <div className="text-xs font-display font-bold text-[#8D4925]">
+                      فروع مسجلة أخرى في المشجرة
+                    </div>
+                    <div
+                      dir="rtl"
+                      className="flex flex-row flex-nowrap items-start justify-center gap-6"
+                    >
+                      {pedigreeLayout.detachedRoots.map((detachedNode) =>
+                        renderPedigreeSubtree(detachedNode)
+                      )}
+                    </div>
                   </div>
-                  <div
-                    dir="rtl"
-                    className="flex flex-row flex-nowrap items-start justify-center gap-6"
-                  >
-                    {pedigreeLayout.detachedRoots.map((detachedNode) =>
-                      renderPedigreeSubtree(detachedNode)
-                    )}
-                  </div>
-                </div>
-              )}
+                )}
             </div>
           )}
+              </div>
+            </div>
+
+            {/* Interactive Minimap Floating Corner Widget */}
+            {showMinimap && (
+              <div className="absolute bottom-20 right-3 z-30">
+                <TreeInteractiveMinimap
+                  people={visiblePeopleForTree}
+                  highlightedIds={
+                    isKinshipHighlightedOnCanvas && kinshipPathResult
+                      ? kinshipPathResult.pathNodeIds
+                      : directCompassIds
+                  }
+                  theme={activeTreeTheme}
+                  onJumpToPerson={handleSpotlightPerson}
+                  onClose={() => setShowMinimap(false)}
+                />
+              </div>
+            )}
+
+            {/* Quiet Canvas Bottom Edge: Optional Generation Layer Strip + Floating Glass Studio Dock */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex flex-col items-center gap-2">
+              {treeDisplaySettings.showGenerationBar && (
+                <div
+                  data-testid="tree-generation-layer-bar"
+                  className={`pointer-events-auto max-w-full overflow-x-auto no-scrollbar rounded-xl border px-3 py-1.5 backdrop-blur-md flex items-center gap-1.5 text-[10.5px] font-display font-bold shadow-xs ${
+                    activeTreeTheme.isDarkSurface
+                      ? 'bg-[#221D18]/85 border-[#D4AF37]/35 text-[#FAF3E3]'
+                      : 'bg-white/88 border-[#B98A78]/35 text-[#252321]'
+                  }`}
+                >
+                  <span
+                    className={`inline-flex items-center gap-1 shrink-0 ${activeTreeTheme.accentText}`}
+                  >
+                    <Layers className="w-3 h-3" />
+                    <span>طبقات الأجيال:</span>
+                  </span>
+                  {Array.from(
+                    new Set(visiblePeopleForTree.map((p) => p.generationLevel))
+                  )
+                    .sort((a, b) => b - a)
+                    .map((genLevel, idx) => {
+                      const count = visiblePeopleForTree.filter(
+                        (p) => p.generationLevel === genLevel
+                      ).length;
+                      const genOrdinal =
+                        [
+                          'الجيل الأول',
+                          'الجيل الثاني',
+                          'الجيل الثالث',
+                          'الجيل الرابع',
+                          'الجيل الخامس',
+                          'الجيل السادس',
+                          'الجيل السابع',
+                          'الجيل الثامن',
+                        ][idx] || `الجيل ${idx + 1}`;
+                      return (
+                        <span
+                          key={`gen-pill-${genLevel}`}
+                          className={`px-2 py-0.5 rounded-md border text-[10px] tabular-nums shrink-0 ${
+                            activeTreeTheme.isDarkSurface
+                              ? 'bg-[#2C251D] border-[#D4AF37]/40 text-[#F3D299]'
+                              : 'bg-[#FAF6F0] border-[#B98A78]/30 text-[#8D4925]'
+                          }`}
+                        >
+                          {genOrdinal} ({count})
+                        </span>
+                      );
+                    })}
+                </div>
+              )}
+
+              <div className="pointer-events-auto">
+                <TreeFloatingStudioDock
+                  zoomPercent={zoomPercent}
+                  onZoomIn={() => setZoomPercent((z) => Math.min(130, z + 10))}
+                  onZoomOut={() => setZoomPercent((z) => Math.max(50, z - 10))}
+                  onResetZoom={() => setZoomPercent(100)}
+                  onFitAndCenter={handleFitAndCenterCanvas}
+                  isCinemaMode={isCinemaMode}
+                  onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+                  showMinimap={showMinimap}
+                  onToggleMinimap={() => setShowMinimap((v) => !v)}
+                  isDarkSurface={activeTreeTheme.isDarkSurface}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6424,6 +5870,54 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                             ))}
                           </select>
                         </div>
+                      </div>
+
+                      {/* Optional Dignified Prestige Badge + Sub-tree Focus Action */}
+                      <div className="pt-2 border-t border-[#B98A78]/20 grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                        <div>
+                          <label className="block text-xs font-display font-bold text-[#252321] mb-1.5">
+                            وسام بطاقة تقديري{' '}
+                            <span className="text-[#252321]/50 font-normal">(اختياري)</span>
+                          </label>
+                          <select
+                            data-testid="person-prestige-badge-select"
+                            value={formPrestigeBadge}
+                            onChange={(e) =>
+                              setFormPrestigeBadge(
+                                e.target.value as TreePrestigeBadgeId
+                              )
+                            }
+                            className="w-full rounded-xl bg-white border border-[#B98A78]/60 px-3.5 py-2.5 text-sm text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                          >
+                            {TREE_PRESTIGE_BADGE_OPTIONS.map((opt) => (
+                              <option key={opt.id} value={opt.id}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {modalConfig.mode === 'edit' && modalConfig.editPersonId && (
+                          <button
+                            type="button"
+                            data-testid="focus-subtree-person-btn"
+                            onClick={() => {
+                              const targetId = modalConfig.editPersonId;
+                              if (!targetId) return;
+                              setCollapsedBranchIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(targetId);
+                                return next;
+                              });
+                              setFocusSubtreeRootId(targetId);
+                              setModalConfig(null);
+                            }}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#FEF9EC] hover:bg-[#F5E6DC] border border-[#C5A059]/60 text-xs font-display font-extrabold text-[#8D4925] inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <Crosshair className="w-3.5 h-3.5 text-[#D8755B] shrink-0" />
+                            <span>تركيز العرض على ذرية هذا الجد فقط</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -7520,6 +7014,33 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         })()}
 
       {/* ==================================================================== */}
+      {/* 6B. KINSHIP PATH CALCULATOR MODAL (`صلة القرابة بين فردين ✦`)         */}
+      {/* ==================================================================== */}
+      <TreeKinshipCalculatorModal
+        isOpen={showKinshipModal}
+        onClose={() => setShowKinshipModal(false)}
+        people={visiblePeopleForTree}
+        personAId={kinshipPersonAId}
+        personBId={kinshipPersonBId}
+        onChangePersonA={setKinshipPersonAId}
+        onChangePersonB={setKinshipPersonBId}
+        result={kinshipPathResult}
+        isPathHighlightedOnCanvas={isKinshipHighlightedOnCanvas}
+        onApplyHighlightOnCanvas={() => {
+          setIsKinshipHighlightedOnCanvas(true);
+          setShowKinshipModal(false);
+          if (kinshipPathResult?.commonAncestor) {
+            handleSpotlightPerson(kinshipPathResult.commonAncestor.id);
+          } else if (kinshipPersonAId) {
+            handleSpotlightPerson(kinshipPersonAId);
+          }
+        }}
+        onClearHighlightOnCanvas={() => {
+          setIsKinshipHighlightedOnCanvas(false);
+        }}
+      />
+
+      {/* ==================================================================== */}
       {/* 7. OFFICIAL BRANDED EXPORT MODAL (PDF / HIGH-RES PNG)                */}
       {/* ==================================================================== */}
       <OfficialBrandedExportModal
@@ -7538,6 +7059,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         posterOptions={{
           poster: treeDisplaySettings.poster,
           theme: activeTreeTheme,
+          fontFamily: treeDisplaySettings.fontFamily,
           layoutLabel:
             treeDisplaySettings.layoutOrientation === 'fan_180'
               ? 'مروحة الأنساب 180°'

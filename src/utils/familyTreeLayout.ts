@@ -11,6 +11,13 @@ export interface PedigreePersonLike {
   motherId?: string;
   siblingOfId?: string;
   spouseIds: string[];
+  birthDateValue?: string;
+  birthCalendar?: 'hijri' | 'gregorian';
+}
+
+export interface PedigreeLayoutOptions {
+  siblingSortOrder?: 'added' | 'birth_oldest';
+  focusRootId?: string | null;
 }
 
 export interface PedigreeTreeNode<T extends PedigreePersonLike> {
@@ -253,9 +260,28 @@ export function collectCascadeDeleteIds<T extends PedigreePersonLike>(
  * 4. Cycle-safe and zero-loss: every non-bridge person is visited at most once, and any
  *    detached legacy nodes are cleanly surfaced in `detachedRoots`.
  */
+function extractComparableBirthYear(person: PedigreePersonLike): number | null {
+  const raw = (person.birthDateValue || '').trim();
+  if (!raw) return null;
+  const western = raw.replace(/[٠-٩]/g, (d) =>
+    String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+  );
+  const match = western.match(/\b(\d{3,4})\b/);
+  if (!match) return null;
+  const yr = Number(match[1]);
+  if (!Number.isFinite(yr)) return null;
+  if (person.birthCalendar === 'hijri') {
+    return Math.round(yr * (32 / 33) + 622);
+  }
+  return yr;
+}
+
 export function buildPedigreeTreeLayout<T extends PedigreePersonLike>(
-  people: T[]
+  people: T[],
+  options?: PedigreeLayoutOptions
 ): PedigreeTreeLayoutResult<T> {
+  const siblingSortOrder = options?.siblingSortOrder || 'added';
+  const focusRootId = options?.focusRootId || null;
   const activePeople = people.filter((p) => !p.isBridgeAboveFamily);
   if (activePeople.length === 0) {
     return {
@@ -412,8 +438,15 @@ export function buildPedigreeTreeLayout<T extends PedigreePersonLike>(
       }
     }
 
-    // Sort children: direct spine child first (rightmost in RTL), then stable creation order
+    // Sort children: optionally by oldest birth year first, or direct spine + creation order
     directChildren.sort((a, b) => {
+      if (siblingSortOrder === 'birth_oldest') {
+        const yA = extractComparableBirthYear(a);
+        const yB = extractComparableBirthYear(b);
+        if (yA !== null && yB !== null && yA !== yB) return yA - yB;
+        if (yA !== null && yB === null) return -1;
+        if (yA === null && yB !== null) return 1;
+      }
       const aSpine = directSpineIds.has(a.id) ? 0 : 1;
       const bSpine = directSpineIds.has(b.id) ? 0 : 1;
       if (aSpine !== bSpine) return aSpine - bSpine;
@@ -449,11 +482,35 @@ export function buildPedigreeTreeLayout<T extends PedigreePersonLike>(
     }
   }
 
+  // If Sub-tree Focus mode is active, isolate layout exclusively to that ancestor & descendants
+  if (focusRootId && byId.has(focusRootId)) {
+    visitedIds.clear();
+    const focusedTarget = byId.get(focusRootId)!;
+    const focusedNode = buildSubtree(
+      focusedTarget,
+      directSpineIds.has(focusedTarget.id)
+    );
+    return {
+      root: focusedNode,
+      topLevelRoots: [focusedNode],
+      unpairedTopMother: null,
+      detachedRoots: [],
+      directSpineIds,
+    };
+  }
+
   // Collect all top-level siblings sharing the topmost generation (no shared father added yet)
   const topSiblingGroupIds = collectTopSiblingGroupIds(activePeople, rootPerson);
   const topSiblingPeople = activePeople
     .filter((p) => topSiblingGroupIds.has(p.id) && !visitedIds.has(p.id))
     .sort((a, b) => {
+      if (siblingSortOrder === 'birth_oldest') {
+        const yA = extractComparableBirthYear(a);
+        const yB = extractComparableBirthYear(b);
+        if (yA !== null && yB !== null && yA !== yB) return yA - yB;
+        if (yA !== null && yB === null) return -1;
+        if (yA === null && yB !== null) return 1;
+      }
       if (a.id === rootPerson.id) return -1;
       if (b.id === rootPerson.id) return 1;
       const aSpine = directSpineIds.has(a.id) ? 0 : 1;
@@ -495,5 +552,266 @@ export function buildPedigreeTreeLayout<T extends PedigreePersonLike>(
     unpairedTopMother,
     detachedRoots,
     directSpineIds,
+  };
+}
+
+/**
+ * Counts total descendants (children + grandchildren + ...) under a pedigree node.
+ */
+export function countTreeNodeDescendants<T extends PedigreePersonLike>(
+  node: PedigreeTreeNode<T>
+): number {
+  let total = 0;
+  for (const child of node.children) {
+    total += 1 + countTreeNodeDescendants(child);
+  }
+  return total;
+}
+
+export interface KinshipPathResult<T extends PedigreePersonLike> {
+  connected: boolean;
+  personA: T | null;
+  personB: T | null;
+  commonAncestor: T | null;
+  relationshipLabel: string;
+  degreeCount: number;
+  stepsUpFromA: number;
+  stepsUpFromB: number;
+  pathNodes: T[];
+  pathNodeIds: Set<string>;
+}
+
+/**
+ * Calculates the shortest genealogical path and lowest common ancestor (الجد الجامع)
+ * between two individuals in the family tree, returning an Arabic kinship label,
+ * exact degree count, and highlighted path IDs.
+ */
+export function calculateKinshipPath<T extends PedigreePersonLike>(
+  people: T[],
+  personAId: string,
+  personBId: string
+): KinshipPathResult<T> {
+  const byId = new Map<string, T>();
+  people.forEach((p) => byId.set(p.id, p));
+
+  const personA = byId.get(personAId) || null;
+  const personB = byId.get(personBId) || null;
+
+  if (!personA || !personB) {
+    return {
+      connected: false,
+      personA,
+      personB,
+      commonAncestor: null,
+      relationshipLabel: 'يرجى اختيار فردين من الشجرة',
+      degreeCount: 0,
+      stepsUpFromA: 0,
+      stepsUpFromB: 0,
+      pathNodes: [],
+      pathNodeIds: new Set<string>(),
+    };
+  }
+
+  if (personA.id === personB.id) {
+    return {
+      connected: true,
+      personA,
+      personB,
+      commonAncestor: personA,
+      relationshipLabel: 'نفس الفرد',
+      degreeCount: 0,
+      stepsUpFromA: 0,
+      stepsUpFromB: 0,
+      pathNodes: [personA],
+      pathNodeIds: new Set<string>([personA.id]),
+    };
+  }
+
+  // Direct spouse check
+  const isDirectSpouse =
+    (personA.spouseIds || []).includes(personB.id) ||
+    (personB.spouseIds || []).includes(personA.id);
+  if (isDirectSpouse) {
+    return {
+      connected: true,
+      personA,
+      personB,
+      commonAncestor: null,
+      relationshipLabel:
+        personA.gender === 'male' ? 'علاقة مصاهرة (زوج وزوجة)' : 'علاقة مصاهرة (زوجة وزوج)',
+      degreeCount: 1,
+      stepsUpFromA: 0,
+      stepsUpFromB: 0,
+      pathNodes: [personA, personB],
+      pathNodeIds: new Set<string>([personA.id, personB.id]),
+    };
+  }
+
+  // Build ancestor chains (via fatherId first, then motherId) using BFS upward
+  const buildAncestorsMap = (start: T): Map<string, { dist: number; path: string[] }> => {
+    const map = new Map<string, { dist: number; path: string[] }>();
+    const queue: Array<{ id: string; path: string[] }> = [{ id: start.id, path: [start.id] }];
+    map.set(start.id, { dist: 0, path: [start.id] });
+
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      const node = byId.get(curr.id);
+      if (!node) continue;
+      const parents = [node.fatherId, node.motherId].filter(
+        (pid): pid is string => Boolean(pid && byId.has(pid))
+      );
+      for (const pid of parents) {
+        if (!map.has(pid)) {
+          const nextPath = [...curr.path, pid];
+          map.set(pid, { dist: nextPath.length - 1, path: nextPath });
+          queue.push({ id: pid, path: nextPath });
+        }
+      }
+    }
+    return map;
+  };
+
+  const ancA = buildAncestorsMap(personA);
+  const ancB = buildAncestorsMap(personB);
+
+  let bestLcaId: string | null = null;
+  let bestScore = Infinity;
+
+  ancA.forEach((infoA, ancId) => {
+    const infoB = ancB.get(ancId);
+    if (!infoB) return;
+    const score = infoA.dist + infoB.dist;
+    if (score < bestScore) {
+      bestScore = score;
+      bestLcaId = ancId;
+    }
+  });
+
+  if (bestLcaId) {
+    const infoA = ancA.get(bestLcaId)!;
+    const infoB = ancB.get(bestLcaId)!;
+    const upA = infoA.dist;
+    const upB = infoB.dist;
+    const lcaNode = byId.get(bestLcaId) || null;
+    const fullPathIds = [
+      ...infoA.path,
+      ...infoB.path.slice(0, -1).reverse(),
+    ];
+    const pathNodes = fullPathIds
+      .map((id) => byId.get(id))
+      .filter((n): n is T => Boolean(n));
+
+    const describeBloodRelation = (): string => {
+      if (upA === 0 && upB === 1) return personB.gender === 'female' ? 'ابنة مباشرة' : 'ابن مباشر';
+      if (upB === 0 && upA === 1) return personB.gender === 'female' ? 'الأم المباشرة' : 'الأب المباشر';
+      if (upA === 0 && upB === 2) return personB.gender === 'female' ? 'حفيدة' : 'حفيد';
+      if (upB === 0 && upA === 2) return personB.gender === 'female' ? 'الجدة المباشرة' : 'الجد المباشر';
+      if (upA === 0 && upB > 2) return `سليل مباشر (حفيد من الجيل ${upB})`;
+      if (upB === 0 && upA > 2) return `جد مباشر (على بُعد ${upA} أجيال صعوداً)`;
+      if (upA === 1 && upB === 1) return personB.gender === 'female' ? 'أخت شقيقة / من نفس الوالد' : 'أخ شقيق / من نفس الوالد';
+      if (upA === 2 && upB === 1) return personB.gender === 'female' ? 'عمة / خالة' : 'عم / خال';
+      if (upA === 1 && upB === 2) return personB.gender === 'female' ? 'ابنة أخ / أخت' : 'ابن أخ / أخت';
+      if (upA === 2 && upB === 2) return 'أبناء عمومة من الدرجة الأولى';
+      if (upA === 3 && upB === 1) return personB.gender === 'female' ? 'عمة الوالد' : 'عم الوالد';
+      if (upA === 1 && upB === 3) return 'حفيد أخ / أخت';
+      if (upA === upB) return `أبناء عمومة من الدرجة ${upA - 1}`;
+      const minGen = Math.min(upA, upB);
+      const diff = Math.abs(upA - upB);
+      return `قرابة نسبية من الدرجة ${minGen} (بفارق ${diff} ${diff === 1 ? 'جيل' : 'أجيال'})`;
+    };
+
+    return {
+      connected: true,
+      personA,
+      personB,
+      commonAncestor: lcaNode,
+      relationshipLabel: describeBloodRelation(),
+      degreeCount: upA + upB,
+      stepsUpFromA: upA,
+      stepsUpFromB: upB,
+      pathNodes,
+      pathNodeIds: new Set<string>(fullPathIds),
+    };
+  }
+
+  // Fallback: top-level siblings linked via `siblingOfId` or general undirected BFS across tree links
+  const topSiblingsA = collectTopSiblingGroupIds(people, personA);
+  if (topSiblingsA.has(personB.id)) {
+    return {
+      connected: true,
+      personA,
+      personB,
+      commonAncestor: null,
+      relationshipLabel: 'إخوة في أعلى طبقة مسجلة (بانتظار تسجيل الأب الجامع)',
+      degreeCount: 2,
+      stepsUpFromA: 1,
+      stepsUpFromB: 1,
+      pathNodes: [personA, personB],
+      pathNodeIds: new Set<string>([personA.id, personB.id]),
+    };
+  }
+
+  // General undirected BFS across parent, sibling, and spouse edges
+  const adj = new Map<string, Set<string>>();
+  const addEdge = (u: string, v: string) => {
+    if (!byId.has(u) || !byId.has(v) || u === v) return;
+    if (!adj.has(u)) adj.set(u, new Set());
+    if (!adj.has(v)) adj.set(v, new Set());
+    adj.get(u)!.add(v);
+    adj.get(v)!.add(u);
+  };
+
+  people.forEach((p) => {
+    if (p.fatherId) addEdge(p.id, p.fatherId);
+    if (p.motherId) addEdge(p.id, p.motherId);
+    if (p.siblingOfId) addEdge(p.id, p.siblingOfId);
+    (p.spouseIds || []).forEach((sid) => addEdge(p.id, sid));
+  });
+
+  const visited = new Set<string>([personA.id]);
+  const bfsQueue: Array<{ id: string; path: string[] }> = [
+    { id: personA.id, path: [personA.id] },
+  ];
+
+  while (bfsQueue.length > 0) {
+    const curr = bfsQueue.shift()!;
+    if (curr.id === personB.id) {
+      const pathNodes = curr.path
+        .map((id) => byId.get(id))
+        .filter((n): n is T => Boolean(n));
+      return {
+        connected: true,
+        personA,
+        personB,
+        commonAncestor: null,
+        relationshipLabel: `صلة عائلية / مصاهرة عبر ${curr.path.length - 1} خطوات`,
+        degreeCount: curr.path.length - 1,
+        stepsUpFromA: 0,
+        stepsUpFromB: 0,
+        pathNodes,
+        pathNodeIds: new Set<string>(curr.path),
+      };
+    }
+    const neighbors = adj.get(curr.id);
+    if (!neighbors) continue;
+    neighbors.forEach((nId) => {
+      if (!visited.has(nId)) {
+        visited.add(nId);
+        bfsQueue.push({ id: nId, path: [...curr.path, nId] });
+      }
+    });
+  }
+
+  return {
+    connected: false,
+    personA,
+    personB,
+    commonAncestor: null,
+    relationshipLabel: 'لا يوجد رابط مسجل بعد بين الفردين في الشجرة الحالية',
+    degreeCount: 0,
+    stepsUpFromA: 0,
+    stepsUpFromB: 0,
+    pathNodes: [],
+    pathNodeIds: new Set<string>(),
   };
 }

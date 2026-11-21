@@ -34,6 +34,110 @@ export type PosterHeaderStyle = 'basmala_verse' | 'basmala_only' | 'none';
 export type TreeSettingsTabId = 'layout' | 'filters' | 'identity' | 'poster';
 export type TreeQuickPresetId = 'quick_edit' | 'luxury_family' | 'wall_poster';
 
+export type TreeArabicFontId =
+  | 'amiri'
+  | 'noto_naskh'
+  | 'cairo_modern'
+  | 'ruqaa_festive';
+
+export type TreeSiblingSortOrder = 'added' | 'birth_oldest';
+
+export type TreePrestigeBadgeId =
+  | 'none'
+  | 'family_dean'
+  | 'historical_figure'
+  | 'heritage_keeper';
+
+export interface TreeArabicFontDefinition {
+  id: TreeArabicFontId;
+  label: string;
+  shortLabel: string;
+  subtitle: string;
+  cssFamily: string;
+  canvasFontName: string;
+  sampleText: string;
+}
+
+export const TREE_ARABIC_FONT_OPTIONS: TreeArabicFontDefinition[] = [
+  {
+    id: 'amiri',
+    label: 'النسخ التراثي الأصيل — Amiri',
+    shortLabel: 'النسخ (Amiri)',
+    subtitle: 'خط عربي طباعي عريق يليق بالمخطوطات والأنساب',
+    cssFamily: "'Amiri', 'Noto Naskh Arabic', serif",
+    canvasFontName: 'Amiri',
+    sampleText: 'شجرة النسب الأصيل',
+  },
+  {
+    id: 'noto_naskh',
+    label: 'الكلاسيكي الوقور — Noto Naskh',
+    shortLabel: 'كلاسيكي وقور',
+    subtitle: 'وضوح متزن وفخامة هادئة للأسماء والتواريخ',
+    cssFamily: "'Noto Naskh Arabic', 'Scheherazade New', 'Amiri', serif",
+    canvasFontName: 'Noto Naskh Arabic',
+    sampleText: 'شجرة النسب الأصيل',
+  },
+  {
+    id: 'cairo_modern',
+    label: 'الهندسي الحديث الفاخر — Cairo',
+    shortLabel: 'حديث (Cairo)',
+    subtitle: 'خط عصري حاد ومقروء للشاشات واللوحات التفاعلية',
+    cssFamily: "'Cairo', 'Readex Pro', 'IBM Plex Sans Arabic', sans-serif",
+    canvasFontName: 'Cairo',
+    sampleText: 'شجرة النسب الأصيل',
+  },
+  {
+    id: 'ruqaa_festive',
+    label: 'الرقعة الاحتفالي للعناوين — Aref Ruqaa',
+    shortLabel: 'رقعة احتفالي',
+    subtitle: 'طابع خطي احتفالي فاخر للمجالس والبوسترات الجدارية',
+    cssFamily: "'Aref Ruqaa', 'Amiri', serif",
+    canvasFontName: 'Aref Ruqaa',
+    sampleText: 'شجرة النسب الأصيل',
+  },
+];
+
+export function getTreeArabicFontDefinition(
+  fontId: TreeArabicFontId | undefined
+): TreeArabicFontDefinition {
+  return (
+    TREE_ARABIC_FONT_OPTIONS.find((f) => f.id === fontId) ||
+    TREE_ARABIC_FONT_OPTIONS[2]
+  );
+}
+
+export const TREE_PRESTIGE_BADGE_OPTIONS: Array<{
+  id: TreePrestigeBadgeId;
+  label: string;
+  shortLabel: string;
+  description: string;
+}> = [
+  {
+    id: 'none',
+    label: 'بدون وسام إضافي',
+    shortLabel: 'بدون',
+    description: 'بطاقة نظيفة بالاسم فقط',
+  },
+  {
+    id: 'family_dean',
+    label: 'عميد الأسرة',
+    shortLabel: 'عميد الأسرة',
+    description: 'وسام تقديري لكبير العائلة ومرجعها',
+  },
+  {
+    id: 'historical_figure',
+    label: 'شخصية تاريخية موثقة',
+    shortLabel: 'شخصية تاريخية',
+    description: 'وسام للأعلام والشخصيات التاريخية الموثقة',
+  },
+  {
+    id: 'heritage_keeper',
+    label: 'حافظ للإرث',
+    shortLabel: 'حافظ للإرث',
+    description: 'وسام لمن أسهم في جمع وتوثيق إرث الأسرة',
+  },
+];
+
 export interface TreePosterSettings {
   paperSize: PosterPaperSize;
   borderStyle: PosterBorderStyle;
@@ -48,6 +152,7 @@ export interface TreePosterSettings {
 export interface TreeDisplaySettings {
   cardTheme: TreeCardThemeId;
   avatarStyle: TreeAvatarStyle;
+  fontFamily: TreeArabicFontId;
   preferRealPhotos: boolean;
   femalePrivacyMode: 'full_name' | 'kunya_only' | 'hide_females';
   showHonorific: boolean;
@@ -65,6 +170,8 @@ export interface TreeDisplaySettings {
   showDeceasedDignityFrame: boolean;
   spouseDisplayMode: TreeSpouseDisplayMode;
   calendarDisplayMode: TreeCalendarDisplayMode;
+  siblingSortOrder: TreeSiblingSortOrder;
+  showPrestigeBadges: boolean;
   poster: TreePosterSettings;
 }
 
@@ -641,6 +748,7 @@ export const DEFAULT_POSTER_SETTINGS: TreePosterSettings = {
 export const DEFAULT_TREE_DISPLAY_SETTINGS: TreeDisplaySettings = {
   cardTheme: 'heritage',
   avatarStyle: 'heritage',
+  fontFamily: 'cairo_modern',
   preferRealPhotos: true,
   femalePrivacyMode: 'full_name',
   showHonorific: true,
@@ -658,6 +766,8 @@ export const DEFAULT_TREE_DISPLAY_SETTINGS: TreeDisplaySettings = {
   showDeceasedDignityFrame: true,
   spouseDisplayMode: 'always',
   calendarDisplayMode: 'gregorian',
+  siblingSortOrder: 'added',
+  showPrestigeBadges: true,
   poster: { ...DEFAULT_POSTER_SETTINGS },
 };
 
@@ -692,6 +802,13 @@ export function normalizeTreeDisplaySettings(
     'radial_360',
   ]);
 
+  const validFonts = new Set<TreeArabicFontId>([
+    'amiri',
+    'noto_naskh',
+    'cairo_modern',
+    'ruqaa_festive',
+  ]);
+
   const rawPoster: Partial<TreePosterSettings> =
     p.poster && typeof p.poster === 'object' ? p.poster : {};
 
@@ -704,6 +821,10 @@ export function normalizeTreeDisplaySettings(
       p.avatarStyle && validAvatars.has(p.avatarStyle)
         ? p.avatarStyle
         : DEFAULT_TREE_DISPLAY_SETTINGS.avatarStyle,
+    fontFamily:
+      p.fontFamily && validFonts.has(p.fontFamily)
+        ? p.fontFamily
+        : DEFAULT_TREE_DISPLAY_SETTINGS.fontFamily,
     preferRealPhotos:
       typeof p.preferRealPhotos === 'boolean'
         ? p.preferRealPhotos
@@ -759,6 +880,10 @@ export function normalizeTreeDisplaySettings(
       p.calendarDisplayMode === 'hijri' || p.calendarDisplayMode === 'dual'
         ? p.calendarDisplayMode
         : 'gregorian',
+    siblingSortOrder:
+      p.siblingSortOrder === 'birth_oldest' ? 'birth_oldest' : 'added',
+    showPrestigeBadges:
+      typeof p.showPrestigeBadges === 'boolean' ? p.showPrestigeBadges : true,
     poster: {
       paperSize:
         rawPoster.paperSize === 'A4' ||

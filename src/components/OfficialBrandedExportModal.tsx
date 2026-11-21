@@ -25,7 +25,10 @@ import {
   extractUnlockedLineageNodesForExport,
   printOfficialBrandedDocumentViaIframe,
 } from '../utils/brandedExport';
-import { buildDeterministicQrMatrix } from '../utils/treeStudioConfig';
+import {
+  buildDeterministicQrMatrix,
+  getTreeArabicFontDefinition,
+} from '../utils/treeStudioConfig';
 
 interface OfficialBrandedExportModalProps {
   isOpen: boolean;
@@ -181,7 +184,13 @@ export const OfficialBrandedExportModal: React.FC<
         {/* Scrollable Official Certificate Preview */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 bg-[#FAF6F0]/70 flex-1">
           {/* Certificate Sheet Frame */}
-          <div className="rounded-2xl bg-[#FFFDF9] border-2 border-[#8D4925]/65 p-4 sm:p-6 shadow-xs relative overflow-hidden space-y-4">
+          <div
+            className="rounded-2xl bg-[#FFFDF9] border-2 border-[#8D4925]/65 p-4 sm:p-6 shadow-xs relative overflow-hidden space-y-4"
+            style={{
+              fontFamily: getTreeArabicFontDefinition(posterOptions?.fontFamily)
+                .cssFamily,
+            }}
+          >
             {isFreeRestricted && (
               <div
                 aria-hidden="true"
@@ -224,6 +233,14 @@ export const OfficialBrandedExportModal: React.FC<
                           : poster.borderStyle === 'classic_double'
                           ? 'كلاسيكي مزدوج'
                           : 'عصري ناعم'}
+                      </span>
+                      <span>·</span>
+                      <span>
+                        الخط:{' '}
+                        {
+                          getTreeArabicFontDefinition(posterOptions?.fontFamily)
+                            .label
+                        }
                       </span>
                       {poster.inkSaverMode && (
                         <>

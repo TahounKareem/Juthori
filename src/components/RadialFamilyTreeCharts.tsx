@@ -7,7 +7,10 @@ import type {
   TreeCardThemeDefinition,
   TreeDisplaySettings,
 } from '../utils/treeStudioConfig';
-import { formatTreeDateByCalendarMode } from '../utils/treeStudioConfig';
+import {
+  formatTreeDateByCalendarMode,
+  getTreeArabicFontDefinition,
+} from '../utils/treeStudioConfig';
 import { Edit2, Plus, Sparkles } from 'lucide-react';
 
 export interface RadialChartPersonLike extends PedigreePersonLike {
@@ -142,6 +145,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
   const [focusedPerson, setFocusedPerson] = useState<T | null>(null);
 
   const isFan = mode === 'fan_180';
+  const activeFontCss = getTreeArabicFontDefinition(settings.fontFamily).cssFamily;
 
   const layout = useMemo(() => {
     const cx = isFan ? 520 : 480;
@@ -452,7 +456,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                       fill={theme.textMutedHex}
                       fontSize="10"
                       fontWeight="700"
-                      fontFamily="Cairo, sans-serif"
+                      fontFamily={activeFontCss}
                     >
                       {labelText}
                     </text>
@@ -557,7 +561,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                       }
                       fontSize={arcAngleDeg < 18 ? 10 : 12}
                       fontWeight="800"
-                      fontFamily="Cairo, sans-serif"
+                      fontFamily={activeFontCss}
                     >
                       {shortName}
                     </text>
@@ -569,7 +573,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                         fill={theme.textMutedHex}
                         fontSize="9"
                         fontWeight="600"
-                        fontFamily="Cairo, sans-serif"
+                        fontFamily={activeFontCss}
                       >
                         {dateLabel}
                       </text>
@@ -585,7 +589,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                           fill={theme.textMutedHex}
                           fontSize="8.5"
                           fontWeight="600"
-                          fontFamily="Cairo, sans-serif"
+                          fontFamily={activeFontCss}
                         >
                           {arc.person.gender === 'female'
                             ? 'رحمها الله'
@@ -655,7 +659,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                 }
                 fontSize="10"
                 fontWeight="700"
-                fontFamily="Cairo, sans-serif"
+                fontFamily={activeFontCss}
               >
                 {layout.centerRoot?.isRecordKeeper
                   ? 'أمين السجل'
@@ -670,7 +674,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                 fill={centerCompassActive ? '#451A03' : '#FFFFFF'}
                 fontSize="14"
                 fontWeight="800"
-                fontFamily="Cairo, sans-serif"
+                fontFamily={activeFontCss}
               >
                 {layout.centerRoot
                   ? getDisplayName(layout.centerRoot).mainName.slice(0, 16)
@@ -697,7 +701,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                   fill={theme.textPrimaryHex}
                   fontSize="13"
                   fontWeight="800"
-                  fontFamily="Cairo, sans-serif"
+                  fontFamily={activeFontCss}
                 >
                   مشجرة عائلة {familyName} · مروحة الأنساب التراثية
                 </text>
