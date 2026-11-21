@@ -897,6 +897,138 @@ export interface GuardianOfMemoryHonorItem {
   approvedCount: number;
 }
 
+export type FamilyCrestStyle =
+  | 'royal_shield'
+  | 'islamic_octagon'
+  | 'heritage_wreath'
+  | 'calligraphic_tughra';
+
+export type HeroCoverPresetId =
+  | 'gilded_geometry'
+  | 'najdi_adobe'
+  | 'hijazi_roshan'
+  | 'golden_dunes'
+  | 'antique_parchment'
+  | 'royal_marble';
+
+export type HeroLayoutStyle =
+  | 'centered_royal'
+  | 'editorial_split'
+  | 'floating_glass';
+
+export type PortalTypographyId =
+  | 'amiri_naskh'
+  | 'classical_ruqaa'
+  | 'modern_geometric';
+
+export type PortalSectionKey =
+  | 'patriarch_quote'
+  | 'tree_mirror'
+  | 'vault_gallery'
+  | 'news'
+  | 'events'
+  | 'stories'
+  | 'notables'
+  | 'oral_heritage'
+  | 'atlas'
+  | 'professions'
+  | 'memorial'
+  | 'majlis';
+
+export const DEFAULT_PORTAL_SECTION_ORDER: PortalSectionKey[] = [
+  'patriarch_quote',
+  'tree_mirror',
+  'vault_gallery',
+  'news',
+  'events',
+  'stories',
+  'notables',
+  'atlas',
+  'oral_heritage',
+  'professions',
+  'memorial',
+  'majlis',
+];
+
+export interface FamilyPortalVisualBranding {
+  crestMode: 'auto_gilded' | 'custom_image';
+  crestStyle: FamilyCrestStyle;
+  customCrestUrl?: string;
+  heroCoverMode: 'preset' | 'custom_image';
+  heroCoverPreset: HeroCoverPresetId;
+  customHeroCoverUrl?: string;
+  heroOverlayIntensity: number; // 0 to 90
+  heroLayout: HeroLayoutStyle;
+  typographyId: PortalTypographyId;
+  patriarchQuote: {
+    enabled: boolean;
+    text: string;
+    authorName: string;
+    authorTitle: string;
+  };
+  sectionOrder: PortalSectionKey[];
+}
+
+export function buildDefaultVisualBranding(
+  familyName?: string
+): FamilyPortalVisualBranding {
+  return {
+    crestMode: 'auto_gilded',
+    crestStyle: 'royal_shield',
+    heroCoverMode: 'preset',
+    heroCoverPreset: 'gilded_geometry',
+    heroOverlayIntensity: 55,
+    heroLayout: 'centered_royal',
+    typographyId: 'amiri_naskh',
+    patriarchQuote: {
+      enabled: false,
+      text: '',
+      authorName: familyName ? `عميد أسرة ${familyName}` : 'عميد الأسرة',
+      authorTitle: 'كلمة ترحيبية لأبناء وبنات الأسرة',
+    },
+    sectionOrder: [...DEFAULT_PORTAL_SECTION_ORDER],
+  };
+}
+
+export function normalizeVisualBranding(
+  raw?: Partial<FamilyPortalVisualBranding> | null,
+  familyName?: string
+): FamilyPortalVisualBranding {
+  const base = buildDefaultVisualBranding(familyName);
+  if (!raw || typeof raw !== 'object') return base;
+  const incomingOrder = Array.isArray(raw.sectionOrder) ? raw.sectionOrder : [];
+  const mergedOrder: PortalSectionKey[] = [
+    ...incomingOrder.filter((k): k is PortalSectionKey =>
+      DEFAULT_PORTAL_SECTION_ORDER.includes(k as PortalSectionKey)
+    ),
+    ...DEFAULT_PORTAL_SECTION_ORDER.filter((k) => !incomingOrder.includes(k)),
+  ];
+  return {
+    crestMode: raw.crestMode === 'custom_image' ? 'custom_image' : 'auto_gilded',
+    crestStyle: raw.crestStyle || base.crestStyle,
+    customCrestUrl: raw.customCrestUrl || undefined,
+    heroCoverMode:
+      raw.heroCoverMode === 'custom_image' ? 'custom_image' : 'preset',
+    heroCoverPreset: raw.heroCoverPreset || base.heroCoverPreset,
+    customHeroCoverUrl: raw.customHeroCoverUrl || undefined,
+    heroOverlayIntensity:
+      typeof raw.heroOverlayIntensity === 'number'
+        ? Math.max(0, Math.min(90, raw.heroOverlayIntensity))
+        : base.heroOverlayIntensity,
+    heroLayout: raw.heroLayout || base.heroLayout,
+    typographyId: raw.typographyId || base.typographyId,
+    patriarchQuote: {
+      enabled: Boolean(raw.patriarchQuote?.enabled),
+      text: raw.patriarchQuote?.text || '',
+      authorName:
+        raw.patriarchQuote?.authorName || base.patriarchQuote.authorName,
+      authorTitle:
+        raw.patriarchQuote?.authorTitle || base.patriarchQuote.authorTitle,
+    },
+    sectionOrder: mergedOrder,
+  };
+}
+
 export interface FamilyMicrositeCmsModules {
   newsModule: {
     enabled: boolean;
@@ -912,6 +1044,7 @@ export interface FamilyMicrositeCmsModules {
       title: string;
       summary: string;
       dateLabel: string;
+      imageUrl?: string;
       blessings: Array<{
         id: string;
         senderName: string;
@@ -947,6 +1080,7 @@ export interface FamilyMicrositeCmsModules {
       eraOrYearLabel: string;
       authorLabel?: string;
       historicalMonth?: number;
+      imageUrl?: string;
     }>;
   };
   notablesModule: {
@@ -958,6 +1092,7 @@ export interface FamilyMicrositeCmsModules {
       roleOrTitle: string;
       eraLabel: string;
       achievementSummary: string;
+      imageUrl?: string;
     }>;
   };
   oralHeritageModule: {
@@ -1078,13 +1213,14 @@ export interface PublicMicrositeData {
   publishedVaultItems?: PublicVaultProjectedItem[];
   treeMetrics?: ContemporaryTreeMetrics;
   cmsModules?: FamilyMicrositeCmsModules;
+  visualBranding?: FamilyPortalVisualBranding;
   guardiansOfMemory?: GuardianOfMemoryHonorItem[];
   createdAt: string;
   updatedAt: string;
 }
 
 export function buildDefaultCmsModules(
-  result: LineageSearchResult
+  result: Pick<LineageSearchResult, 'familyName' | 'originCountry' | 'originRegion'>
 ): FamilyMicrositeCmsModules {
   const fam = result.familyName || 'العائلة';
   const country = result.originCountry || 'السعودية';
@@ -1734,6 +1870,7 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
   rawTreeMembers: RawTreePersonForPublicProjection[];
   allVaultItems: FamilyVaultMediaItem[];
   cmsModules: FamilyMicrositeCmsModules;
+  visualBranding?: FamilyPortalVisualBranding;
 }): Promise<{
   ok: boolean;
   code:
@@ -1884,6 +2021,10 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
       params.result.familyName
     ),
     cmsModules: params.cmsModules,
+    visualBranding: params.visualBranding
+      ? normalizeVisualBranding(params.visualBranding, params.result.familyName)
+      : existing?.visualBranding ||
+        buildDefaultVisualBranding(params.result.familyName),
     guardiansOfMemory,
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso,

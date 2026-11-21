@@ -6862,6 +6862,7 @@ export interface CustomerSiteSettingsData {
   selectedVaultItemIds?: string[];
   enableDynamicWatermark?: boolean;
   cmsModulesJson?: string;
+  visualBrandingJson?: string;
   accessGateMode?: 'PUBLIC_INDEXABLE' | 'UNLISTED_LINK' | 'FAMILY_PIN' | 'PRIVATE_WHITELIST';
   familyPinCode?: string;
   femalePrivacyPolicy?:

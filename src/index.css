@@ -154,4 +154,29 @@
   color: var(--fs-gold);
 }
 
+/* Strictly Scoped Portal Typography Pairs (Zero Global Leakage) */
+[data-family-site-typography="amiri_naskh"] {
+  --fs-font-display: "Amiri", "Scheherazade New", serif;
+  --fs-font-body: "Noto Naskh Arabic", "Tajawal", sans-serif;
+  font-family: var(--fs-font-body);
+}
+[data-family-site-typography="classical_ruqaa"] {
+  --fs-font-display: "Aref Ruqaa", "Amiri", serif;
+  --fs-font-body: "IBM Plex Sans Arabic", "Tajawal", sans-serif;
+  font-family: var(--fs-font-body);
+}
+[data-family-site-typography="modern_geometric"] {
+  --fs-font-display: "Readex Pro", "Cairo", sans-serif;
+  --fs-font-body: "IBM Plex Sans Arabic", "Tajawal", sans-serif;
+  font-family: var(--fs-font-body);
+}
+
+[data-family-site-typography] h1,
+[data-family-site-typography] h2,
+[data-family-site-typography] h3,
+[data-family-site-typography] .fs-display-font {
+  font-family: var(--fs-font-display);
+}
+
+
 
