@@ -2297,18 +2297,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-hidden">
-      {/* A. LUXURY ARCHITECTURAL HEADER SHELL & BALANCED NAVIGATION DOCK */}
+      {/* A. SINGLE-ROW LUXURY ARCHITECTURAL HEADER SHELL & CENTERED NAVIGATION DOCK */}
       <header className="relative lg:sticky lg:top-0 z-30 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
         {/* Subtle Architectural Islamic Arabesque & Lineage Vine SVG Watermark */}
         <DashboardHeaderWatermark />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-3.5 sm:px-6">
+        <div className="relative z-10 max-w-[1380px] mx-auto px-3.5 sm:px-5 xl:px-6">
           {/* ============================================================== */}
-          {/* TIER 1: BALANCED TOP IDENTITY & COHESIVE UTILITY BAR           */}
+          {/* UNIFIED RESPONSIVE HEADER ROW:                                 */}
+          {/* • >=1180px: Single 78px row (Right Identity | Center Nav | Left Dock) */}
+          {/* • 768px–1179px: Row 1 (Identity + Utility) + Centered Row 2 (Nav)     */}
+          {/* • <768px: Compact Mobile Bar + Touch-Scrollable Nav Strip             */}
           {/* ============================================================== */}
-          <div className="py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 border-b border-[#D4AF37]/15">
-            {/* RIGHT WING (RTL START): Brand Lockup + Bespoke Sculpted Profile Identity Capsule */}
-            <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+          <div className="flex flex-wrap min-[1180px]:flex-nowrap items-center justify-between gap-x-2 sm:gap-x-3 xl:gap-x-4 min-[1180px]:h-[78px]">
+            {/* 1. RIGHT CLUSTER (RTL START — shrink-0): Logo + Sculpted Profile Identity Capsule */}
+            <div className="order-1 py-2.5 sm:py-3 min-[1180px]:py-0 flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
               {/* Brand Identity Lockup — Logo Only */}
               <div className="flex items-center shrink-0">
                 <JuthoriLogo size="sm" onClick={onBackToLanding} />
@@ -2331,7 +2334,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
                   aria-label="قائمة الحساب الشخصي"
-                  className={`group relative overflow-hidden flex items-center gap-2.5 sm:gap-3 rounded-full pr-1.5 pl-2.5 sm:pl-3.5 py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[235px] sm:max-w-none will-change-transform ${
+                  className={`group relative overflow-hidden flex items-center gap-2 sm:gap-2.5 xl:gap-3 rounded-full pr-1.5 pl-2.5 sm:pl-3 xl:pl-3.5 py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[235px] sm:max-w-[300px] min-[1180px]:max-w-[268px] xl:max-w-[305px] will-change-transform ${
                     userDropdownOpen
                       ? 'bg-gradient-to-l from-[#FFFDF8] via-[#FAF3E4] to-[#F3E7D2] border-[#C59B27]/65 shadow-[0_8px_22px_-10px_rgba(140,98,57,0.34)] -translate-y-0.5'
                       : 'bg-gradient-to-l from-[#FFFDF9]/95 via-[#FBF6EC]/90 to-[#F4ECDD]/85 border-[#D4AF37]/30 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.16)] hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-10px_rgba(140,98,57,0.28)] hover:border-[#C59B27]/55 active:scale-[0.985]'
@@ -2367,7 +2370,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   {/* Separated First Name + Gilded Hairline + Independent Family Emblem + Calm Tier Line */}
                   <div className="relative z-10 min-w-0 text-right">
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                      <span className="text-[13px] sm:text-[14.5px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap">
+                      <span className="text-[13px] sm:text-[14px] xl:text-[14.5px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap">
                         {cleanClientFirstName}
                       </span>
                       {cleanFamilyEmblemLabel && (
@@ -2376,7 +2379,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             aria-hidden="true"
                             className="w-px h-3.5 bg-gradient-to-b from-transparent via-[#C59B27]/70 to-transparent shrink-0"
                           />
-                          <span className="hidden sm:inline-flex items-center px-2 py-[3px] rounded-full bg-gradient-to-b from-[#F5EBD7] to-[#ECE0C7] border border-[#C59B27]/35 text-[#7A4B21] text-[11px] font-display font-bold leading-none whitespace-nowrap">
+                          <span className="hidden sm:inline-flex items-center px-2 py-[3px] rounded-full bg-gradient-to-b from-[#F5EBD7] to-[#ECE0C7] border border-[#C59B27]/35 text-[#7A4B21] text-[10.5px] xl:text-[11px] font-display font-bold leading-none whitespace-nowrap truncate max-w-[110px] xl:max-w-[140px]">
                             {cleanFamilyEmblemLabel}
                           </span>
                           <span className="sm:hidden inline-flex items-center px-1.5 py-[2px] rounded-full bg-[#F3E8D3] border border-[#C59B27]/35 text-[#7A4B21] text-[10px] font-display font-bold leading-none truncate max-w-[92px]">
@@ -2387,7 +2390,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </div>
 
                     <div
-                      className={`text-[10px] sm:text-[11px] font-display mt-1 leading-none truncate ${
+                      className={`text-[10px] sm:text-[10.5px] xl:text-[11px] font-display mt-1 leading-none truncate ${
                         caps.isVip || caps.hasRegistrarBadge
                           ? 'text-[#9A6A28] font-bold'
                           : 'text-[#6A5746] font-medium'
@@ -2619,468 +2622,470 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               </div>
             </div>
 
-            {/* LEFT WING (RTL END): Cohesive Unified Glass Utility Dock (Desktop & Tablet) */}
-            <div className="hidden sm:flex items-center p-1 rounded-2xl bg-white/70 backdrop-blur-md border border-[#D4AF37]/25 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.12)] shrink-0">
-              {/* 1. Cart & Wallet */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveUtilityDrawer((cur) => (cur === 'cart' ? null : 'cart'))
-                }
-                title="الاشتراكات والمحفظة الرقمية"
-                aria-label="الاشتراكات والمحفظة الرقمية"
-                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                  activeUtilityDrawer === 'cart'
-                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                }`}
-              >
-                <ShoppingCart
-                  className={`w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105 ${
-                    activeUtilityDrawer === 'cart' ? 'text-white' : 'text-[#B86145]'
-                  }`}
-                  aria-hidden="true"
-                />
-                {availableCartItems.length > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#252321] text-[#F9EEDB] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                    {availableCartItems.length}
-                  </span>
-                )}
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                >
-                  المحفظة والاشتراكات
-                </span>
-              </button>
-
-              <span
+            {/* 2. CENTER CLUSTER: Centered 7-Tab Navigation Dock */}
+            {/* Sits in exact center of the single 78px row at >=1180px; wraps smoothly as centered Row 2 on <1180px */}
+            <div className="order-3 min-[1180px]:order-2 w-full min-[1180px]:w-auto min-[1180px]:flex-1 border-t border-[#D4AF37]/15 min-[1180px]:border-t-0 py-2 sm:py-2.5 min-[1180px]:py-0 relative flex items-center md:justify-center min-w-0">
+              {/* Soft scroll fade edge cues on mobile only */}
+              <div
                 aria-hidden="true"
-                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+                className="md:hidden pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#F8F3E9] to-transparent z-10"
+              />
+              <div
+                aria-hidden="true"
+                className="md:hidden pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-[#F8F3E9] to-transparent z-10"
               />
 
-              {/* 2. Notifications */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveUtilityDrawer((cur) =>
-                    cur === 'notifications' ? null : 'notifications'
-                  );
-                  setNotifications((prev) =>
-                    prev.map((n) => ({ ...n, unread: false }))
-                  );
-                }}
-                title="الإشعارات والتنبيهات"
-                aria-label="الإشعارات والتنبيهات"
-                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                  activeUtilityDrawer === 'notifications'
-                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                }`}
+              <nav
+                aria-label="تبويبات لوحة تحكم العميل"
+                className="w-full md:w-auto flex items-center md:justify-center overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x px-1 md:px-0 max-w-full"
               >
-                <Bell
-                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                  aria-hidden="true"
-                />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#C8372D] text-white text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                    {unreadCount}
-                  </span>
-                )}
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                >
-                  الإشعارات
-                </span>
-              </button>
+                <div className="inline-flex items-center gap-1 p-1 sm:p-1.5 min-[1180px]:p-1 rounded-2xl bg-[#EFE8DA]/80 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
+                  {DASHBOARD_TABS.map((tab) => {
+                    const TabIcon = tab.icon;
+                    const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
+                    const isSelected =
+                      activeUtilityDrawer === null && activeTab === tab.id;
+                    const isKashafiTab = tab.id === DashboardTab.MyExplorer;
+                    const kashafiDynamicCount =
+                      kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
 
-              <span
-                aria-hidden="true"
-                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-              />
+                    let buttonClasses =
+                      'group/tab relative px-3.5 md:px-3.5 min-[1180px]:px-2.5 xl:px-3 py-2 min-[1180px]:py-1.5 rounded-xl text-[12.5px] sm:text-[13px] min-[1180px]:text-[13px] xl:text-[13.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 xl:gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] min-[1180px]:min-h-[38px] snap-center select-none ';
 
-              {/* 3. Activity Log */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveUtilityDrawer((cur) =>
-                    cur === 'activity' ? null : 'activity'
-                  )
-                }
-                title="سجل النشاط"
-                aria-label="سجل النشاط"
-                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                  activeUtilityDrawer === 'activity'
-                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                }`}
-              >
-                <Activity
-                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                  aria-hidden="true"
-                />
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                >
-                  سجل النشاط
-                </span>
-              </button>
+                    if (isSelected && isKashafiTab) {
+                      buttonClasses +=
+                        'bg-gradient-to-b from-[#2E2722] to-[#1D1916] text-[#F5D896] border border-[#D4AF37]/55 shadow-[0_6px_16px_-6px_rgba(29,25,22,0.58)]';
+                    } else if (isSelected) {
+                      buttonClasses +=
+                        'bg-gradient-to-b from-[#C96C4E] to-[#A85136] text-white shadow-[0_6px_16px_-6px_rgba(168,81,54,0.55)] ring-1 ring-[#F4D698]/35';
+                    } else if (isLocked) {
+                      buttonClasses +=
+                        'text-[#252321]/45 hover:bg-white/55 hover:text-[#252321]/70';
+                    } else if (isKashafiTab) {
+                      buttonClasses +=
+                        'bg-gradient-to-b from-[#FFFDF7] to-[#F7ECDA] text-[#7A4B1B] border border-[#C59B27]/45 hover:border-[#B3861D]/70 hover:bg-[#FFFBF0] hover:shadow-[0_2px_10px_-3px_rgba(197,155,39,0.3)]';
+                    } else {
+                      buttonClasses +=
+                        'text-[#483A2F] hover:bg-white/85 hover:text-[#7C4D2B] hover:shadow-[0_1px_5px_rgba(90,65,35,0.08)]';
+                    }
 
-              <span
-                aria-hidden="true"
-                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-              />
+                    return (
+                      <React.Fragment key={tab.id}>
+                        {/* Subtle gilded hairline separating كشّافي within the unified track */}
+                        {isKashafiTab && (
+                          <span
+                            aria-hidden="true"
+                            className="w-px h-5 bg-[#C59B27]/30 mx-0.5 shrink-0"
+                          />
+                        )}
 
-              {/* 4. Help & Support */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveUtilityDrawer((cur) => (cur === 'help' ? null : 'help'))
-                }
-                title="المساعدة والإرشاد"
-                aria-label="المساعدة والإرشاد"
-                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                  activeUtilityDrawer === 'help'
-                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                }`}
-              >
-                <HelpCircle
-                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                  aria-hidden="true"
-                />
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                >
-                  المساعدة والدعم
-                </span>
-              </button>
+                        <button
+                          ref={(el) => {
+                            mobileTabRefs.current[tab.id] = el;
+                          }}
+                          type="button"
+                          onClick={() => handleTabClick(tab)}
+                          aria-current={isSelected ? 'page' : undefined}
+                          title={
+                            isLocked
+                              ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
+                              : tab.label
+                          }
+                          className={buttonClasses}
+                        >
+                          <TabIcon
+                            className={`w-[14px] h-[14px] xl:w-[15px] xl:h-[15px] shrink-0 transition-transform duration-200 ${
+                              isSelected && isKashafiTab
+                                ? 'text-[#E8C468]'
+                                : isSelected
+                                ? 'text-[#FBE5B4]'
+                                : isKashafiTab
+                                ? 'text-[#B38422] group-hover/tab:rotate-12'
+                                : 'text-[#8C6A4E]/80 group-hover/tab:text-[#8C5327]'
+                            }`}
+                            aria-hidden={true}
+                          />
 
-              <span
-                aria-hidden="true"
-                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-              />
+                          <span>{tab.label}</span>
 
-              {/* 5. Language Toggle */}
-              <button
-                type="button"
-                onClick={() => setBilingualLabels((v) => !v)}
-                title={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                aria-label={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                  bilingualLabels
-                    ? 'bg-[#252321] text-[#F5D896] shadow-xs'
-                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                }`}
-              >
-                <Globe
-                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                  aria-hidden="true"
-                />
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute top-full mt-2 left-0 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                >
-                  {bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                </span>
-              </button>
+                          {isKashafiTab && (
+                            <span
+                              aria-hidden="true"
+                              className={`text-[11px] leading-none ${
+                                isSelected ? 'text-[#E8C468]' : 'text-[#C59B27]'
+                              }`}
+                            >
+                              ✦
+                            </span>
+                          )}
+
+                          {isKashafiTab && kashafiDynamicCount > 0 && (
+                            <span
+                              data-testid="kashafi-tab-unread-badge"
+                              className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none ${
+                                isSelected
+                                  ? 'bg-[#D4AF37]/25 text-[#F9E3A6] border border-[#D4AF37]/40'
+                                  : 'bg-[#8D4925] text-[#FAF4E4]'
+                              }`}
+                            >
+                              {kashafiDynamicCount}
+                            </span>
+                          )}
+
+                          {isLocked && (
+                            <Lock
+                              className="w-3.5 h-3.5 text-[#DC2626]/80 shrink-0"
+                              aria-label="ميزة بريميوم مقفلة"
+                            />
+                          )}
+
+                          {/* Refined Gilded Bottom Glow Indicator on Active Tab */}
+                          {isSelected && (
+                            <span
+                              aria-hidden="true"
+                              className={`absolute bottom-[3px] left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full ${
+                                isKashafiTab ? 'bg-[#E8C468]/90' : 'bg-[#FCE3AE]/90'
+                              }`}
+                            />
+                          )}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </nav>
             </div>
 
-            {/* MOBILE COMPACT UTILITY CAPSULE (< sm: Notifications + Quick Utilities Menu) */}
-            <div
-              className="relative sm:hidden flex items-center p-1 rounded-2xl bg-white/75 backdrop-blur-md border border-[#D4AF37]/25 shadow-2xs shrink-0"
-              ref={mobileUtilityRef}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileUtilityMenuOpen(false);
-                  setActiveUtilityDrawer((cur) =>
-                    cur === 'notifications' ? null : 'notifications'
-                  );
-                  setNotifications((prev) =>
-                    prev.map((n) => ({ ...n, unread: false }))
-                  );
-                }}
-                aria-label="الإشعارات"
-                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
-                  activeUtilityDrawer === 'notifications'
-                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white'
-                    : 'text-[#5A4637] active:bg-[#C59B27]/15'
-                }`}
-              >
-                <Bell className="w-[18px] h-[18px]" aria-hidden="true" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#C8372D] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              <span
-                aria-hidden="true"
-                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-              />
-
-              <button
-                type="button"
-                onClick={() => {
-                  setUserDropdownOpen(false);
-                  setMobileUtilityMenuOpen((prev) => !prev);
-                }}
-                aria-expanded={mobileUtilityMenuOpen}
-                aria-haspopup="menu"
-                aria-label="أدوات المنصة"
-                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
-                  mobileUtilityMenuOpen ||
-                  activeUtilityDrawer === 'cart' ||
-                  activeUtilityDrawer === 'activity' ||
-                  activeUtilityDrawer === 'help'
-                    ? 'bg-[#252321] text-[#F5D896]'
-                    : 'text-[#5A4637] active:bg-[#C59B27]/15'
-                }`}
-              >
-                <SlidersHorizontal className="w-[17px] h-[17px]" aria-hidden="true" />
-                {availableCartItems.length > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#B86145] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                    {availableCartItems.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Mobile Quick Utilities Popover */}
-              {mobileUtilityMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute left-0 top-full mt-2 w-60 rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_20px_48px_-14px_rgba(37,35,33,0.24)] p-2 z-50 space-y-1 text-right"
+            {/* 3. LEFT CLUSTER (RTL END — shrink-0): Cohesive Unified Glass Utility Dock + Mobile Capsule */}
+            <div className="order-2 min-[1180px]:order-3 py-2.5 sm:py-3 min-[1180px]:py-0 flex items-center shrink-0">
+              {/* Desktop & Tablet Unified 5-Icon Glass Utility Dock */}
+              <div className="hidden sm:flex items-center p-1 rounded-2xl bg-white/70 backdrop-blur-md border border-[#D4AF37]/25 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.12)] shrink-0">
+                {/* 1. Cart & Wallet */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveUtilityDrawer((cur) => (cur === 'cart' ? null : 'cart'))
+                  }
+                  title="الاشتراكات والمحفظة الرقمية"
+                  aria-label="الاشتراكات والمحفظة الرقمية"
+                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    activeUtilityDrawer === 'cart'
+                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
+                  }`}
                 >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMobileUtilityMenuOpen(false);
-                      setActiveUtilityDrawer((cur) =>
-                        cur === 'cart' ? null : 'cart'
-                      );
-                    }}
-                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <ShoppingCart className="w-4 h-4 text-[#B86145]" />
-                      <span>المحفظة والاشتراكات</span>
+                  <ShoppingCart
+                    className={`w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105 ${
+                      activeUtilityDrawer === 'cart' ? 'text-white' : 'text-[#B86145]'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  {availableCartItems.length > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#252321] text-[#F9EEDB] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
+                      {availableCartItems.length}
                     </span>
-                    {availableCartItems.length > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-[#252321] text-[#F9EEDB] text-[10px] font-mono tabular-nums">
-                        {availableCartItems.length}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMobileUtilityMenuOpen(false);
-                      setActiveUtilityDrawer((cur) =>
-                        cur === 'activity' ? null : 'activity'
-                      );
-                    }}
-                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                  )}
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                   >
-                    <Activity className="w-4 h-4 text-[#8C6239]" />
-                    <span>سجل النشاط</span>
-                  </button>
+                    المحفظة والاشتراكات
+                  </span>
+                </button>
 
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMobileUtilityMenuOpen(false);
-                      setActiveUtilityDrawer((cur) =>
-                        cur === 'help' ? null : 'help'
-                      );
-                    }}
-                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                <span
+                  aria-hidden="true"
+                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+                />
+
+                {/* 2. Notifications */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveUtilityDrawer((cur) =>
+                      cur === 'notifications' ? null : 'notifications'
+                    );
+                    setNotifications((prev) =>
+                      prev.map((n) => ({ ...n, unread: false }))
+                    );
+                  }}
+                  title="الإشعارات والتنبيهات"
+                  aria-label="الإشعارات والتنبيهات"
+                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    activeUtilityDrawer === 'notifications'
+                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
+                  }`}
+                >
+                  <Bell
+                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                    aria-hidden="true"
+                  />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#C8372D] text-white text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                   >
-                    <HelpCircle className="w-4 h-4 text-[#8C6239]" />
-                    <span>المساعدة والدعم</span>
-                  </button>
+                    الإشعارات
+                  </span>
+                </button>
 
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMobileUtilityMenuOpen(false);
-                      setActiveUtilityDrawer((cur) =>
-                        cur === 'settings' ? null : 'settings'
-                      );
-                    }}
-                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                <span
+                  aria-hidden="true"
+                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+                />
+
+                {/* 3. Activity Log */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveUtilityDrawer((cur) =>
+                      cur === 'activity' ? null : 'activity'
+                    )
+                  }
+                  title="سجل النشاط"
+                  aria-label="سجل النشاط"
+                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    activeUtilityDrawer === 'activity'
+                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
+                  }`}
+                >
+                  <Activity
+                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                    aria-hidden="true"
+                  />
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                   >
-                    <Settings className="w-4 h-4 text-[#8C6239]" />
-                    <span>إعدادات الحساب</span>
-                  </button>
+                    سجل النشاط
+                  </span>
+                </button>
 
-                  <div className="pt-1 border-t border-[#D4AF37]/20">
+                <span
+                  aria-hidden="true"
+                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+                />
+
+                {/* 4. Help & Support */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveUtilityDrawer((cur) => (cur === 'help' ? null : 'help'))
+                  }
+                  title="المساعدة والإرشاد"
+                  aria-label="المساعدة والإرشاد"
+                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    activeUtilityDrawer === 'help'
+                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
+                  }`}
+                >
+                  <HelpCircle
+                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                    aria-hidden="true"
+                  />
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  >
+                    المساعدة والدعم
+                  </span>
+                </button>
+
+                <span
+                  aria-hidden="true"
+                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+                />
+
+                {/* 5. Language Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setBilingualLabels((v) => !v)}
+                  title={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
+                  aria-label={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
+                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    bilingualLabels
+                      ? 'bg-[#252321] text-[#F5D896] shadow-xs'
+                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
+                  }`}
+                >
+                  <Globe
+                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                    aria-hidden="true"
+                  />
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute top-full mt-2 left-0 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  >
+                    {bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
+                  </span>
+                </button>
+              </div>
+
+              {/* MOBILE COMPACT UTILITY CAPSULE (< sm: Notifications + Quick Utilities Menu) */}
+              <div
+                className="relative sm:hidden flex items-center p-1 rounded-2xl bg-white/75 backdrop-blur-md border border-[#D4AF37]/25 shadow-2xs shrink-0"
+                ref={mobileUtilityRef}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileUtilityMenuOpen(false);
+                    setActiveUtilityDrawer((cur) =>
+                      cur === 'notifications' ? null : 'notifications'
+                    );
+                    setNotifications((prev) =>
+                      prev.map((n) => ({ ...n, unread: false }))
+                    );
+                  }}
+                  aria-label="الإشعارات"
+                  className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                    activeUtilityDrawer === 'notifications'
+                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white'
+                      : 'text-[#5A4637] active:bg-[#C59B27]/15'
+                  }`}
+                >
+                  <Bell className="w-[18px] h-[18px]" aria-hidden="true" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#C8372D] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                <span
+                  aria-hidden="true"
+                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserDropdownOpen(false);
+                    setMobileUtilityMenuOpen((prev) => !prev);
+                  }}
+                  aria-expanded={mobileUtilityMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="أدوات المنصة"
+                  className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                    mobileUtilityMenuOpen ||
+                    activeUtilityDrawer === 'cart' ||
+                    activeUtilityDrawer === 'activity' ||
+                    activeUtilityDrawer === 'help'
+                      ? 'bg-[#252321] text-[#F5D896]'
+                      : 'text-[#5A4637] active:bg-[#C59B27]/15'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-[17px] h-[17px]" aria-hidden="true" />
+                  {availableCartItems.length > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#B86145] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
+                      {availableCartItems.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Mobile Quick Utilities Popover */}
+                {mobileUtilityMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-full mt-2 w-60 rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_20px_48px_-14px_rgba(37,35,33,0.24)] p-2 z-50 space-y-1 text-right"
+                  >
                     <button
                       type="button"
                       role="menuitem"
                       onClick={() => {
                         setMobileUtilityMenuOpen(false);
-                        setBilingualLabels((v) => !v);
+                        setActiveUtilityDrawer((cur) =>
+                          cur === 'cart' ? null : 'cart'
+                        );
                       }}
                       className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
                     >
                       <span className="flex items-center gap-2.5">
-                        <Globe className="w-4 h-4 text-[#8C6239]" />
-                        <span>{bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}</span>
+                        <ShoppingCart className="w-4 h-4 text-[#B86145]" />
+                        <span>المحفظة والاشتراكات</span>
                       </span>
-                      <span className="text-[10px] font-mono text-[#8C6239]">
-                        {bilingualLabels ? 'AR/EN' : 'AR'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ============================================================== */}
-          {/* TIER 2: CENTERED UNIFIED 7-TAB NAVIGATION DOCK (DESKTOP & MOB) */}
-          {/* ============================================================== */}
-          <div className="py-2 sm:py-2.5 relative flex items-center md:justify-center">
-            {/* Soft scroll fade edge cues on mobile only */}
-            <div
-              aria-hidden="true"
-              className="md:hidden pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#F8F3E9] to-transparent z-10"
-            />
-            <div
-              aria-hidden="true"
-              className="md:hidden pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-[#F8F3E9] to-transparent z-10"
-            />
-
-            <nav
-              aria-label="تبويبات لوحة تحكم العميل"
-              className="w-full md:w-auto flex items-center md:justify-center overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x px-1 md:px-0"
-            >
-              <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-[#EFE8DA]/78 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
-                {DASHBOARD_TABS.map((tab) => {
-                  const TabIcon = tab.icon;
-                  const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
-                  const isSelected =
-                    activeUtilityDrawer === null && activeTab === tab.id;
-                  const isKashafiTab = tab.id === DashboardTab.MyExplorer;
-                  const kashafiDynamicCount =
-                    kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
-
-                  let buttonClasses =
-                    'group/tab relative px-3.5 lg:px-4 py-2 rounded-xl text-[12.5px] sm:text-[13px] font-display font-bold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] snap-center select-none ';
-
-                  if (isSelected && isKashafiTab) {
-                    buttonClasses +=
-                      'bg-gradient-to-b from-[#2E2722] to-[#1D1916] text-[#F5D896] border border-[#D4AF37]/55 shadow-[0_6px_16px_-6px_rgba(29,25,22,0.58)]';
-                  } else if (isSelected) {
-                    buttonClasses +=
-                      'bg-gradient-to-b from-[#C96C4E] to-[#A85136] text-white shadow-[0_6px_16px_-6px_rgba(168,81,54,0.55)] ring-1 ring-[#F4D698]/35';
-                  } else if (isLocked) {
-                    buttonClasses +=
-                      'text-[#252321]/45 hover:bg-white/55 hover:text-[#252321]/70';
-                  } else if (isKashafiTab) {
-                    buttonClasses +=
-                      'bg-gradient-to-b from-[#FFFDF7] to-[#F7ECDA] text-[#7A4B1B] border border-[#C59B27]/45 hover:border-[#B3861D]/70 hover:bg-[#FFFBF0] hover:shadow-[0_2px_10px_-3px_rgba(197,155,39,0.3)]';
-                  } else {
-                    buttonClasses +=
-                      'text-[#483A2F] hover:bg-white/85 hover:text-[#7C4D2B] hover:shadow-[0_1px_5px_rgba(90,65,35,0.08)]';
-                  }
-
-                  return (
-                    <React.Fragment key={tab.id}>
-                      {/* Subtle gilded hairline separating كشّافي within the unified track */}
-                      {isKashafiTab && (
-                        <span
-                          aria-hidden="true"
-                          className="w-px h-5 bg-[#C59B27]/30 mx-0.5 shrink-0"
-                        />
+                      {availableCartItems.length > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-[#252321] text-[#F9EEDB] text-[10px] font-mono tabular-nums">
+                          {availableCartItems.length}
+                        </span>
                       )}
+                    </button>
 
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMobileUtilityMenuOpen(false);
+                        setActiveUtilityDrawer((cur) =>
+                          cur === 'activity' ? null : 'activity'
+                        );
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                    >
+                      <Activity className="w-4 h-4 text-[#8C6239]" />
+                      <span>سجل النشاط</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMobileUtilityMenuOpen(false);
+                        setActiveUtilityDrawer((cur) =>
+                          cur === 'help' ? null : 'help'
+                        );
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                    >
+                      <HelpCircle className="w-4 h-4 text-[#8C6239]" />
+                      <span>المساعدة والدعم</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMobileUtilityMenuOpen(false);
+                        setActiveUtilityDrawer((cur) =>
+                          cur === 'settings' ? null : 'settings'
+                        );
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                    >
+                      <Settings className="w-4 h-4 text-[#8C6239]" />
+                      <span>إعدادات الحساب</span>
+                    </button>
+
+                    <div className="pt-1 border-t border-[#D4AF37]/20">
                       <button
-                        ref={(el) => {
-                          mobileTabRefs.current[tab.id] = el;
-                        }}
                         type="button"
-                        onClick={() => handleTabClick(tab)}
-                        aria-current={isSelected ? 'page' : undefined}
-                        title={
-                          isLocked
-                            ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
-                            : tab.label
-                        }
-                        className={buttonClasses}
+                        role="menuitem"
+                        onClick={() => {
+                          setMobileUtilityMenuOpen(false);
+                          setBilingualLabels((v) => !v);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
                       >
-                        <TabIcon
-                          className={`w-[15px] h-[15px] shrink-0 transition-transform duration-200 ${
-                            isSelected && isKashafiTab
-                              ? 'text-[#E8C468]'
-                              : isSelected
-                              ? 'text-[#FBE5B4]'
-                              : isKashafiTab
-                              ? 'text-[#B38422] group-hover/tab:rotate-12'
-                              : 'text-[#8C6A4E]/80 group-hover/tab:text-[#8C5327]'
-                          }`}
-                          aria-hidden={true}
-                        />
-
-                        <span>{tab.label}</span>
-
-                        {isKashafiTab && (
-                          <span
-                            aria-hidden="true"
-                            className={`text-[11px] leading-none ${
-                              isSelected ? 'text-[#E8C468]' : 'text-[#C59B27]'
-                            }`}
-                          >
-                            ✦
-                          </span>
-                        )}
-
-                        {isKashafiTab && kashafiDynamicCount > 0 && (
-                          <span
-                            data-testid="kashafi-tab-unread-badge"
-                            className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none ${
-                              isSelected
-                                ? 'bg-[#D4AF37]/25 text-[#F9E3A6] border border-[#D4AF37]/40'
-                                : 'bg-[#8D4925] text-[#FAF4E4]'
-                            }`}
-                          >
-                            {kashafiDynamicCount}
-                          </span>
-                        )}
-
-                        {isLocked && (
-                          <Lock
-                            className="w-3.5 h-3.5 text-[#DC2626]/80 shrink-0"
-                            aria-label="ميزة بريميوم مقفلة"
-                          />
-                        )}
-
-                        {/* Refined Gilded Bottom Glow Indicator on Active Tab */}
-                        {isSelected && (
-                          <span
-                            aria-hidden="true"
-                            className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full ${
-                              isKashafiTab ? 'bg-[#E8C468]/90' : 'bg-[#FCE3AE]/90'
-                            }`}
-                          />
-                        )}
+                        <span className="flex items-center gap-2.5">
+                          <Globe className="w-4 h-4 text-[#8C6239]" />
+                          <span>{bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-[#8C6239]">
+                          {bilingualLabels ? 'AR/EN' : 'AR'}
+                        </span>
                       </button>
-                    </React.Fragment>
-                  );
-                })}
+                    </div>
+                  </div>
+                )}
               </div>
-            </nav>
+            </div>
           </div>
         </div>
       </header>

@@ -1,9 +1,10 @@
 import React from 'react';
 
 /**
- * Subtle Architectural Heritage Watermark for the Client Dashboard Header.
- * Combines a delicate 8-point Islamic Arabesque medallion at center with
- * symmetric abstract genealogical lineage vines fading gracefully into the ivory canvas.
+ * Subtle Architectural Heritage Watermark for the Single-Row Luxury Client Header.
+ * Calibrated for a sleek 78px single-row desktop silhouette (and graceful 2-row tablet/mobile wrap):
+ * keeps the center navigation zone ultra-clean and legible while sweeping delicate Islamic
+ * geometric star-lattice motifs and symmetric abstract lineage vines across the warm ivory canvas.
  */
 export const DashboardHeaderWatermark: React.FC = () => {
   return (
@@ -11,23 +12,24 @@ export const DashboardHeaderWatermark: React.FC = () => {
       aria-hidden="true"
       className="pointer-events-none select-none absolute inset-0 overflow-hidden z-0"
     >
-      {/* Subtle warm radial luminance in the center breathing zone */}
+      {/* Subtle warm champagne luminance behind the unified bar */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse 58% 95% at 50% 42%, rgba(212, 175, 55, 0.065) 0%, rgba(212, 175, 55, 0.015) 55%, transparent 100%)',
+            'radial-gradient(ellipse 62% 110% at 50% 50%, rgba(212, 175, 55, 0.055) 0%, rgba(212, 175, 55, 0.015) 58%, transparent 100%)',
         }}
       />
 
-      {/* Custom SVG Arabesque & Abstract Lineage Branch Watermark */}
+      {/* Horizontal Architectural Arabesque & Sweeping Lineage Vine Watermark */}
       <svg
-        viewBox="0 0 1280 156"
+        viewBox="0 0 1380 88"
         fill="none"
         preserveAspectRatio="xMidYMid slice"
-        className="w-full h-full opacity-[0.048]"
+        className="w-full h-full opacity-[0.042]"
       >
         <defs>
+          {/* Softer center luminance mask so the 7 center nav buttons stay crisp */}
           <linearGradient
             id="juthori-wm-fade-h"
             x1="0%"
@@ -35,161 +37,155 @@ export const DashboardHeaderWatermark: React.FC = () => {
             x2="100%"
             y2="0%"
           >
-            <stop offset="0%" stopColor="#6E4B1F" stopOpacity="0.18" />
-            <stop offset="22%" stopColor="#6E4B1F" stopOpacity="0.65" />
-            <stop offset="50%" stopColor="#6E4B1F" stopOpacity="1" />
-            <stop offset="78%" stopColor="#6E4B1F" stopOpacity="0.65" />
-            <stop offset="100%" stopColor="#6E4B1F" stopOpacity="0.18" />
+            <stop offset="0%" stopColor="#6E4B1F" stopOpacity="0.16" />
+            <stop offset="18%" stopColor="#6E4B1F" stopOpacity="0.82" />
+            <stop offset="50%" stopColor="#6E4B1F" stopOpacity="0.52" />
+            <stop offset="82%" stopColor="#6E4B1F" stopOpacity="0.82" />
+            <stop offset="100%" stopColor="#6E4B1F" stopOpacity="0.16" />
           </linearGradient>
 
           <pattern
             id="juthori-arabesque-lattice"
-            width="64"
-            height="64"
+            width="56"
+            height="56"
             patternUnits="userSpaceOnUse"
           >
-            {/* Delicate geometric eight-point star tile */}
             <path
-              d="M32 4 L39 25 L60 32 L39 39 L32 60 L25 39 L4 32 L25 25 Z"
+              d="M28 4 L34 22 L52 28 L34 34 L28 52 L22 34 L4 28 L22 22 Z"
               stroke="#7A5524"
-              strokeWidth="0.7"
+              strokeWidth="0.65"
             />
             <rect
-              x="16"
-              y="16"
-              width="32"
-              height="32"
-              transform="rotate(45 32 32)"
+              x="14"
+              y="14"
+              width="28"
+              height="28"
+              transform="rotate(45 28 28)"
               stroke="#7A5524"
-              strokeWidth="0.55"
+              strokeWidth="0.5"
             />
-            <circle cx="32" cy="32" r="5.5" stroke="#7A5524" strokeWidth="0.6" />
+            <circle cx="28" cy="28" r="4.5" stroke="#7A5524" strokeWidth="0.55" />
           </pattern>
 
           <mask id="juthori-lattice-mask">
-            <rect width="1280" height="156" fill="url(#juthori-wm-fade-h)" />
+            <rect width="1380" height="88" fill="url(#juthori-wm-fade-h)" />
           </mask>
         </defs>
 
-        {/* Whisper-light Islamic geometric lattice across the header canvas */}
+        {/* Whisper-light Islamic geometric lattice spanning the header */}
         <rect
-          width="1280"
-          height="156"
+          width="1380"
+          height="88"
           fill="url(#juthori-arabesque-lattice)"
-          opacity="0.42"
+          opacity="0.38"
           mask="url(#juthori-lattice-mask)"
         />
 
-        {/* Center Architectural Rub-el-Hizb Medallion & Concentric Compass Rings */}
+        {/* Delicate Centered Rub-el-Hizb Medallion calibrated to 78px single-row height */}
         <g
-          transform="translate(640 72)"
+          transform="translate(690 44)"
           stroke="#6E4B1F"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.72"
         >
-          <circle r="66" strokeWidth="0.9" strokeDasharray="3 5" />
-          <circle r="54" strokeWidth="1.15" />
-          <circle r="44" strokeWidth="0.7" />
-          <circle r="18" strokeWidth="0.95" />
-          <circle r="6" fill="#6E4B1F" fillOpacity="0.45" />
+          <circle r="38" strokeWidth="0.75" strokeDasharray="3 5" />
+          <circle r="31" strokeWidth="0.95" />
+          <circle r="24" strokeWidth="0.6" />
+          <circle r="10" strokeWidth="0.8" />
+          <circle r="3.2" fill="#6E4B1F" fillOpacity="0.4" />
 
-          {/* Rotated dual-square 8-point heritage star */}
-          <rect x="-32" y="-32" width="64" height="64" strokeWidth="1.1" />
+          <rect x="-18" y="-18" width="36" height="36" strokeWidth="0.9" />
           <rect
-            x="-32"
-            y="-32"
-            width="64"
-            height="64"
+            x="-18"
+            y="-18"
+            width="36"
+            height="36"
             transform="rotate(45)"
-            strokeWidth="1.1"
-          />
-
-          {/* Fine interior geometric petals */}
-          <path
-            d="M0 -44 C9 -24 24 -9 44 0 C24 9 9 24 0 44 C-9 24 -24 9 -44 0 C-24 -9 -9 -24 0 -44 Z"
             strokeWidth="0.9"
           />
+
           <path
-            d="M-31 -31 C-12 -20 12 -20 31 -31 C20 -12 20 12 31 31 C12 20 -12 20 -31 31 C-20 12 -20 -12 -31 -31 Z"
-            strokeWidth="0.7"
+            d="M0 -24 C5 -13 13 -5 24 0 C13 5 5 13 0 24 C-5 13 -13 5 -24 0 C-13 -5 -5 -13 0 -24 Z"
+            strokeWidth="0.75"
           />
         </g>
 
-        {/* Symmetric Abstract Genealogical Branching Vines (Right & Left Wings) */}
+        {/* Symmetric Horizontal Lineage Vines sweeping smoothly toward both wings */}
         <g
           stroke="url(#juthori-wm-fade-h)"
-          strokeWidth="1.2"
+          strokeWidth="1.05"
           strokeLinecap="round"
           fill="none"
         >
           {/* Right Flowing Lineage Vine */}
-          <path d="M708 72 C758 72 786 38 848 38 C904 38 938 66 998 66 C1054 66 1086 44 1148 44" />
-          <path d="M718 78 C772 82 802 112 868 110 C924 108 958 84 1018 86 C1066 88 1098 106 1152 104" />
+          <path d="M736 44 C796 44 832 22 904 22 C968 22 1006 42 1078 42 C1142 42 1184 26 1256 26" />
+          <path d="M744 48 C808 50 848 68 922 66 C986 64 1026 50 1094 52 C1154 54 1192 66 1260 64" />
 
           {/* Abstract Heritage Leaves & Lineage Nodes (Right) */}
           <path
-            d="M788 53 C798 37 816 34 824 44 C812 52 798 56 788 53 Z"
+            d="M836 31 C846 19 862 17 870 25 C858 31 846 34 836 31 Z"
             fill="#6E4B1F"
-            fillOpacity="0.22"
+            fillOpacity="0.2"
           />
           <path
-            d="M876 42 C889 27 908 28 914 40 C900 46 886 47 876 42 Z"
-            fill="#6E4B1F"
-            fillOpacity="0.18"
-          />
-          <path
-            d="M824 98 C836 113 854 114 862 103 C848 97 835 95 824 98 Z"
-            fill="#6E4B1F"
-            fillOpacity="0.18"
-          />
-          <path
-            d="M948 61 C961 48 979 49 985 60 C972 65 959 66 948 61 Z"
+            d="M936 25 C948 14 964 15 970 24 C958 29 946 29 936 25 Z"
             fill="#6E4B1F"
             fillOpacity="0.16"
           />
-          <circle cx="848" cy="38" r="3.5" fill="#6E4B1F" fillOpacity="0.35" />
-          <circle cx="998" cy="66" r="3.2" fill="#6E4B1F" fillOpacity="0.3" />
-          <circle cx="868" cy="110" r="3" fill="#6E4B1F" fillOpacity="0.28" />
+          <path
+            d="M882 59 C894 69 910 70 918 62 C904 58 892 57 882 59 Z"
+            fill="#6E4B1F"
+            fillOpacity="0.16"
+          />
+          <path
+            d="M1022 39 C1034 29 1050 30 1056 38 C1044 42 1032 43 1022 39 Z"
+            fill="#6E4B1F"
+            fillOpacity="0.15"
+          />
+          <circle cx="904" cy="22" r="2.8" fill="#6E4B1F" fillOpacity="0.32" />
+          <circle cx="1078" cy="42" r="2.6" fill="#6E4B1F" fillOpacity="0.28" />
+          <circle cx="922" cy="66" r="2.4" fill="#6E4B1F" fillOpacity="0.26" />
 
           {/* Left Flowing Lineage Vine (Mirror Symmetry) */}
-          <path d="M572 72 C522 72 494 38 432 38 C376 38 342 66 282 66 C226 66 194 44 132 44" />
-          <path d="M562 78 C508 82 478 112 412 110 C356 108 322 84 262 86 C214 88 182 106 128 104" />
+          <path d="M644 44 C584 44 548 22 476 22 C412 22 374 42 302 42 C238 42 196 26 124 26" />
+          <path d="M636 48 C572 50 532 68 458 66 C394 64 354 50 286 52 C226 54 188 66 120 64" />
 
           {/* Abstract Heritage Leaves & Lineage Nodes (Left) */}
           <path
-            d="M492 53 C482 37 464 34 456 44 C468 52 482 56 492 53 Z"
+            d="M544 31 C534 19 518 17 510 25 C522 31 534 34 544 31 Z"
             fill="#6E4B1F"
-            fillOpacity="0.22"
+            fillOpacity="0.2"
           />
           <path
-            d="M404 42 C391 27 372 28 366 40 C380 46 394 47 404 42 Z"
-            fill="#6E4B1F"
-            fillOpacity="0.18"
-          />
-          <path
-            d="M456 98 C444 113 426 114 418 103 C432 97 445 95 456 98 Z"
-            fill="#6E4B1F"
-            fillOpacity="0.18"
-          />
-          <path
-            d="M332 61 C319 48 301 49 295 60 C308 65 321 66 332 61 Z"
+            d="M444 25 C432 14 416 15 410 24 C422 29 434 29 444 25 Z"
             fill="#6E4B1F"
             fillOpacity="0.16"
           />
-          <circle cx="432" cy="38" r="3.5" fill="#6E4B1F" fillOpacity="0.35" />
-          <circle cx="282" cy="66" r="3.2" fill="#6E4B1F" fillOpacity="0.3" />
-          <circle cx="412" cy="110" r="3" fill="#6E4B1F" fillOpacity="0.28" />
+          <path
+            d="M498 59 C486 69 470 70 462 62 C476 58 488 57 498 59 Z"
+            fill="#6E4B1F"
+            fillOpacity="0.16"
+          />
+          <path
+            d="M358 39 C346 29 330 30 324 38 C336 42 348 43 358 39 Z"
+            fill="#6E4B1F"
+            fillOpacity="0.15"
+          />
+          <circle cx="476" cy="22" r="2.8" fill="#6E4B1F" fillOpacity="0.32" />
+          <circle cx="302" cy="42" r="2.6" fill="#6E4B1F" fillOpacity="0.28" />
+          <circle cx="458" cy="66" r="2.4" fill="#6E4B1F" fillOpacity="0.26" />
         </g>
 
-        {/* Fine gilded top architectural hairline ornament */}
+        {/* Fine gilded architectural top & bottom whisper hairlines */}
         <line
-          x1="180"
-          y1="14"
-          x2="1100"
-          y2="14"
+          x1="140"
+          y1="8"
+          x2="1240"
+          y2="8"
           stroke="url(#juthori-wm-fade-h)"
-          strokeWidth="0.6"
-          strokeDasharray="6 8"
+          strokeWidth="0.55"
+          strokeDasharray="6 9"
         />
       </svg>
     </div>
