@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BookOpen,
   Camera,
   Check,
+  CheckCircle2,
+  ChevronDown,
   Clock,
   Crosshair,
   EyeOff,
@@ -12,9 +14,10 @@ import {
   Loader2,
   MapPin,
   Paperclip,
+  Plus,
   RotateCcw,
+  Sparkles,
   Upload,
-  User,
   X,
 } from 'lucide-react';
 import { HeritageNodeAvatar, TreeAvatarStyle } from './HeritageNodeAvatar';
@@ -193,6 +196,11 @@ export interface TreePersonStudioModalProps {
   canFocusSubtree: boolean;
   onFocusSubtree?: () => void;
 
+  // Rapid multi-entry support
+  canSaveAndAddAnother?: boolean;
+  onSaveAndAddAnother?: () => void;
+  quickAddSuccessNotice?: string;
+
   // Submit & Close
   modalScrollContainerRef: React.RefObject<HTMLDivElement | null>;
   nameInputRef: React.RefObject<HTMLInputElement | null>;
@@ -200,7 +208,7 @@ export interface TreePersonStudioModalProps {
   onClose: () => void;
 }
 
-type StudioTabId = 'identity' | 'life' | 'legacy';
+type StudioDetailPanelId = 'identity' | 'life' | 'legacy';
 
 const BIO_INSPIRATION_PROMPTS: Array<{ label: string; snippet: string }> = [
   {
@@ -235,7 +243,6 @@ const FEMALE_BIO_INSPIRATION_PROMPTS: Array<{ label: string; snippet: string }> 
 export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   mode,
   bindingHeadline,
-  familyName,
   isVerticalOnlyModal,
   isHorizontalBridgeAboveFamily = false,
   isSpouseRole,
@@ -251,12 +258,6 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   activeTreeTheme,
   avatarStyle,
   preferRealPhotos,
-  calendarDisplayMode,
-  showHonorific,
-  showKunya,
-  showDates,
-  showPrestigeBadges,
-  showDeceasedDignityFrame,
   isRecordKeeperTarget = false,
   formGender,
   formFirstName,
@@ -312,12 +313,17 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   onToggleVaultItemLink,
   canFocusSubtree,
   onFocusSubtree,
+  canSaveAndAddAnother = false,
+  onSaveAndAddAnother,
+  quickAddSuccessNotice = '',
   modalScrollContainerRef,
   nameInputRef,
   onSubmit,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<StudioTabId>('identity');
+  // Collapsed by default in quick-entry add mode; toggles smoothly when user wants extra details
+  const [activeDetailPanel, setActiveDetailPanel] =
+    useState<StudioDetailPanelId | null>(null);
 
   const isFemale = formGender === 'female';
   const honorificChoices: ArabicHonorificTitle[] = isFemale
@@ -342,6 +348,40 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   const isCreatingInlineMother = formMotherId === NEW_MOTHER_SENTINEL;
   const cleanPreviewFirst = formFirstName.trim();
 
+  // If validation asks for inline new mother name, gently reveal the identity panel
+  useEffect(() => {
+    if (formError && isCreatingInlineMother && !inlineNewMotherName.trim()) {
+      setActiveDetailPanel('identity');
+    }
+  }, [formError, isCreatingInlineMother, inlineNewMotherName]);
+
+  // Subtle filled-content indicators on quiet detail pills
+  const hasIdentityDetails = Boolean(
+    formKunya.trim() ||
+      (formHonorific && formHonorific !== 'بدون') ||
+      (formPrestigeBadge && formPrestigeBadge !== 'none') ||
+      formMotherId ||
+      formMaidenFamilyLine.trim() ||
+      formMarriageAllianceNote.trim()
+  );
+  const hasLifeDetails = Boolean(
+    formVitalStatus !== 'unspecified' ||
+      formBirthDate.trim() ||
+      formBirthPlace.trim() ||
+      formDeathDate.trim() ||
+      formDeathPlace.trim() ||
+      formContactInfo.trim()
+  );
+  const hasLegacyDetails = Boolean(
+    formBiography.trim() ||
+      formAttachedDocName.trim() ||
+      linkedMediaForPerson.length > 0
+  );
+
+  const handleTogglePanel = (panel: StudioDetailPanelId) => {
+    setActiveDetailPanel((prev) => (prev === panel ? null : panel));
+  };
+
   const handleAppendBioPrompt = (snippet: string) => {
     const trimmed = formBiography.trim();
     const next = trimmed ? `${trimmed}\n${snippet}` : snippet;
@@ -350,7 +390,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#1C1917]/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-[#2A221B]/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label={bindingHeadline}
@@ -359,43 +399,43 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
       <div
         ref={modalScrollContainerRef}
         dir="rtl"
-        className="bg-[#FBF9F5] border border-[#C5A059]/60 rounded-3xl max-w-2xl w-full shadow-[0_24px_70px_-15px_rgba(28,25,23,0.45)] my-4 max-h-[93vh] overflow-y-auto text-right flex flex-col"
+        className="bg-[#FDFBF7] border border-[#D4AF37]/45 rounded-3xl max-w-xl w-full shadow-[0_24px_70px_-18px_rgba(68,46,24,0.34)] my-4 max-h-[92vh] overflow-y-auto text-right flex flex-col animate-[treePopoverIn_180ms_cubic-bezier(0.16,1,0.3,1)_both]"
       >
         {/* ================================================================= */}
-        {/* 1. COMPACT SINGLE-LINE TOP BAR (DIRECTLY INTO 3 TABS)             */}
+        {/* 1. COMPACT SINGLE-LINE TOP BAR                                    */}
         {/* ================================================================= */}
-        <div className="px-5 py-3 bg-[#F7F2E8]/80 border-b border-[#C5A059]/25 flex items-center justify-between gap-3 shrink-0">
-          <h3 className="text-sm font-display font-extrabold text-[#1C1917] truncate">
+        <div className="px-5 py-3.5 bg-gradient-to-l from-[#FAF5EA] via-[#F7F0E3] to-[#F3E9D8] border-b border-[#D4AF37]/25 flex items-center justify-between gap-3 shrink-0">
+          <h3 className="text-sm font-display font-extrabold text-[#2D241E] truncate">
             {bindingHeadline}
           </h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="إغلاق النافذة"
-            className="w-8 h-8 rounded-xl bg-white hover:bg-[#F5E6DC] border border-[#C5A059]/35 text-[#1C1917] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+            className="w-8 h-8 rounded-full bg-white/90 hover:bg-[#F3E5D0] border border-[#D4AF37]/30 text-[#6E543D] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* ================================================================= */}
-        {/* 2. SMART ADD-MOTHER PANEL (When adding mother for a child with a father) */}
+        {/* 2. SMART ADD-MOTHER PANEL (When adding mother for child w/ father) */}
         {/* ================================================================= */}
         {smartAddMotherContext && smartAddMotherContext.fatherName && (
           <div
             data-testid="smart-add-mother-panel"
-            className="mx-5 mt-4 rounded-2xl bg-[#FEF9EC] border border-[#C5A059]/60 p-4 space-y-3 shrink-0"
+            className="mx-5 mt-4 rounded-2xl bg-[#FEF9EC] border border-[#C5A059]/50 p-3.5 space-y-2.5 shrink-0"
           >
             {smartAddMotherContext.existingFatherWives.length > 0 ? (
               <>
                 <div className="space-y-0.5">
-                  <div className="text-xs font-display font-extrabold text-[#78350F] flex items-center gap-1.5">
-                    <Heart className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
+                  <div className="text-xs font-display font-extrabold text-[#7A4B1B] flex items-center gap-1.5">
+                    <Heart className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
                     <span>
-                      اختيار الأم من زوجات الأب ({smartAddMotherContext.fatherName}) المسجلات أو إضافة زوجة جديدة
+                      اختيار الأم من زوجات ({smartAddMotherContext.fatherName}) أو إضافة زوجة جديدة
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#1C1917]/65">
+                  <p className="text-[11px] text-[#5E4A39]">
                     اختر إحدى زوجات {smartAddMotherContext.fatherName} لربط «{smartAddMotherContext.childName}» بها فوراً دون تكرار، أو أضف أماً جديدة.
                   </p>
                 </div>
@@ -420,8 +460,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         }}
                         className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-2 ${
                           active
-                            ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917] shadow-xs'
-                            : 'bg-white text-[#1C1917] border-[#C5A059]/45 hover:border-[#8D4925]'
+                            ? 'bg-gradient-to-b from-[#B9623D] to-[#8D4925] text-[#FFFDF8] border-[#8D4925] shadow-xs'
+                            : 'bg-white text-[#2D241E] border-[#D4AF37]/40 hover:border-[#8D4925]'
                         }`}
                       >
                         <span aria-hidden="true">💍</span>
@@ -430,7 +470,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           {wife.kunya ? ` (${wife.kunya})` : ''}
                         </span>
                         {active && (
-                          <Check className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <Check className="w-3.5 h-3.5 text-[#F9E4B0]" />
                         )}
                       </button>
                     );
@@ -444,20 +484,20 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     }
                     className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                       smartAddMotherContext.choiceMode === 'create_new'
-                        ? 'bg-[#8D4925] text-white border-[#8D4925] shadow-xs'
-                        : 'bg-white text-[#8D4925] border-dashed border-[#C5A059] hover:bg-[#F7F2E8]'
+                        ? 'bg-[#F5E6CE] text-[#7A4B1B] border-[#C59B27] shadow-2xs'
+                        : 'bg-white text-[#8D4925] border-dashed border-[#C5A059] hover:bg-[#FAF4E8]'
                     }`}
                   >
                     <span>
-                      + إضافة أم جديدة (تُسجّل تلقائياً كزوجة لـ{' '}
+                      + إضافة أم جديدة (تُسجّل كزوجة لـ{' '}
                       {smartAddMotherContext.fatherName})
                     </span>
                   </button>
                 </div>
               </>
             ) : (
-              <div className="flex items-start gap-2 text-xs text-[#78350F] leading-relaxed">
-                <Heart className="w-4 h-4 text-[#C5A059] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 text-xs text-[#7A4B1B] leading-relaxed">
+                <Heart className="w-4 h-4 text-[#C59B27] shrink-0 mt-0.5" />
                 <span>
                   سيتم ربطها تلقائياً كزوجة للأب (
                   <strong>{smartAddMotherContext.fatherName}</strong>) وأمٍ لـ (
@@ -469,84 +509,26 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
         )}
 
         {/* ================================================================= */}
-        {/* 2B. THREE SLEEK STUDIO TABS (Hidden when only linking existing wife) */}
-        {/* ================================================================= */}
-        {!isSelectingExistingMother && (
-          <div className="px-5 pt-4 bg-[#FBF9F5] shrink-0">
-            <div
-              role="tablist"
-              aria-label="أقسام استوديو بطاقة الفرد"
-              className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-[#EFE9DD] border border-[#C5A059]/25"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'identity'}
-                data-testid="studio-tab-identity"
-                onClick={() => setActiveTab('identity')}
-                className={`px-2.5 py-2.5 rounded-xl text-xs font-display font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'identity'
-                    ? 'bg-[#1C1917] text-[#F7E7CE] shadow-xs'
-                    : 'text-[#1C1917]/70 hover:text-[#1C1917] hover:bg-white/60'
-                }`}
-              >
-                <User className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">✦ الهوية والمكانة</span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'life'}
-                data-testid="studio-tab-life"
-                onClick={() => setActiveTab('life')}
-                className={`px-2.5 py-2.5 rounded-xl text-xs font-display font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'life'
-                    ? 'bg-[#1C1917] text-[#F7E7CE] shadow-xs'
-                    : 'text-[#1C1917]/70 hover:text-[#1C1917] hover:bg-white/60'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">⏳ السجل والديار</span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'legacy'}
-                data-testid="studio-tab-legacy"
-                onClick={() => setActiveTab('legacy')}
-                className={`px-2.5 py-2.5 rounded-xl text-xs font-display font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'legacy'
-                    ? 'bg-[#1C1917] text-[#F7E7CE] shadow-xs'
-                    : 'text-[#1C1917]/70 hover:text-[#1C1917] hover:bg-white/60'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">
-                  📜 المآثر والوثائق
-                  {linkedMediaForPerson.length > 0
-                    ? ` (${linkedMediaForPerson.length})`
-                    : ''}
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ================================================================= */}
-        {/* 3. FORM BODY                                                      */}
+        {/* 3. ZERO-FRICTION QUICK ENTRY FORM BODY                            */}
         {/* ================================================================= */}
         <form
           onSubmit={onSubmit}
           noValidate
-          className="px-5 py-5 space-y-5 flex-1"
+          className="px-5 py-5 space-y-4 flex-1"
         >
+          {/* Rapid-Add Feedback Toast (when using حفظ وإضافة آخر +) */}
+          {quickAddSuccessNotice && (
+            <div className="rounded-xl bg-emerald-50/90 border border-emerald-200 px-3.5 py-2 text-xs font-display font-bold text-emerald-800 flex items-center gap-2 animate-[studioPanelReveal_180ms_ease-out_both]">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{quickAddSuccessNotice}</span>
+            </div>
+          )}
+
           {isSelectingExistingMother && smartAddMotherContext ? (
-            <div className="rounded-2xl bg-white border border-[#C5A059]/40 p-4 space-y-2 text-xs text-[#1C1917]/80 leading-relaxed">
+            <div className="rounded-2xl bg-white border border-[#D4AF37]/35 p-4 space-y-2 text-xs text-[#4A3B2F] leading-relaxed">
               {chosenExistingWifeForMotherFlow ? (
                 <>
-                  <div className="font-display font-extrabold text-[#1C1917] text-sm">
+                  <div className="font-display font-extrabold text-[#2D241E] text-sm">
                     تأكيد ربط الأم: «{chosenExistingWifeForMotherFlow.firstName}»
                   </div>
                   <p>
@@ -562,38 +544,38 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
               )}
             </div>
           ) : (
-          <>
-          {isVerticalOnlyModal && (
-            <div className="rounded-2xl bg-[#F7F2E8] border border-[#C5A059]/50 p-3.5 text-xs text-[#1C1917]/85 leading-relaxed">
-              {isHorizontalBridgeAboveFamily ? (
-                <>
-                  <strong className="text-[#8D4925]">
-                    إضافة فرع أفقي فوق العائلة وحتى الجذر:
-                  </strong>{' '}
-                  يُسجَّل هذا الفرع بشكل أفقي مجاور في نطاق الوصل الواقع بين العائلة ونقطة الجذر الموثقة.
-                </>
-              ) : (
-                <>
-                  <strong className="text-[#8D4925]">
-                    حلقة ربط عمودية نحو الجذر (ما فوق الجد الخامس):
-                  </strong>{' '}
-                  تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة.
-                </>
+            <>
+              {isVerticalOnlyModal && (
+                <div className="rounded-2xl bg-[#FAF4E8] border border-[#D4AF37]/40 p-3 text-xs text-[#4A3B2F] leading-relaxed">
+                  {isHorizontalBridgeAboveFamily ? (
+                    <>
+                      <strong className="text-[#8D4925]">
+                        فرع أفقي فوق العائلة وحتى الجذر:
+                      </strong>{' '}
+                      يُسجَّل هذا الفرع بشكل أفقي مجاور في نطاق الوصل الواقع بين العائلة ونقطة الجذر الموثقة.
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-[#8D4925]">
+                        حلقة ربط عمودية نحو الجذر:
+                      </strong>{' '}
+                      تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة.
+                    </>
+                  )}
+                </div>
               )}
-            </div>
-          )}
 
-          {/* --------------------------------------------------------------- */}
-          {/* TAB 1: الهوية والمكانة                                          */}
-          {/* --------------------------------------------------------------- */}
-          {activeTab === 'identity' && (
-            <div className="space-y-5">
-              {/* Interactive Portrait Ring + Primary Name & Kunya */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-[#C5A059]/20">
-                {/* Interactive Portrait Ring */}
-                <div className="flex flex-col items-center gap-2 shrink-0">
-                  <div className="relative p-1 rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F3D299] to-[#8D4925] shadow-sm">
-                    <div className="rounded-full bg-[#FBF9F5] p-0.5">
+              {/* =========================================================== */}
+              {/* PRIMARY INSTANT ENTRY ROW: Clickable Avatar + Name Input *  */}
+              {/* =========================================================== */}
+              <div className="flex items-center gap-4">
+                {/* Clickable Portrait Ring for Instant Upload */}
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <label
+                    title="رفع صورة شخصية"
+                    className="group relative block p-[3px] rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F2D598] to-[#9E6B2B] shadow-sm cursor-pointer transition-transform duration-200 hover:scale-[1.03]"
+                  >
+                    <div className="rounded-full bg-[#FDFBF7] p-0.5">
                       <HeritageNodeAvatar
                         personRole={
                           isRecordKeeperTarget
@@ -613,800 +595,865 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         size="lg"
                       />
                     </div>
-                    <label
-                      title="رفع صورة شخصية مباشرة"
-                      className="absolute -bottom-1 -left-1 w-8 h-8 rounded-full bg-[#1C1917] hover:bg-[#8D4925] text-[#F7E7CE] border-2 border-[#FBF9F5] flex items-center justify-center cursor-pointer shadow-sm transition-colors"
-                    >
+                    <span className="absolute -bottom-0.5 -left-0.5 w-7 h-7 rounded-full bg-gradient-to-b from-[#B9623D] to-[#8D4925] group-hover:from-[#C76E47] group-hover:to-[#7A3D1E] text-[#FFFDF8] border-2 border-[#FDFBF7] flex items-center justify-center shadow-xs transition-colors">
                       {isUploadingPortrait ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Camera className="w-3.5 h-3.5" />
                       )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={isUploadingPortrait}
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            void onUploadPortraitFile(file);
-                          }
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-[11px] font-display font-bold text-[#8D4925] hover:text-[#1C1917] cursor-pointer underline underline-offset-4">
-                      {isUploadingPortrait ? 'جاري الرفع...' : 'رفع صورة'}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={isUploadingPortrait}
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            void onUploadPortraitFile(file);
-                          }
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
-                    {formPhotoUrl && (
-                      <>
-                        <span className="text-[#1C1917]/30">·</span>
-                        <button
-                          type="button"
-                          onClick={onClearPhotoUrl}
-                          className="text-[11px] font-display font-semibold text-[#1C1917]/60 hover:text-[#1C1917] inline-flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <RotateCcw className="w-2.5 h-2.5" />
-                          <span>صورة رمزية</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Primary Name + Kunya Inputs */}
-                <div className="w-full flex-1 space-y-3">
-                  <div>
-                    <label className="block text-xs font-display font-extrabold text-[#1C1917] mb-1.5">
-                      الاسم الكريم <span className="text-[#9A3412]">*</span>
-                    </label>
-                    <input
-                      ref={nameInputRef}
-                      type="text"
-                      autoFocus
-                      data-testid="studio-person-name-input"
-                      value={formFirstName}
-                      onChange={(e) => onChangeFirstName(e.target.value)}
-                      placeholder={
-                        isFemale
-                          ? 'مثال: نورة / فاطمة / تغريد'
-                          : 'مثال: محمد / عبدالله / شريف'
-                      }
-                      className="w-full rounded-xl bg-white border border-[#C5A059]/45 px-3.5 py-2.5 text-sm font-bold text-[#1C1917] placeholder:text-[#1C1917]/35 focus:outline-none focus:border-[#8D4925] focus:ring-2 focus:ring-[#C5A059]/25 transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5">
-                      الكنية{' '}
-                      <span className="text-[11px] font-normal text-[#1C1917]/45">
-                        {isDaughterRole
-                          ? '(اختياري — يُترك فارغاً عند عدم الحاجة)'
-                          : '(اختياري)'}
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      data-testid="studio-person-kunya-input"
-                      value={formKunya}
-                      onChange={(e) => onChangeKunya(e.target.value)}
-                      placeholder={
-                        isFemale ? 'مثال: أم عبدالله' : 'مثال: أبو محمد'
-                      }
-                      className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2 text-sm text-[#1C1917] placeholder:text-[#1C1917]/35 focus:outline-none focus:border-[#8D4925] transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Contextual Alliance Field: Wife Maiden Family Line OR Daughter Marriage Note */}
-              {isSpouseRole && (
-                <div
-                  data-testid="studio-wife-maiden-family-field"
-                  className="space-y-1.5"
-                >
-                  <label className="block text-xs font-display font-extrabold text-[#8D4925]">
-                    أسرتها الكريمة / نسب المصاهرة{' '}
-                    <span className="text-[11px] font-normal text-[#1C1917]/50">
-                      (اختياري)
                     </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formMaidenFamilyLine}
-                    onChange={(e) => onChangeMaidenFamilyLine(e.target.value)}
-                    placeholder="مثال: كريمة الشيخ... / من أسرة آل..."
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/45 px-3.5 py-2.5 text-sm text-[#1C1917] placeholder:text-[#1C1917]/35 focus:outline-none focus:border-[#8D4925]"
-                  />
-                  <p className="text-[11px] text-[#1C1917]/55">
-                    يُعرض بأناقة ووقار كسطر فرعي رفيع في بطاقتها وملفها التوثيقي.
-                  </p>
-                </div>
-              )}
-
-              {isDaughterRole && !isSpouseRole && (
-                <div
-                  data-testid="studio-daughter-alliance-field"
-                  className="space-y-1.5"
-                >
-                  <label className="block text-xs font-display font-extrabold text-[#8D4925]">
-                    بيان المصاهرة / قرينة{' '}
-                    <span className="text-[11px] font-normal text-[#1C1917]/50">
-                      (اختياري)
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formMarriageAllianceNote}
-                    onChange={(e) =>
-                      onChangeMarriageAllianceNote(e.target.value)
-                    }
-                    placeholder="مثال: قرينة الأستاذ... من أسرة آل..."
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/45 px-3.5 py-2.5 text-sm text-[#1C1917] placeholder:text-[#1C1917]/35 focus:outline-none focus:border-[#8D4925]"
-                  />
-                  <p className="text-[11px] text-[#1C1917]/55">
-                    نص توثيقي أنيق لحفظ صلة المصاهرة دون إرباك عمود النسب.
-                  </p>
-                </div>
-              )}
-
-              {/* Compact Smart Mother Selector (Single Quiet Control Row + Optional Inline New Mother) */}
-              {showMotherSelector && !isSpouseRole && (
-                <div
-                  data-testid="studio-mother-selector"
-                  className="rounded-xl bg-[#FAF7F2] border border-[#C5A059]/35 px-3 py-2.5 space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <label
-                      htmlFor="studio-mother-select"
-                      className="text-[11.5px] font-display font-extrabold text-[#1C1917] flex items-center gap-1.5"
-                    >
-                      <Heart className="w-3 h-3 text-[#C5A059] shrink-0" />
-                      <span>
-                        تحديد الأم
-                        {motherSelectorFatherName
-                          ? ` (من زوجات ${motherSelectorFatherName})`
-                          : ''}
-                      </span>
-                    </label>
-                    {motherSelectorFatherName && (
-                      <button
-                        type="button"
-                        data-testid="studio-mother-option-create-new"
-                        onClick={() =>
-                          onChangeMotherId(
-                            isCreatingInlineMother ? '' : NEW_MOTHER_SENTINEL
-                          )
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingPortrait}
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          void onUploadPortraitFile(file);
                         }
-                        className={`px-2 py-0.5 rounded-lg text-[10.5px] font-display font-bold border transition-colors cursor-pointer ${
-                          isCreatingInlineMother
-                            ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917]'
-                            : 'bg-white text-[#8D4925] border-[#C5A059]/50 hover:bg-[#FEF9EC]'
-                        }`}
-                      >
-                        {isCreatingInlineMother ? 'إلغاء الإضافة' : '+ أم جديدة'}
-                      </button>
-                    )}
-                  </div>
-
-                  {!isCreatingInlineMother ? (
-                    <select
-                      id="studio-mother-select"
-                      data-testid="studio-mother-select"
-                      value={formMotherId}
-                      onChange={(e) => onChangeMotherId(e.target.value)}
-                      className="w-full rounded-lg bg-white border border-[#C5A059]/40 px-3 py-1.5 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {formPhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={onClearPhotoUrl}
+                      className="text-[10.5px] font-display font-semibold text-[#7B644D] hover:text-[#8D4925] inline-flex items-center gap-0.5 cursor-pointer"
                     >
-                      <option value="">غير محدد (يرتبط بالأب مباشرة)</option>
-                      {motherOptions.map((mom) => (
-                        <option key={mom.id} value={mom.id}>
-                          💍 {mom.firstName}
-                          {mom.kunya ? ` (${mom.kunya})` : ''}
-                        </option>
-                      ))}
-                      {motherSelectorFatherName && (
-                        <option value={NEW_MOTHER_SENTINEL}>
-                          + أم جديدة (تُضاف كزوجة لـ {motherSelectorFatherName})
-                        </option>
-                      )}
-                    </select>
-                  ) : (
-                    <div
-                      data-testid="studio-inline-new-mother-box"
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5"
-                    >
-                      <div>
-                        <label className="block text-[10.5px] font-display font-bold text-[#78350F] mb-1">
-                          اسم الأم الكريمة <span className="text-[#9A3412]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          data-testid="studio-inline-new-mother-name"
-                          value={inlineNewMotherName}
-                          onChange={(e) =>
-                            onChangeInlineNewMotherName(e.target.value)
-                          }
-                          placeholder="مثال: أمينة / فاطمة"
-                          className="w-full rounded-lg bg-white border border-[#C5A059]/50 px-2.5 py-1.5 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10.5px] font-display font-bold text-[#1C1917]/75 mb-1">
-                          أسرتها الكريمة / المصاهرة (اختياري)
-                        </label>
-                        <input
-                          type="text"
-                          value={inlineNewMotherMaidenLine}
-                          onChange={(e) =>
-                            onChangeInlineNewMotherMaidenLine(e.target.value)
-                          }
-                          placeholder="مثال: من أسرة آل..."
-                          className="w-full rounded-lg bg-white border border-[#C5A059]/40 px-2.5 py-1.5 text-xs text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                        />
-                      </div>
-                    </div>
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>رمزية</span>
+                    </button>
                   )}
                 </div>
-              )}
 
-              {/* Compact 2-Column Row: Honorific Title + Prestige Badge (Calm, Zero Chip Clutter) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
+                {/* Single Hero Name Input — Auto-Focused & Enter-to-Save */}
+                <div className="flex-1 min-w-0">
                   <label
-                    htmlFor="studio-honorific-select"
-                    className="block text-[11.5px] font-display font-bold text-[#1C1917]/85 mb-1"
+                    htmlFor="studio-person-name-input"
+                    className="block text-xs font-display font-extrabold text-[#2D241E] mb-1.5"
                   >
-                    اللقب {isFemale ? 'الكريم' : 'التشريفي'}{' '}
-                    <span className="text-[10.5px] font-normal text-[#1C1917]/45">
-                      (اختياري)
-                    </span>
+                    الاسم <span className="text-[#B8502C]">*</span>
                   </label>
-                  <select
-                    id="studio-honorific-select"
-                    data-testid="studio-honorific-chips"
-                    value={formHonorific}
-                    onChange={(e) =>
-                      onChangeHonorific(e.target.value as ArabicHonorificTitle)
+                  <input
+                    id="studio-person-name-input"
+                    ref={nameInputRef}
+                    type="text"
+                    autoFocus
+                    data-testid="studio-person-name-input"
+                    value={formFirstName}
+                    onChange={(e) => onChangeFirstName(e.target.value)}
+                    placeholder={
+                      isFemale
+                        ? 'مثال: نورة / فاطمة / تغريد'
+                        : 'مثال: محمد / عبدالله / شريف'
                     }
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3 py-2 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925] cursor-pointer"
-                  >
-                    {honorificChoices.map((title) => (
-                      <option key={title} value={title}>
-                        {title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="studio-prestige-select"
-                    className="block text-[11.5px] font-display font-bold text-[#1C1917]/85 mb-1"
-                  >
-                    وسام البطاقة التقديري{' '}
-                    <span className="text-[10.5px] font-normal text-[#1C1917]/45">
-                      (اختياري)
-                    </span>
-                  </label>
-                  <select
-                    id="studio-prestige-select"
-                    data-testid="studio-prestige-badge-chips"
-                    value={formPrestigeBadge}
-                    onChange={(e) =>
-                      onChangePrestigeBadge(
-                        e.target.value as TreePrestigeBadgeId
-                      )
-                    }
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3 py-2 text-xs font-bold text-[#1C1917] focus:outline-none focus:border-[#8D4925] cursor-pointer"
-                  >
-                    {prestigeChoices.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    className="w-full rounded-xl bg-white border border-[#D4AF37]/45 px-4 py-3 text-[15px] font-display font-bold text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:border-[#A85A34] focus:ring-3 focus:ring-[#D4AF37]/20 shadow-2xs transition-all"
+                  />
                 </div>
               </div>
 
-              {/* Female Privacy Switch (for female nodes) + Subtree Focus (edit mode) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#C5A059]/20">
-                {isFemale && !isVerticalOnlyModal && (
+              {/* =========================================================== */}
+              {/* QUIET EXPANDABLE DETAIL PILLS (Zero Black, Collapsed First) */}
+              {/* =========================================================== */}
+              <div className="pt-1 space-y-2.5">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className="text-[11px] font-display font-bold text-[#7E6750] ml-0.5">
+                    تفاصيل إضافية:
+                  </span>
+
+                  {/* Pill 1: المكانة والأم */}
                   <button
                     type="button"
-                    onClick={() =>
-                      onChangeFemalePrivacyMasked(!formFemalePrivacyMasked)
-                    }
-                    className={`px-3.5 py-2 rounded-xl text-xs font-display font-bold border transition-all cursor-pointer inline-flex items-center gap-2 ${
-                      formFemalePrivacyMasked
-                        ? 'bg-[#F7F2E8] text-[#8D4925] border-[#C5A059]/60'
-                        : 'bg-white text-[#1C1917]/65 border-[#C5A059]/30'
+                    aria-expanded={activeDetailPanel === 'identity'}
+                    data-testid="studio-tab-identity"
+                    onClick={() => handleTogglePanel('identity')}
+                    className={`px-3 py-1.5 rounded-full text-[11.5px] font-display font-bold border transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${
+                      activeDetailPanel === 'identity'
+                        ? 'bg-gradient-to-b from-[#FAF0DC] to-[#F1DFBE] text-[#7A4319] border-[#C59B27]/70 shadow-2xs'
+                        : 'bg-[#F8F3EA]/80 hover:bg-[#F3EBDC] text-[#5E4A39] border-[#D9CBB5]/70 hover:border-[#C59B27]/50'
                     }`}
                   >
-                    <EyeOff className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {formFemalePrivacyMasked
-                        ? 'حماية الخصوصية في العرض العام مفعّلة'
-                        : 'تفعيل ستر الاسم في العرض العام'}
-                    </span>
+                    <Sparkles className="w-3 h-3 text-[#B68422] shrink-0" />
+                    <span>المكانة والأم</span>
+                    {hasIdentityDetails && activeDetailPanel !== 'identity' && (
+                      <span
+                        aria-hidden="true"
+                        className="w-1.5 h-1.5 rounded-full bg-[#C59B27]"
+                      />
+                    )}
+                    <ChevronDown
+                      className={`w-3 h-3 opacity-60 transition-transform duration-200 ${
+                        activeDetailPanel === 'identity' ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
-                )}
 
-                {canFocusSubtree && onFocusSubtree && (
+                  {/* Pill 2: الميلاد والديار */}
                   <button
                     type="button"
-                    data-testid="focus-subtree-person-btn"
-                    onClick={onFocusSubtree}
-                    className="px-3.5 py-2 rounded-xl bg-[#FEF9EC] hover:bg-[#F5E6DC] border border-[#C5A059]/55 text-xs font-display font-extrabold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                    aria-expanded={activeDetailPanel === 'life'}
+                    data-testid="studio-tab-life"
+                    onClick={() => handleTogglePanel('life')}
+                    className={`px-3 py-1.5 rounded-full text-[11.5px] font-display font-bold border transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${
+                      activeDetailPanel === 'life'
+                        ? 'bg-gradient-to-b from-[#FAF0DC] to-[#F1DFBE] text-[#7A4319] border-[#C59B27]/70 shadow-2xs'
+                        : 'bg-[#F8F3EA]/80 hover:bg-[#F3EBDC] text-[#5E4A39] border-[#D9CBB5]/70 hover:border-[#C59B27]/50'
+                    }`}
                   >
-                    <Crosshair className="w-3.5 h-3.5 text-[#9A3412] shrink-0" />
-                    <span>تركيز العرض على هذا الفرع فقط</span>
+                    <Clock className="w-3 h-3 text-[#B68422] shrink-0" />
+                    <span>الميلاد والديار</span>
+                    {hasLifeDetails && activeDetailPanel !== 'life' && (
+                      <span
+                        aria-hidden="true"
+                        className="w-1.5 h-1.5 rounded-full bg-[#C59B27]"
+                      />
+                    )}
+                    <ChevronDown
+                      className={`w-3 h-3 opacity-60 transition-transform duration-200 ${
+                        activeDetailPanel === 'life' ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
-                )}
-              </div>
-            </div>
-          )}
 
-          {/* --------------------------------------------------------------- */}
-          {/* TAB 2: السجل الحياتي والديار                                    */}
-          {/* --------------------------------------------------------------- */}
-          {activeTab === 'life' && (
-            <div className="space-y-5">
-              {/* Vital Status Gender-Aware Segmented Toggle */}
-              <div className="space-y-2">
-                <label className="block text-xs font-display font-extrabold text-[#1C1917]">
-                  الحالة الحياتية وصيغة الدعاء
-                </label>
-                <div
-                  data-testid="studio-vital-status-toggle"
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-2"
-                >
-                  {(
-                    [
-                      { id: 'unspecified', label: 'غير محدد' },
-                      {
-                        id: 'living',
-                        label: 'على قيد الحياة',
-                      },
-                      {
-                        id: 'deceased',
-                        label: isFemale
-                          ? 'متوفاة — رحمها الله'
-                          : 'متوفى — رحمه الله',
-                      },
-                    ] as const
-                  ).map((opt) => {
-                    const active = formVitalStatus === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => onChangeVitalStatus(opt.id)}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer ${
-                          active
-                            ? opt.id === 'deceased'
-                              ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917]'
-                              : opt.id === 'living'
-                              ? 'bg-[#14532D] text-white border-[#14532D]'
-                              : 'bg-[#8D4925] text-white border-[#8D4925]'
-                            : 'bg-white text-[#1C1917]/75 border-[#C5A059]/35 hover:border-[#8D4925]'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Calendar & Precision Luxury Toggles (ZERO native <select>) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-xs font-display font-bold text-[#1C1917]/80">
-                    التقويم المعتمد
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#EFE9DD] border border-[#C5A059]/25">
-                    <button
-                      type="button"
-                      onClick={() => onChangeBirthCalendar('hijri')}
-                      className={`py-2 rounded-lg text-xs font-display font-extrabold transition-all cursor-pointer ${
-                        formBirthCalendar === 'hijri'
-                          ? 'bg-white text-[#1C1917] shadow-2xs'
-                          : 'text-[#1C1917]/65 hover:text-[#1C1917]'
-                      }`}
-                    >
-                      هجري (هـ)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onChangeBirthCalendar('gregorian')}
-                      className={`py-2 rounded-lg text-xs font-display font-extrabold transition-all cursor-pointer ${
-                        formBirthCalendar === 'gregorian'
-                          ? 'bg-white text-[#1C1917] shadow-2xs'
-                          : 'text-[#1C1917]/65 hover:text-[#1C1917]'
-                      }`}
-                    >
-                      ميلادي (م)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs font-display font-bold text-[#1C1917]/80">
-                    دقة التاريخ
-                  </label>
-                  <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EFE9DD] border border-[#C5A059]/25">
-                    {(
-                      [
-                        { id: 'year_only', label: 'سنة مؤكدة' },
-                        { id: 'approximate', label: 'تقريبي' },
-                        { id: 'era', label: 'حقبة' },
-                      ] as const
-                    ).map((prec) => {
-                      const active =
-                        formBirthPrecision === prec.id ||
-                        (prec.id === 'year_only' &&
-                          formBirthPrecision === 'full_date');
-                      return (
-                        <button
-                          key={prec.id}
-                          type="button"
-                          onClick={() => onChangeBirthPrecision(prec.id)}
-                          className={`py-2 rounded-lg text-[11px] font-display font-extrabold transition-all cursor-pointer ${
-                            active
-                              ? 'bg-white text-[#1C1917] shadow-2xs'
-                              : 'text-[#1C1917]/65 hover:text-[#1C1917]'
-                          }`}
-                        >
-                          {prec.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Birth Date & Birth Place */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5">
-                    {formBirthPrecision === 'era'
-                      ? 'الحقبة الزمنية للميلاد'
-                      : 'سنة أو تاريخ الميلاد'}
-                  </label>
-                  <input
-                    type="text"
-                    value={formBirthDate}
-                    onChange={(e) => onChangeBirthDate(e.target.value)}
-                    placeholder={
-                      formBirthPrecision === 'era'
-                        ? 'مثال: مطلع القرن الرابع عشر'
-                        : formBirthCalendar === 'hijri'
-                        ? 'مثال: 1395'
-                        : 'مثال: 1975'
-                    }
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2.5 text-sm text-[#1C1917] tabular-nums focus:outline-none focus:border-[#8D4925]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-[#C5A059]" />
-                    <span>مكان الميلاد / الديرة</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formBirthPlace}
-                    onChange={(e) => onChangeBirthPlace(e.target.value)}
-                    placeholder="مثال: بغداد / الرياض / دمشق / الحجاز"
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                  />
-                </div>
-              </div>
-
-              {/* Conditional Death Fields — Appear smoothly ONLY when Deceased */}
-              {formVitalStatus === 'deceased' && (
-                <div
-                  data-testid="studio-deceased-fields"
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[#C5A059]/25"
-                >
-                  <div>
-                    <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5">
-                      سنة / تاريخ الوفاة
-                    </label>
-                    <input
-                      type="text"
-                      value={formDeathDate}
-                      onChange={(e) => onChangeDeathDate(e.target.value)}
-                      placeholder={
-                        formBirthCalendar === 'hijri'
-                          ? 'مثال: 1435 هـ'
-                          : 'مثال: 2014 م'
-                      }
-                      className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2.5 text-sm text-[#1C1917] tabular-nums focus:outline-none focus:border-[#8D4925]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5">
-                      مكان الوفاة أو المدفن
-                    </label>
-                    <input
-                      type="text"
-                      value={formDeathPlace}
-                      onChange={(e) => onChangeDeathPlace(e.target.value)}
-                      placeholder="مثال: مقبرة العود / البقيع / النجف"
-                      className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Conditional Contact Field — Appears cleanly ONLY when Living */}
-              {formVitalStatus === 'living' && (
-                <div className="pt-4 border-t border-[#C5A059]/25">
-                  <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5">
-                    البريد الإلكتروني / رقم الجوال للتواصل العائلي{' '}
-                    <span className="text-[11px] font-normal text-[#1C1917]/45">
-                      (اختياري)
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={formContactInfo}
-                    onChange={(e) => onChangeContactInfo(e.target.value)}
-                    placeholder="relative@family.com / +966500000000"
-                    className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2.5 text-sm text-[#1C1917] text-right focus:outline-none focus:border-[#8D4925]"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* --------------------------------------------------------------- */}
-          {/* TAB 3: المآثر وخزانة الوثائق                                    */}
-          {/* --------------------------------------------------------------- */}
-          {activeTab === 'legacy' && (
-            <div className="space-y-5">
-              {/* Biography + Quick Inspiration Prompts */}
-              <div className="space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-xs font-display font-extrabold text-[#1C1917]">
-                    السيرة الذاتية والمآثر التوثيقية
-                  </label>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {bioPrompts.map((prompt) => (
-                      <button
-                        key={prompt.label}
-                        type="button"
-                        onClick={() => handleAppendBioPrompt(prompt.snippet)}
-                        className="px-2.5 py-1 rounded-lg bg-[#F7F2E8] hover:bg-[#1C1917] text-[#8D4925] hover:text-[#F7E7CE] border border-[#C5A059]/40 text-[11px] font-display font-bold transition-colors cursor-pointer"
-                      >
-                        {prompt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <textarea
-                  rows={4}
-                  value={formBiography}
-                  onChange={(e) => onChangeBiography(e.target.value)}
-                  placeholder={
-                    isFemale
-                      ? 'دوّن نبذةً وافيةً عن سيرتها الكريمة ومآثرها...'
-                      : 'دوّن نبذةً وافيةً عن سيرته ومآثره وأعماله...'
-                  }
-                  className="w-full rounded-2xl bg-white border border-[#C5A059]/40 p-3.5 text-sm text-[#1C1917] leading-relaxed focus:outline-none focus:border-[#8D4925]"
-                />
-              </div>
-
-              {/* Historical Document Reference Note */}
-              <div>
-                <label className="block text-xs font-display font-bold text-[#1C1917]/80 mb-1.5">
-                  إشارة إلى صك أو وثيقة تاريخية{' '}
-                  <span className="text-[11px] font-normal text-[#1C1917]/45">
-                    (اختياري)
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={formAttachedDocName}
-                  onChange={(e) => onChangeAttachedDocName(e.target.value)}
-                  placeholder="مثال: وثيقة حصر إرث مؤرخة عام 1372 هـ"
-                  className="w-full rounded-xl bg-white border border-[#C5A059]/40 px-3.5 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#8D4925]"
-                />
-              </div>
-
-              {/* Visual Media Vault Gallery (`خزانتي`) */}
-              <div
-                data-testid="person-modal-vault-media-section"
-                className="pt-4 border-t border-[#C5A059]/25 space-y-3.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-display font-extrabold text-[#1C1917]">
-                    <Paperclip className="w-4 h-4 text-[#8D4925]" />
+                  {/* Pill 3: السيرة والوثائق */}
+                  <button
+                    type="button"
+                    aria-expanded={activeDetailPanel === 'legacy'}
+                    data-testid="studio-tab-legacy"
+                    onClick={() => handleTogglePanel('legacy')}
+                    className={`px-3 py-1.5 rounded-full text-[11.5px] font-display font-bold border transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${
+                      activeDetailPanel === 'legacy'
+                        ? 'bg-gradient-to-b from-[#FAF0DC] to-[#F1DFBE] text-[#7A4319] border-[#C59B27]/70 shadow-2xs'
+                        : 'bg-[#F8F3EA]/80 hover:bg-[#F3EBDC] text-[#5E4A39] border-[#D9CBB5]/70 hover:border-[#C59B27]/50'
+                    }`}
+                  >
+                    <BookOpen className="w-3 h-3 text-[#B68422] shrink-0" />
                     <span>
-                      وثائق وصور هذا الفرد في «خزانتي» ({linkedMediaForPerson.length})
+                      السيرة والوثائق
+                      {linkedMediaForPerson.length > 0
+                        ? ` (${linkedMediaForPerson.length})`
+                        : ''}
                     </span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#8D4925]">
-                    مزامنة ثنائية فورية
-                  </span>
+                    {hasLegacyDetails && activeDetailPanel !== 'legacy' && (
+                      <span
+                        aria-hidden="true"
+                        className="w-1.5 h-1.5 rounded-full bg-[#C59B27]"
+                      />
+                    )}
+                    <ChevronDown
+                      className={`w-3 h-3 opacity-60 transition-transform duration-200 ${
+                        activeDetailPanel === 'legacy' ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
                 </div>
 
-                {linkedMediaForPerson.length === 0 ? (
-                  <div className="rounded-2xl bg-[#F7F2E8]/80 border border-dashed border-[#C5A059]/50 p-4 text-xs text-[#1C1917]/65 text-center">
-                    لا توجد صور أو وثائق مربوطة بهذا الفرد بعد. ارفع ملفاً جديداً أدناه أو اربطه من خزانتك مباشرة.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {linkedMediaForPerson.map((media) => {
-                      const previewSrc =
-                        media.thumbnailDataUrl || media.fileDataUrl;
-                      const isImage =
-                        media.mediaType === 'photo' ||
-                        previewSrc.startsWith('data:image') ||
-                        previewSrc.startsWith('http');
-                      return (
-                        <div
-                          key={media.id}
-                          className="rounded-2xl bg-white border border-[#C5A059]/45 overflow-hidden flex flex-col shadow-2xs"
+                {/* --------------------------------------------------------- */}
+                {/* EXPANDABLE PANEL 1: ✦ المكانة والأم                        */}
+                {/* --------------------------------------------------------- */}
+                {activeDetailPanel === 'identity' && (
+                  <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-3.5 animate-[studioPanelReveal_200ms_ease-out_both]">
+                    {/* Compact 3-Column Row: اللقب | الكنية | الوسام */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <label
+                          htmlFor="studio-honorific-select"
+                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
                         >
-                          <div className="h-24 bg-[#F7F2E8] relative flex items-center justify-center overflow-hidden">
-                            {isImage ? (
-                              <img
-                                src={previewSrc}
-                                alt={media.title}
-                                referrerPolicy="no-referrer"
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <FileText className="w-7 h-7 text-[#8D4925]/70" />
+                          اللقب
+                        </label>
+                        <select
+                          id="studio-honorific-select"
+                          data-testid="studio-honorific-chips"
+                          value={formHonorific}
+                          onChange={(e) =>
+                            onChangeHonorific(
+                              e.target.value as ArabicHonorificTitle
+                            )
+                          }
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                        >
+                          {honorificChoices.map((title) => (
+                            <option key={title} value={title}>
+                              {title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="studio-person-kunya-input"
+                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                        >
+                          الكنية
+                        </label>
+                        <input
+                          id="studio-person-kunya-input"
+                          type="text"
+                          data-testid="studio-person-kunya-input"
+                          value={formKunya}
+                          onChange={(e) => onChangeKunya(e.target.value)}
+                          placeholder={isFemale ? 'أم عبدالله' : 'أبو محمد'}
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-2 text-xs font-semibold text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="studio-prestige-select"
+                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                        >
+                          الوسام
+                        </label>
+                        <select
+                          id="studio-prestige-select"
+                          data-testid="studio-prestige-badge-chips"
+                          value={formPrestigeBadge}
+                          onChange={(e) =>
+                            onChangePrestigeBadge(
+                              e.target.value as TreePrestigeBadgeId
+                            )
+                          }
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                        >
+                          {prestigeChoices.map((opt) => (
+                            <option key={opt.id} value={opt.id}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Compact Mother Selector (Non-intrusive, Full Binding Preserved) */}
+                    {showMotherSelector && !isSpouseRole && (
+                      <div
+                        data-testid="studio-mother-selector"
+                        className="pt-2.5 border-t border-[#D4AF37]/20 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <label
+                            htmlFor="studio-mother-select"
+                            className="text-[11.5px] font-display font-bold text-[#4A3B2F] flex items-center gap-1.5"
+                          >
+                            <Heart className="w-3 h-3 text-[#C59B27] shrink-0" />
+                            <span>الأم</span>
+                            {motherSelectorFatherName && (
+                              <span className="text-[10.5px] font-normal text-[#7E6750]">
+                                — زوجات {motherSelectorFatherName}
+                              </span>
                             )}
+                          </label>
+                          {motherSelectorFatherName && (
                             <button
                               type="button"
-                              onClick={() => onToggleVaultItemLink(media.id)}
-                              title="فك الربط"
-                              className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-lg bg-[#1C1917]/80 hover:bg-red-700 text-white text-[10px] font-bold cursor-pointer transition-colors"
+                              data-testid="studio-mother-option-create-new"
+                              onClick={() =>
+                                onChangeMotherId(
+                                  isCreatingInlineMother
+                                    ? ''
+                                    : NEW_MOTHER_SENTINEL
+                                )
+                              }
+                              className={`px-2 py-0.5 rounded-lg text-[10.5px] font-display font-bold border transition-colors cursor-pointer ${
+                                isCreatingInlineMother
+                                  ? 'bg-[#F1DFBE] text-[#7A4319] border-[#C59B27]'
+                                  : 'bg-white text-[#8D4925] border-[#D4AF37]/45 hover:bg-[#FEF9EC]'
+                              }`}
                             >
-                              فك
+                              {isCreatingInlineMother
+                                ? 'إلغاء الإضافة'
+                                : '+ أم جديدة'}
                             </button>
-                          </div>
-                          <div className="p-2">
-                            <div className="text-[11px] font-display font-extrabold text-[#1C1917] truncate">
-                              {media.title}
-                            </div>
-                            <div className="text-[10px] text-[#8D4925] truncate">
-                              {media.mediaType === 'photo' ? 'صورة' : 'وثيقة'} ·{' '}
-                              {media.dateOrOccasion}
-                            </div>
-                          </div>
+                          )}
                         </div>
-                      );
-                    })}
+
+                        {!isCreatingInlineMother ? (
+                          <select
+                            id="studio-mother-select"
+                            data-testid="studio-mother-select"
+                            value={formMotherId}
+                            onChange={(e) => onChangeMotherId(e.target.value)}
+                            className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                          >
+                            <option value="">غير محدد</option>
+                            {motherOptions.map((mom) => (
+                              <option key={mom.id} value={mom.id}>
+                                💍 {mom.firstName}
+                                {mom.kunya ? ` (${mom.kunya})` : ''}
+                              </option>
+                            ))}
+                            {motherSelectorFatherName && (
+                              <option value={NEW_MOTHER_SENTINEL}>
+                                + أم جديدة (زوجة لـ {motherSelectorFatherName})
+                              </option>
+                            )}
+                          </select>
+                        ) : (
+                          <div
+                            data-testid="studio-inline-new-mother-box"
+                            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                          >
+                            <div>
+                              <label className="block text-[10.5px] font-display font-bold text-[#7A4319] mb-1">
+                                اسم الأم <span className="text-[#B8502C]">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                data-testid="studio-inline-new-mother-name"
+                                value={inlineNewMotherName}
+                                onChange={(e) =>
+                                  onChangeInlineNewMotherName(e.target.value)
+                                }
+                                placeholder="مثال: أمينة / فاطمة"
+                                className="w-full rounded-xl bg-white border border-[#C59B27]/55 px-2.5 py-1.5 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10.5px] font-display font-bold text-[#5E4A39] mb-1">
+                                أسرتها / نسب المصاهرة
+                              </label>
+                              <input
+                                type="text"
+                                value={inlineNewMotherMaidenLine}
+                                onChange={(e) =>
+                                  onChangeInlineNewMotherMaidenLine(
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="مثال: من أسرة آل..."
+                                className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Wife Maiden Family Line */}
+                    {isSpouseRole && (
+                      <div
+                        data-testid="studio-wife-maiden-family-field"
+                        className="pt-2.5 border-t border-[#D4AF37]/20 space-y-1"
+                      >
+                        <label className="block text-[11.5px] font-display font-bold text-[#8D4925]">
+                          أسرتها / نسب المصاهرة
+                        </label>
+                        <input
+                          type="text"
+                          value={formMaidenFamilyLine}
+                          onChange={(e) =>
+                            onChangeMaidenFamilyLine(e.target.value)
+                          }
+                          placeholder="مثال: كريمة الشيخ... / من أسرة آل..."
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                        />
+                      </div>
+                    )}
+
+                    {/* Daughter Marriage Note */}
+                    {isDaughterRole && !isSpouseRole && (
+                      <div
+                        data-testid="studio-daughter-alliance-field"
+                        className="pt-2.5 border-t border-[#D4AF37]/20 space-y-1"
+                      >
+                        <label className="block text-[11.5px] font-display font-bold text-[#8D4925]">
+                          بيان المصاهرة / قرينة
+                        </label>
+                        <input
+                          type="text"
+                          value={formMarriageAllianceNote}
+                          onChange={(e) =>
+                            onChangeMarriageAllianceNote(e.target.value)
+                          }
+                          placeholder="مثال: قرينة الأستاذ... من أسرة آل..."
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                        />
+                      </div>
+                    )}
+
+                    {/* Female Privacy Toggle & Subtree Focus */}
+                    {((isFemale && !isVerticalOnlyModal) ||
+                      (canFocusSubtree && onFocusSubtree)) && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#D4AF37]/20">
+                        {isFemale && !isVerticalOnlyModal && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onChangeFemalePrivacyMasked(
+                                !formFemalePrivacyMasked
+                              )
+                            }
+                            className={`px-3 py-1.5 rounded-xl text-[11.5px] font-display font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                              formFemalePrivacyMasked
+                                ? 'bg-[#F5EBD6] text-[#7A4319] border-[#C59B27]/60'
+                                : 'bg-white text-[#5E4A39] border-[#D4AF37]/30'
+                            }`}
+                          >
+                            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              {formFemalePrivacyMasked
+                                ? 'ستر الاسم في العرض العام مفعّل'
+                                : 'تفعيل ستر الاسم في العرض العام'}
+                            </span>
+                          </button>
+                        )}
+
+                        {canFocusSubtree && onFocusSubtree && (
+                          <button
+                            type="button"
+                            data-testid="focus-subtree-person-btn"
+                            onClick={onFocusSubtree}
+                            className="px-3 py-1.5 rounded-xl bg-[#FEF9EC] hover:bg-[#F5E6DC] border border-[#C5A059]/55 text-[11.5px] font-display font-extrabold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <Crosshair className="w-3.5 h-3.5 text-[#9A3412] shrink-0" />
+                            <span>تركيز العرض على هذا الفرع</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Direct 1-Click Upload into Vault (Folder Chips + Title + Upload) */}
-                <div className="rounded-2xl bg-[#F7F2E8] border border-[#C5A059]/35 p-3.5 space-y-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-display font-bold text-[#1C1917]/70 ml-1">
-                      المجلد:
-                    </span>
-                    {vaultFolders.map((vf) => {
-                      const active = treeVaultUploadFolderId === vf.id;
-                      return (
-                        <button
-                          key={vf.id}
-                          type="button"
-                          onClick={() => onChangeTreeVaultUploadFolderId(vf.id)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold border transition-all cursor-pointer ${
-                            active
-                              ? 'bg-[#1C1917] text-[#F7E7CE] border-[#1C1917]'
-                              : 'bg-white text-[#1C1917]/75 border-[#C5A059]/35 hover:border-[#8D4925]'
-                          }`}
-                        >
-                          {vf.icon} {vf.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      value={treeVaultUploadTitle}
-                      onChange={(e) =>
-                        onChangeTreeVaultUploadTitle(e.target.value)
-                      }
-                      placeholder="عنوان الصورة أو الوثيقة (اختياري)..."
-                      className="flex-1 rounded-xl bg-white border border-[#C5A059]/40 px-3 py-2 text-xs text-[#1C1917]"
-                    />
-                    <label className="px-4 py-2 rounded-xl bg-[#1C1917] hover:bg-[#8D4925] text-[#F7E7CE] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>
-                        {isUploadingToVault
-                          ? 'جاري الحفظ...'
-                          : 'رفع صورة أو وثيقة'}
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        disabled={isUploadingToVault}
-                        className="hidden"
-                        onChange={(e) => {
-                          onUploadFileToVault(e.target.files);
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Unlinked Vault Items — Visual Mini-Thumbnails for 1-Click Linking */}
-                {unlinkedMediaInVault.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-display font-bold text-[#1C1917]/80 flex items-center gap-1.5">
-                      <Link2 className="w-3.5 h-3.5 text-[#8D4925]" />
-                      <span>ربط مقتنيات موجودة في «خزانتي» بنقرة واحدة:</span>
+                {/* --------------------------------------------------------- */}
+                {/* EXPANDABLE PANEL 2: ⏳ الميلاد والديار                     */}
+                {/* --------------------------------------------------------- */}
+                {activeDetailPanel === 'life' && (
+                  <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-4 animate-[studioPanelReveal_200ms_ease-out_both]">
+                    {/* Vital Status Toggle (Warm Heritage Palette — Zero Black) */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                        الحالة الحياتية
+                      </label>
+                      <div
+                        data-testid="studio-vital-status-toggle"
+                        className="grid grid-cols-3 gap-1.5"
+                      >
+                        {(
+                          [
+                            { id: 'unspecified', label: 'غير محدد' },
+                            { id: 'living', label: 'على قيد الحياة' },
+                            {
+                              id: 'deceased',
+                              label: isFemale
+                                ? 'متوفاة — رحمها الله'
+                                : 'متوفى — رحمه الله',
+                            },
+                          ] as const
+                        ).map((opt) => {
+                          const active = formVitalStatus === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => onChangeVitalStatus(opt.id)}
+                              className={`px-2.5 py-2 rounded-xl text-[11.5px] font-display font-extrabold border transition-all cursor-pointer ${
+                                active
+                                  ? opt.id === 'deceased'
+                                    ? 'bg-[#8D4925] text-[#FFFDF8] border-[#8D4925] shadow-2xs'
+                                    : opt.id === 'living'
+                                    ? 'bg-[#265C3E] text-white border-[#265C3E] shadow-2xs'
+                                    : 'bg-[#F1DFBE] text-[#7A4319] border-[#C59B27]'
+                                  : 'bg-white text-[#5E4A39] border-[#D4AF37]/30 hover:border-[#C59B27]/60'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto py-0.5">
-                      {unlinkedMediaInVault.map((uv) => {
-                        const thumb = uv.thumbnailDataUrl || uv.fileDataUrl;
-                        const isImg =
-                          uv.mediaType === 'photo' ||
-                          thumb.startsWith('data:image') ||
-                          thumb.startsWith('http');
-                        return (
+
+                    {/* Calendar & Precision Toggles */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                          التقويم
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EFE8DA] border border-[#D4AF37]/25">
                           <button
-                            key={uv.id}
                             type="button"
-                            onClick={() => onToggleVaultItemLink(uv.id)}
-                            className="pl-2.5 pr-1.5 py-1 rounded-xl bg-white hover:bg-[#1C1917] text-[#1C1917] hover:text-[#F7E7CE] border border-[#C5A059]/40 text-[11px] font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                            onClick={() => onChangeBirthCalendar('hijri')}
+                            className={`py-1.5 rounded-lg text-[11.5px] font-display font-extrabold transition-all cursor-pointer ${
+                              formBirthCalendar === 'hijri'
+                                ? 'bg-white text-[#7A4319] shadow-2xs'
+                                : 'text-[#6A5746] hover:text-[#2D241E]'
+                            }`}
                           >
-                            <span className="w-6 h-6 rounded-lg bg-[#F7F2E8] overflow-hidden shrink-0 flex items-center justify-center">
-                              {isImg ? (
-                                <img
-                                  src={thumb}
-                                  alt={uv.title}
-                                  referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <FileText className="w-3.5 h-3.5 text-[#8D4925]" />
-                              )}
-                            </span>
-                            <span className="max-w-[140px] truncate">
-                              + {uv.title}
-                            </span>
+                            هجري (هـ)
                           </button>
-                        );
-                      })}
+                          <button
+                            type="button"
+                            onClick={() => onChangeBirthCalendar('gregorian')}
+                            className={`py-1.5 rounded-lg text-[11.5px] font-display font-extrabold transition-all cursor-pointer ${
+                              formBirthCalendar === 'gregorian'
+                                ? 'bg-white text-[#7A4319] shadow-2xs'
+                                : 'text-[#6A5746] hover:text-[#2D241E]'
+                            }`}
+                          >
+                            ميلادي (م)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                          دقة التاريخ
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EFE8DA] border border-[#D4AF37]/25">
+                          {(
+                            [
+                              { id: 'year_only', label: 'سنة مؤكدة' },
+                              { id: 'approximate', label: 'تقريبي' },
+                              { id: 'era', label: 'حقبة' },
+                            ] as const
+                          ).map((prec) => {
+                            const active =
+                              formBirthPrecision === prec.id ||
+                              (prec.id === 'year_only' &&
+                                formBirthPrecision === 'full_date');
+                            return (
+                              <button
+                                key={prec.id}
+                                type="button"
+                                onClick={() => onChangeBirthPrecision(prec.id)}
+                                className={`py-1.5 rounded-lg text-[11px] font-display font-extrabold transition-all cursor-pointer ${
+                                  active
+                                    ? 'bg-white text-[#7A4319] shadow-2xs'
+                                    : 'text-[#6A5746] hover:text-[#2D241E]'
+                                }`}
+                              >
+                                {prec.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Birth Date & Birth Place */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                          {formBirthPrecision === 'era'
+                            ? 'الحقبة الزمنية'
+                            : 'تاريخ الميلاد'}
+                        </label>
+                        <input
+                          type="text"
+                          value={formBirthDate}
+                          onChange={(e) => onChangeBirthDate(e.target.value)}
+                          placeholder={
+                            formBirthPrecision === 'era'
+                              ? 'مثال: مطلع القرن الرابع عشر'
+                              : formBirthCalendar === 'hijri'
+                              ? 'مثال: 1395'
+                              : 'مثال: 1975'
+                          }
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] tabular-nums focus:outline-none focus:border-[#8D4925]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-[#C59B27]" />
+                          <span>مكان الميلاد</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formBirthPlace}
+                          onChange={(e) => onChangeBirthPlace(e.target.value)}
+                          placeholder="مثال: بغداد / الرياض / دمشق"
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Conditional Death Fields */}
+                    {formVitalStatus === 'deceased' && (
+                      <div
+                        data-testid="studio-deceased-fields"
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[#D4AF37]/20"
+                      >
+                        <div>
+                          <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                            تاريخ الوفاة
+                          </label>
+                          <input
+                            type="text"
+                            value={formDeathDate}
+                            onChange={(e) => onChangeDeathDate(e.target.value)}
+                            placeholder={
+                              formBirthCalendar === 'hijri'
+                                ? 'مثال: 1435 هـ'
+                                : 'مثال: 2014 م'
+                            }
+                            className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] tabular-nums focus:outline-none focus:border-[#8D4925]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                            مكان الوفاة أو المدفن
+                          </label>
+                          <input
+                            type="text"
+                            value={formDeathPlace}
+                            onChange={(e) => onChangeDeathPlace(e.target.value)}
+                            placeholder="مثال: مقبرة العود / البقيع / النجف"
+                            className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Conditional Contact Field */}
+                    {formVitalStatus === 'living' && (
+                      <div className="pt-3 border-t border-[#D4AF37]/20">
+                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                          التواصل العائلي
+                        </label>
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={formContactInfo}
+                          onChange={(e) => onChangeContactInfo(e.target.value)}
+                          placeholder="relative@family.com / +966500000000"
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] text-right focus:outline-none focus:border-[#8D4925]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* --------------------------------------------------------- */}
+                {/* EXPANDABLE PANEL 3: 📜 السيرة والوثائق                     */}
+                {/* --------------------------------------------------------- */}
+                {activeDetailPanel === 'legacy' && (
+                  <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-4 animate-[studioPanelReveal_200ms_ease-out_both]">
+                    {/* Biography + Quick Inspiration Prompts */}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <label className="text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                          السيرة
+                        </label>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {bioPrompts.map((prompt) => (
+                            <button
+                              key={prompt.label}
+                              type="button"
+                              onClick={() => handleAppendBioPrompt(prompt.snippet)}
+                              className="px-2 py-0.5 rounded-lg bg-white hover:bg-[#F3E5CE] text-[#8D4925] border border-[#D4AF37]/35 text-[10.5px] font-display font-bold transition-colors cursor-pointer"
+                            >
+                              {prompt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={formBiography}
+                        onChange={(e) => onChangeBiography(e.target.value)}
+                        placeholder={
+                          isFemale
+                            ? 'دوّن نبذةً عن سيرتها الكريمة ومآثرها...'
+                            : 'دوّن نبذةً عن سيرته ومآثره وأعماله...'
+                        }
+                        className="w-full rounded-xl bg-white border border-[#D4AF37]/35 p-3 text-xs sm:text-sm text-[#2D241E] leading-relaxed focus:outline-none focus:border-[#8D4925]"
+                      />
+                    </div>
+
+                    {/* Historical Document Reference Note */}
+                    <div>
+                      <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                        صك أو وثيقة تاريخية
+                      </label>
+                      <input
+                        type="text"
+                        value={formAttachedDocName}
+                        onChange={(e) => onChangeAttachedDocName(e.target.value)}
+                        placeholder="مثال: وثيقة حصر إرث مؤرخة عام 1372 هـ"
+                        className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                      />
+                    </div>
+
+                    {/* Visual Media Vault Gallery (`خزانتي`) */}
+                    <div
+                      data-testid="person-modal-vault-media-section"
+                      className="pt-3 border-t border-[#D4AF37]/20 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#2D241E]">
+                          <Paperclip className="w-3.5 h-3.5 text-[#8D4925]" />
+                          <span>
+                            ملفات «خزانتي» ({linkedMediaForPerson.length})
+                          </span>
+                        </div>
+                        <span className="text-[10.5px] font-semibold text-[#8D4925]">
+                          مزامنة فورية
+                        </span>
+                      </div>
+
+                      {linkedMediaForPerson.length === 0 ? (
+                        <div className="rounded-xl bg-white/70 border border-dashed border-[#D4AF37]/45 p-3 text-[11.5px] text-[#6E5A48] text-center">
+                          لا توجد صور أو وثائق مربوطة بعد. ارفع ملفاً أدناه أو اربطه من خزانتك.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {linkedMediaForPerson.map((media) => {
+                            const previewSrc =
+                              media.thumbnailDataUrl || media.fileDataUrl;
+                            const isImage =
+                              media.mediaType === 'photo' ||
+                              previewSrc.startsWith('data:image') ||
+                              previewSrc.startsWith('http');
+                            return (
+                              <div
+                                key={media.id}
+                                className="rounded-xl bg-white border border-[#D4AF37]/35 overflow-hidden flex flex-col shadow-2xs"
+                              >
+                                <div className="h-20 bg-[#F7F2E8] relative flex items-center justify-center overflow-hidden">
+                                  {isImage ? (
+                                    <img
+                                      src={previewSrc}
+                                      alt={media.title}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <FileText className="w-6 h-6 text-[#8D4925]/70" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleVaultItemLink(media.id)}
+                                    title="فك الربط"
+                                    className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-[#8D4925]/90 hover:bg-red-700 text-white text-[10px] font-bold cursor-pointer transition-colors"
+                                  >
+                                    فك
+                                  </button>
+                                </div>
+                                <div className="p-1.5">
+                                  <div className="text-[11px] font-display font-bold text-[#2D241E] truncate">
+                                    {media.title}
+                                  </div>
+                                  <div className="text-[10px] text-[#8D4925] truncate">
+                                    {media.mediaType === 'photo' ? 'صورة' : 'وثيقة'} ·{' '}
+                                    {media.dateOrOccasion}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Direct 1-Click Upload into Vault */}
+                      <div className="rounded-xl bg-white/80 border border-[#D4AF37]/30 p-3 space-y-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-display font-bold text-[#5E4A39] ml-0.5">
+                            المجلد:
+                          </span>
+                          {vaultFolders.map((vf) => {
+                            const active = treeVaultUploadFolderId === vf.id;
+                            return (
+                              <button
+                                key={vf.id}
+                                type="button"
+                                onClick={() =>
+                                  onChangeTreeVaultUploadFolderId(vf.id)
+                                }
+                                className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border transition-all cursor-pointer ${
+                                  active
+                                    ? 'bg-[#F1DFBE] text-[#7A4319] border-[#C59B27]'
+                                    : 'bg-[#FAF7F2] text-[#5E4A39] border-[#D4AF37]/30 hover:border-[#C59B27]'
+                                }`}
+                              >
+                                {vf.icon} {vf.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="text"
+                            value={treeVaultUploadTitle}
+                            onChange={(e) =>
+                              onChangeTreeVaultUploadTitle(e.target.value)
+                            }
+                            placeholder="عنوان الصورة أو الوثيقة..."
+                            className="flex-1 rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-1.5 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                          />
+                          <label className="px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-[#B9623D] to-[#8D4925] hover:from-[#C76E47] hover:to-[#7A3D1E] text-[#FFFDF8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>
+                              {isUploadingToVault ? 'جاري الحفظ...' : 'رفع ملف'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              disabled={isUploadingToVault}
+                              className="hidden"
+                              onChange={(e) => {
+                                onUploadFileToVault(e.target.files);
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Unlinked Vault Items — 1-Click Linking */}
+                      {unlinkedMediaInVault.length > 0 && (
+                        <div className="space-y-1.5">
+                          <div className="text-[11px] font-display font-bold text-[#5E4A39] flex items-center gap-1.5">
+                            <Link2 className="w-3.5 h-3.5 text-[#8D4925]" />
+                            <span>ربط مقتنيات موجودة في «خزانتي»:</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto py-0.5">
+                            {unlinkedMediaInVault.map((uv) => {
+                              const thumb =
+                                uv.thumbnailDataUrl || uv.fileDataUrl;
+                              const isImg =
+                                uv.mediaType === 'photo' ||
+                                thumb.startsWith('data:image') ||
+                                thumb.startsWith('http');
+                              return (
+                                <button
+                                  key={uv.id}
+                                  type="button"
+                                  onClick={() => onToggleVaultItemLink(uv.id)}
+                                  className="pl-2.5 pr-1.5 py-1 rounded-xl bg-white hover:bg-[#F5EBD6] text-[#2D241E] hover:text-[#7A4319] border border-[#D4AF37]/35 text-[11px] font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                                >
+                                  <span className="w-5 h-5 rounded-md bg-[#F7F2E8] overflow-hidden shrink-0 flex items-center justify-center">
+                                    {isImg ? (
+                                      <img
+                                        src={thumb}
+                                        alt={uv.title}
+                                        referrerPolicy="no-referrer"
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <FileText className="w-3 h-3 text-[#8D4925]" />
+                                    )}
+                                  </span>
+                                  <span className="max-w-[130px] truncate">
+                                    + {uv.title}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          </>
+            </>
           )}
 
           {formError && (
@@ -1415,29 +1462,48 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
             </div>
           )}
 
-          {/* Footer Action Bar */}
-          <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#C5A059]/30">
+          {/* ================================================================= */}
+          {/* FOOTER ACTION BAR — WARM HERITAGE BRONZE & GOLD (ZERO BLACK)      */}
+          {/* ================================================================= */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3.5 border-t border-[#D4AF37]/25">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-[#EFE9DD] hover:bg-[#E4DCCB] text-xs font-display font-bold text-[#1C1917] cursor-pointer transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-[#F2ECE1] hover:bg-[#E7DEC9] text-xs font-display font-bold text-[#5B4938] cursor-pointer transition-colors"
             >
               إلغاء
             </button>
-            <button
-              type="submit"
-              disabled={isUploadingToVault || isUploadingPortrait}
-              data-testid="studio-save-person-btn"
-              className="px-7 py-2.5 rounded-xl bg-[#1C1917] hover:bg-[#8D4925] disabled:opacity-60 text-[#F7E7CE] text-xs sm:text-sm font-display font-extrabold cursor-pointer shadow-sm transition-colors"
-            >
-              {isUploadingToVault || isUploadingPortrait
-                ? 'جاري حفظ الملف المرفوع...'
-                : isSelectingExistingMother
-                ? 'اعتماد وربط الأم ✓'
-                : mode === 'edit'
-                ? 'حفظ تعديلات البطاقة ✓'
-                : 'اعتماد وإضافة للشجرة ✓'}
-            </button>
+
+            <div className="flex items-center gap-2">
+              {mode === 'add' &&
+                !isSelectingExistingMother &&
+                canSaveAndAddAnother &&
+                onSaveAndAddAnother && (
+                  <button
+                    type="button"
+                    disabled={isUploadingToVault || isUploadingPortrait}
+                    data-testid="studio-save-and-add-another-btn"
+                    onClick={onSaveAndAddAnother}
+                    className="px-4 py-2.5 rounded-xl bg-[#FAF3E6] hover:bg-[#F3E4C8] disabled:opacity-60 border border-[#C59B27]/50 text-[#7A4319] text-xs font-display font-extrabold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>حفظ وإضافة آخر</span>
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+              <button
+                type="submit"
+                disabled={isUploadingToVault || isUploadingPortrait}
+                data-testid="studio-save-person-btn"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-b from-[#B9623D] to-[#8D4925] hover:from-[#C76E47] hover:to-[#7A3D1E] disabled:opacity-60 text-[#FFFDF8] border border-[#D4AF37]/35 text-xs sm:text-sm font-display font-extrabold cursor-pointer shadow-[0_6px_18px_-6px_rgba(141,73,37,0.52)] transition-all"
+              >
+                {isUploadingToVault || isUploadingPortrait
+                  ? 'جاري الحفظ...'
+                  : isSelectingExistingMother
+                  ? 'اعتماد وربط الأم ✓'
+                  : 'حفظ'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

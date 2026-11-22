@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Award,
   Camera,
   Check,
@@ -35,6 +36,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  User,
   UserPlus,
   Users,
   Wallet,
@@ -1391,6 +1393,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // Canvas Zoom level
   const [zoomPercent, setZoomPercent] = useState(100);
   const [exportedBanner, setExportedBanner] = useState(false);
+  const [quickAddSuccessNotice, setQuickAddSuccessNotice] = useState('');
 
   // ============================================================================
   // NATURAL LINEAGE SPINE NODES & DEPTH RESOLUTION
@@ -1693,6 +1696,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         : relationKind;
 
     setFormError('');
+    setQuickAddSuccessNotice('');
     setInlineNewMotherName('');
     setInlineNewMotherMaidenLine('');
 
@@ -1802,6 +1806,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
 
     setFormError('');
+    setQuickAddSuccessNotice('');
     setInlineNewMotherName('');
     setInlineNewMotherMaidenLine('');
     setAddMotherChoiceMode('create_new');
@@ -1848,6 +1853,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
 
     setFormError('');
+    setQuickAddSuccessNotice('');
     setInlineNewMotherName('');
     setInlineNewMotherMaidenLine('');
     setAddMotherChoiceMode('create_new');
@@ -2106,8 +2112,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     inlineNewMotherName,
   ]);
 
-  const handleSavePersonModal = (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSavePersonModal = (keepOpenForNext: boolean) => {
     if (!modalConfig) return;
 
     if (!isRecordKeeperCharterSigned) {
@@ -2750,7 +2755,52 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         ? `تمت إضافة «${cleanFirst}» (${relationLabel}) ووالدته «${createdInlineMother.firstName}» كزوجة للأب`
         : `تمت إضافة «${cleanFirst}» (${relationLabel})`
     );
+
+    if (keepOpenForNext) {
+      setFormError('');
+      setFormFirstName('');
+      setFormFamilyName('');
+      setFormKunya('');
+      setFormHonorific('بدون');
+      setFormPrestigeBadge('none');
+      setFormMaidenFamilyLine('');
+      setFormMarriageAllianceNote('');
+      setFormVitalStatus('unspecified');
+      setFormBirthDate('');
+      setFormBirthPlace('');
+      setFormDeathDate('');
+      setFormDeathPlace('');
+      setFormContactInfo('');
+      setFormBiography('');
+      setFormAttachedDocName('');
+      setFormPhotoUrl('');
+      setInlineNewMotherName('');
+      setInlineNewMotherMaidenLine('');
+      if (createdInlineMother) {
+        setFormMotherId(createdInlineMother.id);
+      } else if (formMotherId === NEW_MOTHER_SENTINEL) {
+        setFormMotherId('');
+      }
+      setQuickAddSuccessNotice(
+        `تمت إضافة «${cleanFirst}» بنجاح ✓ — أدخل الاسم التالي مباشرة`
+      );
+      window.setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 40);
+      return;
+    }
+
+    setQuickAddSuccessNotice('');
     setModalConfig(null);
+  };
+
+  const handleSavePersonModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSavePersonModal(false);
+  };
+
+  const handleSaveAndAddAnother = () => {
+    executeSavePersonModal(true);
   };
 
   // ============================================================================
@@ -4304,31 +4354,32 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             const quickPolicy = resolveNodeQuickActionPolicy(people, person);
 
             // Focused Spouse Menu: Married-in wives (no blood-line father in tree)
-            // strictly expose (+ إضافة ابن) and (+ إضافة ابنة) bound to Husband + Wife.
+            // strictly expose Son & Daughter bound to Husband + Wife in a frosted ivory popover.
             if (quickPolicy.isMarriedInWife) {
               const childAnchorNode = quickPolicy.linkedHusband || person;
               return (
                 <div
                   data-testid="wife-focused-quick-menu"
-                  className="mt-5 rounded-3xl bg-[#252321] text-white p-4 shadow-2xl border-2 border-[#D4AF37] space-y-3 relative z-50 w-[280px] sm:w-[300px] mx-auto"
+                  className="mt-3.5 rounded-2xl bg-[#FDFBF7]/95 backdrop-blur-xl text-[#2C241E] p-3.5 shadow-[0_20px_50px_-14px_rgba(88,63,36,0.26)] border border-[#D4AF37]/38 space-y-2.5 relative z-50 w-[264px] sm:w-[278px] mx-auto animate-[treePopoverIn_180ms_cubic-bezier(0.16,1,0.3,1)_both]"
                 >
-                  <div className="flex items-center justify-between border-b border-white/15 pb-2">
+                  <div className="flex items-center justify-between gap-2 border-b border-[#D4AF37]/20 pb-2">
                     <div className="min-w-0">
-                      <span className="text-xs font-display font-bold text-[#F3D299] block truncate">
+                      <span className="text-[12px] font-display font-extrabold text-[#8D4925] block truncate">
                         أبناء السيدة «{person.firstName}»
                       </span>
                       {quickPolicy.linkedHusband && (
-                        <span className="text-[10px] text-white/65 block truncate">
-                          مقترنة بـ {quickPolicy.linkedHusband.firstName} 💍
+                        <span className="text-[10px] text-[#6E5C4F] block truncate">
+                          مقترنة بـ {quickPolicy.linkedHusband.firstName}
                         </span>
                       )}
                     </div>
                     <button
                       type="button"
                       onClick={() => setRadialTargetNodeId(null)}
-                      className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white cursor-pointer shrink-0"
+                      aria-label="إغلاق قائمة الإضافة"
+                      className="w-6 h-6 rounded-lg bg-[#F5EFE4] hover:bg-[#ECE2D1] text-[#6E5C4F] hover:text-[#2C241E] inline-flex items-center justify-center cursor-pointer transition-colors shrink-0"
                     >
-                      ✕
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -4338,9 +4389,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                       onClick={() =>
                         openAddRelativeModal(childAnchorNode, 'son', person.id)
                       }
-                      className="py-2.5 px-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold text-center cursor-pointer transition-colors shadow-2xs"
+                      className="py-2.5 px-2.5 rounded-xl bg-[#FBF5E4] hover:bg-[#C59B27]/15 text-[#7A541C] border border-[#D4AF37]/42 hover:border-[#C59B27]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
                     >
-                      + إضافة ابن
+                      <ArrowDown className="w-3.5 h-3.5 text-[#B6892C] shrink-0" />
+                      <span>ابن</span>
                     </button>
                     <button
                       type="button"
@@ -4351,22 +4403,24 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                           person.id
                         )
                       }
-                      className="py-2.5 px-2.5 rounded-xl bg-[#B98A78] hover:bg-[#a37462] text-white text-xs font-display font-bold text-center cursor-pointer transition-colors shadow-2xs"
+                      className="py-2.5 px-2.5 rounded-xl bg-[#FBF5E4] hover:bg-[#C59B27]/15 text-[#7A541C] border border-[#D4AF37]/42 hover:border-[#C59B27]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
                     >
-                      + إضافة ابنة
+                      <ArrowDown className="w-3.5 h-3.5 text-[#B6892C] shrink-0" />
+                      <span>ابنة</span>
                     </button>
                   </div>
 
-                  <div className="pt-1.5 border-t border-white/10 flex items-center justify-between gap-2 text-[10px] text-white/65">
-                    <span className="leading-snug">
-                      لتوثيق والدها أو أسرتها الكريمة، عدّل حقل نسب المصاهرة
+                  <div className="pt-2 border-t border-[#D4AF37]/18 flex items-center justify-between gap-2 text-[10.5px] text-[#6E5C4F]">
+                    <span className="leading-snug truncate">
+                      لتوثيق أسرتها ونسب المصاهرة
                     </span>
                     <button
                       type="button"
                       onClick={() => openEditPersonModal(person)}
-                      className="px-2 py-1 rounded-lg bg-white/10 hover:bg-[#D4AF37] hover:text-[#252321] text-[#F3D299] font-display font-bold shrink-0 cursor-pointer transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-[#F5EFE4] hover:bg-[#EFE2CE] text-[#8D4925] border border-[#D4AF37]/30 font-display font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
                     >
-                      تعديل ✎
+                      <Edit2 className="w-3 h-3" />
+                      <span>تعديل</span>
                     </button>
                   </div>
                 </div>
@@ -4382,132 +4436,151 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 ? person.id
                 : undefined;
 
+            const showFatherBtn = canAddFullParentsAndSiblings && !hasFather;
+            const showMotherBtn = canAddFullParentsAndSiblings && !hasMother;
+            const showVerticalAncestorBtn =
+              !canAddFullParentsAndSiblings && !hasFather;
+            const hasTopTier =
+              showFatherBtn || showMotherBtn || showVerticalAncestorBtn;
+
+            const middleActionCount =
+              (quickPolicy.canAddSpouse ? 1 : 0) +
+              (canAddFullParentsAndSiblings ? 2 : 0);
+
             return (
-              <div className="mt-5 rounded-3xl bg-[#252321] text-white p-4 shadow-2xl border-2 border-[#D8755B] space-y-3 relative z-50 w-[280px] sm:w-[300px] mx-auto">
-                <div className="flex items-center justify-between border-b border-white/15 pb-2">
-                  <span className="text-xs font-display font-bold text-[#F3D299]">
+              <div
+                data-testid="node-spatial-add-popover"
+                className="mt-3.5 rounded-2xl bg-[#FDFBF7]/95 backdrop-blur-xl text-[#2C241E] p-3.5 shadow-[0_20px_50px_-14px_rgba(88,63,36,0.26)] border border-[#D4AF37]/38 space-y-2.5 relative z-50 w-[264px] sm:w-[278px] mx-auto animate-[treePopoverIn_180ms_cubic-bezier(0.16,1,0.3,1)_both]"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 border-b border-[#D4AF37]/20 pb-2">
+                  <span className="text-[12px] font-display font-extrabold text-[#8D4925] truncate">
                     إضافة قريب لـ «{person.firstName}»
                   </span>
                   <button
                     type="button"
                     onClick={() => setRadialTargetNodeId(null)}
-                    className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white cursor-pointer"
+                    aria-label="إغلاق قائمة الإضافة"
+                    className="w-6 h-6 rounded-lg bg-[#F5EFE4] hover:bg-[#ECE2D1] text-[#6E5C4F] hover:text-[#2C241E] inline-flex items-center justify-center cursor-pointer transition-colors shrink-0"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                {/* 1. TOP: Parents (<= 4th Grandfather) OR Vertical Link Only (on 5th Grandfather) */}
-                <div className="space-y-1.5">
-                  {canAddFullParentsAndSiblings ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {!hasFather ? (
-                        <button
-                          type="button"
-                          onClick={() => openAddRelativeModal(person, 'father')}
-                          className="py-2 px-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold text-center cursor-pointer shadow-2xs"
-                        >
-                          + إضافة الأب
-                        </button>
-                      ) : (
-                        <span className="py-2 px-2 rounded-xl bg-white/5 text-white/40 text-[11px] text-center">
-                          الأب مضاف ✓
-                        </span>
-                      )}
-
-                      {!hasMother ? (
-                        <button
-                          type="button"
-                          onClick={() => openAddRelativeModal(person, 'mother')}
-                          className="py-2 px-2.5 rounded-xl bg-[#B98A78] hover:bg-[#a37462] text-white text-xs font-display font-bold text-center cursor-pointer shadow-2xs"
-                        >
-                          + إضافة الأم
-                        </button>
-                      ) : (
-                        <span className="py-2 px-2 rounded-xl bg-white/5 text-white/40 text-[11px] text-center">
-                          الأم مضافة ✓
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {!hasFather ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openAddRelativeModal(person, 'vertical_ancestor')
-                          }
-                          className="w-full py-2 px-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold text-center cursor-pointer"
-                        >
-                          + حلقة عمودية نحو الجذر (
+                {/* 1. TOP TIER: Available Ancestors ONLY (Zero disabled/gray placeholders) */}
+                {hasTopTier && (
+                  <div className="space-y-1.5">
+                    {canAddFullParentsAndSiblings ? (
+                      <div
+                        className={`grid gap-2 ${
+                          showFatherBtn && showMotherBtn
+                            ? 'grid-cols-2'
+                            : 'grid-cols-1'
+                        }`}
+                      >
+                        {showFatherBtn && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openAddRelativeModal(person, 'father')
+                            }
+                            className="py-2 px-2.5 rounded-xl bg-white/90 hover:bg-[#F7EFE2] text-[#2C241E] border border-[#D4AF37]/30 hover:border-[#8D4925]/45 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                            <span>أب</span>
+                          </button>
+                        )}
+                        {showMotherBtn && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openAddRelativeModal(person, 'mother')
+                            }
+                            className="py-2 px-2.5 rounded-xl bg-white/90 hover:bg-[#F7EFE2] text-[#2C241E] border border-[#D4AF37]/30 hover:border-[#B98A78]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5 text-[#A46B53] shrink-0" />
+                            <span>أم</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openAddRelativeModal(person, 'vertical_ancestor')
+                        }
+                        className="w-full py-2 px-3 rounded-xl bg-white/90 hover:bg-[#F7EFE2] text-[#2C241E] border border-[#D4AF37]/35 hover:border-[#8D4925]/50 text-[11.5px] font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                        <span>
+                          حلقة نحو الجذر (
                           {getNextVerticalGrandfatherLabel(
                             person.generationLevel + 1
                           )}
                           )
-                        </button>
-                      ) : (
-                        <div className="py-1.5 px-2 rounded-xl bg-white/5 text-white/50 text-[11px] text-center">
-                          الحلقة العمودية الأعلى مضافة ✓
-                        </div>
-                      )}
-                      <div className="text-[10px] text-[#F3D299]/80 text-center">
-                        ما فوق الجد الخامس: عُقد ربط عمودية فقط دون تفرع أفقي
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. MIDDLE: Siblings (<= 4th Grandfather) & Spouse/Partner (strictly hidden for married females) */}
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                  {canAddFullParentsAndSiblings ? (
-                    <div className="space-y-1.5">
-                      <button
-                        type="button"
-                        onClick={() => openAddRelativeModal(person, 'brother')}
-                        className="w-full py-1.5 px-2 rounded-xl bg-white/12 hover:bg-[#D8755B] text-white text-xs font-display font-bold cursor-pointer transition-colors"
-                      >
-                        + إضافة أخ
+                        </span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => openAddRelativeModal(person, 'sister')}
-                        className="w-full py-1.5 px-2 rounded-xl bg-white/12 hover:bg-[#B98A78] text-white text-xs font-display font-bold cursor-pointer transition-colors"
-                      >
-                        + إضافة أخت
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-full h-full min-h-[54px] rounded-xl bg-white/5 border border-white/10 text-white/60 text-[10px] font-semibold flex items-center justify-center px-2 text-center">
-                      بداية التفرع العائلي من الجد الخامس نزولاً
-                    </div>
-                  )}
+                    )}
+                  </div>
+                )}
 
-                  <div>
-                    {quickPolicy.canAddSpouse ? (
+                {/* 2. MIDDLE TIER: Available Spouse & Siblings (Clean capsules, zero disabled boxes) */}
+                {middleActionCount > 0 && (
+                  <div
+                    className={`grid gap-2 ${
+                      hasTopTier ? 'pt-2 border-t border-[#D4AF37]/18' : ''
+                    } ${
+                      middleActionCount === 3
+                        ? 'grid-cols-3'
+                        : middleActionCount === 2
+                        ? 'grid-cols-2'
+                        : 'grid-cols-1'
+                    }`}
+                  >
+                    {quickPolicy.canAddSpouse && (
                       <button
                         type="button"
                         onClick={() => openAddRelativeModal(person, 'spouse')}
-                        className="w-full h-full min-h-[54px] rounded-xl bg-[#8D4925] hover:bg-[#D8755B] text-white text-xs font-display font-bold cursor-pointer transition-colors flex items-center justify-center px-2"
+                        className="py-2 px-2 rounded-xl bg-[#FDF4EF] hover:bg-[#F7E4DA] text-[#8D4925] border border-[#D8755B]/35 hover:border-[#D8755B]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
                       >
-                        <span>
-                          {person.gender === 'male'
-                            ? '+ إضافة زوجة'
-                            : '+ إضافة زوج'}
-                        </span>
+                        <Heart className="w-3.5 h-3.5 text-[#C96B4F] shrink-0" />
+                        <span>{person.gender === 'male' ? 'زوجة' : 'زوج'}</span>
                       </button>
-                    ) : (
-                      <div className="w-full h-full min-h-[54px] rounded-xl bg-white/5 border border-[#D4AF37]/30 text-[#F3D299]/85 text-[11px] font-display font-bold flex flex-col items-center justify-center px-2 text-center leading-snug">
-                        <span>مقترنة بـ {quickPolicy.linkedHusband?.firstName}</span>
-                        <span className="text-[10px] text-white/50 font-normal">
-                          الزوج مسجل ✓
-                        </span>
-                      </div>
+                    )}
+
+                    {canAddFullParentsAndSiblings && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openAddRelativeModal(person, 'brother')
+                          }
+                          className="py-2 px-2 rounded-xl bg-white/90 hover:bg-[#F7EFE2] text-[#2C241E] border border-[#D4AF37]/28 hover:border-[#8D4925]/45 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
+                        >
+                          <User className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                          <span>أخ</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openAddRelativeModal(person, 'sister')}
+                          className="py-2 px-2 rounded-xl bg-white/90 hover:bg-[#F7EFE2] text-[#2C241E] border border-[#D4AF37]/28 hover:border-[#B98A78]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
+                        >
+                          <User className="w-3.5 h-3.5 text-[#A46B53] shrink-0" />
+                          <span>أخت</span>
+                        </button>
+                      </>
                     )}
                   </div>
-                </div>
+                )}
 
-                {/* 3. BOTTOM: Son & Daughter (Allowed from 5th Grandfather downward) */}
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+                {/* 3. BOTTOM TIER: Children (Warm Golden Distinction) */}
+                <div
+                  className={`grid grid-cols-2 gap-2 ${
+                    hasTopTier || middleActionCount > 0
+                      ? 'pt-2 border-t border-[#D4AF37]/18'
+                      : ''
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() =>
@@ -4517,11 +4590,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         childPreselectedMotherId
                       )
                     }
-                    className="py-2 px-2.5 rounded-xl bg-white/15 hover:bg-[#D8755B] text-white text-xs font-display font-bold text-center cursor-pointer transition-colors"
+                    className="py-2.5 px-2.5 rounded-xl bg-[#FBF5E4] hover:bg-[#C59B27]/15 text-[#7A541C] border border-[#D4AF37]/42 hover:border-[#C59B27]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
                   >
-                    {isFifthGrandfatherBoundary
-                      ? '+ إضافة ابن / فرع'
-                      : '+ إضافة ابن'}
+                    <ArrowDown className="w-3.5 h-3.5 text-[#B6892C] shrink-0" />
+                    <span>
+                      {isFifthGrandfatherBoundary ? 'ابن / فرع' : 'ابن'}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -4532,9 +4606,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         childPreselectedMotherId
                       )
                     }
-                    className="py-2 px-2.5 rounded-xl bg-white/15 hover:bg-[#B98A78] text-white text-xs font-display font-bold text-center cursor-pointer transition-colors"
+                    className="py-2.5 px-2.5 rounded-xl bg-[#FBF5E4] hover:bg-[#C59B27]/15 text-[#7A541C] border border-[#D4AF37]/42 hover:border-[#C59B27]/65 text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5 shadow-2xs"
                   >
-                    + إضافة ابنة
+                    <ArrowDown className="w-3.5 h-3.5 text-[#B6892C] shrink-0" />
+                    <span>ابنة</span>
                   </button>
                 </div>
               </div>
@@ -5950,30 +6025,51 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             : `rounded-3xl border-2 ${activeTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
         }
       >
-        {/* Clean Non-Overlapping Studio Top Header Bar */}
+        {/* Clean Unified Single-Row Studio Top Header Bar on Desktop (>=1150px) */}
         <div
           data-testid="tree-settings-collapsible-bar"
-          className="px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20"
+          className="px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex flex-wrap min-[1150px]:flex-nowrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20"
         >
-          {/* Right Cluster: Studio Inspector Toggle + Clean Inline Metadata Summary */}
-          <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+          {/* Right Cluster: Studio Inspector Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               data-testid="toggle-tree-settings-btn"
               onClick={() => setIsTreeSettingsOpen((open) => !open)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
                 isTreeSettingsOpen
-                  ? 'bg-[#252321] text-white border-[#252321] shadow-xs'
+                  ? 'bg-gradient-to-l from-[#8D4925] to-[#A65A33] text-white border-[#8D4925] shadow-xs'
                   : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
               }`}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#D8755B]" />
+              <SlidersHorizontal
+                className={`w-3.5 h-3.5 ${
+                  isTreeSettingsOpen ? 'text-[#F6DCA2]' : 'text-[#D8755B]'
+                }`}
+              />
               <span>إعدادات شجرتي</span>
             </button>
           </div>
 
+          {/* Center Cluster (Desktop >= 1150px): Integrated Zoom, Fit, Minimap & Cinema Bar */}
+          <div className="hidden min-[1150px]:flex items-center justify-center flex-1 min-w-0">
+            <TreeFloatingStudioDock
+              variant="inline"
+              zoomPercent={zoomPercent}
+              onZoomIn={() => setZoomPercent((z) => Math.min(130, z + 10))}
+              onZoomOut={() => setZoomPercent((z) => Math.max(50, z - 10))}
+              onResetZoom={() => setZoomPercent(100)}
+              onFitAndCenter={handleFitAndCenterCanvas}
+              isCinemaMode={isCinemaMode}
+              onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+              showMinimap={showMinimap}
+              onToggleMinimap={() => setShowMinimap((v) => !v)}
+              isDarkSurface={activeTreeTheme.isDarkSurface}
+            />
+          </div>
+
           {/* Left Cluster: Smart Node Search & Spotlight + Kinship Calculator Button */}
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-end shrink-0">
             <TreeSmartNodeSearch
               people={visiblePeopleForTree}
               onSelectPerson={handleSpotlightPerson}
@@ -6000,7 +6096,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 }
                 setShowKinshipModal(true);
               }}
-              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-display font-extrabold inline-flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-display font-extrabold inline-flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 isKinshipHighlightedOnCanvas
                   ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
                   : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#B98A78]/45'
@@ -6370,7 +6466,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
             {/* Interactive Minimap Floating Corner Widget */}
             {showMinimap && (
-              <div className="absolute bottom-20 right-3 z-30">
+              <div className="absolute bottom-20 min-[1150px]:bottom-4 right-3 z-30">
                 <TreeInteractiveMinimap
                   people={visiblePeopleForTree}
                   highlightedIds={
@@ -6385,9 +6481,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </div>
             )}
 
-            {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex flex-col items-center gap-2">
-
+            {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock (Tablet/Mobile < 1150px only) */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex min-[1150px]:hidden flex-col items-center gap-2">
               <div className="pointer-events-auto">
                 <TreeFloatingStudioDock
                   zoomPercent={zoomPercent}
@@ -7005,6 +7100,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             onChangeFirstName={(val) => {
               setFormFirstName(val);
               if (formError) setFormError('');
+              if (quickAddSuccessNotice) setQuickAddSuccessNotice('');
             }}
             formKunya={formKunya}
             onChangeKunya={setFormKunya}
@@ -7073,10 +7169,30 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               setFocusSubtreeRootId(targetId);
               setModalConfig(null);
             }}
+            canSaveAndAddAnother={
+              modalConfig.mode === 'add' &&
+              Boolean(
+                modalConfig.relationKind &&
+                  [
+                    'son',
+                    'daughter',
+                    'brother',
+                    'sister',
+                    'spouse',
+                    'bridge_above_family',
+                    'horizontal_branch_above_family',
+                  ].includes(modalConfig.relationKind)
+              )
+            }
+            onSaveAndAddAnother={handleSaveAndAddAnother}
+            quickAddSuccessNotice={quickAddSuccessNotice}
             modalScrollContainerRef={modalScrollContainerRef}
             nameInputRef={nameInputRef}
             onSubmit={handleSavePersonModal}
-            onClose={() => setModalConfig(null)}
+            onClose={() => {
+              setQuickAddSuccessNotice('');
+              setModalConfig(null);
+            }}
           />
         );
       })()}

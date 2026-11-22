@@ -67,7 +67,10 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
   }, [people, query]);
 
   return (
-    <div className="relative w-full sm:w-[225px]" data-testid="tree-smart-search">
+    <div
+      className="relative w-full sm:w-[205px] xl:w-[225px]"
+      data-testid="tree-smart-search"
+    >
       <div className="relative flex items-center">
         <Search className="w-3.5 h-3.5 text-[#8D4925]/70 absolute right-2.5 pointer-events-none" />
         <input
@@ -157,6 +160,7 @@ interface TreeFloatingStudioDockProps {
   showMinimap: boolean;
   onToggleMinimap: () => void;
   isDarkSurface: boolean;
+  variant?: 'floating' | 'inline';
 }
 
 export const TreeFloatingStudioDock: React.FC<TreeFloatingStudioDockProps> = ({
@@ -170,116 +174,138 @@ export const TreeFloatingStudioDock: React.FC<TreeFloatingStudioDockProps> = ({
   showMinimap,
   onToggleMinimap,
   isDarkSurface,
-}) => (
-  <div
-    data-testid="tree-floating-studio-dock"
-    className={`inline-flex items-center gap-1 px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg transition-colors ${
-      isDarkSurface
-        ? 'bg-[#211C17]/88 border-[#D4AF37]/45 text-[#FAF3E3]'
-        : 'bg-white/90 border-[#B98A78]/45 text-[#252321]'
-    }`}
-  >
-    <button
-      type="button"
-      onClick={onZoomOut}
-      title="تصغير (-)"
-      aria-label="تصغير عرض الشجرة"
-      className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
-        isDarkSurface ? 'hover:bg-white/10' : 'hover:bg-[#FAF6F0]'
-      }`}
-    >
-      <ZoomOut className="w-3.5 h-3.5" />
-    </button>
+  variant = 'floating',
+}) => {
+  const isInline = variant === 'inline';
+  const useDarkPalette = !isInline && isDarkSurface;
 
-    <button
-      type="button"
-      onClick={onResetZoom}
-      title="إعادة التكبير إلى 100%"
-      className="px-2 py-1 rounded-lg text-[11px] font-mono font-bold tabular-nums hover:text-[#D8755B] transition-colors cursor-pointer"
-    >
-      {zoomPercent}%
-    </button>
-
-    <button
-      type="button"
-      onClick={onZoomIn}
-      title="تكبير (+)"
-      aria-label="تكبير عرض الشجرة"
-      className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
-        isDarkSurface ? 'hover:bg-white/10' : 'hover:bg-[#FAF6F0]'
-      }`}
-    >
-      <ZoomIn className="w-3.5 h-3.5" />
-    </button>
-
-    <span
-      aria-hidden="true"
-      className={`w-px h-4 mx-0.5 ${
-        isDarkSurface ? 'bg-white/15' : 'bg-[#B98A78]/35'
-      }`}
-    />
-
-    <button
-      type="button"
-      data-testid="canvas-fit-center-btn"
-      onClick={onFitAndCenter}
-      title="احتواء وتوسيط الشجرة الكاملة (Fit & Center)"
-      className={`px-2 py-1.5 rounded-xl text-[10.5px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-        isDarkSurface
-          ? 'hover:bg-white/10 text-[#F3D299]'
-          : 'hover:bg-[#FAF6F0] text-[#8D4925]'
-      }`}
-    >
-      <Scan className="w-3.5 h-3.5 shrink-0" />
-      <span className="hidden sm:inline">احتواء وتوسيط</span>
-    </button>
-
-    <button
-      type="button"
-      data-testid="canvas-minimap-toggle-btn"
-      onClick={onToggleMinimap}
-      title="إظهار / إخفاء الخريطة المصغرة (Interactive Minimap)"
-      className={`px-2 py-1.5 rounded-xl text-[10.5px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-        showMinimap
-          ? 'bg-[#D8755B] text-white'
-          : isDarkSurface
-          ? 'hover:bg-white/10 text-[#FAF3E3]'
-          : 'hover:bg-[#FAF6F0] text-[#252321]'
-      }`}
-    >
-      <MapIcon className="w-3.5 h-3.5 shrink-0" />
-      <span className="hidden md:inline">الخريطة</span>
-    </button>
-
-    <button
-      type="button"
-      data-testid="canvas-cinema-mode-btn"
-      onClick={onToggleCinemaMode}
-      title={
-        isCinemaMode
-          ? 'الخروج من وضع العرض الكامل'
-          : 'وضع العرض الكامل للمجالس (Cinema Mode)'
+  return (
+    <div
+      data-testid={
+        isInline ? 'tree-inline-studio-dock' : 'tree-floating-studio-dock'
       }
-      className={`px-2.5 py-1.5 rounded-xl text-[10.5px] font-display font-extrabold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-        isCinemaMode
-          ? 'bg-[#8D4925] text-white'
-          : 'bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white'
+      className={`inline-flex items-center gap-0.5 sm:gap-1 transition-colors ${
+        isInline
+          ? 'px-1.5 py-1 rounded-xl bg-[#FAF6F0]/95 border border-[#D4AF37]/30 text-[#252321] shadow-2xs'
+          : useDarkPalette
+          ? 'px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg bg-[#211C17]/88 border-[#D4AF37]/45 text-[#FAF3E3]'
+          : 'px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg bg-white/92 border-[#B98A78]/45 text-[#252321]'
       }`}
     >
-      {isCinemaMode ? (
-        <>
-          <Minimize2 className="w-3.5 h-3.5 shrink-0" />
-          <span>خروج من العرض</span>
-        </>
-      ) : (
-        <>
-          <Maximize2 className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">عرض المجالس</span>
-        </>
-      )}
-    </button>
-  </div>
-);
+      <button
+        type="button"
+        onClick={onZoomOut}
+        title="تصغير (-)"
+        aria-label="تصغير عرض الشجرة"
+        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+          useDarkPalette
+            ? 'hover:bg-white/10'
+            : isInline
+            ? 'hover:bg-white text-[#5A4637]'
+            : 'hover:bg-[#FAF6F0]'
+        }`}
+      >
+        <ZoomOut className="w-3.5 h-3.5" />
+      </button>
+
+      <button
+        type="button"
+        onClick={onResetZoom}
+        title="إعادة التكبير إلى 100%"
+        className="px-1.5 py-1 rounded-lg text-[11px] font-mono font-bold tabular-nums hover:text-[#D8755B] transition-colors cursor-pointer"
+      >
+        {zoomPercent}%
+      </button>
+
+      <button
+        type="button"
+        onClick={onZoomIn}
+        title="تكبير (+)"
+        aria-label="تكبير عرض الشجرة"
+        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+          useDarkPalette
+            ? 'hover:bg-white/10'
+            : isInline
+            ? 'hover:bg-white text-[#5A4637]'
+            : 'hover:bg-[#FAF6F0]'
+        }`}
+      >
+        <ZoomIn className="w-3.5 h-3.5" />
+      </button>
+
+      <span
+        aria-hidden="true"
+        className={`w-px h-4 mx-0.5 ${
+          useDarkPalette ? 'bg-white/15' : 'bg-[#C59B27]/30'
+        }`}
+      />
+
+      <button
+        type="button"
+        data-testid="canvas-fit-center-btn"
+        onClick={onFitAndCenter}
+        title="احتواء وتوسيط الشجرة الكاملة"
+        className={`px-2 py-1 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
+          useDarkPalette
+            ? 'hover:bg-white/10 text-[#F3D299]'
+            : isInline
+            ? 'hover:bg-white text-[#7A4B21]'
+            : 'hover:bg-[#FAF6F0] text-[#8D4925]'
+        }`}
+      >
+        <Scan className="w-3.5 h-3.5 shrink-0" />
+        <span className="hidden sm:inline">احتواء وتوسيط</span>
+      </button>
+
+      <button
+        type="button"
+        data-testid="canvas-minimap-toggle-btn"
+        onClick={onToggleMinimap}
+        title="إظهار / إخفاء الخريطة المصغرة"
+        className={`px-2 py-1 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
+          showMinimap
+            ? 'bg-[#C96C4E] text-white shadow-2xs'
+            : useDarkPalette
+            ? 'hover:bg-white/10 text-[#FAF3E3]'
+            : isInline
+            ? 'hover:bg-white text-[#483A2F]'
+            : 'hover:bg-[#FAF6F0] text-[#252321]'
+        }`}
+      >
+        <MapIcon className="w-3.5 h-3.5 shrink-0" />
+        <span className="hidden md:inline">الخريطة</span>
+      </button>
+
+      <button
+        type="button"
+        data-testid="canvas-cinema-mode-btn"
+        onClick={onToggleCinemaMode}
+        title={
+          isCinemaMode
+            ? 'الخروج من وضع العرض الكامل'
+            : 'وضع العرض الكامل للمجالس'
+        }
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-extrabold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
+          isCinemaMode
+            ? 'bg-[#8D4925] text-white shadow-2xs'
+            : 'bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white'
+        }`}
+      >
+        {isCinemaMode ? (
+          <>
+            <Minimize2 className="w-3.5 h-3.5 shrink-0" />
+            <span>خروج من العرض</span>
+          </>
+        ) : (
+          <>
+            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">عرض المجالس</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
 
 // ============================================================================
 // 3. INTERACTIVE MINIMAP WIDGET

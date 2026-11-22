@@ -187,5 +187,28 @@
   font-family: var(--fs-font-display);
 }
 
+/* Smooth micro-animations for Family Tree spatial popover & modal detail panels */
+@keyframes treePopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes studioPanelReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
 
