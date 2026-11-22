@@ -45,6 +45,15 @@
   }
 }
 
+/* Smooth chrome-free horizontal scroll rails (e.g. mobile navigation dock) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Strictly Scoped Family Microsite Heritage Themes (Zero Global Leakage) */
 [data-family-site-theme="golden_parchment"] {
   --fs-bg: #FBF7EE;

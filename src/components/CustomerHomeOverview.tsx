@@ -54,7 +54,10 @@ import {
   fetchCustomerKashafiItems,
   fetchCustomerKashafiOrders,
 } from '../services/kashafiService';
-import { FamilySiteThemeId } from '../config/referralAndSiteConfig';
+import {
+  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
+  FamilySiteThemeId,
+} from '../config/referralAndSiteConfig';
 import { auth } from '../services/firebase';
 import {
   KashafiRadarVisual,
@@ -979,7 +982,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                   dir="ltr"
                   className="inline-block font-mono text-[11px] text-[#252321]"
                 >
-                  {siteInfo.slug ? `Juthori.com/${siteInfo.slug}` : 'لم يُحجز بعد'}
+                  {siteInfo.slug
+                    ? `${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${siteInfo.slug}`
+                    : 'لم يُحجز بعد'}
                 </strong>
               </div>
               <div className="truncate">

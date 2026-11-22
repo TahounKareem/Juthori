@@ -39,8 +39,10 @@ import {
   LineageSearchResult,
 } from '../types/juthori';
 import {
+  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   buildDeterministicReferralCode,
   REFERRAL_REWARD_USD,
+  resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 import {
   canonicalCustomerEmailUid,
@@ -446,11 +448,13 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
   const realEventsCount = ownerMicrosite?.cmsModules?.eventsModule?.items?.length || 0;
 
-  // Clean official Majlis share URL (NEVER exposes ais-pre-...run.app)
+  const activePublicOrigin = resolveClientPublicAppBaseUrl();
+
+  // Clean active public Majlis share URL (centrally configured for staging / live switch)
   const cleanMajlisUrl = useMemo(() => {
     const base = activeSiteSlug
-      ? `https://juthori.com/${activeSiteSlug}`
-      : 'https://juthori.com';
+      ? `${activePublicOrigin}/${activeSiteSlug}`
+      : activePublicOrigin;
     const params: string[] = [];
     if (circle.majlisInviteToken) {
       params.push(`majlis=${encodeURIComponent(circle.majlisInviteToken)}`);
@@ -459,11 +463,16 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       params.push(`ref=${encodeURIComponent(referralStats.referralCode)}`);
     }
     return params.length > 0 ? `${base}?${params.join('&')}` : base;
-  }, [activeSiteSlug, circle.majlisInviteToken, referralStats.referralCode]);
+  }, [
+    activePublicOrigin,
+    activeSiteSlug,
+    circle.majlisInviteToken,
+    referralStats.referralCode,
+  ]);
 
   const cleanPortalDisplayUrl = activeSiteSlug
-    ? `https://juthori.com/${activeSiteSlug}`
-    : `https://juthori.com/?ref=${encodeURIComponent(referralStats.referralCode)}`;
+    ? `${activePublicOrigin}/${activeSiteSlug}`
+    : `${activePublicOrigin}/?ref=${encodeURIComponent(referralStats.referralCode)}`;
 
   // Filter enrichments for Pillar 2
   const filteredPendingEnrichments = useMemo(() => {
@@ -1573,7 +1582,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                           dir="ltr"
                           className="text-[11px] font-mono text-[#8D4925] truncate text-right"
                         >
-                          juthori.com/{portal.siteSlug}
+                          {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{portal.siteSlug}
                         </div>
                       </div>
                       <div className="w-9 h-9 rounded-xl bg-white border border-[#B98A78]/30 flex items-center justify-center text-[#8D4925] group-hover:bg-[#252321] group-hover:text-[#E5C17A] transition-colors shrink-0">

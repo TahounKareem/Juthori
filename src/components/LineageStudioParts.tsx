@@ -222,14 +222,8 @@ export const LineageCustomizationPanel: React.FC<
             className="text-sm font-display font-extrabold"
             style={{ color: theme.textPrimaryHex }}
           >
-            استوديو تخصيص مظهر عمود النسب
+            تخصيص مظهر عمود نسبي
           </h3>
-          <span
-            className="text-[11px] font-medium hidden sm:inline"
-            style={{ color: theme.textMutedHex }}
-          >
-            — يُحفظ تلقائياً في حسابك وينعكس على الطباعة
-          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -275,7 +269,7 @@ export const LineageCustomizationPanel: React.FC<
             <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
             <span>1. أسلوب عرض عمود النسب</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {LINEAGE_VIEW_MODE_OPTIONS.map((opt) => {
               const active = prefs.viewMode === opt.id;
               return (

@@ -158,13 +158,28 @@ export function validateRootFamilySlug(raw: string): {
 }
 
 /**
+ * Single-switch active public origin for family microsites, sharing links, QR cards,
+ * referral links, and kinship circle invitations.
+ *
+ * Temporary staging host: 'https://lemonchiffon-gorilla-255162.hostingersite.com'
+ * On Live launch, switch this single constant back to: 'https://juthori.com'
+ */
+export const ACTIVE_PUBLIC_SITE_ORIGIN =
+  'https://lemonchiffon-gorilla-255162.hostingersite.com';
+
+export const ACTIVE_PUBLIC_SITE_DISPLAY_HOST = ACTIVE_PUBLIC_SITE_ORIGIN.replace(
+  /^https?:\/\//i,
+  ''
+).replace(/\/+$/, '');
+
+/**
  * Rewrites AI Studio internal authenticated preview origins (`https://ais-dev-...run.app`)
  * to the publicly accessible shared origin (`https://ais-pre-...run.app`) so external
  * email recipients never hit Google `applet-auth-bridge` 403 Forbidden.
  */
 export function rewriteAisDevToPublicOrigin(rawOriginOrUrl: string): string {
   const trimmed = (rawOriginOrUrl || '').trim();
-  if (!trimmed) return 'https://juthori.com';
+  if (!trimmed) return ACTIVE_PUBLIC_SITE_ORIGIN;
   const rewritten = trimmed.replace(/^https?:\/\/ais-dev-/i, 'https://ais-pre-');
   try {
     return new URL(rewritten).origin;
@@ -175,7 +190,7 @@ export function rewriteAisDevToPublicOrigin(rawOriginOrUrl: string): string {
 
 /**
  * Resolves the canonical public base URL on the client for outbound emails,
- * referral share links, and QR invitation cards.
+ * microsite sharing links, referral share links, and QR invitation cards.
  */
 export function resolveClientPublicAppBaseUrl(
   customOverride?: string
@@ -193,11 +208,7 @@ export function resolveClientPublicAppBaseUrl(
     return rewriteAisDevToPublicOrigin(envUrl);
   }
 
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return rewriteAisDevToPublicOrigin(window.location.origin);
-  }
-
-  return 'https://juthori.com';
+  return ACTIVE_PUBLIC_SITE_ORIGIN;
 }
 
 export function buildPublicKinshipInviteLinks(params: {

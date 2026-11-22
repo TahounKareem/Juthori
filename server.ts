@@ -1352,7 +1352,8 @@ async function startServer() {
       return rewriteServerAisDevUrl(`${forwardedProto}://${forwardedHost}`);
     }
 
-    return 'https://Juthori.com';
+    // Single-switch staging fallback (switch to 'https://juthori.com' on Live launch)
+    return 'https://lemonchiffon-gorilla-255162.hostingersite.com';
   };
 
   const sanitizePublicActionUrl = (

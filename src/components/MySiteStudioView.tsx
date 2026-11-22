@@ -53,6 +53,8 @@ import {
   readVaultArchiveFromLocal,
 } from '../services/firestoreService';
 import {
+  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
+  ACTIVE_PUBLIC_SITE_ORIGIN,
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
   resolveClientPublicAppBaseUrl,
@@ -1334,7 +1336,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           >
             <Globe className="w-3.5 h-3.5 text-[#D8755B] shrink-0" />
             <span dir="ltr" className="truncate">
-              Juthori.com/{cleanSlugDisplay}
+              {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{cleanSlugDisplay}
             </span>
             {copiedUrl ? (
               <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -1609,7 +1611,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       className="flex-1 flex items-center rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] overflow-hidden focus-within:border-[#C5A059]"
                     >
                       <span className="px-3 py-2 text-xs font-mono font-bold text-[#8D4925] bg-[#F2EAE0] border-r border-[#E5DAC8]">
-                        Juthori.com/
+                        {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/
                       </span>
                       <input
                         type="text"
@@ -3624,7 +3626,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   dir="ltr"
                   className="flex-1 mx-2 px-3 py-1 rounded-lg bg-white/8 text-[10.5px] font-mono text-[#FAF6F0]/80 text-center truncate"
                 >
-                  https://Juthori.com/{cleanSlugDisplay}
+                  {ACTIVE_PUBLIC_SITE_ORIGIN}/{cleanSlugDisplay}
                 </div>
                 <button
                   type="button"

@@ -12,12 +12,10 @@ import {
   Loader2,
   Lock,
   Paperclip,
-  RefreshCw,
   ScrollText,
   SlidersHorizontal,
   Sparkles,
   Upload,
-  Wallet,
   X,
 } from 'lucide-react';
 import {
@@ -82,6 +80,7 @@ import {
   LineageCustomizationPanel,
   LuxuryReferenceLibrary,
 } from './LineageStudioParts';
+import { UnifiedLineageNameplate } from './UnifiedLineageNameplate';
 
 interface LineageSpineColumnProps {
   stateMode: DashboardStateMode;
@@ -297,8 +296,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onEscalateVerificationToTicket,
   unlockedAddonSourceIds = [],
   onUnlockVerifiedAddonSource,
-  onResyncLineage,
-  isResyncingLineage = false,
   userId,
   userEmail,
   onOpenVaultForPerson,
@@ -687,6 +684,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       ).length,
     [vaultItems]
   );
+  void directFamilyMediaCount;
 
   const handleToggleVaultItemForDirectFamily = (itemId: string) => {
     const nextItems = vaultItems.map((it) => {
@@ -1918,10 +1916,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     const isCompact = variant === 'medallion';
     const isPanoramic = variant === 'panoramic';
     const widthClass = isPanoramic
-      ? 'w-[272px] sm:w-[292px] shrink-0'
+      ? 'w-[254px] sm:w-[274px] shrink-0'
       : isCompact
       ? 'w-full h-full'
-      : 'max-w-[440px] w-full mx-auto';
+      : 'w-[258px] sm:w-[288px] max-w-full mx-auto';
 
     // 1. Capsule Pill (Folded Intermediate Ancestors)
     if (item.kind === 'capsule_pill') {
@@ -2086,167 +2084,53 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
     }
 
-    // 4. Direct Family Station Node (Warm Royal Gold/Amber Double-Frame — ZERO PURPLE!)
+    // 4. Direct Family Station Node (Compact Sculpted Luxury Nameplate — Warm Royal Gold Double Frame)
     if (item.kind === 'direct_family') {
       const station1Node = spineNodes[0];
       const cleanFamName = getCleanSpineNodeName(effectiveResult.familyName);
       return (
-        <div
-          data-testid="direct-family-station-card"
-          className={`${widthClass} rounded-2xl p-3.5 sm:p-4 relative z-20 text-right transition-all duration-150`}
-          style={{
-            background: theme.directFamilyBg,
-            border: `2px solid ${theme.directFamilyBorder}`,
-            boxShadow: theme.isDark
-              ? `0 0 0 1px ${theme.goldBorderHex}40, 0 8px 24px rgba(0,0,0,0.32)`
-              : `inset 0 0 0 3px ${theme.surfaceBg}, 0 6px 18px rgba(197,154,56,0.14)`,
-          }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar
-                node={station1Node}
-                eraOverride="family_branch"
-                size={isCompact ? 'sm' : 'md'}
-              />
-              <div className="min-w-0">
-                <div
-                  className="text-[11px] font-display font-bold flex items-center gap-1.5"
-                  style={{ color: theme.directFamilyAccent }}
-                >
-                  <span>العائلة المباشرة</span>
-                  <span aria-hidden="true">·</span>
-                  <span>بيت النسب</span>
-                </div>
-                <div
-                  className="text-base sm:text-lg font-extrabold truncate"
-                  style={{
-                    fontFamily: fontDef.cssFamily,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  {cleanFamName}
-                </div>
-              </div>
-            </div>
-
-            {isCompact && (
-              <span
-                className="text-[10px] font-mono font-bold tabular-nums px-2 py-0.5 rounded-md shrink-0"
-                style={{
-                  backgroundColor: theme.goldSoftBg,
-                  color: theme.accentTextHex,
-                }}
-              >
-                {String(indexInView + 1).padStart(2, '0')}
-              </span>
-            )}
-          </div>
-
-          {!isResearcherDirectPreview && (
-            <div
-              className="mt-3 pt-2.5 flex flex-wrap items-center justify-between gap-2"
-              style={{ borderTop: `1px solid ${theme.goldBorderHex}45` }}
-            >
-              <button
-                type="button"
-                data-testid="spine-direct-family-vault-btn"
-                onClick={() => {
-                  setFamilyVaultFeedback(null);
-                  setShowDirectFamilyVaultModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-display font-bold transition-colors cursor-pointer"
-                style={{
-                  backgroundColor: theme.surfaceBg,
-                  border: `1px solid ${theme.goldBorderHex}75`,
-                  color: theme.textPrimaryHex,
-                }}
-              >
-                <Paperclip
-                  className="w-3.5 h-3.5 shrink-0"
-                  style={{ color: theme.goldHex }}
-                />
-                <span>وثائق وصور هذا الفرد في خزانتي</span>
-                <span
-                  className="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold tabular-nums"
-                  style={{
-                    backgroundColor: theme.goldSoftBg,
-                    color: theme.accentTextHex,
-                  }}
-                >
-                  {directFamilyMediaCount}
-                </span>
-              </button>
-
-              {directFamilyMediaCount > 0 && onOpenVaultForPerson && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onOpenVaultForPerson(DIRECT_FAMILY_VAULT_NODE_ID)
-                  }
-                  className="text-[11px] font-display font-bold cursor-pointer hover:underline"
-                  style={{ color: theme.directFamilyAccent }}
-                >
-                  عرض في خزانتي ←
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        <UnifiedLineageNameplate
+          variant="direct_family"
+          dataTestId="direct-family-station-card"
+          tierLabel="بيت النسب المباشر"
+          title={cleanFamName}
+          badgeText="بيت النسب"
+          widthClass={widthClass}
+          fontFamily={fontDef.cssFamily}
+          palette={theme}
+          avatar={
+            <HeritageNodeAvatar
+              node={station1Node}
+              eraOverride="family_branch"
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
     // 5. Client Node («أمين السجل»)
     if (item.kind === 'client') {
       return (
-        <div
-          data-testid="record-keeper-station-card"
-          className={`${widthClass} rounded-2xl py-3.5 px-4 relative z-20 text-right transition-all duration-150`}
-          style={{
-            background: theme.keeperBg,
-            border: `2px solid ${theme.keeperBorder}`,
-            boxShadow: theme.isDark
-              ? '0 8px 24px rgba(0,0,0,0.3)'
-              : '0 4px 16px rgba(35,29,23,0.07)',
-          }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar
-                personRole="client"
-                size={isCompact ? 'sm' : 'md'}
-                customImageUrl={userAvatarUrl}
-              />
-              <div className="min-w-0">
-                <div
-                  className="text-[11px] font-display font-bold"
-                  style={{ color: theme.keeperAccent }}
-                >
-                  أمين السجل · صاحب العمود
-                </div>
-                <div
-                  className="text-base sm:text-lg font-extrabold truncate"
-                  style={{
-                    fontFamily: fontDef.cssFamily,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  {item.name}
-                </div>
-              </div>
-            </div>
-            <span
-              className="text-[11px] font-display font-bold px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap"
-              style={{
-                backgroundColor: theme.goldSoftBg,
-                color: theme.accentTextHex,
-                border: `1px solid ${theme.goldBorderHex}65`,
-              }}
-            >
-              معرف نشط
-            </span>
-          </div>
-        </div>
+        <UnifiedLineageNameplate
+          variant="record_keeper"
+          dataTestId="record-keeper-station-card"
+          tierLabel="أمين السجل"
+          title={item.name}
+          badgeText="معرف نشط"
+          widthClass={widthClass}
+          fontFamily={fontDef.cssFamily}
+          palette={theme}
+          avatar={
+            <HeritageNodeAvatar
+              personRole="client"
+              size="md"
+              customImageUrl={userAvatarUrl}
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
@@ -2254,45 +2138,22 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     if (item.kind === 'father' || item.kind === 'grandfather') {
       const isFather = item.kind === 'father';
       return (
-        <div
-          className={`${widthClass} rounded-2xl py-3 px-4 relative z-20 text-right transition-all duration-150`}
-          style={{
-            backgroundColor: theme.surfaceBg,
-            border: `1px solid ${theme.surfaceBorder}`,
-          }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar
-                personRole={isFather ? 'father' : 'grandfather'}
-                size={isCompact ? 'sm' : 'md'}
-              />
-              <div className="min-w-0">
-                <div
-                  className="text-[11px] font-display font-bold"
-                  style={{ color: theme.textMutedHex }}
-                >
-                  {isFather ? 'الأب المباشر' : 'الجد المباشر'}
-                </div>
-                <div
-                  className="text-sm sm:text-base font-bold truncate"
-                  style={{
-                    fontFamily: fontDef.cssFamily,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  {item.name}
-                </div>
-              </div>
-            </div>
-            <span
-              className="text-[11px] font-display font-semibold shrink-0"
-              style={{ color: theme.statusText }}
-            >
-              موثق ✓
-            </span>
-          </div>
-        </div>
+        <UnifiedLineageNameplate
+          variant="standard"
+          tierLabel={isFather ? 'الأب المباشر' : 'الجد المباشر'}
+          title={item.name}
+          badgeText="موثق ✓"
+          widthClass={widthClass}
+          fontFamily={fontDef.cssFamily}
+          palette={theme}
+          avatar={
+            <HeritageNodeAvatar
+              personRole={isFather ? 'father' : 'grandfather'}
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
@@ -2308,196 +2169,77 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
     if (item.isSummit) {
       return (
-        <div className={`${widthClass} relative z-20`}>
-          {showRoyalCrown && (
-            <div className="flex justify-center mb-1.5">
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-display font-bold"
-                style={{
-                  backgroundColor: theme.goldSoftBg,
-                  color: theme.accentTextHex,
-                  border: `1px solid ${theme.goldBorderHex}`,
-                }}
-              >
-                <Crown className="w-3 h-3" style={{ color: theme.goldHex }} />
-                <span>ذروة عمود النسب الموثق</span>
-              </span>
-            </div>
-          )}
-          <div
-            onClick={() => setSelectedAncestor(node)}
-            className="w-full rounded-2xl py-3.5 px-4 shadow-md text-right cursor-pointer transition-all duration-150"
-            style={{
-              background: theme.summitBg,
-              color: theme.summitText,
-              border: `2px solid ${theme.summitBorder}`,
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <HeritageNodeAvatar
-                  node={node}
-                  eraOverride="prophets_genesis"
-                  size={isCompact ? 'sm' : 'md'}
-                />
-                <div className="min-w-0">
-                  <div
-                    className="text-[11px] font-display font-bold flex items-center gap-1"
-                    style={{ color: theme.summitSubtext }}
-                  >
-                    <Sparkles className="w-3 h-3 shrink-0" />
-                    <span>قمة شجرة آدم الموثقة</span>
-                  </div>
-                  <h3
-                    className="text-base sm:text-lg font-extrabold truncate"
-                    style={{
-                      fontFamily: fontDef.cssFamily,
-                      color: theme.summitText,
-                    }}
-                  >
-                    {node.name}
-                  </h3>
-                </div>
-              </div>
-              <span
-                className="text-[10px] font-display font-bold px-2.5 py-0.5 rounded-lg shrink-0 whitespace-nowrap"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.12)',
-                  color: theme.summitSubtext,
-                }}
-              >
-                منتهى العمود
-              </span>
-            </div>
-          </div>
-        </div>
+        <UnifiedLineageNameplate
+          variant="summit"
+          tierLabel="قمة شجرة آدم الموثقة"
+          title={node.name}
+          badgeText="منتهى العمود"
+          crownLabel={showRoyalCrown ? 'ذروة عمود النسب الموثق' : undefined}
+          widthClass={widthClass}
+          fontFamily={fontDef.cssFamily}
+          isSelected={isSelected}
+          palette={theme}
+          onClick={() => setSelectedAncestor(node)}
+          avatar={
+            <HeritageNodeAvatar
+              node={node}
+              eraOverride="prophets_genesis"
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
     if (item.isRoot) {
       return (
-        <div className={`${widthClass} relative z-20`}>
-          {showRoyalCrown && (
-            <div className="flex justify-center mb-1.5">
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-display font-bold"
-                style={{
-                  backgroundColor: theme.goldSoftBg,
-                  color: theme.accentTextHex,
-                  border: `1px solid ${theme.goldBorderHex}`,
-                }}
-              >
-                <Crown className="w-3 h-3" style={{ color: theme.goldHex }} />
-                <span>تاج الجذر الأعلى الموثق</span>
-              </span>
-            </div>
-          )}
-          <div
-            onClick={() => setSelectedAncestor(node)}
-            className="w-full rounded-2xl py-3.5 px-4 shadow-xs text-right cursor-pointer transition-all duration-150"
-            style={{
-              background: theme.rootBg,
-              border: `2px solid ${
-                isSelected ? theme.accentHex : theme.rootBorder
-              }`,
-              boxShadow: isSelected
-                ? `0 0 0 3px ${theme.goldBorderHex}33`
-                : undefined,
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <HeritageNodeAvatar
-                  node={node}
-                  eraOverride="major_tribe"
-                  size={isCompact ? 'sm' : 'md'}
-                />
-                <div className="min-w-0">
-                  <div
-                    className="text-[11px] font-display font-bold"
-                    style={{ color: theme.rootAccent }}
-                  >
-                    {item.isSubRoot
-                      ? 'الجذر · الفرع الجامع'
-                      : 'الجذر · القبيلة الأم'}
-                  </div>
-                  <h3
-                    className="text-base sm:text-lg font-extrabold truncate"
-                    style={{
-                      fontFamily: fontDef.cssFamily,
-                      color: theme.textPrimaryHex,
-                    }}
-                  >
-                    {cleanTitle}
-                  </h3>
-                </div>
-              </div>
-              <span
-                className="text-[11px] font-display font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shrink-0 whitespace-nowrap"
-                style={{
-                  backgroundColor: theme.surfaceBg,
-                  color: theme.rootAccent,
-                  border: `1px solid ${theme.rootBorder}70`,
-                }}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>جذر موثق</span>
-              </span>
-            </div>
-          </div>
-        </div>
+        <UnifiedLineageNameplate
+          variant="root"
+          tierLabel={
+            item.isSubRoot ? 'الجذر · الفرع الجامع' : 'الجذر · القبيلة الأم'
+          }
+          title={cleanTitle}
+          badgeText="جذر موثق"
+          badgeIcon="check"
+          crownLabel={showRoyalCrown ? 'تاج الجذر الأعلى الموثق' : undefined}
+          widthClass={widthClass}
+          fontFamily={fontDef.cssFamily}
+          isSelected={isSelected}
+          palette={theme}
+          onClick={() => setSelectedAncestor(node)}
+          avatar={
+            <HeritageNodeAvatar
+              node={node}
+              eraOverride="major_tribe"
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
     // Standard coded station or unlocked intermediate ancestor
     return (
-      <div
+      <UnifiedLineageNameplate
+        variant={item.isIntermediate ? 'intermediate' : 'standard'}
+        tierLabel={eraBadgeText}
+        title={cleanTitle}
+        badgeText="موثق ✓"
+        widthClass={widthClass}
+        fontFamily={fontDef.cssFamily}
+        isSelected={isSelected}
+        palette={theme}
         onClick={() => setSelectedAncestor(node)}
-        className={`${widthClass} rounded-2xl py-3 px-4 text-right transition-all duration-150 cursor-pointer relative z-20`}
-        style={{
-          backgroundColor: item.isIntermediate
-            ? theme.surfaceAltBg
-            : theme.surfaceBg,
-          border: `${node.isCodedStation ? '1.5px' : '1px'} solid ${
-            isSelected ? theme.goldBorderHex : theme.surfaceBorder
-          }`,
-          boxShadow: isSelected
-            ? `0 0 0 3px ${theme.goldBorderHex}2A`
-            : undefined,
-        }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <HeritageNodeAvatar
-              node={node}
-              size={node.isCodedStation && !isCompact ? 'md' : 'sm'}
-            />
-            <div className="min-w-0">
-              <div
-                className="text-[10px] font-display font-bold truncate"
-                style={{ color: theme.textMutedHex }}
-              >
-                {eraBadgeText}
-              </div>
-              <div
-                className="text-sm sm:text-base font-extrabold truncate"
-                style={{
-                  fontFamily: fontDef.cssFamily,
-                  color: theme.textPrimaryHex,
-                }}
-              >
-                {cleanTitle}
-              </div>
-            </div>
-          </div>
-          <span
-            className="text-[11px] font-display font-bold shrink-0"
-            style={{ color: theme.statusText }}
-          >
-            موثق ✓
-          </span>
-        </div>
-      </div>
+        avatar={
+          <HeritageNodeAvatar
+            node={node}
+            size="md"
+            className="!w-full !h-full !border-0"
+          />
+        }
+      />
     );
   };
 
@@ -2601,54 +2343,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 </React.Fragment>
               ))}
             </div>
-          </div>
-        </div>
-      );
-    }
-
-    // MODE 4: COMPACT MEDALLIONS (البطاقات المدمجة الرشيقة)
-    if (viewMode === 'compact_medallions') {
-      return (
-        <div
-          data-testid="lineage-view-compact_medallions"
-          className="relative z-20 space-y-5"
-        >
-          {specialUpper && <div>{specialUpper}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 items-stretch">
-            {orderedDisplayItems.map((item, idx) => (
-              <div key={item.id} className="flex flex-col">
-                <div className="flex items-center justify-between px-1 mb-1">
-                  <span
-                    className="text-[10px] font-mono font-bold tabular-nums"
-                    style={{ color: theme.textMutedHex }}
-                  >
-                    محطة {String(idx + 1).padStart(2, '0')}
-                  </span>
-                  {idx < orderedDisplayItems.length - 1 && (
-                    <span
-                      className="text-[10px] font-display font-bold"
-                      style={{ color: theme.connectorText }}
-                    >
-                      {(() => {
-                        const nextIt = orderedDisplayItems[idx + 1];
-                        const upperIt = isBottomUp ? nextIt : item;
-                        const lowerIt = isBottomUp ? item : nextIt;
-                        const c = resolveSemanticLineageConnector({
-                          upperKind: upperIt.entityKind,
-                          lowerKind: lowerIt.entityKind,
-                          direction: studioPrefs.direction,
-                          orientation: 'horizontal',
-                        });
-                        return `${c.label} ${c.arrow}`;
-                      })()}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1">
-                  {renderUnifiedItemCard(item, idx, { variant: 'medallion' })}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       );
@@ -3020,7 +2714,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             className="relative z-20 pb-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4"
             style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
           >
-            <div className="space-y-1.5 min-w-0">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h2
                   className="text-xl sm:text-2xl font-extrabold tracking-tight"
@@ -3043,16 +2737,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   <span>{statusLabelText}</span>
                 </span>
               </div>
-              <p
-                className="text-xs font-medium"
-                style={{ color: theme.textMutedHex }}
-              >
-                السلسلة التاريخية الموثقة لعائلة {effectiveResult.familyName} —
-                استوديو العرض والتوثيق المرجعي
-              </p>
             </div>
 
-            {/* Action Toolbar (Single-line controls, proper LTR wallet) */}
+            {/* Action Toolbar */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
                 type="button"
@@ -3094,53 +2781,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 </button>
               )}
 
-              {!isResearcherDirectPreview && onResyncLineage && (
-                <button
-                  type="button"
-                  disabled={isResyncingLineage}
-                  onClick={onResyncLineage}
-                  title="تحديث ومزامنة لقطة الفحص مع محرك الأنساب وحفظها في حسابك"
-                  className="px-3 py-2 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap shrink-0"
-                  style={{
-                    backgroundColor: theme.surfaceBg,
-                    border: `1px solid ${theme.surfaceBorder}`,
-                    color: theme.textSecondaryHex,
-                  }}
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      isResyncingLineage ? 'animate-spin' : ''
-                    }`}
-                    style={{ color: theme.goldHex }}
-                  />
-                  <span>
-                    {isResyncingLineage
-                      ? 'جاري المزامنة...'
-                      : 'إعادة مزامنة الفحص'}
-                  </span>
-                </button>
-              )}
-
-              {caps.isVip && !isResearcherDirectPreview && (
-                <div
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0"
-                  style={{
-                    backgroundColor: theme.surfaceBg,
-                    border: `1px solid ${theme.surfaceBorder}`,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  <Wallet
-                    className="w-3.5 h-3.5 shrink-0"
-                    style={{ color: theme.goldHex }}
-                  />
-                  <span style={{ color: theme.textMutedHex }}>المحفظة:</span>
-                  <span dir="ltr" className="font-mono font-extrabold tabular-nums">
-                    ${effectiveWalletBalance.toFixed(2)}
-                  </span>
-                </div>
-              )}
-
               {isFullscreen && (
                 <button
                   type="button"
@@ -3173,7 +2813,51 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           />
 
           {/* ================================================================ */}
-          {/* 3. CLASSICAL ARABIC NASAB NARRATION BAR                          */}
+          {/* 3. MULTI-MODE LINEAGE VISUALIZER CANVAS (Zoomable)               */}
+          {/* ================================================================ */}
+          <div className="relative z-20 py-3 min-h-[360px] overflow-x-auto">
+            <div
+              className="transition-transform duration-200 origin-top"
+              style={{
+                transform: zoomScale === 1 ? undefined : `scale(${zoomScale})`,
+                width:
+                  zoomScale > 1 ? `${Math.round(100 / zoomScale)}%` : undefined,
+                marginInline: 'auto',
+              }}
+            >
+              {renderLineageVisualizerBody()}
+            </div>
+          </div>
+
+          {/* ================================================================ */}
+          {/* 4. FLOATING CANVAS CONTROLS (Zoom / Center / Majlis Fullscreen)  */}
+          {/* ================================================================ */}
+          <LineageCanvasFloatingControls
+            zoom={zoomScale}
+            isFullscreen={isFullscreen}
+            theme={theme}
+            onZoomIn={() =>
+              setZoomScale((z) => Math.min(1.35, Number((z + 0.1).toFixed(2))))
+            }
+            onZoomOut={() =>
+              setZoomScale((z) => Math.max(0.7, Number((z - 0.1).toFixed(2))))
+            }
+            onResetZoomCenter={() => {
+              setZoomScale(1);
+              panoramicScrollRef.current?.scrollTo({
+                left: 0,
+                behavior: 'smooth',
+              });
+              canvasTopRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+              });
+            }}
+            onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+          />
+
+          {/* ================================================================ */}
+          {/* 5. CLASSICAL ARABIC NASAB NARRATION BAR (Below Zoom Controls)    */}
           {/* ================================================================ */}
           {studioPrefs.showNasabStrip &&
             !isUnmatchedCase &&
@@ -3188,7 +2872,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             )}
 
           {/* ================================================================ */}
-          {/* 4. SLEEK INTEGRATED VERIFICATION FOLLOW-UP RIBBON (Alpha VIP)    */}
+          {/* 6. VERIFICATION FOLLOW-UP RIBBON (Below Zoom & Nasab Controls)   */}
           {/* ================================================================ */}
           {showAlphaPendingSideNote && (
             <aside
@@ -3249,50 +2933,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               )}
             </aside>
           )}
-
-          {/* ================================================================ */}
-          {/* 5. MULTI-MODE LINEAGE VISUALIZER CANVAS (Zoomable)               */}
-          {/* ================================================================ */}
-          <div className="relative z-20 py-3 min-h-[360px] overflow-x-auto">
-            <div
-              className="transition-transform duration-200 origin-top"
-              style={{
-                transform: zoomScale === 1 ? undefined : `scale(${zoomScale})`,
-                width:
-                  zoomScale > 1 ? `${Math.round(100 / zoomScale)}%` : undefined,
-                marginInline: 'auto',
-              }}
-            >
-              {renderLineageVisualizerBody()}
-            </div>
-          </div>
-
-          {/* ================================================================ */}
-          {/* 6. FLOATING CANVAS CONTROLS (Zoom / Center / Majlis Fullscreen)  */}
-          {/* ================================================================ */}
-          <LineageCanvasFloatingControls
-            zoom={zoomScale}
-            isFullscreen={isFullscreen}
-            theme={theme}
-            onZoomIn={() =>
-              setZoomScale((z) => Math.min(1.35, Number((z + 0.1).toFixed(2))))
-            }
-            onZoomOut={() =>
-              setZoomScale((z) => Math.max(0.7, Number((z - 0.1).toFixed(2))))
-            }
-            onResetZoomCenter={() => {
-              setZoomScale(1);
-              panoramicScrollRef.current?.scrollTo({
-                left: 0,
-                behavior: 'smooth',
-              });
-              canvasTopRef.current?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-              });
-            }}
-            onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
-          />
 
           {/* ================================================================ */}
           {/* 7. LUXURY REFERENCE LIBRARY (خزانة الشواهد والمصادر التاريخية)   */}

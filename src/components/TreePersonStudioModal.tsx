@@ -982,9 +982,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       { id: 'unspecified', label: 'غير محدد' },
                       {
                         id: 'living',
-                        label: isFemale
-                          ? 'على قيد الحياة — حفظها الله'
-                          : 'على قيد الحياة — حفظه الله',
+                        label: 'على قيد الحياة',
                       },
                       {
                         id: 'deceased',

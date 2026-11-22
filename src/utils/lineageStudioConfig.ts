@@ -4,8 +4,7 @@ import { UpperAncestorNode } from '../types/juthori';
 export type LineageViewMode =
   | 'royal_pillar'
   | 'heritage_scroll'
-  | 'panoramic_flow'
-  | 'compact_medallions';
+  | 'panoramic_flow';
 
 export type LineageDirection = 'top_down' | 'bottom_up';
 
@@ -408,11 +407,6 @@ export const LINEAGE_VIEW_MODE_OPTIONS: LineageViewModeOption[] = [
     id: 'panoramic_flow',
     label: 'المسار البانورامي الأفقي',
     shortDesc: 'عرض أفقي ممتد من اليمين لليسار',
-  },
-  {
-    id: 'compact_medallions',
-    label: 'البطاقات المدمجة الرشيقة',
-    shortDesc: 'نظرة شاملة للشجرة في شاشة واحدة',
   },
 ];
 
@@ -850,8 +844,7 @@ export function normalizeLineageStudioPrefs(
   const viewMode: LineageViewMode =
     raw.viewMode === 'royal_pillar' ||
     raw.viewMode === 'heritage_scroll' ||
-    raw.viewMode === 'panoramic_flow' ||
-    raw.viewMode === 'compact_medallions'
+    raw.viewMode === 'panoramic_flow'
       ? raw.viewMode
       : DEFAULT_LINEAGE_STUDIO_PREFS.viewMode;
 

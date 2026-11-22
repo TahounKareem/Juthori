@@ -19,6 +19,7 @@ import {
   computeContemporaryTreeMetrics,
 } from '../services/priority4Service';
 import { DashboardTab } from '../types/juthori';
+import { resolveClientPublicAppBaseUrl } from '../config/referralAndSiteConfig';
 
 interface CommunityKinshipEventsViewProps {
   familyName: string;
@@ -79,9 +80,10 @@ export const CommunityKinshipEventsView: React.FC<
     };
   }, [rawTreeMembers, familyName]);
 
+  const activePublicOrigin = resolveClientPublicAppBaseUrl();
   const cleanPortalUrl = activeSiteSlug
-    ? `https://juthori.com/${activeSiteSlug}`
-    : 'https://juthori.com';
+    ? `${activePublicOrigin}/${activeSiteSlug}`
+    : activePublicOrigin;
 
   const formatCountdownLabel = (isoDate: string): {
     label: string;

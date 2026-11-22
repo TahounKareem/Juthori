@@ -2,16 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   AlertCircle,
+  Archive,
   Bell,
   Camera,
   CheckCircle2,
   ChevronDown,
+  Compass,
   CreditCard,
   Crown,
   FileSignature,
+  GitCommitVertical,
+  GitFork,
   Globe,
   HelpCircle,
+  Home,
   KeyRound,
+  Landmark,
   Loader2,
   Lock,
   LogOut,
@@ -23,8 +29,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   ShoppingCart,
+  SlidersHorizontal,
   Trash2,
   User,
+  Users,
   X,
   ArrowRight,
 } from 'lucide-react';
@@ -86,6 +94,7 @@ import { LineageSpineColumn } from './LineageSpineColumn';
 import { PremiumTabViews } from './PremiumTabViews';
 import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
+import { DashboardHeaderWatermark } from './DashboardHeaderWatermark';
 import { CheckoutExecutionResult, CheckoutModal } from './CheckoutModal';
 import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
 import { ResearchTicketsView } from './ResearchTicketsView';
@@ -135,14 +144,20 @@ const DASHBOARD_TABS: Array<{
   id: DashboardTab;
   label: string;
   premium: boolean;
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 }> = [
-  { id: DashboardTab.Home, label: 'الرئيسية', premium: false },
-  { id: DashboardTab.Lineage, label: 'عمود نسبي', premium: false },
-  { id: DashboardTab.MyTree, label: 'شجرتي', premium: false },
-  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false },
-  { id: DashboardTab.MySite, label: 'موقعي', premium: false },
-  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false },
-  { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false },
+  { id: DashboardTab.Home, label: 'الرئيسية', premium: false, icon: Home },
+  {
+    id: DashboardTab.Lineage,
+    label: 'عمود نسبي',
+    premium: false,
+    icon: GitCommitVertical,
+  },
+  { id: DashboardTab.MyTree, label: 'شجرتي', premium: false, icon: GitFork },
+  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false, icon: Archive },
+  { id: DashboardTab.MySite, label: 'موقعي', premium: false, icon: Landmark },
+  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false, icon: Users },
+  { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false, icon: Compass },
 ];
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
@@ -358,9 +373,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   const activeResult = verifiedResultOverride || result;
 
-  // User Avatar Dropdown Menu State
+  // User Avatar Dropdown & Mobile Quick-Utilities Menu State
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [mobileUtilityMenuOpen, setMobileUtilityMenuOpen] = useState(false);
+  const mobileUtilityRef = useRef<HTMLDivElement | null>(null);
+  const mobileTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Modals & Exclusive Utility Pages
   const [showCharterModal, setShowCharterModal] = useState(false);
@@ -823,7 +841,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     initialOriginRegion,
   ]);
 
-  // Close User Avatar Dropdown on outside click
+  // Close User Avatar Dropdown & Mobile Utility Menu on outside click or Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -832,10 +850,38 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       ) {
         setUserDropdownOpen(false);
       }
+      if (
+        mobileUtilityRef.current &&
+        !mobileUtilityRef.current.contains(event.target as Node)
+      ) {
+        setMobileUtilityMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setUserDropdownOpen(false);
+        setMobileUtilityMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
+
+  // Keep active tab centered smoothly on mobile horizontal navigation rail
+  useEffect(() => {
+    const el = mobileTabRefs.current[activeTab];
+    if (el && typeof window !== 'undefined' && window.innerWidth < 768) {
+      el.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [activeTab]);
 
   // Mandatory Global Scroll-to-Top on any tab or utility page change
   useEffect(() => {
@@ -2229,87 +2275,155 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
+  // Separate user first name from family name cleanly for the Sculpted Profile Identity Capsule
+  const cleanClientFirstName = (result.clientName || '').trim() || 'عضو جذوري';
+  const rawClientFamilyName = (result.familyName || '').trim();
+  const cleanFamilyEmblemLabel = rawClientFamilyName
+    ? /^(أسرة|عائلة|آل)\s/.test(rawClientFamilyName)
+      ? rawClientFamilyName
+      : `أسرة ${rawClientFamilyName}`
+    : '';
+  const compactFamilyEmblemLabel = rawClientFamilyName;
+
+  const accountTierLabel = caps.hasRegistrarBadge
+    ? caps.isVip
+      ? 'أمين سجل العائلة ✦ بريميوم'
+      : 'أمين سجل العائلة ✦'
+    : caps.isVip
+    ? 'عضوية بريميوم ✦'
+    : caps.isRootUnlocked
+    ? 'الباقة الأساسية الموثقة ($5)'
+    : 'العضوية المجانية';
+
   return (
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-hidden">
-      {/* A. DASHBOARD TOP HEADER & NAVIGATION BAR */}
-      <header className="bg-white border-b border-[#B98A78]/35 lg:sticky lg:top-0 z-30">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-          {/* Top Utility Bar */}
-          <div className="py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-[#B98A78]/20">
-            {/* Right: Logo + Clean, Calm User Account Capsule with Dropdown Menu */}
-            <div className="flex items-center gap-3.5">
-              <JuthoriLogo size="sm" onClick={onBackToLanding} />
+      {/* A. LUXURY ARCHITECTURAL HEADER SHELL & BALANCED NAVIGATION DOCK */}
+      <header className="relative lg:sticky lg:top-0 z-30 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
+        {/* Subtle Architectural Islamic Arabesque & Lineage Vine SVG Watermark */}
+        <DashboardHeaderWatermark />
 
-              <div className="h-7 w-px bg-[#B98A78]/30 hidden sm:block" />
+        <div className="relative z-10 max-w-7xl mx-auto px-3.5 sm:px-6">
+          {/* ============================================================== */}
+          {/* TIER 1: BALANCED TOP IDENTITY & COHESIVE UTILITY BAR           */}
+          {/* ============================================================== */}
+          <div className="py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 border-b border-[#D4AF37]/15">
+            {/* RIGHT WING (RTL START): Brand Lockup + Bespoke Sculpted Profile Identity Capsule */}
+            <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+              {/* Brand Identity Lockup — Logo Only */}
+              <div className="flex items-center shrink-0">
+                <JuthoriLogo size="sm" onClick={onBackToLanding} />
+              </div>
 
-              {/* Clean Account Capsule + User Avatar Dropdown Menu */}
-              <div className="relative" ref={dropdownRef}>
+              {/* Delicate Vertical Gilded Hairline */}
+              <div
+                aria-hidden="true"
+                className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-[#C59B27]/40 to-transparent shrink-0"
+              />
+
+              {/* BESPOKE SCULPTED LUXURY PROFILE IDENTITY CAPSULE */}
+              <div className="relative min-w-0" ref={dropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setUserDropdownOpen((prev) => !prev)}
+                  onClick={() => {
+                    setMobileUtilityMenuOpen(false);
+                    setUserDropdownOpen((prev) => !prev);
+                  }}
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
                   aria-label="قائمة الحساب الشخصي"
-                  className={`flex items-center gap-3 rounded-2xl px-3.5 py-2 border transition-all cursor-pointer text-right ${
+                  className={`group relative overflow-hidden flex items-center gap-2.5 sm:gap-3 rounded-full pr-1.5 pl-2.5 sm:pl-3.5 py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[235px] sm:max-w-none will-change-transform ${
                     userDropdownOpen
-                      ? 'bg-[#EDE6DA] border-[#D8755B]/60 shadow-xs'
-                      : 'bg-[#F7F2E9]/70 hover:bg-[#EDE6DA]/80 border-[#B98A78]/35'
+                      ? 'bg-gradient-to-l from-[#FFFDF8] via-[#FAF3E4] to-[#F3E7D2] border-[#C59B27]/65 shadow-[0_8px_22px_-10px_rgba(140,98,57,0.34)] -translate-y-0.5'
+                      : 'bg-gradient-to-l from-[#FFFDF9]/95 via-[#FBF6EC]/90 to-[#F4ECDD]/85 border-[#D4AF37]/30 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.16)] hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-10px_rgba(140,98,57,0.28)] hover:border-[#C59B27]/55 active:scale-[0.985]'
                   }`}
                 >
-                  {/* Circular Account Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-[#252321] text-white flex items-center justify-center shrink-0 overflow-hidden border border-[#B98A78]/50 shadow-2xs">
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={`${result.clientName} ${result.familyName}`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-[#F3D299]" aria-hidden="true" />
-                    )}
-                  </div>
+                  {/* Subtle GPU-accelerated Specular Sheen Sweep on Hover */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/60 to-transparent -skew-x-12"
+                  />
 
-                  {/* Customer Name + Calm Package / Registrar Subtitle */}
-                  <div className="text-right">
-                    <div className="text-sm sm:text-base font-display font-bold text-[#252321] leading-tight">
-                      {result.clientName} {result.familyName}
+                  {/* Double Gilded Ring Portrait */}
+                  <span className="relative p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 shrink-0 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
+                    <span className="block p-[1.5px] rounded-full bg-[#FFFDF9]">
+                      <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={`${cleanClientFirstName} ${rawClientFamilyName}`}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User
+                            className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#F3D299]"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </span>
+                    </span>
+                  </span>
+
+                  {/* Separated First Name + Gilded Hairline + Independent Family Emblem + Calm Tier Line */}
+                  <div className="relative z-10 min-w-0 text-right">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <span className="text-[13px] sm:text-[14.5px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap">
+                        {cleanClientFirstName}
+                      </span>
+                      {cleanFamilyEmblemLabel && (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="w-px h-3.5 bg-gradient-to-b from-transparent via-[#C59B27]/70 to-transparent shrink-0"
+                          />
+                          <span className="hidden sm:inline-flex items-center px-2 py-[3px] rounded-full bg-gradient-to-b from-[#F5EBD7] to-[#ECE0C7] border border-[#C59B27]/35 text-[#7A4B21] text-[11px] font-display font-bold leading-none whitespace-nowrap">
+                            {cleanFamilyEmblemLabel}
+                          </span>
+                          <span className="sm:hidden inline-flex items-center px-1.5 py-[2px] rounded-full bg-[#F3E8D3] border border-[#C59B27]/35 text-[#7A4B21] text-[10px] font-display font-bold leading-none truncate max-w-[92px]">
+                            {compactFamilyEmblemLabel}
+                          </span>
+                        </>
+                      )}
                     </div>
+
                     <div
-                      className={`text-[11px] font-medium mt-0.5 ${
+                      className={`text-[10px] sm:text-[11px] font-display mt-1 leading-none truncate ${
                         caps.isVip || caps.hasRegistrarBadge
-                          ? 'text-[#D8755B] font-bold'
-                          : 'text-[#252321]/65'
+                          ? 'text-[#9A6A28] font-bold'
+                          : 'text-[#6A5746] font-medium'
                       }`}
                     >
-                      {caps.hasRegistrarBadge
-                        ? caps.isVip
-                          ? 'أمين سجل العائلة ✦ · بريميوم'
-                          : 'أمين سجل العائلة ✦'
-                        : caps.isVip
-                        ? 'عضوية بريميوم ✦'
-                        : caps.isRootUnlocked
-                        ? 'الباقة الأساسية الموثقة ($5)'
-                        : 'العضوية المجانية'}
+                      {accountTierLabel}
                     </div>
                   </div>
 
-                  {/* Small Chevron Icon ▾ */}
-                  <ChevronDown
-                    className={`w-4 h-4 text-[#252321]/60 transition-transform duration-150 ${
-                      userDropdownOpen ? 'rotate-180 text-[#D8755B]' : ''
+                  {/* Animated Sculpted Chevron */}
+                  <span
+                    className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                      userDropdownOpen
+                        ? 'bg-[#C59B27]/20 text-[#8C5327]'
+                        : 'bg-[#EDE4D3]/75 text-[#6E5643] group-hover:bg-[#E7D8BE]/90 group-hover:text-[#7A4B21]'
                     }`}
-                    aria-hidden="true"
-                  />
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-300 ease-out ${
+                        userDropdownOpen
+                          ? 'rotate-180'
+                          : 'group-hover:translate-y-0.5'
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </span>
                 </button>
 
-                {/* User Avatar Dropdown Menu */}
+                {/* User Avatar Dropdown Menu (100% Preserved Functionality + Elevated Glass Finish) */}
                 {userDropdownOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-[#B98A78]/50 shadow-2xl py-2 z-50 text-right overflow-hidden"
+                    className="absolute right-0 mt-2.5 w-80 max-w-[calc(100vw-1.75rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
                   >
                     {/* Dropdown Header: Full Name, Email, Verification & Registrar Badges */}
-                    <div className="px-4 py-3.5 bg-[#FAF6F0] border-b border-[#B98A78]/25 space-y-1.5">
+                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-display font-extrabold text-sm text-[#252321] truncate">
                           {result.clientName}
@@ -2353,7 +2467,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-display font-bold text-[#252321]">
-                            👤 الملف الشخصي
+                            الملف الشخصي
                           </div>
                           <div className="text-[11px] text-[#252321]/65 truncate">
                             تعديل البيانات، الصورة، الجوال، والدولة
@@ -2375,7 +2489,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-display font-bold text-[#252321]">
-                            ⚙️ إعدادات الحساب والأمان
+                            إعدادات الحساب والأمان
                           </div>
                           <div className="text-[11px] text-[#252321]/65 truncate">
                             توثيق البريد، كلمة المرور، الإشعارات، وحذف الحساب
@@ -2398,9 +2512,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-display font-bold text-[#252321]">
-                              💳 الاشتراكات والمحفظة
+                              الاشتراكات والمحفظة
                             </span>
-                            <span className="text-[11px] font-mono font-bold text-[#D8755B]">
+                            <span className="text-[11px] font-mono tabular-nums font-bold text-[#D8755B]">
                               ${walletBalance}
                             </span>
                           </div>
@@ -2425,7 +2539,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
                             <span className="text-xs font-display font-bold text-[#252321]">
-                              🏛️ ميثاق أمين السجل
+                              ميثاق أمين السجل
                             </span>
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/40 text-[#8D4925]">
                               {accountType === AccountLegalType.RecordKeeper
@@ -2455,7 +2569,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
                             <span className="text-xs font-display font-bold text-[#252321]">
-                              📜 مرصد البحوث ومراسلات النسب
+                              مرصد البحوث ومراسلات النسب
                             </span>
                             {hasResearcherReplyWaiting ? (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950">
@@ -2476,7 +2590,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                     {/* Logout Action at Bottom of Dropdown */}
                     {onLogout && (
-                      <div className="pt-1.5 mt-1 border-t border-[#B98A78]/25 px-2 pb-1">
+                      <div className="pt-1.5 mt-1 border-t border-[#D4AF37]/20 px-2 pb-1">
                         <button
                           type="button"
                           role="menuitem"
@@ -2491,7 +2605,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           </div>
                           <div>
                             <div className="text-xs font-display font-bold">
-                              🚪 تسجيل الخروج
+                              تسجيل الخروج
                             </div>
                             <div className="text-[11px] text-red-700/75">
                               إنهاء الجلسة والعودة للصفحة الرئيسية
@@ -2505,8 +2619,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               </div>
             </div>
 
-            {/* Left Simplified Icon-Only Utility Bar (No standalone Logout button here) */}
-            <div className="flex items-center gap-2">
+            {/* LEFT WING (RTL END): Cohesive Unified Glass Utility Dock (Desktop & Tablet) */}
+            <div className="hidden sm:flex items-center p-1 rounded-2xl bg-white/70 backdrop-blur-md border border-[#D4AF37]/25 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.12)] shrink-0">
+              {/* 1. Cart & Wallet */}
               <button
                 type="button"
                 onClick={() =>
@@ -2514,25 +2629,37 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 }
                 title="الاشتراكات والمحفظة الرقمية"
                 aria-label="الاشتراكات والمحفظة الرقمية"
-                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   activeUtilityDrawer === 'cart'
-                    ? 'bg-[#D8755B] text-white shadow-xs'
-                    : 'bg-[#F7F2E9] hover:bg-[#EDE6DA] text-[#252321]'
+                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
                 }`}
               >
                 <ShoppingCart
-                  className={`w-4 h-4 ${
-                    activeUtilityDrawer === 'cart' ? 'text-white' : 'text-[#D8755B]'
+                  className={`w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105 ${
+                    activeUtilityDrawer === 'cart' ? 'text-white' : 'text-[#B86145]'
                   }`}
                   aria-hidden="true"
                 />
                 {availableCartItems.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#252321] text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                  <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#252321] text-[#F9EEDB] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
                     {availableCartItems.length}
                   </span>
                 )}
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                >
+                  المحفظة والاشتراكات
+                </span>
               </button>
 
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+              />
+
+              {/* 2. Notifications */}
               <button
                 type="button"
                 onClick={() => {
@@ -2543,22 +2670,37 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     prev.map((n) => ({ ...n, unread: false }))
                   );
                 }}
-                title="الإشعارات"
-                aria-label="الإشعارات"
-                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                title="الإشعارات والتنبيهات"
+                aria-label="الإشعارات والتنبيهات"
+                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   activeUtilityDrawer === 'notifications'
-                    ? 'bg-[#D8755B] text-white shadow-xs'
-                    : 'bg-[#F7F2E9] hover:bg-[#EDE6DA] text-[#252321]'
+                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
                 }`}
               >
-                <Bell className="w-4 h-4" aria-hidden="true" />
+                <Bell
+                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                  aria-hidden="true"
+                />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#DC2626] text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                  <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#C8372D] text-white text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
                     {unreadCount}
                   </span>
                 )}
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                >
+                  الإشعارات
+                </span>
               </button>
 
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+              />
+
+              {/* 3. Activity Log */}
               <button
                 type="button"
                 onClick={() =>
@@ -2566,117 +2708,385 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     cur === 'activity' ? null : 'activity'
                   )
                 }
-                title="نشاط السجل"
-                aria-label="نشاط السجل"
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                title="سجل النشاط"
+                aria-label="سجل النشاط"
+                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   activeUtilityDrawer === 'activity'
-                    ? 'bg-[#D8755B] text-white shadow-xs'
-                    : 'bg-[#F7F2E9] hover:bg-[#EDE6DA] text-[#252321]'
+                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
                 }`}
               >
-                <Activity className="w-4 h-4" aria-hidden="true" />
+                <Activity
+                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                  aria-hidden="true"
+                />
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                >
+                  سجل النشاط
+                </span>
               </button>
 
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+              />
+
+              {/* 4. Help & Support */}
               <button
                 type="button"
                 onClick={() =>
                   setActiveUtilityDrawer((cur) => (cur === 'help' ? null : 'help'))
                 }
-                title="المساعدة"
-                aria-label="المساعدة"
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                title="المساعدة والإرشاد"
+                aria-label="المساعدة والإرشاد"
+                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   activeUtilityDrawer === 'help'
-                    ? 'bg-[#D8755B] text-white shadow-xs'
-                    : 'bg-[#F7F2E9] hover:bg-[#EDE6DA] text-[#252321]'
+                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
+                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
                 }`}
               >
-                <HelpCircle className="w-4 h-4" aria-hidden="true" />
+                <HelpCircle
+                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                  aria-hidden="true"
+                />
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                >
+                  المساعدة والدعم
+                </span>
               </button>
 
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+              />
+
+              {/* 5. Language Toggle */}
               <button
                 type="button"
                 onClick={() => setBilingualLabels((v) => !v)}
                 title={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
                 aria-label={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                className={`group/util relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                   bilingualLabels
-                    ? 'bg-[#252321] text-white'
-                    : 'bg-[#F7F2E9] hover:bg-[#EDE6DA] text-[#252321]'
+                    ? 'bg-[#252321] text-[#F5D896] shadow-xs'
+                    : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
                 }`}
               >
-                <Globe className="w-4 h-4" aria-hidden="true" />
+                <Globe
+                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                  aria-hidden="true"
+                />
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute top-full mt-2 left-0 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                >
+                  {bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
+                </span>
               </button>
+            </div>
+
+            {/* MOBILE COMPACT UTILITY CAPSULE (< sm: Notifications + Quick Utilities Menu) */}
+            <div
+              className="relative sm:hidden flex items-center p-1 rounded-2xl bg-white/75 backdrop-blur-md border border-[#D4AF37]/25 shadow-2xs shrink-0"
+              ref={mobileUtilityRef}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileUtilityMenuOpen(false);
+                  setActiveUtilityDrawer((cur) =>
+                    cur === 'notifications' ? null : 'notifications'
+                  );
+                  setNotifications((prev) =>
+                    prev.map((n) => ({ ...n, unread: false }))
+                  );
+                }}
+                aria-label="الإشعارات"
+                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                  activeUtilityDrawer === 'notifications'
+                    ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white'
+                    : 'text-[#5A4637] active:bg-[#C59B27]/15'
+                }`}
+              >
+                <Bell className="w-[18px] h-[18px]" aria-hidden="true" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#C8372D] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUserDropdownOpen(false);
+                  setMobileUtilityMenuOpen((prev) => !prev);
+                }}
+                aria-expanded={mobileUtilityMenuOpen}
+                aria-haspopup="menu"
+                aria-label="أدوات المنصة"
+                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                  mobileUtilityMenuOpen ||
+                  activeUtilityDrawer === 'cart' ||
+                  activeUtilityDrawer === 'activity' ||
+                  activeUtilityDrawer === 'help'
+                    ? 'bg-[#252321] text-[#F5D896]'
+                    : 'text-[#5A4637] active:bg-[#C59B27]/15'
+                }`}
+              >
+                <SlidersHorizontal className="w-[17px] h-[17px]" aria-hidden="true" />
+                {availableCartItems.length > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#B86145] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
+                    {availableCartItems.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Mobile Quick Utilities Popover */}
+              {mobileUtilityMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute left-0 top-full mt-2 w-60 rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_20px_48px_-14px_rgba(37,35,33,0.24)] p-2 z-50 space-y-1 text-right"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileUtilityMenuOpen(false);
+                      setActiveUtilityDrawer((cur) =>
+                        cur === 'cart' ? null : 'cart'
+                      );
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <ShoppingCart className="w-4 h-4 text-[#B86145]" />
+                      <span>المحفظة والاشتراكات</span>
+                    </span>
+                    {availableCartItems.length > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-[#252321] text-[#F9EEDB] text-[10px] font-mono tabular-nums">
+                        {availableCartItems.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileUtilityMenuOpen(false);
+                      setActiveUtilityDrawer((cur) =>
+                        cur === 'activity' ? null : 'activity'
+                      );
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                  >
+                    <Activity className="w-4 h-4 text-[#8C6239]" />
+                    <span>سجل النشاط</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileUtilityMenuOpen(false);
+                      setActiveUtilityDrawer((cur) =>
+                        cur === 'help' ? null : 'help'
+                      );
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                  >
+                    <HelpCircle className="w-4 h-4 text-[#8C6239]" />
+                    <span>المساعدة والدعم</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileUtilityMenuOpen(false);
+                      setActiveUtilityDrawer((cur) =>
+                        cur === 'settings' ? null : 'settings'
+                      );
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-[#8C6239]" />
+                    <span>إعدادات الحساب</span>
+                  </button>
+
+                  <div className="pt-1 border-t border-[#D4AF37]/20">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMobileUtilityMenuOpen(false);
+                        setBilingualLabels((v) => !v);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-[#8C6239]" />
+                        <span>{bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}</span>
+                      </span>
+                      <span className="text-[10px] font-mono text-[#8C6239]">
+                        {bilingualLabels ? 'AR/EN' : 'AR'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Main Dashboard Navigation Tabs (7 Tabs including كشّافي) */}
-          <nav
-            aria-label="تبويبات لوحة تحكم العميل"
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth touch-pan-x py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0"
-          >
-            {DASHBOARD_TABS.map((tab) => {
-              const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
-              const isSelected = activeUtilityDrawer === null && activeTab === tab.id;
-              const isKashafiTab = tab.id === DashboardTab.MyExplorer;
-              const kashafiDynamicCount =
-                kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
+          {/* ============================================================== */}
+          {/* TIER 2: CENTERED UNIFIED 7-TAB NAVIGATION DOCK (DESKTOP & MOB) */}
+          {/* ============================================================== */}
+          <div className="py-2 sm:py-2.5 relative flex items-center md:justify-center">
+            {/* Soft scroll fade edge cues on mobile only */}
+            <div
+              aria-hidden="true"
+              className="md:hidden pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#F8F3E9] to-transparent z-10"
+            />
+            <div
+              aria-hidden="true"
+              className="md:hidden pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-[#F8F3E9] to-transparent z-10"
+            />
 
-              let buttonClasses =
-                'relative px-4 py-2.5 rounded-xl text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] ';
+            <nav
+              aria-label="تبويبات لوحة تحكم العميل"
+              className="w-full md:w-auto flex items-center md:justify-center overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x px-1 md:px-0"
+            >
+              <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-[#EFE8DA]/78 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
+                {DASHBOARD_TABS.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
+                  const isSelected =
+                    activeUtilityDrawer === null && activeTab === tab.id;
+                  const isKashafiTab = tab.id === DashboardTab.MyExplorer;
+                  const kashafiDynamicCount =
+                    kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
 
-              if (isSelected) {
-                buttonClasses +=
-                  'bg-[#D8755B] text-white shadow-sm ring-2 ring-[#D8755B]/30';
-              } else if (isLocked) {
-                buttonClasses +=
-                  'bg-[#EDE6DA]/60 text-[#252321]/50 hover:bg-[#EDE6DA]';
-              } else if (isKashafiTab) {
-                buttonClasses +=
-                  'text-[#8D4925] bg-[#FAF4E4]/80 border border-[#C5A059]/60 hover:bg-[#FAF4E4]';
-              } else {
-                buttonClasses += 'text-[#252321] hover:bg-[#EDE6DA]';
-              }
+                  let buttonClasses =
+                    'group/tab relative px-3.5 lg:px-4 py-2 rounded-xl text-[12.5px] sm:text-[13px] font-display font-bold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] snap-center select-none ';
 
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleTabClick(tab)}
-                  title={
-                    isLocked
-                      ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
-                      : tab.label
+                  if (isSelected && isKashafiTab) {
+                    buttonClasses +=
+                      'bg-gradient-to-b from-[#2E2722] to-[#1D1916] text-[#F5D896] border border-[#D4AF37]/55 shadow-[0_6px_16px_-6px_rgba(29,25,22,0.58)]';
+                  } else if (isSelected) {
+                    buttonClasses +=
+                      'bg-gradient-to-b from-[#C96C4E] to-[#A85136] text-white shadow-[0_6px_16px_-6px_rgba(168,81,54,0.55)] ring-1 ring-[#F4D698]/35';
+                  } else if (isLocked) {
+                    buttonClasses +=
+                      'text-[#252321]/45 hover:bg-white/55 hover:text-[#252321]/70';
+                  } else if (isKashafiTab) {
+                    buttonClasses +=
+                      'bg-gradient-to-b from-[#FFFDF7] to-[#F7ECDA] text-[#7A4B1B] border border-[#C59B27]/45 hover:border-[#B3861D]/70 hover:bg-[#FFFBF0] hover:shadow-[0_2px_10px_-3px_rgba(197,155,39,0.3)]';
+                  } else {
+                    buttonClasses +=
+                      'text-[#483A2F] hover:bg-white/85 hover:text-[#7C4D2B] hover:shadow-[0_1px_5px_rgba(90,65,35,0.08)]';
                   }
-                  className={buttonClasses}
-                >
-                  <span>{tab.label}</span>
-                  {isKashafiTab && kashafiDynamicCount > 0 && (
-                    <span
-                      data-testid="kashafi-tab-unread-badge"
-                      className={`px-1.5 py-0.5 rounded-md font-mono tabular-nums text-[10px] font-extrabold leading-none ${
-                        isSelected
-                          ? 'bg-white/25 text-white'
-                          : 'bg-[#8D4925] text-[#FAF4E4]'
-                      }`}
-                    >
-                      {kashafiDynamicCount}
-                    </span>
-                  )}
-                  {isLocked && (
-                    <Lock
-                      className="w-3.5 h-3.5 text-[#DC2626]/80"
-                      aria-label="ميزة بريميوم مقفلة"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+
+                  return (
+                    <React.Fragment key={tab.id}>
+                      {/* Subtle gilded hairline separating كشّافي within the unified track */}
+                      {isKashafiTab && (
+                        <span
+                          aria-hidden="true"
+                          className="w-px h-5 bg-[#C59B27]/30 mx-0.5 shrink-0"
+                        />
+                      )}
+
+                      <button
+                        ref={(el) => {
+                          mobileTabRefs.current[tab.id] = el;
+                        }}
+                        type="button"
+                        onClick={() => handleTabClick(tab)}
+                        aria-current={isSelected ? 'page' : undefined}
+                        title={
+                          isLocked
+                            ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
+                            : tab.label
+                        }
+                        className={buttonClasses}
+                      >
+                        <TabIcon
+                          className={`w-[15px] h-[15px] shrink-0 transition-transform duration-200 ${
+                            isSelected && isKashafiTab
+                              ? 'text-[#E8C468]'
+                              : isSelected
+                              ? 'text-[#FBE5B4]'
+                              : isKashafiTab
+                              ? 'text-[#B38422] group-hover/tab:rotate-12'
+                              : 'text-[#8C6A4E]/80 group-hover/tab:text-[#8C5327]'
+                          }`}
+                          aria-hidden={true}
+                        />
+
+                        <span>{tab.label}</span>
+
+                        {isKashafiTab && (
+                          <span
+                            aria-hidden="true"
+                            className={`text-[11px] leading-none ${
+                              isSelected ? 'text-[#E8C468]' : 'text-[#C59B27]'
+                            }`}
+                          >
+                            ✦
+                          </span>
+                        )}
+
+                        {isKashafiTab && kashafiDynamicCount > 0 && (
+                          <span
+                            data-testid="kashafi-tab-unread-badge"
+                            className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none ${
+                              isSelected
+                                ? 'bg-[#D4AF37]/25 text-[#F9E3A6] border border-[#D4AF37]/40'
+                                : 'bg-[#8D4925] text-[#FAF4E4]'
+                            }`}
+                          >
+                            {kashafiDynamicCount}
+                          </span>
+                        )}
+
+                        {isLocked && (
+                          <Lock
+                            className="w-3.5 h-3.5 text-[#DC2626]/80 shrink-0"
+                            aria-label="ميزة بريميوم مقفلة"
+                          />
+                        )}
+
+                        {/* Refined Gilded Bottom Glow Indicator on Active Tab */}
+                        {isSelected && (
+                          <span
+                            aria-hidden="true"
+                            className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full ${
+                              isKashafiTab ? 'bg-[#E8C468]/90' : 'bg-[#FCE3AE]/90'
+                            }`}
+                          />
+                        )}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </nav>
+          </div>
         </div>
       </header>
 
       {/* MAIN DASHBOARD WORKSPACE */}
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {activeUtilityDrawer !== null ? (
           <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#B98A78]/25">
@@ -3987,12 +4397,25 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         )}
       </main>
 
-      {/* Quiet Editorial Footer inside Customer Dashboard */}
-      <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-8 mt-12">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#252321]/75">
-          <div className="flex items-center gap-3">
+      {/* Platform Editorial Footer matching LandingPage */}
+      <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col items-center text-center space-y-3.5">
+          <div className="mb-1">
             <JuthoriLogo size="sm" onClick={onBackToLanding} />
-            <span>جميع الحقوق محفوظة. جذوري © 2026 — juthori.com</span>
+          </div>
+          <p className="text-base font-display font-medium text-[#252321]/85 max-w-xl">
+            ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
+          </p>
+          <p className="text-sm text-[#252321]/75 max-w-xl">
+            تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
+          </p>
+          <div className="space-y-1 pt-2">
+            <p className="text-xs text-[#252321]/70">
+              منصة الأنساب والإرث العائلي العربي — juthori.com
+            </p>
+            <p className="text-xs text-[#252321]/70">
+              جميع الحقوق محفوظة. جذوري © 2026
+            </p>
           </div>
         </div>
       </footer>

@@ -56,6 +56,7 @@ import {
 } from '../services/priority4Service';
 import { processMediaFileForUpload } from '../utils/mediaPipeline';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
+import { ACTIVE_PUBLIC_SITE_DISPLAY_HOST } from '../config/referralAndSiteConfig';
 import {
   ClaimedKinshipSessionPayload,
   KinshipInviteClaimModal,
@@ -572,7 +573,7 @@ export const PublicFamilyMicrositePage: React.FC<
           <p className="text-sm text-[#252321]/70 leading-relaxed">
             المعرّف{' '}
             <span className="font-mono font-semibold">
-              Juthori.com/{siteSlug}
+              {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{siteSlug}
             </span>{' '}
             إما متاح للحجز لأمين سجل جديد أو أن مالكه أوقف نشره العام مؤقتاً.
           </p>
@@ -2296,8 +2297,8 @@ export const PublicFamilyMicrositePage: React.FC<
                     customCrestUrl={branding.customCrestUrl}
                     size={compactPreview ? 'md' : 'lg'}
                   />
-                  <div className="text-xs font-bold fs-gold-text">
-                    Juthori.com/{siteData.siteSlug}
+                  <div dir="ltr" className="text-xs font-bold fs-gold-text">
+                    {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{siteData.siteSlug}
                   </div>
                 </div>
               </div>
@@ -2491,7 +2492,7 @@ export const PublicFamilyMicrositePage: React.FC<
         <div className="border-t border-white/10 py-4 px-5 text-center text-[11px] opacity-75 flex flex-wrap items-center justify-center gap-2">
           <Scroll className="w-3.5 h-3.5 fs-gold-text" />
           <span>
-            بوابة عائلية موثّقة رقمياً عبر منصة «جذوري» للأنساب والإرث العائلي العربي · Juthori.com/{siteData.siteSlug}
+            بوابة عائلية موثّقة رقمياً عبر منصة «جذوري» للأنساب والإرث العائلي العربي · {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{siteData.siteSlug}
           </span>
         </div>
       </footer>

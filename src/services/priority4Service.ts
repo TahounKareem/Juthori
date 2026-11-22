@@ -51,6 +51,7 @@ import {
   UpperAncestorNode,
 } from '../types/juthori';
 import {
+  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
   PROTECTED_SYSTEM_PATHS,
@@ -1414,7 +1415,7 @@ export async function checkPublicSiteSlugAvailability(
       available: true,
       normalizedSlug: slug,
       ownedByCurrentUser: false,
-      reasonAr: `الرابط السيادي النظيف Juthori.com/${slug} متاح للحجز الفوري ✓`,
+      reasonAr: `الرابط السيادي النظيف ${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${slug} متاح للحجز الفوري ✓`,
     };
   }
 
@@ -1434,7 +1435,7 @@ export async function checkPublicSiteSlugAvailability(
       available: true,
       normalizedSlug: slug,
       ownedByCurrentUser: true,
-      reasonAr: `هذا الرابط (Juthori.com/${slug}) مسجل ومحفوظ باسمك كأمين سجل ✓`,
+      reasonAr: `هذا الرابط (${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${slug}) مسجل ومحفوظ باسمك كأمين سجل ✓`,
     };
   }
 
@@ -1442,7 +1443,7 @@ export async function checkPublicSiteSlugAvailability(
     available: false,
     normalizedSlug: slug,
     ownedByCurrentUser: false,
-    reasonAr: `المعرّف Juthori.com/${slug} محجوز لعائلة أخرى، يرجى اختيار معرّف مميز آخر.`,
+    reasonAr: `المعرّف ${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${slug} محجوز لعائلة أخرى، يرجى اختيار معرّف مميز آخر.`,
   };
 }
 
@@ -2090,7 +2091,7 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     code: params.isPublished ? 'PUBLISHED' : 'SAVED_DRAFT',
     normalizedSlug,
     messageAr: params.isPublished
-      ? `تم نشر وتحديث البوابة العائلية بنجاح على الرابط النظيف Juthori.com/${normalizedSlug} ✦`
+      ? `تم نشر وتحديث البوابة العائلية بنجاح على الرابط النظيف ${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${normalizedSlug} ✦`
       : 'تم حفظ إعدادات البوابة العائلية كمسودة خاصة بنجاح ✓',
     doc: docPayload,
   };

@@ -12,7 +12,11 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { REFERRAL_REWARD_USD } from '../config/referralAndSiteConfig';
+import {
+  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
+  REFERRAL_REWARD_USD,
+  resolveClientPublicAppBaseUrl,
+} from '../config/referralAndSiteConfig';
 import { ReferralDashboardStats } from '../services/priority4Service';
 
 interface CommunityAmbassadorPassProps {
@@ -31,8 +35,8 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
   const [copiedCode, setCopiedCode] = useState(false);
 
   const cleanCode = (referralStats.referralCode || 'JTH-GUEST').trim().toUpperCase();
-  // Always display and share the clean official platform domain — never preview URLs
-  const cleanOfficialReferralUrl = `https://juthori.com/?ref=${encodeURIComponent(cleanCode)}`;
+  // Always display and share the active public domain configured centrally
+  const cleanOfficialReferralUrl = `${resolveClientPublicAppBaseUrl()}/?ref=${encodeURIComponent(cleanCode)}`;
 
   const craftedArabicShareText = `أدعوك لتوثيق شجرة عائلتك واستكشاف عمود نسبك الموثق عبر منصة «جذوري» لحفظ الإرث العائلي العربي ✦\nسجّل عبر رابط الدعوة الخاص بي من أسرة ${familyName}:\n${cleanOfficialReferralUrl}`;
 
@@ -231,7 +235,7 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                 شارك رابطك الرسمي
               </div>
               <p className="text-[11px] text-[#252321]/65 leading-relaxed">
-                أرسل رابط <span dir="ltr" className="font-mono font-semibold text-[#8D4925]">juthori.com</span> أو اعرض رمز QR في مجالس الأسرة والأصدقاء.
+                أرسل رابط <span dir="ltr" className="font-mono font-semibold text-[#8D4925]">{ACTIVE_PUBLIC_SITE_DISPLAY_HOST}</span> أو اعرض رمز QR في مجالس الأسرة والأصدقاء.
               </p>
             </div>
           </div>

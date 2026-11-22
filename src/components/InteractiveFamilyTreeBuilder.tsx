@@ -55,6 +55,12 @@ import {
   getHistoricalEraBadgeLabel,
   resolveNodeHistoricalEra,
 } from './HeritageNodeAvatar';
+import { UnifiedLineageNameplate } from './UnifiedLineageNameplate';
+import {
+  LineageEntityKind,
+  classifyUpperAncestorEntityKind,
+  resolveSemanticLineageConnector,
+} from '../utils/lineageStudioConfig';
 import {
   DEFAULT_STARTER_VAULT_FOLDERS,
   DIRECT_FAMILY_VAULT_NODE_ID,
@@ -2921,12 +2927,37 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   // ============================================================================
   // NATURAL LINEAGE SPINE RENDERER ABOVE THE FAMILY TREE
-  // (Same card design and simplified "↑ بن" / "↑ من" connectors as LineageSpineColumn.tsx)
+  // (100% Unified with LineageSpineColumn.tsx — Compact Sculpted Luxury Nameplate
+  //  & Semantic Arabic Genealogical Connectors, ZERO purple/blue!)
   // ============================================================================
-  const renderSpineConnectorBadge = (
-    connectorLabel: SpineConnectorLabel = 'من (سليل غير مباشر)'
-  ) => {
-    const isDirectBin = connectorLabel === 'بن (سليل مباشر)';
+  const treeSpineNameplatePalette = useMemo(
+    () => ({
+      isDark: activeTreeTheme.isDarkSurface,
+      goldHex: activeTreeTheme.isDarkSurface ? '#D4AF37' : '#C59B43',
+      goldBorderHex: activeTreeTheme.isDarkSurface ? '#D4AF37' : '#C59B43',
+      accentHex: activeTreeTheme.primaryHex,
+    }),
+    [activeTreeTheme.isDarkSurface, activeTreeTheme.primaryHex]
+  );
+
+  const renderSemanticSpineConnectorBadge = (params: {
+    upperKind: LineageEntityKind;
+    lowerKind: LineageEntityKind;
+    hasSkippedGap?: boolean;
+    isDirectBinOverride?: boolean;
+  }) => {
+    const conn = resolveSemanticLineageConnector({
+      upperKind: params.upperKind,
+      lowerKind: params.lowerKind,
+      direction: 'top_down',
+      orientation: 'vertical',
+      hasSkippedGap: params.hasSkippedGap,
+    });
+    const isDirectBin =
+      params.isDirectBinOverride !== undefined
+        ? params.isDirectBinOverride
+        : conn.isDirectPersonLink;
+
     if (!treeDisplaySettings.showKinshipArrows) {
       return (
         <div
@@ -2935,7 +2966,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               ? 'spine-connector-solid-arrow'
               : 'spine-connector-dashed-arrow'
           }
-          title={isDirectBin ? 'نسب مباشر' : 'امتداد نسب غير مباشر'}
+          title={`${conn.arrow} ${conn.label}`}
           className="flex flex-col items-center relative z-10 my-1"
         >
           {isDirectBin ? (
@@ -2950,32 +2981,51 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       );
     }
 
-    const shortConnectorText = isDirectBin ? '↑ بن' : '↑ من';
+    const isDark = activeTreeTheme.isDarkSurface;
     return (
       <div className="flex flex-col items-center relative z-10 my-1">
-        <div className="w-0.5 h-3.5 bg-[#8D4925]/45" />
         <div
-          className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-display font-bold shadow-2xs border ${
-            isDirectBin
-              ? 'bg-[#FAF6F0] border-[#8D4925]/45 text-[#8D4925]'
-              : 'bg-[#FFF8F0] border-[#D8755B]/60 text-[#D8755B]'
+          className={`w-[1.5px] h-3 ${
+            isDark ? 'bg-[#D4AF37]/45' : 'bg-[#C59B43]/45'
+          }`}
+        />
+        <div
+          className={`inline-flex items-center justify-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-display font-bold shadow-2xs border ${
+            isDark
+              ? 'bg-[#262018] border-[#D4AF37]/45 text-[#F2D28B]'
+              : 'bg-[#FFFDF8] border-[#C59B43]/45 text-[#8A5A1E]'
           }`}
         >
-          <span>{shortConnectorText}</span>
+          <span aria-hidden="true">{conn.arrow}</span>
+          <span>{conn.label}</span>
         </div>
-        <div className="w-0.5 h-3.5 bg-[#8D4925]/45" />
+        <div
+          className={`w-[1.5px] h-3 ${
+            isDark ? 'bg-[#D4AF37]/45' : 'bg-[#C59B43]/45'
+          }`}
+        />
       </div>
     );
   };
 
-  const renderSidewaysSpineConnector = (
-    connectorLabel: SpineConnectorLabel = 'من (سليل غير مباشر)'
-  ) => {
-    const isDirectBin = connectorLabel === 'بن (سليل مباشر)';
+  const renderSidewaysSpineConnector = (params?: {
+    upperKind?: LineageEntityKind;
+    lowerKind?: LineageEntityKind;
+    hasSkippedGap?: boolean;
+  }) => {
+    const conn = resolveSemanticLineageConnector({
+      upperKind: params?.upperKind || 'family',
+      lowerKind: params?.lowerKind || 'person',
+      direction: 'top_down',
+      orientation: 'horizontal',
+      hasSkippedGap: params?.hasSkippedGap,
+    });
+    const isDirectBin = conn.isDirectPersonLink;
+
     if (!treeDisplaySettings.showKinshipArrows) {
       return (
         <div
-          title={isDirectBin ? 'نسب مباشر' : 'امتداد نسب غير مباشر'}
+          title={`${conn.label} ${conn.arrow}`}
           className="flex flex-row items-center shrink-0 mx-0.5"
         >
           {isDirectBin ? (
@@ -2990,17 +3040,19 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       );
     }
 
+    const isDark = activeTreeTheme.isDarkSurface;
     return (
       <div className="flex flex-row items-center shrink-0 mx-0.5">
         <div className={`h-[2px] w-3 ${activeTreeTheme.connectorSoft}`} />
         <span
-          className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-display font-bold border ${
-            isDirectBin
-              ? 'bg-[#FAF6F0] border-[#8D4925]/45 text-[#8D4925]'
-              : 'bg-[#FFF8F0] border-[#D8755B]/60 text-[#D8755B]'
+          className={`inline-flex items-center justify-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-display font-bold border whitespace-nowrap ${
+            isDark
+              ? 'bg-[#262018] border-[#D4AF37]/45 text-[#F2D28B]'
+              : 'bg-[#FFFDF8] border-[#C59B43]/45 text-[#8A5A1E]'
           }`}
         >
-          {isDirectBin ? '← بن' : '← من'}
+          <span>{conn.label}</span>
+          <span aria-hidden="true">{conn.arrow}</span>
         </span>
         <div className={`h-[2px] w-2 ${activeTreeTheme.connectorSoft}`} />
         {renderLeftwardArrowTip(isDirectBin)}
@@ -3015,99 +3067,132 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const directFamilyMediaCount = vaultItems.filter((vi) =>
       vi.linkedPersonIds.includes(DIRECT_FAMILY_VAULT_NODE_ID)
     ).length;
+    const isDark = activeTreeTheme.isDarkSurface;
 
     return (
       <div
-        className={`relative flex flex-col items-center pb-3 ${
+        className={`relative flex flex-col items-center pb-2 ${
           isDirectFamilyMenuOpen ? 'z-40' : 'z-10'
         }`}
       >
-        <div className="max-w-[340px] w-[248px] sm:w-[280px] mx-auto rounded-2xl bg-gradient-to-r from-purple-50/95 via-white to-purple-50/95 border-2 border-[#7C3AED]/55 py-3 px-4 shadow-xs relative text-right">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar
-                node={station1Node}
-                eraOverride="family_branch"
-                avatarStyle={treeDisplaySettings.avatarStyle}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold text-[#7C3AED]">
-                  العائلة
-                </div>
-                <div className="text-sm sm:text-base font-display font-extrabold text-[#252321] truncate">
-                  {cleanNaturalSpineName(result.familyName)}
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              data-testid="direct-family-edit-vault-btn"
-              onClick={() => {
-                if (!isRecordKeeperCharterSigned) {
-                  onSignCharterAndEnableTree();
-                  return;
-                }
-                setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID);
-              }}
-              title="إضافة وإدارة وثائق وصور العائلة في خزانتي"
-              aria-label="تعديل وثائق وصور العائلة في خزانتي"
-              className="w-7 h-7 rounded-lg bg-white hover:bg-[#7C3AED] text-[#7C3AED] hover:text-white border border-[#7C3AED]/30 flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {directFamilyMediaCount > 0 && (
-            <button
-              type="button"
-              data-testid="direct-family-vault-badge"
-              onClick={() => setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID)}
-              title="معاينة سريعة للصور والوثائق المربوطة بالعائلة في خزانتي"
-              className="absolute bottom-1.5 left-1.5 z-20 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#D97706]/55 text-[#92400E] text-[9px] font-display font-extrabold cursor-pointer transition-colors shadow-2xs"
-            >
-              <span>📎 {directFamilyMediaCount}</span>
-            </button>
-          )}
-
-          {/* Circular (+) Button matching all other tree nodes — opens ONLY 2 choices: إضافة جد / إضافة فرع */}
-          <div className="mt-2.5 flex justify-center -mb-5 relative z-20">
-            <button
-              type="button"
-              data-testid="direct-family-plus-btn"
-              onClick={() => {
-                if (!isRecordKeeperCharterSigned) {
-                  onSignCharterAndEnableTree();
-                  return;
-                }
-                setRadialTargetNodeId((cur) =>
-                  cur === DIRECT_FAMILY_VAULT_NODE_ID
-                    ? null
-                    : DIRECT_FAMILY_VAULT_NODE_ID
-                );
-              }}
-              title="إضافة جد أو فرع"
-              aria-label="إضافة جد أو فرع للعائلة"
-              className={`w-6 h-6 rounded-full flex items-center justify-center font-bold shadow-sm border-2 border-white transition-all cursor-pointer ${
+        <UnifiedLineageNameplate
+          variant="direct_family"
+          tierLabel="بيت النسب المباشر"
+          title={cleanNaturalSpineName(result.familyName)}
+          badgeText="بيت النسب"
+          widthClass="w-[258px] sm:w-[288px] max-w-full mx-auto"
+          fontFamily={activeTreeFont.cssFamily}
+          palette={treeSpineNameplatePalette}
+          avatar={
+            <HeritageNodeAvatar
+              node={station1Node}
+              eraOverride="family_branch"
+              avatarStyle={treeDisplaySettings.avatarStyle}
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+          inlineExtra={
+            directFamilyMediaCount > 0 ? (
+              <button
+                type="button"
+                data-testid="direct-family-vault-badge"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID);
+                }}
+                title="معاينة سريعة للصور والوثائق المربوطة بالعائلة في خزانتي"
+                className={`inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[9.5px] font-display font-bold shrink-0 cursor-pointer transition-colors ${
+                  isDark
+                    ? 'bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 border border-[#D4AF37]/45 text-[#F3D299]'
+                    : 'bg-[#FBF3DF] hover:bg-[#F7E8C3] border border-[#D4AF37]/55 text-[#8A5616]'
+                }`}
+              >
+                <span className="tabular-nums">📎 {directFamilyMediaCount}</span>
+              </button>
+            ) : null
+          }
+          floatingTopLeft={
+            <div
+              className={`absolute -top-2.5 left-2 z-30 flex items-center gap-0.5 px-1 py-0.5 rounded-full backdrop-blur-md border shadow-xs transition-opacity duration-200 ${
                 isDirectFamilyMenuOpen
-                  ? 'bg-[#252321] text-white scale-110 ring-3 ring-[#7C3AED]/35'
-                  : 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white hover:scale-105'
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
+              } ${
+                isDark
+                  ? 'bg-[#26201A]/95 border-[#D4AF37]/45'
+                  : 'bg-white/95 border-[#D6C3A5]/80'
               }`}
             >
-              {isDirectFamilyMenuOpen ? (
-                <X className="w-3 h-3" />
-              ) : (
-                <Plus className="w-3 h-3" />
-              )}
-            </button>
-          </div>
-        </div>
+              <button
+                type="button"
+                data-testid="direct-family-edit-vault-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isRecordKeeperCharterSigned) {
+                    onSignCharterAndEnableTree();
+                    return;
+                  }
+                  setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID);
+                }}
+                title="إضافة وإدارة وثائق وصور العائلة في خزانتي"
+                aria-label="تعديل وثائق وصور العائلة في خزانتي"
+                className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                  isDark
+                    ? 'text-[#F3D299] hover:bg-[#D4AF37]/25'
+                    : 'text-[#8A5A1E] hover:bg-[#F5ECE0]'
+                }`}
+              >
+                <Edit2 className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          }
+          bottomCenterControl={
+            <div
+              className={`absolute -bottom-[11px] left-1/2 -translate-x-1/2 z-30 transition-opacity duration-200 ${
+                isDirectFamilyMenuOpen
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
+              }`}
+            >
+              <button
+                type="button"
+                data-testid="direct-family-plus-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isRecordKeeperCharterSigned) {
+                    onSignCharterAndEnableTree();
+                    return;
+                  }
+                  setRadialTargetNodeId((cur) =>
+                    cur === DIRECT_FAMILY_VAULT_NODE_ID
+                      ? null
+                      : DIRECT_FAMILY_VAULT_NODE_ID
+                  );
+                }}
+                title="إضافة جد أو فرع"
+                aria-label="إضافة جد أو فرع للعائلة"
+                className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-white transition-all cursor-pointer ${
+                  isDirectFamilyMenuOpen
+                    ? 'bg-[#252321] text-white scale-110 ring-2 ring-[#C59B43]/45'
+                    : `${activeTreeTheme.plusBtn} hover:scale-110`
+                }`}
+              >
+                {isDirectFamilyMenuOpen ? (
+                  <X className="w-2.5 h-2.5" />
+                ) : (
+                  <Plus className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          }
+        />
 
-        {/* 2-Option Popover for Direct Family Node: إضافة جد | إضافة فرع */}
+        {/* 2-Option Popover for Direct Family Node: إضافة جد | إضافة فرع (Warm Royal Gold — ZERO Purple!) */}
         {isDirectFamilyMenuOpen && (
           <div
             data-testid="direct-family-radial-menu"
-            className="mt-4 rounded-2xl bg-[#252321] text-white p-3.5 shadow-2xl border-2 border-[#7C3AED] space-y-2.5 relative z-50 w-[240px]"
+            className="mt-4 rounded-2xl bg-[#252321] text-white p-3.5 shadow-2xl border border-[#C59B43]/70 space-y-2.5 relative z-50 w-[240px]"
           >
             <div className="flex items-center justify-between border-b border-white/15 pb-1.5">
               <span className="text-xs font-display font-bold text-[#F3D299]">
@@ -3144,7 +3229,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     0
                   )
                 }
-                className="py-2 px-2.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-display font-bold text-center cursor-pointer transition-colors"
+                className="py-2 px-2.5 rounded-xl bg-[#A97B2A] hover:bg-[#8E6520] text-[#FFFDF9] text-xs font-display font-bold text-center cursor-pointer transition-colors"
               >
                 + إضافة فرع
               </button>
@@ -3155,7 +3240,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     );
   };
 
-  const renderSingleNaturalSpineNodeCard = (node: UpperAncestorNode) => {
+  const renderSingleNaturalSpineNodeCard = (
+    node: UpperAncestorNode,
+    isTopmostCrown = false
+  ) => {
     const isSubRootNode =
       node.code === 'B2' ||
       node.code === 'B1' ||
@@ -3171,89 +3259,78 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const eraBadgeText = getHistoricalEraBadgeLabel(resolvedEra);
     const cleanTitle = cleanNaturalSpineName(node.name);
 
-    if (isRootNode) {
+    if (isAdamNode) {
       return (
-        <div
+        <UnifiedLineageNameplate
           key={node.id}
-          className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FFF8F0] to-[#FFEDD5] border-2 border-[#E67E22] py-3 px-4 shadow-xs text-right relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar
-                node={node}
-                eraOverride="major_tribe"
-                size="md"
-              />
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold text-[#E67E22]">
-                  {isSubRootNode ? 'الجذر · الفرع الجامع' : 'الجذر · القبيلة الأم'}
-                </div>
-                <h3 className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
-                  {cleanTitle}
-                </h3>
-              </div>
-            </div>
-            <span className="text-[11px] font-bold text-[#E67E22] bg-white border border-[#E67E22]/40 px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>جذر موثق</span>
-            </span>
-          </div>
-        </div>
+          variant="summit"
+          tierLabel="قمة شجرة آدم الموثقة"
+          title={node.name}
+          badgeText="منتهى العمود"
+          crownLabel={isTopmostCrown ? 'ذروة عمود النسب الموثق' : undefined}
+          widthClass="w-[258px] sm:w-[288px] max-w-full mx-auto"
+          fontFamily={activeTreeFont.cssFamily}
+          palette={treeSpineNameplatePalette}
+          avatar={
+            <HeritageNodeAvatar
+              node={node}
+              eraOverride="prophets_genesis"
+              avatarStyle={treeDisplaySettings.avatarStyle}
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
-    if (isAdamNode) {
+    if (isRootNode) {
       return (
-        <div
+        <UnifiedLineageNameplate
           key={node.id}
-          className="max-w-[420px] w-full mx-auto rounded-2xl bg-gradient-to-l from-[#252321] via-[#352F2B] to-[#252321] text-white border-2 border-[#D8755B] py-3 px-4 shadow-md text-right relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <HeritageNodeAvatar
-                node={node}
-                eraOverride="prophets_genesis"
-                size="md"
-              />
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold text-[#F5D78E]">
-                  قمة شجرة آدم الموثقة
-                </div>
-                <h3 className="text-base sm:text-lg font-display font-extrabold text-white truncate">
-                  {node.name}
-                </h3>
-              </div>
-            </div>
-            <span className="text-[11px] font-bold text-[#F7F2E9] bg-white/15 px-2.5 py-1 rounded-full shrink-0">
-              منتهى العمود
-            </span>
-          </div>
-        </div>
+          variant="root"
+          tierLabel={
+            isSubRootNode ? 'الجذر · الفرع الجامع' : 'الجذر · القبيلة الأم'
+          }
+          title={cleanTitle}
+          badgeText="جذر موثق"
+          badgeIcon="check"
+          crownLabel={isTopmostCrown ? 'تاج الجذر الأعلى الموثق' : undefined}
+          widthClass="w-[258px] sm:w-[288px] max-w-full mx-auto"
+          fontFamily={activeTreeFont.cssFamily}
+          palette={treeSpineNameplatePalette}
+          avatar={
+            <HeritageNodeAvatar
+              node={node}
+              eraOverride="major_tribe"
+              avatarStyle={treeDisplaySettings.avatarStyle}
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          }
+        />
       );
     }
 
     return (
-      <div
+      <UnifiedLineageNameplate
         key={node.id}
-        className="max-w-[420px] w-full mx-auto rounded-2xl bg-white/95 border border-[#B98A78]/55 py-3 px-4 text-right shadow-2xs"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <HeritageNodeAvatar node={node} size="md" />
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold text-[#8D4925]">
-                {eraBadgeText}
-              </div>
-              <div className="text-sm sm:text-base font-display font-extrabold text-[#252321] truncate">
-                {cleanTitle}
-              </div>
-            </div>
-          </div>
-          <span className="text-[11px] font-bold text-[#8D4925] bg-[#8D4925]/10 px-2.5 py-1 rounded-lg shrink-0">
-            موثق ✓
-          </span>
-        </div>
-      </div>
+        variant={node.isCodedStation ? 'standard' : 'intermediate'}
+        tierLabel={eraBadgeText}
+        title={cleanTitle}
+        badgeText="موثق ✓"
+        widthClass="w-[258px] sm:w-[288px] max-w-full mx-auto"
+        fontFamily={activeTreeFont.cssFamily}
+        palette={treeSpineNameplatePalette}
+        avatar={
+          <HeritageNodeAvatar
+            node={node}
+            avatarStyle={treeDisplaySettings.avatarStyle}
+            size="md"
+            className="!w-full !h-full !border-0"
+          />
+        }
+      />
     );
   };
 
@@ -3395,19 +3472,33 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     return (
       <div className="w-full flex flex-col items-center">
         {/* Top-to-Bottom Verified Read-Only Spine Nodes (Highest linked node always cleanly at the top) */}
-        <div className="w-full max-w-[420px] mx-auto flex flex-col items-center">
+        <div className="w-full max-w-[320px] mx-auto flex flex-col items-center">
           {topToBottomEntries.map((entry, idx) => {
             const nextEntryBelow = topToBottomEntries[idx + 1];
-            const connectorLabel: SpineConnectorLabel =
-              !nextEntryBelow ||
-              entry.kind === 'ringGroup' ||
-              nextEntryBelow.kind === 'ringGroup'
-                ? 'من (سليل غير مباشر)'
-                : resolveSpineConnectorLabel(
+            const upperKind: LineageEntityKind =
+              entry.kind === 'ringGroup'
+                ? 'capsule'
+                : classifyUpperAncestorEntityKind(entry.node);
+            const lowerKind: LineageEntityKind = !nextEntryBelow
+              ? 'family'
+              : nextEntryBelow.kind === 'ringGroup'
+              ? 'capsule'
+              : classifyUpperAncestorEntityKind(nextEntryBelow.node);
+            const hasSkippedGap =
+              entry.kind === 'node' &&
+              nextEntryBelow?.kind === 'node' &&
+              entry.node.orderNumber - nextEntryBelow.node.orderNumber > 1;
+            const isDirectBinOverride =
+              entry.kind === 'node' &&
+              nextEntryBelow?.kind === 'node' &&
+              upperKind === 'person' &&
+              lowerKind === 'person'
+                ? resolveSpineConnectorLabel(
                     nextEntryBelow.node,
                     entry.node,
-                    entry.node.orderNumber - nextEntryBelow.node.orderNumber > 1
-                  );
+                    hasSkippedGap
+                  ) === 'بن (سليل مباشر)'
+                : false;
 
             return (
               <React.Fragment
@@ -3416,14 +3507,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 }
               >
                 {entry.kind === 'node' ? (
-                  renderSingleNaturalSpineNodeCard(entry.node)
+                  renderSingleNaturalSpineNodeCard(entry.node, idx === 0)
                 ) : (
                   <div className="flex justify-center relative z-10 my-1">
                     <button
                       type="button"
                       onClick={() => onRequestUnlockCapsule?.(entry.ringGroup)}
                       title={`اضغط لإظهار أسماء الأجداد الفرعيين (${entry.ringGroup.betweenLabel})`}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#F7F2E9] hover:bg-[#EFE6D5] border border-[#E6DFD3] hover:border-[#D8755B] text-[#8D4925] text-xs font-display font-bold shadow-2xs transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FAF2DF] hover:bg-[#F4E6C4] border border-dashed border-[#C59B43]/75 text-[#8A5A1E] text-xs font-display font-bold shadow-2xs transition-all cursor-pointer"
                     >
                       <span>🔒</span>
                       <span>+{entry.ringGroup.ancestors.length} أجداد</span>
@@ -3432,24 +3523,34 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 )}
 
                 {idx < topToBottomEntries.length - 1 &&
-                  renderSpineConnectorBadge(connectorLabel)}
+                  renderSemanticSpineConnectorBadge({
+                    upperKind,
+                    lowerKind,
+                    hasSkippedGap,
+                    isDirectBinOverride,
+                  })}
               </React.Fragment>
             );
           })}
 
-          {/* Connector between lowest Upper Spine entry and Bridge Zone / Family Station Node */}
+          {/* Semantic Connector between lowest Upper Spine entry and Bridge Zone / Family Station Node */}
           {topToBottomEntries.length > 0 &&
-            renderSpineConnectorBadge(
-              lowestRenderedUpperEntry?.kind === 'node'
-                ? resolveSpineConnectorLabel(
-                    spineNodes[0],
-                    lowestRenderedUpperEntry.node,
-                    lowestRenderedUpperEntry.node.orderNumber -
+            renderSemanticSpineConnectorBadge({
+              upperKind:
+                lowestRenderedUpperEntry?.kind === 'node'
+                  ? classifyUpperAncestorEntityKind(
+                      lowestRenderedUpperEntry.node
+                    )
+                  : 'capsule',
+              lowerKind: 'family',
+              hasSkippedGap:
+                lowestRenderedUpperEntry?.kind === 'node' &&
+                spineNodes[0]
+                  ? lowestRenderedUpperEntry.node.orderNumber -
                       spineNodes[0].orderNumber >
-                      1
-                  )
-                : 'من (سليل غير مباشر)'
-            )}
+                    1
+                  : false,
+            })}
         </div>
 
         {/* ================================================================ */}
@@ -3471,19 +3572,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         tierNum
                       )
                     }
-                    className="px-3.5 py-2.5 rounded-2xl bg-[#FFFDF9] hover:bg-white border-2 border-dashed border-[#8D4925]/65 hover:border-[#D8755B] text-xs font-display font-extrabold text-[#8D4925] hover:text-[#D8755B] shadow-2xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    className="px-3.5 py-2.5 rounded-2xl bg-[#FFFDF9] hover:bg-white border-2 border-dashed border-[#C59B43]/65 hover:border-[#A97B2A] text-xs font-display font-extrabold text-[#8A5A1E] hover:text-[#6E4514] shadow-2xs transition-all cursor-pointer inline-flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>إضافة فرع أفقي</span>
                   </button>
                 </div>
               </div>
-              {renderSpineConnectorBadge('من (سليل غير مباشر)')}
+              {renderSemanticSpineConnectorBadge({
+                upperKind: 'person',
+                lowerKind: 'family',
+              })}
             </React.Fragment>
           );
         })}
 
-        {/* Single Clean Add Ancestor Button Directly Above `العائلة المباشرة` */}
+        {/* Single Clean Add Ancestor Button Directly Above `بيت النسب المباشر` */}
         <div
           data-testid="above-direct-family-add-bar"
           className="my-1.5 flex items-center justify-center relative z-20"
@@ -3497,32 +3601,37 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 maxUpperBridgeTier + 1
               )
             }
-            className="px-4 py-2 rounded-2xl bg-[#FFFDF9] hover:bg-white border-2 border-dashed border-[#D8755B] text-xs font-display font-extrabold text-[#252321] hover:text-[#D8755B] shadow-2xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+            className="px-4 py-2 rounded-2xl bg-[#FFFDF9] hover:bg-white border border-dashed border-[#C59B43]/80 text-xs font-display font-extrabold text-[#7A4E1A] hover:text-[#5E3A0F] shadow-2xs transition-all cursor-pointer inline-flex items-center gap-1.5"
           >
-            <Plus className="w-3.5 h-3.5 text-[#D8755B]" />
+            <Plus className="w-3.5 h-3.5 text-[#C59B43]" />
             <span>إضافة جد</span>
           </button>
         </div>
 
-        <div className="w-0.5 h-3.5 bg-[#8D4925]/45 my-0.5" />
+        <div className="w-[1.5px] h-3.5 bg-[#C59B43]/45 my-0.5" />
 
-        {/* Base of Natural Lineage Spine: Family Station Node + Optional Horizontal Sibling Branches */}
+        {/* Base of Natural Lineage Spine: Direct Family Station Node + Optional Horizontal Sibling Branches */}
         <div className="w-full flex flex-wrap items-start justify-center gap-4">
           {renderFamilyStationCard(maxUpperBridgeTier + 1)}
           {horizontalBesideFamily.map((hNode) => renderPersonCard(hNode))}
         </div>
 
-        {/* Natural Connector from Topmost Family Tree Ancestor to Family Station Node */}
-        {renderSpineConnectorBadge('من (سليل غير مباشر)')}
+        {/* Semantic Connector from Direct Family Station Node down to Topmost Contemporary Ancestor */}
+        {renderSemanticSpineConnectorBadge({
+          upperKind: 'family',
+          lowerKind: 'person',
+        })}
       </div>
     );
   };
 
   // ============================================================================
-  // RENDER PERSON CARD (Strictly Zero-Fabrication + 3-Zone Genealogical Rules)
+  // RENDER PERSON CARD (Precision Micro-Design + 3-Zone Genealogical Rules)
   // ============================================================================
   const renderPersonCard = (person: InteractiveTreePerson) => {
     const isRadialOpen = radialTargetNodeId === person.id;
+    const isCardSelected = selectedPersonIdForSpouses === person.id;
+    const showInteractiveControls = isRadialOpen || isCardSelected;
     const { mainName, kunyaOrTitle, isMaskedNow } = getCleanCardDisplay(person);
     const isVerticalOnlyLink = person.generationLevel > FIFTH_GRANDFATHER_LEVEL;
     const isFifthGrandfatherBoundary =
@@ -3531,6 +3640,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       person.generationLevel < FIFTH_GRANDFATHER_LEVEL;
     const hasFather = Boolean(person.fatherId && findPerson(person.fatherId));
     const hasMother = Boolean(person.motherId && findPerson(person.motherId));
+    const nodeQuickPolicy = resolveNodeQuickActionPolicy(people, person);
+    const isMarriedInWife = nodeQuickPolicy.isMarriedInWife;
 
     // Determine historical portrait role for HeritageNodeAvatar
     const avatarPersonRole =
@@ -3545,7 +3656,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         : 'child';
 
     // Build clean single-line date / mercy text using selected calendar system (Hijri / Gregorian / Dual)
-    const dateAndStatusParts: string[] = [];
+    const dateParts: string[] = [];
     if (person.birthDateValue?.trim()) {
       const formattedBirth = formatTreeDateByCalendarMode(
         person.birthDateValue,
@@ -3559,24 +3670,63 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             : person.birthPrecision === 'era'
             ? 'حقبة '
             : '';
-        dateAndStatusParts.push(`${precPrefix}${formattedBirth}`);
+        dateParts.push(`${precPrefix}${formattedBirth}`);
       }
     }
     const isDeceased = person.vitalStatus === 'deceased';
-    if (isDeceased && treeDisplaySettings.showDeceasedDignityFrame) {
-      dateAndStatusParts.push(
-        person.gender === 'female' ? 'رحمها الله' : 'رحمه الله'
-      );
-    }
-    const cleanMetaLine = dateAndStatusParts.join(' · ');
+    const deceasedMercyText = isDeceased
+      ? person.gender === 'female'
+        ? 'رحمها الله'
+        : 'رحمه الله'
+      : '';
+
+    const cleanDateOnly = dateParts.join(' · ');
+
     const allianceSubLine = (
       person.maidenFamilyLine ||
       person.marriageAllianceNote ||
       ''
     ).trim();
 
-    // Show ONLY 'أمين السجل' badge inside Record Keeper node — omit الأب/الجد الأول/... on all other cards for clean uniform alignment
+    const prestigeBadgeMeta = treeDisplaySettings.showPrestigeBadges
+      ? resolvePrestigeBadgeMeta(person.prestigeBadge, person.gender)
+      : null;
+
+    // Top crisp micro-line: Record Keeper and/or Prestige Badge (no noisy role labels on standard nodes)
     const topRoleLabel = person.isRecordKeeper ? 'أمين السجل' : '';
+    const topMicroLineParts = [
+      topRoleLabel,
+      prestigeBadgeMeta?.label || '',
+    ].filter(Boolean);
+    const topMicroLineText = topMicroLineParts.join(' · ');
+
+    // Secondary Line: strictly real user data enabled by settings (ZERO automatic "حفظه الله / حفظها الله" filler!)
+    const secondaryTokens: string[] = [];
+    if (treeDisplaySettings.showKunya && kunyaOrTitle) {
+      secondaryTokens.push(kunyaOrTitle);
+    }
+    if (allianceSubLine) {
+      secondaryTokens.push(allianceSubLine);
+    }
+    if (treeDisplaySettings.showDates && cleanDateOnly) {
+      secondaryTokens.push(cleanDateOnly);
+    }
+    if (
+      secondaryTokens.length < 2 &&
+      treeDisplaySettings.cardDensity === 'detailed' &&
+      person.birthPlace?.trim()
+    ) {
+      secondaryTokens.push(person.birthPlace.trim());
+    }
+    if (
+      isDeceased &&
+      deceasedMercyText &&
+      treeDisplaySettings.showDeceasedDignityFrame &&
+      !secondaryTokens.includes(deceasedMercyText)
+    ) {
+      secondaryTokens.push(deceasedMercyText);
+    }
+    const balancedSecondaryLine = secondaryTokens.slice(0, 2).join(' · ');
 
     const personMediaCount = vaultItems.filter((vi) =>
       vi.linkedPersonIds.includes(person.id)
@@ -3590,92 +3740,78 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       (treeDisplaySettings.vitalStatusFilter === 'living' && isDeceased) ||
       (treeDisplaySettings.vitalStatusFilter === 'deceased' && !isDeceased);
 
-    const deceasedDignityClass =
-      isDeceased && treeDisplaySettings.showDeceasedDignityFrame
-        ? activeTreeTheme.isDarkSurface
-          ? 'border-[#9CA3AF]/75 ring-1 ring-[#D4AF37]/30'
-          : 'border-[#64748B]/75 ring-1 ring-[#94A3B8]/35'
-        : '';
-
-    const compassGlowClass = isCompassHighlighted
-      ? 'ring-3 ring-[#D4AF37]/80 border-[#D4AF37] shadow-[0_0_22px_rgba(212,175,55,0.42)]'
-      : '';
-
     const isSpotlighted = spotlightPersonId === person.id;
     const isKinshipNodeHighlighted =
       isKinshipHighlightedOnCanvas &&
       Boolean(kinshipPathResult?.pathNodeIds.has(person.id));
 
+    // Refined semantic surface styling (1.5px antique gold hairline for featured nodes; warm pearl/rose-gold for married-in wives)
+    const isDark = activeTreeTheme.isDarkSurface;
+    const baseSemanticSurface = person.isRecordKeeper
+      ? isDark
+        ? 'bg-gradient-to-l from-[#292219] via-[#221D17] to-[#1D1914] border-[1.5px] border-[#D4AF37]/85 ring-1 ring-inset ring-[#F3D299]/25 shadow-[0_4px_16px_rgba(0,0,0,0.42)]'
+        : 'bg-gradient-to-l from-[#FFFBF2] via-[#FFFDF9] to-[#FAF3E4] border-[1.5px] border-[#C59B43]/90 ring-1 ring-inset ring-[#E9D196]/55 shadow-[0_3px_14px_rgba(165,123,44,0.14)]'
+      : isMarriedInWife
+      ? isDark
+        ? 'bg-gradient-to-l from-[#2B2223] via-[#241D1E] to-[#201A1B] border-[1.5px] border-[#C99484]/60 hover:border-[#DDA999]/80 shadow-[0_2px_10px_rgba(0,0,0,0.3)]'
+        : 'bg-gradient-to-l from-[#FDF7F5] via-[#FFFDFC] to-[#F9EFEA] border-[1.5px] border-[#D4ACA0]/70 hover:border-[#B98574] shadow-[0_2px_10px_rgba(166,110,92,0.08)]'
+      : isVerticalOnlyLink
+      ? activeTreeTheme.verticalCard
+      : isCompassHighlighted
+      ? isDark
+        ? 'bg-[#231F1A] border-[1.5px] border-[#D4AF37]/75 ring-1 ring-inset ring-[#F3D299]/20 shadow-[0_3px_14px_rgba(0,0,0,0.38)]'
+        : 'bg-gradient-to-l from-[#FFFDF8] via-[#FFFFFF] to-[#FCF7EC] border-[1.5px] border-[#C69E4B]/80 ring-1 ring-inset ring-[#EBD5A0]/45 shadow-[0_2px_12px_rgba(181,138,52,0.12)]'
+      : person.gender === 'female'
+      ? activeTreeTheme.femaleCard.replace('border-2', 'border-[1.5px]')
+      : person.generationLevel >= 4
+      ? activeTreeTheme.elderCard.replace('border-2', 'border-[1.5px]')
+      : activeTreeTheme.defaultCard.replace('border-2', 'border-[1.5px]');
+
+    const deceasedDignityClass =
+      isDeceased && treeDisplaySettings.showDeceasedDignityFrame
+        ? isDark
+          ? 'ring-1 ring-[#9CA3AF]/45'
+          : 'ring-1 ring-[#94A3B8]/40'
+        : '';
+
     const spotlightGlowClass = isSpotlighted
-      ? 'ring-4 ring-[#D4AF37] border-[#D4AF37] shadow-[0_0_28px_rgba(212,175,55,0.7)] scale-[1.03]'
+      ? 'ring-2 ring-[#C59B43] border-[#C59B43] shadow-[0_0_22px_rgba(197,155,67,0.45)] scale-[1.02]'
       : '';
 
     const kinshipPathGlowClass = isKinshipNodeHighlighted
-      ? 'ring-3 ring-[#C5A059] border-[#C5A059] shadow-[0_0_24px_rgba(197,160,89,0.58)]'
+      ? 'ring-2 ring-[#C5A059]/80 border-[#C5A059] shadow-[0_0_18px_rgba(197,160,89,0.38)]'
       : '';
 
-    const prestigeBadgeMeta = treeDisplaySettings.showPrestigeBadges
-      ? resolvePrestigeBadgeMeta(person.prestigeBadge, person.gender)
-      : null;
-
-    const cardSurfaceClass = `${
-      person.isRecordKeeper
-        ? activeTreeTheme.recordKeeperCard
-        : isVerticalOnlyLink
-        ? activeTreeTheme.verticalCard
-        : person.gender === 'female'
-        ? activeTreeTheme.femaleCard
-        : person.generationLevel >= 4
-        ? activeTreeTheme.elderCard
-        : activeTreeTheme.defaultCard
-    } ${deceasedDignityClass} ${compassGlowClass} ${kinshipPathGlowClass} ${spotlightGlowClass} ${
+    const cardSurfaceClass = `${baseSemanticSurface} ${deceasedDignityClass} ${kinshipPathGlowClass} ${spotlightGlowClass} ${
       isVitalDimmed ? 'opacity-35 saturate-50' : ''
     }`;
 
+    // Golden Horizontal Proportions (Slim ~70–76px card hugging portrait + text without dead space)
     const cardDensityClasses =
       treeDisplaySettings.cardDensity === 'compact'
-        ? 'w-[138px] sm:w-[148px] min-h-[70px] p-1.5 rounded-lg'
+        ? 'min-w-[144px] max-w-[186px] min-h-[58px] px-2.5 py-2 rounded-xl'
         : treeDisplaySettings.cardDensity === 'detailed'
-        ? 'w-[186px] sm:w-[202px] min-h-[104px] p-3 rounded-2xl'
-        : 'w-[156px] sm:w-[168px] min-h-[84px] p-2.5 rounded-xl';
+        ? 'min-w-[172px] max-w-[220px] min-h-[72px] px-3.5 py-2.5 rounded-2xl'
+        : 'min-w-[168px] max-w-[214px] min-h-[70px] px-3.5 py-2.5 rounded-2xl';
 
-    const avatarSizeForDensity =
-      treeDisplaySettings.cardDensity === 'compact'
-        ? 'xs'
-        : treeDisplaySettings.cardDensity === 'detailed'
-        ? 'md'
-        : 'sm';
+    const avatarFrameHex = isMarriedInWife
+      ? '#C89584'
+      : person.isRecordKeeper || isCompassHighlighted
+      ? '#C59B43'
+      : activeTreeTheme.primaryHex;
 
-    const renderVaultCornerBadge = (positionClass = 'bottom-1.5 left-1.5') =>
-      personMediaCount > 0 ? (
+    // Pure Circular Avatar (46px standard/detailed, 38px compact) with hover-only translucent veil (ZERO permanent black camera dot!)
+    const renderPureAvatarWithHoverVeil = (sizeOverride?: 'xs' | 'sm' | 'md') => {
+      const boxSizeClass =
+        sizeOverride === 'xs' || treeDisplaySettings.cardDensity === 'compact'
+          ? 'w-[38px] h-[38px]'
+          : 'w-[46px] h-[46px]';
+
+      return (
         <button
           type="button"
-          data-testid={`tree-card-vault-badge-${person.id}`}
-          onClick={() => setQuickVaultPreviewPersonId(person.id)}
-          title="معاينة سريعة للصور والوثائق المربوطة بهذا الفرد في خزانتي"
-          className={`absolute ${positionClass} z-20 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#D97706]/55 text-[#92400E] text-[9px] font-display font-extrabold cursor-pointer transition-colors shadow-2xs`}
-        >
-          <span>📎 {personMediaCount}</span>
-        </button>
-      ) : null;
-
-    const renderAvatarWithCamera = () => (
-      <div className="relative shrink-0">
-        <HeritageNodeAvatar
-          personRole={avatarPersonRole}
-          gender={person.gender}
-          avatarStyle={treeDisplaySettings.avatarStyle}
-          customImageUrl={person.photoThumbnailUrl || person.photoUrl}
-          preferRealPhoto={treeDisplaySettings.preferRealPhotos}
-          displayName={mainName}
-          frameAccentHex={activeTreeTheme.primaryHex}
-          isPrivacyMasked={isMaskedNow}
-          size={avatarSizeForDensity}
-        />
-
-        <button
-          type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             if (!isRecordKeeperCharterSigned) {
               onSignCharterAndEnableTree();
               return;
@@ -3684,15 +3820,51 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             setCustomPhotoUrlInput(person.photoUrl || '');
           }}
           title="تغيير الصورة الشخصية"
-          className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#252321] hover:bg-[#D8755B] text-white border border-white flex items-center justify-center shadow-2xs transition-colors cursor-pointer"
+          aria-label={`تغيير الصورة الشخصية لـ ${person.firstName}`}
+          className={`group/avatar relative ${boxSizeClass} rounded-full shrink-0 overflow-hidden flex items-center justify-center cursor-pointer transition-transform duration-150 focus:outline-none`}
+          style={{
+            boxShadow: `0 0 0 1.5px ${avatarFrameHex}99`,
+          }}
         >
-          <Camera className="w-2.5 h-2.5" />
+          <HeritageNodeAvatar
+            personRole={avatarPersonRole}
+            gender={person.gender}
+            avatarStyle={treeDisplaySettings.avatarStyle}
+            customImageUrl={person.photoThumbnailUrl || person.photoUrl}
+            preferRealPhoto={treeDisplaySettings.preferRealPhotos}
+            displayName={mainName}
+            frameAccentHex={avatarFrameHex}
+            isPrivacyMasked={isMaskedNow}
+            size="md"
+            className="!w-full !h-full !border-0"
+          />
+          {/* Subtle Hover-Only Veil for Photo Change */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full bg-[#1C1713]/55 backdrop-blur-[1px] opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 flex items-center justify-center"
+          >
+            <Camera className="w-3.5 h-3.5 text-white drop-shadow-xs" />
+          </span>
         </button>
-      </div>
-    );
+      );
+    };
 
-    const renderEditDeleteIcons = () => (
-      <div className="flex items-center gap-1 shrink-0">
+    // Floating Hover/Select-Only Edit & Delete Capsule
+    const renderFloatingEditDeleteCapsule = (
+      positionClass = 'absolute -top-2.5 left-2 z-30'
+    ) => (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`${positionClass} flex items-center gap-0.5 px-1 py-0.5 rounded-full backdrop-blur-md border shadow-xs transition-opacity duration-200 ${
+          showInteractiveControls
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
+        } ${
+          isDark
+            ? 'bg-[#26201A]/95 border-[#D4AF37]/45'
+            : 'bg-white/95 border-[#D6C3A5]/80'
+        }`}
+      >
         <button
           type="button"
           onClick={() => openEditPersonModal(person)}
@@ -3701,7 +3873,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               ? 'تعديل بيانات الفرد'
               : 'يلزم التوقيع على ميثاق أمين السجل لتعديل السجلات'
           }
-          className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors cursor-pointer ${activeTreeTheme.actionBtn}`}
+          aria-label={`تعديل ${person.firstName}`}
+          className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+            isDark
+              ? 'text-[#F3D299] hover:bg-[#D4AF37]/25'
+              : 'text-[#6F584B] hover:bg-[#F5ECE0] hover:text-[#8D4925]'
+          }`}
         >
           <Edit2 className="w-2.5 h-2.5" />
         </button>
@@ -3711,7 +3888,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             data-testid={`delete-tree-node-btn-${person.id}`}
             onClick={() => handleDeleteNode(person)}
             title="حذف العقدة"
-            className="w-5 h-5 rounded-md bg-black/5 hover:bg-red-700 text-[#252321]/60 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            aria-label={`حذف ${person.firstName}`}
+            className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              isDark
+                ? 'text-[#D6C4A1]/80 hover:bg-red-900/60 hover:text-red-200'
+                : 'text-[#6F584B]/80 hover:bg-red-50 hover:text-red-700'
+            }`}
           >
             <Trash2 className="w-2.5 h-2.5" />
           </button>
@@ -3719,12 +3901,43 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       </div>
     );
 
-    const renderPlusNodeButton = (wrapperClass = 'mt-2 flex justify-center -mb-5 relative z-20') =>
+    // Inline Gilded Miniature Vault Attachment Badge (Zero extra card height!)
+    const renderInlineVaultBadge = () =>
+      personMediaCount > 0 ? (
+        <button
+          type="button"
+          data-testid={`tree-card-vault-badge-${person.id}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setQuickVaultPreviewPersonId(person.id);
+          }}
+          title="معاينة سريعة للصور والوثائق المربوطة بهذا الفرد في خزانتي"
+          className={`inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[9.5px] font-display font-bold shrink-0 cursor-pointer transition-colors ${
+            isDark
+              ? 'bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 border border-[#D4AF37]/45 text-[#F3D299]'
+              : 'bg-[#FBF3DF] hover:bg-[#F7E8C3] border border-[#D4AF37]/55 text-[#8A5616]'
+          }`}
+        >
+          <span className="tabular-nums">📎 {personMediaCount}</span>
+        </button>
+      ) : null;
+
+    // Sleek 22px Hover/Select Quick-Add (+) Button (never crowds collapse pill beneath)
+    const renderPlusNodeButton = (
+      wrapperClass = 'absolute -bottom-[11px] left-1/2 -translate-x-1/2 z-30'
+    ) =>
       !isVerticalOnlyLink ? (
-        <div className={wrapperClass}>
+        <div
+          className={`${wrapperClass} transition-opacity duration-200 ${
+            showInteractiveControls
+              ? 'opacity-100 pointer-events-auto'
+              : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
+          }`}
+        >
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (!isRecordKeeperCharterSigned) {
                 onSignCharterAndEnableTree();
                 return;
@@ -3739,14 +3952,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 : 'وقّع ميثاق أمين السجل لتفعيل الإضافة'
             }
             aria-label={`إضافة قريب لـ ${person.firstName}`}
-            className={`w-6 h-6 rounded-full flex items-center justify-center font-bold shadow-sm border-2 border-white transition-all cursor-pointer ${
+            className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-white transition-all cursor-pointer ${
               isRadialOpen
-                ? 'bg-[#252321] text-white scale-110 ring-3 ring-[#D8755B]/35'
-                : `${activeTreeTheme.plusBtn} hover:scale-105`
+                ? 'bg-[#252321] text-white scale-110 ring-2 ring-[#C59B43]/45'
+                : `${activeTreeTheme.plusBtn} hover:scale-110`
             }`}
           >
             {isRadialOpen ? (
-              <X className="w-3 h-3" />
+              <X className="w-2.5 h-2.5" />
             ) : (
               <Plus className="w-3 h-3" />
             )}
@@ -3776,7 +3989,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         key={person.id}
         data-testid={`tree-person-card-${person.id}`}
         className={`relative group transition-all flex flex-col items-center ${
-          !isVerticalOnlyLink ? 'pb-3' : ''
+          !isVerticalOnlyLink ? 'pb-1.5' : ''
         } ${isRadialOpen ? 'z-40' : 'z-10'}`}
       >
         {treeDisplaySettings.nodeShape === 'circle' ? (
@@ -3785,58 +3998,70 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           /* ================================================================ */
           <div
             data-node-shape="circle"
-            className={`w-[138px] h-[138px] sm:w-[146px] sm:h-[146px] rounded-full px-3 pt-4 pb-3 flex flex-col items-center justify-center text-center transition-all shadow-sm relative ${cardSurfaceClass}`}
+            onClick={() =>
+              setSelectedPersonIdForSpouses((cur) =>
+                cur === person.id ? null : person.id
+              )
+            }
+            className={`w-[134px] h-[134px] sm:w-[142px] sm:h-[142px] rounded-full px-3 pt-3 pb-3 flex flex-col items-center justify-center text-center transition-all shadow-sm relative cursor-pointer ${cardSurfaceClass}`}
           >
-            {/* Subtle top-edge Edit / Delete micro-icons */}
-            <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 opacity-85 group-hover:opacity-100 transition-opacity">
-              {renderEditDeleteIcons()}
-            </div>
+            {renderFloatingEditDeleteCapsule(
+              'absolute -top-2 left-1/2 -translate-x-1/2 z-30'
+            )}
 
-            <div className="flex flex-col items-center justify-center gap-1 mt-2 w-full">
-              {renderAvatarWithCamera()}
-              {topRoleLabel && (
+            <div className="flex flex-col items-center justify-center gap-1 w-full">
+              {renderPureAvatarWithHoverVeil('xs')}
+              {topMicroLineText && (
                 <span
-                  className={`text-[8.5px] font-display font-bold truncate max-w-[104px] leading-none ${activeTreeTheme.accentText}`}
+                  data-testid={
+                    prestigeBadgeMeta
+                      ? `tree-card-prestige-${person.id}`
+                      : undefined
+                  }
+                  className={`text-[9px] font-display font-semibold tracking-wide truncate max-w-[104px] leading-none ${
+                    isDark ? 'text-[#E7C675]' : 'text-[#A37424]'
+                  }`}
                 >
-                  {topRoleLabel}
+                  {topMicroLineText}
                 </span>
               )}
               <div
-                className={`text-[11.5px] font-display font-extrabold truncate max-w-[114px] leading-tight ${activeTreeTheme.nameText}`}
+                className={`text-[13px] font-display font-bold truncate max-w-[114px] leading-tight ${activeTreeTheme.nameText}`}
               >
                 {mainName}
               </div>
-              {treeDisplaySettings.showKunya && kunyaOrTitle && (
-                <div
-                  className={`text-[9.5px] font-semibold truncate max-w-[106px] leading-none ${activeTreeTheme.accentText}`}
-                >
-                  {kunyaOrTitle}
-                </div>
-              )}
-              {treeDisplaySettings.showDates && cleanMetaLine && (
-                <div
-                  className={`text-[8.5px] font-medium tabular-nums truncate max-w-[104px] leading-none ${activeTreeTheme.metaText}`}
-                >
-                  {cleanMetaLine}
+              {(balancedSecondaryLine || personMediaCount > 0) && (
+                <div className="flex items-center justify-center gap-1 max-w-[112px]">
+                  {balancedSecondaryLine && (
+                    <span
+                      className={`text-[9.5px] font-medium truncate leading-none ${activeTreeTheme.metaText}`}
+                    >
+                      {balancedSecondaryLine}
+                    </span>
+                  )}
+                  {renderInlineVaultBadge()}
                 </div>
               )}
             </div>
 
-            {/* Bottom-Left Vault Badge */}
-            {renderVaultCornerBadge('bottom-2 left-1')}
-
-            {/* Docked Circular (+) Button */}
-            {renderPlusNodeButton('absolute -bottom-3 left-1/2 -translate-x-1/2 z-20')}
+            {renderPlusNodeButton(
+              'absolute -bottom-[11px] left-1/2 -translate-x-1/2 z-30'
+            )}
           </div>
         ) : treeDisplaySettings.nodeShape === 'leaf' ? (
           /* ================================================================ */
-          /* SHAPE 3: REALISTIC SCULPTED BOTANICAL LEAF NODE (`ورقة شجر`)     */
+          /* SHAPE 3: REALISTIC SCULPTED BOTANICAL LEAF NODE (`ورقة`)         */
           /* ================================================================ */
           <div
             data-node-shape="leaf"
-            className="w-[192px] sm:w-[204px] h-[148px] px-6 pt-5 pb-4 flex flex-col items-center justify-center text-center transition-all relative"
+            onClick={() =>
+              setSelectedPersonIdForSpouses((cur) =>
+                cur === person.id ? null : person.id
+              )
+            }
+            className="w-[188px] sm:w-[198px] h-[142px] px-6 pt-4 pb-3 flex flex-col items-center justify-center text-center transition-all relative cursor-pointer"
           >
-            {/* Realistic Botanical Leaf SVG with Organic Asymmetry, Split 3D Shading, Tapered Midrib & Alternating Veins */}
+            {/* Realistic Botanical Leaf SVG */}
             <svg
               viewBox="0 0 212 158"
               fill="none"
@@ -3864,8 +4089,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   y2="132"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop offset="0%" stopColor={activeTreeTheme.leafVein} stopOpacity="0.14" />
-                  <stop offset="100%" stopColor={activeTreeTheme.leafVein} stopOpacity="0.04" />
+                  <stop
+                    offset="0%"
+                    stopColor={activeTreeTheme.leafVein}
+                    stopOpacity="0.14"
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={activeTreeTheme.leafVein}
+                    stopOpacity="0.04"
+                  />
                 </linearGradient>
                 <linearGradient
                   id={`leaf-gloss-${safeLeafUid}`}
@@ -3880,14 +4113,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 </linearGradient>
               </defs>
 
-              {/* Soft Natural Shadow Offset Under Leaf Blade */}
               <path
                 d="M111 19 C155 23 196 48 197 82 C198 111 163 137 107 151 C56 141 18 116 17 84 C16 50 59 23 111 19 Z"
                 fill={activeTreeTheme.leafVein}
                 fillOpacity="0.1"
               />
-
-              {/* Curved Woody Petiole Stem (Top Right-of-Center) */}
               <path
                 d="M119 4 C114 9 110 13 108 19"
                 stroke={leafStrokeColor}
@@ -3895,139 +4125,90 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 strokeLinecap="round"
               />
               <path
-                d="M118.5 4.5 C114.5 9 111 13 109 18"
-                stroke="#FFFFFF"
-                strokeOpacity="0.45"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-
-              {/* Organic Sculpted Botanical Leaf Blade with Tapered Pointed Tip */}
-              <path
                 d="M108 17 C148 19 194 42 197 77 C199 109 162 135 104 149 C50 139 14 114 14 81 C14 45 58 19 108 17 Z"
                 fill={`url(#leaf-sun-${safeLeafUid})`}
                 stroke={leafStrokeColor}
-                strokeWidth={person.isRecordKeeper ? '2.4' : '1.7'}
+                strokeWidth={person.isRecordKeeper ? '2.2' : '1.6'}
                 strokeLinejoin="round"
                 strokeDasharray={isVerticalOnlyLink ? '5 3' : undefined}
               />
-
-              {/* 3D Natural Fold Shading: Subtle Shaded Left Half Along Curved Midrib */}
               <path
                 d="M108 17 C58 19 14 45 14 81 C14 114 50 139 104 149 C108 106 111 60 108 17 Z"
                 fill={`url(#leaf-shade-${safeLeafUid})`}
               />
-
-              {/* Sunlit Specular Sheen Along Upper-Right Leaf Surface */}
               <path
                 d="M113 22 C148 25 184 44 188 73 C172 62 146 53 114 51 C113 40 113 30 113 22 Z"
                 fill={`url(#leaf-gloss-${safeLeafUid})`}
               />
-
-              {/* Delicate Inner Rim Highlight */}
-              <path
-                d="M108 20.5 C146 22.5 189 44 192 77 C194 106 159 131 104 144.5 C53 135 19 112 19 81 C19 48 60 22.5 108 20.5 Z"
-                stroke="#FFFFFF"
-                strokeOpacity="0.48"
-                strokeWidth="1"
-              />
-
-              {/* Organic Gently Curved Tapered Midrib Vein */}
               <path
                 d="M108 18 C111 58 109 102 104 145"
                 stroke={activeTreeTheme.leafVein}
-                strokeOpacity="0.34"
-                strokeWidth="1.9"
+                strokeOpacity="0.32"
+                strokeWidth="1.8"
                 strokeLinecap="round"
               />
               <path
-                d="M109.2 19 C112.2 58 110.2 102 105.2 143"
-                stroke="#FFFFFF"
-                strokeOpacity="0.42"
-                strokeWidth="0.8"
-                strokeLinecap="round"
-              />
-
-              {/* Alternating Arched Lateral Veins (Right Side) */}
-              <path
-                d="M109 39 C130 35 151 39 170 49 M110 64 C135 58 162 63 185 75 M109 92 C134 86 158 91 177 103 M107 116 C126 112 143 116 155 124"
+                d="M109 39 C130 35 151 39 170 49 M110 64 C135 58 162 63 185 75 M109 92 C134 86 158 91 177 103"
                 stroke={activeTreeTheme.leafVein}
-                strokeOpacity="0.24"
-                strokeWidth="1.15"
+                strokeOpacity="0.22"
+                strokeWidth="1.1"
                 strokeLinecap="round"
               />
-              {/* Fine Secondary Veinlets (Right Side) */}
               <path
-                d="M148 41 C155 37 161 36 166 37 M157 65 C166 61 174 60 181 62 M150 93 C158 89 166 89 172 91"
+                d="M109 47 C86 42 62 46 39 58 M109 74 C82 68 53 73 27 86 M108 102 C83 97 58 102 38 114"
                 stroke={activeTreeTheme.leafVein}
-                strokeOpacity="0.14"
-                strokeWidth="0.75"
-                strokeLinecap="round"
-              />
-
-              {/* Alternating Arched Lateral Veins (Left Side — Offset Naturally) */}
-              <path
-                d="M109 47 C86 42 62 46 39 58 M109 74 C82 68 53 73 27 86 M108 102 C83 97 58 102 38 114 M106 124 C88 121 72 125 60 132"
-                stroke={activeTreeTheme.leafVein}
-                strokeOpacity="0.24"
-                strokeWidth="1.15"
-                strokeLinecap="round"
-              />
-              {/* Fine Secondary Veinlets (Left Side) */}
-              <path
-                d="M66 49 C58 45 51 44 45 45 M56 75 C47 71 39 70 32 72 M63 104 C54 100 47 100 41 102"
-                stroke={activeTreeTheme.leafVein}
-                strokeOpacity="0.14"
-                strokeWidth="0.75"
+                strokeOpacity="0.22"
+                strokeWidth="1.1"
                 strokeLinecap="round"
               />
             </svg>
 
-            {/* Subtle Edit / Delete Micro-Actions on Upper Leaf Shoulder */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 opacity-85 group-hover:opacity-100 transition-opacity">
-              {renderEditDeleteIcons()}
-            </div>
+            {renderFloatingEditDeleteCapsule(
+              'absolute top-2.5 left-1/2 -translate-x-1/2 z-30'
+            )}
 
-            {/* Centered Botanical Leaf Content */}
-            <div className="relative z-10 flex flex-col items-center justify-center gap-0.5 mt-3 w-full">
-              {renderAvatarWithCamera()}
-              {topRoleLabel && (
+            <div className="relative z-10 flex flex-col items-center justify-center gap-0.5 mt-1 w-full">
+              {renderPureAvatarWithHoverVeil('xs')}
+              {topMicroLineText && (
                 <span
-                  className={`text-[8.5px] font-display font-bold truncate max-w-[126px] leading-none mt-0.5 ${activeTreeTheme.accentText}`}
+                  data-testid={
+                    prestigeBadgeMeta
+                      ? `tree-card-prestige-${person.id}`
+                      : undefined
+                  }
+                  className={`text-[9px] font-display font-semibold tracking-wide truncate max-w-[126px] leading-none mt-0.5 ${
+                    isDark ? 'text-[#E7C675]' : 'text-[#A37424]'
+                  }`}
                 >
-                  {topRoleLabel}
+                  {topMicroLineText}
                 </span>
               )}
               <div
-                className={`text-xs font-display font-extrabold truncate max-w-[138px] leading-tight ${activeTreeTheme.nameText}`}
+                className={`text-[13px] font-display font-bold truncate max-w-[138px] leading-tight ${activeTreeTheme.nameText}`}
               >
                 {mainName}
               </div>
-              {treeDisplaySettings.showKunya && kunyaOrTitle && (
-                <div
-                  className={`text-[9.5px] font-semibold truncate max-w-[126px] leading-none ${activeTreeTheme.accentText}`}
-                >
-                  {kunyaOrTitle}
-                </div>
-              )}
-              {treeDisplaySettings.showDates && cleanMetaLine && (
-                <div
-                  className={`text-[8.5px] font-medium tabular-nums truncate max-w-[126px] leading-none ${activeTreeTheme.metaText}`}
-                >
-                  {cleanMetaLine}
+              {(balancedSecondaryLine || personMediaCount > 0) && (
+                <div className="flex items-center justify-center gap-1 max-w-[134px]">
+                  {balancedSecondaryLine && (
+                    <span
+                      className={`text-[9.5px] font-medium truncate leading-none ${activeTreeTheme.metaText}`}
+                    >
+                      {balancedSecondaryLine}
+                    </span>
+                  )}
+                  {renderInlineVaultBadge()}
                 </div>
               )}
             </div>
 
-            {/* Bottom-Left Vault Badge */}
-            {renderVaultCornerBadge('bottom-3 left-4')}
-
-            {/* Docked Circular (+) Button at Leaf Bottom Tip */}
-            {renderPlusNodeButton('absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20')}
+            {renderPlusNodeButton(
+              'absolute -bottom-2 left-1/2 -translate-x-1/2 z-30'
+            )}
           </div>
         ) : (
           /* ================================================================ */
-          /* SHAPE 1: DENSITY-ADAPTIVE CARD NODE (`بطاقة`)                    */
+          /* SHAPE 1: PRECISION GOLDEN-PROPORTION CARD NODE (`بطاقة`)         */
           /* ================================================================ */
           <div
             data-node-shape="card"
@@ -4036,108 +4217,81 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 cur === person.id ? null : person.id
               )
             }
-            className={`${cardDensityClasses} text-right transition-all shadow-sm relative cursor-pointer ${cardSurfaceClass}`}
+            className={`${cardDensityClasses} text-right transition-all duration-200 relative cursor-pointer flex items-center gap-3 ${cardSurfaceClass}`}
           >
-            {/* Compact Top Row: Record Keeper Badge Only (Uniform Height Across All Cards) + Edit / Delete */}
-            <div className="flex items-center justify-between gap-1 mb-1.5 min-h-[20px]">
-              <div className="min-w-0 flex items-center gap-1">
-                {topRoleLabel ? (
-                  <span
-                    className={`text-[9.5px] font-display font-bold truncate block ${activeTreeTheme.accentText}`}
-                  >
-                    {topRoleLabel}
-                  </span>
-                ) : isDeceased && treeDisplaySettings.showDeceasedDignityFrame ? (
-                  <span
-                    className={`text-[8.5px] font-display font-bold truncate block ${activeTreeTheme.metaText}`}
-                  >
-                    {person.gender === 'female' ? 'رحمها الله' : 'رحمه الله'}
-                  </span>
-                ) : null}
-              </div>
-              {renderEditDeleteIcons()}
-            </div>
+            {/* Subtle Right-Edge Heritage Accent Strip for Record Keeper */}
+            {person.isRecordKeeper && (
+              <span
+                aria-hidden="true"
+                className="absolute right-0 top-2.5 bottom-2.5 w-[2.5px] rounded-full bg-gradient-to-b from-[#D4AF37] via-[#B8892E] to-[#D4AF37]"
+              />
+            )}
 
-            {/* Center Row: Cultural / Calligraphy Avatar + Registered Info */}
-            <div className="flex items-center gap-2">
-              {renderAvatarWithCamera()}
+            {/* Hover / Select-Only Floating Edit & Delete Capsule (Top-Left) */}
+            {renderFloatingEditDeleteCapsule('absolute -top-2.5 left-2 z-30')}
 
-              <div className="min-w-0 flex-1 space-y-0.5">
-                {/* 1. Registered Name ONLY (With Optional Honorific when showHonorific is ON) */}
+            {/* Pure 46px Circular Portrait with Hover-Only Translucent Veil */}
+            {renderPureAvatarWithHoverVeil()}
+
+            {/* Vertically Centered Typographic Column */}
+            <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+              {/* 1. Optional Subtle Gold Top Micro-Line (Record Keeper / Prestige Badge) */}
+              {topMicroLineText && (
+                <div
+                  data-testid={
+                    prestigeBadgeMeta
+                      ? `tree-card-prestige-${person.id}`
+                      : undefined
+                  }
+                  className={`inline-flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide leading-tight truncate ${
+                    isDark ? 'text-[#E7C675]' : 'text-[#A37424]'
+                  }`}
+                >
+                  {prestigeBadgeMeta && (
+                    <Award className="w-2.5 h-2.5 shrink-0 opacity-90" />
+                  )}
+                  <span className="truncate">{topMicroLineText}</span>
+                </div>
+              )}
+
+              {/* 2. Primary Crisp Name Line (Centers cleanly beside portrait when no secondary info exists) */}
+              <div className="flex items-center gap-1.5 min-w-0">
                 <div
                   className={`${
                     treeDisplaySettings.cardDensity === 'compact'
-                      ? 'text-[11px]'
-                      : treeDisplaySettings.cardDensity === 'detailed'
-                      ? 'text-[13px]'
-                      : 'text-xs'
-                  } font-display font-extrabold truncate ${activeTreeTheme.nameText}`}
+                      ? 'text-[13.5px]'
+                      : 'text-[15.5px] sm:text-[16px]'
+                  } font-display font-bold leading-snug truncate ${activeTreeTheme.nameText}`}
                 >
                   {mainName}
                 </div>
-
-                {/* 2. Kunya ONLY if explicitly entered and showKunya is enabled */}
-                {treeDisplaySettings.showKunya && kunyaOrTitle && (
-                  <div
-                    className={`text-[10px] font-semibold truncate ${activeTreeTheme.accentText}`}
-                  >
-                    {kunyaOrTitle}
-                  </div>
-                )}
-
-                {/* 2b. Dignified Wife Maiden Family / Daughter Marriage Alliance Note */}
-                {allianceSubLine && (
-                  <div
-                    className={`text-[9.5px] font-medium truncate ${activeTreeTheme.accentText} opacity-90`}
-                    title={allianceSubLine}
-                  >
-                    {allianceSubLine}
-                  </div>
-                )}
-
-                {/* 3. Birth Year / Mercy ONLY if explicitly entered and showDates is enabled */}
-                {treeDisplaySettings.showDates && cleanMetaLine && (
-                  <div
-                    className={`text-[9.5px] font-medium tabular-nums truncate ${activeTreeTheme.metaText}`}
-                  >
-                    {cleanMetaLine}
-                  </div>
-                )}
-
-                {/* 4. Extra Bio / Place snippet when Density is 'detailed' */}
-                {treeDisplaySettings.cardDensity === 'detailed' &&
-                  (person.birthPlace || person.biography) && (
-                    <div
-                      className={`text-[9px] truncate pt-0.5 ${activeTreeTheme.metaText}`}
-                    >
-                      {person.birthPlace || person.biography}
-                    </div>
-                  )}
-
-                {/* 5. Optional Dignified Prestige Badge (Gender-Aware) */}
-                {prestigeBadgeMeta && (
-                  <div className="pt-1">
-                    <span
-                      data-testid={`tree-card-prestige-${person.id}`}
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8.5px] font-display font-extrabold border ${
-                        activeTreeTheme.isDarkSurface
-                          ? 'bg-[#D4AF37]/15 border-[#D4AF37]/45 text-[#F3D299]'
-                          : 'bg-[#FEF9EC] border-[#C5A059]/50 text-[#8D4925]'
-                      }`}
-                    >
-                      <Award className="w-2.5 h-2.5 shrink-0 text-[#C5A059]" />
-                      <span className="truncate">{prestigeBadgeMeta.label}</span>
-                    </span>
-                  </div>
-                )}
+                {!balancedSecondaryLine && renderInlineVaultBadge()}
               </div>
+
+              {/* 3. Real Secondary Metadata Line (Rendered ONLY when user-provided/enabled info exists) */}
+              {balancedSecondaryLine && (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    title={balancedSecondaryLine}
+                    className={`text-[11px] font-medium leading-tight tabular-nums truncate ${
+                      isMarriedInWife
+                        ? isDark
+                          ? 'text-[#D9B5A8]/85'
+                          : 'text-[#8C6558]'
+                        : activeTreeTheme.metaText
+                    }`}
+                  >
+                    {balancedSecondaryLine}
+                  </span>
+                  {renderInlineVaultBadge()}
+                </div>
+              )}
             </div>
 
-            {/* 6. Linked Vault Media Badge Pinned to Bottom-Left so ALL Sibling Names Stay Aligned */}
-            {renderVaultCornerBadge('bottom-1.5 left-1.5')}
-
-            {/* Compact Circular (+) Button ONLY within the Branching Zone (<= 5th Grandfather) */}
-            {renderPlusNodeButton('mt-2 flex justify-center -mb-5 relative z-20')}
+            {/* Sleek 22px Hover / Select-Only Quick-Add (+) Button */}
+            {renderPlusNodeButton(
+              'absolute -bottom-[11px] left-1/2 -translate-x-1/2 z-30'
+            )}
           </div>
         )}
 
@@ -5070,11 +5224,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           </div>
         )}
 
-        {/* Branch Collapse / Expand Control Inline on Continuous Stem (Zero Visual Gaps) */}
+        {/* Branch Collapse / Expand Control Inline on Continuous Stem (Clean Spacing Below Sleek + Button) */}
         {children.length > 0 && (
           <div className="flex flex-col items-center">
             {!isBranchCollapsed && childRouting.hasVisibleMaternalRouting && (
-              <div className="w-[2px] h-2.5 bg-[#C5A059]" />
+              <div className="w-[2px] h-3.5 bg-[#C5A059]" />
             )}
             <button
               type="button"
@@ -5088,7 +5242,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               className={`${
                 !isBranchCollapsed && childRouting.hasVisibleMaternalRouting
                   ? ''
-                  : 'mt-1 mb-0.5'
+                  : 'mt-2.5 mb-0.5'
               } px-2 py-0.5 rounded-full text-[9.5px] font-display font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
                 isBranchCollapsed
                   ? 'bg-[#D8755B] text-white border-[#B85A42] shadow-xs'
@@ -5540,7 +5694,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         dir="rtl"
         className="flex flex-row flex-nowrap items-center shrink-0"
       >
-        {renderSidewaysSpineConnector('من (سليل غير مباشر)')}
+        {renderSidewaysSpineConnector({
+          upperKind: 'family',
+          lowerKind: 'person',
+        })}
         <div className="flex flex-col items-center gap-2">
           {renderFamilyStationCard(maxUpperBridgeTier + 1)}
           {topMostDirectAncestor &&

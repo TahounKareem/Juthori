@@ -10,6 +10,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import {
+  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
 } from '../config/referralAndSiteConfig';
@@ -352,7 +353,9 @@ export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
   const resolvedTitle =
     (bioTitle || '').trim() || `ديوان وسجل أسرة ${familyName}`;
   const resolvedEmblem = (emblemTag || '').trim();
-  const displayUrl = slug ? `Juthori.com/${slug}` : 'لم يُخصّص الرابط بعد';
+  const displayUrl = slug
+    ? `${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${slug}`
+    : 'لم يُخصّص الرابط بعد';
 
   return (
     <div
