@@ -170,8 +170,29 @@ export const ClassicalNasabNarrationBar: React.FC<
 };
 
 // ============================================================================
-// 2. SLEEK 4-AXIS CUSTOMIZATION PANEL
+// 2. ULTRA-COMPACT 2-ROW LINEAGE STUDIO CUSTOMIZER (Zero Text Bloat)
 // ============================================================================
+
+const COMPACT_VIEW_MODE_LABELS: Record<LineageViewMode, string> = {
+  royal_pillar: 'المسبحة العمودية',
+  heritage_scroll: 'صك النسب',
+  panoramic_flow: 'المسار الأفقي',
+  andalusian_zigzag: 'المعراج المتعرج',
+  heritage_medallions: 'قلادة الميداليات',
+  majlis_arch_steps: 'عقود المحراب',
+};
+
+const COMPACT_FONT_LABELS: Record<LineageFontId, string> = {
+  amiri: 'نسخ أميري',
+  classical: 'كلاسيكي',
+  modern: 'عصري',
+};
+
+const COMPACT_BACKDROP_LABELS: Record<LineageBackdropId, string> = {
+  ornate_parchment: 'رقّ تراثي',
+  soft_geometric: 'نقش هندسي',
+  clean_marble: 'صافي',
+};
 
 interface LineageCustomizationPanelProps {
   isOpen: boolean;
@@ -199,39 +220,67 @@ export const LineageCustomizationPanel: React.FC<
     <section
       data-testid="lineage-customization-panel"
       aria-label="تخصيص مظهر عمود النسب"
-      className="relative z-30 rounded-2xl p-4 sm:p-5 space-y-5 transition-all duration-200"
+      className="relative z-30 rounded-2xl px-4 py-3.5 space-y-3 transition-all duration-200"
       style={{
         backgroundColor: theme.surfaceBg,
-        border: `1.5px solid ${theme.goldBorderHex}80`,
+        border: `1px solid ${theme.goldBorderHex}65`,
         boxShadow: theme.isDark
-          ? '0 14px 36px rgba(0,0,0,0.38)'
-          : '0 10px 30px rgba(141,73,37,0.08)',
+          ? '0 12px 30px rgba(0,0,0,0.34)'
+          : '0 6px 22px rgba(44,30,20,0.06)',
       }}
     >
-      {/* Top Panel Bar */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-2 pb-3"
-        style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
-      >
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal
-            className="w-4 h-4 shrink-0"
-            style={{ color: theme.goldHex }}
-          />
-          <h3
-            className="text-sm font-display font-extrabold"
-            style={{ color: theme.textPrimaryHex }}
+      {/* Row 1: Display Style (6 Concise Pills) + Reset / Close */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
+          <span
+            className="text-[11px] font-display font-bold inline-flex items-center gap-1 ml-1 shrink-0"
+            style={{ color: theme.textMutedHex }}
           >
-            تخصيص مظهر عمود نسبي
-          </h3>
+            <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
+            <span>النمط</span>
+          </span>
+
+          {LINEAGE_VIEW_MODE_OPTIONS.map((opt) => {
+            const active = prefs.viewMode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                title={opt.label}
+                data-testid={`lineage-view-mode-${opt.id}`}
+                onClick={() =>
+                  onUpdatePrefs({ viewMode: opt.id as LineageViewMode })
+                }
+                className="h-8 px-3 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap"
+                style={{
+                  backgroundColor: active
+                    ? theme.goldSoftBg
+                    : theme.surfaceAltBg,
+                  color: active ? theme.accentTextHex : theme.textPrimaryHex,
+                  border: `1px solid ${
+                    active ? theme.goldBorderHex : theme.surfaceBorder
+                  }`,
+                }}
+              >
+                <span>{COMPACT_VIEW_MODE_LABELS[opt.id]}</span>
+                {active && (
+                  <Check
+                    className="w-3 h-3 shrink-0"
+                    style={{ color: theme.goldHex }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!isDefault && (
             <button
               type="button"
               onClick={onResetDefaults}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-display font-bold transition-colors cursor-pointer whitespace-nowrap"
+              title="استعادة الإعدادات الافتراضية"
+              className="h-8 px-2.5 rounded-xl text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
               style={{
                 backgroundColor: theme.surfaceAltBg,
                 color: theme.textSecondaryHex,
@@ -239,14 +288,14 @@ export const LineageCustomizationPanel: React.FC<
               }}
             >
               <RotateCcw className="w-3 h-3" />
-              <span>استعادة الافتراضي</span>
+              <span>افتراضي</span>
             </button>
           )}
           <button
             type="button"
             onClick={onClose}
             aria-label="إغلاق لوحة التخصيص"
-            className="w-7 h-7 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl inline-flex items-center justify-center transition-colors cursor-pointer"
             style={{
               backgroundColor: theme.surfaceAltBg,
               color: theme.textSecondaryHex,
@@ -258,208 +307,96 @@ export const LineageCustomizationPanel: React.FC<
         </div>
       </div>
 
-      {/* 4 Clear Axes Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Axis 1: 6 Signature View Modes */}
-        <div className="space-y-2">
-          <div
-            className="flex items-center gap-1.5 text-xs font-display font-bold"
-            style={{ color: theme.textSecondaryHex }}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
-            <span>1. أسلوب عرض عمود النسب</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-            {LINEAGE_VIEW_MODE_OPTIONS.map((opt) => {
-              const active = prefs.viewMode === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  data-testid={`lineage-view-mode-${opt.id}`}
-                  onClick={() =>
-                    onUpdatePrefs({ viewMode: opt.id as LineageViewMode })
-                  }
-                  className="text-right rounded-xl px-3 py-2.5 transition-all duration-150 cursor-pointer"
-                  style={{
-                    backgroundColor: active
-                      ? theme.goldSoftBg
-                      : theme.surfaceAltBg,
-                    border: `1.5px solid ${
-                      active ? theme.goldBorderHex : theme.surfaceBorder
-                    }`,
-                  }}
-                >
-                  <div
-                    className="text-xs font-display font-extrabold flex items-center justify-between gap-1.5"
-                    style={{
-                      color: active ? theme.accentTextHex : theme.textPrimaryHex,
-                    }}
-                  >
-                    <span className="truncate">{opt.label}</span>
-                    {active && (
-                      <Check
-                        className="w-3.5 h-3.5 shrink-0"
-                        style={{ color: theme.goldHex }}
-                      />
-                    )}
-                  </div>
-                  <div
-                    className="text-[11px] mt-0.5 truncate"
-                    style={{ color: theme.textMutedHex }}
-                  >
-                    {opt.shortDesc}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+      {/* Row 2: Direction + Nasab Strip | Theme Swatch Circles | Font Pills | Backdrop Pills */}
+      <div
+        className="pt-3 flex flex-wrap items-center gap-x-4 gap-y-2.5"
+        style={{ borderTop: `1px solid ${theme.surfaceBorder}` }}
+      >
+        {/* Direction 2-Way Segmented Toggle */}
+        <div
+          role="group"
+          aria-label="اتجاه قراءة عمود النسب"
+          className="inline-flex items-center p-0.5 rounded-xl shrink-0"
+          style={{
+            backgroundColor: theme.surfaceAltBg,
+            border: `1px solid ${theme.surfaceBorder}`,
+          }}
+        >
+          {(
+            [
+              { id: 'top_down', label: 'من الجذر نزولاً' },
+              { id: 'bottom_up', label: 'من اسمي صعوداً' },
+            ] as Array<{ id: LineageDirection; label: string }>
+          ).map((dirOpt) => {
+            const active = prefs.direction === dirOpt.id;
+            return (
+              <button
+                key={dirOpt.id}
+                type="button"
+                data-testid={`lineage-direction-${dirOpt.id}`}
+                onClick={() => onUpdatePrefs({ direction: dirOpt.id })}
+                className="h-7 px-2.5 rounded-lg text-[11.5px] font-display font-bold transition-all cursor-pointer whitespace-nowrap"
+                style={{
+                  backgroundColor: active ? theme.surfaceBg : 'transparent',
+                  color: active ? theme.accentTextHex : theme.textSecondaryHex,
+                  border: active
+                    ? `1px solid ${theme.goldBorderHex}80`
+                    : '1px solid transparent',
+                }}
+              >
+                {dirOpt.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Axis 2: Reading Direction + Nasab Narration Toggle */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div
-              className="flex items-center gap-1.5 text-xs font-display font-bold"
-              style={{ color: theme.textSecondaryHex }}
-            >
-              <ArrowDownUp
-                className="w-3.5 h-3.5"
-                style={{ color: theme.goldHex }}
-              />
-              <span>2. اتجاه قراءة وتسلسل العمود</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {(
-                [
-                  {
-                    id: 'top_down',
-                    title: 'من الجذر الأعلى نزولاً إلى الفروع',
-                    sub: 'القبيلة الأم ← الفرع ← العائلة ← أمين السجل',
-                  },
-                  {
-                    id: 'bottom_up',
-                    title: 'من أمين السجل صعوداً إلى الجذر',
-                    sub: 'السرد النسبي الكلاسيكي (فلان بن فلان...)',
-                  },
-                ] as Array<{
-                  id: LineageDirection;
-                  title: string;
-                  sub: string;
-                }>
-              ).map((dirOpt) => {
-                const active = prefs.direction === dirOpt.id;
-                return (
-                  <button
-                    key={dirOpt.id}
-                    type="button"
-                    data-testid={`lineage-direction-${dirOpt.id}`}
-                    onClick={() => onUpdatePrefs({ direction: dirOpt.id })}
-                    className="text-right rounded-xl px-3 py-2.5 transition-all duration-150 cursor-pointer"
-                    style={{
-                      backgroundColor: active
-                        ? theme.goldSoftBg
-                        : theme.surfaceAltBg,
-                      border: `1.5px solid ${
-                        active ? theme.goldBorderHex : theme.surfaceBorder
-                      }`,
-                    }}
-                  >
-                    <div
-                      className="text-xs font-display font-extrabold flex items-center justify-between gap-1.5"
-                      style={{
-                        color: active
-                          ? theme.accentTextHex
-                          : theme.textPrimaryHex,
-                      }}
-                    >
-                      <span>{dirOpt.title}</span>
-                      {active && (
-                        <Check
-                          className="w-3.5 h-3.5 shrink-0"
-                          style={{ color: theme.goldHex }}
-                        />
-                      )}
-                    </div>
-                    <div
-                      className="text-[11px] mt-0.5"
-                      style={{ color: theme.textMutedHex }}
-                    >
-                      {dirOpt.sub}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        {/* Classical Nasab Narration Strip Toggle */}
+        <button
+          type="button"
+          onClick={() =>
+            onUpdatePrefs({ showNasabStrip: !prefs.showNasabStrip })
+          }
+          className="h-8 px-3 rounded-xl text-[11.5px] font-display font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0"
+          style={{
+            backgroundColor: prefs.showNasabStrip
+              ? theme.goldSoftBg
+              : theme.surfaceAltBg,
+            color: prefs.showNasabStrip
+              ? theme.accentTextHex
+              : theme.textMutedHex,
+            border: `1px solid ${
+              prefs.showNasabStrip ? theme.goldBorderHex : theme.surfaceBorder
+            }`,
+          }}
+        >
+          {prefs.showNasabStrip ? (
+            <Eye className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+          )}
+          <span>شريط الصياغة النسبية</span>
+        </button>
 
-          {/* Toggle Classical Nasab Strip */}
-          <div
-            className="rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3"
-            style={{
-              backgroundColor: theme.surfaceAltBg,
-              border: `1px solid ${theme.surfaceBorder}`,
-            }}
-          >
-            <div className="min-w-0">
-              <div
-                className="text-xs font-display font-bold"
-                style={{ color: theme.textPrimaryHex }}
-              >
-                شريط الصياغة النسبية المتصلة
-              </div>
-              <div
-                className="text-[11px]"
-                style={{ color: theme.textMutedHex }}
-              >
-                عرض السرد النسبي العربي الجاهز للنسخ أعلى العمود
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                onUpdatePrefs({ showNasabStrip: !prefs.showNasabStrip })
-              }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-              style={{
-                backgroundColor: prefs.showNasabStrip
-                  ? theme.goldSoftBg
-                  : theme.surfaceBg,
-                color: prefs.showNasabStrip
-                  ? theme.accentTextHex
-                  : theme.textMutedHex,
-                border: `1px solid ${
-                  prefs.showNasabStrip
-                    ? theme.goldBorderHex
-                    : theme.surfaceBorder
-                }`,
-              }}
-            >
-              {prefs.showNasabStrip ? (
-                <>
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>ظاهر</span>
-                </>
-              ) : (
-                <>
-                  <EyeOff className="w-3.5 h-3.5" />
-                  <span>مخفي</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        <span
+          className="hidden lg:inline-block w-px h-5"
+          style={{ backgroundColor: theme.surfaceBorder }}
+          aria-hidden="true"
+        />
 
-        {/* Axis 3: 5 Scoped Luxury Color Themes */}
-        <div className="space-y-2">
-          <div
-            className="flex items-center gap-1.5 text-xs font-display font-bold"
-            style={{ color: theme.textSecondaryHex }}
+        {/* 5 Dual-Tone Theme Color Swatch Circles */}
+        <div
+          className="inline-flex items-center gap-2 shrink-0"
+          role="group"
+          aria-label="الهوية اللونية"
+        >
+          <span
+            className="text-[11px] font-display font-bold inline-flex items-center gap-1"
+            style={{ color: theme.textMutedHex }}
           >
             <Palette className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
-            <span>3. الهوية اللونية لمساحة العمود (5 ثيمات فاخرة)</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            <span>الثيم</span>
+          </span>
+          <div className="inline-flex items-center gap-1.5">
             {(Object.keys(LINEAGE_THEMES) as LineageThemeId[]).map((tId) => {
               const t = LINEAGE_THEMES[tId];
               const active = prefs.themeId === tId;
@@ -467,130 +404,101 @@ export const LineageCustomizationPanel: React.FC<
                 <button
                   key={tId}
                   type="button"
+                  title={t.label}
+                  aria-label={t.label}
                   data-testid={`lineage-theme-${tId}`}
                   onClick={() => onUpdatePrefs({ themeId: tId })}
-                  className="text-right rounded-xl p-2.5 transition-all duration-150 cursor-pointer flex flex-col gap-2"
+                  className="relative w-7 h-7 rounded-full inline-flex items-center justify-center transition-transform duration-150 hover:scale-105 cursor-pointer shrink-0"
                   style={{
-                    backgroundColor: active
-                      ? theme.goldSoftBg
-                      : theme.surfaceAltBg,
-                    border: `1.5px solid ${
-                      active ? theme.goldBorderHex : theme.surfaceBorder
-                    }`,
+                    background: `linear-gradient(135deg, ${t.swatchPrimary} 52%, ${t.swatchGold} 48%)`,
+                    boxShadow: active
+                      ? `0 0 0 2px ${theme.surfaceBg}, 0 0 0 4px ${theme.goldHex}`
+                      : 'inset 0 0 0 1px rgba(0,0,0,0.16)',
                   }}
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center -space-x-1 space-x-reverse">
-                      <span
-                        className="w-4 h-4 rounded-full border border-black/15"
-                        style={{ backgroundColor: t.swatchPrimary }}
-                      />
-                      <span
-                        className="w-4 h-4 rounded-full border border-black/15"
-                        style={{ backgroundColor: t.swatchSecondary }}
-                      />
-                      <span
-                        className="w-4 h-4 rounded-full border border-black/15"
-                        style={{ backgroundColor: t.swatchGold }}
-                      />
-                    </div>
-                    {active && (
-                      <Check
-                        className="w-3.5 h-3.5 shrink-0"
-                        style={{ color: theme.goldHex }}
-                      />
-                    )}
-                  </div>
-                  <div
-                    className="text-[11px] font-display font-extrabold leading-snug"
-                    style={{ color: theme.textPrimaryHex }}
-                  >
-                    {t.label}
-                  </div>
+                  {active && (
+                    <span className="w-3.5 h-3.5 rounded-full bg-white/90 text-[#2C1E14] flex items-center justify-center shadow-2xs">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Axis 4: 3 Arabic Fonts & 3 Canvas Backdrops */}
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <div
-              className="flex items-center gap-1.5 text-xs font-display font-bold"
-              style={{ color: theme.textSecondaryHex }}
-            >
-              <Type className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
-              <span>4. الخط العربي وخلفية مساحة العرض</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {(Object.keys(LINEAGE_FONTS) as LineageFontId[]).map((fId) => {
-                const f = LINEAGE_FONTS[fId];
-                const active = prefs.fontId === fId;
-                return (
-                  <button
-                    key={fId}
-                    type="button"
-                    data-testid={`lineage-font-${fId}`}
-                    onClick={() => onUpdatePrefs({ fontId: fId })}
-                    className="text-right rounded-xl px-3 py-2 transition-all duration-150 cursor-pointer"
-                    style={{
-                      backgroundColor: active
-                        ? theme.goldSoftBg
-                        : theme.surfaceAltBg,
-                      border: `1.5px solid ${
-                        active ? theme.goldBorderHex : theme.surfaceBorder
-                      }`,
-                    }}
-                  >
-                    <div
-                      className="text-sm font-bold leading-snug"
-                      style={{
-                        fontFamily: f.cssFamily,
-                        color: theme.textPrimaryHex,
-                      }}
-                    >
-                      {f.sampleText}
-                    </div>
-                    <div
-                      className="text-[10px] font-display font-semibold mt-0.5 truncate"
-                      style={{ color: theme.textMutedHex }}
-                    >
-                      {f.label}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <span
+          className="hidden lg:inline-block w-px h-5"
+          style={{ backgroundColor: theme.surfaceBorder }}
+          aria-hidden="true"
+        />
 
-          <div className="flex flex-wrap items-center gap-2">
-            {LINEAGE_BACKDROP_OPTIONS.map((b) => {
-              const active = prefs.backdropId === b.id;
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  data-testid={`lineage-backdrop-${b.id}`}
-                  onClick={() =>
-                    onUpdatePrefs({ backdropId: b.id as LineageBackdropId })
-                  }
-                  className="px-3 py-1.5 rounded-xl text-xs font-display font-bold transition-all duration-150 cursor-pointer whitespace-nowrap"
-                  style={{
-                    backgroundColor: active
-                      ? theme.goldSoftBg
-                      : theme.surfaceAltBg,
-                    color: active ? theme.accentTextHex : theme.textSecondaryHex,
-                    border: `1px solid ${
-                      active ? theme.goldBorderHex : theme.surfaceBorder
-                    }`,
-                  }}
-                >
-                  {b.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* 3 Compact Arabic Font Pills */}
+        <div
+          className="inline-flex items-center gap-1 shrink-0"
+          role="group"
+          aria-label="الخط العربي"
+        >
+          {(Object.keys(LINEAGE_FONTS) as LineageFontId[]).map((fId) => {
+            const f = LINEAGE_FONTS[fId];
+            const active = prefs.fontId === fId;
+            return (
+              <button
+                key={fId}
+                type="button"
+                title={f.label}
+                data-testid={`lineage-font-${fId}`}
+                onClick={() => onUpdatePrefs({ fontId: fId })}
+                className="h-8 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+                style={{
+                  fontFamily: f.cssFamily,
+                  backgroundColor: active
+                    ? theme.goldSoftBg
+                    : theme.surfaceAltBg,
+                  color: active ? theme.accentTextHex : theme.textPrimaryHex,
+                  border: `1px solid ${
+                    active ? theme.goldBorderHex : theme.surfaceBorder
+                  }`,
+                }}
+              >
+                {COMPACT_FONT_LABELS[fId]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 3 Compact Backdrop Pills */}
+        <div
+          className="inline-flex items-center gap-1 shrink-0"
+          role="group"
+          aria-label="خلفية مساحة العرض"
+        >
+          {LINEAGE_BACKDROP_OPTIONS.map((b) => {
+            const active = prefs.backdropId === b.id;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                title={b.label}
+                data-testid={`lineage-backdrop-${b.id}`}
+                onClick={() =>
+                  onUpdatePrefs({ backdropId: b.id as LineageBackdropId })
+                }
+                className="h-8 px-2.5 rounded-xl text-[11.5px] font-display font-bold transition-all cursor-pointer whitespace-nowrap"
+                style={{
+                  backgroundColor: active
+                    ? theme.goldSoftBg
+                    : theme.surfaceAltBg,
+                  color: active ? theme.accentTextHex : theme.textSecondaryHex,
+                  border: `1px solid ${
+                    active ? theme.goldBorderHex : theme.surfaceBorder
+                  }`,
+                }}
+              >
+                {COMPACT_BACKDROP_LABELS[b.id]}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -598,7 +506,7 @@ export const LineageCustomizationPanel: React.FC<
 };
 
 // ============================================================================
-// 3. FLOATING CANVAS TOOLBAR (Zoom / Center / Majlis Fullscreen)
+// 3. FLOATING / HEADER-INLINE CANVAS TOOLBAR (Zoom / Center / Majlis Showcase)
 // ============================================================================
 
 interface LineageCanvasFloatingControlsProps {
@@ -609,7 +517,7 @@ interface LineageCanvasFloatingControlsProps {
   onZoomOut: () => void;
   onResetZoomCenter: () => void;
   onToggleFullscreen: () => void;
-  variant?: 'floating' | 'inline';
+  variant?: 'floating' | 'inline' | 'header';
 }
 
 export const LineageCanvasFloatingControls: React.FC<
@@ -624,7 +532,8 @@ export const LineageCanvasFloatingControls: React.FC<
   onToggleFullscreen,
   variant = 'floating',
 }) => {
-  const isInline = variant === 'inline';
+  const isHeader = variant === 'header';
+  const isInline = variant === 'inline' || isHeader;
 
   const toolbarContent = (
     <div
@@ -632,23 +541,29 @@ export const LineageCanvasFloatingControls: React.FC<
         isInline ? 'lineage-inline-controls' : 'lineage-floating-controls'
       }
       className={`pointer-events-auto inline-flex items-center transition-colors ${
-        isInline
+        isHeader
+          ? 'h-10 gap-0.5 px-1.5 rounded-xl bg-white border border-[#E2D5BE] shadow-2xs'
+          : isInline
           ? 'gap-0.5 px-1.5 py-1 rounded-xl'
           : 'gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-2xl backdrop-blur-md'
       }`}
-      style={{
-        backgroundColor: isInline
-          ? theme.surfaceBg
-          : theme.isDark
-          ? 'rgba(18, 31, 51, 0.9)'
-          : 'rgba(255, 253, 248, 0.92)',
-        border: `1px solid ${theme.goldBorderHex}${isInline ? '55' : '70'}`,
-        boxShadow: isInline
-          ? '0 1px 2px rgba(35,29,23,0.04)'
-          : theme.isDark
-          ? '0 8px 26px rgba(0,0,0,0.45)'
-          : '0 8px 24px rgba(35,29,23,0.1)',
-      }}
+      style={
+        isHeader
+          ? undefined
+          : {
+              backgroundColor: isInline
+                ? theme.surfaceBg
+                : theme.isDark
+                ? 'rgba(18, 31, 51, 0.92)'
+                : 'rgba(255, 253, 248, 0.94)',
+              border: `1px solid ${theme.goldBorderHex}${isInline ? '55' : '70'}`,
+              boxShadow: isInline
+                ? '0 1px 2px rgba(35,29,23,0.04)'
+                : theme.isDark
+                ? '0 8px 26px rgba(0,0,0,0.45)'
+                : '0 8px 24px rgba(35,29,23,0.1)',
+            }
+      }
     >
       <button
         type="button"
@@ -657,9 +572,9 @@ export const LineageCanvasFloatingControls: React.FC<
         title="تصغير العرض"
         aria-label="تصغير العرض"
         className={`${
-          isInline ? 'w-7 h-7 rounded-lg' : 'w-8 h-8 rounded-xl'
+          isInline ? 'w-7 h-7 rounded-lg hover:bg-[#FAF5EC]' : 'w-8 h-8 rounded-xl'
         } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
-        style={{ color: theme.textPrimaryHex }}
+        style={{ color: isHeader ? '#3D2B1F' : theme.textPrimaryHex }}
       >
         <ZoomOut className={isInline ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
       </button>
@@ -667,10 +582,10 @@ export const LineageCanvasFloatingControls: React.FC<
       <span
         className={`${
           isInline
-            ? 'text-[11px] px-1 min-w-[38px]'
+            ? 'text-[11.5px] px-1 min-w-[38px]'
             : 'text-xs px-1.5 min-w-[44px]'
         } font-mono font-bold tabular-nums text-center`}
-        style={{ color: theme.textSecondaryHex }}
+        style={{ color: isHeader ? '#5C4938' : theme.textSecondaryHex }}
         dir="ltr"
       >
         {Math.round(zoom * 100)}%
@@ -683,16 +598,16 @@ export const LineageCanvasFloatingControls: React.FC<
         title="تكبير العرض"
         aria-label="تكبير العرض"
         className={`${
-          isInline ? 'w-7 h-7 rounded-lg' : 'w-8 h-8 rounded-xl'
+          isInline ? 'w-7 h-7 rounded-lg hover:bg-[#FAF5EC]' : 'w-8 h-8 rounded-xl'
         } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
-        style={{ color: theme.textPrimaryHex }}
+        style={{ color: isHeader ? '#3D2B1F' : theme.textPrimaryHex }}
       >
         <ZoomIn className={isInline ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
       </button>
 
       <span
-        className={`w-px ${isInline ? 'h-4 mx-0.5' : 'h-5 mx-0.5'}`}
-        style={{ backgroundColor: theme.surfaceBorder }}
+        className={`w-px ${isInline ? 'h-4 mx-1' : 'h-5 mx-0.5'}`}
+        style={{ backgroundColor: isHeader ? '#E6DAC3' : theme.surfaceBorder }}
         aria-hidden="true"
       />
 
@@ -701,13 +616,18 @@ export const LineageCanvasFloatingControls: React.FC<
         onClick={onResetZoomCenter}
         title="توسيط وإعادة الضبط"
         className={`inline-flex items-center gap-1.5 ${
-          isInline
+          isHeader
+            ? 'px-2 py-1 rounded-lg text-[12px] text-[#3D2B1F] hover:bg-[#FAF5EC]'
+            : isInline
             ? 'px-2 py-1 rounded-lg text-[11.5px]'
             : 'px-2.5 py-1.5 rounded-xl text-xs'
         } font-display font-bold transition-colors cursor-pointer whitespace-nowrap`}
-        style={{ color: theme.textSecondaryHex }}
+        style={isHeader ? undefined : { color: theme.textSecondaryHex }}
       >
-        <Compass className="w-3.5 h-3.5 shrink-0" style={{ color: theme.goldHex }} />
+        <Compass
+          className="w-3.5 h-3.5 shrink-0"
+          style={{ color: isHeader ? '#B8893A' : theme.goldHex }}
+        />
         <span className={isInline ? 'inline' : 'hidden sm:inline'}>توسيط</span>
       </button>
 
@@ -721,25 +641,31 @@ export const LineageCanvasFloatingControls: React.FC<
             : 'وضع العرض الكامل للمجالس'
         }
         className={`inline-flex items-center gap-1.5 ${
-          isInline
+          isHeader
+            ? 'px-2.5 py-1 rounded-lg text-[12px] bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/45'
+            : isInline
             ? 'px-2.5 py-1 rounded-lg text-[11.5px]'
             : 'px-3 py-1.5 rounded-xl text-xs'
-        } font-display font-extrabold transition-colors cursor-pointer whitespace-nowrap`}
-        style={{
-          backgroundColor: theme.goldSoftBg,
-          color: theme.accentTextHex,
-          border: `1px solid ${theme.goldBorderHex}80`,
-        }}
+        } font-display font-bold transition-colors cursor-pointer whitespace-nowrap`}
+        style={
+          isHeader
+            ? undefined
+            : {
+                backgroundColor: theme.goldSoftBg,
+                color: theme.accentTextHex,
+                border: `1px solid ${theme.goldBorderHex}80`,
+              }
+        }
       >
         {isFullscreen ? (
           <>
             <Minimize2 className="w-3.5 h-3.5 shrink-0" />
-            <span>إنهاء العرض الكامل</span>
+            <span>إنهاء العرض</span>
           </>
         ) : (
           <>
             <Maximize2 className="w-3.5 h-3.5 shrink-0" />
-            <span>عرض كامل للمجالس</span>
+            <span>عرض المجالس</span>
           </>
         )}
       </button>
@@ -751,7 +677,7 @@ export const LineageCanvasFloatingControls: React.FC<
   }
 
   return (
-    <div className="sticky bottom-3 z-30 flex justify-center pointer-events-none mt-6">
+    <div className="sticky bottom-3 z-30 flex justify-center pointer-events-none mt-5">
       {toolbarContent}
     </div>
   );

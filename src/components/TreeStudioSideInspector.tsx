@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   Circle,
   Compass,
+  Download,
+  FileJson,
   Filter,
   Globe,
   Layers,
@@ -13,6 +15,7 @@ import {
   Palette,
   Printer,
   Type,
+  Upload,
   X,
 } from 'lucide-react';
 import {
@@ -47,6 +50,8 @@ interface TreeStudioSideInspectorProps {
   mirrorPresetFeedback: string | null;
   familyName: string;
   onOpenExportModal: () => void;
+  onExportJsonBackup?: () => void;
+  onImportJsonBackup?: () => void;
 }
 
 const LuxurySwitchRow: React.FC<{
@@ -152,6 +157,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
   mirrorPresetFeedback,
   familyName,
   onOpenExportModal,
+  onExportJsonBackup,
+  onImportJsonBackup,
 }) => {
   if (!isOpen) return null;
 
@@ -1134,6 +1141,45 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                 <Printer className="w-4 h-4" />
                 <span>معاينة وتصدير البوستر (PDF / PNG)</span>
               </button>
+
+              {(onExportJsonBackup || onImportJsonBackup) && (
+                <div
+                  data-testid="inspector-json-backup-section"
+                  className="rounded-2xl bg-white border border-[#E5DDD0] p-3 space-y-2.5"
+                >
+                  <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#252321]">
+                    <FileJson className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                    <span>النسخة الاحتياطية للبيانات (JSON)</span>
+                  </div>
+                  <p className="text-[10.5px] text-[#252321]/60 leading-relaxed">
+                    احتفظ بنسخة احتياطية كاملة لبيانات أفراد المشجرة أو استعد ملفاً محفوظاً.
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {onExportJsonBackup && (
+                      <button
+                        type="button"
+                        data-testid="inspector-export-json-btn"
+                        onClick={onExportJsonBackup}
+                        className="h-9 px-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F3E8D8] border border-[#DFD4C2] text-[#252321] text-[11px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        <Download className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                        <span>تصدير JSON</span>
+                      </button>
+                    )}
+                    {onImportJsonBackup && (
+                      <button
+                        type="button"
+                        data-testid="inspector-import-json-btn"
+                        onClick={onImportJsonBackup}
+                        className="h-9 px-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F3E8D8] border border-[#DFD4C2] text-[#252321] text-[11px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                        <span>استيراد JSON</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

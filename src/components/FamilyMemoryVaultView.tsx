@@ -126,6 +126,39 @@ function extractHistoricalTimestamp(item: FamilyVaultMediaItem): number {
   return Number.MAX_SAFE_INTEGER;
 }
 
+/**
+ * Detects raw camera, OS, WhatsApp, or non-Arabic technical filenames (e.g. DSC_7967, IMG_1022, AserENG)
+ * and replaces them with a graceful Arabic archival title when linked to family tree members,
+ * while preserving custom user titles and keeping inline rename fully intact.
+ */
+function getSmartVaultItemDisplayTitle(
+  item: FamilyVaultMediaItem,
+  linkedPeople: TreePersonSummaryForVault[]
+): { displayTitle: string; isAutoRefined: boolean } {
+  const rawTitle = (item.title || '').trim();
+  const stripped = rawTitle.replace(/\.(jpe?g|png|webp|heic|gif|pdf|bmp|tiff?)$/i, '').trim();
+
+  const looksLikeTechnicalFilename =
+    !stripped ||
+    /^(dsc|img|vid|pxl|dcim|scan|wa|whatsapp|screenshot|screen[\s_-]?shot|photo|image|pic|file|doc|cam|mvimg|received|fb_img|snap|untitled|capture)[_\-\s0-9.]*/i.test(
+      stripped
+    ) ||
+    (!/[\u0600-\u06FF]/.test(stripped) &&
+      (/^[A-Za-z0-9._-]{3,}$/.test(stripped) || /^[A-Za-z0-9\s._-]*\d{2,}[A-Za-z0-9\s._-]*$/.test(stripped)));
+
+  if (looksLikeTechnicalFilename && linkedPeople.length > 0) {
+    const prefix = item.mediaType === 'document' ? 'وثيقة' : 'صورة';
+    const firstPerson = linkedPeople[0].fullName;
+    const refined =
+      linkedPeople.length > 1
+        ? `${prefix} ${firstPerson} وآخرين`
+        : `${prefix} ${firstPerson}`;
+    return { displayTitle: refined, isAutoRefined: true };
+  }
+
+  return { displayTitle: rawTitle || 'مقتنى عائلي', isAutoRefined: false };
+}
+
 export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   result,
   caps,
@@ -852,60 +885,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         testId="vault-unified-header"
         icon={<FolderArchive className="w-5 h-5" />}
         title={`خزانة أسرة ${result.familyName}`}
-        metaItems={[
-          'الأرشيف العائلي الموثق',
-          <span key="total" className="tabular-nums">
-            <strong className="font-semibold text-[#2C1E14]">
-              {items.length}
-            </strong>{' '}
-            مقتنيات
-          </span>,
-          <span key="photos" className="tabular-nums">
-            <strong className="font-semibold text-[#2C1E14]">
-              {totalPhotosCount}
-            </strong>{' '}
-            صور
-          </span>,
-          <span key="docs" className="tabular-nums">
-            <strong className="font-semibold text-[#2C1E14]">
-              {totalDocsCount}
-            </strong>{' '}
-            وثائق
-          </span>,
-          <span key="linked" className="tabular-nums">
-            <strong className="font-semibold text-[#8C5327]">
-              {totalLinkedItemsCount}
-            </strong>{' '}
-            مربوطة بشجرتي
-          </span>,
-        ]}
         actions={
-          <>
-            <button
-              type="button"
-              data-testid="vault-new-folder-header-btn"
-              onClick={() => setShowNewFolderModal(true)}
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
-            >
-              <FolderPlus className="w-4 h-4 shrink-0" />
-              <span>+ مجلد خاص</span>
-            </button>
-
-            <button
-              type="button"
-              data-testid="vault-upload-primary-btn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isProcessingFiles}
-              className={WORKSPACE_PRIMARY_BTN_CLASS}
-            >
-              <Plus className="w-4 h-4 shrink-0" />
-              <span>
-                {isProcessingFiles
-                  ? 'جاري تجهيز الملفات...'
-                  : 'رفع صور أو وثائق'}
-              </span>
-            </button>
-          </>
+          <button
+            type="button"
+            data-testid="vault-upload-primary-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessingFiles}
+            className={WORKSPACE_PRIMARY_BTN_CLASS}
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>
+              {isProcessingFiles
+                ? 'جاري تجهيز الملفات...'
+                : 'رفع صور أو وثائق'}
+            </span>
+          </button>
         }
       />
 
@@ -1300,34 +1294,6 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           )}
         </div>
 
-        {/* Media Type Segmented Control */}
-        <div
-          role="group"
-          aria-label="تصفية حسب النوع"
-          className="inline-flex h-9 items-center rounded-xl bg-[#FAF6F0] p-1 border border-[#E5DAC8] shrink-0"
-        >
-          {(
-            [
-              { id: 'ALL', label: 'الكل' },
-              { id: 'photo', label: 'صور' },
-              { id: 'document', label: 'وثائق' },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSelectedTypeFilter(tab.id)}
-              className={`h-7 px-3 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                selectedTypeFilter === tab.id
-                  ? 'bg-[#252321] text-[#F3D299] shadow-2xs'
-                  : 'text-[#252321]/75 hover:text-[#252321]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
         {/* Tree Members Filter */}
         <select
           value={selectedPersonFilterId}
@@ -1412,18 +1378,6 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               : 'تحديد متعدد'}
           </span>
         </button>
-
-        {onNavigateTab && (
-          <button
-            type="button"
-            onClick={() => onNavigateTab(DashboardTab.MyTree)}
-            title="الانتقال إلى شجرتي"
-            className="h-9 px-3 rounded-xl bg-transparent hover:bg-[#FAF6F0] text-[#8D4925] border border-transparent hover:border-[#E5DAC8] text-xs font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline">شجرتي</span>
-          </button>
-        )}
       </div>
 
       {/* Contextual Multi-Select Bulk Action Bar */}
@@ -1607,6 +1561,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 item.mediaType
               );
 
+            const { displayTitle, isAutoRefined } = getSmartVaultItemDisplayTitle(
+              item,
+              linkedPeopleObjs
+            );
+
             return (
               <article
                 key={item.id}
@@ -1620,7 +1579,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 } ${
                   isSelectedForBulk
                     ? 'border-[#C5A059] ring-2 ring-[#C5A059]/35 shadow-md'
-                    : 'border-[#E5DAC8] hover:border-[#C5A059] shadow-2xs hover:shadow-md'
+                    : 'border-[#E6DAC3] hover:border-[#C5A059] shadow-2xs hover:shadow-md'
                 }`}
               >
                 {/* Museum-Framed 4:3 Visual Stage */}
@@ -1635,7 +1594,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   {canRenderImg ? (
                     <img
                       src={item.thumbnailDataUrl || item.fileDataUrl}
-                      alt={item.title}
+                      alt={displayTitle}
                       loading="lazy"
                       referrerPolicy="no-referrer"
                       onError={() =>
@@ -1644,7 +1603,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           [item.id]: true,
                         }))
                       }
-                      className={`w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ${
+                      className={`w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300 ${
                         item.enhanced
                           ? 'contrast-125 brightness-105 saturate-110'
                           : ''
@@ -1656,14 +1615,18 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         <FileText className="w-6 h-6 text-[#D8755B]" />
                       </div>
                       <span className="text-[11px] font-display font-bold line-clamp-1 max-w-[180px]">
-                        {item.fileName || 'وثيقة عائلية محفوظة'}
+                        {displayTitle}
                       </span>
                     </div>
                   )}
 
-                  {/* Measured Subtle Top Gradient on Hover */}
+                  {/* Subtle Bottom Vignette on Hover for Crisp Floating Action Contrast */}
                   <div
-                    className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/35 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                    className={`absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 via-black/20 to-transparent transition-opacity duration-200 pointer-events-none ${
+                      isConfirmingDelete
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                    }`}
                     aria-hidden="true"
                   />
 
@@ -1680,7 +1643,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-[#252321]/75 backdrop-blur-xs text-[#FAF6F0] text-[10px] font-display font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-[#252321]/72 backdrop-blur-xs text-[#FAF6F0] text-[10px] font-display font-bold">
                         {item.mediaType === 'photo' ? 'صورة' : 'وثيقة'}
                       </span>
                     )}
@@ -1691,26 +1654,105 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     )}
                   </div>
 
-                  {/* Top-Left: Subtle Quick Zoom Trigger on Hover */}
+                  {/* Hover-Reveal Floating Glass Action Toolbar Over Image */}
                   {!isMultiSelectMode && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLightboxItemId(item.id);
-                      }}
-                      title="معاينة مكبرة"
-                      aria-label={`معاينة ${item.title}`}
-                      className="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] text-[#252321] flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-150 shadow-xs cursor-pointer"
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className={`absolute inset-x-2.5 bottom-2.5 z-10 flex items-center justify-center transition-all duration-200 ${
+                        isConfirmingDelete
+                          ? 'opacity-100 translate-y-0'
+                          : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0'
+                      }`}
                     >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                    </button>
+                      <div className="inline-flex items-center gap-1 px-1.5 py-1 rounded-xl bg-[#252321]/82 backdrop-blur-md border border-white/15 shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => setLightboxItemId(item.id)}
+                          title="معاينة مكبرة"
+                          aria-label={`معاينة مكبرة لـ ${displayTitle}`}
+                          className="w-7 h-7 rounded-lg text-[#FAF6F0] hover:bg-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          data-testid={`vault-card-link-tree-btn-${item.id}`}
+                          onClick={() => {
+                            setPersonSearchInModal('');
+                            setLinkingItemId(item.id);
+                          }}
+                          title="ربط أو تعديل الأفراد في شجرتي"
+                          aria-label={`ربط ${displayTitle} بشجرتي`}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                            linkedPeopleObjs.length > 0
+                              ? 'text-[#F3D299] hover:bg-white/15'
+                              : 'text-[#FAF6F0] hover:bg-white/15'
+                          }`}
+                        >
+                          <Link2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleStartInlineRename(item)}
+                          title="إعادة تسمية"
+                          aria-label={`تعديل عنوان ${displayTitle}`}
+                          className="w-7 h-7 rounded-lg text-[#FAF6F0] hover:bg-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <a
+                          href={item.fileDataUrl}
+                          download={item.fileName || `${displayTitle}.jpg`}
+                          title="تنزيل نسخة أصلية"
+                          aria-label={`تنزيل ${displayTitle}`}
+                          className="w-7 h-7 rounded-lg text-[#FAF6F0] hover:bg-white/15 flex items-center justify-center transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+
+                        <span className="w-px h-4 bg-white/15 mx-0.5" aria-hidden="true" />
+
+                        {isConfirmingDelete ? (
+                          <div className="inline-flex items-center gap-1 pr-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="h-7 px-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-display font-bold cursor-pointer whitespace-nowrap"
+                            >
+                              تأكيد الحذف
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteItemId(null)}
+                              title="إلغاء الحذف"
+                              aria-label="إلغاء الحذف"
+                              className="w-6 h-6 rounded-lg text-white/80 hover:bg-white/15 flex items-center justify-center cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteItemId(item.id)}
+                            title="حذف من الخزانة"
+                            aria-label={`حذف ${displayTitle}`}
+                            className="w-7 h-7 rounded-lg text-[#FAF6F0]/85 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* Archival Caption, Quick Inline Rename & Linked Members */}
-                <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
-                  <div className="space-y-1">
+                {/* Pure Luxury Museum Caption Footer (Title + Linked Person + Album/Date) */}
+                <div className="px-3.5 py-3 flex-1 flex flex-col justify-between gap-2">
+                  <div>
                     {isRenaming ? (
                       <div
                         className="flex items-center gap-1"
@@ -1753,152 +1795,65 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between gap-1.5">
-                        <h4
-                          onClick={(e) => {
-                            if (isMultiSelectMode) return;
-                            e.stopPropagation();
-                            handleStartInlineRename(item);
-                          }}
-                          title="انقر لتعديل العنوان مباشرة"
-                          className="text-xs sm:text-sm font-display font-extrabold text-[#252321] hover:text-[#8D4925] transition-colors cursor-text truncate flex-1"
-                        >
-                          {item.title}
-                        </h4>
-                        {!isMultiSelectMode && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartInlineRename(item);
-                            }}
-                            title="إعادة تسمية سريعة"
-                            aria-label={`تعديل عنوان ${item.title}`}
-                            className="w-6 h-6 rounded-md text-[#8D4925]/55 hover:text-[#8D4925] hover:bg-[#FAF6F0] flex items-center justify-center shrink-0 opacity-75 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
+                      <h4
+                        onClick={(e) => {
+                          if (isMultiSelectMode) return;
+                          e.stopPropagation();
+                          handleStartInlineRename(item);
+                        }}
+                        title={
+                          isAutoRefined
+                            ? `${displayTitle} (اسم الملف: ${item.title}) — انقر لتعديل العنوان`
+                            : 'انقر لتعديل العنوان مباشرة'
+                        }
+                        className="text-[13px] font-display font-extrabold text-[#2C1E14] hover:text-[#9E5631] transition-colors cursor-text truncate"
+                      >
+                        {displayTitle}
+                      </h4>
+                    )}
+                  </div>
+
+                  {/* Unified Clean Metadata & Linked Person Row */}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    {linkedPeopleObjs.length > 0 ? (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-[#252321] text-[#F3D299] text-[9px] font-bold flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-[#C5A059]/40">
+                          {linkedPeopleObjs[0].avatarDataUrl ? (
+                            <img
+                              src={linkedPeopleObjs[0].avatarDataUrl}
+                              alt={linkedPeopleObjs[0].fullName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            linkedPeopleObjs[0].fullName.charAt(0)
+                          )}
+                        </span>
+                        <span className="text-[11px] font-display font-bold text-[#2C1E14] truncate">
+                          {linkedPeopleObjs[0].fullName}
+                        </span>
+                        {linkedPeopleObjs.length > 1 && (
+                          <span className="text-[10px] font-display font-bold text-[#8C5327] tabular-nums shrink-0">
+                            +{linkedPeopleObjs.length - 1}
+                          </span>
                         )}
                       </div>
+                    ) : (
+                      <span className="text-[11px] text-[#7A6A58]/75 truncate">
+                        {folderObj ? folderObj.name : 'أرشيف الخزانة'}
+                      </span>
                     )}
 
-                    {/* Clean Unboxed Archival Metadata */}
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#8D4925]/80 truncate">
+                    <div className="flex items-center gap-1 text-[10.5px] text-[#7A6A58] shrink-0 max-w-[52%] truncate">
+                      {linkedPeopleObjs.length > 0 && folderObj && (
+                        <>
+                          <span className="truncate">{folderObj.name}</span>
+                          <span aria-hidden="true">·</span>
+                        </>
+                      )}
                       <span className="tabular-nums shrink-0">
                         {item.dateOrOccasion}
                       </span>
-                      {folderObj && (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="truncate">{folderObj.name}</span>
-                        </>
-                      )}
                     </div>
-                  </div>
-
-                  {/* Calm Tree-Link Summary Row */}
-                  <div className="min-h-[24px] flex items-center gap-1.5 flex-wrap">
-                    {linkedPeopleObjs.length === 0 ? (
-                      <span className="text-[11px] text-[#252321]/45">
-                        غير مربوط بفرد في الشجرة
-                      </span>
-                    ) : (
-                      <>
-                        {linkedPeopleObjs.slice(0, 2).map((person) => (
-                          <span
-                            key={person.id}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#252321] max-w-[125px]"
-                          >
-                            <span className="w-4.5 h-4.5 rounded-full bg-[#252321] text-[#F3D299] text-[9px] flex items-center justify-center overflow-hidden shrink-0">
-                              {person.avatarDataUrl ? (
-                                <img
-                                  src={person.avatarDataUrl}
-                                  alt={person.fullName}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                person.fullName.charAt(0)
-                              )}
-                            </span>
-                            <span className="truncate">{person.fullName}</span>
-                          </span>
-                        ))}
-                        {linkedPeopleObjs.length > 2 && (
-                          <span className="text-[10px] font-display font-bold text-[#8D4925] tabular-nums">
-                            +{linkedPeopleObjs.length - 2}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Calm Bottom Action Toolbar */}
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-3 py-2 border-t border-[#EDE6DA] bg-[#FAF6F0]/55 flex items-center justify-between gap-1.5"
-                >
-                  <button
-                    type="button"
-                    data-testid={`vault-card-link-tree-btn-${item.id}`}
-                    onClick={() => {
-                      setPersonSearchInModal('');
-                      setLinkingItemId(item.id);
-                    }}
-                    className={`h-7 px-2.5 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-                      linkedPeopleObjs.length > 0
-                        ? 'bg-[#FBF2DC] text-[#8D4925] border border-[#C5A059]/50 hover:bg-[#252321] hover:text-[#F3D299]'
-                        : 'bg-[#FFFDF9] text-[#252321]/80 border border-[#E5DAC8] hover:border-[#C5A059] hover:text-[#252321]'
-                    }`}
-                  >
-                    <Link2 className="w-3 h-3 text-[#D8755B]" />
-                    <span className="tabular-nums">
-                      {linkedPeopleObjs.length > 0
-                        ? `شجرتي (${linkedPeopleObjs.length})`
-                        : 'ربط بشجرتي'}
-                    </span>
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setLightboxItemId(item.id)}
-                      title="معاينة مكبرة"
-                      aria-label={`معاينة مكبرة لـ ${item.title}`}
-                      className="w-7 h-7 rounded-lg text-[#252321]/70 hover:text-[#252321] hover:bg-[#FFFDF9] border border-transparent hover:border-[#E5DAC8] flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    <a
-                      href={item.fileDataUrl}
-                      download={item.fileName || `${item.title}.jpg`}
-                      title="تنزيل نسخة أصلية"
-                      aria-label={`تنزيل ${item.title}`}
-                      className="w-7 h-7 rounded-lg text-[#252321]/70 hover:text-[#252321] hover:bg-[#FFFDF9] border border-transparent hover:border-[#E5DAC8] flex items-center justify-center transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </a>
-
-                    {isConfirmingDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="h-7 px-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-display font-bold cursor-pointer whitespace-nowrap"
-                      >
-                        تأكيد الحذف
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteItemId(item.id)}
-                        title="حذف من الخزانة"
-                        aria-label={`حذف ${item.title}`}
-                        className="w-7 h-7 rounded-lg text-[#8D4925]/65 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 flex items-center justify-center transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
                   </div>
                 </div>
               </article>

@@ -3139,13 +3139,25 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       className="w-full space-y-3.5 text-right"
     >
       {/* ==================================================================== */}
-      {/* 1. UNIFIED WORKSPACE HEADER (Clean Title + Customize + Export CTA)   */}
+      {/* 1. UNIFIED WORKSPACE HEADER (Title + Desktop Controls + Actions)     */}
       {/* ==================================================================== */}
       {!isFullscreen && (
         <UnifiedWorkspaceHeader
           testId="lineage-unified-header"
           icon={<ScrollText className="w-5 h-5" />}
           title={`عمود نسب أسرة ${effectiveResult.familyName}`}
+          centerSlot={
+            <LineageCanvasFloatingControls
+              variant="header"
+              zoom={zoomScale}
+              isFullscreen={isFullscreen}
+              theme={theme}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onResetZoomCenter={handleResetZoomCenter}
+              onToggleFullscreen={handleToggleFullscreen}
+            />
+          }
           actions={
             <>
               <button
@@ -3194,22 +3206,18 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       >
         <div
           className={
-            isFullscreen ? 'max-w-6xl mx-auto space-y-5' : 'space-y-5'
+            isFullscreen ? 'max-w-6xl mx-auto space-y-5' : 'space-y-4'
           }
         >
           {/* ================================================================ */}
-          {/* 1B. SEPARATED CANVAS TOOLBAR (Desktop Inline Zoom & Fullscreen)  */}
+          {/* 1B. FULLSCREEN-ONLY TOP BAR (No extra chrome in normal view)     */}
           {/* ================================================================ */}
-          <div
-            data-testid="lineage-canvas-control-bar"
-            className={`relative z-20 pb-3.5 items-center gap-2.5 ${
-              isFullscreen
-                ? 'flex flex-wrap min-[1150px]:flex-nowrap justify-between'
-                : 'hidden min-[1150px]:flex justify-center'
-            }`}
-            style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
-          >
-            {isFullscreen && (
+          {isFullscreen && (
+            <div
+              data-testid="lineage-canvas-control-bar"
+              className="relative z-20 pb-3.5 flex flex-wrap min-[1180px]:flex-nowrap items-center justify-between gap-2.5"
+              style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
+            >
               <h2
                 className="text-lg sm:text-xl font-extrabold tracking-tight"
                 style={{
@@ -3219,23 +3227,21 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               >
                 عمود نسب أسرة {effectiveResult.familyName}
               </h2>
-            )}
 
-            <div className="flex items-center justify-center gap-2 shrink-0">
-              <div className="hidden min-[1150px]:inline-flex items-center shrink-0">
-                <LineageCanvasFloatingControls
-                  variant="inline"
-                  zoom={zoomScale}
-                  isFullscreen={isFullscreen}
-                  theme={theme}
-                  onZoomIn={handleZoomIn}
-                  onZoomOut={handleZoomOut}
-                  onResetZoomCenter={handleResetZoomCenter}
-                  onToggleFullscreen={handleToggleFullscreen}
-                />
-              </div>
+              <div className="flex items-center justify-center gap-2 shrink-0">
+                <div className="hidden min-[1180px]:inline-flex items-center shrink-0">
+                  <LineageCanvasFloatingControls
+                    variant="inline"
+                    zoom={zoomScale}
+                    isFullscreen={isFullscreen}
+                    theme={theme}
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onResetZoomCenter={handleResetZoomCenter}
+                    onToggleFullscreen={handleToggleFullscreen}
+                  />
+                </div>
 
-              {isFullscreen && (
                 <button
                   type="button"
                   onClick={() => setIsFullscreen(false)}
@@ -3250,12 +3256,12 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   <X className="w-3.5 h-3.5" />
                   <span>إغلاق</span>
                 </button>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ================================================================ */}
-          {/* 2. SLEEK 4-AXIS CUSTOMIZATION PANEL (Collapsible)                */}
+          {/* 2. COMPACT 2-ROW CUSTOMIZATION BAR (Collapsible)                 */}
           {/* ================================================================ */}
           <LineageCustomizationPanel
             isOpen={isCustomizerOpen}
@@ -3269,7 +3275,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           {/* ================================================================ */}
           {/* 3. MULTI-MODE LINEAGE VISUALIZER CANVAS (Zoomable)               */}
           {/* ================================================================ */}
-          <div className="relative z-20 py-3 min-h-[360px] overflow-x-auto">
+          <div className="relative z-20 py-2 min-h-[360px] overflow-x-auto">
             <div
               className="transition-transform duration-200 origin-top"
               style={{
@@ -3284,9 +3290,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
 
           {/* ================================================================ */}
-          {/* 4. FLOATING CANVAS CONTROLS (Tablet/Mobile < 1150px only)        */}
+          {/* 4. FLOATING CANVAS CONTROLS (Tablet/Mobile < 1180px only)        */}
           {/* ================================================================ */}
-          <div className="min-[1150px]:hidden">
+          <div className="min-[1180px]:hidden">
             <LineageCanvasFloatingControls
               variant="floating"
               zoom={zoomScale}
@@ -3300,7 +3306,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
 
           {/* ================================================================ */}
-          {/* 5. CLASSICAL ARABIC NASAB NARRATION BAR (Below Zoom Controls)    */}
+          {/* 5. CLASSICAL ARABIC NASAB NARRATION BAR                          */}
           {/* ================================================================ */}
           {studioPrefs.showNasabStrip &&
             !isUnmatchedCase &&
@@ -3315,70 +3321,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             )}
 
           {/* ================================================================ */}
-          {/* 6. VERIFICATION FOLLOW-UP RIBBON (Below Zoom & Nasab Controls)   */}
-          {/* ================================================================ */}
-          {showAlphaPendingSideNote && (
-            <aside
-              data-testid="alpha-vip-researcher-followup-card"
-              aria-label="ملاحظة متابعة التوثيق"
-              className="relative z-20 rounded-2xl px-4 py-3 transition-colors"
-              style={{
-                backgroundColor: theme.surfaceBg,
-                border: `1px solid ${theme.goldBorderHex}75`,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setIsFollowUpNoteOpen((prev) => !prev)}
-                aria-expanded={isFollowUpNoteOpen}
-                data-testid="alpha-vip-followup-toggle-btn"
-                className="w-full flex items-center justify-between gap-3 text-right cursor-pointer"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Sparkles
-                    className="w-4 h-4 shrink-0"
-                    style={{ color: theme.goldHex }}
-                  />
-                  <span
-                    className="text-xs font-display font-extrabold truncate"
-                    style={{ color: theme.accentTextHex }}
-                  >
-                    ملاحظة متابعة التوثيق — جاري استكمال ربط الطبقات العليا حتى آدم عليه السلام
-                  </span>
-                </div>
-                <span
-                  className="inline-flex items-center gap-1 text-[11px] font-display font-bold shrink-0"
-                  style={{ color: theme.textMutedHex }}
-                >
-                  <span>{isFollowUpNoteOpen ? 'إخفاء' : 'التفاصيل'}</span>
-                  {isFollowUpNoteOpen ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                </span>
-              </button>
-
-              {isFollowUpNoteOpen && (
-                <p
-                  className="mt-2.5 pt-2.5 text-xs leading-relaxed"
-                  style={{
-                    borderTop: `1px solid ${theme.surfaceBorder}`,
-                    color: theme.textSecondaryHex,
-                  }}
-                >
-                  باقتك السنوية مفعّلة — يعمل فريق النسابين حالياً على المراجعة النهائية لوصل (
-                  {result.rootTribeName?.startsWith('قبيلة')
-                    ? result.rootTribeName
-                    : `قبيلة ${getCleanSpineNodeName(result.rootTribeName || 'العقيدات')}`}
-                  ) بعمودها التاريخي الأعلى، وستظهر العُقد المفتوحة تلقائياً فور اعتمادها.
-                </p>
-              )}
-            </aside>
-          )}
-
-          {/* ================================================================ */}
-          {/* 7. LUXURY REFERENCE LIBRARY (خزانة الشواهد والمصادر التاريخية)   */}
+          {/* 6. LUXURY REFERENCE LIBRARY (خزانة الشواهد والمصادر التاريخية)   */}
           {/* ================================================================ */}
           {!isUnmatchedCase && !isVerificationPending && !isFullscreen && (
             <LuxuryReferenceLibrary
@@ -3404,6 +3347,69 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               theme={theme}
               fontId={studioPrefs.fontId}
             />
+          )}
+
+          {/* ================================================================ */}
+          {/* 7. SLIM VERIFICATION FOLLOW-UP FOOTER RIBBON (Below Library)     */}
+          {/* ================================================================ */}
+          {showAlphaPendingSideNote && !isFullscreen && (
+            <aside
+              data-testid="alpha-vip-researcher-followup-card"
+              aria-label="ملاحظة متابعة التوثيق"
+              className="relative z-20 max-w-4xl mx-auto w-full rounded-xl px-4 py-2.5 transition-colors"
+              style={{
+                backgroundColor: theme.surfaceAltBg,
+                border: `1px solid ${theme.goldBorderHex}50`,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsFollowUpNoteOpen((prev) => !prev)}
+                aria-expanded={isFollowUpNoteOpen}
+                data-testid="alpha-vip-followup-toggle-btn"
+                className="w-full flex items-center justify-between gap-3 text-right cursor-pointer"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: theme.goldHex }}
+                  />
+                  <span
+                    className="text-[11.5px] font-display font-bold truncate"
+                    style={{ color: theme.textSecondaryHex }}
+                  >
+                    متابعة التوثيق — جاري استكمال ربط الطبقات العليا حتى آدم عليه السلام
+                  </span>
+                </div>
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-display font-bold shrink-0"
+                  style={{ color: theme.accentTextHex }}
+                >
+                  <span>{isFollowUpNoteOpen ? 'إخفاء' : 'التفاصيل'}</span>
+                  {isFollowUpNoteOpen ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </span>
+              </button>
+
+              {isFollowUpNoteOpen && (
+                <p
+                  className="mt-2 pt-2 text-[11.5px] leading-relaxed"
+                  style={{
+                    borderTop: `1px solid ${theme.surfaceBorder}`,
+                    color: theme.textSecondaryHex,
+                  }}
+                >
+                  باقتك السنوية مفعّلة — يعمل فريق النسابين حالياً على المراجعة النهائية لوصل (
+                  {result.rootTribeName?.startsWith('قبيلة')
+                    ? result.rootTribeName
+                    : `قبيلة ${getCleanSpineNodeName(result.rootTribeName || 'العقيدات')}`}
+                  ) بعمودها التاريخي الأعلى، وستظهر العُقد المفتوحة تلقائياً فور اعتمادها.
+                </p>
+              )}
+            </aside>
           )}
         </div>
       </div>

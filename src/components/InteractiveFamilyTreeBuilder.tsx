@@ -6317,63 +6317,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         testId="tree-unified-header"
         icon={<TreePine className="w-5 h-5" />}
         title={`شجرة أسرة ${result.familyName}`}
-        metaItems={[
-          'استوديو المشجرة المعاصرة',
-          <button
-            key="capacity"
-            type="button"
-            data-testid="tree-capacity-badge"
-            onClick={() => {
-              setCapacityPurchaseFeedback(null);
-              setShowCapacityAddonModal(true);
-            }}
-            title="الحد الأقصى الأساسي 250 فرداً — اضغط لإضافة سعة إضافية من المحفظة"
-            className="inline-flex items-center gap-1 hover:text-[#9E5631] transition-colors cursor-pointer tabular-nums"
-          >
-            <strong className="font-semibold text-[#2C1E14]">
-              {people.length}
-            </strong>
-            <span>فرداً من سعة</span>
-            <strong className="font-semibold text-[#2C1E14]">
-              {effectiveMaxTreeMembers}
-            </strong>
-          </button>,
-          <span
-            key="last-saved"
-            data-testid="tree-last-saved-badge"
-            className="inline-flex items-center gap-1 tabular-nums"
-          >
-            {(treeSaveState === 'loading' || treeSaveState === 'saving') && (
-              <Loader2 className="w-3 h-3 animate-spin text-[#9E5631] shrink-0" />
-            )}
-            <span>
-              {treeSaveState === 'loading'
-                ? 'جاري التحميل...'
-                : treeSaveState === 'saving'
-                ? 'جاري الحفظ...'
-                : `آخر حفظ: ${lastSavedLabel || 'الآن'}`}
-            </span>
-          </span>,
-        ]}
         actions={
           <>
-            {/* Secondary Icon: Manual Save */}
-            <button
-              type="button"
-              data-testid="save-tree-icon-btn"
-              disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
-              onClick={handleManualSaveTree}
-              title="حفظ المشجرة سحابياً الآن"
-              aria-label="حفظ المشجرة"
-              className={WORKSPACE_ICON_BTN_CLASS}
-            >
-              {treeSaveState === 'saving' ? (
-                <Loader2 className="w-4 h-4 animate-spin text-[#9E5631]" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-            </button>
-
             {/* Secondary: Share / Invite Family */}
             <button
               type="button"
@@ -6387,50 +6332,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               <UserPlus className="w-4 h-4 shrink-0" />
               <span>مشاركة</span>
             </button>
-
-            {/* Secondary: JSON Import / Export Popover */}
-            <div className="relative">
-              <button
-                type="button"
-                data-testid="tree-json-menu-btn"
-                onClick={() => setShowJsonBackupMenu((v) => !v)}
-                onBlur={() => window.setTimeout(() => setShowJsonBackupMenu(false), 180)}
-                className={WORKSPACE_SECONDARY_BTN_CLASS}
-              >
-                <FileJson className="w-4 h-4 shrink-0" />
-                <span>استيراد وتصدير JSON</span>
-              </button>
-              {showJsonBackupMenu && (
-                <div
-                  data-testid="tree-json-backup-popover"
-                  className="absolute left-0 top-full mt-1.5 z-40 w-48 rounded-xl bg-white border border-[#E6DAC3] shadow-lg p-1.5 space-y-1 text-right"
-                >
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleExportTreeJsonBackup();
-                    }}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-display font-semibold text-[#2C1E14] hover:bg-[#FAF5EC] flex items-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5 text-[#8C5327] shrink-0" />
-                    <span>تصدير نسخة JSON</span>
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setShowJsonBackupMenu(false);
-                      jsonImportInputRef.current?.click();
-                    }}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-display font-semibold text-[#2C1E14] hover:bg-[#FAF5EC] flex items-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <Upload className="w-3.5 h-3.5 text-[#8C5327] shrink-0" />
-                    <span>استيراد ملف JSON</span>
-                  </button>
-                </div>
-              )}
-            </div>
 
             {/* Primary CTA: Official Branded Tree Export & Print */}
             <button
@@ -6681,6 +6582,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             mirrorPresetFeedback={mirrorPresetFeedback}
             familyName={result.familyName}
             onOpenExportModal={() => setShowOfficialExportModal(true)}
+            onExportJsonBackup={handleExportTreeJsonBackup}
+            onImportJsonBackup={() => jsonImportInputRef.current?.click()}
           />
 
           {/* Live Tree Canvas Stage */}
@@ -6944,6 +6847,79 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 />
               </div>
             )}
+
+            {/* Quiet Translucent Glass Status Capsule (Capacity + Auto-Save) in Canvas Bottom-Left */}
+            <div
+              data-testid="tree-canvas-status-capsule"
+              className={`absolute bottom-16 min-[1150px]:bottom-3.5 left-3.5 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-[11px] font-display shadow-xs transition-colors ${
+                activeTreeTheme.isDarkSurface
+                  ? 'bg-[#1D1B19]/75 border-[#F3D299]/20 text-[#F3EFEA]/85'
+                  : 'bg-[#FFFDF9]/82 border-[#E2D5BE]/90 text-[#6F5F50]'
+              }`}
+            >
+              <button
+                type="button"
+                data-testid="tree-capacity-badge"
+                onClick={() => {
+                  setCapacityPurchaseFeedback(null);
+                  setShowCapacityAddonModal(true);
+                }}
+                title="اضغط لإدارة سعة أفراد المشجرة"
+                className={`inline-flex items-center gap-1 font-semibold tabular-nums cursor-pointer transition-colors ${
+                  activeTreeTheme.isDarkSurface
+                    ? 'hover:text-[#F3D299]'
+                    : 'hover:text-[#9E5631]'
+                }`}
+              >
+                <strong
+                  className={
+                    activeTreeTheme.isDarkSurface
+                      ? 'font-bold text-[#F3D299]'
+                      : 'font-bold text-[#2C1E14]'
+                  }
+                >
+                  {people.length} / {effectiveMaxTreeMembers}
+                </strong>
+                <span>فرداً</span>
+              </button>
+
+              <span aria-hidden="true" className="opacity-45">
+                ·
+              </span>
+
+              <button
+                type="button"
+                data-testid="tree-last-saved-badge"
+                disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
+                onClick={handleManualSaveTree}
+                title={
+                  lastSavedLabel
+                    ? `آخر حفظ: ${lastSavedLabel} — اضغط للحفظ الآن`
+                    : 'حُفظ تلقائياً — اضغط للحفظ الآن'
+                }
+                className={`inline-flex items-center gap-1.5 tabular-nums cursor-pointer transition-colors disabled:cursor-default ${
+                  activeTreeTheme.isDarkSurface
+                    ? 'hover:text-[#F3D299]'
+                    : 'hover:text-[#2C1E14]'
+                }`}
+              >
+                {treeSaveState === 'loading' || treeSaveState === 'saving' ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-[#9E5631] shrink-0" />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="w-1.5 h-1.5 rounded-full bg-emerald-500/85 shrink-0"
+                  />
+                )}
+                <span>
+                  {treeSaveState === 'loading'
+                    ? 'جاري التحميل...'
+                    : treeSaveState === 'saving'
+                    ? 'جاري الحفظ...'
+                    : 'حُفظ تلقائياً'}
+                </span>
+              </button>
+            </div>
 
             {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock (Tablet/Mobile < 1150px only) */}
             <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex min-[1150px]:hidden flex-col items-center gap-2">

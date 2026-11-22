@@ -68,6 +68,10 @@ import {
   VaultPolaroidFanVisual,
 } from './HomeBentoMicroVisuals';
 import { WORKSPACE_PRIMARY_BTN_CLASS } from './UnifiedWorkspaceHeader';
+import {
+  RoyalRoleFamilyBadge,
+  resolveRoyalRoleLabel,
+} from './RoyalRoleFamilyBadge';
 
 interface CustomerHomeOverviewProps {
   result: LineageSearchResult;
@@ -472,32 +476,27 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   }, [result.originCountry, result.originRegion]);
 
   const identityMetaParts = useMemo(() => {
-    const parts: string[] = [
-      accountType === AccountLegalType.RecordKeeper
-        ? 'أمين سجل العائلة'
-        : 'حساب فردي',
-    ];
+    const parts: string[] = ['سجل العائلة الموثق'];
     if (cleanLocationLabel) {
       parts.push(cleanLocationLabel);
     }
     return parts;
-  }, [accountType, cleanLocationLabel]);
+  }, [cleanLocationLabel]);
 
-  const greetingHeading = useMemo(() => {
+  const cleanUserFirstName = useMemo(() => {
     const client = (result.clientName || '').trim();
-    const fam = (result.familyName || '').trim();
-    const cleanClient = client && client !== '—' ? client : '';
-    const cleanFam = fam && fam !== '—' ? fam : '';
-    if (cleanClient && cleanFam) {
-      if (cleanClient.includes(cleanFam)) {
-        return `أهلاً بك، ${cleanClient}`;
-      }
-      return `أهلاً بك، ${cleanClient} — أسرة ${cleanFam}`;
-    }
-    if (cleanClient) return `أهلاً بك، ${cleanClient}`;
-    if (cleanFam) return `أهلاً بك في ديوان أسرة ${cleanFam}`;
-    return 'أهلاً بك في منصتك التراثية';
-  }, [result.clientName, result.familyName]);
+    return client && client !== '—' && client !== '-' ? client : '';
+  }, [result.clientName]);
+
+  const greetingHeading = cleanUserFirstName
+    ? `أهلاً بك، ${cleanUserFirstName}`
+    : 'أهلاً بك في منصتك التراثية';
+
+  const heroRoleLabel = resolveRoyalRoleLabel({
+    accountType,
+    hasRegistrarBadge: caps.hasRegistrarBadge,
+    isVerifiedOrVip: caps.isVip || caps.isRootUnlocked,
+  });
 
   // Interactive 5-Milestone Family Legacy Journey (100% Real Firestore State)
   const legacyMilestones = useMemo(() => {
@@ -619,8 +618,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         <div className="relative z-10 p-5 sm:p-7 space-y-6">
           {/* Top Row: Clean Identity + Wallet & Subscriptions */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="space-y-2 min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-display text-[#7A6855]">
                 {identityMetaParts.map((part, idx) => (
                   <React.Fragment key={`${part}-${idx}`}>
                     {idx > 0 && (
@@ -631,8 +630,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                     <span
                       className={
                         idx === 0
-                          ? 'font-display font-bold text-[#8D4925]'
-                          : 'font-semibold text-[#5C5346]'
+                          ? 'font-semibold text-[#8D6538]'
+                          : 'font-medium text-[#6A5A4A]'
                       }
                     >
                       {part}
@@ -641,9 +640,17 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                 ))}
               </div>
 
-              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321] leading-snug">
-                {greetingHeading}
-              </h1>
+              <div className="inline-flex items-center flex-wrap gap-2.5 sm:gap-3 max-w-full">
+                <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321] leading-snug">
+                  {greetingHeading}
+                </h1>
+                <RoyalRoleFamilyBadge
+                  testId="home-royal-role-family-badge"
+                  roleLabel={heroRoleLabel}
+                  familyName={result.familyName}
+                  variant="hero"
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">

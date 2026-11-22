@@ -13,6 +13,8 @@ export interface UnifiedWorkspaceHeaderProps {
   metaItems?: Array<React.ReactNode | null | undefined | false>;
   /** Optional custom 1-line metadata node (used if caller needs custom layout) */
   meta?: React.ReactNode;
+  /** Optional centered control capsule on wide desktop viewports (>=1180px) */
+  centerSlot?: React.ReactNode;
   /** Unified 40px action buttons cluster (Secondary buttons right -> Primary CTA far left in RTL) */
   actions?: React.ReactNode;
   /** Optional test id for automated QA */
@@ -40,6 +42,7 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
   title,
   metaItems,
   meta,
+  centerSlot,
   actions,
   testId,
   className = '',
@@ -55,7 +58,7 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
       data-testid={testId}
       className={`bg-[#FDFBF7] border border-[#E6DAC3] rounded-2xl px-5 sm:px-6 py-4 shadow-[0_2px_12px_rgba(44,30,20,0.03)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 text-right ${className}`}
     >
-      {/* Right Block: Unified 44x44 Icon Box + Title + Single-Line Meta Strip */}
+      {/* Right Block: Unified 44x44 Icon Box + Title + Optional Single-Line Meta Strip */}
       <div className="flex items-center gap-3.5 min-w-0">
         <div
           aria-hidden="true"
@@ -98,6 +101,13 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
           ) : null}
         </div>
       </div>
+
+      {/* Center Block (Desktop >=1180px): Optional Compact Studio Controls */}
+      {centerSlot && (
+        <div className="hidden min-[1180px]:flex items-center justify-center shrink-0">
+          {centerSlot}
+        </div>
+      )}
 
       {/* Left Block: Unified 40px Action Cluster (Secondary right -> Primary far left) */}
       {actions && (

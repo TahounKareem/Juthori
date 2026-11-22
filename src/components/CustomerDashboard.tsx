@@ -93,6 +93,10 @@ import { LineageSpineColumn } from './LineageSpineColumn';
 import { PremiumTabViews } from './PremiumTabViews';
 import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
+import {
+  RoyalRoleFamilyBadge,
+  resolveRoyalRoleLabel,
+} from './RoyalRoleFamilyBadge';
 import { DashboardHeaderWatermark } from './DashboardHeaderWatermark';
 import { CheckoutExecutionResult, CheckoutModal } from './CheckoutModal';
 import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
@@ -2268,21 +2272,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   // Separate user first name from family name cleanly for the Sculpted Profile Identity Capsule
   const cleanClientFirstName = (result.clientName || '').trim() || 'عضو جذوري';
   const rawClientFamilyName = (result.familyName || '').trim();
-  const cleanFamilyEmblemLabel = rawClientFamilyName
-    ? /^(أسرة|عائلة|آل)\s/.test(rawClientFamilyName)
-      ? rawClientFamilyName
-      : `أسرة ${rawClientFamilyName}`
-    : '';
-
-  const accountTierLabel = caps.hasRegistrarBadge
-    ? caps.isVip
-      ? 'أمين سجل العائلة ✦ بريميوم'
-      : 'أمين سجل العائلة ✦'
-    : caps.isVip
-    ? 'عضوية بريميوم ✦'
-    : caps.isRootUnlocked
-    ? 'الباقة الأساسية الموثقة ($5)'
-    : 'العضوية المجانية';
+  const headerRoleLabel = resolveRoyalRoleLabel({
+    accountType,
+    hasRegistrarBadge: caps.hasRegistrarBadge,
+    isVerifiedOrVip: caps.isVip || caps.isRootUnlocked,
+  });
 
   const renderPrimaryNavigationTabs = (attachMobileRefs: boolean) => (
     <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 min-[1180px]:p-1 rounded-2xl bg-[#EFE8DA]/82 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
@@ -2537,7 +2531,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
                   aria-label="قائمة الحساب الشخصي والأدوات"
-                  className={`group relative overflow-hidden flex items-center gap-1.5 md:gap-2.5 rounded-full pr-1 pl-2 md:pr-1.5 md:pl-2.5 py-1 md:py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[148px] md:max-w-[260px] xl:max-w-[274px] will-change-transform ${
+                  className={`group relative overflow-hidden flex items-center gap-1.5 md:gap-2 rounded-full pr-1 pl-2 md:pr-1.5 md:pl-2 py-1 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[164px] md:max-w-[340px] xl:max-w-[370px] will-change-transform ${
                     userDropdownOpen
                       ? 'bg-gradient-to-l from-[#FFFDF8] via-[#FAF3E4] to-[#F3E7D2] border-[#C59B27]/65 shadow-[0_8px_22px_-10px_rgba(140,98,57,0.34)] -translate-y-0.5'
                       : 'bg-gradient-to-l from-[#FFFDF9]/95 via-[#FBF6EC]/90 to-[#F4ECDD]/85 border-[#D4AF37]/30 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.16)] hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-10px_rgba(140,98,57,0.28)] hover:border-[#C59B27]/55 active:scale-[0.985]'
@@ -2549,55 +2543,53 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/60 to-transparent -skew-x-12"
                   />
 
-                  {/* Rightmost (RTL Start): Double Gilded Ring Portrait */}
-                  <span className="relative p-[1.5px] md:p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 shrink-0 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
-                    <span className="block p-[1px] md:p-[1.5px] rounded-full bg-[#FFFDF9]">
-                      <span className="w-7 h-7 md:w-8 md:h-8 xl:w-9 xl:h-9 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
-                        {avatarUrl ? (
-                          <img
-                            src={avatarUrl}
-                            alt={`${cleanClientFirstName} ${rawClientFamilyName}`}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User
-                            className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#F3D299]"
-                            aria-hidden="true"
-                          />
-                        )}
+                  {/* Rightmost (RTL Start): Double Gilded Ring Portrait + Royal Premium Crown Medallion */}
+                  <span className="relative shrink-0">
+                    <span className="block p-[1.5px] md:p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
+                      <span className="block p-[1px] md:p-[1.5px] rounded-full bg-[#FFFDF9]">
+                        <span className="w-7 h-7 md:w-8 md:h-8 xl:w-9 xl:h-9 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
+                          {avatarUrl ? (
+                            <img
+                              src={avatarUrl}
+                              alt={`${cleanClientFirstName} ${rawClientFamilyName}`}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User
+                              className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#F3D299]"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </span>
                       </span>
                     </span>
+
+                    {caps.isVip && (
+                      <span
+                        title="عضوية بريميوم"
+                        aria-label="عضوية بريميوم"
+                        data-testid="header-profile-premium-crown"
+                        className="absolute -bottom-0.5 -left-0.5 w-[17px] h-[17px] rounded-full bg-gradient-to-br from-[#F7DE98] via-[#D4AF37] to-[#9E6B24] text-[#23180E] ring-[1.5px] ring-[#FFFDF9] shadow-xs flex items-center justify-center"
+                      >
+                        <Crown className="w-2.5 h-2.5 stroke-[2.4]" aria-hidden="true" />
+                      </span>
+                    )}
                   </span>
 
-                  {/* Middle: Separated First Name + Family Emblem + Tier Subtitle */}
-                  <div className="relative z-10 min-w-0 text-right">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[12.5px] md:text-[13.5px] xl:text-[14px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap truncate">
-                        {cleanClientFirstName}
-                      </span>
-                      {cleanFamilyEmblemLabel && (
-                        <>
-                          <span
-                            aria-hidden="true"
-                            className="hidden md:block w-px h-3.5 bg-gradient-to-b from-transparent via-[#C59B27]/70 to-transparent shrink-0"
-                          />
-                          <span className="hidden md:inline-flex items-center px-2 py-[3px] rounded-full bg-gradient-to-b from-[#F5EBD7] to-[#ECE0C7] border border-[#C59B27]/35 text-[#7A4B21] text-[10.5px] xl:text-[11px] font-display font-bold leading-none whitespace-nowrap truncate max-w-[104px] xl:max-w-[122px]">
-                            {cleanFamilyEmblemLabel}
-                          </span>
-                        </>
-                      )}
-                    </div>
+                  {/* Middle: Clean Single-Row Name + Connected Segmented Role & Family Badge */}
+                  <div className="relative z-10 flex items-center gap-1.5 md:gap-2 min-w-0">
+                    <span className="text-[12.5px] md:text-[13.5px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap truncate">
+                      {cleanClientFirstName}
+                    </span>
 
-                    <div
-                      className={`hidden md:block text-[10px] xl:text-[10.5px] font-display mt-1 leading-none truncate ${
-                        caps.isVip || caps.hasRegistrarBadge
-                          ? 'text-[#9A6A28] font-bold'
-                          : 'text-[#6A5746] font-medium'
-                      }`}
-                    >
-                      {accountTierLabel}
-                    </div>
+                    <RoyalRoleFamilyBadge
+                      testId="header-royal-role-family-badge"
+                      roleLabel={headerRoleLabel}
+                      familyName={result.familyName}
+                      variant="header"
+                      className="hidden md:inline-flex"
+                    />
                   </div>
 
                   {/* Trailing Left Edge: Animated Sculpted Chevron (▾) */}
@@ -2625,8 +2617,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     role="menu"
                     className="absolute left-0 mt-2.5 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
                   >
-                    {/* Dropdown Identity Header: Full Name, Family Emblem, Tier, Email & Verification */}
-                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-1.5">
+                    {/* Dropdown Identity Header: Full Name, Royal Role/Family Badge, Premium Crown & Verification */}
+                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-display font-extrabold text-sm text-[#252321] truncate">
                           {result.clientName}
@@ -2635,28 +2627,31 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             : ''}{' '}
                           {result.familyName}
                         </span>
-                        {isEmailVerified ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold shrink-0">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>موثّق ✓</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-bold shrink-0">
-                            <span>غير موثّق</span>
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {caps.isVip && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#F7E5B7] to-[#FDF5DF] border border-[#D4AF37]/60 text-[#7A4B1B] text-[10px] font-display font-extrabold">
+                              <Crown className="w-2.5 h-2.5 text-[#B67A1E]" />
+                              <span>بريميوم</span>
+                            </span>
+                          )}
+                          {isEmailVerified ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>موثّق ✓</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-bold">
+                              <span>غير موثّق</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {cleanFamilyEmblemLabel && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/80 border border-[#C59B27]/35 text-[#7A4B21] text-[10.5px] font-display font-bold">
-                            {cleanFamilyEmblemLabel}
-                          </span>
-                        )}
-                        <span className="text-[10.5px] font-display font-bold text-[#9A6A28]">
-                          {accountTierLabel}
-                        </span>
-                      </div>
+                      <RoyalRoleFamilyBadge
+                        roleLabel={headerRoleLabel}
+                        familyName={result.familyName}
+                        variant="header"
+                      />
 
                       <div
                         className="text-xs font-mono text-[#252321]/70 truncate"
