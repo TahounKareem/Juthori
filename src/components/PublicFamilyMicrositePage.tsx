@@ -864,6 +864,25 @@ export const PublicFamilyMicrositePage: React.FC<
 
   const portalTitle =
     siteData.bioTitle?.trim() || `ديوان أسرة ${siteData.familyName}`;
+  const cleanHeroLocation = [siteData.originRegion, siteData.originCountry]
+    .map((v) => (v || '').trim())
+    .filter(
+      (v) =>
+        Boolean(v) &&
+        ![
+          'غير محدد',
+          'غير محددة',
+          'غير معروف',
+          'غير معروفة',
+          '—',
+          '-',
+          'none',
+          'n/a',
+          'unknown',
+        ].includes(v.toLowerCase())
+    )
+    .filter((v, idx, arr) => arr.indexOf(v) === idx)
+    .join(' — ');
 
   const scrollToSection = (key: PortalSectionKey) => {
     if (compactPreview) return;
@@ -2210,19 +2229,15 @@ export const PublicFamilyMicrositePage: React.FC<
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs opacity-90 pt-1">
-                {(siteData.originRegion || siteData.originCountry) && (
+                {cleanHeroLocation && (
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 fs-gold-text" />
-                    <span>
-                      {[siteData.originRegion, siteData.originCountry]
-                        .filter(Boolean)
-                        .join(' — ')}
-                    </span>
+                    <span>{cleanHeroLocation}</span>
                   </span>
                 )}
                 {siteData.isRegistrarCertified && (
                   <>
-                    <span className="opacity-40">·</span>
+                    {cleanHeroLocation && <span className="opacity-40">·</span>}
                     <span className="inline-flex items-center gap-1.5 fs-gold-text font-bold">
                       <ShieldCheck className="w-3.5 h-3.5" />
                       <span>أمين سجل عائلي موثق</span>
@@ -2257,14 +2272,10 @@ export const PublicFamilyMicrositePage: React.FC<
                     </p>
                   )}
                 <div className="flex flex-wrap items-center gap-4 text-xs opacity-90 pt-1">
-                  {(siteData.originRegion || siteData.originCountry) && (
+                  {cleanHeroLocation && (
                     <span className="inline-flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 fs-gold-text" />
-                      <span>
-                        {[siteData.originRegion, siteData.originCountry]
-                          .filter(Boolean)
-                          .join(' — ')}
-                      </span>
+                      <span>{cleanHeroLocation}</span>
                     </span>
                   )}
                   {siteData.isRegistrarCertified && (
@@ -2323,13 +2334,11 @@ export const PublicFamilyMicrositePage: React.FC<
                   </p>
                 )}
               <div className="flex flex-wrap items-center justify-center gap-3 text-xs fs-gold-text font-semibold pt-1">
-                <span>
-                  {[siteData.originRegion, siteData.originCountry]
-                    .filter(Boolean)
-                    .join(' — ')}
-                </span>
+                {cleanHeroLocation && <span>{cleanHeroLocation}</span>}
                 {siteData.isRegistrarCertified && (
-                  <span>· سجل عائلي موثق ✦</span>
+                  <span>
+                    {cleanHeroLocation ? '· ' : ''}سجل عائلي موثق ✦
+                  </span>
                 )}
               </div>
             </div>

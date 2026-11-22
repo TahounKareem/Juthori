@@ -3147,13 +3147,34 @@ export async function fetchOwnerMicrositeForCommunity(
       : Promise.reject(new Error('SKIP')),
   ]);
 
+  const candidates: PublicMicrositeData[] = [];
   if (pSnap.status === 'fulfilled' && !pSnap.value.empty) {
-    return pSnap.value.docs[0].data() as PublicMicrositeData;
+    pSnap.value.docs.forEach((d) =>
+      candidates.push(d.data() as PublicMicrositeData)
+    );
   }
   if (mSnap.status === 'fulfilled' && !mSnap.value.empty) {
-    return mSnap.value.docs[0].data() as PublicMicrositeData;
+    mSnap.value.docs.forEach((d) =>
+      candidates.push(d.data() as PublicMicrositeData)
+    );
   }
-  return null;
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    if (cleanSlug) {
+      const aMatch = normalizePublicSiteSlug(a.siteSlug || '') === cleanSlug ? 1 : 0;
+      const bMatch = normalizePublicSiteSlug(b.siteSlug || '') === cleanSlug ? 1 : 0;
+      if (aMatch !== bMatch) return bMatch - aMatch;
+    }
+    const tsA = Date.parse(a.updatedAt || a.createdAt || '') || 0;
+    const tsB = Date.parse(b.updatedAt || b.createdAt || '') || 0;
+    if (tsA !== tsB) return tsB - tsA;
+    const pubA = a.isPublished ? 1 : 0;
+    const pubB = b.isPublished ? 1 : 0;
+    return pubB - pubA;
+  });
+
+  return candidates[0] || null;
 }
 
 /**

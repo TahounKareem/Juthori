@@ -40,6 +40,8 @@ import {
   TreeEnrichmentRequestDoc,
   fetchKinshipCircleForOwner,
   fetchOwnerMicrositeForCommunity,
+  normalizePublicSiteSlug,
+  normalizeVisualBranding,
   resolveTicketLifecycleStage,
   subscribeToOwnerEnrichmentRequests,
 } from '../services/priority4Service';
@@ -115,6 +117,30 @@ function normalizeLocationToken(val?: string): string {
     .replace(/\s+/g, ' ')
     .replace(/^ال/, '')
     .toLowerCase();
+}
+
+const UNSPECIFIED_LOCATION_TOKENS = new Set([
+  '',
+  '-',
+  '—',
+  '–',
+  'غير محدد',
+  'غير محددة',
+  'غير معروف',
+  'غير معروفة',
+  'لا يوجد',
+  'none',
+  'null',
+  'undefined',
+  'n/a',
+  'unknown',
+]);
+
+function sanitizeUserEnteredLocation(val?: string): string {
+  const trimmed = (val || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  if (UNSPECIFIED_LOCATION_TOKENS.has(trimmed.toLowerCase())) return '';
+  return trimmed;
 }
 
 export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
@@ -310,23 +336,71 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     };
   }, [resolvedUid, userEmail, result.familyName, siteSettings?.siteSubdomain]);
 
-  // Derived Real State
-  const siteInfo = useMemo(
-    () => ({
+  // Derived Real State (strictly reflecting the client's actual customized site & slug)
+  const siteInfo = useMemo(() => {
+    let parsedSettingsBranding: Record<string, unknown> | null = null;
+    if (siteSettings?.visualBrandingJson) {
+      try {
+        parsedSettingsBranding = JSON.parse(siteSettings.visualBrandingJson);
+      } catch {
+        parsedSettingsBranding = null;
+      }
+    }
+
+    const settingsSlug = normalizePublicSiteSlug(
+      siteSettings?.siteSubdomain || ''
+    );
+    const micrositeSlug = normalizePublicSiteSlug(
+      ownerMicrosite?.siteSlug || ''
+    );
+    const resolvedSlug = settingsSlug || micrositeSlug || '';
+
+    const resolvedThemeId = (siteSettings?.themeId ||
+      ownerMicrosite?.themeId ||
+      'golden_parchment') as FamilySiteThemeId;
+
+    const resolvedBranding = normalizeVisualBranding(
+      (parsedSettingsBranding ||
+        ownerMicrosite?.visualBranding ||
+        undefined) as Parameters<typeof normalizeVisualBranding>[0],
+      result.familyName
+    );
+
+    const resolvedTitle =
+      (siteSettings?.bioTitle || ownerMicrosite?.bioTitle || '').trim() ||
+      `ديوان وسجل أسرة ${result.familyName || 'العائلة'}`;
+
+    const resolvedEmblem = (
+      siteSettings?.emblemTag ||
+      ownerMicrosite?.familyEmblemTag ||
+      ''
+    ).trim();
+
+    return {
       isPublished: Boolean(
-        ownerMicrosite?.isPublished ?? siteSettings?.isPublished
+        siteSettings?.isPublished ?? ownerMicrosite?.isPublished
       ),
-      slug: ownerMicrosite?.siteSlug || siteSettings?.siteSubdomain || '',
-      themeId: (ownerMicrosite?.themeId || 'golden_parchment') as FamilySiteThemeId,
-    }),
-    [
-      ownerMicrosite?.isPublished,
-      ownerMicrosite?.siteSlug,
-      ownerMicrosite?.themeId,
-      siteSettings?.isPublished,
-      siteSettings?.siteSubdomain,
-    ]
-  );
+      slug: resolvedSlug,
+      themeId: resolvedThemeId,
+      bioTitle: resolvedTitle,
+      emblemTag: resolvedEmblem,
+      visualBranding: resolvedBranding,
+    };
+  }, [
+    ownerMicrosite?.isPublished,
+    ownerMicrosite?.siteSlug,
+    ownerMicrosite?.themeId,
+    ownerMicrosite?.bioTitle,
+    ownerMicrosite?.familyEmblemTag,
+    ownerMicrosite?.visualBranding,
+    siteSettings?.isPublished,
+    siteSettings?.siteSubdomain,
+    siteSettings?.themeId,
+    siteSettings?.bioTitle,
+    siteSettings?.emblemTag,
+    siteSettings?.visualBrandingJson,
+    result.familyName,
+  ]);
 
   const relativesCount = circleMembers.length;
 
@@ -374,10 +448,10 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   const totalCapsules = result.capsules?.length || 0;
   const unlockedCapsulesCount = unlockedCapsules?.length || 0;
 
-  // Clean De-duplicated Identity & Location Copy
+  // Clean De-duplicated Identity & Location Copy (only displays values actually entered by client)
   const cleanLocationLabel = useMemo(() => {
-    const country = (result.originCountry || '').trim();
-    const region = (result.originRegion || '').trim();
+    const country = sanitizeUserEnteredLocation(result.originCountry);
+    const region = sanitizeUserEnteredLocation(result.originRegion);
     if (!country && !region) return '';
     if (!region) return country;
     if (!country) return region;
@@ -596,7 +670,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               <button
                 type="button"
                 onClick={onOpenWalletDrawer}
-                className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
+                className="px-4 py-2.5 rounded-xl bg-[#8D4925] hover:bg-[#753A1C] text-[#FFFDF9] border border-[#C8A666]/55 text-xs font-display font-bold transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
               >
                 الاشتراكات والمكافآت
               </button>
@@ -887,12 +961,15 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               </span>
             </div>
 
-            {/* Live Micro-Visual: Miniature Theme-Matched Portal Browser */}
+            {/* Live Micro-Visual: Authentic Snapshot of Client's Real Customized Site */}
             <SiteMiniBrowserVisual
               familyName={result.familyName || 'العائلة'}
               slug={siteInfo.slug}
               isPublished={siteInfo.isPublished}
               themeId={siteInfo.themeId}
+              bioTitle={siteInfo.bioTitle}
+              emblemTag={siteInfo.emblemTag}
+              visualBranding={siteInfo.visualBranding}
             />
 
             <div className="space-y-1 text-xs text-[#5C5346]">
@@ -902,7 +979,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                   dir="ltr"
                   className="inline-block font-mono text-[11px] text-[#252321]"
                 >
-                  {siteInfo.slug ? `juthori.com/${siteInfo.slug}` : 'لم يُحجز بعد'}
+                  {siteInfo.slug ? `Juthori.com/${siteInfo.slug}` : 'لم يُحجز بعد'}
                 </strong>
               </div>
               <div className="truncate">
@@ -917,7 +994,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MySite)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F4F0E8] hover:bg-[#252321] text-[#252321] hover:text-[#F3D299] border border-[#D8CEBF] hover:border-[#252321] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F4F0E8] hover:bg-[#8D4925] text-[#252321] hover:text-white border border-[#D8CEBF] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>تخصيص موقعي</span>
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -974,40 +1051,40 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           </button>
         </article>
 
-        {/* 6. حزمة «كشّافي ✦» (Row 2 — 3 Columns on XL / 6 on LG, Royal Obsidian & Gold Spotlight Card) */}
-        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#1A1B20] via-[#1E222B] to-[#131418] border border-[#D4AF6A]/65 text-[#F7F2E9] p-5 flex flex-col justify-between gap-4 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:border-[#E5C17A]">
+        {/* 6. حزمة «كشّافي ✦» (Row 2 — 3 Columns on XL / 6 on LG, Warm Parchment & Antique Gold Observatory Card) */}
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#FFFDF9] via-[#FBF5E8] to-[#F4E7CE] border border-[#D6B97E]/80 text-[#252321] p-5 flex flex-col justify-between gap-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#B68A3A]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#D4AF6A]/20 border border-[#D4AF6A]/45 text-[#E5C17A] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#FBF0D9] border border-[#DEC085] text-[#8D4925] flex items-center justify-center shrink-0">
                   <Compass className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-display font-bold text-white tracking-wide">
-                  كشّافي ✦
+                <h2 className="text-base font-display font-bold text-[#252321] tracking-wide">
+                  كشّافي <span className="text-[#B88933]">✦</span>
                 </h2>
               </div>
               {unreadKashafiItemsCount > 0 ? (
-                <span className="text-[11px] font-display font-bold text-[#E5C17A] tabular-nums">
+                <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
                   {unreadKashafiItemsCount} جديد
                 </span>
               ) : (
-                <span className="text-[10px] font-semibold text-[#E5C17A]/75">
+                <span className="text-[10px] font-bold text-[#8D4925]/85">
                   رادار البحوث
                 </span>
               )}
             </div>
 
-            {/* Live Micro-Visual: Subtle Radar Rings & Royal Compass */}
+            {/* Live Micro-Visual: Warm Parchment & Antique Gold Radar */}
             <KashafiRadarVisual
               hasActiveTicket={Boolean(activeTicket)}
               discoveriesCount={kashafiItems.length}
               matchingCampaignsCount={matchingCampaignsCount}
             />
 
-            <div className="space-y-1 text-xs text-[#F7F2E9]/75">
+            <div className="space-y-1 text-xs text-[#5C5346]">
               <div className="truncate">
                 التحقيق:{' '}
-                <strong className="text-white">
+                <strong className="text-[#252321]">
                   {activeTicket
                     ? `بعثة جارية (#${activeTicket.ticketNumber})`
                     : 'لا توجد بعثة مفتوحة'}
@@ -1015,7 +1092,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               </div>
               <div className="tabular-nums truncate">
                 المرصد:{' '}
-                <strong className="text-[#E5C17A]">
+                <strong className="text-[#8D4925]">
                   {kashafiItems.length} اكتشاف · {matchingCampaignsCount} خدمة
                 </strong>
               </div>
@@ -1025,7 +1102,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-l from-[#D4AF6A] to-[#E5C17A] hover:from-[#e0be7c] hover:to-[#eed08f] text-[#17161A] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F7E8C8] hover:bg-[#8D4925] text-[#7A3F1D] hover:text-white border border-[#D6B97E] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
           >
             <span>استكشاف كشّافي</span>
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />

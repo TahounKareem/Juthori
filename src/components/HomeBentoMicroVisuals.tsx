@@ -13,6 +13,15 @@ import {
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
 } from '../config/referralAndSiteConfig';
+import {
+  FamilyPortalVisualBranding,
+  buildDefaultVisualBranding,
+} from '../services/priority4Service';
+import {
+  FamilyCrestEmblem,
+  HeroArchitecturalBackdrop,
+  TYPOGRAPHY_PAIR_OPTIONS,
+} from './FamilySiteHeritageVisuals';
 
 // =============================================================================
 // 1. LINEAGE GLOWING NODES PATH (عمود نسبي)
@@ -257,7 +266,7 @@ export const VaultPolaroidFanVisual: React.FC<VaultPolaroidFanVisualProps> = ({
     return (
       <div
         aria-hidden="true"
-        className="h-28 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/60 flex items-center justify-center relative overflow-hidden"
+        className="h-32 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/60 flex items-center justify-center relative overflow-hidden"
       >
         <div className="relative flex items-center justify-center">
           <div className="w-24 h-16 rounded-lg bg-white/80 border border-[#C8A666]/55 shadow-xs -rotate-6 -translate-x-4 transition-transform duration-300 group-hover:-rotate-12 group-hover:-translate-x-6" />
@@ -277,7 +286,7 @@ export const VaultPolaroidFanVisual: React.FC<VaultPolaroidFanVisualProps> = ({
   return (
     <div
       aria-hidden="true"
-      className="h-28 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/55 flex items-center justify-center relative overflow-hidden"
+      className="h-32 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/55 flex items-center justify-center relative overflow-hidden"
     >
       <div className="relative w-40 h-22 flex items-center justify-center">
         {stack.map((photo, idx) => {
@@ -313,13 +322,16 @@ export const VaultPolaroidFanVisual: React.FC<VaultPolaroidFanVisualProps> = ({
 };
 
 // =============================================================================
-// 4. MINI PORTAL BROWSER MOCKUP (موقعي)
+// 4. REAL LIVE MINI PORTAL SNAPSHOT (موقعي)
 // =============================================================================
 interface SiteMiniBrowserVisualProps {
   familyName: string;
   slug: string;
   isPublished: boolean;
   themeId?: FamilySiteThemeId;
+  bioTitle?: string;
+  emblemTag?: string;
+  visualBranding?: FamilyPortalVisualBranding;
 }
 
 export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
@@ -327,56 +339,149 @@ export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
   slug,
   isPublished,
   themeId,
+  bioTitle,
+  emblemTag,
+  visualBranding,
 }) => {
   const theme =
     FAMILY_SITE_THEMES.find((t) => t.id === themeId) || FAMILY_SITE_THEMES[0];
+  const branding = visualBranding || buildDefaultVisualBranding(familyName);
+  const typography =
+    TYPOGRAPHY_PAIR_OPTIONS.find((t) => t.id === branding.typographyId) ||
+    TYPOGRAPHY_PAIR_OPTIONS[0];
+  const resolvedTitle =
+    (bioTitle || '').trim() || `ديوان وسجل أسرة ${familyName}`;
+  const resolvedEmblem = (emblemTag || '').trim();
+  const displayUrl = slug ? `Juthori.com/${slug}` : 'لم يُخصّص الرابط بعد';
 
   return (
     <div
       aria-hidden="true"
-      className="h-28 rounded-xl border border-[#D8CBB8] overflow-hidden shadow-xs flex flex-col transition-transform duration-300 group-hover:-translate-y-0.5"
+      className="h-32 rounded-xl border border-[#D8CBB8] overflow-hidden shadow-xs flex flex-col transition-transform duration-300 group-hover:-translate-y-0.5"
       style={{ backgroundColor: theme.swatchCanvas }}
     >
-      {/* Mini browser top chrome */}
-      <div className="px-2.5 py-1.5 bg-[#252321]/90 text-[#F7F2E9] flex items-center justify-between gap-2">
+      {/* Light heritage browser top bar showing the client's real custom URL */}
+      <div className="px-2.5 py-1.5 bg-[#FAF6F0] border-b border-[#E5DAC8] text-[#5C5346] flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#D8755B]/80" />
-          <span className="w-1.5 h-1.5 rounded-full bg-[#E5C17A]/80" />
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/75" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF6A]/90" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/75" />
         </div>
         <div
           dir="ltr"
-          className="text-[9px] font-mono text-[#F7F2E9]/85 truncate max-w-[155px]"
+          className="text-[9px] font-mono font-semibold text-[#5C5346] truncate max-w-[165px]"
         >
-          {slug ? `juthori.com/${slug}` : 'juthori.com/your-family'}
+          {displayUrl}
         </div>
       </div>
 
-      {/* Mini portal hero preview painted in user's active theme */}
-      <div
-        className="flex-1 px-3 py-2.5 flex flex-col justify-between relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${theme.swatchHero} 0%, ${theme.swatchHero}e6 65%, ${theme.swatchAccent}99 100%)`,
-        }}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-display font-bold text-white truncate">
-            ديوان أسرة {familyName}
-          </span>
-          <Globe className="w-3 h-3 text-white/75 shrink-0" />
+      {/* Authentic live snapshot of the client's customized Hero & Crest */}
+      <div className="relative flex-1 overflow-hidden flex flex-col justify-between">
+        {/* Exact same cover image / architectural preset & overlay as PublicFamilyMicrositePage */}
+        <HeroArchitecturalBackdrop branding={branding} />
+
+        {/* Subtle theme tint harmonize layer when using preset */}
+        {branding.heroCoverMode !== 'custom_image' && (
+          <div
+            className="absolute inset-0 pointer-events-none opacity-25"
+            style={{
+              background: `linear-gradient(135deg, ${theme.swatchHero} 0%, ${theme.swatchAccent}88 100%)`,
+            }}
+          />
+        )}
+
+        {/* Real Hero Content Snapshot matching chosen layout */}
+        <div className="relative z-10 flex-1 px-3 py-2 flex items-center justify-center">
+          {branding.heroLayout === 'editorial_split' ? (
+            <div className="w-full flex items-center justify-between gap-2 text-right">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                {resolvedEmblem && (
+                  <div className="text-[8px] font-bold text-[#F3D299] truncate">
+                    {resolvedEmblem}
+                  </div>
+                )}
+                <div
+                  className="text-[11px] font-bold text-white truncate drop-shadow-xs"
+                  style={{ fontFamily: typography.fontCss }}
+                >
+                  {resolvedTitle}
+                </div>
+              </div>
+              <div className="shrink-0 scale-[0.78] origin-left">
+                <FamilyCrestEmblem
+                  familyName={familyName}
+                  crestMode={branding.crestMode}
+                  crestStyle={branding.crestStyle}
+                  customCrestUrl={branding.customCrestUrl}
+                  size="xs"
+                />
+              </div>
+            </div>
+          ) : branding.heroLayout === 'floating_glass' ? (
+            <div className="w-full rounded-lg bg-black/30 backdrop-blur-[3px] border border-white/20 px-2.5 py-1.5 flex items-center gap-2">
+              <div className="shrink-0 scale-[0.75] origin-right">
+                <FamilyCrestEmblem
+                  familyName={familyName}
+                  crestMode={branding.crestMode}
+                  crestStyle={branding.crestStyle}
+                  customCrestUrl={branding.customCrestUrl}
+                  size="xs"
+                />
+              </div>
+              <div className="min-w-0 flex-1 text-right">
+                {resolvedEmblem && (
+                  <div className="text-[7.5px] font-bold text-[#F3D299] truncate">
+                    {resolvedEmblem}
+                  </div>
+                )}
+                <div
+                  className="text-[10.5px] font-bold text-white truncate"
+                  style={{ fontFamily: typography.fontCss }}
+                >
+                  {resolvedTitle}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full flex flex-col items-center text-center gap-0.5">
+              <div className="scale-[0.72] -my-1.5">
+                <FamilyCrestEmblem
+                  familyName={familyName}
+                  crestMode={branding.crestMode}
+                  crestStyle={branding.crestStyle}
+                  customCrestUrl={branding.customCrestUrl}
+                  size="xs"
+                />
+              </div>
+              <div
+                className="text-[11px] font-bold text-white truncate max-w-full drop-shadow-xs"
+                style={{ fontFamily: typography.fontCss }}
+              >
+                {resolvedTitle}
+              </div>
+              {resolvedEmblem && (
+                <div className="text-[8px] font-semibold text-[#F3D299]/95 truncate max-w-[92%]">
+                  {resolvedEmblem}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Mini simulated content bars */}
-        <div className="flex items-end justify-between gap-2 pt-2">
-          <div className="space-y-1 flex-1">
-            <div className="h-1.5 w-3/4 rounded-full bg-white/30" />
-            <div className="h-1.5 w-1/2 rounded-full bg-white/20" />
-          </div>
+        {/* Mini Theme Canvas Strip matching the actual public portal body */}
+        <div
+          className="relative z-10 px-2.5 py-1 flex items-center justify-between gap-2 border-t border-black/5"
+          style={{ backgroundColor: theme.swatchCanvas }}
+        >
+          <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-[#5C5346] truncate">
+            <Globe className="w-2.5 h-2.5 shrink-0" style={{ color: theme.swatchAccent }} />
+            <span className="truncate">{theme.nameAr}</span>
+          </span>
           <span
-            className="text-[9px] font-display font-bold px-2 py-0.5 rounded-md text-white shrink-0"
+            className="text-[8.5px] font-display font-bold px-1.5 py-0.5 rounded text-white shrink-0"
             style={{ backgroundColor: theme.swatchAccent }}
           >
-            {isPublished ? 'منشور' : 'مسودة'}
+            {isPublished ? 'منشور ✓' : 'مسودة'}
           </span>
         </div>
       </div>
@@ -405,7 +510,7 @@ export const KinshipOrbitVisual: React.FC<KinshipOrbitVisualProps> = ({
   return (
     <div
       aria-hidden="true"
-      className="h-28 rounded-xl bg-gradient-to-b from-[#FAF5EE] to-[#F3E9DC] border border-[#DAC4AE]/60 flex items-center justify-center relative overflow-hidden"
+      className="h-32 rounded-xl bg-gradient-to-b from-[#FAF5EE] to-[#F3E9DC] border border-[#DAC4AE]/60 flex items-center justify-center relative overflow-hidden"
     >
       {/* Concentric delicate golden orbit rings */}
       <div className="absolute w-36 h-36 rounded-full border border-dashed border-[#C8A666]/45 transition-transform duration-500 group-hover:scale-105" />
@@ -454,7 +559,7 @@ export const KinshipOrbitVisual: React.FC<KinshipOrbitVisualProps> = ({
 };
 
 // =============================================================================
-// 6. ROYAL OBSIDIAN & GOLD RADAR SCENE (كشّافي ✦)
+// 6. WARM PARCHMENT & ANTIQUE GOLD RADAR SCENE (كشّافي ✦)
 // =============================================================================
 interface KashafiRadarVisualProps {
   hasActiveTicket: boolean;
@@ -470,20 +575,20 @@ export const KashafiRadarVisual: React.FC<KashafiRadarVisualProps> = ({
   return (
     <div
       aria-hidden="true"
-      className="h-28 rounded-xl bg-black/30 border border-[#D4AF6A]/25 flex items-center justify-center relative overflow-hidden"
+      className="h-32 rounded-xl bg-gradient-to-b from-[#FAF3E3] via-[#F6EBDA] to-[#EFE0C3] border border-[#D8BC87]/75 flex items-center justify-center relative overflow-hidden"
     >
-      {/* Subtle concentric radar rings */}
-      <div className="absolute w-40 h-40 rounded-full border border-[#D4AF6A]/15 transition-transform duration-500 group-hover:scale-110" />
-      <div className="absolute w-28 h-28 rounded-full border border-[#D4AF6A]/25 transition-transform duration-500 group-hover:scale-105" />
-      <div className="absolute w-16 h-16 rounded-full border border-[#E5C17A]/40" />
+      {/* Subtle concentric antique-gold radar rings */}
+      <div className="absolute w-40 h-40 rounded-full border border-dashed border-[#C59B47]/35 transition-transform duration-500 group-hover:scale-110" />
+      <div className="absolute w-28 h-28 rounded-full border border-[#B68A3A]/35 transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute w-16 h-16 rounded-full border border-[#8D4925]/35" />
 
-      {/* Center royal compass emblem */}
-      <div className="relative z-10 w-11 h-11 rounded-full bg-gradient-to-br from-[#E5C17A] to-[#9E6B2B] text-[#17161A] flex items-center justify-center shadow-[0_0_24px_rgba(229,193,122,0.45)] transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
+      {/* Center warm bronze & gold compass emblem */}
+      <div className="relative z-10 w-11 h-11 rounded-full bg-gradient-to-br from-[#D4AF6A] to-[#9E6B2B] text-white flex items-center justify-center shadow-[0_6px_18px_rgba(158,107,43,0.32)] border border-[#F5E0B3]/70 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
         <Compass className="w-5 h-5" />
       </div>
 
       {/* Bottom unobtrusive real status caption */}
-      <div className="absolute bottom-2 inset-x-3 flex items-center justify-between text-[10px] text-[#E5C17A]/85 tabular-nums">
+      <div className="absolute bottom-2 inset-x-3 flex items-center justify-between text-[10px] font-bold text-[#7A4B23] tabular-nums">
         <span>{hasActiveTicket ? 'بعثة نشطة' : 'المرصد متأهب'}</span>
         <span>
           {discoveriesCount} رصد · {matchingCampaignsCount} خدمة
