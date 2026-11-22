@@ -6317,9 +6317,33 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         testId="tree-unified-header"
         icon={<TreePine className="w-5 h-5" />}
         title={`شجرة أسرة ${result.familyName}`}
+        centerSlot={
+          <div className="inline-flex items-center gap-1.5">
+            <TreeFloatingStudioDock
+              variant="header"
+              zoomPercent={zoomPercent}
+              onZoomIn={handleManualZoomIn}
+              onZoomOut={handleManualZoomOut}
+              onResetZoom={handleManualResetZoom}
+              onFitAndCenter={handleFitAndCenterCanvas}
+              isAutoFitActive={isAutoFitMode}
+              isCinemaMode={isCinemaMode}
+              onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+              showMinimap={showMinimap}
+              onToggleMinimap={() => setShowMinimap((v) => !v)}
+              isDarkSurface={activeTreeTheme.isDarkSurface}
+            />
+
+            <TreeSmartNodeSearch
+              expandable
+              people={visiblePeopleForTree}
+              onSelectPerson={handleSpotlightPerson}
+            />
+          </div>
+        }
         actions={
           <>
-            {/* Secondary: Share / Invite Family */}
+            {/* Compact Share / Invite Family Icon */}
             <button
               type="button"
               data-testid="invite-family-icon-btn"
@@ -6327,10 +6351,58 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 setCopiedInviteLink(false);
                 setShowInviteFamilyModal(true);
               }}
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
+              title="مشاركة ودعوة العائلة"
+              aria-label="مشاركة ودعوة العائلة"
+              className={WORKSPACE_ICON_BTN_CLASS}
             >
               <UserPlus className="w-4 h-4 shrink-0" />
-              <span>مشاركة</span>
+            </button>
+
+            {/* Secondary: Kinship Calculator */}
+            <button
+              type="button"
+              data-testid="open-kinship-calculator-btn"
+              onClick={() => {
+                if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
+                  const keeper =
+                    visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
+                    visiblePeopleForTree[0];
+                  setKinshipPersonAId(keeper.id);
+                }
+                if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
+                  const other =
+                    visiblePeopleForTree.find(
+                      (p) =>
+                        p.id !==
+                        (kinshipPersonAId || visiblePeopleForTree[0]?.id)
+                    ) || visiblePeopleForTree[1];
+                  if (other) setKinshipPersonBId(other.id);
+                }
+                setShowKinshipModal(true);
+              }}
+              className={`h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                isKinshipHighlightedOnCanvas
+                  ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
+                  : 'bg-white/90 hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
+              }`}
+            >
+              <GitFork className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+              <span>صلة القرابة ✦</span>
+            </button>
+
+            {/* Secondary: Studio Settings (Matches تخصيص المظهر position in Lineage) */}
+            <button
+              type="button"
+              data-testid="toggle-tree-settings-btn"
+              onClick={() => setIsTreeSettingsOpen((open) => !open)}
+              className={
+                isTreeSettingsOpen
+                  ? 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/55 shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0'
+                  : 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] transition-all cursor-pointer whitespace-nowrap shrink-0'
+              }
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+              <span>إعدادات شجرتي</span>
             </button>
 
             {/* Primary CTA: Official Branded Tree Export & Print */}
@@ -6341,7 +6413,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               className={WORKSPACE_PRIMARY_BTN_CLASS}
             >
               <Download className="w-4 h-4 shrink-0" />
-              <span>تصدير وطبع الشجرة</span>
+              <span>تصدير الشجرة</span>
             </button>
           </>
         }
@@ -6411,87 +6483,60 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             : `rounded-3xl border-2 ${activeTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
         }
       >
-        {/* Clean Unified Single-Row Studio Top Header Bar on Desktop (>=1150px) */}
+        {/* Responsive Sub-Header Bar (Visible ONLY on Tablet/Mobile <1200px or inside Fullscreen Cinema Mode) */}
         <div
           data-testid="tree-settings-collapsible-bar"
-          className="px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex flex-wrap min-[1150px]:flex-nowrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20"
+          className={`px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex-wrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20 ${
+            isCinemaMode ? 'flex' : 'flex min-[1200px]:hidden'
+          }`}
         >
-          {/* Right Cluster: Studio Inspector Toggle */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              data-testid="toggle-tree-settings-btn"
-              onClick={() => setIsTreeSettingsOpen((open) => !open)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
-                isTreeSettingsOpen
-                  ? 'bg-gradient-to-l from-[#8D4925] to-[#A65A33] text-white border-[#8D4925] shadow-xs'
-                  : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
-              }`}
-            >
-              <SlidersHorizontal
-                className={`w-3.5 h-3.5 ${
-                  isTreeSettingsOpen ? 'text-[#F6DCA2]' : 'text-[#D8755B]'
-                }`}
-              />
-              <span>إعدادات شجرتي</span>
-            </button>
-          </div>
+          {/* Cinema-mode controls when full-screen is active */}
+          {isCinemaMode && (
+            <>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsTreeSettingsOpen((open) => !open)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
+                    isTreeSettingsOpen
+                      ? 'bg-gradient-to-l from-[#8D4925] to-[#A65A33] text-white border-[#8D4925] shadow-xs'
+                      : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
+                  }`}
+                >
+                  <SlidersHorizontal
+                    className={`w-3.5 h-3.5 ${
+                      isTreeSettingsOpen ? 'text-[#F6DCA2]' : 'text-[#D8755B]'
+                    }`}
+                  />
+                  <span>إعدادات شجرتي</span>
+                </button>
+              </div>
 
-          {/* Center Cluster (Desktop >= 1150px): Integrated Zoom, Fit, Minimap & Cinema Bar */}
-          <div className="hidden min-[1150px]:flex items-center justify-center flex-1 min-w-0">
-            <TreeFloatingStudioDock
-              variant="inline"
-              zoomPercent={zoomPercent}
-              onZoomIn={handleManualZoomIn}
-              onZoomOut={handleManualZoomOut}
-              onResetZoom={handleManualResetZoom}
-              onFitAndCenter={handleFitAndCenterCanvas}
-              isAutoFitActive={isAutoFitMode}
-              isCinemaMode={isCinemaMode}
-              onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
-              showMinimap={showMinimap}
-              onToggleMinimap={() => setShowMinimap((v) => !v)}
-              isDarkSurface={activeTreeTheme.isDarkSurface}
-            />
-          </div>
+              <div className="hidden min-[1200px]:flex items-center justify-center flex-1 min-w-0">
+                <TreeFloatingStudioDock
+                  variant="inline"
+                  zoomPercent={zoomPercent}
+                  onZoomIn={handleManualZoomIn}
+                  onZoomOut={handleManualZoomOut}
+                  onResetZoom={handleManualResetZoom}
+                  onFitAndCenter={handleFitAndCenterCanvas}
+                  isAutoFitActive={isAutoFitMode}
+                  isCinemaMode={isCinemaMode}
+                  onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+                  showMinimap={showMinimap}
+                  onToggleMinimap={() => setShowMinimap((v) => !v)}
+                  isDarkSurface={activeTreeTheme.isDarkSurface}
+                />
+              </div>
+            </>
+          )}
 
-          {/* Left Cluster: Smart Node Search & Spotlight + Kinship Calculator Button */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+          {/* Smart Node Search on <1200px or Cinema Mode */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto flex-1 min-w-0">
             <TreeSmartNodeSearch
               people={visiblePeopleForTree}
               onSelectPerson={handleSpotlightPerson}
             />
-
-            <button
-              type="button"
-              data-testid="open-kinship-calculator-btn"
-              onClick={() => {
-                if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
-                  const keeper =
-                    visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
-                    visiblePeopleForTree[0];
-                  setKinshipPersonAId(keeper.id);
-                }
-                if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
-                  const other =
-                    visiblePeopleForTree.find(
-                      (p) =>
-                        p.id !==
-                        (kinshipPersonAId || visiblePeopleForTree[0]?.id)
-                    ) || visiblePeopleForTree[1];
-                  if (other) setKinshipPersonBId(other.id);
-                }
-                setShowKinshipModal(true);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-[11.5px] font-display font-extrabold inline-flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                isKinshipHighlightedOnCanvas
-                  ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
-                  : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#B98A78]/45'
-              }`}
-            >
-              <GitFork className="w-3.5 h-3.5 text-[#D8755B]" />
-              <span>صلة القرابة بين فردين ✦</span>
-            </button>
           </div>
         </div>
 
@@ -6833,7 +6878,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
             {/* Interactive Minimap Floating Corner Widget */}
             {showMinimap && (
-              <div className="absolute bottom-20 min-[1150px]:bottom-4 right-3 z-30">
+              <div className="absolute bottom-20 min-[1200px]:bottom-4 right-3 z-30">
                 <TreeInteractiveMinimap
                   people={visiblePeopleForTree}
                   highlightedIds={
@@ -6851,7 +6896,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             {/* Quiet Translucent Glass Status Capsule (Capacity + Auto-Save) in Canvas Bottom-Left */}
             <div
               data-testid="tree-canvas-status-capsule"
-              className={`absolute bottom-16 min-[1150px]:bottom-3.5 left-3.5 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-[11px] font-display shadow-xs transition-colors ${
+              className={`absolute bottom-16 min-[1200px]:bottom-3.5 left-3.5 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-[11px] font-display shadow-xs transition-colors ${
                 activeTreeTheme.isDarkSurface
                   ? 'bg-[#1D1B19]/75 border-[#F3D299]/20 text-[#F3EFEA]/85'
                   : 'bg-[#FFFDF9]/82 border-[#E2D5BE]/90 text-[#6F5F50]'
@@ -6921,8 +6966,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </button>
             </div>
 
-            {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock (Tablet/Mobile < 1150px only) */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex min-[1150px]:hidden flex-col items-center gap-2">
+            {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock (Tablet/Mobile < 1200px only) */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex min-[1200px]:hidden flex-col items-center gap-2">
               <div className="pointer-events-auto">
                 <TreeFloatingStudioDock
                   zoomPercent={zoomPercent}

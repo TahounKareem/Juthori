@@ -2524,14 +2524,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               />
 
               {/* 3d. BESPOKE SCULPTED LUXURY PROFILE IDENTITY CAPSULE (Flush Far-Left Anchor) */}
-              <div className="relative min-w-0" ref={dropdownRef}>
+              <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setUserDropdownOpen((prev) => !prev)}
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
                   aria-label="قائمة الحساب الشخصي والأدوات"
-                  className={`group relative overflow-hidden flex items-center gap-1.5 md:gap-2 rounded-full pr-1 pl-2 md:pr-1.5 md:pl-2 py-1 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[164px] md:max-w-[340px] xl:max-w-[370px] will-change-transform ${
+                  className={`group relative overflow-hidden w-auto shrink-0 flex items-center gap-2 md:gap-2.5 rounded-full px-2 md:px-2.5 py-1 md:py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right will-change-transform ${
                     userDropdownOpen
                       ? 'bg-gradient-to-l from-[#FFFDF8] via-[#FAF3E4] to-[#F3E7D2] border-[#C59B27]/65 shadow-[0_8px_22px_-10px_rgba(140,98,57,0.34)] -translate-y-0.5'
                       : 'bg-gradient-to-l from-[#FFFDF9]/95 via-[#FBF6EC]/90 to-[#F4ECDD]/85 border-[#D4AF37]/30 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.16)] hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-10px_rgba(140,98,57,0.28)] hover:border-[#C59B27]/55 active:scale-[0.985]'
@@ -2577,9 +2577,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     )}
                   </span>
 
-                  {/* Middle: Clean Single-Row Name + Connected Segmented Role & Family Badge */}
-                  <div className="relative z-10 flex items-center gap-1.5 md:gap-2 min-w-0">
-                    <span className="text-[12.5px] md:text-[13.5px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap truncate">
+                  {/* Middle: Unconstrained First Name + Connected Segmented Role & Family Badge */}
+                  <div className="relative z-10 flex items-center gap-2 shrink-0">
+                    <span className="text-[13px] md:text-[14px] font-display font-extrabold text-[#252321] leading-normal whitespace-nowrap shrink-0">
                       {cleanClientFirstName}
                     </span>
 
@@ -2615,49 +2615,52 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 {userDropdownOpen && (
                   <div
                     role="menu"
-                    className="absolute left-0 mt-2.5 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
+                    className="absolute left-0 mt-2.5 w-[336px] sm:w-[356px] max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
                   >
-                    {/* Dropdown Identity Header: Full Name, Royal Role/Family Badge, Premium Crown & Verification */}
-                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-display font-extrabold text-sm text-[#252321] truncate">
-                          {result.clientName}
-                          {result.fatherName && result.fatherName !== '—'
-                            ? ` بن ${result.fatherName}`
-                            : ''}{' '}
-                          {result.familyName}
-                        </span>
-                        <div className="flex items-center gap-1 shrink-0">
+                    {/* Dropdown Identity Header: Dedicated Full Name Row + Shared Royal Badge + Status Chips + Email */}
+                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-2.5">
+                      <div className="font-display font-extrabold text-[15px] text-[#252321] leading-relaxed break-words">
+                        {result.clientName}
+                        {result.fatherName && result.fatherName !== '—'
+                          ? ` بن ${result.fatherName}`
+                          : ''}{' '}
+                        {result.familyName}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <RoyalRoleFamilyBadge
+                          roleLabel={headerRoleLabel}
+                          familyName={result.familyName}
+                          variant="header"
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           {caps.isVip && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#F7E5B7] to-[#FDF5DF] border border-[#D4AF37]/60 text-[#7A4B1B] text-[10px] font-display font-extrabold">
-                              <Crown className="w-2.5 h-2.5 text-[#B67A1E]" />
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-l from-[#F7E5B7] to-[#FDF5DF] border border-[#D4AF37]/60 text-[#7A4B1B] text-[10.5px] font-display font-extrabold leading-normal">
+                              <Crown className="w-3 h-3 text-[#B67A1E]" />
                               <span>بريميوم</span>
                             </span>
                           )}
                           {isEmailVerified ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10.5px] font-bold leading-normal">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               <span>موثّق ✓</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10.5px] font-bold leading-normal">
                               <span>غير موثّق</span>
                             </span>
                           )}
                         </div>
-                      </div>
 
-                      <RoyalRoleFamilyBadge
-                        roleLabel={headerRoleLabel}
-                        familyName={result.familyName}
-                        variant="header"
-                      />
-
-                      <div
-                        className="text-xs font-mono text-[#252321]/70 truncate"
-                        dir="ltr"
-                      >
-                        {userEmail}
+                        <div
+                          className="text-[11.5px] font-mono text-[#252321]/70 truncate max-w-full"
+                          dir="ltr"
+                        >
+                          {userEmail}
+                        </div>
                       </div>
                     </div>
 

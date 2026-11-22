@@ -3290,9 +3290,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
 
           {/* ================================================================ */}
-          {/* 4. FLOATING CANVAS CONTROLS (Tablet/Mobile < 1180px only)        */}
+          {/* 4. FLOATING CANVAS CONTROLS (Tablet/Mobile < 1200px only)        */}
           {/* ================================================================ */}
-          <div className="min-[1180px]:hidden">
+          <div className="min-[1200px]:hidden">
             <LineageCanvasFloatingControls
               variant="floating"
               zoom={zoomScale}

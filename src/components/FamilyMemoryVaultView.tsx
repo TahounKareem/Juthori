@@ -885,21 +885,162 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         testId="vault-unified-header"
         icon={<FolderArchive className="w-5 h-5" />}
         title={`خزانة أسرة ${result.familyName}`}
+        centerSlot={
+          <div className="inline-flex items-center gap-1.5">
+            {/* Compact Expanding Quick Search */}
+            <div className="relative w-44 focus-within:w-56 transition-all duration-200 ease-out">
+              <Search className="w-3.5 h-3.5 text-[#8C5327]/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="بحث سريع..."
+                aria-label="بحث سريع في الخزانة"
+                className="w-full h-10 pr-8 pl-7 rounded-xl bg-white border border-[#E2D5BE] focus:border-[#C5A059] text-xs font-display font-medium text-[#2C1E14] placeholder:text-[#7A6855]/65 focus:outline-none shadow-2xs transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="مسح البحث"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A6855] hover:text-[#2C1E14] cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Compact Tree Members Filter */}
+            <select
+              value={selectedPersonFilterId}
+              onChange={(e) => setSelectedPersonFilterId(e.target.value)}
+              aria-label="تصفية حسب أفراد شجرتي"
+              className="h-10 px-2.5 rounded-xl bg-white border border-[#E2D5BE] hover:border-[#C5A059] text-xs font-display font-semibold text-[#3D2B1F] focus:outline-none focus:border-[#C5A059] shadow-2xs cursor-pointer max-w-[148px]"
+            >
+              <option value="ALL">أفراد شجرتي ({treePeople.length})</option>
+              {treePeople.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.fullName}
+                </option>
+              ))}
+            </select>
+
+            {/* Compact Sort Cycle Icon Button */}
+            <button
+              type="button"
+              onClick={() =>
+                setSortBy((cur) =>
+                  cur === 'newest'
+                    ? 'historical_asc'
+                    : cur === 'historical_asc'
+                    ? 'alphabetical'
+                    : 'newest'
+                )
+              }
+              title={`الترتيب: ${
+                sortBy === 'newest'
+                  ? 'الأحدث إضافة'
+                  : sortBy === 'historical_asc'
+                  ? 'الأقدم تاريخياً'
+                  : 'أبجدياً'
+              } (انقر للتبديل)`}
+              aria-label="تبديل ترتيب المقتنيات"
+              className={`h-10 w-10 rounded-xl border inline-flex items-center justify-center shadow-2xs transition-colors cursor-pointer shrink-0 ${
+                sortBy !== 'newest'
+                  ? 'bg-[#F5ECE0] text-[#8C5327] border-[#D4AF37]/55'
+                  : 'bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
+              }`}
+            >
+              <ArrowUpDown className="w-4 h-4" />
+            </button>
+
+            {/* Compact Grid Density 3/4 Columns Switch */}
+            <div
+              role="group"
+              aria-label="حجم عرض الشبكة"
+              className="inline-flex h-10 items-center rounded-xl bg-white p-1 border border-[#E2D5BE] shadow-2xs shrink-0"
+            >
+              <button
+                type="button"
+                onClick={() => setGridDensity('standard')}
+                title="شبكة قياسية (4 أعمدة)"
+                aria-label="شبكة قياسية 4 أعمدة"
+                className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+                  gridDensity === 'standard'
+                    ? 'bg-[#F5ECE0] text-[#8C5327]'
+                    : 'text-[#7A6855] hover:text-[#2C1E14]'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setGridDensity('large')}
+                title="شبكة مكبرة (3 أعمدة)"
+                aria-label="شبكة مكبرة 3 أعمدة"
+                className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+                  gridDensity === 'large'
+                    ? 'bg-[#F5ECE0] text-[#8C5327]'
+                    : 'text-[#7A6855] hover:text-[#2C1E14]'
+                }`}
+              >
+                <Grid2x2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Compact Multi-Select Icon Button */}
+            <button
+              type="button"
+              onClick={handleToggleMultiSelectMode}
+              disabled={items.length === 0}
+              title={
+                isMultiSelectMode
+                  ? `وضع التحديد المتعدد مفعّل (${selectedItemIds.length})`
+                  : 'تحديد متعدد'
+              }
+              aria-label="تحديد متعدد"
+              className={`h-10 rounded-xl border inline-flex items-center justify-center gap-1 shadow-2xs transition-colors cursor-pointer shrink-0 disabled:opacity-45 disabled:cursor-not-allowed ${
+                isMultiSelectMode
+                  ? 'px-2.5 bg-[#252321] text-[#F3D299] border-[#252321]'
+                  : 'w-10 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
+              }`}
+            >
+              <CheckSquare className="w-4 h-4 shrink-0" />
+              {isMultiSelectMode && selectedItemIds.length > 0 && (
+                <span className="text-[11px] font-display font-bold tabular-nums">
+                  {selectedItemIds.length}
+                </span>
+              )}
+            </button>
+          </div>
+        }
         actions={
-          <button
-            type="button"
-            data-testid="vault-upload-primary-btn"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessingFiles}
-            className={WORKSPACE_PRIMARY_BTN_CLASS}
-          >
-            <Plus className="w-4 h-4 shrink-0" />
-            <span>
-              {isProcessingFiles
-                ? 'جاري تجهيز الملفات...'
-                : 'رفع صور أو وثائق'}
-            </span>
-          </button>
+          <>
+            <button
+              type="button"
+              data-testid="vault-new-folder-header-btn"
+              onClick={() => setShowNewFolderModal(true)}
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
+            >
+              <FolderPlus className="w-4 h-4 shrink-0" />
+              <span>+ مجلد خاص</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="vault-upload-primary-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isProcessingFiles}
+              className={WORKSPACE_PRIMARY_BTN_CLASS}
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>
+                {isProcessingFiles
+                  ? 'جاري تجهيز الملفات...'
+                  : 'رفع صور أو وثائق'}
+              </span>
+            </button>
+          </>
         }
       />
 
@@ -1154,11 +1295,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       )}
 
       {/* =================================================================== */}
-      {/* TIER 2 — SLEEK HORIZONTAL ALBUM/FOLDER STRIP (56px Height)          */}
+      {/* TIER 2 — SINGLE FULL-WIDTH ALBUM/FOLDER STRIP                       */}
       {/* =================================================================== */}
       <nav
         aria-label="ألبومات ومجلدات الخزانة"
-        className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 [scrollbar-width:thin]"
+        className="mt-3.5 flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 [scrollbar-width:thin]"
       >
         {/* "All Vault" Album Tab */}
         <button
@@ -1256,22 +1397,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             </div>
           );
         })}
-
-        {/* Single Unified "+ مجلد خاص" Capsule at End of Strip */}
-        <button
-          type="button"
-          onClick={() => setShowNewFolderModal(true)}
-          className="h-[56px] shrink-0 px-4 rounded-2xl border border-dashed border-[#C5A059]/80 bg-[#FFFDF9] hover:bg-[#FBF2DC]/65 text-[#8D4925] text-xs sm:text-sm font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
-        >
-          <FolderPlus className="w-4 h-4 text-[#D8755B]" />
-          <span>+ مجلد خاص</span>
-        </button>
       </nav>
 
       {/* =================================================================== */}
-      {/* TIER 3 — UNIFIED FILTER, SORT, GRID DENSITY & MULTI-SELECT BAR      */}
+      {/* TIER 3 — COMPACT MOBILE/TABLET FILTER BAR (<1200px ONLY)            */}
       {/* =================================================================== */}
-      <div className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] px-3.5 py-2.5 flex flex-wrap items-center gap-2 shadow-2xs">
+      <div className="min-[1200px]:hidden rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] px-3.5 py-2.5 flex flex-wrap items-center gap-2 shadow-2xs">
         {/* Quick Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-[#8D4925]/75 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />

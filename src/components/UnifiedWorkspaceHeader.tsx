@@ -56,10 +56,10 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
     <header
       dir="rtl"
       data-testid={testId}
-      className={`bg-[#FDFBF7] border border-[#E6DAC3] rounded-2xl px-5 sm:px-6 py-4 shadow-[0_2px_12px_rgba(44,30,20,0.03)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 text-right ${className}`}
+      className={`bg-[#FDFBF7] border border-[#E6DAC3] rounded-2xl px-5 sm:px-6 py-4 shadow-[0_2px_12px_rgba(44,30,20,0.03)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between min-[1200px]:flex-nowrap gap-3 xl:gap-4 text-right ${className}`}
     >
       {/* Right Block: Unified 44x44 Icon Box + Title + Optional Single-Line Meta Strip */}
-      <div className="flex items-center gap-3.5 min-w-0">
+      <div className="flex items-center gap-3 min-w-0 shrink">
         <div
           aria-hidden="true"
           className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center border ${
@@ -102,16 +102,16 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Block (Desktop >=1180px): Optional Compact Studio Controls */}
+      {/* Center Block (Desktop >=1200px / xl): Compact Studio Controls */}
       {centerSlot && (
-        <div className="hidden min-[1180px]:flex items-center justify-center shrink-0">
+        <div className="hidden min-[1200px]:flex items-center justify-center shrink-0 min-w-0 whitespace-nowrap">
           {centerSlot}
         </div>
       )}
 
       {/* Left Block: Unified 40px Action Cluster (Secondary right -> Primary far left) */}
       {actions && (
-        <div className="flex flex-wrap items-center justify-start lg:justify-end gap-2 shrink-0">
+        <div className="flex flex-wrap min-[1200px]:flex-nowrap items-center justify-start lg:justify-end gap-2 shrink-0 whitespace-nowrap">
           {actions}
         </div>
       )}

@@ -456,33 +456,6 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   const totalCapsules = result.capsules?.length || 0;
   const unlockedCapsulesCount = unlockedCapsules?.length || 0;
 
-  // Clean De-duplicated Identity & Location Copy (only displays values actually entered by client)
-  const cleanLocationLabel = useMemo(() => {
-    const country = sanitizeUserEnteredLocation(result.originCountry);
-    const region = sanitizeUserEnteredLocation(result.originRegion);
-    if (!country && !region) return '';
-    if (!region) return country;
-    if (!country) return region;
-    const normCountry = normalizeLocationToken(country);
-    const normRegion = normalizeLocationToken(region);
-    if (
-      normCountry === normRegion ||
-      normCountry.includes(normRegion) ||
-      normRegion.includes(normCountry)
-    ) {
-      return country;
-    }
-    return `${country} — ${region}`;
-  }, [result.originCountry, result.originRegion]);
-
-  const identityMetaParts = useMemo(() => {
-    const parts: string[] = ['سجل العائلة الموثق'];
-    if (cleanLocationLabel) {
-      parts.push(cleanLocationLabel);
-    }
-    return parts;
-  }, [cleanLocationLabel]);
-
   const cleanUserFirstName = useMemo(() => {
     const client = (result.clientName || '').trim();
     return client && client !== '—' && client !== '-' ? client : '';
@@ -616,41 +589,18 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         </svg>
 
         <div className="relative z-10 p-5 sm:p-7 space-y-6">
-          {/* Top Row: Clean Identity + Wallet & Subscriptions */}
+          {/* Top Row: Pure Greeting + Royal Role/Family Badge | Wallet & Subscriptions */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-2 min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-display text-[#7A6855]">
-                {identityMetaParts.map((part, idx) => (
-                  <React.Fragment key={`${part}-${idx}`}>
-                    {idx > 0 && (
-                      <span aria-hidden="true" className="text-[#C8A666]">
-                        ·
-                      </span>
-                    )}
-                    <span
-                      className={
-                        idx === 0
-                          ? 'font-semibold text-[#8D6538]'
-                          : 'font-medium text-[#6A5A4A]'
-                      }
-                    >
-                      {part}
-                    </span>
-                  </React.Fragment>
-                ))}
-              </div>
-
-              <div className="inline-flex items-center flex-wrap gap-2.5 sm:gap-3 max-w-full">
-                <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321] leading-snug">
-                  {greetingHeading}
-                </h1>
-                <RoyalRoleFamilyBadge
-                  testId="home-royal-role-family-badge"
-                  roleLabel={heroRoleLabel}
-                  familyName={result.familyName}
-                  variant="hero"
-                />
-              </div>
+            <div className="inline-flex items-center flex-wrap gap-3 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321] leading-normal">
+                {greetingHeading}
+              </h1>
+              <RoyalRoleFamilyBadge
+                testId="home-royal-role-family-badge"
+                roleLabel={heroRoleLabel}
+                familyName={result.familyName}
+                variant="hero"
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">

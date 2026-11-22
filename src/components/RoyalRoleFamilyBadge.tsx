@@ -42,8 +42,8 @@ interface RoyalRoleFamilyBadgeProps {
 
 /**
  * Royal Segmented Role & Family Badge (`✦ أمين سجل | عائلة [الاسم]`)
- * Shared across the Home welcome greeting and the top header profile capsule
- * for 100% visual unity, zero clutter, and dynamic per-account family naming.
+ * Shared across the Home welcome greeting, Header profile capsule, and profile dropdown
+ * with generous Arabic line-height (`leading-normal`) and unconstrained width so no letters clip.
  */
 export const RoyalRoleFamilyBadge: React.FC<RoyalRoleFamilyBadgeProps> = ({
   roleLabel,
@@ -58,21 +58,21 @@ export const RoyalRoleFamilyBadge: React.FC<RoyalRoleFamilyBadgeProps> = ({
   return (
     <span
       data-testid={testId}
-      className={`inline-flex items-center rounded-full border border-[#D4AF37]/45 bg-gradient-to-l from-[#FAF3E3] via-[#FDF9F0] to-white max-w-full ${
+      className={`inline-flex items-center w-auto shrink-0 rounded-full border border-[#D4AF37]/45 bg-gradient-to-l from-[#FAF3E3] via-[#FDF9F0] to-white ${
         isHeader
-          ? 'p-[2.5px] shadow-[0_1px_4px_rgba(141,73,37,0.10)]'
+          ? 'p-[3px] shadow-[0_1px_5px_rgba(141,73,37,0.10)]'
           : 'p-1 shadow-[0_2px_10px_-4px_rgba(141,73,37,0.18)]'
       } ${className}`}
     >
       {/* Right Segment (RTL Start): Warm Bronze/Gold Role Capsule */}
       <span
-        className={`inline-flex items-center rounded-full bg-gradient-to-l from-[#965627] to-[#B67537] text-[#FFFDF8] font-display font-bold whitespace-nowrap shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] ${
+        className={`inline-flex items-center gap-1 rounded-full bg-gradient-to-l from-[#965627] to-[#B67537] text-[#FFFDF8] font-display font-bold leading-normal whitespace-nowrap shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] ${
           isHeader
-            ? 'gap-1 px-2 py-[3px] text-[10px] xl:text-[10.5px] leading-none'
-            : 'gap-1 px-2.5 py-1 text-[11.5px] sm:text-xs leading-none'
+            ? 'px-2.5 py-0.5 text-[11px]'
+            : 'px-2.5 py-1 text-xs'
         }`}
       >
-        <span aria-hidden="true" className="text-[#F8DC99] leading-none">
+        <span aria-hidden="true" className="text-[#F8DC99]">
           ✦
         </span>
         <span>{roleLabel}</span>
@@ -84,15 +84,14 @@ export const RoyalRoleFamilyBadge: React.FC<RoyalRoleFamilyBadgeProps> = ({
           <span
             aria-hidden="true"
             className={`w-px bg-[#D4AF37]/40 shrink-0 ${
-              isHeader ? 'h-3 mx-1.5' : 'h-3.5 mx-2'
+              isHeader ? 'h-3.5 mx-1.5' : 'h-4 mx-2'
             }`}
           />
           <span
-            title={familyLabel}
-            className={`font-display font-extrabold text-[#3B2618] whitespace-nowrap truncate ${
+            className={`font-display font-extrabold text-[#3B2618] leading-normal whitespace-nowrap shrink-0 ${
               isHeader
-                ? 'pl-2 pr-0.5 text-[10.5px] xl:text-[11px] leading-none max-w-[110px] xl:max-w-[132px]'
-                : 'pl-2.5 pr-0.5 text-xs sm:text-[13px] leading-none max-w-[180px] sm:max-w-[260px]'
+                ? 'px-2.5 py-0.5 text-[11.5px]'
+                : 'px-3 py-1 text-[12.5px] sm:text-[13px]'
             }`}
           >
             {familyLabel}
