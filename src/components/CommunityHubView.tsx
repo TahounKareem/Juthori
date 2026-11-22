@@ -33,6 +33,11 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
+  UnifiedWorkspaceHeader,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_SECONDARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
+import {
   AccountLegalType,
   DashboardAccessCapabilities,
   DashboardTab,
@@ -777,186 +782,193 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   }, [relName, relRole, result.familyName, cleanMajlisUrl]);
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-3.5 pb-8">
       {/* =====================================================================
-          1. EXECUTIVE LUXURY COMMUNITY HEADER & MODERN SEGMENTED TABS
+          1. UNIFIED WORKSPACE HEADER (Exact 86px Parity Across All 6 Pages)
       ====================================================================== */}
-      <div className="rounded-2xl bg-white border border-[#B98A78]/35 shadow-xs overflow-hidden">
-        <div className="p-6 sm:p-7 bg-gradient-to-bl from-[#FAF6EE] via-white to-[#F7F2E9]/70 space-y-5">
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
-            <div className="space-y-2.5">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#8D4925]">
-                <Lock className="w-3.5 h-3.5 text-[#8D4925]" aria-hidden="true" />
-                <span>مساحة عائلية مغلقة ومشفرة الصلاحيات</span>
-              </div>
+      <UnifiedWorkspaceHeader
+        testId="community-unified-header"
+        icon={<Users className="w-5 h-5" />}
+        title={`مجتمع أسرة ${result.familyName}`}
+        metaItems={[
+          'مساحة عائلية مغلقة',
+          <span key="members" className="tabular-nums">
+            <strong className="font-semibold text-[#2C1E14]">
+              {circle.members.length}
+            </strong>{' '}
+            أعضاء بالدائرة
+          </span>,
+          <span key="enrichments" className="tabular-nums">
+            <strong className="font-semibold text-[#9E5631]">
+              {totalIncomingEnrichmentCount}
+            </strong>{' '}
+            طلبات إثراء واردة
+          </span>,
+          <span key="rewards" className="inline-flex items-center gap-1">
+            <span>رصيد المكافآت:</span>
+            <strong
+              dir="ltr"
+              className="font-mono font-semibold text-emerald-800 tabular-nums"
+            >
+              ${referralStats.totalEarnedUsd.toFixed(2)}
+            </strong>
+          </span>,
+        ]}
+        actions={
+          <>
+            <button
+              type="button"
+              data-testid="community-qr-card-btn"
+              onClick={() => setQrModalOpen(true)}
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
+            >
+              <QrCode className="w-4 h-4 shrink-0" />
+              <span>بطاقة الدعوة ورمز QR</span>
+            </button>
 
-              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] tracking-tight leading-snug">
-                دائرة أسرة {result.familyName} وصلة الرحم الموثقة
-              </h2>
+            <button
+              type="button"
+              data-testid="community-invite-relative-btn"
+              onClick={handleOpenInviteStudioAction}
+              className={WORKSPACE_PRIMARY_BTN_CLASS}
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>دعوة قريب للدائرة</span>
+            </button>
+          </>
+        }
+      />
 
-              {/* Inline Real Live Counters Strip (Strictly Firestore Data) */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-[#252321]/75 pt-0.5">
-                <span className="inline-flex items-center gap-1.5">
-                  <strong className="font-display font-bold text-[#252321] tabular-nums">
-                    {circle.members.length}
-                  </strong>
-                  <span>أفراد الدائرة المعتمدون</span>
-                </span>
-                <span className="text-[#B98A78]" aria-hidden="true">·</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <strong className="font-display font-bold text-[#D8755B] tabular-nums">
-                    {totalIncomingEnrichmentCount}
-                  </strong>
-                  <span>مقترحات الإثراء الواردة</span>
-                </span>
-                <span className="text-[#B98A78]" aria-hidden="true">·</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <strong className="font-display font-bold text-[#8D4925] tabular-nums">
-                    {activeMemoryQuests.length}
-                  </strong>
-                  <span>حملات الذاكرة النشطة</span>
-                </span>
-                <span className="text-[#B98A78]" aria-hidden="true">·</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span>رصيد مكافآت الدعوة:</span>
-                  <strong
-                    dir="ltr"
-                    className="font-mono font-bold text-emerald-800 tabular-nums"
-                  >
-                    ${referralStats.totalEarnedUsd.toFixed(2)}
-                  </strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Executive Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={handleOpenInviteStudioAction}
-                className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>دعوة قريب للدائرة</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setQrModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-[#F7F2E9] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <QrCode className="w-4 h-4 text-[#E5C17A]" />
-                <span>بطاقة دعوة الأسرة ورمز QR</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Modern Segmented 4-Pillar Navigation Bar */}
-          <div
-            className="p-1.5 rounded-xl bg-[#EFE8DC]/85 border border-[#B98A78]/30 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5"
-            role="tablist"
-            aria-label="أركان مجتمعي"
+      {/* =====================================================================
+          1B. SEPARATED 4-PILLAR NAVIGATION BAR (mt-3.5 below unified header)
+      ====================================================================== */}
+      <div
+        className="p-1.5 rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3] shadow-[0_2px_10px_rgba(44,30,20,0.02)] grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5"
+        role="tablist"
+        aria-label="أركان مجتمعي"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'circle'}
+          onClick={() => setActiveTab('circle')}
+          className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+            activeTab === 'circle'
+              ? 'bg-[#9E5631] text-white shadow-xs'
+              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2 truncate">
+            <Users
+              className={`w-4 h-4 shrink-0 ${
+                activeTab === 'circle' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
+              }`}
+            />
+            <span className="truncate">1. دائرة عائلتي والصلاحيات</span>
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
+              activeTab === 'circle'
+                ? 'bg-white/20 text-white'
+                : 'bg-[#F5ECE0] text-[#8C5327]'
+            }`}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'circle'}
-              onClick={() => setActiveTab('circle')}
-              className={`px-3.5 py-2.5 rounded-lg text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                activeTab === 'circle'
-                  ? 'bg-white text-[#252321] shadow-xs ring-1 ring-[#B98A78]/35'
-                  : 'text-[#252321]/70 hover:text-[#252321] hover:bg-white/50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2 truncate">
-                <Users className="w-4 h-4 text-[#8D4925] shrink-0" />
-                <span className="truncate">1. دائرة عائلتي والصلاحيات</span>
-              </span>
-              <span className="px-2 py-0.5 rounded-md bg-[#F7F2E9] text-[11px] text-[#8D4925] tabular-nums shrink-0">
-                {circle.members.length}
-              </span>
-            </button>
+            {circle.members.length}
+          </span>
+        </button>
 
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'enrichment'}
-              onClick={() => setActiveTab('enrichment')}
-              className={`px-3.5 py-2.5 rounded-lg text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                activeTab === 'enrichment'
-                  ? 'bg-white text-[#252321] shadow-xs ring-1 ring-[#B98A78]/35'
-                  : 'text-[#252321]/70 hover:text-[#252321] hover:bg-white/50'
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'enrichment'}
+          onClick={() => setActiveTab('enrichment')}
+          className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+            activeTab === 'enrichment'
+              ? 'bg-[#9E5631] text-white shadow-xs'
+              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2 truncate">
+            <Inbox
+              className={`w-4 h-4 shrink-0 ${
+                activeTab === 'enrichment' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
               }`}
-            >
-              <span className="inline-flex items-center gap-2 truncate">
-                <Inbox className="w-4 h-4 text-[#D8755B] shrink-0" />
-                <span className="truncate">2. مركز الإثراء وحملات الذاكرة</span>
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
-                  totalIncomingEnrichmentCount > 0
-                    ? 'bg-[#D8755B] text-white'
-                    : 'bg-[#F7F2E9] text-[#252321]/65'
-                }`}
-              >
-                {totalIncomingEnrichmentCount}
-              </span>
-            </button>
+            />
+            <span className="truncate">2. مركز الإثراء وحملات الذاكرة</span>
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
+              activeTab === 'enrichment'
+                ? 'bg-white/20 text-white'
+                : totalIncomingEnrichmentCount > 0
+                ? 'bg-[#9E5631] text-white'
+                : 'bg-[#F5ECE0] text-[#7A6855]'
+            }`}
+          >
+            {totalIncomingEnrichmentCount}
+          </span>
+        </button>
 
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'events'}
-              onClick={() => setActiveTab('events')}
-              className={`px-3.5 py-2.5 rounded-lg text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                activeTab === 'events'
-                  ? 'bg-white text-[#252321] shadow-xs ring-1 ring-[#B98A78]/35'
-                  : 'text-[#252321]/70 hover:text-[#252321] hover:bg-white/50'
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'events'}
+          onClick={() => setActiveTab('events')}
+          className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+            activeTab === 'events'
+              ? 'bg-[#9E5631] text-white shadow-xs'
+              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2 truncate">
+            <Calendar
+              className={`w-4 h-4 shrink-0 ${
+                activeTab === 'events' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
               }`}
-            >
-              <span className="inline-flex items-center gap-2 truncate">
-                <Calendar className="w-4 h-4 text-[#8D4925] shrink-0" />
-                <span className="truncate">3. صلة الرحم والمناسبات (RSVP)</span>
-              </span>
-              <span className="px-2 py-0.5 rounded-md bg-[#F7F2E9] text-[11px] text-[#8D4925] tabular-nums shrink-0">
-                {realEventsCount}
-              </span>
-            </button>
+            />
+            <span className="truncate">3. صلة الرحم والمناسبات (RSVP)</span>
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
+              activeTab === 'events'
+                ? 'bg-white/20 text-white'
+                : 'bg-[#F5ECE0] text-[#8C5327]'
+            }`}
+          >
+            {realEventsCount}
+          </span>
+        </button>
 
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'ambassador'}
-              onClick={() => setActiveTab('ambassador')}
-              className={`px-3.5 py-2.5 rounded-lg text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                activeTab === 'ambassador'
-                  ? 'bg-[#252321] text-[#F7F2E9] shadow-xs'
-                  : 'text-[#252321]/70 hover:text-[#252321] hover:bg-white/50'
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'ambassador'}
+          onClick={() => setActiveTab('ambassador')}
+          className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+            activeTab === 'ambassador'
+              ? 'bg-[#9E5631] text-white shadow-xs'
+              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2 truncate">
+            <Award
+              className={`w-4 h-4 shrink-0 ${
+                activeTab === 'ambassador' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
               }`}
-            >
-              <span className="inline-flex items-center gap-2 truncate">
-                <Award
-                  className={`w-4 h-4 shrink-0 ${
-                    activeTab === 'ambassador'
-                      ? 'text-[#E5C17A]'
-                      : 'text-[#8D4925]'
-                  }`}
-                />
-                <span className="truncate">4. سفير جذوري ومكافآت</span>
-              </span>
-              <span
-                dir="ltr"
-                className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold tabular-nums shrink-0 ${
-                  activeTab === 'ambassador'
-                    ? 'bg-[#D4AF6A]/20 text-[#E5C17A]'
-                    : 'bg-[#D8755B]/12 text-[#8D4925]'
-                }`}
-              >
-                ${REFERRAL_REWARD_USD}
-              </span>
-            </button>
-          </div>
-        </div>
+            />
+            <span className="truncate">4. سفير جذوري ومكافآت</span>
+          </span>
+          <span
+            dir="ltr"
+            className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold tabular-nums shrink-0 ${
+              activeTab === 'ambassador'
+                ? 'bg-white/20 text-[#F6DCA2]'
+                : 'bg-[#F5ECE0] text-[#8C5327]'
+            }`}
+          >
+            ${REFERRAL_REWARD_USD}
+          </span>
+        </button>
       </div>
 
       {/* Transient Feedback Banner */}

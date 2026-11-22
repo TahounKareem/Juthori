@@ -13,7 +13,13 @@ import {
   Sparkles,
   FileCheck2,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
+import {
+  UnifiedWorkspaceHeader,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_SECONDARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
@@ -92,6 +98,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
   const [campaigns, setCampaigns] = useState<KashafiCampaignRecord[]>([]);
   const [orders, setOrders] = useState<KashafiServiceOrderRecord[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [hasActiveResearchTicket, setHasActiveResearchTicket] = useState(false);
 
   const [vaultCount, setVaultCount] = useState<number>(() => {
     const local = readVaultArchiveFromLocal(
@@ -342,45 +349,70 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
   };
 
   const unreadItemsCount = kashafiItems.filter((i) => !i.isRead).length;
+  const activeOrdersCount = orders.filter(
+    (ord) => ord.status !== 'COMPLETED' && ord.status !== 'CANCELLED'
+  ).length;
+  const activeMissionsCount =
+    activeOrdersCount + (hasActiveResearchTicket ? 1 : 0);
 
   return (
     <div
       data-testid="kashafi-hub-view"
-      className="space-y-8 text-[#252321]"
+      className="space-y-3.5 text-[#252321]"
     >
-      {/* Clean Page Title Header */}
-      <div className="rounded-2xl bg-[#FFFDF9] border border-[#C5A059]/70 p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#FAF4E4] border border-[#C5A059]/60 flex items-center justify-center text-[#8D4925] shrink-0">
-            <Compass className="w-5 h-5" />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
-              كشّافي — مركز البعثات البحثية والاكتشافات العلمية
-            </h1>
-            <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed max-w-2xl">
-              مساحتكم المخصصة لمتابعة بعثة تحقيق نسب أسرة {result.familyName}، واستقبال البشارات والوثائق المرصودة من مرصد البحوث، وطلب الخدمات البحثية المتخصصة.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-xs text-[#5C5346] shrink-0">
-          <div className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center gap-2">
-            <Wallet className="w-3.5 h-3.5 text-[#8D4925]" />
+      {/* Unified Workspace Header (Obsidian Gilded Icon Variant + 1-Line Meta Strip) */}
+      <UnifiedWorkspaceHeader
+        testId="kashafi-unified-header"
+        icon={<Compass className="w-5 h-5" />}
+        iconVariant="obsidian"
+        title={`كشّافي — مرصد أسرة ${result.familyName}`}
+        metaItems={[
+          'متابعة البعثات البحثية والرادار العلمي',
+          <span key="missions" className="tabular-nums">
+            البعثات الجارية:{' '}
+            <strong className="font-semibold text-[#2C1E14]">
+              {activeMissionsCount}
+            </strong>
+          </span>,
+          <span key="wallet" className="inline-flex items-center gap-1">
             <span>رصيد المحفظة:</span>
-            <strong className="font-mono tabular-nums text-[#252321]">
+            <strong
+              dir="ltr"
+              className="font-mono font-semibold tabular-nums text-[#2C1E14]"
+            >
               ${walletBalance.toFixed(2)}
             </strong>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenWalletDrawer}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#8D4925] transition-colors cursor-pointer whitespace-nowrap shrink-0"
-          >
-            إدارة المحفظة
-          </button>
-        </div>
-      </div>
+          </span>,
+        ]}
+        actions={
+          <>
+            <button
+              type="button"
+              data-testid="kashafi-refresh-radar-btn"
+              disabled={isLoadingData}
+              onClick={() => loadKashafiData()}
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
+            >
+              <RefreshCw
+                className={`w-4 h-4 shrink-0 ${
+                  isLoadingData ? 'animate-spin text-[#9E5631]' : ''
+                }`}
+              />
+              <span>تحديث الرادار</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="kashafi-manage-wallet-btn"
+              onClick={onOpenWalletDrawer}
+              className={WORKSPACE_PRIMARY_BTN_CLASS}
+            >
+              <Wallet className="w-4 h-4 shrink-0" />
+              <span>إدارة المحفظة والرصيد</span>
+            </button>
+          </>
+        }
+      />
 
       {orderSuccessToast && (
         <div className="rounded-2xl bg-emerald-50 border border-emerald-400 p-4 flex items-center justify-between gap-3">
@@ -413,14 +445,17 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
           onRequestUpgradeVip={onUpgradeAnnualVip}
           onLogActivity={onLogActivity}
           onAdoptResolvedLineage={onAdoptResolvedLineage}
-          onTicketsStatusChange={onTicketsStatusChange}
+          onTicketsStatusChange={(status) => {
+            setHasActiveResearchTicket(status.hasAnyTicket);
+            onTicketsStatusChange?.(status);
+          }}
         />
       </section>
 
       {/* ===================================================================
           SECTION 2: رادار الاكتشافات والبشارات العلمية لعائلتكم (100% Real Data)
          =================================================================== */}
-      <section className="space-y-4 pt-2 border-t border-[#E2DACB]">
+      <section className="space-y-4 pt-5 border-t border-[#E2DACB]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#FAF4E4] border border-[#C5A059]/60 flex items-center justify-center text-[#8D4925] shrink-0">

@@ -38,6 +38,12 @@ import {
   X,
 } from 'lucide-react';
 import {
+  UnifiedWorkspaceHeader,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
+  WORKSPACE_SECONDARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
+import {
   AccountLegalType,
   DashboardAccessCapabilities,
   LineageSearchResult,
@@ -1305,7 +1311,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const cleanSlugDisplay = normalizePublicSiteSlug(siteSlug) || 'family-diwan';
 
   return (
-    <div dir="rtl" className="space-y-4 text-right">
+    <div dir="rtl" className="space-y-3.5 text-right">
       {/* Hidden File Inputs for Crest & Hero Cover */}
       <input
         ref={crestFileRef}
@@ -1323,105 +1329,107 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       />
 
       {/* =================================================================== */}
-      {/* GLASSMORPHIC STUDIO TOP BAR                                         */}
+      {/* UNIFIED WORKSPACE HEADER (Portal Title + Status/Copy URL + 40px CTAs)*/}
       {/* =================================================================== */}
-      <div className="sticky top-2 z-20 rounded-2xl bg-[#FFFDF9]/92 backdrop-blur-md border border-[#C5A059]/45 px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        {/* Right: Clean Copyable URL + Live Status */}
-        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+      <UnifiedWorkspaceHeader
+        testId="mysite-unified-header"
+        icon={<Globe className="w-5 h-5" />}
+        title={`موقع أسرة ${result.familyName}`}
+        metaItems={[
+          <span
+            key="status"
+            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-display font-bold border whitespace-nowrap ${
+              isPublished
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-[#F5ECE0] border-[#D4AF37]/35 text-[#8C5327]'
+            }`}
+          >
+            {isPublished ? 'منشور' : 'مسودة خاصة'}
+          </span>,
           <button
+            key="url"
             type="button"
             onClick={handleCopyPortalUrl}
-            title="نسخ رابط البوابة"
-            className="h-9 px-3 rounded-xl bg-[#FAF6F0] hover:bg-[#F3EBE0] border border-[#E5DAC8] inline-flex items-center gap-2 text-xs font-mono font-bold text-[#252321] cursor-pointer transition-colors max-w-[260px]"
+            title="نسخ رابط البوابة بنقرة واحدة"
+            className="inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold text-[#5C4938] hover:text-[#9E5631] transition-colors cursor-pointer max-w-[260px]"
           >
-            <Globe className="w-3.5 h-3.5 text-[#D8755B] shrink-0" />
             <span dir="ltr" className="truncate">
               {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{cleanSlugDisplay}
             </span>
             {copiedUrl ? (
               <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
             ) : (
-              <Copy className="w-3.5 h-3.5 text-[#8D4925]/70 shrink-0" />
+              <Copy className="w-3.5 h-3.5 text-[#8C5327]/75 shrink-0" />
             )}
-          </button>
+          </button>,
+        ]}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowRoyalQrModal(true)}
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
+            >
+              <QrCode className="w-4 h-4 shrink-0" />
+              <span>بطاقة الدعوة وQR</span>
+            </button>
 
-          <span
-            className={`px-2.5 py-1 rounded-full text-[11px] font-display font-extrabold border whitespace-nowrap ${
-              isPublished
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                : 'bg-[#FAF6F0] border-[#D9CCB9] text-[#8D4925]'
-            }`}
-          >
-            {isPublished ? 'منشور ومباشر' : 'مسودة خاصة'}
-          </span>
-        </div>
+            <button
+              type="button"
+              onClick={() =>
+                setWorkspaceMode((m) =>
+                  m === 'fullscreen_preview'
+                    ? 'split_studio'
+                    : 'fullscreen_preview'
+                )
+              }
+              className={
+                workspaceMode === 'fullscreen_preview'
+                  ? WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS
+                  : WORKSPACE_SECONDARY_BTN_CLASS
+              }
+            >
+              {workspaceMode === 'fullscreen_preview' ? (
+                <>
+                  <Palette className="w-4 h-4 shrink-0" />
+                  <span>العودة للاستوديو</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4 shrink-0" />
+                  <span>معاينة كاملة</span>
+                </>
+              )}
+            </button>
 
-        {/* Center: Mode Switch (Split Studio vs Full-Screen Desktop/Mobile Preview) */}
-        <div className="inline-flex rounded-xl bg-[#FAF6F0] p-1 border border-[#E5DAC8]">
-          <button
-            type="button"
-            onClick={() => setWorkspaceMode('split_studio')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
-              workspaceMode === 'split_studio'
-                ? 'bg-[#252321] text-[#F3D299] shadow-2xs'
-                : 'text-[#252321]/75 hover:text-[#252321]'
-            }`}
-          >
-            <Palette className="w-3.5 h-3.5" />
-            <span>استوديو التخصيص</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setWorkspaceMode('fullscreen_preview')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
-              workspaceMode === 'fullscreen_preview'
-                ? 'bg-[#252321] text-[#F3D299] shadow-2xs'
-                : 'text-[#252321]/75 hover:text-[#252321]'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>معاينة كاملة 💻📱</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handlePersistAndPublish(false)}
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
+            >
+              <Save className="w-4 h-4 shrink-0" />
+              <span>حفظ مسودة</span>
+            </button>
 
-        {/* Left: QR Card + Save Draft + Primary Publish Button */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowRoyalQrModal(true)}
-            className="h-9 px-3 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E5DAC8] text-xs font-display font-bold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-          >
-            <QrCode className="w-3.5 h-3.5 text-[#8D4925]" />
-            <span>بطاقة الدعوة وQR</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => handlePersistAndPublish(false)}
-            className="h-9 px-3 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D9CCB9] text-xs font-display font-bold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-60"
-          >
-            <Save className="w-3.5 h-3.5 text-[#8D4925]" />
-            <span>حفظ مسودة</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => handlePersistAndPublish(true)}
-            className="h-9 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-extrabold shadow-xs inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap disabled:opacity-60"
-          >
-            {saving ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5" />
-            )}
-            <span>
-              {isPublished ? 'تحديث ونشر الموقع' : 'نشر وتفعيل الموقع'}
-            </span>
-          </button>
-        </div>
-      </div>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handlePersistAndPublish(true)}
+              className={WORKSPACE_PRIMARY_BTN_CLASS}
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : (
+                <Sparkles className="w-4 h-4 shrink-0" />
+              )}
+              <span>
+                {isPublished ? 'تحديث ونشر الموقع' : 'نشر وتفعيل الموقع'}
+              </span>
+            </button>
+          </>
+        }
+      />
 
       {/* Feedback & Eligibility Banner */}
       {feedbackBanner && (
@@ -1471,21 +1479,21 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       {/* MODE A: FULL-SCREEN INTERACTIVE PREVIEW (DESKTOP / MOBILE)          */}
       {/* =================================================================== */}
       {workspaceMode === 'fullscreen_preview' ? (
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-[#252321] text-[#FAF6F0] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-display font-bold">
-              <Eye className="w-4 h-4 text-[#F3D299]" />
+        <div className="space-y-3.5">
+          <div className="rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3] text-[#2C1E14] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2 text-xs font-display font-bold text-[#8C5327]">
+              <Eye className="w-4 h-4 text-[#9E5631]" />
               <span>معاينة حية لموقع أسرة {result.familyName}</span>
             </div>
 
-            <div className="inline-flex rounded-xl bg-white/10 p-1">
+            <div className="inline-flex rounded-xl bg-[#F5ECE0] border border-[#E2D5BE] p-1">
               <button
                 type="button"
                 onClick={() => setPreviewViewport('desktop')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                   previewViewport === 'desktop'
-                    ? 'bg-[#C5A059] text-[#252321]'
-                    : 'text-white/80 hover:text-white'
+                    ? 'bg-[#9E5631] text-white shadow-2xs'
+                    : 'text-[#5C4938] hover:text-[#2C1E14]'
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5" />
@@ -1494,10 +1502,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
               <button
                 type="button"
                 onClick={() => setPreviewViewport('mobile')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                   previewViewport === 'mobile'
-                    ? 'bg-[#C5A059] text-[#252321]'
-                    : 'text-white/80 hover:text-white'
+                    ? 'bg-[#9E5631] text-white shadow-2xs'
+                    : 'text-[#5C4938] hover:text-[#2C1E14]'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -1508,7 +1516,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             <button
               type="button"
               onClick={() => setWorkspaceMode('split_studio')}
-              className="px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-display font-bold cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF5EC] border border-[#E2D5BE] text-[#3D2B1F] text-xs font-display font-bold cursor-pointer transition-colors"
             >
               العودة لاستوديو التخصيص
             </button>
@@ -1536,10 +1544,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           {/* RIGHT: 4-TAB BESPOKE STUDIO CONTROLS */}
           <div className="xl:col-span-7 space-y-4">
-            {/* Sleek 4-Tab Studio Bar */}
+            {/* Sleek 4-Tab Studio Bar (Warm Bronze & Gold Heritage Palette) */}
             <nav
               aria-label="أقسام استوديو موقعي"
-              className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8]"
+              className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3]"
             >
               {(
                 [
@@ -1569,10 +1577,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => setStudioTab(tab.id)}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  className={`py-2.5 px-3 rounded-xl text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     studioTab === tab.id
-                      ? 'bg-[#252321] text-[#F3D299] shadow-xs'
-                      : 'text-[#252321]/75 hover:bg-[#FAF6F0] hover:text-[#252321]'
+                      ? 'bg-[#9E5631] text-white shadow-xs'
+                      : 'text-[#5C4938] hover:bg-[#F5ECE0]/70 hover:text-[#2C1E14]'
                   }`}
                 >
                   {tab.icon}

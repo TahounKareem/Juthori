@@ -10,6 +10,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  FolderArchive,
   FolderInput,
   FolderPlus,
   Grid2x2,
@@ -27,6 +28,11 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import {
+  UnifiedWorkspaceHeader,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_SECONDARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
 import {
   DashboardAccessCapabilities,
   DashboardTab,
@@ -803,7 +809,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   return (
     <div
       data-testid="family-memory-vault-view"
-      className="space-y-4 text-right relative"
+      className="space-y-3.5 text-right relative"
     >
       {/* Hidden Multi-File Input */}
       <input
@@ -840,70 +846,68 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       )}
 
       {/* =================================================================== */}
-      {/* TIER 1 — COMPACT EXECUTIVE HEADER (Title + Inline Stats + Primary CTA) */}
+      {/* TIER 1 — UNIFIED WORKSPACE HEADER (1-Line Meta Strip + 40px CTAs)   */}
       {/* =================================================================== */}
-      <header className="rounded-2xl bg-[#FFFDF9] border border-[#C5A059]/45 px-4 sm:px-5 py-3.5 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FBF3E0] to-[#F3E2BC] border border-[#C5A059]/60 text-[#8D4925] flex items-center justify-center shrink-0">
-              <ImageIcon className="w-4.5 h-4.5" />
-            </div>
-            <h2 className="text-base sm:text-lg font-display font-extrabold text-[#252321] truncate">
-              خزانة عائلة {result.familyName}
-            </h2>
-          </div>
+      <UnifiedWorkspaceHeader
+        testId="vault-unified-header"
+        icon={<FolderArchive className="w-5 h-5" />}
+        title={`خزانة أسرة ${result.familyName}`}
+        metaItems={[
+          'الأرشيف العائلي الموثق',
+          <span key="total" className="tabular-nums">
+            <strong className="font-semibold text-[#2C1E14]">
+              {items.length}
+            </strong>{' '}
+            مقتنيات
+          </span>,
+          <span key="photos" className="tabular-nums">
+            <strong className="font-semibold text-[#2C1E14]">
+              {totalPhotosCount}
+            </strong>{' '}
+            صور
+          </span>,
+          <span key="docs" className="tabular-nums">
+            <strong className="font-semibold text-[#2C1E14]">
+              {totalDocsCount}
+            </strong>{' '}
+            وثائق
+          </span>,
+          <span key="linked" className="tabular-nums">
+            <strong className="font-semibold text-[#8C5327]">
+              {totalLinkedItemsCount}
+            </strong>{' '}
+            مربوطة بشجرتي
+          </span>,
+        ]}
+        actions={
+          <>
+            <button
+              type="button"
+              data-testid="vault-new-folder-header-btn"
+              onClick={() => setShowNewFolderModal(true)}
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
+            >
+              <FolderPlus className="w-4 h-4 shrink-0" />
+              <span>+ مجلد خاص</span>
+            </button>
 
-          <span
-            className="hidden sm:inline-block h-5 w-px bg-[#D9CCB9]"
-            aria-hidden="true"
-          />
-
-          {/* Compact Museum Archive Stat Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6F0] border border-[#E5DAC8] text-[11px] font-bold text-[#252321] whitespace-nowrap">
-              <span className="text-[#8D4925]">إجمالي المقتنيات</span>
-              <span className="font-display font-extrabold tabular-nums text-[#252321]">
-                {items.length}
+            <button
+              type="button"
+              data-testid="vault-upload-primary-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isProcessingFiles}
+              className={WORKSPACE_PRIMARY_BTN_CLASS}
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>
+                {isProcessingFiles
+                  ? 'جاري تجهيز الملفات...'
+                  : 'رفع صور أو وثائق'}
               </span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6F0] border border-[#E5DAC8] text-[11px] font-bold text-[#252321] whitespace-nowrap">
-              <span className="text-[#8D4925]">الصور العائلية</span>
-              <span className="font-display font-extrabold tabular-nums text-[#252321]">
-                {totalPhotosCount}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6F0] border border-[#E5DAC8] text-[11px] font-bold text-[#252321] whitespace-nowrap">
-              <span className="text-[#8D4925]">الوثائق والصكوك</span>
-              <span className="font-display font-extrabold tabular-nums text-[#252321]">
-                {totalDocsCount}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FBF3E0]/80 border border-[#C5A059]/45 text-[11px] font-bold text-[#8D4925] whitespace-nowrap">
-              <span>المربوطة بشجرتي</span>
-              <span className="font-display font-extrabold tabular-nums text-[#252321]">
-                {totalLinkedItemsCount}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        {/* Single Prominent Primary CTA */}
-        <div className="flex items-center justify-end shrink-0">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessingFiles}
-            className="w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
-          >
-            <Plus className="w-4 h-4" />
-            <span>
-              {isProcessingFiles
-                ? 'جاري تجهيز الملفات...'
-                : 'رفع صور أو وثائق'}
-            </span>
-          </button>
-        </div>
-      </header>
+            </button>
+          </>
+        }
+      />
 
       {/* =================================================================== */}
       {/* STAGING QUEUE (Only shown when user selected/dropped new files)     */}

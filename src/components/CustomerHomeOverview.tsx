@@ -67,6 +67,7 @@ import {
   TreeBranchGaugeVisual,
   VaultPolaroidFanVisual,
 } from './HomeBentoMicroVisuals';
+import { WORKSPACE_PRIMARY_BTN_CLASS } from './UnifiedWorkspaceHeader';
 
 interface CustomerHomeOverviewProps {
   result: LineageSearchResult;
@@ -584,7 +585,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       {/* ===================================================================
           TIER 1 — Royal Hero & Gamified Legacy Journey Compass
          =================================================================== */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#FCF9F2] via-[#F7EFE2] to-[#F1E4CE] border border-[#C8A666]/55 shadow-xs">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#FDFBF7] via-[#F9F3E8] to-[#F3E9D8] border border-[#E6DAC3] shadow-[0_2px_12px_rgba(44,30,20,0.03)]">
         {/* Thin gilded crown hairline */}
         <div
           className="h-[2px] w-full bg-gradient-to-l from-[#8D4925]/35 via-[#D4AF6A] to-[#8D4925]/35"
@@ -645,14 +646,14 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               </h1>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <div className="px-4 py-2.5 rounded-xl bg-white/80 backdrop-blur-xs border border-[#D4BC93]/70 flex items-center gap-2.5">
-                <Wallet className="w-4 h-4 text-[#8D4925] shrink-0" />
-                <div className="text-xs flex items-center gap-1.5">
-                  <span className="text-[#6E6456]">رصيد المحفظة:</span>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <div className="h-10 px-4 rounded-xl bg-white border border-[#E2D5BE] flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-[#8C5327] shrink-0" />
+                <div className="text-[12.5px] flex items-center gap-1.5">
+                  <span className="text-[#7A6855]">رصيد المحفظة:</span>
                   <strong
                     dir="ltr"
-                    className="inline-block font-mono tabular-nums text-sm font-bold text-[#252321]"
+                    className="inline-block font-mono tabular-nums text-[13px] font-bold text-[#2C1E14]"
                   >
                     ${walletBalance.toFixed(2)}
                   </strong>
@@ -662,7 +663,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               <button
                 type="button"
                 onClick={onOpenWalletDrawer}
-                className="px-4 py-2.5 rounded-xl bg-[#8D4925] hover:bg-[#753A1C] text-[#FFFDF9] border border-[#C8A666]/55 text-xs font-display font-bold transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
+                className={WORKSPACE_PRIMARY_BTN_CLASS}
               >
                 الاشتراكات والمكافآت
               </button>

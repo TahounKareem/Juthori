@@ -20,6 +20,7 @@ import {
   Crown,
   Download,
   Edit2,
+  FileJson,
   FileSignature,
   FileText,
   GitFork,
@@ -37,6 +38,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  TreePine,
   Upload,
   User,
   UserPlus,
@@ -44,6 +46,12 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import {
+  UnifiedWorkspaceHeader,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_SECONDARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
 import {
   AccountLegalType,
   AncestorCapsule,
@@ -1383,6 +1391,91 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [isAutoFitMode, setIsAutoFitMode] = useState(true);
   const [exportedBanner, setExportedBanner] = useState(false);
   const [quickAddSuccessNotice, setQuickAddSuccessNotice] = useState('');
+  const [showJsonBackupMenu, setShowJsonBackupMenu] = useState(false);
+  const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleExportTreeJsonBackup = useCallback(() => {
+    try {
+      const payload = {
+        schema: 'juthori-family-tree-v1',
+        exportedAt: new Date().toISOString(),
+        familyName: result.familyName,
+        people,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json;charset=utf-8',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `juthori-tree-${(result.familyName || 'family').replace(/\s+/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setShowJsonBackupMenu(false);
+      setQuickAddSuccessNotice(
+        `تم تصدير النسخة الاحتياطية JSON (${people.length} فرداً) بنجاح ✓`
+      );
+      window.setTimeout(() => setQuickAddSuccessNotice(''), 4000);
+      onLogActivity(
+        'تصدير نسخة JSON للشجرة',
+        `تصدير بيانات شجرة أسرة ${result.familyName} (${people.length} فرداً) بصيغة JSON`
+      );
+    } catch {
+      setShowJsonBackupMenu(false);
+    }
+  }, [people, result.familyName, onLogActivity]);
+
+  const handleImportTreeJsonFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const importedList: unknown[] = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed?.people)
+          ? parsed.people
+          : [];
+        const validNodes = importedList.filter(
+          (item): item is InteractiveTreePerson =>
+            Boolean(
+              item &&
+                typeof item === 'object' &&
+                typeof (item as InteractiveTreePerson).id === 'string' &&
+                typeof (item as InteractiveTreePerson).firstName === 'string'
+            )
+        );
+        if (validNodes.length === 0) {
+          setQuickAddSuccessNotice(
+            'ملف JSON المختار لا يحتوي على سجلات أفراد صالحة.'
+          );
+          window.setTimeout(() => setQuickAddSuccessNotice(''), 4500);
+          return;
+        }
+        const capped = validNodes.slice(0, effectiveMaxTreeMembers);
+        setPeople(capped);
+        setShowJsonBackupMenu(false);
+        setQuickAddSuccessNotice(
+          `تم استيراد ${capped.length} فرداً من ملف JSON بنجاح ✓`
+        );
+        window.setTimeout(() => setQuickAddSuccessNotice(''), 4500);
+        onLogActivity(
+          'استيراد نسخة JSON للشجرة',
+          `استيراد ${capped.length} فرداً إلى شجرة أسرة ${result.familyName}`
+        );
+      } catch {
+        setQuickAddSuccessNotice(
+          'تعذّر قراءة ملف JSON. يرجى التأكد من سلامة تنسيق الملف.'
+        );
+        window.setTimeout(() => setQuickAddSuccessNotice(''), 4500);
+      }
+    },
+    [effectiveMaxTreeMembers, result.familyName, onLogActivity]
+  );
 
   const fitAndCenterCanvas = useCallback(
     (options?: { smooth?: boolean; resetScrollTop?: boolean }) => {
@@ -6207,75 +6300,81 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const sideNoteElement = renderTreeUpperLayersSideNote();
 
   return (
-    <div className="space-y-4 text-right">
-      {/* ==================================================================== */}
-      {/* 1. CLEAN SINGLE-ROW TOP HEADER BAR (بادج آخر حفظ + السعة + أيقونات فقط) */}
-      {/* ==================================================================== */}
-      <div className="rounded-3xl bg-white border border-[#B98A78]/45 px-4 py-3.5 sm:px-5 sm:py-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-lg sm:text-2xl font-display font-extrabold text-[#252321]">
-            شجرة عائلة {result.familyName}
-          </h2>
+    <div className="space-y-3.5 text-right">
+      {/* Hidden JSON Backup Import Input */}
+      <input
+        ref={jsonImportInputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={handleImportTreeJsonFile}
+      />
 
-          {/* Badges (Last Saved Date + 250 Max Capacity) followed by Icon-Only Actions (Save Last) */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* Badge 1: تاريخ آخر حفظ */}
-            <span
-              data-testid="tree-last-saved-badge"
-              title={
-                treeSaveState === 'saving'
-                  ? 'جاري الحفظ...'
-                  : lastSavedLabel
-                  ? `تاريخ آخر حفظ: ${lastSavedLabel}`
-                  : 'حالة الحفظ'
-              }
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/35 text-[11px] font-medium text-[#252321]/80"
-            >
-              {treeSaveState === 'loading' || treeSaveState === 'saving' ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D8755B]" />
-                  <span>
-                    {treeSaveState === 'loading'
-                      ? 'جاري التحميل...'
-                      : 'جاري الحفظ...'}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-3.5 h-3.5 text-[#8D4925]/75 shrink-0" />
-                  <span className="tabular-nums">
-                    آخر حفظ: {lastSavedLabel || 'الآن'}
-                  </span>
-                </>
-              )}
+      {/* ==================================================================== */}
+      {/* 1. UNIFIED WORKSPACE HEADER (Zero Layout Shift across all 6 pages)  */}
+      {/* ==================================================================== */}
+      <UnifiedWorkspaceHeader
+        testId="tree-unified-header"
+        icon={<TreePine className="w-5 h-5" />}
+        title={`شجرة أسرة ${result.familyName}`}
+        metaItems={[
+          'استوديو المشجرة المعاصرة',
+          <button
+            key="capacity"
+            type="button"
+            data-testid="tree-capacity-badge"
+            onClick={() => {
+              setCapacityPurchaseFeedback(null);
+              setShowCapacityAddonModal(true);
+            }}
+            title="الحد الأقصى الأساسي 250 فرداً — اضغط لإضافة سعة إضافية من المحفظة"
+            className="inline-flex items-center gap-1 hover:text-[#9E5631] transition-colors cursor-pointer tabular-nums"
+          >
+            <strong className="font-semibold text-[#2C1E14]">
+              {people.length}
+            </strong>
+            <span>فرداً من سعة</span>
+            <strong className="font-semibold text-[#2C1E14]">
+              {effectiveMaxTreeMembers}
+            </strong>
+          </button>,
+          <span
+            key="last-saved"
+            data-testid="tree-last-saved-badge"
+            className="inline-flex items-center gap-1 tabular-nums"
+          >
+            {(treeSaveState === 'loading' || treeSaveState === 'saving') && (
+              <Loader2 className="w-3 h-3 animate-spin text-[#9E5631] shrink-0" />
+            )}
+            <span>
+              {treeSaveState === 'loading'
+                ? 'جاري التحميل...'
+                : treeSaveState === 'saving'
+                ? 'جاري الحفظ...'
+                : `آخر حفظ: ${lastSavedLabel || 'الآن'}`}
             </span>
-
-            {/* Badge 2: السعة (بحد أقصى 250 أساسي + إضافة سعة من المحفظة) */}
+          </span>,
+        ]}
+        actions={
+          <>
+            {/* Secondary Icon: Manual Save */}
             <button
               type="button"
-              data-testid="tree-capacity-badge"
-              onClick={() => {
-                setCapacityPurchaseFeedback(null);
-                setShowCapacityAddonModal(true);
-              }}
-              title="الحد الأقصى الأساسي 250 فرداً — اضغط لإضافة سعة إضافية تُخصم من رصيد المحفظة"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#B98A78]/45 hover:border-[#D8755B]/75 text-[11px] font-display font-bold text-[#8D4925] transition-colors cursor-pointer"
+              data-testid="save-tree-icon-btn"
+              disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
+              onClick={handleManualSaveTree}
+              title="حفظ المشجرة سحابياً الآن"
+              aria-label="حفظ المشجرة"
+              className={WORKSPACE_ICON_BTN_CLASS}
             >
-              <Users className="w-3.5 h-3.5 text-[#D8755B] shrink-0" />
-              <span className="tabular-nums">
-                السعة: {people.length} / {effectiveMaxTreeMembers}
-              </span>
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-md bg-white border border-[#D8755B]/45 text-[#8D4925]">
-                <Plus className="w-2.5 h-2.5" />
-              </span>
+              {treeSaveState === 'saving' ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#9E5631]" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
             </button>
 
-            <span
-              className="hidden sm:inline-block h-6 w-px bg-[#B98A78]/30 mx-0.5"
-              aria-hidden="true"
-            />
-
-            {/* Icon-Only Action 1: دعوة أفراد العائلة */}
+            {/* Secondary: Share / Invite Family */}
             <button
               type="button"
               data-testid="invite-family-icon-btn"
@@ -6283,44 +6382,69 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 setCopiedInviteLink(false);
                 setShowInviteFamilyModal(true);
               }}
-              title="دعوة أفراد العائلة"
-              aria-label="دعوة أفراد العائلة"
-              className="w-9 h-9 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border border-[#B98A78]/45 hover:border-[#D8755B]/75 inline-flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+              className={WORKSPACE_SECONDARY_BTN_CLASS}
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 shrink-0" />
+              <span>مشاركة</span>
             </button>
 
-            {/* Icon-Only Action 2: تصدير المشجرة الموثقة */}
+            {/* Secondary: JSON Import / Export Popover */}
+            <div className="relative">
+              <button
+                type="button"
+                data-testid="tree-json-menu-btn"
+                onClick={() => setShowJsonBackupMenu((v) => !v)}
+                onBlur={() => window.setTimeout(() => setShowJsonBackupMenu(false), 180)}
+                className={WORKSPACE_SECONDARY_BTN_CLASS}
+              >
+                <FileJson className="w-4 h-4 shrink-0" />
+                <span>استيراد وتصدير JSON</span>
+              </button>
+              {showJsonBackupMenu && (
+                <div
+                  data-testid="tree-json-backup-popover"
+                  className="absolute left-0 top-full mt-1.5 z-40 w-48 rounded-xl bg-white border border-[#E6DAC3] shadow-lg p-1.5 space-y-1 text-right"
+                >
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleExportTreeJsonBackup();
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-xs font-display font-semibold text-[#2C1E14] hover:bg-[#FAF5EC] flex items-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#8C5327] shrink-0" />
+                    <span>تصدير نسخة JSON</span>
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setShowJsonBackupMenu(false);
+                      jsonImportInputRef.current?.click();
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-xs font-display font-semibold text-[#2C1E14] hover:bg-[#FAF5EC] flex items-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-[#8C5327] shrink-0" />
+                    <span>استيراد ملف JSON</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Primary CTA: Official Branded Tree Export & Print */}
             <button
               type="button"
               data-testid="open-tree-official-export-btn"
               onClick={() => setShowOfficialExportModal(true)}
-              title="تصدير المشجرة الموثقة"
-              aria-label="تصدير المشجرة الموثقة"
-              className="w-9 h-9 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border border-[#B98A78]/45 hover:border-[#D8755B]/75 inline-flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+              className={WORKSPACE_PRIMARY_BTN_CLASS}
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 shrink-0" />
+              <span>تصدير وطبع الشجرة</span>
             </button>
-
-            {/* Icon-Only Action 3 (الأخير): حفظ المشجرة */}
-            <button
-              type="button"
-              data-testid="save-tree-icon-btn"
-              disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
-              onClick={handleManualSaveTree}
-              title="حفظ المشجرة"
-              aria-label="حفظ المشجرة"
-              className="w-9 h-9 rounded-xl bg-emerald-50 hover:bg-emerald-100 disabled:opacity-60 text-emerald-700 border border-emerald-600/35 inline-flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
-            >
-              {treeSaveState === 'saving' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* ==================================================================== */}
       {/* 1B. MANDATORY RECORD KEEPER CHARTER GATE BANNER                      */}

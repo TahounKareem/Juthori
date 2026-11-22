@@ -12,12 +12,20 @@ import {
   Loader2,
   Lock,
   Paperclip,
+  RefreshCw,
   ScrollText,
   SlidersHorizontal,
   Sparkles,
   Upload,
   X,
 } from 'lucide-react';
+import {
+  UnifiedWorkspaceHeader,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
+  WORKSPACE_SECONDARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
 import {
   AccountLegalType,
   AncestorCapsule,
@@ -302,6 +310,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onOpenResearchTicketsTab,
   onSignCharterAndEnableTree,
   onLogActivity,
+  onResyncLineage,
+  isResyncingLineage = false,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
@@ -2690,11 +2700,99 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     ? 'fixed inset-0 z-[70] overflow-y-auto p-4 sm:p-7 transition-colors duration-200'
     : 'rounded-3xl p-4 sm:p-7 lg:p-8 relative overflow-hidden transition-colors duration-200';
 
+  const headerRootLabel = (() => {
+    const rawRoot =
+      (effectiveResult.rootTribeName &&
+        !effectiveResult.rootTribeName.includes('قيد التحقيق') &&
+        !effectiveResult.rootTribeName.includes('غير مفهرس') &&
+        effectiveResult.rootTribeName) ||
+      (effectiveResult.rootBranchName &&
+        !effectiveResult.rootBranchName.includes('غير مفهرس') &&
+        effectiveResult.rootBranchName) ||
+      '';
+    if (!rawRoot) return 'قيد التوثيق المرجعي';
+    return getCleanSpineNodeName(rawRoot) || rawRoot;
+  })();
+
   return (
     <div
       data-testid={`lineage-spine-${stateMode}`}
-      className="w-full space-y-6 text-right"
+      className="w-full space-y-3.5 text-right"
     >
+      {/* ==================================================================== */}
+      {/* 1. UNIFIED WORKSPACE HEADER (Zero Layout Shift across all 6 pages)  */}
+      {/* ==================================================================== */}
+      {!isFullscreen && (
+        <UnifiedWorkspaceHeader
+          testId="lineage-unified-header"
+          icon={<ScrollText className="w-5 h-5" />}
+          title={`عمود نسب أسرة ${effectiveResult.familyName}`}
+          metaItems={[
+            'السلسلة المرجعية الموثقة',
+            <span key="root">
+              الجذر:{' '}
+              <strong className="font-semibold text-[#2C1E14]">
+                {headerRootLabel}
+              </strong>
+            </span>,
+            <span key="rings" className="tabular-nums">
+              الحلقات المفتوحة:{' '}
+              <strong className="font-semibold text-[#2C1E14]">
+                {visibleAdamNodesCount} من {totalFamilySpineNodesCount}
+              </strong>
+            </span>,
+          ]}
+          actions={
+            <>
+              {onResyncLineage && (
+                <button
+                  type="button"
+                  data-testid="lineage-resync-btn"
+                  disabled={isResyncingLineage}
+                  onClick={onResyncLineage}
+                  title="إعادة المزامنة مع مرصد الأنساب"
+                  aria-label="إعادة المزامنة"
+                  className={WORKSPACE_ICON_BTN_CLASS}
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${
+                      isResyncingLineage ? 'animate-spin text-[#9E5631]' : ''
+                    }`}
+                  />
+                </button>
+              )}
+
+              <button
+                type="button"
+                data-testid="toggle-lineage-customizer-btn"
+                onClick={() => setIsCustomizerOpen((prev) => !prev)}
+                className={
+                  isCustomizerOpen
+                    ? WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS
+                    : WORKSPACE_SECONDARY_BTN_CLASS
+                }
+              >
+                <SlidersHorizontal className="w-4 h-4 shrink-0" />
+                <span>تخصيص المظهر</span>
+              </button>
+
+              {!isResearcherDirectPreview && !isUnmatchedCase && (
+                <button
+                  type="button"
+                  data-testid="open-lineage-official-export-btn"
+                  onClick={() => setShowOfficialExportModal(true)}
+                  title="تصدير أو طباعة صك عمود النسب الموثق بالثيم والخط والاتجاه المختار"
+                  className={WORKSPACE_PRIMARY_BTN_CLASS}
+                >
+                  <ScrollText className="w-4 h-4 shrink-0" />
+                  <span>تصدير صك النسب</span>
+                </button>
+              )}
+            </>
+          }
+        />
+      )}
+
       <div
         ref={canvasTopRef}
         className={studioContainerClasses}
@@ -2714,26 +2812,63 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           }
         >
           {/* ================================================================ */}
-          {/* 1. EXECUTIVE HEADER (+ INLINE ZOOM BAR ON DESKTOP >= 1150px)     */}
+          {/* 1B. SEPARATED CANVAS TOOLBAR (Zoom/Center/Majlis + Nasab Strip)  */}
           {/* ================================================================ */}
-          <header
-            className="relative z-20 pb-4 flex flex-col min-[1150px]:flex-row min-[1150px]:items-center justify-between gap-3"
+          <div
+            data-testid="lineage-canvas-control-bar"
+            className="relative z-20 pb-3.5 flex flex-wrap min-[1150px]:flex-nowrap items-center justify-between gap-2.5"
             style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
           >
-            <div className="min-w-0 shrink-0">
-              <h2
-                className="text-xl sm:text-2xl font-extrabold tracking-tight"
-                style={{
-                  fontFamily: fontDef.cssFamily,
-                  color: theme.textPrimaryHex,
-                }}
-              >
-                عمود نسب عائلة {effectiveResult.familyName} الموثق
-              </h2>
+            {/* Right Cluster: Classical Nasab Toggle (and Fullscreen Title if fullscreen) */}
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              {isFullscreen && (
+                <h2
+                  className="text-lg sm:text-xl font-extrabold tracking-tight ml-2"
+                  style={{
+                    fontFamily: fontDef.cssFamily,
+                    color: theme.textPrimaryHex,
+                  }}
+                >
+                  عمود نسب أسرة {effectiveResult.familyName}
+                </h2>
+              )}
+
+              {!isUnmatchedCase && !isVerificationPending && classicalNasabText && (
+                <button
+                  type="button"
+                  data-testid="toggle-nasab-strip-btn"
+                  onClick={() =>
+                    updateStudioPrefs({
+                      showNasabStrip: !studioPrefs.showNasabStrip,
+                    })
+                  }
+                  className="px-3 py-1.5 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  style={{
+                    backgroundColor: studioPrefs.showNasabStrip
+                      ? theme.goldSoftBg
+                      : theme.surfaceBg,
+                    color: studioPrefs.showNasabStrip
+                      ? theme.accentTextHex
+                      : theme.textSecondaryHex,
+                    border: `1px solid ${
+                      studioPrefs.showNasabStrip
+                        ? theme.goldBorderHex
+                        : theme.surfaceBorder
+                    }`,
+                  }}
+                >
+                  <ScrollText className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {studioPrefs.showNasabStrip
+                      ? 'الصياغة النسبية المتصلة ✓'
+                      : 'إظهار الصياغة النسبية المتصلة'}
+                  </span>
+                </button>
+              )}
             </div>
 
-            {/* Center/Left Controls & Actions: Inline Zoom Dock (>=1150px) + Action Buttons */}
-            <div className="flex flex-wrap min-[1150px]:flex-nowrap items-center justify-end gap-2 shrink-0">
+            {/* Center/Left Controls: Inline Zoom/Center/Majlis Dock (>=1150px) + Fullscreen Close */}
+            <div className="flex items-center justify-end gap-2 shrink-0">
               <div className="hidden min-[1150px]:inline-flex items-center shrink-0">
                 <LineageCanvasFloatingControls
                   variant="inline"
@@ -2747,52 +2882,12 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 />
               </div>
 
-              <button
-                type="button"
-                data-testid="toggle-lineage-customizer-btn"
-                onClick={() => setIsCustomizerOpen((prev) => !prev)}
-                className="px-3.5 py-2 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0"
-                style={{
-                  backgroundColor: isCustomizerOpen
-                    ? theme.buttonPrimaryBg
-                    : theme.goldSoftBg,
-                  color: isCustomizerOpen
-                    ? theme.buttonPrimaryText
-                    : theme.accentTextHex,
-                  border: `1.5px solid ${
-                    isCustomizerOpen
-                      ? theme.buttonPrimaryBg
-                      : theme.goldBorderHex
-                  }`,
-                }}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
-                <span>✦ تخصيص مظهر العمود</span>
-              </button>
-
-              {!isResearcherDirectPreview && !isUnmatchedCase && (
-                <button
-                  type="button"
-                  data-testid="open-lineage-official-export-btn"
-                  onClick={() => setShowOfficialExportModal(true)}
-                  title="تصدير أو طباعة صك عمود النسب الموثق بالثيم والخط والاتجاه المختار"
-                  className="px-3.5 py-2 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
-                  style={{
-                    backgroundColor: theme.buttonPrimaryBg,
-                    color: theme.buttonPrimaryText,
-                  }}
-                >
-                  <ScrollText className="w-3.5 h-3.5 shrink-0" />
-                  <span>تصدير صك عمود النسب للطباعة</span>
-                </button>
-              )}
-
               {isFullscreen && (
                 <button
                   type="button"
                   onClick={() => setIsFullscreen(false)}
                   aria-label="إغلاق العرض الكامل"
-                  className="px-3 py-2 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-3 py-1.5 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                   style={{
                     backgroundColor: theme.surfaceBg,
                     border: `1px solid ${theme.surfaceBorder}`,
@@ -2804,7 +2899,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 </button>
               )}
             </div>
-          </header>
+          </div>
 
           {/* ================================================================ */}
           {/* 2. SLEEK 4-AXIS CUSTOMIZATION PANEL (Collapsible)                */}
