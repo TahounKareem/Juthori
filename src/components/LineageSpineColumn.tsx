@@ -12,7 +12,6 @@ import {
   Loader2,
   Lock,
   Paperclip,
-  RefreshCw,
   ScrollText,
   SlidersHorizontal,
   Sparkles,
@@ -21,7 +20,6 @@ import {
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
-  WORKSPACE_ICON_BTN_CLASS,
   WORKSPACE_PRIMARY_BTN_CLASS,
   WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
@@ -310,8 +308,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onOpenResearchTicketsTab,
   onSignCharterAndEnableTree,
   onLogActivity,
-  onResyncLineage,
-  isResyncingLineage = false,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
@@ -2276,6 +2272,443 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     const specialUpper = renderSpecialTopBlock();
     const isBottomUp = studioPrefs.direction === 'bottom_up';
 
+    const getConnectorBetweenItems = (
+      firstItem: UnifiedSpineItem,
+      secondItem: UnifiedSpineItem,
+      orientation: 'vertical' | 'horizontal' = 'vertical'
+    ) => {
+      const isTopDown = studioPrefs.direction === 'top_down';
+      const upperItem = isTopDown ? firstItem : secondItem;
+      const lowerItem = isTopDown ? secondItem : firstItem;
+      const hasSkippedGap =
+        upperItem.kind === 'ancestor_node' &&
+        lowerItem.kind === 'ancestor_node' &&
+        upperItem.node.orderNumber - lowerItem.node.orderNumber > 1;
+      return resolveSemanticLineageConnector({
+        upperKind: upperItem.entityKind,
+        lowerKind: lowerItem.entityKind,
+        direction: studioPrefs.direction,
+        orientation,
+        hasSkippedGap,
+      });
+    };
+
+    const getItemStepMeta = (item: UnifiedSpineItem): string => {
+      if (item.kind === 'client') return 'أمين السجل';
+      if (item.kind === 'father') return 'الأب المباشر';
+      if (item.kind === 'grandfather') return 'الجد المباشر';
+      if (item.kind === 'direct_family') return 'بيت النسب';
+      if (item.kind === 'capsule_pill') return 'حلقات وسطية';
+      if (item.kind === 'intermediate_toggle') return 'سلسلة الحلقات';
+      if (item.kind === 'locked_layer') return 'طبقة تاريخية';
+      if (item.isSummit) return 'ذروة العمود';
+      if (item.isRoot) return item.isSubRoot ? 'الفرع الجامع' : 'القبيلة الأم';
+      return getHistoricalEraBadgeLabel(resolveNodeHistoricalEra(item.node));
+    };
+
+    // MODE 4: ANDALUSIAN ZIGZAG ASCENSION (المعراج الأندلسي المتعرّج)
+    if (viewMode === 'andalusian_zigzag') {
+      return (
+        <div
+          data-testid="lineage-view-andalusian_zigzag"
+          className="relative z-20 max-w-4xl mx-auto py-2 px-1 sm:px-3"
+        >
+          {!isBottomUp && specialUpper && (
+            <div className="max-w-md mx-auto pb-5">{specialUpper}</div>
+          )}
+
+          <div className="relative">
+            {/* Central Sculpted Golden Axis (Desktop md+) / Right Rail (Mobile) */}
+            <div
+              aria-hidden="true"
+              className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-2 justify-between pointer-events-none"
+            >
+              <span
+                className="w-[1.5px] h-full rounded-full"
+                style={{ background: theme.railGradient }}
+              />
+              <span
+                className="w-[1.5px] h-full rounded-full"
+                style={{ background: theme.railGradient }}
+              />
+            </div>
+            <div
+              aria-hidden="true"
+              className="md:hidden absolute right-4 top-4 bottom-4 w-[2px] rounded-full pointer-events-none"
+              style={{ background: theme.railGradient }}
+            />
+
+            <div className="space-y-4 md:space-y-3 relative z-10">
+              {orderedDisplayItems.map((item, idx) => {
+                const isRightSide = idx % 2 === 0;
+                const stepNum = String(idx + 1).padStart(2, '0');
+                const nextConn =
+                  idx < orderedDisplayItems.length - 1
+                    ? getConnectorBetweenItems(
+                        item,
+                        orderedDisplayItems[idx + 1],
+                        'vertical'
+                      )
+                    : null;
+
+                return (
+                  <div key={item.id} className="space-y-2">
+                    <div className="relative grid grid-cols-1 md:grid-cols-[1fr_76px_1fr] items-center gap-y-2 md:gap-x-0">
+                      {/* Right Column (Even indices on Desktop; All items on Mobile) */}
+                      <div
+                        className={`pr-10 md:pr-0 flex ${
+                          isRightSide
+                            ? 'md:justify-end md:pl-3'
+                            : 'md:invisible md:pointer-events-none hidden md:flex'
+                        }`}
+                      >
+                        {isRightSide && (
+                          <div className="w-full max-w-[300px] relative">
+                            <span
+                              aria-hidden="true"
+                              className="hidden md:block absolute top-1/2 -left-3 w-3 h-[2px] -translate-y-1/2"
+                              style={{ backgroundColor: theme.goldBorderHex }}
+                            />
+                            {renderUnifiedItemCard(item, idx, {
+                              isTopmostCrown:
+                                idx === 0 &&
+                                item.kind === 'ancestor_node' &&
+                                (item.isSummit || item.isRoot),
+                              variant: 'pillar',
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Center Axis Jewel Medallion */}
+                      <div className="hidden md:flex flex-col items-center justify-center relative z-20">
+                        <div
+                          className="w-9 h-9 rounded-xl rotate-45 flex items-center justify-center shadow-xs transition-transform"
+                          style={{
+                            backgroundColor: theme.surfaceBg,
+                            border: `1.5px solid ${theme.goldBorderHex}`,
+                            boxShadow: `0 0 0 4px ${theme.canvasBg}`,
+                          }}
+                        >
+                          <span
+                            className="-rotate-45 text-[11px] font-mono font-extrabold tabular-nums"
+                            style={{ color: theme.accentTextHex }}
+                          >
+                            {stepNum}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Mobile Step Jewel on Right Rail */}
+                      <div
+                        className="md:hidden absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg rotate-45 flex items-center justify-center z-20"
+                        style={{
+                          backgroundColor: theme.surfaceBg,
+                          border: `1.5px solid ${theme.goldBorderHex}`,
+                        }}
+                      >
+                        <span
+                          className="-rotate-45 text-[9px] font-mono font-extrabold tabular-nums"
+                          style={{ color: theme.accentTextHex }}
+                        >
+                          {stepNum}
+                        </span>
+                      </div>
+
+                      {/* Left Column (Odd indices on Desktop; Mobile renders here if odd) */}
+                      <div
+                        className={`pr-10 md:pr-0 flex ${
+                          !isRightSide
+                            ? 'md:justify-start md:pr-3'
+                            : 'md:invisible md:pointer-events-none hidden md:flex'
+                        }`}
+                      >
+                        {!isRightSide && (
+                          <div className="w-full max-w-[300px] relative">
+                            <span
+                              aria-hidden="true"
+                              className="hidden md:block absolute top-1/2 -right-3 w-3 h-[2px] -translate-y-1/2"
+                              style={{ backgroundColor: theme.goldBorderHex }}
+                            />
+                            {renderUnifiedItemCard(item, idx, {
+                              isTopmostCrown: false,
+                              variant: 'pillar',
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Centered Semantic Axis Connector */}
+                    {nextConn && (
+                      <div className="flex justify-start pr-12 md:pr-0 md:justify-center relative z-20">
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-display font-bold shadow-2xs"
+                          style={{
+                            backgroundColor: theme.connectorBg,
+                            border: `1px solid ${theme.connectorBorder}`,
+                            color: theme.connectorText,
+                          }}
+                        >
+                          <span aria-hidden="true">{nextConn.arrow}</span>
+                          <span>{nextConn.label}</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {isBottomUp && specialUpper && (
+            <div className="max-w-md mx-auto pt-5">{specialUpper}</div>
+          )}
+        </div>
+      );
+    }
+
+    // MODE 5: DIWANI HERITAGE MEDALLIONS GALLERY (قلادة الميداليات الديوانية)
+    if (viewMode === 'heritage_medallions') {
+      return (
+        <div
+          data-testid="lineage-view-heritage_medallions"
+          className="relative z-20 max-w-5xl mx-auto py-2 space-y-5"
+        >
+          {!isBottomUp && specialUpper && (
+            <div className="max-w-lg mx-auto">{specialUpper}</div>
+          )}
+
+          {/* Gallery Ribbon Header */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <div
+              className="text-xs font-display font-bold flex items-center gap-2"
+              style={{ color: theme.textSecondaryHex }}
+            >
+              <Crown className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
+              <span>
+                {isBottomUp
+                  ? 'معرض الحلقات المتسلسلة من أمين السجل صعوداً إلى الجذر الأعلى'
+                  : 'معرض الحلقات المتسلسلة من الجذر الأعلى نزولاً إلى أمين السجل'}
+              </span>
+            </div>
+            <span
+              className="text-[11px] font-mono font-bold tabular-nums"
+              style={{ color: theme.textMutedHex }}
+            >
+              {orderedDisplayItems.length} محطة معروضة
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {orderedDisplayItems.map((item, idx) => {
+              const stepNum = String(idx + 1).padStart(2, '0');
+              const stepMeta = getItemStepMeta(item);
+              const nextConn =
+                idx < orderedDisplayItems.length - 1
+                  ? getConnectorBetweenItems(
+                      item,
+                      orderedDisplayItems[idx + 1],
+                      'horizontal'
+                    )
+                  : null;
+
+              return (
+                <div
+                  key={item.id}
+                  className="relative rounded-2xl p-3 flex flex-col gap-2.5 transition-all"
+                  style={{
+                    backgroundColor: theme.surfaceAltBg,
+                    border: `1.5px solid ${theme.goldBorderHex}65`,
+                    boxShadow: theme.isDark
+                      ? '0 8px 24px rgba(0,0,0,0.28)'
+                      : '0 4px 16px rgba(141,73,37,0.05)',
+                  }}
+                >
+                  {/* Top Medallion Index & Directional Link */}
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-6 h-6 rounded-lg text-[10.5px] font-mono font-extrabold tabular-nums inline-flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: theme.goldSoftBg,
+                          border: `1px solid ${theme.goldBorderHex}`,
+                          color: theme.accentTextHex,
+                        }}
+                      >
+                        {stepNum}
+                      </span>
+                      <span
+                        className="text-[11px] font-display font-bold truncate"
+                        style={{ color: theme.textMutedHex }}
+                      >
+                        {stepMeta}
+                      </span>
+                    </div>
+
+                    {nextConn && (
+                      <span
+                        className="text-[10px] font-display font-bold inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                        style={{ color: theme.connectorText }}
+                      >
+                        <span>{nextConn.label}</span>
+                        <span aria-hidden="true">{nextConn.arrow}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Embedded Interactive Plaque */}
+                  <div className="flex-1 flex items-stretch">
+                    {renderUnifiedItemCard(item, idx, {
+                      isTopmostCrown: false,
+                      variant: 'medallion',
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {isBottomUp && specialUpper && (
+            <div className="max-w-lg mx-auto">{specialUpper}</div>
+          )}
+        </div>
+      );
+    }
+
+    // MODE 6: MIHRAB ARCHES & HERITAGE TERRACES (عقود المحراب والمقامات)
+    if (viewMode === 'majlis_arch_steps') {
+      return (
+        <div
+          data-testid="lineage-view-majlis_arch_steps"
+          className="relative z-20 max-w-2xl mx-auto py-2 px-1 sm:px-3"
+        >
+          {!isBottomUp && specialUpper && (
+            <div className="pb-5">{specialUpper}</div>
+          )}
+
+          <div className="relative space-y-3">
+            {/* Braided Architectural Right Elevation Rail */}
+            <div
+              aria-hidden="true"
+              className="hidden sm:block absolute right-6 top-6 bottom-6 w-[2px] rounded-full pointer-events-none"
+              style={{ background: theme.railGradient }}
+            />
+
+            {orderedDisplayItems.map((item, idx) => {
+              const stepNum = String(idx + 1).padStart(2, '0');
+              const stepMeta = getItemStepMeta(item);
+              const nextConn =
+                idx < orderedDisplayItems.length - 1
+                  ? getConnectorBetweenItems(
+                      item,
+                      orderedDisplayItems[idx + 1],
+                      'vertical'
+                    )
+                  : null;
+              // Gentle stepped indentation (cycles softly 0 -> 1 -> 2 -> 1 -> 0 to prevent narrow squeeze on long chains)
+              const stepTier = Math.min(idx % 4, 3);
+              const stepIndentPx = stepTier * 14;
+
+              return (
+                <div key={item.id} className="space-y-2">
+                  <div className="relative flex flex-col sm:flex-row sm:items-center gap-3">
+                    {/* Architectural Milestone Marker on Right Elevation Rail */}
+                    <div className="hidden sm:flex flex-col items-center justify-center w-12 shrink-0 relative z-20">
+                      <div
+                        className="w-10 h-10 rounded-t-full rounded-b-xl flex flex-col items-center justify-center shadow-2xs"
+                        style={{
+                          backgroundColor: theme.surfaceBg,
+                          border: `1.5px solid ${theme.goldBorderHex}`,
+                          color: theme.accentTextHex,
+                        }}
+                      >
+                        <span className="text-[11px] font-mono font-extrabold tabular-nums leading-none">
+                          {stepNum}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Pointed Mihrab Arch Sculpted Chamber */}
+                    <div
+                      className="flex-1 min-w-0 transition-all"
+                      style={{
+                        marginInlineStart:
+                          stepIndentPx > 0 ? `${stepIndentPx}px` : undefined,
+                      }}
+                    >
+                      <div
+                        className="relative rounded-t-[28px] rounded-b-2xl pt-4 pb-3 px-3.5 sm:px-4 overflow-hidden"
+                        style={{
+                          backgroundColor: theme.surfaceBg,
+                          border: `1.5px solid ${theme.goldBorderHex}80`,
+                          boxShadow: theme.isDark
+                            ? '0 10px 26px rgba(0,0,0,0.32)'
+                            : '0 6px 20px rgba(141,73,37,0.06)',
+                        }}
+                      >
+                        {/* Delicate Islamic Pointed Mihrab Arch Crown Filigree */}
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 240 22"
+                          preserveAspectRatio="none"
+                          className="pointer-events-none absolute top-0 inset-x-0 w-full h-5 opacity-70"
+                        >
+                          <path
+                            d="M 8 20 Q 65 18 120 3 Q 175 18 232 20"
+                            fill="none"
+                            stroke={theme.goldHex}
+                            strokeWidth="1.4"
+                          />
+                          <circle cx="120" cy="4.5" r="2.2" fill={theme.goldHex} />
+                        </svg>
+
+                        {/* Arch Header Meta Line */}
+                        <div className="flex items-center justify-between gap-2 pb-2 mb-2 relative z-10 border-b border-dashed"
+                          style={{ borderColor: `${theme.goldBorderHex}45` }}
+                        >
+                          <span
+                            className="text-[11px] font-display font-bold flex items-center gap-1.5"
+                            style={{ color: theme.accentTextHex }}
+                          >
+                            <span className="sm:hidden font-mono tabular-nums">
+                              {stepNum} ·
+                            </span>
+                            <span>{stepMeta}</span>
+                          </span>
+                          {nextConn && (
+                            <span
+                              className="text-[10.5px] font-display font-semibold inline-flex items-center gap-1"
+                              style={{ color: theme.textMutedHex }}
+                            >
+                              <span>{nextConn.label}</span>
+                              <span aria-hidden="true">{nextConn.arrow}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Interactive Lineage Card */}
+                        <div className="relative z-10">
+                          {renderUnifiedItemCard(item, idx, {
+                            isTopmostCrown: false,
+                            variant: 'medallion',
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {isBottomUp && specialUpper && (
+            <div className="pt-5">{specialUpper}</div>
+          )}
+        </div>
+      );
+    }
+
     // MODE 3: PANORAMIC HORIZONTAL FLOW (المسار البانورامي الأفقي)
     if (viewMode === 'panoramic_flow') {
       return (
@@ -2700,68 +3133,21 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     ? 'fixed inset-0 z-[70] overflow-y-auto p-4 sm:p-7 transition-colors duration-200'
     : 'rounded-3xl p-4 sm:p-7 lg:p-8 relative overflow-hidden transition-colors duration-200';
 
-  const headerRootLabel = (() => {
-    const rawRoot =
-      (effectiveResult.rootTribeName &&
-        !effectiveResult.rootTribeName.includes('قيد التحقيق') &&
-        !effectiveResult.rootTribeName.includes('غير مفهرس') &&
-        effectiveResult.rootTribeName) ||
-      (effectiveResult.rootBranchName &&
-        !effectiveResult.rootBranchName.includes('غير مفهرس') &&
-        effectiveResult.rootBranchName) ||
-      '';
-    if (!rawRoot) return 'قيد التوثيق المرجعي';
-    return getCleanSpineNodeName(rawRoot) || rawRoot;
-  })();
-
   return (
     <div
       data-testid={`lineage-spine-${stateMode}`}
       className="w-full space-y-3.5 text-right"
     >
       {/* ==================================================================== */}
-      {/* 1. UNIFIED WORKSPACE HEADER (Zero Layout Shift across all 6 pages)  */}
+      {/* 1. UNIFIED WORKSPACE HEADER (Clean Title + Customize + Export CTA)   */}
       {/* ==================================================================== */}
       {!isFullscreen && (
         <UnifiedWorkspaceHeader
           testId="lineage-unified-header"
           icon={<ScrollText className="w-5 h-5" />}
           title={`عمود نسب أسرة ${effectiveResult.familyName}`}
-          metaItems={[
-            'السلسلة المرجعية الموثقة',
-            <span key="root">
-              الجذر:{' '}
-              <strong className="font-semibold text-[#2C1E14]">
-                {headerRootLabel}
-              </strong>
-            </span>,
-            <span key="rings" className="tabular-nums">
-              الحلقات المفتوحة:{' '}
-              <strong className="font-semibold text-[#2C1E14]">
-                {visibleAdamNodesCount} من {totalFamilySpineNodesCount}
-              </strong>
-            </span>,
-          ]}
           actions={
             <>
-              {onResyncLineage && (
-                <button
-                  type="button"
-                  data-testid="lineage-resync-btn"
-                  disabled={isResyncingLineage}
-                  onClick={onResyncLineage}
-                  title="إعادة المزامنة مع مرصد الأنساب"
-                  aria-label="إعادة المزامنة"
-                  className={WORKSPACE_ICON_BTN_CLASS}
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 ${
-                      isResyncingLineage ? 'animate-spin text-[#9E5631]' : ''
-                    }`}
-                  />
-                </button>
-              )}
-
               <button
                 type="button"
                 data-testid="toggle-lineage-customizer-btn"
@@ -2812,63 +3198,30 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           }
         >
           {/* ================================================================ */}
-          {/* 1B. SEPARATED CANVAS TOOLBAR (Zoom/Center/Majlis + Nasab Strip)  */}
+          {/* 1B. SEPARATED CANVAS TOOLBAR (Desktop Inline Zoom & Fullscreen)  */}
           {/* ================================================================ */}
           <div
             data-testid="lineage-canvas-control-bar"
-            className="relative z-20 pb-3.5 flex flex-wrap min-[1150px]:flex-nowrap items-center justify-between gap-2.5"
+            className={`relative z-20 pb-3.5 items-center gap-2.5 ${
+              isFullscreen
+                ? 'flex flex-wrap min-[1150px]:flex-nowrap justify-between'
+                : 'hidden min-[1150px]:flex justify-center'
+            }`}
             style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
           >
-            {/* Right Cluster: Classical Nasab Toggle (and Fullscreen Title if fullscreen) */}
-            <div className="flex flex-wrap items-center gap-2 min-w-0">
-              {isFullscreen && (
-                <h2
-                  className="text-lg sm:text-xl font-extrabold tracking-tight ml-2"
-                  style={{
-                    fontFamily: fontDef.cssFamily,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  عمود نسب أسرة {effectiveResult.familyName}
-                </h2>
-              )}
+            {isFullscreen && (
+              <h2
+                className="text-lg sm:text-xl font-extrabold tracking-tight"
+                style={{
+                  fontFamily: fontDef.cssFamily,
+                  color: theme.textPrimaryHex,
+                }}
+              >
+                عمود نسب أسرة {effectiveResult.familyName}
+              </h2>
+            )}
 
-              {!isUnmatchedCase && !isVerificationPending && classicalNasabText && (
-                <button
-                  type="button"
-                  data-testid="toggle-nasab-strip-btn"
-                  onClick={() =>
-                    updateStudioPrefs({
-                      showNasabStrip: !studioPrefs.showNasabStrip,
-                    })
-                  }
-                  className="px-3 py-1.5 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
-                  style={{
-                    backgroundColor: studioPrefs.showNasabStrip
-                      ? theme.goldSoftBg
-                      : theme.surfaceBg,
-                    color: studioPrefs.showNasabStrip
-                      ? theme.accentTextHex
-                      : theme.textSecondaryHex,
-                    border: `1px solid ${
-                      studioPrefs.showNasabStrip
-                        ? theme.goldBorderHex
-                        : theme.surfaceBorder
-                    }`,
-                  }}
-                >
-                  <ScrollText className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    {studioPrefs.showNasabStrip
-                      ? 'الصياغة النسبية المتصلة ✓'
-                      : 'إظهار الصياغة النسبية المتصلة'}
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* Center/Left Controls: Inline Zoom/Center/Majlis Dock (>=1150px) + Fullscreen Close */}
-            <div className="flex items-center justify-end gap-2 shrink-0">
+            <div className="flex items-center justify-center gap-2 shrink-0">
               <div className="hidden min-[1150px]:inline-flex items-center shrink-0">
                 <LineageCanvasFloatingControls
                   variant="inline"

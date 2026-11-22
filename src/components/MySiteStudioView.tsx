@@ -59,8 +59,6 @@ import {
   readVaultArchiveFromLocal,
 } from '../services/firestoreService';
 import {
-  ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
-  ACTIVE_PUBLIC_SITE_ORIGIN,
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
   resolveClientPublicAppBaseUrl,
@@ -99,7 +97,6 @@ import {
   HERO_LAYOUT_OPTIONS,
   PORTAL_SECTION_LABELS,
   TYPOGRAPHY_PAIR_OPTIONS,
-  ThemeMiniSiteThumbnail,
 } from './FamilySiteHeritageVisuals';
 
 interface MySiteStudioViewProps {
@@ -123,6 +120,102 @@ type StudioSectionTab =
   | 'mirror_privacy'
   | 'editorial_modules'
   | 'heritage_community_modules';
+
+type IdentityInspectorSectionId =
+  | 'url_access'
+  | 'theme_typography'
+  | 'family_crest'
+  | 'hero_cover'
+  | 'editorial_identity';
+
+const OFFICIAL_BRAND_HOST = 'juthori.com';
+
+/**
+ * Sleek Ivory-Glass Collapsible Inspector Card for Tab 1 («الهوية والمظهر»)
+ */
+function CalmInspectorAccordion({
+  id,
+  icon,
+  title,
+  summary,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  id: IdentityInspectorSectionId;
+  icon: React.ReactNode;
+  title: string;
+  summary: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      data-testid={`mysite-inspector-${id}`}
+      className={`rounded-2xl backdrop-blur-sm border transition-all duration-200 ${
+        isOpen
+          ? 'bg-[#FFFDF9] border-[#D4AF37]/55 shadow-[0_10px_28px_-20px_rgba(61,43,31,0.28)]'
+          : 'bg-[#FFFDF9]/92 border-[#E6DAC3] hover:border-[#D4B988] shadow-2xs'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-right cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C5A059]/45"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-colors duration-200 ${
+              isOpen
+                ? 'bg-[#9E5631]/10 border-[#9E5631]/25 text-[#9E5631]'
+                : 'bg-[#F8F3EA] border-[#E6DAC3] text-[#8C5327]'
+            }`}
+          >
+            {icon}
+          </div>
+          <h3 className="text-[13px] font-display font-extrabold text-[#2C1E14] truncate">
+            {title}
+          </h3>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 min-w-0">
+          {!isOpen && summary && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6EE] border border-[#E6DAC3] text-[11px] font-display font-bold text-[#5C4938] max-w-[200px] sm:max-w-[250px] overflow-hidden">
+              {summary}
+            </div>
+          )}
+          <span
+            className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 ${
+              isOpen
+                ? 'bg-[#FAF6EE] text-[#9E5631]'
+                : 'text-[#8C5327]/70 hover:bg-[#FAF6EE]'
+            }`}
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-300 ease-out ${
+                isOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </span>
+        </div>
+      </button>
+
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 pt-3.5 border-t border-[#F0E8DA] space-y-4">
+            {children}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function ModernSwitch({
   checked,
@@ -550,6 +643,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   );
 
   // Studio UI States
+  const [activeIdentitySection, setActiveIdentitySection] =
+    useState<IdentityInspectorSectionId | null>('theme_typography');
+  const [showSectionOrderDrawer, setShowSectionOrderDrawer] =
+    useState<boolean>(false);
   const [workspaceMode, setWorkspaceMode] = useState<
     'split_studio' | 'fullscreen_preview'
   >('split_studio');
@@ -1310,6 +1407,30 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
   const cleanSlugDisplay = normalizePublicSiteSlug(siteSlug) || 'family-diwan';
 
+  const activeThemeDef =
+    FAMILY_SITE_THEMES.find((t) => t.id === themeId) || FAMILY_SITE_THEMES[0];
+  const activeTypographyOption =
+    TYPOGRAPHY_PAIR_OPTIONS.find(
+      (tp) => tp.id === visualBranding.typographyId
+    ) || TYPOGRAPHY_PAIR_OPTIONS[0];
+  const activeCrestOption =
+    CREST_STYLE_OPTIONS.find((opt) => opt.id === visualBranding.crestStyle) ||
+    CREST_STYLE_OPTIONS[0];
+  const activeHeroPreset =
+    HERO_COVER_PRESET_OPTIONS.find(
+      (p) => p.id === visualBranding.heroCoverPreset
+    ) || HERO_COVER_PRESET_OPTIONS[0];
+  const accessModeShortLabel =
+    siteAccessMode === 'PUBLIC'
+      ? 'عامة'
+      : siteAccessMode === 'UNLISTED'
+        ? 'غير مفهرس'
+        : 'دائرة العائلة';
+
+  const toggleIdentitySection = (sectionId: IdentityInspectorSectionId) => {
+    setActiveIdentitySection((prev) => (prev === sectionId ? null : sectionId));
+  };
+
   return (
     <div dir="rtl" className="space-y-3.5 text-right">
       {/* Hidden File Inputs for Crest & Hero Cover */}
@@ -1354,7 +1475,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             className="inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold text-[#5C4938] hover:text-[#9E5631] transition-colors cursor-pointer max-w-[260px]"
           >
             <span dir="ltr" className="truncate">
-              {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{cleanSlugDisplay}
+              {OFFICIAL_BRAND_HOST}/{cleanSlugDisplay}
             </span>
             {copiedUrl ? (
               <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -1590,92 +1711,326 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             </nav>
 
             {/* ------------------------------------------------------------- */}
-            {/* TAB 1: IDENTITY, THEME, CREST, HERO COVER, TYPOGRAPHY & ORDER */}
+            {/* TAB 1: CALM LUXURY COLLAPSIBLE INSPECTOR (5 SLEEK SECTIONS)   */}
             {/* ------------------------------------------------------------- */}
             {studioTab === 'identity_theme' && (
-              <div className="space-y-4">
-                {/* 1A. Clean Root URL Slug Reservation */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-[#D8755B]" />
-                      <span>عنوان الرابط المباشر للبوابة</span>
-                    </h3>
-                    {slugStatus.message && (
+              <div className="space-y-3">
+                {/* 1. عنوان الرابط المباشر ونطاق الوصول */}
+                <CalmInspectorAccordion
+                  id="url_access"
+                  icon={<Globe className="w-4 h-4" />}
+                  title="عنوان الرابط المباشر ونطاق الوصول"
+                  isOpen={activeIdentitySection === 'url_access'}
+                  onToggle={() => toggleIdentitySection('url_access')}
+                  summary={
+                    <>
                       <span
-                        className={`text-[11px] font-bold ${
-                          slugStatus.available
-                            ? 'text-emerald-700'
-                            : 'text-red-700'
-                        }`}
+                        dir="ltr"
+                        className="font-mono text-[10.5px] text-[#5C4938] truncate"
                       >
-                        {slugStatus.message}
+                        {OFFICIAL_BRAND_HOST}/{cleanSlugDisplay}
                       </span>
-                    )}
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div
-                      dir="ltr"
-                      className="flex-1 flex items-center rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] overflow-hidden focus-within:border-[#C5A059]"
-                    >
-                      <span className="px-3 py-2 text-xs font-mono font-bold text-[#8D4925] bg-[#F2EAE0] border-r border-[#E5DAC8]">
-                        {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/
+                      <span className="text-[#C5A059] shrink-0">·</span>
+                      <span className="text-[10.5px] text-[#8C5327] shrink-0">
+                        {accessModeShortLabel}
                       </span>
-                      <input
-                        type="text"
-                        value={siteSlug}
-                        onChange={(e) => setSiteSlug(e.target.value)}
-                        className="flex-1 px-3 py-2 bg-transparent text-xs font-mono font-bold text-[#252321] focus:outline-none"
-                      />
+                    </>
+                  }
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-display font-bold text-[#7A5C43]">
+                        الرابط الرسمي لبوابة الأسرة
+                      </span>
+                      {slugStatus.message && (
+                        <span
+                          className={`text-[11px] font-bold ${
+                            slugStatus.available
+                              ? 'text-emerald-700'
+                              : 'text-red-700'
+                          }`}
+                        >
+                          {slugStatus.message}
+                        </span>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleCheckSlug}
-                      disabled={slugStatus.checking}
-                      className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold cursor-pointer whitespace-nowrap"
-                    >
-                      {slugStatus.checking ? 'جاري الفحص...' : 'فحص التوفر'}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div
+                        dir="ltr"
+                        className="flex-1 flex items-center rounded-xl bg-[#FCF9F3] border border-[#E6DAC3] overflow-hidden focus-within:bg-white focus-within:border-[#C5A059] transition-colors"
+                      >
+                        <span className="px-3 py-2 text-xs font-mono font-bold text-[#8C5327] bg-[#F5EFE4] border-r border-[#E6DAC3] select-none shrink-0">
+                          {OFFICIAL_BRAND_HOST}/
+                        </span>
+                        <input
+                          type="text"
+                          value={siteSlug}
+                          onChange={(e) => setSiteSlug(e.target.value)}
+                          className="flex-1 min-w-0 px-3 py-2 bg-transparent text-xs font-mono font-bold text-[#2C1E14] focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCopyPortalUrl}
+                          title="نسخ الرابط"
+                          className="px-2.5 py-2 text-[#8C5327] hover:text-[#9E5631] transition-colors cursor-pointer shrink-0"
+                        >
+                          {copiedUrl ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-700" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCheckSlug}
+                        disabled={slugStatus.checking}
+                        className="px-4 py-2 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap disabled:opacity-60"
+                      >
+                        {slugStatus.checking ? 'جاري الفحص...' : 'فحص التوفر'}
+                      </button>
+                    </div>
                   </div>
-                </section>
 
-                {/* 1B. 5 Mini Website Thumbnail Theme Previews */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-3.5">
-                  <div>
-                    <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-[#D8755B]" />
-                      <span>القالب اللوني والهوية البصرية للموقع</span>
-                    </h3>
-                    <p className="text-[11px] text-[#252321]/60 mt-0.5">
-                      معاينة مصغرة حقيقية لكل قالب — معزولة تماماً عن ألوان لوحة التحكم.
-                    </p>
+                  {/* Access Scope Compact Selector */}
+                  <div className="pt-3 border-t border-[#F0E8DA] space-y-2">
+                    <span className="text-[11px] font-display font-bold text-[#7A5C43] block">
+                      نطاق الوصول والظهور
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {(
+                        [
+                          {
+                            id: 'PUBLIC',
+                            label: 'بوابة عامة',
+                            desc: 'متاحة للزوار والرابط المباشر',
+                          },
+                          {
+                            id: 'UNLISTED',
+                            label: 'رابط غير مفهرس',
+                            desc: 'لمن يملك الرابط أو البطاقة فقط',
+                          },
+                          {
+                            id: 'PRIVATE_WHITELIST',
+                            label: 'دائرة العائلة فقط',
+                            desc: 'للأقارب المدعوين حصراً',
+                          },
+                        ] as const
+                      ).map((opt) => {
+                        const active = siteAccessMode === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setSiteAccessMode(opt.id)}
+                            className={`rounded-xl border px-3 py-2.5 text-right transition-all cursor-pointer ${
+                              active
+                                ? 'bg-[#FDF9F0] border-[#C5A059] ring-1 ring-[#C5A059]/25'
+                                : 'bg-white hover:bg-[#FAF6EE] border-[#E6DAC3]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="text-xs font-display font-extrabold text-[#2C1E14]">
+                                {opt.label}
+                              </span>
+                              {active && (
+                                <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                              )}
+                            </div>
+                            <div className="text-[10.5px] text-[#6B5A49] mt-0.5 leading-snug">
+                              {opt.desc}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {FAMILY_SITE_THEMES.map((theme) => (
-                      <ThemeMiniSiteThumbnail
-                        key={theme.id}
-                        theme={theme}
-                        selected={themeId === theme.id}
-                        onSelect={() => setThemeId(theme.id)}
-                      />
-                    ))}
-                  </div>
-                </section>
+                </CalmInspectorAccordion>
 
-                {/* 1C. Family Crest / Monogram Studio */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-[#C5A059]" />
-                        <span>ختم وشعار العائلة (Family Crest)</span>
-                      </h3>
-                      <p className="text-[11px] text-[#252321]/60 mt-0.5">
-                        فعّل مولّد الختم العائلي المذهّب أو ارفع شعار أسرتك الخاص.
-                      </p>
+                {/* 2. الهوية اللونية والخط التراثي */}
+                <CalmInspectorAccordion
+                  id="theme_typography"
+                  icon={<Palette className="w-4 h-4" />}
+                  title="الهوية اللونية والخط التراثي"
+                  isOpen={activeIdentitySection === 'theme_typography'}
+                  onToggle={() => toggleIdentitySection('theme_typography')}
+                  summary={
+                    <>
+                      <span
+                        className="inline-flex items-center -space-x-1 space-x-reverse shrink-0"
+                        aria-hidden="true"
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full ring-1 ring-white"
+                          style={{ backgroundColor: activeThemeDef.swatchHero }}
+                        />
+                        <span
+                          className="w-3 h-3 rounded-full ring-1 ring-white"
+                          style={{
+                            backgroundColor: activeThemeDef.swatchAccent,
+                          }}
+                        />
+                        <span
+                          className="w-3 h-3 rounded-full ring-1 ring-white border border-black/10"
+                          style={{
+                            backgroundColor: activeThemeDef.swatchCanvas,
+                          }}
+                        />
+                      </span>
+                      <span className="truncate">{activeThemeDef.nameAr}</span>
+                      <span className="hidden sm:inline text-[#C5A059] shrink-0">
+                        ·
+                      </span>
+                      <span className="hidden sm:inline text-[10.5px] text-[#8C5327] truncate">
+                        {activeTypographyOption.label}
+                      </span>
+                    </>
+                  }
+                >
+                  {/* 5 Calm Ivory Horizontal Theme Swatch Cards */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-display font-bold text-[#7A5C43]">
+                        القالب اللوني للموقع
+                      </span>
+                      <span className="text-[10.5px] text-[#8C7A68]">
+                        ينعكس فوراً في المعاينة الحية
+                      </span>
                     </div>
 
-                    <div className="inline-flex rounded-xl bg-[#FAF6F0] p-1 border border-[#E5DAC8]">
+                    <div className="space-y-2">
+                      {FAMILY_SITE_THEMES.map((theme) => {
+                        const selected = themeId === theme.id;
+                        return (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => setThemeId(theme.id)}
+                            className={`w-full rounded-xl border px-3.5 py-2.5 flex items-center justify-between gap-3 text-right transition-all duration-150 cursor-pointer ${
+                              selected
+                                ? 'bg-[#FDF9F0] border-[#C5A059] ring-1 ring-[#C5A059]/30 shadow-2xs'
+                                : 'bg-white hover:bg-[#FAF6EE] border-[#E6DAC3] hover:border-[#D4B988]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              {/* Overlapping Color Palette Trio Dots */}
+                              <div
+                                className="flex items-center -space-x-1.5 space-x-reverse shrink-0"
+                                aria-hidden="true"
+                              >
+                                <span
+                                  className="w-5 h-5 rounded-full ring-2 ring-white shadow-2xs"
+                                  style={{ backgroundColor: theme.swatchHero }}
+                                />
+                                <span
+                                  className="w-5 h-5 rounded-full ring-2 ring-white shadow-2xs"
+                                  style={{
+                                    backgroundColor: theme.swatchAccent,
+                                  }}
+                                />
+                                <span
+                                  className="w-5 h-5 rounded-full ring-2 ring-white border border-black/10 shadow-2xs"
+                                  style={{
+                                    backgroundColor: theme.swatchCanvas,
+                                  }}
+                                />
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                                  {theme.nameAr}
+                                </div>
+                                <div className="text-[11px] text-[#6B5A49] truncate mt-0.5">
+                                  {theme.subtitleAr}
+                                </div>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                                selected
+                                  ? 'bg-[#C5A059]/18 border border-[#C5A059] text-[#8C5327]'
+                                  : 'border border-[#E2D6C2] text-transparent'
+                              }`}
+                            >
+                              <Check className="w-3 h-3" />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Integrated Arabic Typography Selector (3 Live-Font Pills) */}
+                  <div className="pt-3.5 border-t border-[#F0E8DA] space-y-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-display font-bold text-[#7A5C43]">
+                      <Type className="w-3.5 h-3.5 text-[#9E5631]" />
+                      <span>الخط العربي للموقع</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {TYPOGRAPHY_PAIR_OPTIONS.map((tp) => {
+                        const active = visualBranding.typographyId === tp.id;
+                        return (
+                          <button
+                            key={tp.id}
+                            type="button"
+                            onClick={() =>
+                              setVisualBranding((p) => ({
+                                ...p,
+                                typographyId: tp.id,
+                              }))
+                            }
+                            className={`rounded-xl border px-3 py-2.5 text-right transition-all cursor-pointer ${
+                              active
+                                ? 'bg-[#FDF9F0] border-[#C5A059] ring-1 ring-[#C5A059]/25'
+                                : 'bg-white hover:bg-[#FAF6EE] border-[#E6DAC3] hover:border-[#D4B988]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span
+                                className="text-[15px] font-bold text-[#2C1E14] leading-snug truncate"
+                                style={{ fontFamily: tp.fontCss }}
+                              >
+                                {tp.label}
+                              </span>
+                              {active && (
+                                <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[10.5px] text-[#6B5A49] truncate mt-1">
+                              {tp.subtitle}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CalmInspectorAccordion>
+
+                {/* 3. ختم وشعار العائلة */}
+                <CalmInspectorAccordion
+                  id="family_crest"
+                  icon={<ShieldCheck className="w-4 h-4" />}
+                  title="ختم وشعار العائلة"
+                  isOpen={activeIdentitySection === 'family_crest'}
+                  onToggle={() => toggleIdentitySection('family_crest')}
+                  summary={
+                    <>
+                      <span
+                        className="w-2 h-2 rounded-full bg-[#C5A059] shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">
+                        {visualBranding.crestMode === 'custom_image'
+                          ? 'شعار خاص مرفوع'
+                          : activeCrestOption.label}
+                      </span>
+                    </>
+                  }
+                >
+                  {/* Clean Segmented Pill Mode Switch */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="inline-flex rounded-xl bg-[#F5EFE4] p-1 border border-[#E6DAC3]">
                       <button
                         type="button"
                         onClick={() =>
@@ -1684,13 +2039,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             crestMode: 'auto_gilded',
                           }))
                         }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-display font-bold cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-display font-bold transition-all cursor-pointer whitespace-nowrap ${
                           visualBranding.crestMode === 'auto_gilded'
-                            ? 'bg-[#252321] text-[#F3D299]'
-                            : 'text-[#252321]/70'
+                            ? 'bg-white text-[#8C5327] border border-[#D4AF37]/45 shadow-2xs'
+                            : 'text-[#6B5A49] hover:text-[#2C1E14] border border-transparent'
                         }`}
                       >
-                        مولّد الختم المذهّب
+                        توليد ختم مذهّب تلقائي
                       </button>
                       <button
                         type="button"
@@ -1700,10 +2055,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             crestMode: 'custom_image',
                           }))
                         }
-                        className={`px-3 py-1 rounded-lg text-[11px] font-display font-bold cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-display font-bold transition-all cursor-pointer whitespace-nowrap ${
                           visualBranding.crestMode === 'custom_image'
-                            ? 'bg-[#252321] text-[#F3D299]'
-                            : 'text-[#252321]/70'
+                            ? 'bg-white text-[#8C5327] border border-[#D4AF37]/45 shadow-2xs'
+                            : 'text-[#6B5A49] hover:text-[#2C1E14] border border-transparent'
                         }`}
                       >
                         رفع شعار خاص
@@ -1712,6 +2067,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   </div>
 
                   {visualBranding.crestMode === 'auto_gilded' ? (
+                    /* Single Balanced Row of 4 Ivory Medallions */
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       {CREST_STYLE_OPTIONS.map((opt) => {
                         const active = visualBranding.crestStyle === opt.id;
@@ -1725,19 +2081,25 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 crestStyle: opt.id,
                               }))
                             }
-                            className={`rounded-2xl border-2 p-3 flex flex-col items-center text-center gap-2 cursor-pointer transition-all ${
+                            className={`relative rounded-2xl border p-3 flex flex-col items-center text-center gap-2 transition-all cursor-pointer ${
                               active
-                                ? 'border-[#C5A059] bg-[#FBF3E0]/55 shadow-xs'
-                                : 'border-[#E5DAC8] bg-[#FAF6F0]/55 hover:border-[#C5A059]/60'
+                                ? 'bg-[#FDF9F0] border-[#C5A059] ring-1 ring-[#C5A059]/30 shadow-2xs'
+                                : 'bg-white hover:bg-[#FAF6EE] border-[#E6DAC3] hover:border-[#D4B988]'
                             }`}
                           >
+                            {active && (
+                              <span className="absolute top-2 left-2 w-4 h-4 rounded-full bg-[#C5A059]/20 border border-[#C5A059] text-[#8C5327] flex items-center justify-center">
+                                <Check className="w-2.5 h-2.5" />
+                              </span>
+                            )}
                             <FamilyCrestEmblem
                               familyName={result.familyName}
                               crestMode="auto_gilded"
                               crestStyle={opt.id}
                               size="sm"
+                              tone="ivory"
                             />
-                            <span className="text-[11px] font-display font-extrabold text-[#252321] leading-snug">
+                            <span className="text-[11px] font-display font-bold text-[#2C1E14] leading-snug">
                               {opt.label}
                             </span>
                           </button>
@@ -1745,7 +2107,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       })}
                     </div>
                   ) : (
-                    <div className="rounded-2xl bg-[#FAF6F0] border border-dashed border-[#C5A059]/70 p-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="rounded-xl bg-[#FAF6EE] border border-dashed border-[#D4B988] p-3.5 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <FamilyCrestEmblem
                           familyName={result.familyName}
@@ -1753,13 +2115,14 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                           crestStyle={visualBranding.crestStyle}
                           customCrestUrl={visualBranding.customCrestUrl}
                           size="md"
+                          tone="ivory"
                         />
-                        <div className="space-y-1">
-                          <div className="text-xs font-display font-extrabold text-[#252321]">
+                        <div className="space-y-0.5">
+                          <div className="text-xs font-display font-extrabold text-[#2C1E14]">
                             شعار العائلة المخصص
                           </div>
-                          <p className="text-[11px] text-[#252321]/65">
-                            يفضل صورة مربعة عالية الدقة (PNG أو JPG).
+                          <p className="text-[11px] text-[#6B5A49]">
+                            يفضل صورة مربعة عالية الدقة بخلفية صافية أو شفافة.
                           </p>
                         </div>
                       </div>
@@ -1767,7 +2130,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         type="button"
                         disabled={uploadingCrest}
                         onClick={() => crestFileRef.current?.click()}
-                        className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>
@@ -1778,256 +2141,278 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       </button>
                     </div>
                   )}
-                </section>
+                </CalmInspectorAccordion>
 
-                {/* 1D. Hero Cover Presets / Custom Cover + Overlay + Layout */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                        <ImageIcon className="w-4 h-4 text-[#D8755B]" />
-                        <span>غلاف وتخطيط واجهة الهيرو (Hero Cover)</span>
-                      </h3>
-                      <p className="text-[11px] text-[#252321]/60 mt-0.5">
-                        اختر من 6 خلفيات معمارية وتراثية أو ارفع صورة ديار ومجلس العائلة.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={uploadingHeroCover}
-                      onClick={() => heroCoverFileRef.current?.click()}
-                      className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D9CCB9] text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Upload className="w-3.5 h-3.5 text-[#D8755B]" />
-                      <span>
-                        {uploadingHeroCover
-                          ? 'جاري الرفع...'
-                          : 'رفع صورة غلاف خاصة'}
+                {/* 4. غلاف وتخطيط واجهة الترحيب */}
+                <CalmInspectorAccordion
+                  id="hero_cover"
+                  icon={<ImageIcon className="w-4 h-4" />}
+                  title="غلاف وتخطيط واجهة الترحيب"
+                  isOpen={activeIdentitySection === 'hero_cover'}
+                  onToggle={() => toggleIdentitySection('hero_cover')}
+                  summary={
+                    <>
+                      {visualBranding.heroCoverMode === 'custom_image' &&
+                      visualBranding.customHeroCoverUrl ? (
+                        <img
+                          src={visualBranding.customHeroCoverUrl}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="w-3.5 h-3.5 rounded object-cover border border-black/15 shrink-0"
+                        />
+                      ) : (
+                        <span
+                          className="w-3.5 h-3.5 rounded border border-black/15 shrink-0"
+                          style={{ background: activeHeroPreset.previewGradient }}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span className="truncate">
+                        {visualBranding.heroCoverMode === 'custom_image'
+                          ? 'غلاف خاص'
+                          : activeHeroPreset.label}
                       </span>
-                    </button>
-                  </div>
-
-                  {/* 6 Architectural Heritage Presets */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {HERO_COVER_PRESET_OPTIONS.map((preset) => {
-                      const active =
-                        visualBranding.heroCoverMode === 'preset' &&
-                        visualBranding.heroCoverPreset === preset.id;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() =>
-                            setVisualBranding((p) => ({
-                              ...p,
-                              heroCoverMode: 'preset',
-                              heroCoverPreset: preset.id,
-                            }))
-                          }
-                          className={`rounded-xl border-2 p-2 text-right transition-all cursor-pointer ${
-                            active
-                              ? 'border-[#C5A059] ring-2 ring-[#C5A059]/25 bg-[#FBF3E0]/45'
-                              : 'border-[#E5DAC8] hover:border-[#C5A059]/60 bg-white'
-                          }`}
-                        >
-                          <div
-                            className="h-12 w-full rounded-lg mb-2 border border-black/10"
-                            style={{ background: preset.previewGradient }}
-                          />
-                          <div className="text-[11px] font-display font-extrabold text-[#252321] truncate">
-                            {preset.label}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {visualBranding.heroCoverMode === 'custom_image' &&
-                    visualBranding.customHeroCoverUrl && (
-                      <div className="rounded-xl bg-[#FAF6F0] border border-[#C5A059]/50 p-2.5 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={visualBranding.customHeroCoverUrl}
-                            alt="غلاف الهيرو المخصص"
-                            referrerPolicy="no-referrer"
-                            className="w-16 h-10 rounded-lg object-cover border border-[#E5DAC8]"
-                          />
-                          <span className="text-xs font-bold text-[#252321]">
-                            تم تفعيل صورة الغلاف المخصصة ✓
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setVisualBranding((p) => ({
-                              ...p,
-                              heroCoverMode: 'preset',
-                            }))
-                          }
-                          className="text-xs font-bold text-red-700 hover:underline cursor-pointer"
-                        >
-                          العودة للخلفيات الجاهزة
-                        </button>
-                      </div>
-                    )}
-
-                  {/* Overlay Intensity Slider */}
-                  <div className="rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-xs font-display font-bold text-[#252321]">
-                      شفافية طبقة التعتيم (لإبراز وضوح العنوان):
-                    </span>
-                    <div className="flex items-center gap-3 flex-1 min-w-[160px] max-w-xs">
-                      <input
-                        type="range"
-                        min={10}
-                        max={85}
-                        value={visualBranding.heroOverlayIntensity}
-                        onChange={(e) =>
-                          setVisualBranding((p) => ({
-                            ...p,
-                            heroOverlayIntensity: Number(e.target.value),
-                          }))
-                        }
-                        className="flex-1 accent-[#D8755B] cursor-pointer"
-                      />
-                      <span className="text-xs font-display font-extrabold text-[#8D4925] tabular-nums w-9 text-left">
-                        {visualBranding.heroOverlayIntensity}%
+                    </>
+                  }
+                >
+                  {/* 6 Compact Rounded Swatches (54px height, 1 balanced row) */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-display font-bold text-[#7A5C43]">
+                        خلفيات معمارية وتراثية
                       </span>
+                      <button
+                        type="button"
+                        disabled={uploadingHeroCover}
+                        onClick={() => heroCoverFileRef.current?.click()}
+                        className="h-8 px-3 rounded-xl bg-white hover:bg-[#FAF6EE] border border-[#DCCEB5] text-[11px] font-display font-bold text-[#8C5327] inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-[#9E5631]" />
+                        <span>
+                          {uploadingHeroCover
+                            ? 'جاري الرفع...'
+                            : 'رفع صورة غلاف'}
+                        </span>
+                      </button>
                     </div>
-                  </div>
 
-                  {/* 3 Hero Layout Styles */}
-                  <div className="space-y-1.5">
-                    <div className="text-xs font-display font-bold text-[#8D4925]">
-                      تخطيط واجهة الهيرو:
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {HERO_LAYOUT_OPTIONS.map((lay) => {
-                        const active = visualBranding.heroLayout === lay.id;
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
+                      {HERO_COVER_PRESET_OPTIONS.map((preset) => {
+                        const active =
+                          visualBranding.heroCoverMode === 'preset' &&
+                          visualBranding.heroCoverPreset === preset.id;
                         return (
                           <button
-                            key={lay.id}
+                            key={preset.id}
                             type="button"
+                            title={`${preset.label} — ${preset.subtitle}`}
                             onClick={() =>
                               setVisualBranding((p) => ({
                                 ...p,
-                                heroLayout: lay.id,
+                                heroCoverMode: 'preset',
+                                heroCoverPreset: preset.id,
                               }))
                             }
-                            className={`rounded-xl border p-3 text-right transition-all cursor-pointer ${
-                              active
-                                ? 'border-[#C5A059] bg-[#FBF3E0]/55 shadow-2xs'
-                                : 'border-[#E5DAC8] bg-[#FAF6F0]/45 hover:border-[#C5A059]/60'
-                            }`}
+                            className="group flex flex-col items-center gap-1.5 text-center cursor-pointer focus-visible:outline-none"
                           >
-                            <div className="text-xs font-display font-extrabold text-[#252321]">
-                              {lay.label}
+                            <div
+                              className={`h-[54px] w-full rounded-xl relative overflow-hidden transition-all duration-150 ${
+                                active
+                                  ? 'ring-2 ring-[#C5A059] ring-offset-2 ring-offset-[#FFFDF9] shadow-sm'
+                                  : 'border border-black/10 group-hover:ring-1 group-hover:ring-[#C5A059]/70'
+                              }`}
+                              style={{ background: preset.previewGradient }}
+                            >
+                              {active && (
+                                <span className="absolute top-1.5 left-1.5 w-4 h-4 rounded-full bg-[#FFFDF9]/95 text-[#8C5327] shadow-xs flex items-center justify-center">
+                                  <Check className="w-2.5 h-2.5" />
+                                </span>
+                              )}
                             </div>
-                            <div className="text-[10.5px] text-[#252321]/60 mt-0.5">
-                              {lay.subtitle}
-                            </div>
+                            <span
+                              className={`text-[10px] font-display truncate w-full leading-tight ${
+                                active
+                                  ? 'font-extrabold text-[#8C5327]'
+                                  : 'font-semibold text-[#5C4938]'
+                              }`}
+                            >
+                              {preset.label}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
-                  </div>
-                </section>
 
-                {/* 1E. Scoped Portal Typography */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-3">
-                  <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
-                    <Type className="w-4 h-4 text-[#D8755B]" />
-                    <span>الخط التراثي للموقع (Portal Typography)</span>
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {TYPOGRAPHY_PAIR_OPTIONS.map((tp) => {
-                      const active = visualBranding.typographyId === tp.id;
-                      return (
-                        <button
-                          key={tp.id}
-                          type="button"
-                          onClick={() =>
+                    {visualBranding.heroCoverMode === 'custom_image' &&
+                      visualBranding.customHeroCoverUrl && (
+                        <div className="rounded-xl bg-[#FAF6EE] border border-[#D4AF37]/45 px-3 py-2 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={visualBranding.customHeroCoverUrl}
+                              alt="غلاف الواجهة المخصص"
+                              referrerPolicy="no-referrer"
+                              className="w-12 h-8 rounded-lg object-cover border border-[#E6DAC3] shrink-0"
+                            />
+                            <span className="text-[11px] font-display font-bold text-[#2C1E14] truncate">
+                              تم تفعيل صورة الغلاف المخصصة
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVisualBranding((p) => ({
+                                ...p,
+                                heroCoverMode: 'preset',
+                              }))
+                            }
+                            className="text-[11px] font-display font-bold text-[#9E5631] hover:underline cursor-pointer shrink-0"
+                          >
+                            استعادة الجاهزة
+                          </button>
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Hero Layout & Overlay Opacity */}
+                  <div className="pt-3.5 border-t border-[#F0E8DA] space-y-3">
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-display font-bold text-[#7A5C43] block">
+                        تخطيط واجهة الترحيب
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {HERO_LAYOUT_OPTIONS.map((lay) => {
+                          const active = visualBranding.heroLayout === lay.id;
+                          return (
+                            <button
+                              key={lay.id}
+                              type="button"
+                              onClick={() =>
+                                setVisualBranding((p) => ({
+                                  ...p,
+                                  heroLayout: lay.id,
+                                }))
+                              }
+                              className={`rounded-xl border px-3 py-2.5 text-right transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-[#FDF9F0] border-[#C5A059] ring-1 ring-[#C5A059]/25'
+                                  : 'bg-white hover:bg-[#FAF6EE] border-[#E6DAC3] hover:border-[#D4B988]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span className="text-xs font-display font-extrabold text-[#2C1E14]">
+                                  {lay.label}
+                                </span>
+                                {active && (
+                                  <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                                )}
+                              </div>
+                              <div className="text-[10.5px] text-[#6B5A49] mt-0.5 leading-snug">
+                                {lay.subtitle}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Sleek Overlay Scrim Slider */}
+                    <div className="rounded-xl bg-[#FAF6EE] border border-[#EAE0CE] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-[11px] font-display font-bold text-[#4A3A2B]">
+                        درجة تعتيم الغلاف لوضوح العنوان
+                      </span>
+                      <div className="flex items-center gap-3 flex-1 min-w-[150px] max-w-xs">
+                        <input
+                          type="range"
+                          min={10}
+                          max={85}
+                          value={visualBranding.heroOverlayIntensity}
+                          onChange={(e) =>
                             setVisualBranding((p) => ({
                               ...p,
-                              typographyId: tp.id,
+                              heroOverlayIntensity: Number(e.target.value),
                             }))
                           }
-                          className={`rounded-xl border-2 p-3 text-right cursor-pointer transition-all ${
-                            active
-                              ? 'border-[#C5A059] bg-[#FBF3E0]/55'
-                              : 'border-[#E5DAC8] bg-[#FAF6F0]/40 hover:border-[#C5A059]/60'
-                          }`}
-                        >
-                          <div
-                            className="text-lg font-bold text-[#252321] mb-1"
-                            style={{ fontFamily: tp.fontCss }}
-                          >
-                            {tp.sampleFamily}
-                          </div>
-                          <div className="text-xs font-display font-extrabold text-[#8D4925]">
-                            {tp.label}
-                          </div>
-                          <div className="text-[10.5px] text-[#252321]/60 mt-0.5">
-                            {tp.subtitle}
-                          </div>
-                        </button>
-                      );
-                    })}
+                          className="flex-1 accent-[#9E5631] cursor-pointer"
+                        />
+                        <span className="text-xs font-display font-extrabold text-[#8C5327] tabular-nums w-9 text-left">
+                          {visualBranding.heroOverlayIntensity}%
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </section>
+                </CalmInspectorAccordion>
 
-                {/* 1F. Diwan Texts & Patriarch Welcome Quote */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-4">
-                  <h3 className="text-sm font-display font-extrabold text-[#252321]">
-                    نصوص البوابة وكلمة عميد الأسرة
-                  </h3>
+                {/* 5. البيانات التعريفية وكلمة عميد الأسرة */}
+                <CalmInspectorAccordion
+                  id="editorial_identity"
+                  icon={<Quote className="w-4 h-4" />}
+                  title="البيانات التعريفية وكلمة عميد الأسرة"
+                  isOpen={activeIdentitySection === 'editorial_identity'}
+                  onToggle={() => toggleIdentitySection('editorial_identity')}
+                  summary={
+                    <>
+                      <span className="truncate">
+                        {bioTitle || `موقع أسرة ${result.familyName}`}
+                      </span>
+                      {visualBranding.patriarchQuote.enabled && (
+                        <>
+                          <span className="text-[#C5A059] shrink-0">·</span>
+                          <span className="text-[10.5px] text-[#8C5327] shrink-0">
+                            كلمة العميد
+                          </span>
+                        </>
+                      )}
+                    </>
+                  }
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-[#8D4925]">
+                      <label className="text-[11px] font-display font-bold text-[#7A5C43]">
                         العنوان الرئيسي للبوابة
                       </label>
                       <input
                         type="text"
                         value={bioTitle}
                         onChange={(e) => setBioTitle(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
+                        className="w-full px-3 py-2 rounded-xl bg-[#FCF9F3] focus:bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs font-bold text-[#2C1E14] focus:outline-none transition-colors"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-[#8D4925]">
+                      <label className="text-[11px] font-display font-bold text-[#7A5C43]">
                         الشعار الترحيبي أعلى العنوان
                       </label>
                       <input
                         type="text"
                         value={emblemTag}
                         onChange={(e) => setEmblemTag(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
+                        className="w-full px-3 py-2 rounded-xl bg-[#FCF9F3] focus:bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs font-bold text-[#2C1E14] focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
+
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-[#8D4925]">
+                    <label className="text-[11px] font-display font-bold text-[#7A5C43]">
                       النبذة التعريفية للأسرة
                     </label>
                     <textarea
                       rows={3}
                       value={bioDescription}
                       onChange={(e) => setBioDescription(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs text-[#252321] leading-relaxed focus:outline-none focus:border-[#C5A059]"
+                      className="w-full px-3 py-2 rounded-xl bg-[#FCF9F3] focus:bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs text-[#2C1E14] leading-relaxed focus:outline-none transition-colors"
                     />
                   </div>
 
                   {/* Patriarch Welcome Quote Block */}
-                  <div className="rounded-2xl bg-[#FAF6F0]/80 border border-[#C5A059]/45 p-4 space-y-3">
+                  <div className="rounded-xl bg-[#FAF6EE]/85 border border-[#E6DAC3] p-3.5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Quote className="w-4 h-4 text-[#C5A059]" />
-                        <div>
-                          <div className="text-xs font-display font-extrabold text-[#252321]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Quote className="w-4 h-4 text-[#C5A059] shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-display font-extrabold text-[#2C1E14]">
                             كلمة ترحيبية أو وصية عميد الأسرة
                           </div>
-                          <div className="text-[10.5px] text-[#252321]/60">
-                            تظهر في قسم اقتباس ملكي مذهّب مباشرة تحت الهيرو.
+                          <div className="text-[10.5px] text-[#6B5A49]">
+                            تظهر في قسم اقتباس مذهّب مباشرة أسفل واجهة الترحيب.
                           </div>
                         </div>
                       </div>
@@ -2061,7 +2446,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             }))
                           }
                           placeholder="اكتب كلمة ترحيبية أو وصية تجمع أبناء الأسرة على البرّ وصلة الرحم..."
-                          className="w-full px-3 py-2 rounded-xl bg-white border border-[#E5DAC8] text-xs text-[#252321]"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs text-[#2C1E14] focus:outline-none"
                         />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <input
@@ -2077,7 +2462,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                               }))
                             }
                             placeholder="اسم قائل الكلمة"
-                            className="px-3 py-2 rounded-xl bg-white border border-[#E5DAC8] text-xs font-bold"
+                            className="px-3 py-2 rounded-xl bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs font-bold text-[#2C1E14] focus:outline-none"
                           />
                           <input
                             type="text"
@@ -2092,64 +2477,83 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                               }))
                             }
                             placeholder="الصفة (مثال: عميد الأسرة)"
-                            className="px-3 py-2 rounded-xl bg-white border border-[#E5DAC8] text-xs"
+                            className="px-3 py-2 rounded-xl bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs text-[#2C1E14] focus:outline-none"
                           />
                         </div>
                       </div>
                     )}
                   </div>
-                </section>
 
-                {/* 1G. Section Display Order Manager */}
-                <section className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-[#D8755B]" />
-                    <h3 className="text-sm font-display font-extrabold text-[#252321]">
-                      ترتيب ظهور أقسام الموقع
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {visualBranding.sectionOrder.map((secKey, idx) => (
-                      <div
-                        key={secKey}
-                        className="rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] px-3 py-2 flex items-center justify-between gap-2 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="w-5 h-5 rounded-md bg-white border border-[#E5DAC8] text-[10px] font-bold text-[#8D4925] flex items-center justify-center tabular-nums shrink-0">
-                            {idx + 1}
-                          </span>
-                          <span className="font-display font-bold text-[#252321] truncate">
-                            {PORTAL_SECTION_LABELS[secKey]}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => handleMoveSectionOrder(secKey, 'up')}
-                            title="تقديم للأعلى"
-                            className="w-6 h-6 rounded-md bg-white hover:bg-[#EDE6DA] border border-[#E5DAC8] flex items-center justify-center disabled:opacity-35 cursor-pointer"
+                  {/* Preserved Section Display Order Sub-Drawer */}
+                  <div className="pt-3 border-t border-[#F0E8DA] space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowSectionOrderDrawer((v) => !v)}
+                      className="w-full flex items-center justify-between gap-2 text-right px-3 py-2 rounded-xl bg-[#FAF6EE]/70 hover:bg-[#FAF6EE] border border-[#E6DAC3] transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2 text-xs font-display font-bold text-[#4A3A2B]">
+                        <Layers className="w-3.5 h-3.5 text-[#9E5631]" />
+                        <span>ترتيب ظهور أقسام الموقع</span>
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] font-display font-bold text-[#8C5327]">
+                        <span className="tabular-nums">
+                          {visualBranding.sectionOrder.length} قسماً
+                        </span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                            showSectionOrderDrawer ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </span>
+                    </button>
+
+                    {showSectionOrderDrawer && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {visualBranding.sectionOrder.map((secKey, idx) => (
+                          <div
+                            key={secKey}
+                            className="rounded-xl bg-white border border-[#E6DAC3] px-3 py-2 flex items-center justify-between gap-2 text-xs"
                           >
-                            <ArrowUp className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={
-                              idx === visualBranding.sectionOrder.length - 1
-                            }
-                            onClick={() =>
-                              handleMoveSectionOrder(secKey, 'down')
-                            }
-                            title="تأخير للأسفل"
-                            className="w-6 h-6 rounded-md bg-white hover:bg-[#EDE6DA] border border-[#E5DAC8] flex items-center justify-center disabled:opacity-35 cursor-pointer"
-                          >
-                            <ArrowDown className="w-3 h-3" />
-                          </button>
-                        </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-5 h-5 rounded-md bg-[#FAF6EE] border border-[#E6DAC3] text-[10px] font-bold text-[#8C5327] flex items-center justify-center tabular-nums shrink-0">
+                                {idx + 1}
+                              </span>
+                              <span className="font-display font-bold text-[#2C1E14] truncate">
+                                {PORTAL_SECTION_LABELS[secKey]}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() =>
+                                  handleMoveSectionOrder(secKey, 'up')
+                                }
+                                title="تقديم للأعلى"
+                                className="w-6 h-6 rounded-md bg-[#FAF6EE] hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-35 cursor-pointer"
+                              >
+                                <ArrowUp className="w-3 h-3 text-[#5C4938]" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  idx === visualBranding.sectionOrder.length - 1
+                                }
+                                onClick={() =>
+                                  handleMoveSectionOrder(secKey, 'down')
+                                }
+                                title="تأخير للأسفل"
+                                className="w-6 h-6 rounded-md bg-[#FAF6EE] hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-35 cursor-pointer"
+                              >
+                                <ArrowDown className="w-3 h-3 text-[#5C4938]" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </section>
+                </CalmInspectorAccordion>
               </div>
             )}
 
@@ -3621,33 +4025,36 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           </div>
 
           {/* LEFT (Desktop xl): STICKY LIVE INTERACTIVE MINI-BROWSER */}
-          <aside className="hidden xl:block xl:col-span-5 sticky top-20">
-            <div className="rounded-3xl border border-[#C5A059]/55 bg-[#252321] shadow-xl overflow-hidden flex flex-col">
+          <aside className="hidden xl:block xl:col-span-5 xl:sticky xl:top-24 self-start">
+            <div className="rounded-3xl border border-[#D4AF37]/45 bg-[#252321] shadow-[0_20px_50px_-24px_rgba(37,35,33,0.45)] overflow-hidden flex flex-col">
               {/* Sleek Browser Chrome Bar */}
               <div className="px-4 py-2.5 bg-[#1D1B19] border-b border-white/10 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-300/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-400/75" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-300/75" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/75" />
                 </div>
                 <div
                   dir="ltr"
-                  className="flex-1 mx-2 px-3 py-1 rounded-lg bg-white/8 text-[10.5px] font-mono text-[#FAF6F0]/80 text-center truncate"
+                  className="flex-1 mx-2 px-3 py-1 rounded-lg bg-white/8 border border-white/8 text-[11px] font-mono text-[#FAF6F0]/90 inline-flex items-center justify-center gap-1.5 truncate"
                 >
-                  {ACTIVE_PUBLIC_SITE_ORIGIN}/{cleanSlugDisplay}
+                  <Lock className="w-3 h-3 text-[#D4AF6A] shrink-0" />
+                  <span className="truncate">
+                    {OFFICIAL_BRAND_HOST}/{cleanSlugDisplay}
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setWorkspaceMode('fullscreen_preview')}
                   title="توسيع لملء الشاشة"
-                  className="text-[10.5px] font-display font-bold text-[#F3D299] hover:underline cursor-pointer whitespace-nowrap"
+                  className="text-[10.5px] font-display font-bold text-[#F3D299] hover:underline cursor-pointer whitespace-nowrap shrink-0"
                 >
                   تكبير ↗
                 </button>
               </div>
 
               {/* Live Synchronized Scrollable Mini-Portal */}
-              <div className="h-[calc(100vh-12rem)] min-h-[540px] max-h-[780px] overflow-y-auto bg-white">
+              <div className="h-[calc(100vh-12.5rem)] min-h-[540px] max-h-[780px] overflow-y-auto bg-white">
                 <PublicFamilyMicrositePage
                   siteSlug={cleanSlugDisplay}
                   previewData={livePreviewPayload}

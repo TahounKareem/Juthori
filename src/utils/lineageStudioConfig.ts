@@ -4,7 +4,10 @@ import { UpperAncestorNode } from '../types/juthori';
 export type LineageViewMode =
   | 'royal_pillar'
   | 'heritage_scroll'
-  | 'panoramic_flow';
+  | 'panoramic_flow'
+  | 'andalusian_zigzag'
+  | 'heritage_medallions'
+  | 'majlis_arch_steps';
 
 export type LineageDirection = 'top_down' | 'bottom_up';
 
@@ -407,6 +410,21 @@ export const LINEAGE_VIEW_MODE_OPTIONS: LineageViewModeOption[] = [
     id: 'panoramic_flow',
     label: 'المسار البانورامي الأفقي',
     shortDesc: 'عرض أفقي ممتد من اليمين لليسار',
+  },
+  {
+    id: 'andalusian_zigzag',
+    label: 'المعراج الأندلسي المتعرّج',
+    shortDesc: 'تناوب يميناً ويساراً حول محور ذهبي',
+  },
+  {
+    id: 'heritage_medallions',
+    label: 'قلادة الميداليات الديوانية',
+    shortDesc: 'معرض ميداليات مترابطة بشاشة واحدة',
+  },
+  {
+    id: 'majlis_arch_steps',
+    label: 'عقود المحراب والمقامات',
+    shortDesc: 'مدرّج أقواس تراثية بمسار الحقَب',
   },
 ];
 
@@ -844,7 +862,10 @@ export function normalizeLineageStudioPrefs(
   const viewMode: LineageViewMode =
     raw.viewMode === 'royal_pillar' ||
     raw.viewMode === 'heritage_scroll' ||
-    raw.viewMode === 'panoramic_flow'
+    raw.viewMode === 'panoramic_flow' ||
+    raw.viewMode === 'andalusian_zigzag' ||
+    raw.viewMode === 'heritage_medallions' ||
+    raw.viewMode === 'majlis_arch_steps'
       ? raw.viewMode
       : DEFAULT_LINEAGE_STUDIO_PREFS.viewMode;
 

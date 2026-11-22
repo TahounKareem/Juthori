@@ -179,6 +179,7 @@ interface FamilyCrestEmblemProps {
   crestStyle?: FamilyCrestStyle;
   customCrestUrl?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg';
+  tone?: 'dark' | 'ivory';
   className?: string;
 }
 
@@ -188,6 +189,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
   crestStyle = 'royal_shield',
   customCrestUrl,
   size = 'md',
+  tone = 'dark',
   className = '',
 }) => {
   const cleanLabel = (familyName || 'العائلة')
@@ -205,10 +207,21 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
           ? 'w-24 h-24 sm:w-28 sm:h-28'
           : 'w-16 h-16';
 
+  const isIvory = tone === 'ivory';
+  const goldGradId = isIvory ? 'jtCrestGoldIvory' : 'jtCrestGold';
+  const fillGradId = isIvory ? 'jtCrestIvoryFill' : 'jtCrestDark';
+  const primaryTextFill = isIvory ? '#3D2B1F' : '#FDF6E3';
+  const accentTextFill = isIvory ? '#9A6B25' : '#D4AF6A';
+  const crownDotFill = isIvory ? '#B88A3B' : '#F8E7B9';
+
   if (crestMode === 'custom_image' && customCrestUrl) {
     return (
       <div
-        className={`${dims} rounded-2xl overflow-hidden border border-[#D4AF6A]/65 bg-[#1B1815]/60 shadow-lg flex items-center justify-center shrink-0 ${className}`}
+        className={`${dims} rounded-2xl overflow-hidden border flex items-center justify-center shrink-0 ${
+          isIvory
+            ? 'border-[#D4AF6A]/60 bg-[#FAF6EE] shadow-xs'
+            : 'border-[#D4AF6A]/65 bg-[#1B1815]/60 shadow-lg'
+        } ${className}`}
       >
         <img
           src={customCrestUrl}
@@ -240,19 +253,51 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
     >
       <svg
         viewBox="0 0 120 120"
-        className="w-full h-full drop-shadow-[0_6px_18px_rgba(0,0,0,0.32)]"
+        className={`w-full h-full ${
+          isIvory
+            ? 'drop-shadow-[0_3px_8px_rgba(140,83,39,0.14)]'
+            : 'drop-shadow-[0_6px_18px_rgba(0,0,0,0.32)]'
+        }`}
         role="img"
       >
         <defs>
-          <linearGradient id="jtCrestGold" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#F8E7B9" />
-            <stop offset="48%" stopColor="#D4AF6A" />
-            <stop offset="100%" stopColor="#9C7331" />
-          </linearGradient>
-          <radialGradient id="jtCrestDark" cx="50%" cy="35%" r="70%">
-            <stop offset="0%" stopColor="#2F2821" />
-            <stop offset="100%" stopColor="#161310" />
-          </radialGradient>
+          {isIvory ? (
+            <>
+              <linearGradient
+                id="jtCrestGoldIvory"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#D6AE5A" />
+                <stop offset="50%" stopColor="#B88735" />
+                <stop offset="100%" stopColor="#8C5D23" />
+              </linearGradient>
+              <radialGradient id="jtCrestIvoryFill" cx="50%" cy="32%" r="72%">
+                <stop offset="0%" stopColor="#FFFDF9" />
+                <stop offset="100%" stopColor="#F3E9D6" />
+              </radialGradient>
+            </>
+          ) : (
+            <>
+              <linearGradient
+                id="jtCrestGold"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#F8E7B9" />
+                <stop offset="48%" stopColor="#D4AF6A" />
+                <stop offset="100%" stopColor="#9C7331" />
+              </linearGradient>
+              <radialGradient id="jtCrestDark" cx="50%" cy="35%" r="70%">
+                <stop offset="0%" stopColor="#2F2821" />
+                <stop offset="100%" stopColor="#161310" />
+              </radialGradient>
+            </>
+          )}
         </defs>
 
         {crestStyle === 'royal_shield' && (
@@ -260,21 +305,21 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
             {/* Crown Fleuron */}
             <path
               d="M48 16 L54 8 L60 14 L66 8 L72 16 Z"
-              fill="url(#jtCrestGold)"
+              fill={`url(#${goldGradId})`}
             />
-            <circle cx="60" cy="6.5" r="2.2" fill="#F8E7B9" />
+            <circle cx="60" cy="6.5" r="2.2" fill={crownDotFill} />
             {/* Outer Shield */}
             <path
               d="M22 22 C38 18, 82 18, 98 22 L95 66 C93 90, 76 105, 60 113 C44 105, 27 90, 25 66 Z"
-              fill="url(#jtCrestDark)"
-              stroke="url(#jtCrestGold)"
+              fill={`url(#${fillGradId})`}
+              stroke={`url(#${goldGradId})`}
               strokeWidth="3.2"
             />
             {/* Inner Gold Hairline Shield */}
             <path
               d="M29 28 C42 25, 78 25, 91 28 L88.5 64.5 C87 84.5, 73 97.5, 60 104.5 C47 97.5, 33 84.5, 31.5 64.5 Z"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1.2"
               strokeOpacity="0.72"
             />
@@ -282,7 +327,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               x="60"
               y="47"
               textAnchor="middle"
-              fill="#D4AF6A"
+              fill={accentTextFill}
               fontSize="11"
               fontWeight="700"
               style={{ fontFamily: '"Amiri", serif' }}
@@ -293,7 +338,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               x="60"
               y="72"
               textAnchor="middle"
-              fill="#FDF6E3"
+              fill={primaryTextFill}
               fontSize={fontSize}
               fontWeight="700"
               style={{ fontFamily: '"Amiri", "Cairo", serif' }}
@@ -303,7 +348,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
             <path
               d="M45 84 L60 88 L75 84"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1.3"
               strokeLinecap="round"
             />
@@ -319,8 +364,8 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               width="72"
               height="72"
               rx="6"
-              fill="url(#jtCrestDark)"
-              stroke="url(#jtCrestGold)"
+              fill={`url(#${fillGradId})`}
+              stroke={`url(#${goldGradId})`}
               strokeWidth="2.8"
             />
             <rect
@@ -330,16 +375,16 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               height="72"
               rx="6"
               transform="rotate(45 60 60)"
-              fill="url(#jtCrestDark)"
-              stroke="url(#jtCrestGold)"
+              fill={`url(#${fillGradId})`}
+              stroke={`url(#${goldGradId})`}
               strokeWidth="2.8"
             />
             <circle
               cx="60"
               cy="60"
               r="34"
-              fill="url(#jtCrestDark)"
-              stroke="url(#jtCrestGold)"
+              fill={`url(#${fillGradId})`}
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1.4"
               strokeDasharray="3 2.5"
             />
@@ -347,7 +392,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               x="60"
               y="50"
               textAnchor="middle"
-              fill="#D4AF6A"
+              fill={accentTextFill}
               fontSize="10.5"
               fontWeight="700"
               style={{ fontFamily: '"Amiri", serif' }}
@@ -358,7 +403,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               x="60"
               y="71"
               textAnchor="middle"
-              fill="#FDF6E3"
+              fill={primaryTextFill}
               fontSize={fontSize}
               fontWeight="700"
               style={{ fontFamily: '"Amiri", "Cairo", serif' }}
@@ -374,28 +419,28 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               cx="60"
               cy="60"
               r="49"
-              fill="url(#jtCrestDark)"
-              stroke="url(#jtCrestGold)"
+              fill={`url(#${fillGradId})`}
+              stroke={`url(#${goldGradId})`}
               strokeWidth="2.2"
             />
             {/* Symmetrical Wreath Arcs */}
             <path
               d="M36 96 C19 82, 16 54, 29 33"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="2.4"
               strokeLinecap="round"
             />
             <path
               d="M84 96 C101 82, 104 54, 91 33"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="2.4"
               strokeLinecap="round"
             />
             {/* Delicate Laurel Leaves */}
             {[38, 52, 66, 80].map((cy, idx) => (
-              <g key={cy} fill="url(#jtCrestGold)" opacity="0.9">
+              <g key={cy} fill={`url(#${goldGradId})`} opacity="0.9">
                 <ellipse
                   cx={22 + idx * 1.4}
                   cy={cy}
@@ -414,13 +459,13 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
             ))}
             <polygon
               points="60,15 62.5,21 69,21 63.8,24.8 65.8,31 60,27.2 54.2,31 56.2,24.8 51,21 57.5,21"
-              fill="url(#jtCrestGold)"
+              fill={`url(#${goldGradId})`}
             />
             <text
               x="60"
               y="66"
               textAnchor="middle"
-              fill="#FDF6E3"
+              fill={primaryTextFill}
               fontSize={fontSize}
               fontWeight="700"
               style={{ fontFamily: '"Amiri", "Cairo", serif' }}
@@ -430,7 +475,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
             <path
               d="M46 98 L60 92 L74 98"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1.6"
               strokeLinecap="round"
             />
@@ -443,8 +488,8 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               cx="60"
               cy="60"
               r="50"
-              fill="url(#jtCrestDark)"
-              stroke="url(#jtCrestGold)"
+              fill={`url(#${fillGradId})`}
+              stroke={`url(#${goldGradId})`}
               strokeWidth="2.6"
             />
             <circle
@@ -452,14 +497,14 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               cy="60"
               r="42"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1"
               strokeOpacity="0.65"
             />
             <path
               d="M36 42 Q60 28 84 42"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1.6"
               strokeLinecap="round"
             />
@@ -467,7 +512,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
               x="60"
               y="68"
               textAnchor="middle"
-              fill="#FDF6E3"
+              fill={primaryTextFill}
               fontSize={fontSize + 1}
               fontWeight="700"
               style={{ fontFamily: '"Aref Ruqaa", "Amiri", serif' }}
@@ -477,11 +522,11 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
             <path
               d="M38 82 Q60 92 82 82"
               fill="none"
-              stroke="url(#jtCrestGold)"
+              stroke={`url(#${goldGradId})`}
               strokeWidth="1.8"
               strokeLinecap="round"
             />
-            <circle cx="60" cy="24" r="2.4" fill="url(#jtCrestGold)" />
+            <circle cx="60" cy="24" r="2.4" fill={`url(#${goldGradId})`} />
           </>
         )}
       </svg>

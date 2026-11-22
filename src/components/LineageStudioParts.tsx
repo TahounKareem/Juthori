@@ -260,7 +260,7 @@ export const LineageCustomizationPanel: React.FC<
 
       {/* 4 Clear Axes Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Axis 1: 4 Signature View Modes */}
+        {/* Axis 1: 6 Signature View Modes */}
         <div className="space-y-2">
           <div
             className="flex items-center gap-1.5 text-xs font-display font-bold"
@@ -269,7 +269,7 @@ export const LineageCustomizationPanel: React.FC<
             <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
             <span>1. أسلوب عرض عمود النسب</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
             {LINEAGE_VIEW_MODE_OPTIONS.map((opt) => {
               const active = prefs.viewMode === opt.id;
               return (
