@@ -56,7 +56,7 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
     <header
       dir="rtl"
       data-testid={testId}
-      className={`bg-[#FDFBF7] border border-[#E6DAC3] rounded-2xl px-5 sm:px-6 py-4 shadow-[0_2px_12px_rgba(44,30,20,0.03)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between min-[1200px]:flex-nowrap gap-3 xl:gap-4 text-right ${className}`}
+      className={`w-full bg-[#FDFBF7] border border-[#E6DAC3] rounded-2xl px-5 sm:px-6 py-4 shadow-[0_2px_12px_rgba(44,30,20,0.03)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between min-[1200px]:flex-nowrap gap-3 xl:gap-4 text-right ${className}`}
     >
       {/* Right Block: Unified 44x44 Icon Box + Title + Optional Single-Line Meta Strip */}
       <div className="flex items-center gap-3 min-w-0 shrink">

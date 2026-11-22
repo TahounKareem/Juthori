@@ -93,7 +93,7 @@ const SESSION_AUTHORIZED_EMAIL_KEY = 'juthori_microsite_circle_email_v1';
 
 const SECTION_SHORT_NAV: Record<PortalSectionKey, string> = {
   patriarch_quote: 'كلمة العميد',
-  tree_mirror: 'شجرة الأسرة',
+  tree_mirror: 'شجرة العائلة',
   vault_gallery: 'معرض الخزانة',
   news: 'الأخبار',
   events: 'المناسبات',
@@ -306,7 +306,7 @@ export const PublicFamilyMicrositePage: React.FC<
         setActiveInvitation(inv);
         if (inv.status === 'OPTED_OUT') {
           setInviteOptedOutNotice(
-            `تم إلغاء إدراج البريد الإلكتروني (${inv.invitedEmail}) مسبقاً من الدائرة العائلية الخاصة لأسرة ${inv.familyName}.`
+            `تم إلغاء إدراج البريد الإلكتروني (${inv.invitedEmail}) مسبقاً من الدائرة العائلية الخاصة لعائلة ${inv.familyName}.`
           );
           if (
             activeCircleEmail.trim().toLowerCase() ===
@@ -426,7 +426,7 @@ export const PublicFamilyMicrositePage: React.FC<
         window.sessionStorage.setItem(SESSION_AUTHORIZED_EMAIL_KEY, candidate);
       }
       setCircleVerifyFeedback(
-        'مرحباً بك في دائرة الأسرة! تم فتح كافة الأقسام العائلية الخاصة لك ✓'
+        'مرحباً بك في دائرة العائلة! تم فتح كافة الأقسام العائلية الخاصة لك ✓'
       );
     } else {
       setCircleVerifyFeedback(
@@ -492,7 +492,7 @@ export const PublicFamilyMicrositePage: React.FC<
         mediaType: 'photo',
       });
       setEnrSuccessMessage(
-        'تم رفع مقترح الإثراء إلى صندوق أمين سجل الأسرة بنجاح! سيظهر تلقائياً في البوابة فور اعتماده ✦'
+        'تم رفع مقترح الإثراء إلى صندوق أمين سجل العائلة بنجاح! سيظهر تلقائياً في البوابة فور اعتماده ✦'
       );
       setEnrProposedFirstName('');
       setEnrNotes('');
@@ -641,13 +641,13 @@ export const PublicFamilyMicrositePage: React.FC<
                 size="md"
               />
               <div className="text-xs font-bold fs-accent-text">
-                {siteData.familyEmblemTag || `ديوان أسرة ${siteData.familyName}`}
+                {siteData.familyEmblemTag || `ديوان عائلة ${siteData.familyName}`}
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold fs-display-font">
-                بوابة أسرة {siteData.familyName} الخاصة
+                بوابة عائلة {siteData.familyName} الخاصة
               </h1>
               <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                خصّص أمين سجل الأسرة هذه البوابة لأفراد دائرة العائلة والمدعوين فقط حفاظاً على الخصوصية العائلية.
+                خصّص أمين سجل العائلة هذه البوابة لأفراد دائرة العائلة والمدعوين فقط حفاظاً على الخصوصية العائلية.
               </p>
             </div>
 
@@ -689,7 +689,7 @@ export const PublicFamilyMicrositePage: React.FC<
                 <div className="rounded-2xl fs-muted-surface border fs-border p-4 text-center space-y-1.5">
                   <CheckCircle2 className="w-6 h-6 fs-accent-text mx-auto" />
                   <div className="text-sm font-bold fs-display-font">
-                    تم رفع طلب الاستئذان إلى أمين سجل أسرة {siteData.familyName}
+                    تم رفع طلب الاستئذان إلى أمين سجل عائلة {siteData.familyName}
                   </div>
                   <p className="text-xs fs-muted">
                     ستصلك دعوة الدخول إلى بريدك فور مراجعة واعتماد أمين السجل.
@@ -726,7 +726,7 @@ export const PublicFamilyMicrositePage: React.FC<
                     type="text"
                     value={accessReqKinship}
                     onChange={(e) => setAccessReqKinship(e.target.value)}
-                    placeholder="صلة القرابة بالأسرة (مثال: ابن عم، من فرع الرياض...)"
+                    placeholder="صلة القرابة بالعائلة (مثال: ابن عم، من فرع الرياض...)"
                     className="w-full px-3 py-2 rounded-xl bg-white text-[#252321] border fs-border text-xs"
                   />
                   <button
@@ -864,7 +864,7 @@ export const PublicFamilyMicrositePage: React.FC<
   const vaultCount = vaultItems.length;
 
   const portalTitle =
-    siteData.bioTitle?.trim() || `ديوان أسرة ${siteData.familyName}`;
+    siteData.bioTitle?.trim() || `ديوان عائلة ${siteData.familyName}`;
   const cleanHeroLocation = [siteData.originRegion, siteData.originCountry]
     .map((v) => (v || '').trim())
     .filter(
@@ -1151,7 +1151,7 @@ export const PublicFamilyMicrositePage: React.FC<
           >
             <SectionOrnamentHeader
               kicker="مشجرة الأجيال المعاصرة"
-              title={`مرآة شجرة أسرة ${siteData.familyName}`}
+              title={`مرآة شجرة عائلة ${siteData.familyName}`}
               icon={<GitBranch className="w-4 h-4" />}
             />
             <PublicVisualTreeMirror
@@ -1322,7 +1322,7 @@ export const PublicFamilyMicrositePage: React.FC<
           >
             <SectionOrnamentHeader
               kicker="تباشير وأفراح العائلة"
-              title="أخبار ومستجدات الأسرة"
+              title="أخبار ومستجدات العائلة"
               icon={<Sparkles className="w-4 h-4" />}
             />
             <div
@@ -1570,7 +1570,7 @@ export const PublicFamilyMicrositePage: React.FC<
           >
             <SectionOrnamentHeader
               kicker="سِير ومواقف خالدة"
-              title="قصص الأجداد وذاكرة الأسرة"
+              title="قصص الأجداد وذاكرة العائلة"
               icon={<BookOpen className="w-4 h-4" />}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1616,7 +1616,7 @@ export const PublicFamilyMicrositePage: React.FC<
           >
             <SectionOrnamentHeader
               kicker="أعلام وإنجازات مشرّفة"
-              title={`لوحة شرف أسرة ${siteData.familyName}`}
+              title={`لوحة شرف عائلة ${siteData.familyName}`}
               icon={<Award className="w-4 h-4" />}
             />
             <div
@@ -1690,7 +1690,7 @@ export const PublicFamilyMicrositePage: React.FC<
           >
             <SectionOrnamentHeader
               kicker="الانتشار الجغرافي والديار"
-              title="أطلس ديار وحواضر الأسرة"
+              title="أطلس ديار وحواضر العائلة"
               icon={<MapPin className="w-4 h-4" />}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1714,7 +1714,7 @@ export const PublicFamilyMicrositePage: React.FC<
                         <div className="text-xs fs-muted">{loc.country}</div>
                       </div>
                       <span className="text-sm font-bold fs-accent-text tabular-nums">
-                        {loc.householdsOrMembersCount} أسرة/فرد
+                        {loc.householdsOrMembersCount} عائلة/فرد
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full fs-surface-alt overflow-hidden">
@@ -1939,7 +1939,7 @@ export const PublicFamilyMicrositePage: React.FC<
                 <div className="rounded-2xl fs-surface-alt border fs-border p-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="text-xs font-bold fs-accent-text flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4" />
-                    <span>حرّاس ذاكرة الأسرة الأكثر إثراءً:</span>
+                    <span>حرّاس ذاكرة العائلة الأكثر إثراءً:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {guardians.map((g, i) => (
@@ -2143,7 +2143,7 @@ export const PublicFamilyMicrositePage: React.FC<
           {justClaimedRelative && (
             <div className="rounded-2xl fs-surface border fs-border px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-bold fs-accent-text">
-                ✦ أهلاً بك يا {justClaimedRelative.name} ({justClaimedRelative.kinshipRelation}) في دائرة أسرة {siteData.familyName} الموثقة.
+                ✦ أهلاً بك يا {justClaimedRelative.name} ({justClaimedRelative.kinshipRelation}) في دائرة عائلة {siteData.familyName} الموثقة.
               </span>
               {!viewerIsAnnualVip && onUpgradeOwnMembershipToAnnualVip && (
                 <button
@@ -2206,7 +2206,7 @@ export const PublicFamilyMicrositePage: React.FC<
               <div className="space-y-3">
                 <div className="text-xs sm:text-sm font-bold fs-gold-text tracking-wide">
                   {siteData.familyEmblemTag ||
-                    `ديوان وسجل أسرة ${siteData.familyName} المعاصر`}
+                    `ديوان وسجل عائلة ${siteData.familyName} المعاصر`}
                 </div>
                 <h1
                   className={`${
@@ -2255,7 +2255,7 @@ export const PublicFamilyMicrositePage: React.FC<
               <div className="md:col-span-8 space-y-4 text-right">
                 <div className="text-xs sm:text-sm font-bold fs-gold-text">
                   {siteData.familyEmblemTag ||
-                    `ديوان أسرة ${siteData.familyName}`}
+                    `ديوان عائلة ${siteData.familyName}`}
                 </div>
                 <h1
                   className={`${
@@ -2317,7 +2317,7 @@ export const PublicFamilyMicrositePage: React.FC<
               />
               <div className="text-xs font-bold fs-gold-text">
                 {siteData.familyEmblemTag ||
-                  `ديوان أسرة ${siteData.familyName}`}
+                  `ديوان عائلة ${siteData.familyName}`}
               </div>
               <h1
                 className={`${
@@ -2367,7 +2367,7 @@ export const PublicFamilyMicrositePage: React.FC<
               {membersCount}
             </div>
             <div className="text-[11px] font-bold fs-muted mt-0.5">
-              أفراد الأسرة الموثقون
+              أفراد العائلة الموثقون
             </div>
           </div>
           <div className="p-4 text-center md:border-l fs-border">
@@ -2556,7 +2556,7 @@ export const PublicFamilyMicrositePage: React.FC<
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 fs-accent-text" />
                 <h3 className="text-base font-bold fs-display-font">
-                  اقتراح إثراء لبوابة أسرة {siteData.familyName}
+                  اقتراح إثراء لبوابة عائلة {siteData.familyName}
                 </h3>
               </div>
               <button

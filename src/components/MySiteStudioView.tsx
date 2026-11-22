@@ -547,14 +547,14 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   );
   const [emblemTag, setEmblemTag] = useState<string>(
     initialSiteSettings?.emblemTag ||
-      `ديوان وسجل أسرة ${result.familyName} المعاصر`
+      `ديوان وسجل عائلة ${result.familyName} المعاصر`
   );
   const [bioTitle, setBioTitle] = useState<string>(
-    initialSiteSettings?.bioTitle || `ديوان وسجل أسرة ${result.familyName}`
+    initialSiteSettings?.bioTitle || `ديوان وسجل عائلة ${result.familyName}`
   );
   const [bioDescription, setBioDescription] = useState<string>(
     initialSiteSettings?.bioDescription ||
-      `بوابة رقمية موثقة تجمع فروع أسرة ${result.familyName} المعاصرة في ${
+      `بوابة رقمية موثقة تجمع فروع عائلة ${result.familyName} المعاصرة في ${
         result.originRegion
           ? `${result.originRegion} (${result.originCountry})`
           : result.originCountry
@@ -1197,7 +1197,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             id: `ev_${Date.now()}`,
             title: newEventTitle.trim(),
             eventDateIso: newEventDate,
-            locationLabel: newEventLocation.trim() || 'مجلس الأسرة',
+            locationLabel: newEventLocation.trim() || 'مجلس العائلة',
             rsvps: [],
           },
           ...prev.eventsModule.items,
@@ -1222,7 +1222,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           {
             id: `st_${Date.now()}`,
             title: newStoryTitle.trim(),
-            eraOrYearLabel: newStoryEra.trim() || 'ذاكرة الأسرة',
+            eraOrYearLabel: newStoryEra.trim() || 'ذاكرة العائلة',
             body: newStoryBody.trim(),
             imageUrl: newStoryImageUrl || undefined,
           },
@@ -1249,7 +1249,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           {
             id: `not_${Date.now()}`,
             fullName: newNotableName.trim(),
-            roleOrTitle: newNotableRole.trim() || 'علم من أعلام الأسرة',
+            roleOrTitle: newNotableRole.trim() || 'علم من أعلام العائلة',
             eraLabel: newNotableEra.trim(),
             achievementSummary: newNotableBio.trim(),
             imageUrl: newNotableImageUrl || undefined,
@@ -1302,7 +1302,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           {
             id: `aud_${Date.now()}`,
             title: newAudioTitle.trim(),
-            speakerName: newAudioSpeaker.trim() || 'أحد كبار الأسرة',
+            speakerName: newAudioSpeaker.trim() || 'أحد كبار العائلة',
             recordedYearLabel: newAudioYear.trim() || 'أرشيف صوتي',
             audioDataOrUrl: newAudioUrl.trim() || undefined,
             transcriptExcerpt: newAudioExcerpt.trim(),
@@ -1432,7 +1432,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   };
 
   return (
-    <div dir="rtl" className="space-y-3.5 text-right">
+    <div dir="rtl" className="w-full space-y-3.5 text-right">
       {/* Hidden File Inputs for Crest & Hero Cover */}
       <input
         ref={crestFileRef}
@@ -1455,7 +1455,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       <UnifiedWorkspaceHeader
         testId="mysite-unified-header"
         icon={<Globe className="w-5 h-5" />}
-        title={`موقع أسرة ${result.familyName}`}
+        title={`موقع عائلة ${result.familyName}`}
         metaItems={[
           <span
             key="status"
@@ -1604,7 +1604,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           <div className="rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3] text-[#2C1E14] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-2 text-xs font-display font-bold text-[#8C5327]">
               <Eye className="w-4 h-4 text-[#9E5631]" />
-              <span>معاينة حية لموقع أسرة {result.familyName}</span>
+              <span>معاينة حية لموقع عائلة {result.familyName}</span>
             </div>
 
             <div className="inline-flex rounded-xl bg-[#F5ECE0] border border-[#E2D5BE] p-1">
@@ -1740,7 +1740,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-display font-bold text-[#7A5C43]">
-                        الرابط الرسمي لبوابة الأسرة
+                        الرابط الرسمي لبوابة العائلة
                       </span>
                       {slugStatus.message && (
                         <span
@@ -2342,17 +2342,17 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   </div>
                 </CalmInspectorAccordion>
 
-                {/* 5. البيانات التعريفية وكلمة عميد الأسرة */}
+                {/* 5. البيانات التعريفية وكلمة عميد العائلة */}
                 <CalmInspectorAccordion
                   id="editorial_identity"
                   icon={<Quote className="w-4 h-4" />}
-                  title="البيانات التعريفية وكلمة عميد الأسرة"
+                  title="البيانات التعريفية وكلمة عميد العائلة"
                   isOpen={activeIdentitySection === 'editorial_identity'}
                   onToggle={() => toggleIdentitySection('editorial_identity')}
                   summary={
                     <>
                       <span className="truncate">
-                        {bioTitle || `موقع أسرة ${result.familyName}`}
+                        {bioTitle || `موقع عائلة ${result.familyName}`}
                       </span>
                       {visualBranding.patriarchQuote.enabled && (
                         <>
@@ -2392,7 +2392,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-display font-bold text-[#7A5C43]">
-                      النبذة التعريفية للأسرة
+                      النبذة التعريفية للعائلة
                     </label>
                     <textarea
                       rows={3}
@@ -2409,7 +2409,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         <Quote className="w-4 h-4 text-[#C5A059] shrink-0" />
                         <div className="min-w-0">
                           <div className="text-xs font-display font-extrabold text-[#2C1E14]">
-                            كلمة ترحيبية أو وصية عميد الأسرة
+                            كلمة ترحيبية أو وصية عميد العائلة
                           </div>
                           <div className="text-[10.5px] text-[#6B5A49]">
                             تظهر في قسم اقتباس مذهّب مباشرة أسفل واجهة الترحيب.
@@ -2427,7 +2427,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             },
                           }))
                         }
-                        ariaLabel="تفعيل كلمة عميد الأسرة"
+                        ariaLabel="تفعيل كلمة عميد العائلة"
                       />
                     </div>
 
@@ -2445,7 +2445,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                               },
                             }))
                           }
-                          placeholder="اكتب كلمة ترحيبية أو وصية تجمع أبناء الأسرة على البرّ وصلة الرحم..."
+                          placeholder="اكتب كلمة ترحيبية أو وصية تجمع أبناء العائلة على البرّ وصلة الرحم..."
                           className="w-full px-3 py-2 rounded-xl bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs text-[#2C1E14] focus:outline-none"
                         />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2476,7 +2476,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 },
                               }))
                             }
-                            placeholder="الصفة (مثال: عميد الأسرة)"
+                            placeholder="الصفة (مثال: عميد العائلة)"
                             className="px-3 py-2 rounded-xl bg-white border border-[#E6DAC3] focus:border-[#C5A059] text-xs text-[#2C1E14] focus:outline-none"
                           />
                         </div>
@@ -2614,7 +2614,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
                       <GitBranch className="w-4 h-4 text-[#D8755B]" />
-                      <span>إعدادات مرآة شجرة الأسرة والخصوصية</span>
+                      <span>إعدادات مرآة شجرة العائلة والخصوصية</span>
                     </h3>
                     <VisibilityPillSelector
                       value={treeVisibility}
@@ -2633,7 +2633,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                           {
                             id: 'SHOW_ALL',
                             label: 'إظهار الأسماء كاملة',
-                            desc: 'عرض أسماء بنات وأمهات الأسرة بوضوح',
+                            desc: 'عرض أسماء بنات وأمهات العائلة بوضوح',
                           },
                           {
                             id: 'SYMBOLIC_TITLE',
@@ -2643,7 +2643,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                           {
                             id: 'FAMILY_CIRCLE_ONLY',
                             label: 'لأفراد دائرة العائلة فقط',
-                            desc: 'تظهر للأسرة وتُحجب عن الزوار العامين',
+                            desc: 'تظهر للعائلة وتُحجب عن الزوار العامين',
                           },
                           {
                             id: 'HIDE_ALL',
@@ -2889,7 +2889,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 {/* 3A. Family News */}
                 <CollapsibleStudioModuleCard
                   icon={<Sparkles className="w-4 h-4" />}
-                  title="أخبار وتباشير الأسرة"
+                  title="أخبار وتباشير العائلة"
                   subtitle="مواليد، أفراح، تخرج وإنجازات مع تهنئة الأقارب"
                   enabled={cmsModules.newsModule.enabled}
                   onToggleEnabled={(next) =>
@@ -3238,8 +3238,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 {/* 3D. Notables / Hall of Fame */}
                 <CollapsibleStudioModuleCard
                   icon={<Award className="w-4 h-4" />}
-                  title="لوحة الشرف وأعلام الأسرة"
-                  subtitle="تخليد رموز الأسرة وروادها بصورهم وإنجازاتهم"
+                  title="لوحة الشرف وأعلام العائلة"
+                  subtitle="تخليد رموز العائلة وروادها بصورهم وإنجازاتهم"
                   enabled={cmsModules.notablesModule.enabled}
                   onToggleEnabled={(next) =>
                     setCmsModules((p) => ({
@@ -3372,7 +3372,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 <CollapsibleStudioModuleCard
                   icon={<MapPin className="w-4 h-4" />}
                   title="أطلس الديار والانتشار الجغرافي"
-                  subtitle="المدن والدول التي يقطنها أبناء الأسرة"
+                  subtitle="المدن والدول التي يقطنها أبناء العائلة"
                   enabled={cmsModules.atlasAndStatsModule.enabled}
                   onToggleEnabled={(next) =>
                     setCmsModules((p) => ({
@@ -3596,7 +3596,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 <CollapsibleStudioModuleCard
                   icon={<Briefcase className="w-4 h-4" />}
                   title="دليل الكفاءات والتخصصات"
-                  subtitle="شبكة تكافل مهني بين أبناء الأسرة في مختلف المجالات"
+                  subtitle="شبكة تكافل مهني بين أبناء العائلة في مختلف المجالات"
                   enabled={cmsModules.professionsModule.enabled}
                   onToggleEnabled={(next) =>
                     setCmsModules((p) => ({
@@ -3966,7 +3966,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         rows={2}
                         value={newTopicPrompt}
                         onChange={(e) => setNewTopicPrompt(e.target.value)}
-                        placeholder="السؤال الترحيبي لأبناء الأسرة..."
+                        placeholder="السؤال الترحيبي لأبناء العائلة..."
                         className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs"
                       />
                       <button

@@ -38,13 +38,13 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
   // Always display and share the active public domain configured centrally
   const cleanOfficialReferralUrl = `${resolveClientPublicAppBaseUrl()}/?ref=${encodeURIComponent(cleanCode)}`;
 
-  const craftedArabicShareText = `أدعوك لتوثيق شجرة عائلتك واستكشاف عمود نسبك الموثق عبر منصة «جذوري» لحفظ الإرث العائلي العربي ✦\nسجّل عبر رابط الدعوة الخاص بي من أسرة ${familyName}:\n${cleanOfficialReferralUrl}`;
+  const craftedArabicShareText = `أدعوك لتوثيق شجرة عائلتك واستكشاف عمود نسبك الموثق عبر منصة «جذوري» لحفظ الإرث العائلي العربي ✦\nسجّل عبر رابط الدعوة الخاص بي من عائلة ${familyName}:\n${cleanOfficialReferralUrl}`;
 
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(craftedArabicShareText)}`;
   const telegramHref = `https://t.me/share/url?url=${encodeURIComponent(
     cleanOfficialReferralUrl
   )}&text=${encodeURIComponent(
-    `أدعوك لتوثيق شجرة عائلتك واكتشاف جذورك عبر منصة «جذوري» ✦ (دعوة من أسرة ${familyName})`
+    `أدعوك لتوثيق شجرة عائلتك واكتشاف جذورك عبر منصة «جذوري» ✦ (دعوة من عائلة ${familyName})`
   )}`;
 
   useEffect(() => {
@@ -216,7 +216,7 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                 {cleanCode}
               </div>
               <div className="text-[10px] text-[#F7F2E9]/60">
-                مرتبط تلقائياً بمحفظة أسرة {familyName}
+                مرتبط تلقائياً بمحفظة عائلة {familyName}
               </div>
             </div>
           </div>
@@ -235,7 +235,7 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                 شارك رابطك الرسمي
               </div>
               <p className="text-[11px] text-[#252321]/65 leading-relaxed">
-                أرسل رابط <span dir="ltr" className="font-mono font-semibold text-[#8D4925]">{ACTIVE_PUBLIC_SITE_DISPLAY_HOST}</span> أو اعرض رمز QR في مجالس الأسرة والأصدقاء.
+                أرسل رابط <span dir="ltr" className="font-mono font-semibold text-[#8D4925]">{ACTIVE_PUBLIC_SITE_DISPLAY_HOST}</span> أو اعرض رمز QR في مجالس العائلة والأصدقاء.
               </p>
             </div>
           </div>

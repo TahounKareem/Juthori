@@ -358,14 +358,14 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
   return (
     <div
       data-testid="kashafi-hub-view"
-      className="space-y-3.5 text-[#252321]"
+      className="w-full space-y-3.5 text-[#252321]"
     >
       {/* Unified Workspace Header (Obsidian Gilded Icon Variant + 1-Line Meta Strip) */}
       <UnifiedWorkspaceHeader
         testId="kashafi-unified-header"
         icon={<Compass className="w-5 h-5" />}
         iconVariant="obsidian"
-        title={`كشّافي — مرصد أسرة ${result.familyName}`}
+        title={`كشّافي — مرصد عائلة ${result.familyName}`}
         metaItems={[
           'متابعة البعثات البحثية والرادار العلمي',
           <span key="missions" className="tabular-nums">
@@ -466,7 +466,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                 رادار الاكتشافات والبشارات العلمية لعائلتكم
               </h2>
               <p className="text-xs text-[#6E6456]">
-                التحديثات الفعلية المعتمدة من مرصد البحوث لأسرة {result.familyName}
+                التحديثات الفعلية المعتمدة من مرصد البحوث لعائلة {result.familyName}
                 {unreadItemsCount > 0 ? ` · ${unreadItemsCount} جديد غير مقروء` : ''}
               </p>
             </div>

@@ -222,7 +222,7 @@ type StudioDetailPanelId = 'identity' | 'life' | 'legacy';
 const BIO_INSPIRATION_PROMPTS: Array<{ label: string; snippet: string }> = [
   {
     label: '+ النشأة والتعليم',
-    snippet: 'النشأة والتعليم: نشأ في كنف أسرته وتلقى تعليمه في...',
+    snippet: 'النشأة والتعليم: نشأ في كنف عائلته وتلقى تعليمه في...',
   },
   {
     label: '+ المناصب والأعمال',
@@ -237,7 +237,7 @@ const BIO_INSPIRATION_PROMPTS: Array<{ label: string; snippet: string }> = [
 const FEMALE_BIO_INSPIRATION_PROMPTS: Array<{ label: string; snippet: string }> = [
   {
     label: '+ النشأة والتعليم',
-    snippet: 'النشأة والتعليم: نشأت في كنف أسرتها وتلقت تعليمها في...',
+    snippet: 'النشأة والتعليم: نشأت في كنف عائلتها وتلقت تعليمها في...',
   },
   {
     label: '+ المناصب والأعمال',
@@ -1190,7 +1190,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             </div>
                             <div>
                               <label className="block text-[10.5px] font-display font-bold text-[#5E4A39] mb-1">
-                                أسرتها / نسب المصاهرة
+                                عائلتها / نسب المصاهرة
                               </label>
                               <input
                                 type="text"
@@ -1200,7 +1200,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                     e.target.value
                                   )
                                 }
-                                placeholder="مثال: من أسرة آل..."
+                                placeholder="مثال: من عائلة آل..."
                                 className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
                               />
                             </div>
@@ -1216,7 +1216,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         className="pt-2.5 border-t border-[#D4AF37]/20 space-y-1"
                       >
                         <label className="block text-[11.5px] font-display font-bold text-[#8D4925]">
-                          أسرتها / نسب المصاهرة
+                          عائلتها / نسب المصاهرة
                         </label>
                         <input
                           type="text"
@@ -1224,7 +1224,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           onChange={(e) =>
                             onChangeMaidenFamilyLine(e.target.value)
                           }
-                          placeholder="مثال: كريمة الشيخ... / من أسرة آل..."
+                          placeholder="مثال: كريمة الشيخ... / من عائلة آل..."
                           className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
                         />
                       </div>
@@ -1245,7 +1245,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           onChange={(e) =>
                             onChangeMarriageAllianceNote(e.target.value)
                           }
-                          placeholder="مثال: قرينة الأستاذ... من أسرة آل..."
+                          placeholder="مثال: قرينة الأستاذ... من عائلة آل..."
                           className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
                         />
                       </div>
@@ -1769,7 +1769,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                   <strong className="text-[#8D4925]">
                     حلقة ربط عمودية نحو الجذر:
                   </strong>{' '}
-                  تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة.
+                  تُسجَّل كعقدة عمودية منفردة لربط عمود عائلتك بنقطة الجذر الموثقة.
                 </>
               )}
             </div>

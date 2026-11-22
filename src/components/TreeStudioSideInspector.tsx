@@ -575,7 +575,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                 />
                 <LuxurySwitchRow
                   label="أوسمة المكانة الوقورة الاختيارية"
-                  description="إظهار أوسمة (عميد الأسرة · شخصية تاريخية · حافظ للإرث)"
+                  description="إظهار أوسمة (عميد العائلة · شخصية تاريخية · حافظ للإرث)"
                   checked={settings.showPrestigeBadges}
                   testId="toggle-prestige-badges-btn"
                   onToggle={() =>

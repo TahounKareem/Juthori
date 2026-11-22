@@ -652,7 +652,7 @@ export async function applyResolvedTicketToCustomerLineage(params: {
         currentResult.originRegion ||
         ticket.originRegion ||
         currentResult.originCountry,
-      eraNote: `بيت أسرة ${currentResult.familyName || ticket.familyName}.`,
+      eraNote: `بيت عائلة ${currentResult.familyName || ticket.familyName}.`,
     });
   }
 
@@ -989,8 +989,8 @@ export function buildDefaultVisualBranding(
     patriarchQuote: {
       enabled: false,
       text: '',
-      authorName: familyName ? `عميد أسرة ${familyName}` : 'عميد الأسرة',
-      authorTitle: 'كلمة ترحيبية لأبناء وبنات الأسرة',
+      authorName: familyName ? `عميد عائلة ${familyName}` : 'عميد العائلة',
+      authorTitle: 'كلمة ترحيبية لأبناء وبنات العائلة',
     },
     sectionOrder: [...DEFAULT_PORTAL_SECTION_ORDER],
   };
@@ -1285,8 +1285,8 @@ export function buildDefaultCmsModules(
       elders: [],
       timeCapsule: {
         enabled: false,
-        title: `وصية ورسالة إلى أجيال أسرة ${fam}`,
-        authorElderName: `كبار أسرة ${fam}`,
+        title: `وصية ورسالة إلى أجيال عائلة ${fam}`,
+        authorElderName: `كبار عائلة ${fam}`,
         unlockDateIso: nextYearDate,
         sealedMessage: '',
       },
@@ -1549,7 +1549,7 @@ export function sanitizeTreeMembersForPublicSite(
 
   return filtered.slice(0, 500).map((n, idx) => {
     const id = String(n.id || `m_${idx}`);
-    const firstName = String(n.firstName || n.name || 'فرد من الأسرة').trim();
+    const firstName = String(n.firstName || n.name || 'فرد من العائلة').trim();
     const nodeFam = String(n.familyName || defaultFam).trim();
     const honorific = String(n.honorificTitle || n.honorific || '')
       .replace(/^بدون$/, '')
@@ -1581,11 +1581,11 @@ export function sanitizeTreeMembersForPublicSite(
     const symbolicFemaleLabel = fatherFirst
       ? ['كريمة', fatherFirst, nodeFam].filter(Boolean).join(' ').trim()
       : nodeFam
-      ? `كريمة أسرة ${nodeFam}`
-      : 'كريمة الأسرة';
+      ? `كريمة عائلة ${nodeFam}`
+      : 'كريمة العائلة';
 
     const relationLabel = String(
-      n.relationToTargetLabel || n.relationLabel || 'فرد معاصر من الأسرة'
+      n.relationToTargetLabel || n.relationLabel || 'فرد معاصر من العائلة'
     ).slice(0, 80);
     const generationLevel =
       typeof n.generationLevel === 'number'
@@ -3329,7 +3329,7 @@ export async function processKinshipOptOutByToken(token: string): Promise<{
       familyName: invDoc.familyName,
       invitedEmail: invDoc.invitedEmail,
       inviterName: invDoc.inviterName,
-      messageAr: `تم إلغاء إدراج بريدك الإلكتروني (${invDoc.invitedEmail}) وحذفه فوراً من الدائرة العائلية الخاصة لأسرة (${invDoc.familyName}) احتراماً لخصوصيتك الكاملة، ودون الحاجة لتسجيل الدخول ✓`,
+      messageAr: `تم إلغاء إدراج بريدك الإلكتروني (${invDoc.invitedEmail}) وحذفه فوراً من الدائرة العائلية الخاصة لعائلة (${invDoc.familyName}) احتراماً لخصوصيتك الكاملة، ودون الحاجة لتسجيل الدخول ✓`,
     };
   }
 
@@ -3521,7 +3521,7 @@ export async function resolveSiteAccessRequest(params: {
       siteSlug: request.siteSlug,
       referralCode: buildDeterministicReferralCode(request.ownerId),
       relativeName: request.visitorName,
-      kinshipRelation: request.kinshipNote || 'فرد من الأسرة',
+      kinshipRelation: request.kinshipNote || 'فرد من العائلة',
       relativeEmail: request.visitorEmail,
     });
   }
@@ -3596,7 +3596,7 @@ export async function submitTreeEnrichmentRequest(params: {
 
   sendCustomerNotification({
     userId: safeOwner,
-    title: `مقترح إثراء جديد لبوابة أسرة ${params.familyName} ✦`,
+    title: `مقترح إثراء جديد لبوابة عائلة ${params.familyName} ✦`,
     body: `قدّم (${reqDoc.requesterName}) مقترح إثراء جديد عبر بوابة موقعي بانتظار اعتمادك في تبويب «مجتمعي».`,
     category: 'system_notice',
     senderRole: 'system',

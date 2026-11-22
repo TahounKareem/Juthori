@@ -66,7 +66,7 @@ export const LineageGlowPathVisual: React.FC<LineageGlowPathVisualProps> = ({
             {familyName.slice(0, 1) || 'أ'}
           </div>
           <span className="text-[11px] font-display font-bold text-[#252321] truncate max-w-full">
-            أسرة {familyName}
+            عائلة {familyName}
           </span>
         </div>
 
@@ -287,18 +287,18 @@ export const VaultPolaroidFanVisual: React.FC<VaultPolaroidFanVisualProps> = ({
   return (
     <div
       aria-hidden="true"
-      className="h-32 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/55 flex items-center justify-center relative overflow-hidden"
+      className="h-32 rounded-xl bg-gradient-to-b from-[#FAF5EB] to-[#F1E6D4] border border-[#D6C19E]/55 flex items-center justify-center relative isolate overflow-hidden"
     >
       <div className="relative w-40 h-22 flex items-center justify-center">
         {stack.map((photo, idx) => {
           const transformClass =
             stack.length === 1
-              ? 'rotate-0 group-hover:scale-105 z-20'
+              ? 'rotate-0 group-hover:scale-105 z-[2]'
               : idx === 0
-              ? '-rotate-6 -translate-x-5 group-hover:-rotate-12 group-hover:-translate-x-8 z-10'
+              ? '-rotate-6 -translate-x-5 group-hover:-rotate-12 group-hover:-translate-x-8 z-[1]'
               : idx === 1
-              ? 'rotate-0 translate-y-0 group-hover:-translate-y-1.5 group-hover:scale-105 z-30'
-              : 'rotate-6 translate-x-5 group-hover:rotate-12 group-hover:translate-x-8 z-20';
+              ? 'rotate-0 translate-y-0 group-hover:-translate-y-1.5 group-hover:scale-105 z-[3]'
+              : 'rotate-6 translate-x-5 group-hover:rotate-12 group-hover:translate-x-8 z-[2]';
           return (
             <div
               key={photo.id}
@@ -351,7 +351,7 @@ export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
     TYPOGRAPHY_PAIR_OPTIONS.find((t) => t.id === branding.typographyId) ||
     TYPOGRAPHY_PAIR_OPTIONS[0];
   const resolvedTitle =
-    (bioTitle || '').trim() || `ديوان وسجل أسرة ${familyName}`;
+    (bioTitle || '').trim() || `ديوان وسجل عائلة ${familyName}`;
   const resolvedEmblem = (emblemTag || '').trim();
   const displayUrl = slug
     ? `${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${slug}`

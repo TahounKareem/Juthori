@@ -160,7 +160,7 @@ export function buildOfficialExportMetadata(params: {
       result.familyName,
       exportKind
     ),
-    ownerFullName: nameParts.join(' ') || `أسرة ${result.familyName}`,
+    ownerFullName: nameParts.join(' ') || `عائلة ${result.familyName}`,
     familyName: result.familyName,
     originLabel: originParts.join(' — ') || 'الجزيرة العربية والعالم العربي',
     hijriDate,

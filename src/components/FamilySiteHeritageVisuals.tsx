@@ -44,7 +44,7 @@ export const CREST_STYLE_OPTIONS: ReadonlyArray<{
   {
     id: 'heritage_wreath',
     label: 'إكليل تراثي كلاسيكي',
-    subtitle: 'إكليل سعفي مذهّب يحيط باسم الأسرة',
+    subtitle: 'إكليل سعفي مذهّب يحيط باسم العائلة',
   },
   {
     id: 'calligraphic_tughra',
@@ -156,13 +156,13 @@ export const TYPOGRAPHY_PAIR_OPTIONS: ReadonlyArray<{
 ];
 
 export const PORTAL_SECTION_LABELS: Record<PortalSectionKey, string> = {
-  patriarch_quote: 'كلمة ووصية عميد الأسرة',
-  tree_mirror: 'مرآة شجرة الأسرة التفاعلية',
+  patriarch_quote: 'كلمة ووصية عميد العائلة',
+  tree_mirror: 'مرآة شجرة العائلة التفاعلية',
   vault_gallery: 'معرض خزانة الصور والوثائق',
-  news: 'أخبار وتباشير الأسرة',
+  news: 'أخبار وتباشير العائلة',
   events: 'المناسبات واللقاءات القادمة',
   stories: 'قصص الأجداد والذكريات',
-  notables: 'لوحة الشرف وأعلام الأسرة',
+  notables: 'لوحة الشرف وأعلام العائلة',
   atlas: 'أطلس الديار والإحصائيات',
   oral_heritage: 'الموروث الصوتي والشعري',
   professions: 'دليل الكفاءات والتخصصات',
@@ -225,7 +225,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
       >
         <img
           src={customCrestUrl}
-          alt={`شعار أسرة ${familyName}`}
+          alt={`شعار عائلة ${familyName}`}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover"
         />
@@ -249,7 +249,7 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
   return (
     <div
       className={`${dims} inline-flex items-center justify-center shrink-0 select-none ${className}`}
-      aria-label={`ختم أسرة ${familyName}`}
+      aria-label={`ختم عائلة ${familyName}`}
     >
       <svg
         viewBox="0 0 120 120"
@@ -1099,7 +1099,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
           <div className="space-y-0.5">
             <div className="text-xs font-bold fs-accent-text flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>عمود النسب التاريخي المحقّق لأسرة {familyName}</span>
+              <span>عمود النسب التاريخي المحقّق لعائلة {familyName}</span>
             </div>
             <p className="text-xs fs-muted leading-relaxed">
               {COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR}

@@ -2279,7 +2279,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   });
 
   const renderPrimaryNavigationTabs = (attachMobileRefs: boolean) => (
-    <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 min-[1180px]:p-1 rounded-2xl bg-[#EFE8DA]/82 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
+    <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 xl:p-1 rounded-2xl bg-[#EFE8DA]/82 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
       {DASHBOARD_TABS.map((tab) => {
         const TabIcon = tab.icon;
         const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
@@ -2289,7 +2289,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
 
         let buttonClasses =
-          'group/tab relative px-3.5 md:px-3.5 min-[1180px]:px-2.5 xl:px-3 py-2 min-[1180px]:py-1.5 rounded-xl text-[12.5px] sm:text-[13px] min-[1180px]:text-[12.5px] xl:text-[13px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] min-[1180px]:min-h-[38px] snap-center select-none ';
+          'group/tab relative px-3 py-1.5 rounded-xl text-[12.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[38px] xl:min-h-[36px] snap-center select-none ';
 
         if (isSelected && isKashafiTab) {
           buttonClasses +=
@@ -2401,47 +2401,41 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   return (
     <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-clip">
       {/* A. PRECISION GRID-ALIGNED RTL LUXURY HEADER SHELL (Exact max-w-7xl parity with page content) */}
-      <header className="relative md:sticky md:top-0 z-30 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
+      <header className="relative md:sticky md:top-0 z-40 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
         {/* Subtle Architectural Islamic Arabesque & Lineage Vine SVG Watermark */}
         <DashboardHeaderWatermark />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* ============================================================== */}
-          {/* RESPONSIVE PRECISION HEADER:                                   */}
-          {/* • Desktop (>=1180px): Single 76px row — Right Brand + Divider + 7-Tab Nav | Flex Watermark Spacer | Left Cart + Bell + Divider + Profile */}
-          {/* • Tablet (768–1179px): Row 1 (Brand right + Account left) + Centered Row 2 (7-Tab Nav)                                                  */}
-          {/* • Mobile (<768px): Compact h-14 Bar (Logo right + Mini Alerts & Compact Identity left)                                                   */}
+          {/* RESPONSIVE PRECISION HEADER (100% Vertical Edge Alignment):    */}
+          {/* • Desktop (>=1280px / xl): Single 76px row — Right Brand + Divider + 7-Tab Nav (flex-1) | Left Cart + Bell + Divider + Profile */}
+          {/* • Tablet (768–1279px): Row 1 (Brand right + Account left) + Centered Row 2 (Single 7-Tab Nav)                                  */}
+          {/* • Mobile (<768px): Compact h-14 Bar (Logo right + Mini Alerts & Compact Identity left)                                         */}
           {/* ============================================================== */}
-          <div className="flex flex-wrap min-[1180px]:flex-nowrap items-center justify-between gap-x-2.5 sm:gap-x-3 xl:gap-x-4 h-14 md:h-auto min-[1180px]:h-[76px]">
+          <div className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-x-2.5 xl:gap-x-3 h-14 md:h-auto xl:h-[76px]">
             {/* 1. RIGHT BRAND ANCHOR (RTL START): Flush with right edge of page content */}
-            <div className="order-1 md:py-2.5 min-[1180px]:py-0 flex items-center shrink-0">
+            <div className="order-1 flex items-center shrink-0 md:py-2.5 xl:py-0">
               <JuthoriLogo size="sm" onClick={onBackToLanding} />
             </div>
 
-            {/* Golden Vertical Hairline between Brand & Primary 7-Tab Navigation (Desktop >=1180px) */}
+            {/* Golden Vertical Hairline between Brand & Primary 7-Tab Navigation (Desktop >= xl) */}
             <span
               aria-hidden="true"
-              className="hidden min-[1180px]:block min-[1180px]:order-2 h-7 w-px bg-[#D4AF37]/25 shrink-0"
+              className="hidden xl:block xl:order-2 h-7 w-px bg-[#D4AF37]/25 shrink-0"
             />
 
-            {/* 2. PRIMARY 7-TAB NAVIGATION (Desktop: Right-anchored right beside Logo | Tablet: Centered Row 2) */}
-            <div className="hidden md:flex order-4 min-[1180px]:order-3 w-full min-[1180px]:w-auto border-t border-[#D4AF37]/15 min-[1180px]:border-t-0 py-2.5 min-[1180px]:py-0 items-center justify-center min-[1180px]:justify-start min-w-0 shrink-0">
+            {/* 2. SINGLE PRIMARY 7-TAB NAVIGATION (Desktop >= xl: Right next to Logo + fills center gap | Tablet md..xl: Centered Row 2) */}
+            <div className="hidden md:flex order-4 xl:order-3 w-full xl:w-auto xl:flex-1 border-t border-[#D4AF37]/15 xl:border-t-0 py-2.5 xl:py-0 items-center justify-center xl:justify-start min-w-0">
               <nav
                 aria-label="تبويبات لوحة تحكم العميل"
-                className="flex items-center justify-center min-[1180px]:justify-start max-w-full"
+                className="flex items-center justify-center xl:justify-start min-w-0 max-w-full overflow-x-auto no-scrollbar"
               >
                 {renderPrimaryNavigationTabs(false)}
               </nav>
             </div>
 
-            {/* Flexible Watermark Breathing Zone separating Navigation from Left Account Cluster (Desktop >=1180px) */}
-            <div
-              aria-hidden="true"
-              className="hidden min-[1180px]:block min-[1180px]:order-4 flex-1 min-w-[8px]"
-            />
-
-            {/* 3. REFINED LEFT UTILITY & PROFILE CLUSTER (RTL END: Cart → Bell → Hairline → Far-Left Profile Capsule) */}
-            <div className="order-2 min-[1180px]:order-5 md:py-2.5 min-[1180px]:py-0 flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* 3. LEFT UTILITY & PROFILE CLUSTER (RTL END): Flush with left edge of page content */}
+            <div className="order-2 xl:order-4 flex items-center gap-1.5 sm:gap-2 shrink-0 md:py-2.5 xl:py-0">
               {/* 3a. Cart & Wallet (Quiet when empty, gilded border & badge when populated) */}
               <button
                 type="button"
@@ -2547,7 +2541,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   <span className="relative shrink-0">
                     <span className="block p-[1.5px] md:p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
                       <span className="block p-[1px] md:p-[1.5px] rounded-full bg-[#FFFDF9]">
-                        <span className="w-7 h-7 md:w-8 md:h-8 xl:w-9 xl:h-9 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
+                        <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
                           {avatarUrl ? (
                             <img
                               src={avatarUrl}
@@ -2900,7 +2894,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* MOBILE STICKY GLASS TOUCH NAVIGATION BAR (< 768px): Effortless One-Handed Access & Auto-Centered Active Tab */}
       <div
         data-testid="mobile-sticky-touch-nav"
-        className="md:hidden sticky top-0 z-20 bg-[#FDFBF7]/92 backdrop-blur-lg border-b border-[#D4AF37]/22 shadow-[0_8px_22px_-12px_rgba(88,63,36,0.2)]"
+        className="md:hidden sticky top-0 z-30 bg-[#FDFBF7]/92 backdrop-blur-lg border-b border-[#D4AF37]/22 shadow-[0_8px_22px_-12px_rgba(88,63,36,0.2)]"
       >
         <div className="relative px-2 py-2">
           {/* Soft Side Gradient Fades Indicating Horizontal Continuation */}
@@ -2922,8 +2916,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </div>
       </div>
 
-      {/* MAIN DASHBOARD WORKSPACE */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      {/* MAIN DASHBOARD WORKSPACE (100% Exact Horizontal & Vertical Edge Parity with Header) */}
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {activeUtilityDrawer !== null ? (
           <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#B98A78]/25">
@@ -4062,7 +4056,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="w-full space-y-4">
             {activeTab === DashboardTab.MyTree && charterSignedBanner && (
               <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-400 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                 <div className="flex items-start sm:items-center gap-3">
@@ -4236,7 +4230,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
       {/* Platform Editorial Footer matching LandingPage */}
       <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col items-center text-center space-y-3.5">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center space-y-3.5">
           <div className="mb-1">
             <JuthoriLogo size="sm" onClick={onBackToLanding} />
           </div>

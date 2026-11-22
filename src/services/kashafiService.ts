@@ -186,7 +186,7 @@ export const KASHAFI_ADMIN_BLUEPRINTS: KashafiAdminBlueprint[] = [
     id: 'bp_waqf_manuscripts_study',
     title: 'تحقيق أوقاف وأملاك ومخطوطات تاريخية للعائلة',
     description:
-      'مسح أرشيفي معمّق لسجلات الأوقاف والمحاكم الشرعية والدفاتر التاريخية لرصد ذكر أسرة العميل وممتلكاتها الموروثة.',
+      'مسح أرشيفي معمّق لسجلات الأوقاف والمحاكم الشرعية والدفاتر التاريخية لرصد ذكر عائلة العميل وممتلكاتها الموروثة.',
     category: 'research_service',
     defaultPriceUsd: 55,
     defaultFreeForPremium: false,
@@ -238,7 +238,7 @@ export const KASHAFI_ADMIN_BLUEPRINTS: KashafiAdminBlueprint[] = [
     id: 'bp_dynasty_yearbook',
     title: 'إنتاج كتاب الحولية العائلية السنوية الفاخر',
     description:
-      'إخراج تحريري فاخر يجمع عمود النسب، مشجرة الفروع، مختارات الخزانة الوثائقية، وأخبار الأسرة في نسخة جاهزة للطباعة والاهداء.',
+      'إخراج تحريري فاخر يجمع عمود النسب، مشجرة الفروع، مختارات الخزانة الوثائقية، وأخبار العائلة في نسخة جاهزة للطباعة والاهداء.',
     category: 'research_service',
     defaultPriceUsd: 79,
     defaultFreeForPremium: false,
@@ -286,7 +286,7 @@ export const KASHAFI_ADMIN_BLUEPRINTS: KashafiAdminBlueprint[] = [
     executionMode: 'instant_tech',
     defaultTargetTab: DashboardTab.MySite,
     defaultCtaLabel: 'الانتقال إلى إعدادات موقعي ←',
-    eligibilityHintAr: 'جميع الأعضاء المؤهلين لتفعيل بوابة الأسرة',
+    eligibilityHintAr: 'جميع الأعضاء المؤهلين لتفعيل بوابة العائلة',
   },
   {
     id: 'bp_knowledge_seasonal_announcement',

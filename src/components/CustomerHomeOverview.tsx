@@ -376,7 +376,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
 
     const resolvedTitle =
       (siteSettings?.bioTitle || ownerMicrosite?.bioTitle || '').trim() ||
-      `ديوان وسجل أسرة ${result.familyName || 'العائلة'}`;
+      `ديوان وسجل عائلة ${result.familyName || 'العائلة'}`;
 
     const resolvedEmblem = (
       siteSettings?.emblemTag ||
@@ -552,7 +552,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   return (
     <div
       data-testid="customer-home-executive-hub"
-      className="space-y-6 text-[#252321]"
+      className="w-full space-y-6 text-[#252321]"
     >
       {/* ===================================================================
           TIER 1 — Royal Hero & Gamified Legacy Journey Compass
@@ -633,7 +633,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               <div className="flex items-center gap-2 text-xs">
                 <Sparkles className="w-3.5 h-3.5 text-[#9E6B2B]" />
                 <span className="font-display font-bold text-[#252321]">
-                  مسار اكتمال صرح الأسرة
+                  مسار اكتمال صرح العائلة
                 </span>
                 <span className="text-[#6E6456] hidden sm:inline">
                   — انقر على أي محطة للانتقال المباشر وإنجازها
@@ -1103,7 +1103,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                   <div className="space-y-1.5">
                     <div className="text-sm font-display font-bold text-[#252321]">
                       {activeTicket.targetAncestor ||
-                        `بعثة تحقيق نسب أسرة ${result.familyName}`}
+                        `بعثة تحقيق نسب عائلة ${result.familyName}`}
                     </div>
                     <div className="flex items-center justify-between text-xs text-[#6E6456]">
                       <span className="inline-flex items-center gap-1.5">

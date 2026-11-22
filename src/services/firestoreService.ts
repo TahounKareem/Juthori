@@ -6996,7 +6996,7 @@ export const DEFAULT_STARTER_VAULT_FOLDERS: VaultFolderRecord[] = [
   },
   {
     id: 'folder_homelands',
-    name: 'ديار ومواطن الأسرة',
+    name: 'ديار ومواطن العائلة',
     icon: '🏡',
     colorTheme: 'emerald',
     description: 'صور المنازل القديمة، المزارع، والبلدات التاريخية للعائلة',
@@ -7007,7 +7007,7 @@ export const DEFAULT_STARTER_VAULT_FOLDERS: VaultFolderRecord[] = [
     name: 'شهادات ومناسبات',
     icon: '🎖️',
     colorTheme: 'stone',
-    description: 'الشهادات العلمية، الأوسمة، واللقاءات السنوية للأسرة',
+    description: 'الشهادات العلمية، الأوسمة، واللقاءات السنوية للعائلة',
     createdAt: '2026-01-01T00:00:00.000Z',
   },
 ];

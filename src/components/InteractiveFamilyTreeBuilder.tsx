@@ -1420,7 +1420,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       window.setTimeout(() => setQuickAddSuccessNotice(''), 4000);
       onLogActivity(
         'تصدير نسخة JSON للشجرة',
-        `تصدير بيانات شجرة أسرة ${result.familyName} (${people.length} فرداً) بصيغة JSON`
+        `تصدير بيانات شجرة عائلة ${result.familyName} (${people.length} فرداً) بصيغة JSON`
       );
     } catch {
       setShowJsonBackupMenu(false);
@@ -1465,7 +1465,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         window.setTimeout(() => setQuickAddSuccessNotice(''), 4500);
         onLogActivity(
           'استيراد نسخة JSON للشجرة',
-          `استيراد ${capped.length} فرداً إلى شجرة أسرة ${result.familyName}`
+          `استيراد ${capped.length} فرداً إلى شجرة عائلة ${result.familyName}`
         );
       } catch {
         setQuickAddSuccessNotice(
@@ -1633,7 +1633,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         isCodedStation: true,
         rankLabel: 'بيت العائلة المباشر',
         region: result.originRegion || result.originCountry,
-        eraNote: `بيت أسرة ${result.familyName}.`,
+        eraNote: `بيت عائلة ${result.familyName}.`,
         historicalEra: 'late_families',
         dataLakeSource: result.isAlphaOnlyBeforeMerge
           ? 'alpha_projects'
@@ -2574,7 +2574,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         'تحديث بيانات فرد في شجرتي',
         createdInlineMotherOnEdit
           ? `تم تعديل بيانات «${cleanFirst}» وإضافة والدته «${createdInlineMotherOnEdit.firstName}» كزوجة للأب`
-          : `تم تعديل بيانات «${cleanFirst}» في شجرة الأسرة`
+          : `تم تعديل بيانات «${cleanFirst}» في شجرة العائلة`
       );
       setModalConfig(null);
       return;
@@ -4797,7 +4797,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
                   <div className="pt-2 border-t border-[#D4AF37]/18 flex items-center justify-between gap-2 text-[10.5px] text-[#6E5C4F]">
                     <span className="leading-snug truncate">
-                      لتوثيق أسرتها ونسب المصاهرة
+                      لتوثيق عائلتها ونسب المصاهرة
                     </span>
                     <button
                       type="button"
@@ -6300,7 +6300,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const sideNoteElement = renderTreeUpperLayersSideNote();
 
   return (
-    <div className="space-y-3.5 text-right">
+    <div className="w-full space-y-3.5 text-right">
       {/* Hidden JSON Backup Import Input */}
       <input
         ref={jsonImportInputRef}
@@ -6316,7 +6316,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       <UnifiedWorkspaceHeader
         testId="tree-unified-header"
         icon={<TreePine className="w-5 h-5" />}
-        title={`شجرة أسرة ${result.familyName}`}
+        title={`شجرة عائلة ${result.familyName}`}
         centerSlot={
           <div className="inline-flex items-center gap-1.5">
             <TreeFloatingStudioDock
@@ -7370,14 +7370,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 </div>
 
                 <p className="text-xs text-[#252321]/80 leading-relaxed">
-                  بصفتك <strong>أمين سجل عائلة {result.familyName}</strong>، يمكنك مشاركة هذا الرابط المخصص والمربوط بمعرّف شجرتك مع أبناء العمومة وأفراد الأسرة للمساهمة في إثراء الفروع أو معاينة المشجرة.
+                  بصفتك <strong>أمين سجل عائلة {result.familyName}</strong>، يمكنك مشاركة هذا الرابط المخصص والمربوط بمعرّف شجرتك مع أبناء العمومة وأفراد العائلة للمساهمة في إثراء الفروع أو معاينة المشجرة.
                 </p>
 
                 {treeDisplaySettings.femalePrivacyMode === 'hide_females' && (
                   <div className="rounded-xl bg-[#FFF8F0] border border-[#D8755B]/45 px-3 py-2 flex items-start gap-2 text-[11px] font-semibold text-[#8D4925]">
                     <ShieldCheck className="w-4 h-4 text-[#D8755B] shrink-0 mt-0.5" />
                     <span>
-                      خيار الخصوصية «إخفاء الإناث» مفعّل — لن تظهر أسماء الإناث لأفراد الأسرة المدعوين عبر هذا الرابط.
+                      خيار الخصوصية «إخفاء الإناث» مفعّل — لن تظهر أسماء الإناث لأفراد العائلة المدعوين عبر هذا الرابط.
                     </span>
                   </div>
                 )}

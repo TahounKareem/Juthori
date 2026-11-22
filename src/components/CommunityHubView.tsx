@@ -123,7 +123,7 @@ const ROLE_OPTIONS: Array<{
     id: 'memory_contributor',
     labelAr: 'راوي ومُساهم في الذاكرة',
     shortLabelAr: 'راوي ومُساهم',
-    descriptionAr: 'إضافة الصور والقصص والمواليد والتعرف على الوجوه في خزانة الأسرة.',
+    descriptionAr: 'إضافة الصور والقصص والمواليد والتعرف على الوجوه في خزانة العائلة.',
   },
   {
     id: 'family_viewer',
@@ -141,7 +141,7 @@ const KINSHIP_PRESETS = [
   'خال',
   'ابن أخت',
   'ابن أخ',
-  'جد / كبير الأسرة',
+  'جد / كبير العائلة',
 ];
 
 const MEMORY_QUEST_TEMPLATES: Array<{
@@ -154,21 +154,21 @@ const MEMORY_QUEST_TEMPLATES: Array<{
     category: 'newborns',
     title: 'حصر وتوثيق مواليد العائلة الجدد',
     promptText:
-      'أحبتنا أبناء وبنات الأسرة، نُحدث حالياً شجرة العائلة الموثقة. يرجى الدخول لبوابة الأسرة واقتراح أسماء المواليد الجدد وتواريخ ميلادهم ليُحفظوا في سجل الأجيال.',
+      'أحبتنا أبناء وبنات العائلة، نُحدث حالياً شجرة العائلة الموثقة. يرجى الدخول لبوابة العائلة واقتراح أسماء المواليد الجدد وتواريخ ميلادهم ليُحفظوا في سجل الأجيال.',
     badgeAr: 'تحديث الشجرة',
   },
   {
     category: 'heritage_photos',
     title: 'نداء جمع صور الأجداد والوثائق القديمة',
     promptText:
-      'هل تحتفظون بصور قديمة للأجداد أو صكوك وخطابات عائلية نادرة؟ شاركوها معنا عبر بوابة الأسرة لنحفظها بجودة أرشيفية عالية ونربطها بأصحابها في الخزانة.',
+      'هل تحتفظون بصور قديمة للأجداد أو صكوك وخطابات عائلية نادرة؟ شاركوها معنا عبر بوابة العائلة لنحفظها بجودة أرشيفية عالية ونربطها بأصحابها في الخزانة.',
     badgeAr: 'خزانة الصور',
   },
   {
     category: 'elders_stories',
-    title: 'سؤال الذاكرة لكبار الأسرة: حدثونا عن ديار ومجالس الأجداد',
+    title: 'سؤال الذاكرة لكبار العائلة: حدثونا عن ديار ومجالس الأجداد',
     promptText:
-      'ندعو كبار أسرتنا الكرام لتدوين ذكرياتهم ومواقفهم حول ديار الأجداد ومجالسهم الأولى، لتبقى سيرة حية تقرؤها الأجيال القادمة في ديوان العائلة.',
+      'ندعو كبار عائلتنا الكرام لتدوين ذكرياتهم ومواقفهم حول ديار الأجداد ومجالسهم الأولى، لتبقى سيرة حية تقرؤها الأجيال القادمة في ديوان العائلة.',
     badgeAr: 'تاريخ شفهي',
   },
 ];
@@ -385,7 +385,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       .map((n) => {
         const first = String(n.firstName || n.name || '').trim();
         const fam = String(n.familyName || '').trim();
-        const label = [first, fam].filter(Boolean).join(' ').trim() || 'فرد من الأسرة';
+        const label = [first, fam].filter(Boolean).join(' ').trim() || 'فرد من العائلة';
         return {
           id: String(n.id),
           label,
@@ -542,7 +542,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       setRelTreePersonId('');
       showToast('success', res.messageAr);
       onLogActivity?.(
-        'إضافة ودعوة قريب لدائرة الأسرة',
+        'إضافة ودعوة قريب لدائرة العائلة',
         `تمت إضافة ${cleanName} (${relKinship}) بصلاحية «${resolveRoleLabel(relRole)}»`
       );
     } catch {
@@ -570,7 +570,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       setCircle(updated);
       showToast(
         'success',
-        `تم تحديث صلاحيات وربط (${member.name}) في سجل دائرة الأسرة ✓`
+        `تم تحديث صلاحيات وربط (${member.name}) في سجل دائرة العائلة ✓`
       );
     } catch {
       showToast('error', 'تعذر تحديث بيانات العضو حالياً.');
@@ -615,7 +615,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         setCircle(refreshed);
         showToast(
           'success',
-          `تم قبول (${req.visitorName}) وإضافته فوراً إلى دائرة أسرة ${result.familyName} ✓`
+          `تم قبول (${req.visitorName}) وإضافته فوراً إلى دائرة عائلة ${result.familyName} ✓`
         );
       } else {
         showToast('info', `تمت أرشفة طلب (${req.visitorName}).`);
@@ -646,7 +646,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       );
       onLogActivity?.(
         'تدوير رابط المجلس العائلي',
-        'تم توليد رمز وصول جديد لدائرة الأسرة في مجتمعي'
+        'تم توليد رمز وصول جديد لدائرة العائلة في مجتمعي'
       );
     } catch {
       showToast('error', 'تعذر تدوير رابط المجلس حالياً.');
@@ -700,7 +700,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         `تم إطلاق حملة «${cleanTitle}» وحفظها بنجاح — شاركها الآن في مجموعة العائلة ✓`
       );
       onLogActivity?.(
-        'إطلاق حملة جمع ذاكرة للأسرة',
+        'إطلاق حملة جمع ذاكرة للعائلة',
         `تم إنشاء حملة توثيق: ${cleanTitle}`
       );
     } catch {
@@ -734,7 +734,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   };
 
   const handleCopyQuestCallout = async (quest: FamilyMemoryQuest) => {
-    const shareMsg = `✦ نداء توثيق خاص بأسرة ${result.familyName} ✦\n«${quest.title}»\n\n${quest.promptText}\n\nللمشاركة وإرسال الصور أو الأسماء مباشرة عبر بوابة أسرتنا:\n${cleanPortalDisplayUrl}`;
+    const shareMsg = `✦ نداء توثيق خاص بعائلة ${result.familyName} ✦\n«${quest.title}»\n\n${quest.promptText}\n\nللمشاركة وإرسال الصور أو الأسماء مباشرة عبر بوابة عائلتنا:\n${cleanPortalDisplayUrl}`;
     try {
       await navigator.clipboard.writeText(shareMsg);
       setCopiedQuestId(quest.id);
@@ -763,7 +763,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         setCircle(refreshed);
         onLogActivity?.(
           'اعتماد ودمج إثراء عائلي',
-          `تم اعتماد مقترح (${req.requesterName}) ودمجه في سجلات الأسرة`
+          `تم اعتماد مقترح (${req.requesterName}) ودمجه في سجلات العائلة`
         );
       }
     } catch {
@@ -777,19 +777,19 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   const craftedRelativeWhatsappHref = useMemo(() => {
     const recipient = relName.trim() ? `العزيز ${relName.trim()}، ` : '';
     const roleLabel = resolveRoleLabel(relRole);
-    const text = `السلام عليكم ${recipient}يسعدني دعوتك للانضمام إلى الدائرة العائلية الخاصة لأسرة ${result.familyName} على منصة «جذوري» بصلاحية (${roleLabel}) لتوثيق شجرة الأسرة وحفظ صورنا وذكرياتنا المشتركة ✦\nرابط بوابة أسرتنا:\n${cleanMajlisUrl}`;
+    const text = `السلام عليكم ${recipient}يسعدني دعوتك للانضمام إلى الدائرة العائلية الخاصة لعائلة ${result.familyName} على منصة «جذوري» بصلاحية (${roleLabel}) لتوثيق شجرة العائلة وحفظ صورنا وذكرياتنا المشتركة ✦\nرابط بوابة عائلتنا:\n${cleanMajlisUrl}`;
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   }, [relName, relRole, result.familyName, cleanMajlisUrl]);
 
   return (
-    <div className="space-y-3.5 pb-8">
+    <div className="w-full space-y-3.5 pb-8">
       {/* =====================================================================
           1. UNIFIED WORKSPACE HEADER (Exact 86px Parity Across All 6 Pages)
       ====================================================================== */}
       <UnifiedWorkspaceHeader
         testId="community-unified-header"
         icon={<Users className="w-5 h-5" />}
-        title={`مجتمع أسرة ${result.familyName}`}
+        title={`مجتمع عائلة ${result.familyName}`}
         metaItems={[
           'مساحة عائلية مغلقة',
           <span key="members" className="tabular-nums">
@@ -996,7 +996,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
       {isLoading && (
         <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-8 text-center text-xs text-[#252321]/65">
-          جارٍ مزامنة دائرة أسرة {result.familyName} من السجل السحابي الموثق...
+          جارٍ مزامنة دائرة عائلة {result.familyName} من السجل السحابي الموثق...
         </div>
       )}
 
@@ -1016,7 +1016,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   فعّل ميثاق «أمين سجل العائلة» لدعوة أقاربك ومنحهم صلاحيات التوثيق
                 </h3>
                 <p className="text-xs text-[#F7F2E9]/75 max-w-2xl leading-relaxed">
-                  يمكنك الآن تصفح البوابات العائلية المصرح لك بها أدناه أو استخدام رابط «سفير جذوري» لربح <span dir="ltr" className="font-mono font-bold text-[#E5C17A]">$10</span>، وبتفعيل صفة أمين السجل تفتح إدارة دائرة أسرتك بالكامل.
+                  يمكنك الآن تصفح البوابات العائلية المصرح لك بها أدناه أو استخدام رابط «سفير جذوري» لربح <span dir="ltr" className="font-mono font-bold text-[#E5C17A]">$10</span>، وبتفعيل صفة أمين السجل تفتح إدارة دائرة عائلتك بالكامل.
                 </p>
               </div>
               {onSignCharterAndEnableTree && (
@@ -1127,7 +1127,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   {/* Role Selector (3 Tiers Persisted in Firestore) */}
                   <div className="space-y-2">
                     <label className="block text-xs font-display font-bold text-[#252321]">
-                      مستوى الصلاحية داخل دائرة الأسرة
+                      مستوى الصلاحية داخل دائرة العائلة
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {ROLE_OPTIONS.map((roleOpt) => {
@@ -1176,7 +1176,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       <p className="text-[11px] text-[#252321]/60">
                         {contemporaryTreeOptions.length > 0
                           ? `اختر بطاقة القريب من بين ${contemporaryTreeOptions.length} فرداً مسجلاً في شجرتك المعاصرة.`
-                          : 'أضف أفراد أسرتك في «شجرتي» لتتمكن من ربط كل مدعو بموقعه الفعلي في الشجرة.'}
+                          : 'أضف أفراد عائلتك في «شجرتي» لتتمكن من ربط كل مدعو بموقعه الفعلي في الشجرة.'}
                       </p>
                     </div>
                     <select
@@ -1365,7 +1365,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <div className="flex items-center gap-2">
                   <Users className="w-4.5 h-4.5 text-[#8D4925]" />
                   <h3 className="text-sm font-display font-bold text-[#252321]">
-                    أفراد دائرة أسرة {result.familyName} المعتمدون
+                    أفراد دائرة عائلة {result.familyName} المعتمدون
                   </h3>
                 </div>
                 <span className="text-xs text-[#252321]/60 tabular-nums">
@@ -1382,7 +1382,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     </div>
                     <div className="space-y-1.5 max-w-lg mx-auto">
                       <h4 className="text-base font-display font-bold text-[#252321]">
-                        دائرة أسرتك جاهزة لاستقبال أول أفرادها
+                        دائرة عائلتك جاهزة لاستقبال أول أفرادها
                       </h4>
                       <p className="text-xs text-[#252321]/65 leading-relaxed">
                         توثيق تاريخ العائلة أجمل حين يتشارك فيه الأبناء والأعمام. ادعُ الآن أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
@@ -1406,7 +1406,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       const currentRole: KinshipCircleMemberRole =
                         member.role || 'memory_contributor';
                       const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
-                        `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة أسرة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة الأسرة:\n${cleanMajlisUrl}`
+                        `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
                       )}`;
 
                       return (
@@ -1585,7 +1585,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     >
                       <div className="min-w-0 space-y-0.5">
                         <div className="text-sm font-display font-bold text-[#252321] truncate">
-                          ديوان أسرة {portal.familyName}
+                          ديوان عائلة {portal.familyName}
                         </div>
                         <div className="text-[11px] text-[#252321]/60 truncate">
                           بإشراف: {portal.ownerDisplayName}
@@ -1626,7 +1626,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     حملات استكتاب العائلة وجمع الذاكرة
                   </h3>
                   <p className="text-[11px] text-[#252321]/60">
-                    أطلق نداءً حقيقياً للأسرة لجمع الصور والمواليد وذكريات الأجداد، وشاركه في مجموعة واتساب العائلة
+                    أطلق نداءً حقيقياً للعائلة لجمع الصور والمواليد وذكريات الأجداد، وشاركه في مجموعة واتساب العائلة
                   </p>
                 </div>
               </div>
@@ -1682,7 +1682,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                           }
                           className="w-full py-2 rounded-lg bg-white hover:bg-[#252321] hover:text-[#F7F2E9] border border-[#B98A78]/40 text-xs font-display font-bold text-[#252321] transition-colors cursor-pointer disabled:opacity-50"
                         >
-                          إطلاق هذه الحملة للأسرة ✦
+                          إطلاق هذه الحملة للعائلة ✦
                         </button>
                       </div>
                     ))}
@@ -1694,7 +1694,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
               {isRegistrar && questComposerOpen && (
                 <div className="rounded-2xl bg-[#FAF6EE] border border-[#D8755B]/40 p-5 space-y-3">
                   <div className="text-xs font-display font-bold text-[#252321]">
-                    صياغة نداء توثيق خاص بأسرة {result.familyName}
+                    صياغة نداء توثيق خاص بعائلة {result.familyName}
                   </div>
                   <input
                     type="text"
@@ -1741,7 +1741,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <div className="space-y-3 pt-2 border-t border-[#B98A78]/20">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-display font-bold text-[#252321]">
-                      حملات الذاكرة المحفوظة لأسرة {result.familyName}
+                      حملات الذاكرة المحفوظة لعائلة {result.familyName}
                     </span>
                     <span className="text-[#252321]/60 tabular-nums">
                       {activeMemoryQuests.length} نشطة ·{' '}
@@ -1752,7 +1752,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
                     {memoryQuests.map((quest) => {
                       const isQuestActive = quest.status === 'ACTIVE';
-                      const whatsappQuestText = `✦ نداء توثيق خاص بأسرة ${result.familyName} ✦\n«${quest.title}»\n\n${quest.promptText}\n\nلإرسال مشاركتك (صورة، مولود جديد، أو قصة) مباشرة عبر بوابة أسرتنا:\n${cleanPortalDisplayUrl}`;
+                      const whatsappQuestText = `✦ نداء توثيق خاص بعائلة ${result.familyName} ✦\n«${quest.title}»\n\n${quest.promptText}\n\nلإرسال مشاركتك (صورة، مولود جديد، أو قصة) مباشرة عبر بوابة عائلتنا:\n${cleanPortalDisplayUrl}`;
                       return (
                         <div
                           key={quest.id}
@@ -1849,7 +1849,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 </div>
               ) : (
                 <div className="rounded-xl bg-[#FAF6EE]/80 border border-dashed border-[#B98A78]/40 px-5 py-4 text-xs text-[#252321]/65 text-center">
-                  لم تُطلق حملات جمع ذاكرة بعد. اختر أحد القوالب أعلاه أو صُغ سؤالك الخاص لتحفيز أفراد أسرتك على مشاركة صورهم وذكرياتهم.
+                  لم تُطلق حملات جمع ذاكرة بعد. اختر أحد القوالب أعلاه أو صُغ سؤالك الخاص لتحفيز أفراد عائلتك على مشاركة صورهم وذكرياتهم.
                 </div>
               )}
             </div>
@@ -1862,7 +1862,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <Inbox className="w-4.5 h-4.5 text-[#D8755B]" />
                 <div>
                   <h3 className="text-sm font-display font-bold text-[#252321]">
-                    صندوق مراجعة واعتماد إثراءات الأسرة
+                    صندوق مراجعة واعتماد إثراءات العائلة
                   </h3>
                   <p className="text-[11px] text-[#252321]/60">
                     لا يُدمج أي مقترح في «شجرتي» أو «خزانتي» إلا بموافقتك الصريحة كأمين سجل

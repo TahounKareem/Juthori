@@ -1380,7 +1380,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 style={{ color: theme.textPrimaryHex }}
                 aria-hidden="true"
               >
-                امتداد النسب الموثق في السجل التاريخي للأسرة
+                امتداد النسب الموثق في السجل التاريخي للعائلة
               </div>
             </div>
             <span
@@ -1481,7 +1481,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 className="text-sm sm:text-base font-display font-extrabold leading-snug"
                 style={{ color: theme.textPrimaryHex }}
               >
-                لتثبيت الجذر الصحيح لعائلة ({effectiveResult.familyName})، أيٌّ من هذه الأصول أو القبائل يرتبط بأسرتكم؟
+                لتثبيت الجذر الصحيح لعائلة ({effectiveResult.familyName})، أيٌّ من هذه الأصول أو القبائل يرتبط بعائلتكم؟
               </h3>
               <p
                 className="text-xs font-medium"
@@ -1600,13 +1600,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 className="text-sm sm:text-base font-display font-extrabold leading-snug"
                 style={{ color: theme.textPrimaryHex }}
               >
-                لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بأسرتكم؟
+                لتحديد المسار النسبي آلياً، أيٌّ من هذه الحواضر أو المواضع يرتبط بعائلتكم؟
               </h3>
               <p
                 className="text-xs font-medium"
                 style={{ color: theme.textMutedHex }}
               >
-                اختر الموضع الجغرافي المرتبط بأسرتك ليقوم المحرك بحسم الجذر تلقائياً:
+                اختر الموضع الجغرافي المرتبط بعائلتك ليقوم المحرك بحسم الجذر تلقائياً:
               </p>
             </div>
 
@@ -1794,7 +1794,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             className="text-xs leading-relaxed"
             style={{ color: theme.textSecondaryHex }}
           >
-            يعمل فريق النسابين والمحققين حالياً على مراجعة أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلة ({result.familyName}). يمكنك الآن البدء ببناء شجرة أسرتك القريبة في تبويب «شجرتي» ريثما يعتمد الباحثون عمودك الكامل.
+            يعمل فريق النسابين والمحققين حالياً على مراجعة أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلة ({result.familyName}). يمكنك الآن البدء ببناء شجرة عائلتك القريبة في تبويب «شجرتي» ريثما يعتمد الباحثون عمودك الكامل.
           </p>
         </div>
 
@@ -1823,7 +1823,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 border: `1px solid ${theme.goldBorderHex}`,
               }}
             >
-              ابدأ ببناء شجرة أسرتك القريبة في «شجرتي» ←
+              ابدأ ببناء شجرة عائلتك القريبة في «شجرتي» ←
             </button>
           )}
         </div>
@@ -3145,7 +3145,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         <UnifiedWorkspaceHeader
           testId="lineage-unified-header"
           icon={<ScrollText className="w-5 h-5" />}
-          title={`عمود نسب أسرة ${effectiveResult.familyName}`}
+          title={`عمود نسب عائلة ${effectiveResult.familyName}`}
           centerSlot={
             <LineageCanvasFloatingControls
               variant="header"
@@ -3206,7 +3206,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       >
         <div
           className={
-            isFullscreen ? 'max-w-6xl mx-auto space-y-5' : 'space-y-4'
+            isFullscreen ? 'w-full max-w-7xl mx-auto space-y-5' : 'w-full space-y-4'
           }
         >
           {/* ================================================================ */}
@@ -3225,7 +3225,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   color: theme.textPrimaryHex,
                 }}
               >
-                عمود نسب أسرة {effectiveResult.familyName}
+                عمود نسب عائلة {effectiveResult.familyName}
               </h2>
 
               <div className="flex items-center justify-center gap-2 shrink-0">

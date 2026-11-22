@@ -529,7 +529,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             title: d.title.trim() || d.fileName || 'ملف محفوظ في الخزانة',
             mediaType: d.mediaType,
             folderId: d.folderId || folders[0]?.id || 'folder_docs',
-            dateOrOccasion: d.dateOrOccasion.trim() || 'أرشيف الأسرة',
+            dateOrOccasion: d.dateOrOccasion.trim() || 'أرشيف العائلة',
             description: d.description.trim() || undefined,
             fileDataUrl: cloudRes.url,
             thumbnailDataUrl: cloudRes.thumbnailUrl || d.thumbnailDataUrl,
@@ -842,7 +842,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   return (
     <div
       data-testid="family-memory-vault-view"
-      className="space-y-3.5 text-right relative"
+      className="w-full space-y-3.5 text-right relative"
     >
       {/* Hidden Multi-File Input */}
       <input
@@ -884,7 +884,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       <UnifiedWorkspaceHeader
         testId="vault-unified-header"
         icon={<FolderArchive className="w-5 h-5" />}
-        title={`خزانة أسرة ${result.familyName}`}
+        title={`خزانة عائلة ${result.familyName}`}
         centerSlot={
           <div className="inline-flex items-center gap-1.5">
             {/* Compact Expanding Quick Search */}

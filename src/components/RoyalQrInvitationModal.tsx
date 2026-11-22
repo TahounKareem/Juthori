@@ -104,7 +104,7 @@ export const RoyalQrInvitationModal: React.FC<RoyalQrInvitationModalProps> = ({
         // Invitation copy
         ctx.fillStyle = '#252321';
         ctx.font = 'bold 34px Tajawal, Cairo, sans-serif';
-        ctx.fillText('يسعدنا دعوتكم لتصفح بوابة الأسرة الرقمية وإثراء ذاكرتها', 540, 400);
+        ctx.fillText('يسعدنا دعوتكم لتصفح بوابة العائلة الرقمية وإثراء ذاكرتها', 540, 400);
 
         ctx.fillStyle = '#6E5A4C';
         ctx.font = '26px Tajawal, Cairo, sans-serif';
@@ -140,7 +140,7 @@ export const RoyalQrInvitationModal: React.FC<RoyalQrInvitationModalProps> = ({
         ctx.fillStyle = '#8D4925';
         ctx.font = 'bold 25px Tajawal, Cairo, sans-serif';
         ctx.fillText(
-          'امسح الرمز بكاميرا الجوال للدخول المباشر إلى ديوان ومشجرة الأسرة',
+          'امسح الرمز بكاميرا الجوال للدخول المباشر إلى ديوان ومشجرة العائلة',
           540,
           1155
         );

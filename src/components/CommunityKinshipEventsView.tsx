@@ -111,10 +111,10 @@ export const CommunityKinshipEventsView: React.FC<
             </div>
             <div>
               <h3 className="text-sm font-display font-bold text-[#252321]">
-                متابعة مناسبات الأسرة وتأكيد الحضور (RSVP)
+                متابعة مناسبات العائلة وتأكيد الحضور (RSVP)
               </h3>
               <p className="text-[11px] text-[#252321]/60">
-                مرتبطة لحظياً بالمناسبات المسجّلة في بوابة أسرة {familyName} «موقعي»
+                مرتبطة لحظياً بالمناسبات المسجّلة في بوابة عائلة {familyName} «موقعي»
               </p>
             </div>
           </div>
@@ -176,9 +176,9 @@ export const CommunityKinshipEventsView: React.FC<
                     })
                   : 'تاريخ غير محدد';
 
-                const whatsappEventText = `السلام عليكم أحبتي أبناء أسرة ${familyName} الكرام ✦\nتذكير بمناسبة: «${ev.title}»\nالتاريخ: ${dateFormatted}\nالموقع: ${ev.locationLabel || 'يُحدد عبر البوابة'}\n${
+                const whatsappEventText = `السلام عليكم أحبتي أبناء عائلة ${familyName} الكرام ✦\nتذكير بمناسبة: «${ev.title}»\nالتاريخ: ${dateFormatted}\nالموقع: ${ev.locationLabel || 'يُحدد عبر البوابة'}\n${
                   ev.hostNote ? `ملاحظة الداعي: ${ev.hostNote}\n` : ''
-                }يرجى تأكيد حضوركم وعدد المرافقين عبر بوابة الأسرة:\n${cleanPortalUrl}`;
+                }يرجى تأكيد حضوركم وعدد المرافقين عبر بوابة العائلة:\n${cleanPortalUrl}`;
 
                 return (
                   <div
@@ -333,7 +333,7 @@ export const CommunityKinshipEventsView: React.FC<
                   <HeartHandshake className="w-5 h-5" />
                 </div>
                 <div className="text-xs font-display font-bold text-[#252321]">
-                  بانتظار أول مساهمة معتمدة من الأسرة
+                  بانتظار أول مساهمة معتمدة من العائلة
                 </div>
                 <p className="text-[11px] text-[#252321]/60 max-w-sm leading-relaxed">
                   عند اعتمادك لأي مقترح إضافة فرد أو صورة تاريخية من قريبك في «مركز الإثراء»، يتصدّر اسمه تلقائياً لوحة شرف حماة الذاكرة هنا وفي موقع العائلة.
@@ -408,10 +408,10 @@ export const CommunityKinshipEventsView: React.FC<
                   <GitBranch className="w-5 h-5" />
                 </div>
                 <div className="text-xs font-display font-bold text-[#252321]">
-                  شجرة الأسرة المعاصرة بانتظار التدوين
+                  شجرة العائلة المعاصرة بانتظار التدوين
                 </div>
                 <p className="text-[11px] text-[#252321]/60 max-w-sm leading-relaxed">
-                  بمجرد إضافة أفراد أسرتك المعاصرين في «شجرتي»، تظهر هنا إحصائيات الأجيال والفروع والأسماء الأكثر تداولاً تلقائياً.
+                  بمجرد إضافة أفراد عائلتك المعاصرين في «شجرتي»، تظهر هنا إحصائيات الأجيال والفروع والأسماء الأكثر تداولاً تلقائياً.
                 </p>
               </div>
             ) : (
@@ -419,7 +419,7 @@ export const CommunityKinshipEventsView: React.FC<
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/25 p-3.5 text-center">
                     <div className="text-[11px] text-[#252321]/60">
-                      أفراد الأسرة
+                      أفراد العائلة
                     </div>
                     <div className="text-2xl font-display font-bold text-[#252321] tabular-nums mt-0.5">
                       {treePulse.totalContemporaryMembers}
@@ -451,7 +451,7 @@ export const CommunityKinshipEventsView: React.FC<
                   <div className="space-y-2">
                     <div className="text-xs font-display font-bold text-[#252321] flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5 text-[#8D4925]" />
-                      <span>أبرز فروع الأسرة المدوّنة</span>
+                      <span>أبرز فروع العائلة المدوّنة</span>
                     </div>
                     <div className="space-y-1.5">
                       {treePulse.largestBranches.slice(0, 4).map((branch) => {
@@ -492,7 +492,7 @@ export const CommunityKinshipEventsView: React.FC<
                 {treePulse.topCommonNames.length > 0 && (
                   <div className="pt-1 border-t border-[#B98A78]/20 flex flex-wrap items-center gap-2 text-[11px]">
                     <span className="font-semibold text-[#252321]/65">
-                      الأسماء المتكررة في الأسرة:
+                      الأسماء المتكررة في العائلة:
                     </span>
                     {treePulse.topCommonNames.slice(0, 5).map((item) => (
                       <span
