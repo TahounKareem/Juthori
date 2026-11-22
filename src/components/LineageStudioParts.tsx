@@ -609,6 +609,7 @@ interface LineageCanvasFloatingControlsProps {
   onZoomOut: () => void;
   onResetZoomCenter: () => void;
   onToggleFullscreen: () => void;
+  variant?: 'floating' | 'inline';
 }
 
 export const LineageCanvasFloatingControls: React.FC<
@@ -621,102 +622,137 @@ export const LineageCanvasFloatingControls: React.FC<
   onZoomOut,
   onResetZoomCenter,
   onToggleFullscreen,
+  variant = 'floating',
 }) => {
-  return (
+  const isInline = variant === 'inline';
+
+  const toolbarContent = (
     <div
-      data-testid="lineage-floating-controls"
-      className="sticky bottom-3 z-30 flex justify-center pointer-events-none mt-6"
+      data-testid={
+        isInline ? 'lineage-inline-controls' : 'lineage-floating-controls'
+      }
+      className={`pointer-events-auto inline-flex items-center transition-colors ${
+        isInline
+          ? 'gap-0.5 px-1.5 py-1 rounded-xl'
+          : 'gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-2xl backdrop-blur-md'
+      }`}
+      style={{
+        backgroundColor: isInline
+          ? theme.surfaceBg
+          : theme.isDark
+          ? 'rgba(18, 31, 51, 0.9)'
+          : 'rgba(255, 253, 248, 0.92)',
+        border: `1px solid ${theme.goldBorderHex}${isInline ? '55' : '70'}`,
+        boxShadow: isInline
+          ? '0 1px 2px rgba(35,29,23,0.04)'
+          : theme.isDark
+          ? '0 8px 26px rgba(0,0,0,0.45)'
+          : '0 8px 24px rgba(35,29,23,0.1)',
+      }}
     >
-      <div
-        className="pointer-events-auto inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-2xl backdrop-blur-md transition-colors"
+      <button
+        type="button"
+        onClick={onZoomOut}
+        disabled={zoom <= 0.7}
+        title="تصغير العرض"
+        aria-label="تصغير العرض"
+        className={`${
+          isInline ? 'w-7 h-7 rounded-lg' : 'w-8 h-8 rounded-xl'
+        } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+        style={{ color: theme.textPrimaryHex }}
+      >
+        <ZoomOut className={isInline ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+      </button>
+
+      <span
+        className={`${
+          isInline
+            ? 'text-[11px] px-1 min-w-[38px]'
+            : 'text-xs px-1.5 min-w-[44px]'
+        } font-mono font-bold tabular-nums text-center`}
+        style={{ color: theme.textSecondaryHex }}
+        dir="ltr"
+      >
+        {Math.round(zoom * 100)}%
+      </span>
+
+      <button
+        type="button"
+        onClick={onZoomIn}
+        disabled={zoom >= 1.35}
+        title="تكبير العرض"
+        aria-label="تكبير العرض"
+        className={`${
+          isInline ? 'w-7 h-7 rounded-lg' : 'w-8 h-8 rounded-xl'
+        } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+        style={{ color: theme.textPrimaryHex }}
+      >
+        <ZoomIn className={isInline ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+      </button>
+
+      <span
+        className={`w-px ${isInline ? 'h-4 mx-0.5' : 'h-5 mx-0.5'}`}
+        style={{ backgroundColor: theme.surfaceBorder }}
+        aria-hidden="true"
+      />
+
+      <button
+        type="button"
+        onClick={onResetZoomCenter}
+        title="توسيط وإعادة الضبط"
+        className={`inline-flex items-center gap-1.5 ${
+          isInline
+            ? 'px-2 py-1 rounded-lg text-[11.5px]'
+            : 'px-2.5 py-1.5 rounded-xl text-xs'
+        } font-display font-bold transition-colors cursor-pointer whitespace-nowrap`}
+        style={{ color: theme.textSecondaryHex }}
+      >
+        <Compass className="w-3.5 h-3.5 shrink-0" style={{ color: theme.goldHex }} />
+        <span className={isInline ? 'inline' : 'hidden sm:inline'}>توسيط</span>
+      </button>
+
+      <button
+        type="button"
+        data-testid="lineage-fullscreen-toggle-btn"
+        onClick={onToggleFullscreen}
+        title={
+          isFullscreen
+            ? 'إغلاق وضع العرض الكامل'
+            : 'وضع العرض الكامل للمجالس'
+        }
+        className={`inline-flex items-center gap-1.5 ${
+          isInline
+            ? 'px-2.5 py-1 rounded-lg text-[11.5px]'
+            : 'px-3 py-1.5 rounded-xl text-xs'
+        } font-display font-extrabold transition-colors cursor-pointer whitespace-nowrap`}
         style={{
-          backgroundColor: theme.isDark
-            ? 'rgba(18, 31, 51, 0.9)'
-            : 'rgba(255, 253, 248, 0.92)',
-          border: `1px solid ${theme.goldBorderHex}70`,
-          boxShadow: theme.isDark
-            ? '0 8px 26px rgba(0,0,0,0.45)'
-            : '0 8px 24px rgba(35,29,23,0.1)',
+          backgroundColor: theme.goldSoftBg,
+          color: theme.accentTextHex,
+          border: `1px solid ${theme.goldBorderHex}80`,
         }}
       >
-        <button
-          type="button"
-          onClick={onZoomOut}
-          disabled={zoom <= 0.7}
-          title="تصغير العرض"
-          aria-label="تصغير العرض"
-          className="w-8 h-8 rounded-xl inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ color: theme.textPrimaryHex }}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
+        {isFullscreen ? (
+          <>
+            <Minimize2 className="w-3.5 h-3.5 shrink-0" />
+            <span>إنهاء العرض الكامل</span>
+          </>
+        ) : (
+          <>
+            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+            <span>عرض كامل للمجالس</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
 
-        <span
-          className="text-xs font-mono font-bold tabular-nums px-1.5 min-w-[44px] text-center"
-          style={{ color: theme.textSecondaryHex }}
-          dir="ltr"
-        >
-          {Math.round(zoom * 100)}%
-        </span>
+  if (isInline) {
+    return toolbarContent;
+  }
 
-        <button
-          type="button"
-          onClick={onZoomIn}
-          disabled={zoom >= 1.35}
-          title="تكبير العرض"
-          aria-label="تكبير العرض"
-          className="w-8 h-8 rounded-xl inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ color: theme.textPrimaryHex }}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-
-        <span
-          className="w-px h-5 mx-0.5"
-          style={{ backgroundColor: theme.surfaceBorder }}
-          aria-hidden="true"
-        />
-
-        <button
-          type="button"
-          onClick={onResetZoomCenter}
-          title="توسيط وإعادة الضبط"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap"
-          style={{ color: theme.textSecondaryHex }}
-        >
-          <Compass className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
-          <span className="hidden sm:inline">توسيط</span>
-        </button>
-
-        <button
-          type="button"
-          data-testid="lineage-fullscreen-toggle-btn"
-          onClick={onToggleFullscreen}
-          title={
-            isFullscreen
-              ? 'إغلاق وضع العرض الكامل'
-              : 'وضع العرض الكامل للمجالس'
-          }
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-display font-extrabold transition-colors cursor-pointer whitespace-nowrap"
-          style={{
-            backgroundColor: theme.goldSoftBg,
-            color: theme.accentTextHex,
-            border: `1px solid ${theme.goldBorderHex}80`,
-          }}
-        >
-          {isFullscreen ? (
-            <>
-              <Minimize2 className="w-3.5 h-3.5" />
-              <span>إنهاء العرض الكامل</span>
-            </>
-          ) : (
-            <>
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span>عرض كامل للمجالس</span>
-            </>
-          )}
-        </button>
-      </div>
+  return (
+    <div className="sticky bottom-3 z-30 flex justify-center pointer-events-none mt-6">
+      {toolbarContent}
     </div>
   );
 };

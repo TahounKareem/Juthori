@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Award,
   BookOpen,
+  Calendar,
   Camera,
   Check,
   CheckCircle2,
@@ -16,6 +18,7 @@ import {
   Paperclip,
   Plus,
   RotateCcw,
+  ScrollText,
   Sparkles,
   Upload,
   X,
@@ -28,7 +31,9 @@ import type {
 import {
   TreeCardThemeDefinition,
   TreePrestigeBadgeId,
+  formatCardSingleCalendarVitalDates,
   getPrestigeBadgeOptionsForGender,
+  resolvePrestigeBadgeMeta,
 } from '../utils/treeStudioConfig';
 
 export type MaleHonorificTitle =
@@ -258,6 +263,12 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   activeTreeTheme,
   avatarStyle,
   preferRealPhotos,
+  calendarDisplayMode,
+  showHonorific,
+  showKunya,
+  showDates,
+  showPrestigeBadges,
+  showDeceasedDignityFrame,
   isRecordKeeperTarget = false,
   formGender,
   formFirstName,
@@ -377,6 +388,57 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
       formAttachedDocName.trim() ||
       linkedMediaForPerson.length > 0
   );
+
+  // Live 3-Zone Luxury Plaque preview data (matches InteractiveFamilyTreeBuilder 1:1)
+  const previewPrestigeMeta = showPrestigeBadges
+    ? resolvePrestigeBadgeMeta(formPrestigeBadge, formGender)
+    : null;
+  const previewCrownLabel = [
+    isRecordKeeperTarget ? 'أمين السجل' : '',
+    previewPrestigeMeta?.label || '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const previewHonorific =
+    showHonorific && formHonorific && formHonorific !== 'بدون'
+      ? formHonorific
+      : '';
+  const previewPersonalLine = [
+    showKunya && formKunya.trim() ? formKunya.trim() : '',
+    (formMaidenFamilyLine || formMarriageAllianceNote || '').trim(),
+    formVitalStatus === 'deceased' && showDeceasedDignityFrame
+      ? isFemale
+        ? 'رحمها الله'
+        : 'رحمه الله'
+      : '',
+  ]
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' · ');
+  const previewPedestalDate = showDates
+    ? formatCardSingleCalendarVitalDates(
+        formBirthDate,
+        formDeathDate,
+        formBirthCalendar,
+        calendarDisplayMode,
+        formBirthPrecision
+      )
+    : null;
+  const previewPedestalPlace = formBirthPlace.trim();
+  const previewHasBio = Boolean(formBiography.trim());
+  const previewMediaCount = linkedMediaForPerson.length;
+  const previewHasPedestal = Boolean(
+    previewPedestalDate ||
+      previewPedestalPlace ||
+      previewMediaCount > 0 ||
+      previewHasBio
+  );
+  const showLivePlaquePreview =
+    mode === 'edit' ||
+    activeDetailPanel !== null ||
+    hasIdentityDetails ||
+    hasLifeDetails ||
+    hasLegacyDetails;
 
   const handleTogglePanel = (panel: StudioDetailPanelId) => {
     setActiveDetailPanel((prev) => (prev === panel ? null : panel));
@@ -749,6 +811,157 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     />
                   </button>
                 </div>
+
+                {/* Live 3-Zone Luxury Plaque Preview (Appears smoothly in Edit mode or when details are expanded) */}
+                {showLivePlaquePreview && (
+                  <div
+                    data-testid="studio-live-plaque-preview"
+                    className="rounded-2xl bg-[#F9F4E9]/70 border border-[#D4AF37]/25 px-4 py-3 flex flex-col items-center gap-2 animate-[studioPanelReveal_180ms_ease-out_both]"
+                  >
+                    <span className="text-[10px] font-display font-bold text-[#8A6D4E]">
+                      معاينة البطاقة في الشجرة
+                    </span>
+                    <div
+                      className={`relative overflow-visible min-w-[184px] max-w-[232px] w-full rounded-2xl border-[1.5px] flex flex-col text-right shadow-xs ${
+                        previewCrownLabel ? 'mt-2' : ''
+                      } ${
+                        activeTreeTheme.isDarkSurface
+                          ? 'bg-[#221D17] border-[#D4AF37]/75'
+                          : 'bg-gradient-to-l from-[#FFFDF9] via-[#FFFFFF] to-[#FCF7EC] border-[#C69E4B]/80'
+                      }`}
+                    >
+                      {previewCrownLabel && (
+                        <div
+                          className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9.5px] font-display font-bold leading-none whitespace-nowrap max-w-[184px] shadow-2xs ${
+                            activeTreeTheme.isDarkSurface
+                              ? 'bg-[#2B2318] border-[#D4AF37]/75 text-[#F4D58D]'
+                              : 'bg-gradient-to-b from-[#FFFDF7] to-[#FBF0D4] border-[#C99B3B]/65 text-[#8A5A17]'
+                          }`}
+                        >
+                          {previewPrestigeMeta && (
+                            <Award className="w-2.5 h-2.5 shrink-0 text-[#C59B27]" />
+                          )}
+                          <span className="truncate">{previewCrownLabel}</span>
+                        </div>
+                      )}
+
+                      <div
+                        className={`w-full flex items-center gap-3 px-3.5 ${
+                          previewCrownLabel ? 'pt-3 pb-2.5' : 'py-2.5'
+                        }`}
+                      >
+                        <div
+                          className="w-11 h-11 rounded-full shrink-0 overflow-hidden flex items-center justify-center"
+                          style={{
+                            boxShadow: `0 0 0 1.5px ${activeTreeTheme.primaryHex}99`,
+                          }}
+                        >
+                          <HeritageNodeAvatar
+                            personRole={
+                              isRecordKeeperTarget
+                                ? 'client'
+                                : isDaughterRole
+                                ? 'daughter'
+                                : 'child'
+                            }
+                            gender={formGender}
+                            avatarStyle={avatarStyle}
+                            customImageUrl={formPhotoUrl || undefined}
+                            preferRealPhoto={
+                              preferRealPhotos || Boolean(formPhotoUrl)
+                            }
+                            displayName={
+                              cleanPreviewFirst || (isFemale ? 'ك' : 'ف')
+                            }
+                            frameAccentHex={activeTreeTheme.primaryHex}
+                            size="md"
+                            className="!w-full !h-full !border-0"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                          <div className="min-w-0 leading-tight truncate whitespace-nowrap">
+                            {previewHonorific && (
+                              <span
+                                className={`text-[12px] font-display font-medium opacity-85 ml-1 ${
+                                  activeTreeTheme.isDarkSurface
+                                    ? 'text-[#E5C479]'
+                                    : 'text-[#96682A]'
+                                }`}
+                              >
+                                {previewHonorific}
+                              </span>
+                            )}
+                            <span
+                              className={`text-[16px] font-display font-bold leading-tight ${activeTreeTheme.nameText}`}
+                            >
+                              {cleanPreviewFirst || 'الاسم'}
+                            </span>
+                          </div>
+                          {previewPersonalLine && (
+                            <div
+                              className={`text-[11px] font-medium leading-tight truncate whitespace-nowrap ${activeTreeTheme.metaText}`}
+                            >
+                              {previewPersonalLine}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {previewHasPedestal && (
+                        <div
+                          className={`w-full px-3 py-1.5 rounded-b-[inherit] border-t flex items-center justify-between gap-2 text-[10.5px] leading-none whitespace-nowrap ${
+                            activeTreeTheme.isDarkSurface
+                              ? 'bg-[#2A231B]/80 border-[#D4AF37]/25 text-[#D8C5A0]'
+                              : 'bg-[#F7F1E3]/65 border-[#D4AF37]/20 text-[#6F5842]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {previewPedestalDate && (
+                              <span
+                                title={previewPedestalDate.alternateTooltip}
+                                className="inline-flex items-center gap-1 font-medium tabular-nums shrink-0"
+                              >
+                                <Calendar className="w-2.5 h-2.5 opacity-75 shrink-0" />
+                                <span>{previewPedestalDate.primaryText}</span>
+                              </span>
+                            )}
+                            {previewPedestalDate && previewPedestalPlace && (
+                              <span className="text-[#C59B27]/80 font-bold shrink-0">
+                                ·
+                              </span>
+                            )}
+                            {previewPedestalPlace && (
+                              <span
+                                title={previewPedestalPlace}
+                                className="inline-flex items-center gap-0.5 min-w-0 font-medium"
+                              >
+                                <MapPin className="w-2.5 h-2.5 opacity-75 shrink-0" />
+                                <span className="max-w-[78px] truncate">
+                                  {previewPedestalPlace}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                          {(previewMediaCount > 0 || previewHasBio) && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {previewMediaCount > 0 && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[9.5px] font-display font-bold bg-[#FBF3DF] border border-[#D4AF37]/50 text-[#8A5616] tabular-nums">
+                                  📎 {previewMediaCount}
+                                </span>
+                              )}
+                              {previewHasBio && (
+                                <span className="inline-flex items-center justify-center w-[19px] h-[17px] rounded-md border bg-[#FFFDF7] border-[#D4AF37]/45 text-[#8A5616]">
+                                  <ScrollText className="w-2.5 h-2.5" />
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* --------------------------------------------------------- */}
                 {/* EXPANDABLE PANEL 1: ✦ المكانة والأم                        */}

@@ -29,7 +29,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   ShoppingCart,
-  SlidersHorizontal,
   Trash2,
   User,
   Users,
@@ -373,11 +372,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
   const activeResult = verifiedResultOverride || result;
 
-  // User Avatar Dropdown & Mobile Quick-Utilities Menu State
+  // User Avatar Dropdown & Mobile Active-Tab Rail Refs
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const [mobileUtilityMenuOpen, setMobileUtilityMenuOpen] = useState(false);
-  const mobileUtilityRef = useRef<HTMLDivElement | null>(null);
   const mobileTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Modals & Exclusive Utility Pages
@@ -841,7 +838,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     initialOriginRegion,
   ]);
 
-  // Close User Avatar Dropdown & Mobile Utility Menu on outside click or Escape
+  // Close User Avatar Dropdown on outside click or Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -850,17 +847,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       ) {
         setUserDropdownOpen(false);
       }
-      if (
-        mobileUtilityRef.current &&
-        !mobileUtilityRef.current.contains(event.target as Node)
-      ) {
-        setMobileUtilityMenuOpen(false);
-      }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setUserDropdownOpen(false);
-        setMobileUtilityMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -2283,7 +2273,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       ? rawClientFamilyName
       : `أسرة ${rawClientFamilyName}`
     : '';
-  const compactFamilyEmblemLabel = rawClientFamilyName;
 
   const accountTierLabel = caps.hasRegistrarBadge
     ? caps.isVip
@@ -2295,46 +2284,251 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     ? 'الباقة الأساسية الموثقة ($5)'
     : 'العضوية المجانية';
 
+  const renderPrimaryNavigationTabs = (attachMobileRefs: boolean) => (
+    <div className="inline-flex items-center gap-1 p-1 sm:p-1.5 min-[1200px]:p-1 rounded-2xl bg-[#EFE8DA]/82 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
+      {DASHBOARD_TABS.map((tab) => {
+        const TabIcon = tab.icon;
+        const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
+        const isSelected = activeUtilityDrawer === null && activeTab === tab.id;
+        const isKashafiTab = tab.id === DashboardTab.MyExplorer;
+        const kashafiDynamicCount =
+          kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
+
+        let buttonClasses =
+          'group/tab relative px-3.5 md:px-3.5 min-[1200px]:px-2.5 xl:px-3 py-2 min-[1200px]:py-1.5 rounded-xl text-[12.5px] sm:text-[13px] min-[1200px]:text-[13px] xl:text-[13.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] min-[1200px]:min-h-[38px] snap-center select-none ';
+
+        if (isSelected && isKashafiTab) {
+          buttonClasses +=
+            'bg-gradient-to-b from-[#2E2722] to-[#1D1916] text-[#F5D896] border border-[#D4AF37]/55 shadow-[0_6px_16px_-6px_rgba(29,25,22,0.58)]';
+        } else if (isSelected) {
+          buttonClasses +=
+            'bg-gradient-to-b from-[#C96C4E] to-[#A85136] text-white shadow-[0_6px_16px_-6px_rgba(168,81,54,0.55)] ring-1 ring-[#F4D698]/35';
+        } else if (isLocked) {
+          buttonClasses +=
+            'text-[#252321]/45 hover:bg-white/55 hover:text-[#252321]/70';
+        } else if (isKashafiTab) {
+          buttonClasses +=
+            'bg-gradient-to-b from-[#FFFDF7] to-[#F7ECDA] text-[#7A4B1B] border border-[#C59B27]/45 hover:border-[#B3861D]/70 hover:bg-[#FFFBF0] hover:shadow-[0_2px_10px_-3px_rgba(197,155,39,0.3)]';
+        } else {
+          buttonClasses +=
+            'text-[#483A2F] hover:bg-white/85 hover:text-[#7C4D2B] hover:shadow-[0_1px_5px_rgba(90,65,35,0.08)]';
+        }
+
+        return (
+          <React.Fragment key={tab.id}>
+            {/* Subtle gilded hairline separating كشّافي within the unified track */}
+            {isKashafiTab && (
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-[#C59B27]/30 mx-0.5 shrink-0"
+              />
+            )}
+
+            <button
+              ref={
+                attachMobileRefs
+                  ? (el) => {
+                      mobileTabRefs.current[tab.id] = el;
+                    }
+                  : undefined
+              }
+              type="button"
+              onClick={() => handleTabClick(tab)}
+              aria-current={isSelected ? 'page' : undefined}
+              title={
+                isLocked
+                  ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
+                  : tab.label
+              }
+              className={buttonClasses}
+            >
+              <TabIcon
+                className={`w-[14px] h-[14px] xl:w-[15px] xl:h-[15px] shrink-0 transition-transform duration-200 ${
+                  isSelected && isKashafiTab
+                    ? 'text-[#E8C468]'
+                    : isSelected
+                    ? 'text-[#FBE5B4]'
+                    : isKashafiTab
+                    ? 'text-[#B38422] group-hover/tab:rotate-12'
+                    : 'text-[#8C6A4E]/80 group-hover/tab:text-[#8C5327]'
+                }`}
+                aria-hidden={true}
+              />
+
+              <span>{tab.label}</span>
+
+              {isKashafiTab && (
+                <span
+                  aria-hidden="true"
+                  className={`text-[11px] leading-none ${
+                    isSelected ? 'text-[#E8C468]' : 'text-[#C59B27]'
+                  }`}
+                >
+                  ✦
+                </span>
+              )}
+
+              {isKashafiTab && kashafiDynamicCount > 0 && (
+                <span
+                  data-testid="kashafi-tab-unread-badge"
+                  className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none ${
+                    isSelected
+                      ? 'bg-[#D4AF37]/25 text-[#F9E3A6] border border-[#D4AF37]/40'
+                      : 'bg-[#8D4925] text-[#FAF4E4]'
+                  }`}
+                >
+                  {kashafiDynamicCount}
+                </span>
+              )}
+
+              {isLocked && (
+                <Lock
+                  className="w-3.5 h-3.5 text-[#DC2626]/80 shrink-0"
+                  aria-label="ميزة بريميوم مقفلة"
+                />
+              )}
+
+              {/* Refined Gilded Bottom Glow Indicator on Active Tab */}
+              {isSelected && (
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-[3px] left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full ${
+                    isKashafiTab ? 'bg-[#E8C468]/90' : 'bg-[#FCE3AE]/90'
+                  }`}
+                />
+              )}
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-hidden">
-      {/* A. SINGLE-ROW LUXURY ARCHITECTURAL HEADER SHELL & CENTERED NAVIGATION DOCK */}
-      <header className="relative lg:sticky lg:top-0 z-30 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
+    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-clip">
+      {/* A. LUXURY ARCHITECTURAL HEADER SHELL (Solo Right Brand | Centered 7-Tab Hero | Left Alerts + Profile) */}
+      <header className="relative md:sticky md:top-0 z-30 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
         {/* Subtle Architectural Islamic Arabesque & Lineage Vine SVG Watermark */}
         <DashboardHeaderWatermark />
 
-        <div className="relative z-10 max-w-[1380px] mx-auto px-3.5 sm:px-5 xl:px-6">
+        <div className="relative z-10 max-w-[1400px] mx-auto px-3 sm:px-5 xl:px-6">
           {/* ============================================================== */}
-          {/* UNIFIED RESPONSIVE HEADER ROW:                                 */}
-          {/* • >=1180px: Single 78px row (Right Identity | Center Nav | Left Dock) */}
-          {/* • 768px–1179px: Row 1 (Identity + Utility) + Centered Row 2 (Nav)     */}
-          {/* • <768px: Compact Mobile Bar + Touch-Scrollable Nav Strip             */}
+          {/* RESPONSIVE HEADER SHELL:                                       */}
+          {/* • Desktop (>=1200px): Single 76px row — Right Brand | Centered 7-Tab Hero | Left Mini Alerts + Profile */}
+          {/* • Tablet (768–1199px): Row 1 (Brand right + Account left) + Centered Row 2 (7-Tab Nav)                 */}
+          {/* • Mobile (<768px): Ultra-light h-14 Bar (Logo right + Mini Alerts & Compact Identity left)              */}
           {/* ============================================================== */}
-          <div className="flex flex-wrap min-[1180px]:flex-nowrap items-center justify-between gap-x-2 sm:gap-x-3 xl:gap-x-4 min-[1180px]:h-[78px]">
-            {/* 1. RIGHT CLUSTER (RTL START — shrink-0): Logo + Sculpted Profile Identity Capsule */}
-            <div className="order-1 py-2.5 sm:py-3 min-[1180px]:py-0 flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
-              {/* Brand Identity Lockup — Logo Only */}
-              <div className="flex items-center shrink-0">
-                <JuthoriLogo size="sm" onClick={onBackToLanding} />
-              </div>
+          <div className="flex flex-wrap min-[1200px]:flex-nowrap min-[1340px]:grid min-[1340px]:grid-cols-[1fr_auto_1fr] items-center justify-between gap-x-2 sm:gap-x-3 xl:gap-x-4 h-14 md:h-auto min-[1200px]:h-[76px]">
+            {/* 1. RIGHT BRAND ANCHOR (RTL START): Solo «جذوري» Logo with dignified breathing space */}
+            <div className="order-1 md:py-2.5 min-[1200px]:py-0 flex items-center shrink-0 min-[1340px]:justify-self-start">
+              <JuthoriLogo size="sm" onClick={onBackToLanding} />
+            </div>
 
-              {/* Delicate Vertical Gilded Hairline */}
-              <div
-                aria-hidden="true"
-                className="hidden sm:block h-8 w-px bg-gradient-to-b from-transparent via-[#C59B27]/40 to-transparent shrink-0"
-              />
+            {/* 2. TRUE CENTERED PRIMARY NAVIGATION (Desktop >=1200px single-row center | Tablet 768–1199px centered row 2) */}
+            <div className="hidden md:flex order-3 min-[1200px]:order-2 w-full min-[1200px]:w-auto min-[1200px]:flex-1 min-[1340px]:flex-none min-[1340px]:justify-self-center border-t border-[#D4AF37]/15 min-[1200px]:border-t-0 py-2.5 min-[1200px]:py-0 items-center justify-center min-w-0">
+              <nav
+                aria-label="تبويبات لوحة تحكم العميل"
+                className="flex items-center justify-center max-w-full"
+              >
+                {renderPrimaryNavigationTabs(false)}
+              </nav>
+            </div>
 
-              {/* BESPOKE SCULPTED LUXURY PROFILE IDENTITY CAPSULE */}
-              <div className="relative min-w-0" ref={dropdownRef}>
+            {/* 3. UNIFIED LEFT ACCOUNT & ALERTS CLUSTER (RTL END): 2 Mini Live-Alert Icons + Far-Left Luxury Profile Capsule */}
+            <div className="order-2 min-[1200px]:order-3 md:py-2.5 min-[1200px]:py-0 flex items-center gap-1 sm:gap-1.5 shrink-0 min-[1340px]:justify-self-end">
+              {/* Mini Live-Alert Icons Only (32px, 1.5px stroke, quiet & non-competing) */}
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                {/* 1. Notifications */}
                 <button
                   type="button"
                   onClick={() => {
-                    setMobileUtilityMenuOpen(false);
-                    setUserDropdownOpen((prev) => !prev);
+                    setUserDropdownOpen(false);
+                    setActiveUtilityDrawer((cur) =>
+                      cur === 'notifications' ? null : 'notifications'
+                    );
+                    setNotifications((prev) =>
+                      prev.map((n) => ({ ...n, unread: false }))
+                    );
                   }}
+                  title="الإشعارات والتنبيهات"
+                  aria-label="الإشعارات والتنبيهات"
+                  className={`group/util relative w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    activeUtilityDrawer === 'notifications'
+                      ? 'bg-[#C86B4E]/15 text-[#A85136] ring-1 ring-[#C86B4E]/35'
+                      : unreadCount > 0
+                      ? 'text-[#7A4B21] hover:bg-[#C59B27]/12 hover:text-[#8C5327]'
+                      : 'text-[#7A6A5B] hover:bg-[#C59B27]/12 hover:text-[#8C5327]'
+                  }`}
+                >
+                  <Bell
+                    className="w-[17px] h-[17px] transition-transform duration-200 group-hover/util:scale-105"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-[#C8372D] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#FDFBF7]">
+                      {unreadCount}
+                    </span>
+                  )}
+                  <span
+                    role="tooltip"
+                    className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  >
+                    الإشعارات
+                  </span>
+                </button>
+
+                {/* 2. Cart & Wallet */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserDropdownOpen(false);
+                    setActiveUtilityDrawer((cur) => (cur === 'cart' ? null : 'cart'));
+                  }}
+                  title="الاشتراكات والسلة"
+                  aria-label="الاشتراكات والسلة"
+                  className={`group/util relative w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    activeUtilityDrawer === 'cart'
+                      ? 'bg-[#C86B4E]/15 text-[#A85136] ring-1 ring-[#C86B4E]/35'
+                      : availableCartItems.length > 0
+                      ? 'text-[#8C5327] hover:bg-[#C59B27]/12 hover:text-[#7A4B21]'
+                      : 'text-[#7A6A5B] hover:bg-[#C59B27]/12 hover:text-[#8C5327]'
+                  }`}
+                >
+                  <ShoppingCart
+                    className="w-[17px] h-[17px] transition-transform duration-200 group-hover/util:scale-105"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                  {availableCartItems.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-[#8D4925] text-[#FAF4E4] text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#FDFBF7]">
+                      {availableCartItems.length}
+                    </span>
+                  )}
+                  <span
+                    role="tooltip"
+                    className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  >
+                    السلة والاشتراكات
+                  </span>
+                </button>
+              </div>
+
+              {/* Delicate Vertical Gilded Hairline separating Alerts & Profile */}
+              <span
+                aria-hidden="true"
+                className="hidden sm:block w-px h-5 bg-gradient-to-b from-transparent via-[#C59B27]/35 to-transparent mx-0.5 shrink-0"
+              />
+
+              {/* BESPOKE SCULPTED LUXURY PROFILE IDENTITY CAPSULE (Far-Left Anchor) */}
+              <div className="relative min-w-0" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserDropdownOpen((prev) => !prev)}
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
-                  aria-label="قائمة الحساب الشخصي"
-                  className={`group relative overflow-hidden flex items-center gap-2 sm:gap-2.5 xl:gap-3 rounded-full pr-1.5 pl-2.5 sm:pl-3 xl:pl-3.5 py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[235px] sm:max-w-[300px] min-[1180px]:max-w-[268px] xl:max-w-[305px] will-change-transform ${
+                  aria-label="قائمة الحساب الشخصي والأدوات"
+                  className={`group relative overflow-hidden flex items-center gap-1.5 md:gap-2.5 rounded-full pr-1 pl-2 md:pr-1.5 md:pl-3 py-1 md:py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right max-w-[150px] md:max-w-[270px] xl:max-w-[288px] will-change-transform ${
                     userDropdownOpen
                       ? 'bg-gradient-to-l from-[#FFFDF8] via-[#FAF3E4] to-[#F3E7D2] border-[#C59B27]/65 shadow-[0_8px_22px_-10px_rgba(140,98,57,0.34)] -translate-y-0.5'
                       : 'bg-gradient-to-l from-[#FFFDF9]/95 via-[#FBF6EC]/90 to-[#F4ECDD]/85 border-[#D4AF37]/30 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.16)] hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-10px_rgba(140,98,57,0.28)] hover:border-[#C59B27]/55 active:scale-[0.985]'
@@ -2347,9 +2541,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   />
 
                   {/* Double Gilded Ring Portrait */}
-                  <span className="relative p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 shrink-0 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
-                    <span className="block p-[1.5px] rounded-full bg-[#FFFDF9]">
-                      <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
+                  <span className="relative p-[1.5px] md:p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 shrink-0 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
+                    <span className="block p-[1px] md:p-[1.5px] rounded-full bg-[#FFFDF9]">
+                      <span className="w-7 h-7 md:w-8 md:h-8 xl:w-9 xl:h-9 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
                         {avatarUrl ? (
                           <img
                             src={avatarUrl}
@@ -2359,7 +2553,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           />
                         ) : (
                           <User
-                            className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#F3D299]"
+                            className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#F3D299]"
                             aria-hidden="true"
                           />
                         )}
@@ -2367,30 +2561,27 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </span>
                   </span>
 
-                  {/* Separated First Name + Gilded Hairline + Independent Family Emblem + Calm Tier Line */}
+                  {/* Mobile (<768px): Compact First Name Only | Tablet & Desktop (>=768px): First Name + Family Emblem + Tier */}
                   <div className="relative z-10 min-w-0 text-right">
-                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                      <span className="text-[13px] sm:text-[14px] xl:text-[14.5px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[12.5px] md:text-[13.5px] xl:text-[14px] font-display font-extrabold text-[#252321] leading-none whitespace-nowrap truncate">
                         {cleanClientFirstName}
                       </span>
                       {cleanFamilyEmblemLabel && (
                         <>
                           <span
                             aria-hidden="true"
-                            className="w-px h-3.5 bg-gradient-to-b from-transparent via-[#C59B27]/70 to-transparent shrink-0"
+                            className="hidden md:block w-px h-3.5 bg-gradient-to-b from-transparent via-[#C59B27]/70 to-transparent shrink-0"
                           />
-                          <span className="hidden sm:inline-flex items-center px-2 py-[3px] rounded-full bg-gradient-to-b from-[#F5EBD7] to-[#ECE0C7] border border-[#C59B27]/35 text-[#7A4B21] text-[10.5px] xl:text-[11px] font-display font-bold leading-none whitespace-nowrap truncate max-w-[110px] xl:max-w-[140px]">
+                          <span className="hidden md:inline-flex items-center px-2 py-[3px] rounded-full bg-gradient-to-b from-[#F5EBD7] to-[#ECE0C7] border border-[#C59B27]/35 text-[#7A4B21] text-[10.5px] xl:text-[11px] font-display font-bold leading-none whitespace-nowrap truncate max-w-[110px] xl:max-w-[130px]">
                             {cleanFamilyEmblemLabel}
-                          </span>
-                          <span className="sm:hidden inline-flex items-center px-1.5 py-[2px] rounded-full bg-[#F3E8D3] border border-[#C59B27]/35 text-[#7A4B21] text-[10px] font-display font-bold leading-none truncate max-w-[92px]">
-                            {compactFamilyEmblemLabel}
                           </span>
                         </>
                       )}
                     </div>
 
                     <div
-                      className={`text-[10px] sm:text-[10.5px] xl:text-[11px] font-display mt-1 leading-none truncate ${
+                      className={`hidden md:block text-[10px] xl:text-[10.5px] font-display mt-1 leading-none truncate ${
                         caps.isVip || caps.hasRegistrarBadge
                           ? 'text-[#9A6A28] font-bold'
                           : 'text-[#6A5746] font-medium'
@@ -2402,14 +2593,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                   {/* Animated Sculpted Chevron */}
                   <span
-                    className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                    className={`relative z-10 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200 ${
                       userDropdownOpen
                         ? 'bg-[#C59B27]/20 text-[#8C5327]'
                         : 'bg-[#EDE4D3]/75 text-[#6E5643] group-hover:bg-[#E7D8BE]/90 group-hover:text-[#7A4B21]'
                     }`}
                   >
                     <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-300 ease-out ${
+                      className={`w-3 h-3 md:w-3.5 md:h-3.5 transition-transform duration-300 ease-out ${
                         userDropdownOpen
                           ? 'rotate-180'
                           : 'group-hover:translate-y-0.5'
@@ -2419,13 +2610,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   </span>
                 </button>
 
-                {/* User Avatar Dropdown Menu (100% Preserved Functionality + Elevated Glass Finish) */}
+                {/* UNIFIED PROFILE & TOOLS DROPDOWN MENU (Left-anchored for far-left RTL trigger) */}
                 {userDropdownOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 mt-2.5 w-80 max-w-[calc(100vw-1.75rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
+                    className="absolute left-0 mt-2.5 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
                   >
-                    {/* Dropdown Header: Full Name, Email, Verification & Registrar Badges */}
+                    {/* Dropdown Identity Header: Full Name, Family Emblem, Tier, Email & Verification */}
                     <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-display font-extrabold text-sm text-[#252321] truncate">
@@ -2446,6 +2637,18 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           </span>
                         )}
                       </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {cleanFamilyEmblemLabel && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/80 border border-[#C59B27]/35 text-[#7A4B21] text-[10.5px] font-display font-bold">
+                            {cleanFamilyEmblemLabel}
+                          </span>
+                        )}
+                        <span className="text-[10.5px] font-display font-bold text-[#9A6A28]">
+                          {accountTierLabel}
+                        </span>
+                      </div>
+
                       <div
                         className="text-xs font-mono text-[#252321]/70 truncate"
                         dir="ltr"
@@ -2454,7 +2657,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       </div>
                     </div>
 
-                    {/* Menu Items */}
+                    {/* Primary Account & Family Record Items */}
                     <div className="py-1.5 px-2 space-y-0.5">
                       <button
                         type="button"
@@ -2463,10 +2666,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setUserDropdownOpen(false);
                           setActiveUtilityDrawer('profile');
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4" />
+                          <User className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-display font-bold text-[#252321]">
@@ -2483,34 +2686,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         role="menuitem"
                         onClick={() => {
                           setUserDropdownOpen(false);
-                          setActiveUtilityDrawer('settings');
-                        }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
-                          <Settings className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-display font-bold text-[#252321]">
-                            إعدادات الحساب والأمان
-                          </div>
-                          <div className="text-[11px] text-[#252321]/65 truncate">
-                            توثيق البريد، كلمة المرور، الإشعارات، وحذف الحساب
-                          </div>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setUserDropdownOpen(false);
                           setActiveUtilityDrawer('cart');
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
-                          <CreditCard className="w-4 h-4" />
+                          <CreditCard className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between">
@@ -2534,10 +2715,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setUserDropdownOpen(false);
                           setShowCharterModal(true);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
-                          <FileSignature className="w-4 h-4" />
+                          <FileSignature className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
@@ -2564,10 +2745,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setActiveUtilityDrawer(null);
                           setActiveTab(DashboardTab.ResearchTickets);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
-                          <Scroll className="w-4 h-4" />
+                          <Scroll className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
@@ -2591,9 +2772,98 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       </button>
                     </div>
 
+                    {/* Integrated Secondary Tools Section (Settings, Activity Log, Help, Language) */}
+                    <div className="py-1.5 px-2 border-t border-[#D4AF37]/20 space-y-0.5">
+                      <div className="px-3 pt-1 pb-0.5 text-[10px] font-display font-bold text-[#8C6E52] tracking-wide">
+                        الأدوات والتفضيلات
+                      </div>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer('settings');
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                          <Settings className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-display font-bold text-[#252321]">
+                            الإعدادات العامة والأمان
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer((cur) =>
+                            cur === 'activity' ? null : 'activity'
+                          );
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                          <Activity className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-display font-bold text-[#252321]">
+                            سجل النشاط
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setActiveUtilityDrawer((cur) =>
+                            cur === 'help' ? null : 'help'
+                          );
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                          <HelpCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-display font-bold text-[#252321]">
+                            المساعدة والإرشاد
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setBilingualLabels((v) => !v);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-right transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <span className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                            <Globe className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          </span>
+                          <span className="text-xs font-display font-bold text-[#252321]">
+                            تغيير اللغة
+                          </span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#FAF3E4] border border-[#C59B27]/40 text-[10px] font-mono font-bold text-[#8C5327] shrink-0">
+                          {bilingualLabels ? 'AR / EN' : 'العربية'}
+                        </span>
+                      </button>
+                    </div>
+
                     {/* Logout Action at Bottom of Dropdown */}
                     {onLogout && (
-                      <div className="pt-1.5 mt-1 border-t border-[#D4AF37]/20 px-2 pb-1">
+                      <div className="pt-1.5 mt-0.5 border-t border-[#D4AF37]/20 px-2 pb-1">
                         <button
                           type="button"
                           role="menuitem"
@@ -2601,18 +2871,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             setUserDropdownOpen(false);
                             onLogout();
                           }}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-700 flex items-center gap-3 text-right transition-colors cursor-pointer"
+                          className="w-full px-3 py-2 rounded-xl hover:bg-red-50 text-red-700 flex items-center gap-3 text-right transition-colors cursor-pointer"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-red-100/80 text-red-700 flex items-center justify-center shrink-0">
-                            <LogOut className="w-4 h-4" />
+                          <div className="w-7 h-7 rounded-lg bg-red-100/80 text-red-700 flex items-center justify-center shrink-0">
+                            <LogOut className="w-3.5 h-3.5" />
                           </div>
-                          <div>
-                            <div className="text-xs font-display font-bold">
-                              تسجيل الخروج
-                            </div>
-                            <div className="text-[11px] text-red-700/75">
-                              إنهاء الجلسة والعودة للصفحة الرئيسية
-                            </div>
+                          <div className="text-xs font-display font-bold">
+                            تسجيل الخروج
                           </div>
                         </button>
                       </div>
@@ -2621,474 +2886,34 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 )}
               </div>
             </div>
-
-            {/* 2. CENTER CLUSTER: Centered 7-Tab Navigation Dock */}
-            {/* Sits in exact center of the single 78px row at >=1180px; wraps smoothly as centered Row 2 on <1180px */}
-            <div className="order-3 min-[1180px]:order-2 w-full min-[1180px]:w-auto min-[1180px]:flex-1 border-t border-[#D4AF37]/15 min-[1180px]:border-t-0 py-2 sm:py-2.5 min-[1180px]:py-0 relative flex items-center md:justify-center min-w-0">
-              {/* Soft scroll fade edge cues on mobile only */}
-              <div
-                aria-hidden="true"
-                className="md:hidden pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#F8F3E9] to-transparent z-10"
-              />
-              <div
-                aria-hidden="true"
-                className="md:hidden pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-[#F8F3E9] to-transparent z-10"
-              />
-
-              <nav
-                aria-label="تبويبات لوحة تحكم العميل"
-                className="w-full md:w-auto flex items-center md:justify-center overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x px-1 md:px-0 max-w-full"
-              >
-                <div className="inline-flex items-center gap-1 p-1 sm:p-1.5 min-[1180px]:p-1 rounded-2xl bg-[#EFE8DA]/80 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
-                  {DASHBOARD_TABS.map((tab) => {
-                    const TabIcon = tab.icon;
-                    const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
-                    const isSelected =
-                      activeUtilityDrawer === null && activeTab === tab.id;
-                    const isKashafiTab = tab.id === DashboardTab.MyExplorer;
-                    const kashafiDynamicCount =
-                      kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
-
-                    let buttonClasses =
-                      'group/tab relative px-3.5 md:px-3.5 min-[1180px]:px-2.5 xl:px-3 py-2 min-[1180px]:py-1.5 rounded-xl text-[12.5px] sm:text-[13px] min-[1180px]:text-[13px] xl:text-[13.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 xl:gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[40px] min-[1180px]:min-h-[38px] snap-center select-none ';
-
-                    if (isSelected && isKashafiTab) {
-                      buttonClasses +=
-                        'bg-gradient-to-b from-[#2E2722] to-[#1D1916] text-[#F5D896] border border-[#D4AF37]/55 shadow-[0_6px_16px_-6px_rgba(29,25,22,0.58)]';
-                    } else if (isSelected) {
-                      buttonClasses +=
-                        'bg-gradient-to-b from-[#C96C4E] to-[#A85136] text-white shadow-[0_6px_16px_-6px_rgba(168,81,54,0.55)] ring-1 ring-[#F4D698]/35';
-                    } else if (isLocked) {
-                      buttonClasses +=
-                        'text-[#252321]/45 hover:bg-white/55 hover:text-[#252321]/70';
-                    } else if (isKashafiTab) {
-                      buttonClasses +=
-                        'bg-gradient-to-b from-[#FFFDF7] to-[#F7ECDA] text-[#7A4B1B] border border-[#C59B27]/45 hover:border-[#B3861D]/70 hover:bg-[#FFFBF0] hover:shadow-[0_2px_10px_-3px_rgba(197,155,39,0.3)]';
-                    } else {
-                      buttonClasses +=
-                        'text-[#483A2F] hover:bg-white/85 hover:text-[#7C4D2B] hover:shadow-[0_1px_5px_rgba(90,65,35,0.08)]';
-                    }
-
-                    return (
-                      <React.Fragment key={tab.id}>
-                        {/* Subtle gilded hairline separating كشّافي within the unified track */}
-                        {isKashafiTab && (
-                          <span
-                            aria-hidden="true"
-                            className="w-px h-5 bg-[#C59B27]/30 mx-0.5 shrink-0"
-                          />
-                        )}
-
-                        <button
-                          ref={(el) => {
-                            mobileTabRefs.current[tab.id] = el;
-                          }}
-                          type="button"
-                          onClick={() => handleTabClick(tab)}
-                          aria-current={isSelected ? 'page' : undefined}
-                          title={
-                            isLocked
-                              ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
-                              : tab.label
-                          }
-                          className={buttonClasses}
-                        >
-                          <TabIcon
-                            className={`w-[14px] h-[14px] xl:w-[15px] xl:h-[15px] shrink-0 transition-transform duration-200 ${
-                              isSelected && isKashafiTab
-                                ? 'text-[#E8C468]'
-                                : isSelected
-                                ? 'text-[#FBE5B4]'
-                                : isKashafiTab
-                                ? 'text-[#B38422] group-hover/tab:rotate-12'
-                                : 'text-[#8C6A4E]/80 group-hover/tab:text-[#8C5327]'
-                            }`}
-                            aria-hidden={true}
-                          />
-
-                          <span>{tab.label}</span>
-
-                          {isKashafiTab && (
-                            <span
-                              aria-hidden="true"
-                              className={`text-[11px] leading-none ${
-                                isSelected ? 'text-[#E8C468]' : 'text-[#C59B27]'
-                              }`}
-                            >
-                              ✦
-                            </span>
-                          )}
-
-                          {isKashafiTab && kashafiDynamicCount > 0 && (
-                            <span
-                              data-testid="kashafi-tab-unread-badge"
-                              className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none ${
-                                isSelected
-                                  ? 'bg-[#D4AF37]/25 text-[#F9E3A6] border border-[#D4AF37]/40'
-                                  : 'bg-[#8D4925] text-[#FAF4E4]'
-                              }`}
-                            >
-                              {kashafiDynamicCount}
-                            </span>
-                          )}
-
-                          {isLocked && (
-                            <Lock
-                              className="w-3.5 h-3.5 text-[#DC2626]/80 shrink-0"
-                              aria-label="ميزة بريميوم مقفلة"
-                            />
-                          )}
-
-                          {/* Refined Gilded Bottom Glow Indicator on Active Tab */}
-                          {isSelected && (
-                            <span
-                              aria-hidden="true"
-                              className={`absolute bottom-[3px] left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full ${
-                                isKashafiTab ? 'bg-[#E8C468]/90' : 'bg-[#FCE3AE]/90'
-                              }`}
-                            />
-                          )}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              </nav>
-            </div>
-
-            {/* 3. LEFT CLUSTER (RTL END — shrink-0): Cohesive Unified Glass Utility Dock + Mobile Capsule */}
-            <div className="order-2 min-[1180px]:order-3 py-2.5 sm:py-3 min-[1180px]:py-0 flex items-center shrink-0">
-              {/* Desktop & Tablet Unified 5-Icon Glass Utility Dock */}
-              <div className="hidden sm:flex items-center p-1 rounded-2xl bg-white/70 backdrop-blur-md border border-[#D4AF37]/25 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.12)] shrink-0">
-                {/* 1. Cart & Wallet */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveUtilityDrawer((cur) => (cur === 'cart' ? null : 'cart'))
-                  }
-                  title="الاشتراكات والمحفظة الرقمية"
-                  aria-label="الاشتراكات والمحفظة الرقمية"
-                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    activeUtilityDrawer === 'cart'
-                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                  }`}
-                >
-                  <ShoppingCart
-                    className={`w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105 ${
-                      activeUtilityDrawer === 'cart' ? 'text-white' : 'text-[#B86145]'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  {availableCartItems.length > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#252321] text-[#F9EEDB] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                      {availableCartItems.length}
-                    </span>
-                  )}
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                  >
-                    المحفظة والاشتراكات
-                  </span>
-                </button>
-
-                <span
-                  aria-hidden="true"
-                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-                />
-
-                {/* 2. Notifications */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveUtilityDrawer((cur) =>
-                      cur === 'notifications' ? null : 'notifications'
-                    );
-                    setNotifications((prev) =>
-                      prev.map((n) => ({ ...n, unread: false }))
-                    );
-                  }}
-                  title="الإشعارات والتنبيهات"
-                  aria-label="الإشعارات والتنبيهات"
-                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    activeUtilityDrawer === 'notifications'
-                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                  }`}
-                >
-                  <Bell
-                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                    aria-hidden="true"
-                  />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#C8372D] text-white text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                      {unreadCount}
-                    </span>
-                  )}
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                  >
-                    الإشعارات
-                  </span>
-                </button>
-
-                <span
-                  aria-hidden="true"
-                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-                />
-
-                {/* 3. Activity Log */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveUtilityDrawer((cur) =>
-                      cur === 'activity' ? null : 'activity'
-                    )
-                  }
-                  title="سجل النشاط"
-                  aria-label="سجل النشاط"
-                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    activeUtilityDrawer === 'activity'
-                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                  }`}
-                >
-                  <Activity
-                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                    aria-hidden="true"
-                  />
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                  >
-                    سجل النشاط
-                  </span>
-                </button>
-
-                <span
-                  aria-hidden="true"
-                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-                />
-
-                {/* 4. Help & Support */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveUtilityDrawer((cur) => (cur === 'help' ? null : 'help'))
-                  }
-                  title="المساعدة والإرشاد"
-                  aria-label="المساعدة والإرشاد"
-                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    activeUtilityDrawer === 'help'
-                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white shadow-xs'
-                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                  }`}
-                >
-                  <HelpCircle
-                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                    aria-hidden="true"
-                  />
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                  >
-                    المساعدة والدعم
-                  </span>
-                </button>
-
-                <span
-                  aria-hidden="true"
-                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-                />
-
-                {/* 5. Language Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setBilingualLabels((v) => !v)}
-                  title={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                  aria-label={bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                  className={`group/util relative w-9 h-9 xl:w-10 xl:h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    bilingualLabels
-                      ? 'bg-[#252321] text-[#F5D896] shadow-xs'
-                      : 'text-[#5A4637] hover:bg-[#C59B27]/12 hover:text-[#8C6239]'
-                  }`}
-                >
-                  <Globe
-                    className="w-[17px] h-[17px] xl:w-[18px] xl:h-[18px] transition-transform duration-200 group-hover/util:scale-105"
-                    aria-hidden="true"
-                  />
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute top-full mt-2 left-0 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
-                  >
-                    {bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}
-                  </span>
-                </button>
-              </div>
-
-              {/* MOBILE COMPACT UTILITY CAPSULE (< sm: Notifications + Quick Utilities Menu) */}
-              <div
-                className="relative sm:hidden flex items-center p-1 rounded-2xl bg-white/75 backdrop-blur-md border border-[#D4AF37]/25 shadow-2xs shrink-0"
-                ref={mobileUtilityRef}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileUtilityMenuOpen(false);
-                    setActiveUtilityDrawer((cur) =>
-                      cur === 'notifications' ? null : 'notifications'
-                    );
-                    setNotifications((prev) =>
-                      prev.map((n) => ({ ...n, unread: false }))
-                    );
-                  }}
-                  aria-label="الإشعارات"
-                  className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
-                    activeUtilityDrawer === 'notifications'
-                      ? 'bg-gradient-to-b from-[#C86B4E] to-[#A85136] text-white'
-                      : 'text-[#5A4637] active:bg-[#C59B27]/15'
-                  }`}
-                >
-                  <Bell className="w-[18px] h-[18px]" aria-hidden="true" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#C8372D] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                <span
-                  aria-hidden="true"
-                  className="w-px h-5 bg-[#D4AF37]/20 mx-0.5 shrink-0"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUserDropdownOpen(false);
-                    setMobileUtilityMenuOpen((prev) => !prev);
-                  }}
-                  aria-expanded={mobileUtilityMenuOpen}
-                  aria-haspopup="menu"
-                  aria-label="أدوات المنصة"
-                  className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
-                    mobileUtilityMenuOpen ||
-                    activeUtilityDrawer === 'cart' ||
-                    activeUtilityDrawer === 'activity' ||
-                    activeUtilityDrawer === 'help'
-                      ? 'bg-[#252321] text-[#F5D896]'
-                      : 'text-[#5A4637] active:bg-[#C59B27]/15'
-                  }`}
-                >
-                  <SlidersHorizontal className="w-[17px] h-[17px]" aria-hidden="true" />
-                  {availableCartItems.length > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#B86145] text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums ring-2 ring-white">
-                      {availableCartItems.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* Mobile Quick Utilities Popover */}
-                {mobileUtilityMenuOpen && (
-                  <div
-                    role="menu"
-                    className="absolute left-0 top-full mt-2 w-60 rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_20px_48px_-14px_rgba(37,35,33,0.24)] p-2 z-50 space-y-1 text-right"
-                  >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMobileUtilityMenuOpen(false);
-                        setActiveUtilityDrawer((cur) =>
-                          cur === 'cart' ? null : 'cart'
-                        );
-                      }}
-                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <ShoppingCart className="w-4 h-4 text-[#B86145]" />
-                        <span>المحفظة والاشتراكات</span>
-                      </span>
-                      {availableCartItems.length > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-[#252321] text-[#F9EEDB] text-[10px] font-mono tabular-nums">
-                          {availableCartItems.length}
-                        </span>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMobileUtilityMenuOpen(false);
-                        setActiveUtilityDrawer((cur) =>
-                          cur === 'activity' ? null : 'activity'
-                        );
-                      }}
-                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
-                    >
-                      <Activity className="w-4 h-4 text-[#8C6239]" />
-                      <span>سجل النشاط</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMobileUtilityMenuOpen(false);
-                        setActiveUtilityDrawer((cur) =>
-                          cur === 'help' ? null : 'help'
-                        );
-                      }}
-                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
-                    >
-                      <HelpCircle className="w-4 h-4 text-[#8C6239]" />
-                      <span>المساعدة والدعم</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMobileUtilityMenuOpen(false);
-                        setActiveUtilityDrawer((cur) =>
-                          cur === 'settings' ? null : 'settings'
-                        );
-                      }}
-                      className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-2.5 text-xs font-display font-bold text-[#252321] cursor-pointer"
-                    >
-                      <Settings className="w-4 h-4 text-[#8C6239]" />
-                      <span>إعدادات الحساب</span>
-                    </button>
-
-                    <div className="pt-1 border-t border-[#D4AF37]/20">
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMobileUtilityMenuOpen(false);
-                          setBilingualLabels((v) => !v);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-xs font-display font-bold text-[#252321] cursor-pointer"
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <Globe className="w-4 h-4 text-[#8C6239]" />
-                          <span>{bilingualLabels ? 'العربية فقط' : 'تبديل اللغة'}</span>
-                        </span>
-                        <span className="text-[10px] font-mono text-[#8C6239]">
-                          {bilingualLabels ? 'AR/EN' : 'AR'}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </header>
+
+      {/* MOBILE STICKY GLASS TOUCH NAVIGATION BAR (< 768px): Effortless One-Handed Access & Auto-Centered Active Tab */}
+      <div
+        data-testid="mobile-sticky-touch-nav"
+        className="md:hidden sticky top-0 z-20 bg-[#FDFBF7]/92 backdrop-blur-lg border-b border-[#D4AF37]/22 shadow-[0_8px_22px_-12px_rgba(88,63,36,0.2)]"
+      >
+        <div className="relative px-2 py-2">
+          {/* Soft Side Gradient Fades Indicating Horizontal Continuation */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-gradient-to-r from-[#FDFBF7] via-[#FDFBF7]/80 to-transparent z-10"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-[#FDFBF7] via-[#FDFBF7]/80 to-transparent z-10"
+          />
+
+          <nav
+            aria-label="تبويبات لوحة تحكم العميل للجوال"
+            className="w-full flex items-center overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x px-1"
+          >
+            {renderPrimaryNavigationTabs(true)}
+          </nav>
+        </div>
+      </div>
 
       {/* MAIN DASHBOARD WORKSPACE */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">

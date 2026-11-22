@@ -2613,21 +2613,27 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // VERIFICATION STATUS LABEL & FOLLOW-UP NOTE
+  // VERIFICATION FOLLOW-UP NOTE & CANVAS ZOOM CONTROLS
   // ============================================================================
-  const statusLabelText = isUnmatchedCase
-    ? caps.isVip
-      ? 'تذكرة بحث وتوثيق نشطة (P1)'
-      : 'قيد الفحص والتوثيق الخاص'
-    : isVerificationPending
-    ? 'بانتظار تحديد المسار لتأكيد التطابق'
-    : effectiveResult.isAlphaOnlyBeforeMerge && caps.isVip
-    ? `${visibleAdamNodesCount} عُقد مفتوحة من أصل ${totalFamilySpineNodesCount} · جاري ربط الطبقات العليا`
-    : caps.isVip
-    ? `ربط مرجعي موثق · ${visibleAdamNodesCount} من ${totalFamilySpineNodesCount} عقدة`
-    : caps.isRootUnlocked
-    ? `جذر موثق (${getCleanSpineNodeName(effectiveResult.rootBranchName)} · ${getCleanSpineNodeName(effectiveResult.rootTribeName)})`
-    : 'تطابق مرجعي موثق ✓';
+  const handleZoomIn = () =>
+    setZoomScale((z) => Math.min(1.35, Number((z + 0.1).toFixed(2))));
+
+  const handleZoomOut = () =>
+    setZoomScale((z) => Math.max(0.7, Number((z - 0.1).toFixed(2))));
+
+  const handleResetZoomCenter = () => {
+    setZoomScale(1);
+    panoramicScrollRef.current?.scrollTo({
+      left: 0,
+      behavior: 'smooth',
+    });
+    canvasTopRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    });
+  };
+
+  const handleToggleFullscreen = () => setIsFullscreen((prev) => !prev);
 
   const showAlphaPendingSideNote =
     !isUnmatchedCase &&
@@ -2708,39 +2714,39 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           }
         >
           {/* ================================================================ */}
-          {/* 1. EXECUTIVE HEADER                                              */}
+          {/* 1. EXECUTIVE HEADER (+ INLINE ZOOM BAR ON DESKTOP >= 1150px)     */}
           {/* ================================================================ */}
           <header
-            className="relative z-20 pb-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4"
+            className="relative z-20 pb-4 flex flex-col min-[1150px]:flex-row min-[1150px]:items-center justify-between gap-3"
             style={{ borderBottom: `1px solid ${theme.surfaceBorder}` }}
           >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h2
-                  className="text-xl sm:text-2xl font-extrabold tracking-tight"
-                  style={{
-                    fontFamily: fontDef.cssFamily,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  عمود نسب عائلة {effectiveResult.familyName} الموثق
-                </h2>
-                <span
-                  className="inline-flex items-center gap-1.5 text-xs font-display font-bold px-3 py-1 rounded-xl"
-                  style={{
-                    backgroundColor: theme.statusBg,
-                    color: theme.statusText,
-                    border: `1px solid ${theme.statusBorder}`,
-                  }}
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>{statusLabelText}</span>
-                </span>
-              </div>
+            <div className="min-w-0 shrink-0">
+              <h2
+                className="text-xl sm:text-2xl font-extrabold tracking-tight"
+                style={{
+                  fontFamily: fontDef.cssFamily,
+                  color: theme.textPrimaryHex,
+                }}
+              >
+                عمود نسب عائلة {effectiveResult.familyName} الموثق
+              </h2>
             </div>
 
-            {/* Action Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Center/Left Controls & Actions: Inline Zoom Dock (>=1150px) + Action Buttons */}
+            <div className="flex flex-wrap min-[1150px]:flex-nowrap items-center justify-end gap-2 shrink-0">
+              <div className="hidden min-[1150px]:inline-flex items-center shrink-0">
+                <LineageCanvasFloatingControls
+                  variant="inline"
+                  zoom={zoomScale}
+                  isFullscreen={isFullscreen}
+                  theme={theme}
+                  onZoomIn={handleZoomIn}
+                  onZoomOut={handleZoomOut}
+                  onResetZoomCenter={handleResetZoomCenter}
+                  onToggleFullscreen={handleToggleFullscreen}
+                />
+              </div>
+
               <button
                 type="button"
                 data-testid="toggle-lineage-customizer-btn"
@@ -2830,31 +2836,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
 
           {/* ================================================================ */}
-          {/* 4. FLOATING CANVAS CONTROLS (Zoom / Center / Majlis Fullscreen)  */}
+          {/* 4. FLOATING CANVAS CONTROLS (Tablet/Mobile < 1150px only)        */}
           {/* ================================================================ */}
-          <LineageCanvasFloatingControls
-            zoom={zoomScale}
-            isFullscreen={isFullscreen}
-            theme={theme}
-            onZoomIn={() =>
-              setZoomScale((z) => Math.min(1.35, Number((z + 0.1).toFixed(2))))
-            }
-            onZoomOut={() =>
-              setZoomScale((z) => Math.max(0.7, Number((z - 0.1).toFixed(2))))
-            }
-            onResetZoomCenter={() => {
-              setZoomScale(1);
-              panoramicScrollRef.current?.scrollTo({
-                left: 0,
-                behavior: 'smooth',
-              });
-              canvasTopRef.current?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-              });
-            }}
-            onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
-          />
+          <div className="min-[1150px]:hidden">
+            <LineageCanvasFloatingControls
+              variant="floating"
+              zoom={zoomScale}
+              isFullscreen={isFullscreen}
+              theme={theme}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onResetZoomCenter={handleResetZoomCenter}
+              onToggleFullscreen={handleToggleFullscreen}
+            />
+          </div>
 
           {/* ================================================================ */}
           {/* 5. CLASSICAL ARABIC NASAB NARRATION BAR (Below Zoom Controls)    */}

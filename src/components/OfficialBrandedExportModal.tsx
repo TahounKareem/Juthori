@@ -481,26 +481,33 @@ export const OfficialBrandedExportModal: React.FC<
                     .map((member) => (
                       <div
                         key={member.id}
-                        className={`rounded-xl px-3 py-2 border flex items-center justify-between gap-2 ${
+                        className={`rounded-xl border overflow-hidden ${
                           member.isCertifiedReference
                             ? 'bg-[#FFFBEB] border-[#D4AF37]'
                             : member.isRecordKeeper
-                            ? 'bg-[#FAF6F0] border-[#252321]'
+                            ? 'bg-[#FFFDF8] border-[#C59B43]'
                             : 'bg-white border-[#B98A78]/45'
                         }`}
                       >
-                        <div className="min-w-0">
-                          <div className="text-xs font-display font-extrabold text-[#252321] truncate">
-                            {member.displayName}
+                        <div className="px-3 py-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                              {member.displayName}
+                            </div>
+                            <div className="text-[10px] text-[#8D4925] font-semibold truncate">
+                              {member.relationLabel}
+                            </div>
                           </div>
-                          <div className="text-[10px] text-[#8D4925] font-semibold">
-                            {member.relationLabel}
-                          </div>
+                          {member.isCertifiedReference && (
+                            <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D4AF37] text-[10px] font-bold text-[#92400E] shrink-0">
+                              مرجع موثق ✦
+                            </span>
+                          )}
                         </div>
-                        {member.isCertifiedReference && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D4AF37] text-[10px] font-bold text-[#92400E] shrink-0">
-                            مرجع موثق ✦
-                          </span>
+                        {member.metaLine && (
+                          <div className="px-3 py-1 bg-[#F7F1E3]/70 border-t border-[#D4AF37]/20 text-[10px] font-medium text-[#6B543E] truncate">
+                            {member.metaLine}
+                          </div>
                         )}
                       </div>
                     ))}

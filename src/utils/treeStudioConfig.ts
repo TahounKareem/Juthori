@@ -1178,6 +1178,97 @@ export function formatTreeDateByCalendarMode(
   return `${hYear} هـ / ${gYear} م`;
 }
 
+export interface SingleCalendarDateDisplay {
+  /** Single-calendar concise string for card pedestal (never dual-calendar clutter) */
+  primaryText: string;
+  /** Hover tooltip showing the equivalent year(s) in the alternate calendar */
+  alternateTooltip: string;
+}
+
+/**
+ * Formats birth/death dates for tree cards strictly in ONE calendar system
+ * (preferred display calendar, or the person's entered calendar when mode is 'dual')
+ * while computing the alternate calendar string for a clean hover tooltip.
+ */
+export function formatCardSingleCalendarVitalDates(
+  birthDateValue: string | undefined,
+  deathDateValue: string | undefined,
+  sourceCalendar: 'hijri' | 'gregorian' | undefined,
+  displayMode: TreeCalendarDisplayMode,
+  birthPrecision?: 'year_only' | 'full_date' | 'approximate' | 'era'
+): SingleCalendarDateDisplay | null {
+  const cleanBirth = (birthDateValue || '').trim();
+  const cleanDeath = (deathDateValue || '').trim();
+  if (!cleanBirth && !cleanDeath) return null;
+
+  const srcCal: 'hijri' | 'gregorian' =
+    sourceCalendar === 'hijri' ? 'hijri' : 'gregorian';
+  const targetCal: 'hijri' | 'gregorian' =
+    displayMode === 'hijri'
+      ? 'hijri'
+      : displayMode === 'gregorian'
+      ? 'gregorian'
+      : srcCal;
+  const altCal: 'hijri' | 'gregorian' =
+    targetCal === 'hijri' ? 'gregorian' : 'hijri';
+
+  const targetSuffix = targetCal === 'hijri' ? 'هـ' : 'م';
+  const altSuffix = altCal === 'hijri' ? 'هـ' : 'م';
+
+  const extractYear = (raw: string): number | null => {
+    const normalized = toWesternDigits(raw);
+    const match = normalized.match(/\b(\d{3,4})\b/);
+    if (!match) return null;
+    const yr = Number(match[1]);
+    return Number.isFinite(yr) && yr >= 100 && yr <= 2500 ? yr : null;
+  };
+
+  const birthYear = cleanBirth ? extractYear(cleanBirth) : null;
+  const deathYear = cleanDeath ? extractYear(cleanDeath) : null;
+
+  const precPrefix =
+    birthPrecision === 'approximate'
+      ? 'قرابة '
+      : birthPrecision === 'era'
+      ? 'حقبة '
+      : '';
+
+  if (birthYear !== null && deathYear !== null) {
+    const bTarget = convertYearBetweenCalendars(birthYear, srcCal, targetCal);
+    const dTarget = convertYearBetweenCalendars(deathYear, srcCal, targetCal);
+    const bAlt = convertYearBetweenCalendars(birthYear, srcCal, altCal);
+    const dAlt = convertYearBetweenCalendars(deathYear, srcCal, altCal);
+    return {
+      primaryText: `${precPrefix}${bTarget}–${dTarget} ${targetSuffix}`,
+      alternateTooltip: `الموافق: ${bAlt}–${dAlt} ${altSuffix}`,
+    };
+  }
+
+  if (birthYear !== null) {
+    const bTarget = convertYearBetweenCalendars(birthYear, srcCal, targetCal);
+    const bAlt = convertYearBetweenCalendars(birthYear, srcCal, altCal);
+    return {
+      primaryText: `${precPrefix}${bTarget} ${targetSuffix}`,
+      alternateTooltip: `الموافق: ${bAlt} ${altSuffix}`,
+    };
+  }
+
+  if (deathYear !== null) {
+    const dTarget = convertYearBetweenCalendars(deathYear, srcCal, targetCal);
+    const dAlt = convertYearBetweenCalendars(deathYear, srcCal, altCal);
+    return {
+      primaryText: `ت ${dTarget} ${targetSuffix}`,
+      alternateTooltip: `الوفاة — الموافق: ${dAlt} ${altSuffix}`,
+    };
+  }
+
+  const fallbackRaw = cleanBirth || cleanDeath;
+  return {
+    primaryText: `${precPrefix}${fallbackRaw} ${targetSuffix}`,
+    alternateTooltip: `${fallbackRaw} ${targetSuffix}`,
+  };
+}
+
 // ============================================================================
 // DETERMINISTIC OFFLINE QR-STYLE MATRIX (ZERO EXTERNAL CDN DEPENDENCY)
 // ============================================================================
