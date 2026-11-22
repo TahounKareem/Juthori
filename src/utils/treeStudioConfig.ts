@@ -224,6 +224,7 @@ export interface TreeDisplaySettings {
   preferRealPhotos: boolean;
   femalePrivacyMode: 'full_name' | 'kunya_only' | 'hide_females';
   showHonorific: boolean;
+  showEpithet: boolean;
   showKunya: boolean;
   showDates: boolean;
   showKinshipArrows: boolean;
@@ -821,6 +822,7 @@ export const DEFAULT_TREE_DISPLAY_SETTINGS: TreeDisplaySettings = {
   preferRealPhotos: true,
   femalePrivacyMode: 'full_name',
   showHonorific: true,
+  showEpithet: true,
   showKunya: true,
   showDates: true,
   showKinshipArrows: true,
@@ -924,6 +926,10 @@ export function normalizeTreeDisplaySettings(
       typeof p.showHonorific === 'boolean'
         ? p.showHonorific
         : DEFAULT_TREE_DISPLAY_SETTINGS.showHonorific,
+    showEpithet:
+      typeof p.showEpithet === 'boolean'
+        ? p.showEpithet
+        : DEFAULT_TREE_DISPLAY_SETTINGS.showEpithet,
     showKunya:
       typeof p.showKunya === 'boolean'
         ? p.showKunya
@@ -1076,6 +1082,7 @@ export const TREE_QUICK_PRESETS: Array<{
       showGenerationBar: true,
       highlightDirectCompass: true,
       showHonorific: true,
+      showEpithet: true,
       showKunya: true,
       showDates: true,
       showDeceasedDignityFrame: true,
@@ -1093,6 +1100,7 @@ export const TREE_QUICK_PRESETS: Array<{
       canvasBackground: 'parchment',
       showGenerationBar: true,
       showHonorific: true,
+      showEpithet: true,
       showKunya: true,
       showDates: true,
       cardTheme: 'papyrus_lapis',

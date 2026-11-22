@@ -828,6 +828,9 @@ export interface RawTreePersonForPublicProjection {
   familyName?: string;
   honorific?: string;
   honorificTitle?: string;
+  epithet?: string;
+  laqab?: string;
+  kunya?: string;
   fatherId?: string;
   motherId?: string;
   relationLabel?: string;
@@ -854,6 +857,8 @@ export interface SanitizedPublicTreeMember {
   id: string;
   displayName: string;
   familyCircleDisplayName?: string;
+  epithet?: string;
+  kunya?: string;
   relationLabel: string;
   generationLevel: number;
   gender: 'male' | 'female';
@@ -1664,9 +1669,17 @@ export function sanitizeTreeMembersForPublicSite(
     }
 
     const bioText = n.bioSnippet || n.biography;
+    const rawEpithet = String(n.epithet || n.laqab || '')
+      .trim()
+      .slice(0, 60);
+    const rawKunya = String(n.kunya || '')
+      .trim()
+      .slice(0, 60);
     return cleanUndefined({
       id,
       displayName: fullRealName || firstName,
+      epithet: rawEpithet || undefined,
+      kunya: rawKunya || undefined,
       relationLabel,
       generationLevel,
       gender,

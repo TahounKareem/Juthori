@@ -900,7 +900,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   const matchingCount = useMemo(() => {
     if (!normalizedQuery) return members.length;
     return members.filter((m) =>
-      `${m.displayName} ${m.relationLabel} ${m.birthPlace || ''}`
+      `${m.displayName} ${m.epithet || ''} ${m.kunya || ''} ${m.relationLabel} ${m.birthPlace || ''}`
         .toLowerCase()
         .includes(normalizedQuery)
     ).length;
@@ -914,7 +914,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
     const children = childrenMap.get(node.id) || [];
     const isMatch =
       normalizedQuery.length > 0 &&
-      `${node.displayName} ${node.relationLabel} ${node.birthPlace || ''}`
+      `${node.displayName} ${node.epithet || ''} ${node.kunya || ''} ${node.relationLabel} ${node.birthPlace || ''}`
         .toLowerCase()
         .includes(normalizedQuery);
     const isDimmed = normalizedQuery.length > 0 && !isMatch;
@@ -948,9 +948,26 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
               <div className="text-xs font-bold leading-snug truncate fs-display-font">
                 {node.displayName}
               </div>
-              <div className="text-[10px] fs-muted truncate mt-0.5">
-                {node.relationLabel}
-              </div>
+              {(node.epithet || node.kunya) ? (
+                <div
+                  title={[node.epithet, node.kunya].filter(Boolean).join(' · ')}
+                  className="text-[10px] fs-muted truncate mt-0.5"
+                >
+                  {node.epithet && (
+                    <span className="font-semibold text-[#9A6B25]">
+                      {node.epithet}
+                    </span>
+                  )}
+                  {node.epithet && node.kunya && (
+                    <span className="mx-1 text-[#C59B27]/80 font-bold">·</span>
+                  )}
+                  {node.kunya && <span>{node.kunya}</span>}
+                </div>
+              ) : (
+                <div className="text-[10px] fs-muted truncate mt-0.5">
+                  {node.relationLabel}
+                </div>
+              )}
             </div>
             {(node.birthYear || node.birthPlace || node.isDeceased) && (
               <div className="text-[9.5px] fs-muted tabular-nums truncate w-full pt-1 border-t fs-border">
@@ -1180,7 +1197,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
           {generationRows.map((row) => {
             const visibleInRow = normalizedQuery
               ? row.people.filter((m) =>
-                  `${m.displayName} ${m.relationLabel} ${m.birthPlace || ''}`
+                  `${m.displayName} ${m.epithet || ''} ${m.kunya || ''} ${m.relationLabel} ${m.birthPlace || ''}`
                     .toLowerCase()
                     .includes(normalizedQuery)
                 )
@@ -1221,6 +1238,21 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                         <div className="text-sm font-bold truncate fs-display-font">
                           {member.displayName}
                         </div>
+                        {(member.epithet || member.kunya) && (
+                          <div className="text-[11px] fs-muted truncate">
+                            {member.epithet && (
+                              <span className="font-semibold text-[#9A6B25]">
+                                {member.epithet}
+                              </span>
+                            )}
+                            {member.epithet && member.kunya && (
+                              <span className="mx-1 text-[#C59B27]/80 font-bold">
+                                ·
+                              </span>
+                            )}
+                            {member.kunya && <span>{member.kunya}</span>}
+                          </div>
+                        )}
                         <div className="text-xs fs-muted truncate">
                           {member.relationLabel}
                           {member.birthYear ? ` · ${member.birthYear}` : ''}

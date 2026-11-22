@@ -494,6 +494,21 @@ export const OfficialBrandedExportModal: React.FC<
                             <div className="text-xs font-display font-extrabold text-[#252321] truncate">
                               {member.displayName}
                             </div>
+                            {(member.epithet || member.kunya) && (
+                              <div className="text-[10.5px] text-[#6B543E] truncate">
+                                {member.epithet && (
+                                  <span className="font-semibold text-[#9A6B25]">
+                                    {member.epithet}
+                                  </span>
+                                )}
+                                {member.epithet && member.kunya && (
+                                  <span className="mx-1 text-[#C59B27]/80 font-bold">
+                                    ·
+                                  </span>
+                                )}
+                                {member.kunya && <span>{member.kunya}</span>}
+                              </div>
+                            )}
                             <div className="text-[10px] text-[#8D4925] font-semibold truncate">
                               {member.relationLabel}
                             </div>

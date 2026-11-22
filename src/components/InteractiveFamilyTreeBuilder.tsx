@@ -160,7 +160,10 @@ export interface InteractiveTreePerson {
   id: string;
   firstName: string;
   familyName: string;
+  /** Independent personal epithet / laqab (`اللقب`), e.g. الأمين / الفاروق */
+  epithet?: string;
   kunya: string;
+  /** Social / professional honorific descriptor (`الصفة`), e.g. الشيخ / الدكتور */
   honorificTitle: ArabicHonorificTitle;
   prestigeBadge?: TreePrestigeBadgeId;
   gender: 'male' | 'female';
@@ -592,9 +595,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         ? getNextVerticalGrandfatherLabel(node.generationLevel)
         : node.relationToTargetLabel;
 
+      const cleanEpithet = String(
+        node.epithet ?? (node as unknown as { laqab?: string }).laqab ?? ''
+      ).trim();
+
       return {
         ...node,
         familyName: '',
+        epithet: cleanEpithet || undefined,
         kunya: cleanKunya,
         honorificTitle: cleanHonorific,
         vitalStatus: cleanVitalStatus,
@@ -1554,6 +1562,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const [formGender, setFormGender] = useState<'male' | 'female'>('male');
   const [formFirstName, setFormFirstName] = useState('');
   const [formFamilyName, setFormFamilyName] = useState('');
+  const [formEpithet, setFormEpithet] = useState('');
   const [formKunya, setFormKunya] = useState('');
   const [formHonorific, setFormHonorific] =
     useState<ArabicHonorificTitle>('بدون');
@@ -1713,6 +1722,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setFormGender(isFemaleRelation ? 'female' : 'male');
     setFormFirstName('');
     setFormFamilyName('');
+    setFormEpithet('');
     setFormKunya('');
     setFormHonorific('بدون');
     setFormPrestigeBadge('none');
@@ -1816,6 +1826,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setFormGender('male');
     setFormFirstName('');
     setFormFamilyName('');
+    setFormEpithet('');
     setFormKunya('');
     setFormHonorific('بدون');
     setFormPrestigeBadge('none');
@@ -1863,6 +1874,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setFormGender(person.gender);
     setFormFirstName(person.firstName);
     setFormFamilyName('');
+    setFormEpithet(person.epithet || '');
     setFormKunya(person.kunya || '');
     setFormHonorific(person.honorificTitle || 'بدون');
     setFormPrestigeBadge(person.prestigeBadge || 'none');
@@ -2285,6 +2297,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           ...p,
           firstName: cleanFirst,
           familyName: '',
+          epithet: formEpithet.trim() || undefined,
           kunya: formKunya.trim(),
           honorificTitle: formHonorific,
           prestigeBadge:
@@ -2558,6 +2571,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       id: newId,
       firstName: cleanFirst,
       familyName: '',
+      epithet: formEpithet.trim() || undefined,
       kunya: formKunya.trim(),
       honorificTitle: formHonorific,
       prestigeBadge:
@@ -2765,6 +2779,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       setFormError('');
       setFormFirstName('');
       setFormFamilyName('');
+      setFormEpithet('');
       setFormKunya('');
       setFormHonorific('بدون');
       setFormPrestigeBadge('none');
@@ -2965,16 +2980,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         mainName: maskedName,
         honorificLabel: '',
         coreName: maskedName,
+        epithetText: '',
         kunyaOrTitle: '',
         isMaskedNow: true,
       };
     }
 
     const coreName = person.firstName.trim();
+    const epithetText =
+      treeDisplaySettings.showEpithet && person.epithet?.trim()
+        ? person.epithet.trim()
+        : '';
     return {
       mainName: `${honorificLabel ? `${honorificLabel} ` : ''}${coreName}`.trim(),
       honorificLabel,
       coreName,
+      epithetText,
       kunyaOrTitle: person.kunya?.trim() ? person.kunya.trim() : '',
       isMaskedNow: false,
     };
@@ -3699,8 +3720,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const isRadialOpen = radialTargetNodeId === person.id;
     const isCardSelected = selectedPersonIdForSpouses === person.id;
     const showInteractiveControls = isRadialOpen || isCardSelected;
-    const { mainName, honorificLabel, coreName, kunyaOrTitle, isMaskedNow } =
-      getCleanCardDisplay(person);
+    const {
+      mainName,
+      honorificLabel,
+      coreName,
+      epithetText,
+      kunyaOrTitle,
+      isMaskedNow,
+    } = getCleanCardDisplay(person);
     const isVerticalOnlyLink = person.generationLevel > FIFTH_GRANDFATHER_LEVEL;
     const isFifthGrandfatherBoundary =
       person.generationLevel === FIFTH_GRANDFATHER_LEVEL;
@@ -3732,8 +3759,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       .filter(Boolean)
       .join(' · ');
 
-    // ZONE 2 DATA: Clean Personal Secondary Line ONLY
-    // (Strictly Kunya / Maiden Alliance / Deceased Mercy — ZERO dates, ZERO cities, ZERO vault badges!)
+    // ZONE 2 DATA: Clean Personal Secondary Identity Line ONLY
+    // (Strictly Epithet [اللقب] · Kunya [الكنية] · Maiden Alliance · Deceased Mercy — ZERO dates, ZERO cities, ZERO vault badges!)
     const isDeceased = person.vitalStatus === 'deceased';
     const deceasedMercyText = isDeceased
       ? person.gender === 'female'
@@ -3746,24 +3773,32 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       ''
     ).trim();
 
-    const personalSecondaryTokens: string[] = [];
+    const personalSecondaryItems: Array<{
+      text: string;
+      kind: 'epithet' | 'kunya' | 'alliance' | 'mercy';
+    }> = [];
+    if (epithetText) {
+      personalSecondaryItems.push({ text: epithetText, kind: 'epithet' });
+    }
     if (treeDisplaySettings.showKunya && kunyaOrTitle) {
-      personalSecondaryTokens.push(kunyaOrTitle);
+      personalSecondaryItems.push({ text: kunyaOrTitle, kind: 'kunya' });
     }
     if (allianceSubLine) {
-      personalSecondaryTokens.push(allianceSubLine);
+      personalSecondaryItems.push({ text: allianceSubLine, kind: 'alliance' });
     }
     if (
       isDeceased &&
       deceasedMercyText &&
       treeDisplaySettings.showDeceasedDignityFrame &&
-      !personalSecondaryTokens.includes(deceasedMercyText)
+      !personalSecondaryItems.some((item) => item.text === deceasedMercyText)
     ) {
-      personalSecondaryTokens.push(deceasedMercyText);
+      personalSecondaryItems.push({ text: deceasedMercyText, kind: 'mercy' });
     }
-    const personalSecondaryLine = personalSecondaryTokens
-      .slice(0, 2)
+    const personalSecondaryLine = personalSecondaryItems
+      .map((item) => item.text)
       .join(' · ');
+    const hasCombinedEpithetAndSecondary =
+      Boolean(epithetText) && personalSecondaryItems.length > 1;
 
     // ZONE 3 DATA: Full-Width Heritage Pedestal Strip (Single-Calendar Rule + City + Vault + Bio)
     const pedestalDate = treeDisplaySettings.showDates
@@ -3847,10 +3882,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       isVitalDimmed ? 'opacity-35 saturate-50' : ''
     }`;
 
-    // Structured Plaque Dimensions (fits full-width pedestal comfortably with zero wrapping)
+    // Structured Plaque Dimensions (flexibly breathes to max-w-[248px] when Epithet + Kunya appear together)
     const isCompactDensity = treeDisplaySettings.cardDensity === 'compact';
     const cardShellClasses = isCompactDensity
-      ? 'min-w-[164px] max-w-[212px] rounded-xl'
+      ? hasCombinedEpithetAndSecondary
+        ? 'min-w-[164px] max-w-[228px] rounded-xl'
+        : 'min-w-[164px] max-w-[212px] rounded-xl'
+      : hasCombinedEpithetAndSecondary
+      ? 'min-w-[184px] max-w-[248px] rounded-2xl'
       : 'min-w-[184px] max-w-[232px] rounded-2xl';
 
     const avatarFrameHex = isMarriedInWife
@@ -4355,8 +4394,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   </span>
                 </div>
 
-                {/* Line 2: Strictly Personal Line ONLY (Kunya / Maiden Family / Deceased Mercy) */}
-                {personalSecondaryLine && (
+                {/* Line 2: Strictly Personal Identity Line (Amber-Gold اللقب · الكنية · نسب المصاهرة · الترحم) */}
+                {personalSecondaryItems.length > 0 && (
                   <div
                     title={personalSecondaryLine}
                     className={`text-[11px] font-medium leading-tight truncate whitespace-nowrap ${
@@ -4367,7 +4406,29 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         : activeTreeTheme.metaText
                     }`}
                   >
-                    {personalSecondaryLine}
+                    {personalSecondaryItems.map((item, idx) => (
+                      <React.Fragment key={`${item.kind}-${idx}`}>
+                        {idx > 0 && (
+                          <span
+                            aria-hidden="true"
+                            className="mx-1 text-[#C59B27]/80 font-bold"
+                          >
+                            ·
+                          </span>
+                        )}
+                        <span
+                          className={
+                            item.kind === 'epithet'
+                              ? isDark
+                                ? 'font-semibold text-[#E7C271]'
+                                : 'font-semibold text-[#9A6B25]'
+                              : undefined
+                          }
+                        >
+                          {item.text}
+                        </span>
+                      </React.Fragment>
+                    ))}
                   </div>
                 )}
               </div>
@@ -7253,6 +7314,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             preferRealPhotos={treeDisplaySettings.preferRealPhotos}
             calendarDisplayMode={treeDisplaySettings.calendarDisplayMode}
             showHonorific={treeDisplaySettings.showHonorific}
+            showEpithet={treeDisplaySettings.showEpithet}
             showKunya={treeDisplaySettings.showKunya}
             showDates={treeDisplaySettings.showDates}
             showPrestigeBadges={treeDisplaySettings.showPrestigeBadges}
@@ -7267,6 +7329,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               if (formError) setFormError('');
               if (quickAddSuccessNotice) setQuickAddSuccessNotice('');
             }}
+            formEpithet={formEpithet}
+            onChangeEpithet={setFormEpithet}
             formKunya={formKunya}
             onChangeKunya={setFormKunya}
             formHonorific={formHonorific}
@@ -8049,6 +8113,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             return {
               id: p.id,
               displayName: disp.mainName,
+              epithet: disp.epithetText || undefined,
+              kunya:
+                treeDisplaySettings.showKunya && disp.kunyaOrTitle
+                  ? disp.kunyaOrTitle
+                  : undefined,
               relationLabel: p.isRecordKeeper
                 ? 'أمين السجل'
                 : p.relationToTargetLabel || 'فرد في المشجرة',

@@ -44,6 +44,8 @@ export interface ExportPosterOptions {
 export interface ExportTreeMemberSummary {
   id: string;
   displayName: string;
+  epithet?: string;
+  kunya?: string;
   relationLabel: string;
   generationLevel: number;
   metaLine?: string;
@@ -562,6 +564,16 @@ export function printOfficialBrandedDocumentViaIframe(params: {
               }
             </div>
             <div class="member-name">${escapeHtml(m.displayName)}</div>
+            ${
+              m.epithet || m.kunya
+                ? `<div class="member-meta" style="color:#9A6B25;font-weight:600;">${[
+                    m.epithet ? escapeHtml(m.epithet) : '',
+                    m.kunya ? escapeHtml(m.kunya) : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}</div>`
+                : ''
+            }
             ${m.metaLine ? `<div class="member-meta">${escapeHtml(m.metaLine)}</div>` : ''}
           </div>
         `
@@ -1032,9 +1044,14 @@ export function downloadHighResBrandedPng(params: {
           .sort((a, b) => b.generationLevel - a.generationLevel)
           .map((m) => ({
             title: m.displayName,
-            subtitle: `${m.relationLabel}${m.isCertifiedReference ? ' · مرجع موثق ✦' : ''}${
-              m.metaLine ? ` · ${m.metaLine}` : ''
-            }`,
+            subtitle: [
+              m.epithet,
+              m.kunya,
+              `${m.relationLabel}${m.isCertifiedReference ? ' · مرجع موثق ✦' : ''}`,
+              m.metaLine,
+            ]
+              .filter(Boolean)
+              .join(' · '),
             tone: m.isCertifiedReference
               ? ('root' as const)
               : m.isRecordKeeper

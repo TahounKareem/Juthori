@@ -34,6 +34,7 @@ function normalizeArabicForSearch(text: string): string {
 export interface SearchableTreePerson {
   id: string;
   firstName: string;
+  epithet?: string;
   kunya?: string;
   honorificTitle?: string;
   relationToTargetLabel?: string;
@@ -59,7 +60,7 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
     return people
       .filter((p) => {
         const hay = normalizeArabicForSearch(
-          `${p.honorificTitle && p.honorificTitle !== 'بدون' ? p.honorificTitle : ''} ${p.firstName} ${p.kunya || ''} ${p.relationToTargetLabel || ''}`
+          `${p.honorificTitle && p.honorificTitle !== 'بدون' ? p.honorificTitle : ''} ${p.firstName} ${p.epithet || ''} ${p.kunya || ''} ${p.relationToTargetLabel || ''}`
         );
         return hay.includes(q);
       })
@@ -126,9 +127,17 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
                           : ''}
                         {p.firstName}
                       </div>
-                      {p.kunya && (
+                      {(p.epithet || p.kunya) && (
                         <div className="text-[10px] text-[#8D4925] truncate">
-                          {p.kunya}
+                          {p.epithet && (
+                            <span className="font-semibold text-[#9A6B25]">
+                              {p.epithet}
+                            </span>
+                          )}
+                          {p.epithet && p.kunya && (
+                            <span className="mx-1 text-[#C59B27]/80">·</span>
+                          )}
+                          {p.kunya && <span>{p.kunya}</span>}
                         </div>
                       )}
                     </div>

@@ -136,6 +136,7 @@ export interface TreePersonStudioModalProps {
   preferRealPhotos: boolean;
   calendarDisplayMode: 'hijri' | 'gregorian' | 'dual';
   showHonorific: boolean;
+  showEpithet: boolean;
   showKunya: boolean;
   showDates: boolean;
   showPrestigeBadges: boolean;
@@ -146,6 +147,8 @@ export interface TreePersonStudioModalProps {
   formGender: 'male' | 'female';
   formFirstName: string;
   onChangeFirstName: (val: string) => void;
+  formEpithet: string;
+  onChangeEpithet: (val: string) => void;
   formKunya: string;
   onChangeKunya: (val: string) => void;
   formHonorific: ArabicHonorificTitle;
@@ -267,6 +270,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   preferRealPhotos,
   calendarDisplayMode,
   showHonorific,
+  showEpithet,
   showKunya,
   showDates,
   showPrestigeBadges,
@@ -275,6 +279,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   formGender,
   formFirstName,
   onChangeFirstName,
+  formEpithet,
+  onChangeEpithet,
   formKunya,
   onChangeKunya,
   formHonorific,
@@ -391,7 +397,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
 
   // Subtle filled-content indicators on quiet detail pills
   const hasIdentityDetails = Boolean(
-    formKunya.trim() ||
+    formEpithet.trim() ||
+      formKunya.trim() ||
       (formHonorific && formHonorific !== 'بدون') ||
       (formPrestigeBadge && formPrestigeBadge !== 'none') ||
       formMotherId ||
@@ -426,18 +433,36 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
     showHonorific && formHonorific && formHonorific !== 'بدون'
       ? formHonorific
       : '';
-  const previewPersonalLine = [
-    showKunya && formKunya.trim() ? formKunya.trim() : '',
-    (formMaidenFamilyLine || formMarriageAllianceNote || '').trim(),
-    formVitalStatus === 'deceased' && showDeceasedDignityFrame
-      ? isFemale
-        ? 'رحمها الله'
-        : 'رحمه الله'
-      : '',
-  ]
-    .filter(Boolean)
-    .slice(0, 2)
+  const previewSecondaryItems: Array<{
+    text: string;
+    kind: 'epithet' | 'kunya' | 'alliance' | 'mercy';
+  }> = [];
+  if (showEpithet && formEpithet.trim()) {
+    previewSecondaryItems.push({ text: formEpithet.trim(), kind: 'epithet' });
+  }
+  if (showKunya && formKunya.trim()) {
+    previewSecondaryItems.push({ text: formKunya.trim(), kind: 'kunya' });
+  }
+  const previewAlliance = (
+    formMaidenFamilyLine ||
+    formMarriageAllianceNote ||
+    ''
+  ).trim();
+  if (previewAlliance) {
+    previewSecondaryItems.push({ text: previewAlliance, kind: 'alliance' });
+  }
+  if (formVitalStatus === 'deceased' && showDeceasedDignityFrame) {
+    previewSecondaryItems.push({
+      text: isFemale ? 'رحمها الله' : 'رحمه الله',
+      kind: 'mercy',
+    });
+  }
+  const previewPersonalLine = previewSecondaryItems
+    .map((item) => item.text)
     .join(' · ');
+  const previewHasCombinedEpithetAndMore =
+    Boolean(showEpithet && formEpithet.trim()) &&
+    previewSecondaryItems.length > 1;
   const previewPedestalDate = showDates
     ? formatCardSingleCalendarVitalDates(
         formBirthDate,
@@ -813,7 +838,11 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       معاينة البطاقة في الشجرة
                     </span>
                     <div
-                      className={`relative overflow-visible min-w-[184px] max-w-[232px] w-full rounded-2xl border-[1.5px] flex flex-col text-right shadow-xs ${
+                      className={`relative overflow-visible min-w-[184px] ${
+                        previewHasCombinedEpithetAndMore
+                          ? 'max-w-[248px]'
+                          : 'max-w-[232px]'
+                      } w-full rounded-2xl border-[1.5px] flex flex-col text-right shadow-xs ${
                         previewCrownLabel ? 'mt-2' : ''
                       } ${
                         activeTreeTheme.isDarkSurface
@@ -885,11 +914,34 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               {cleanPreviewFirst || 'الاسم'}
                             </span>
                           </div>
-                          {previewPersonalLine && (
+                          {previewSecondaryItems.length > 0 && (
                             <div
+                              title={previewPersonalLine}
                               className={`text-[11px] font-medium leading-tight truncate whitespace-nowrap ${activeTreeTheme.metaText}`}
                             >
-                              {previewPersonalLine}
+                              {previewSecondaryItems.map((item, idx) => (
+                                <React.Fragment key={`${item.kind}-${idx}`}>
+                                  {idx > 0 && (
+                                    <span
+                                      aria-hidden="true"
+                                      className="mx-1 text-[#C59B27]/80 font-bold"
+                                    >
+                                      ·
+                                    </span>
+                                  )}
+                                  <span
+                                    className={
+                                      item.kind === 'epithet'
+                                        ? activeTreeTheme.isDarkSurface
+                                          ? 'font-semibold text-[#E7C271]'
+                                          : 'font-semibold text-[#9A6B25]'
+                                        : undefined
+                                    }
+                                  >
+                                    {item.text}
+                                  </span>
+                                </React.Fragment>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -955,14 +1007,14 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 {/* --------------------------------------------------------- */}
                 {activeDetailPanel === 'identity' && (
                   <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-3.5 animate-[studioPanelReveal_200ms_ease-out_both]">
-                    {/* Compact 3-Column Row: اللقب | الكنية | الوسام */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Balanced 2x2 Identity Grid: Row 1 (الصفة + اللقب) | Row 2 (الكنية + الوسام) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label
                           htmlFor="studio-honorific-select"
                           className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
                         >
-                          اللقب
+                          الصفة
                         </label>
                         <select
                           id="studio-honorific-select"
@@ -973,7 +1025,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               e.target.value as ArabicHonorificTitle
                             )
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
                         >
                           {honorificChoices.map((title) => (
                             <option key={title} value={title}>
@@ -981,6 +1033,28 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             </option>
                           ))}
                         </select>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="studio-person-epithet-input"
+                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                        >
+                          اللقب
+                        </label>
+                        <input
+                          id="studio-person-epithet-input"
+                          type="text"
+                          data-testid="studio-person-epithet-input"
+                          value={formEpithet}
+                          onChange={(e) => onChangeEpithet(e.target.value)}
+                          placeholder={
+                            isFemale
+                              ? 'مثال: الفاضلة / الصابرة / أم الخير'
+                              : 'مثال: الأمين / الفاروق / شمس الدين'
+                          }
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                        />
                       </div>
 
                       <div>
@@ -996,8 +1070,10 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           data-testid="studio-person-kunya-input"
                           value={formKunya}
                           onChange={(e) => onChangeKunya(e.target.value)}
-                          placeholder={isFemale ? 'أم عبدالله' : 'أبو محمد'}
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-2 text-xs font-semibold text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                          placeholder={
+                            isFemale ? 'مثال: أم عبدالله' : 'مثال: أبو محمد'
+                          }
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
                         />
                       </div>
 
@@ -1017,7 +1093,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               e.target.value as TreePrestigeBadgeId
                             )
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
                         >
                           {prestigeChoices.map((opt) => (
                             <option key={opt.id} value={opt.id}>

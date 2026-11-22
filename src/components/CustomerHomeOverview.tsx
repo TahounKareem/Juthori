@@ -471,27 +471,16 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   }, [result.originCountry, result.originRegion]);
 
   const identityMetaParts = useMemo(() => {
-    const parts: string[] = [];
-    const tierTitle = (caps.tierHeaderTitle || 'عضوية جذوري').trim();
-    parts.push(tierTitle);
-
-    const roleLabel =
+    const parts: string[] = [
       accountType === AccountLegalType.RecordKeeper
         ? 'أمين سجل العائلة'
-        : 'حساب فردي';
-    const tierAlreadyHasRole =
-      tierTitle.includes('أمين سجل') ||
-      tierTitle.includes('رب أسرة') ||
-      tierTitle.includes('فردي');
-    if (!tierAlreadyHasRole) {
-      parts.push(roleLabel);
-    }
-
+        : 'حساب فردي',
+    ];
     if (cleanLocationLabel) {
       parts.push(cleanLocationLabel);
     }
     return parts;
-  }, [caps.tierHeaderTitle, accountType, cleanLocationLabel]);
+  }, [accountType, cleanLocationLabel]);
 
   const greetingHeading = useMemo(() => {
     const client = (result.clientName || '').trim();

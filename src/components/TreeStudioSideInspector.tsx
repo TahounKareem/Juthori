@@ -507,7 +507,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   عناصر البطاقة والروابط
                 </div>
                 <LuxurySwitchRow
-                  label="عرض اللقب الشرفي"
+                  label="عرض الصفة"
                   description="مثل: الشيخ، الحاج، الدكتور، المهندس"
                   checked={settings.showHonorific}
                   testId="toggle-honorific-btn"
@@ -519,8 +519,20 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   }
                 />
                 <LuxurySwitchRow
+                  label="عرض اللقب"
+                  description="إظهار اللقب الشخصي المميز إن وُجد"
+                  checked={settings.showEpithet}
+                  testId="toggle-epithet-btn"
+                  onToggle={() =>
+                    onUpdateSettings((prev) => ({
+                      ...prev,
+                      showEpithet: !prev.showEpithet,
+                    }))
+                  }
+                />
+                <LuxurySwitchRow
                   label="عرض الكنية"
-                  description="مثل: أبو محمد، أم عبد الله"
+                  description="مثل: أبو محمد، أم عبدالله"
                   checked={settings.showKunya}
                   testId="toggle-kunya-btn"
                   onToggle={() =>
