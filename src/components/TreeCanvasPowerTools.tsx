@@ -164,6 +164,7 @@ interface TreeFloatingStudioDockProps {
   onZoomOut: () => void;
   onResetZoom: () => void;
   onFitAndCenter: () => void;
+  isAutoFitActive?: boolean;
   isCinemaMode: boolean;
   onToggleCinemaMode: () => void;
   showMinimap: boolean;
@@ -178,6 +179,7 @@ export const TreeFloatingStudioDock: React.FC<TreeFloatingStudioDockProps> = ({
   onZoomOut,
   onResetZoom,
   onFitAndCenter,
+  isAutoFitActive = false,
   isCinemaMode,
   onToggleCinemaMode,
   showMinimap,
@@ -252,14 +254,23 @@ export const TreeFloatingStudioDock: React.FC<TreeFloatingStudioDockProps> = ({
       <button
         type="button"
         data-testid="canvas-fit-center-btn"
+        aria-pressed={isAutoFitActive}
         onClick={onFitAndCenter}
-        title="احتواء وتوسيط الشجرة الكاملة"
-        className={`px-2 py-1 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-          useDarkPalette
-            ? 'hover:bg-white/10 text-[#F3D299]'
+        title={
+          isAutoFitActive
+            ? 'احتواء وتوسيط تلقائي مفعّل — اضغط لإعادة التوسيط'
+            : 'احتواء وتوسيط الشجرة الكاملة تلقائياً'
+        }
+        className={`px-2 py-1 rounded-lg text-[11px] font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap border ${
+          isAutoFitActive
+            ? useDarkPalette
+              ? 'bg-[#D4AF37]/20 text-[#F3D299] border-[#D4AF37]/45 shadow-2xs'
+              : 'bg-white text-[#8D4925] border-[#D4AF37]/45 shadow-2xs'
+            : useDarkPalette
+            ? 'border-transparent hover:bg-white/10 text-[#F3D299]'
             : isInline
-            ? 'hover:bg-white text-[#7A4B21]'
-            : 'hover:bg-[#FAF6F0] text-[#8D4925]'
+            ? 'border-transparent hover:bg-white text-[#7A4B21]'
+            : 'border-transparent hover:bg-[#FAF6F0] text-[#8D4925]'
         }`}
       >
         <Scan className="w-3.5 h-3.5 shrink-0" />

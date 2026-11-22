@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   ArrowDown,
   ArrowLeft,
@@ -1104,33 +1104,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     });
   };
 
-  const handleFitAndCenterCanvas = () => {
-    const viewport = canvasViewportRef.current;
-    const content = canvasContentRef.current;
-    if (!viewport || !content) {
-      setZoomPercent(100);
-      return;
-    }
-    const contentWidth = content.scrollWidth || content.offsetWidth;
-    const viewportWidth = viewport.clientWidth || 1;
-    if (contentWidth > viewportWidth && contentWidth > 0) {
-      const idealZoom = Math.max(
-        55,
-        Math.min(100, Math.floor(((viewportWidth - 32) / contentWidth) * 100))
-      );
-      setZoomPercent(idealZoom);
-    } else {
-      setZoomPercent(100);
-    }
-    window.requestAnimationFrame(() => {
-      const vp = canvasViewportRef.current;
-      if (!vp) return;
-      const maxScroll = Math.max(0, vp.scrollWidth - vp.clientWidth);
-      if (maxScroll > 0) {
-        vp.scrollTo({ left: -maxScroll / 2, top: 0, behavior: 'smooth' });
-      }
-    });
-  };
+  const lastAutoFitDimsRef = useRef<{ vw: number; cw: number }>({
+    vw: 0,
+    cw: 0,
+  });
+  const hasCompletedInitialAutoFitRef = useRef(false);
 
   const handleSpotlightPerson = (personId: string) => {
     // Expand any collapsed ancestors so the target card is guaranteed visible
@@ -1400,10 +1378,151 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   >(null);
   const [showOfficialExportModal, setShowOfficialExportModal] = useState(false);
 
-  // Canvas Zoom level
+  // Canvas Zoom level & Automatic Fit-and-Center default mode
   const [zoomPercent, setZoomPercent] = useState(100);
+  const [isAutoFitMode, setIsAutoFitMode] = useState(true);
   const [exportedBanner, setExportedBanner] = useState(false);
   const [quickAddSuccessNotice, setQuickAddSuccessNotice] = useState('');
+
+  const fitAndCenterCanvas = useCallback(
+    (options?: { smooth?: boolean; resetScrollTop?: boolean }) => {
+      const viewport = canvasViewportRef.current;
+      const content = canvasContentRef.current;
+      if (!viewport || !content) {
+        setZoomPercent(100);
+        return;
+      }
+
+      const viewportWidth = viewport.clientWidth || 0;
+      if (viewportWidth <= 0) return;
+
+      // Measure unscaled natural tree width (scale-invariant even if currently zoomed > 100%)
+      const scaledChild = content.firstElementChild as HTMLElement | null;
+      const naturalWidth = scaledChild
+        ? Math.max(scaledChild.offsetWidth, scaledChild.scrollWidth)
+        : Math.max(content.offsetWidth, content.scrollWidth);
+
+      lastAutoFitDimsRef.current = { vw: viewportWidth, cw: naturalWidth };
+
+      let idealZoom = 100;
+      if (naturalWidth > viewportWidth && naturalWidth > 0) {
+        idealZoom = Math.max(
+          45,
+          Math.min(100, Math.floor(((viewportWidth - 32) / naturalWidth) * 100))
+        );
+      }
+      setZoomPercent((prev) => (prev === idealZoom ? prev : idealZoom));
+
+      const behavior: ScrollBehavior = options?.smooth ? 'smooth' : 'auto';
+      const shouldResetTop = Boolean(options?.resetScrollTop);
+      const isSidewaysLayout =
+        treeDisplaySettings.layoutOrientation === 'sideways';
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const vp = canvasViewportRef.current;
+          if (!vp) return;
+          const maxScroll = Math.max(0, vp.scrollWidth - vp.clientWidth);
+          const targetLeft = isSidewaysLayout ? 0 : -maxScroll / 2;
+          const targetTop = shouldResetTop ? 0 : vp.scrollTop;
+          vp.scrollTo({ left: targetLeft, top: targetTop, behavior });
+        });
+      });
+    },
+    [treeDisplaySettings.layoutOrientation]
+  );
+
+  const handleFitAndCenterCanvas = useCallback(() => {
+    setIsAutoFitMode(true);
+    fitAndCenterCanvas({ smooth: true, resetScrollTop: true });
+  }, [fitAndCenterCanvas]);
+
+  const handleManualZoomIn = useCallback(() => {
+    setIsAutoFitMode(false);
+    setZoomPercent((z) => Math.min(130, z + 10));
+  }, []);
+
+  const handleManualZoomOut = useCallback(() => {
+    setIsAutoFitMode(false);
+    setZoomPercent((z) => Math.max(40, z - 10));
+  }, []);
+
+  const handleManualResetZoom = useCallback(() => {
+    setIsAutoFitMode(false);
+    setZoomPercent(100);
+  }, []);
+
+  // Always keep "احتواء وتوسيط" applied automatically on mount and whenever tree/layout/viewport changes
+  useEffect(() => {
+    if (!isAutoFitMode) return;
+    const resetTop = !hasCompletedInitialAutoFitRef.current;
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        fitAndCenterCanvas({ smooth: false, resetScrollTop: resetTop });
+        hasCompletedInitialAutoFitRef.current = true;
+      });
+    });
+    const settleTimer = window.setTimeout(() => {
+      fitAndCenterCanvas({ smooth: false, resetScrollTop: false });
+    }, 150);
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(settleTimer);
+    };
+  }, [
+    isAutoFitMode,
+    fitAndCenterCanvas,
+    people,
+    treeDisplaySettings,
+    spineDepth,
+    focusSubtreeRootId,
+    collapsedBranchIds,
+    isCinemaMode,
+    isTreeSettingsOpen,
+  ]);
+
+  // Re-fit & center smoothly when canvas viewport or natural content width resizes
+  useEffect(() => {
+    if (!isAutoFitMode || typeof ResizeObserver === 'undefined') return;
+    const viewport = canvasViewportRef.current;
+    const content = canvasContentRef.current;
+    if (!viewport || !content) return;
+
+    let rafId = 0;
+    const observer = new ResizeObserver(() => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        const vp = canvasViewportRef.current;
+        const ct = canvasContentRef.current;
+        if (!vp || !ct) return;
+        const vw = vp.clientWidth || 0;
+        const scaledChild = ct.firstElementChild as HTMLElement | null;
+        const cw = scaledChild
+          ? Math.max(scaledChild.offsetWidth, scaledChild.scrollWidth)
+          : Math.max(ct.offsetWidth, ct.scrollWidth);
+        const prev = lastAutoFitDimsRef.current;
+        if (Math.abs(vw - prev.vw) > 4 || Math.abs(cw - prev.cw) > 4) {
+          fitAndCenterCanvas({ smooth: false, resetScrollTop: false });
+        }
+      });
+    });
+
+    observer.observe(viewport);
+    if (content.firstElementChild) {
+      observer.observe(content.firstElementChild);
+    } else {
+      observer.observe(content);
+    }
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, [isAutoFitMode, fitAndCenterCanvas, treeDisplaySettings.layoutOrientation]);
 
   // ============================================================================
   // NATURAL LINEAGE SPINE NODES & DEPTH RESOLUTION
@@ -6298,10 +6417,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             <TreeFloatingStudioDock
               variant="inline"
               zoomPercent={zoomPercent}
-              onZoomIn={() => setZoomPercent((z) => Math.min(130, z + 10))}
-              onZoomOut={() => setZoomPercent((z) => Math.max(50, z - 10))}
-              onResetZoom={() => setZoomPercent(100)}
+              onZoomIn={handleManualZoomIn}
+              onZoomOut={handleManualZoomOut}
+              onResetZoom={handleManualResetZoom}
               onFitAndCenter={handleFitAndCenterCanvas}
+              isAutoFitActive={isAutoFitMode}
               isCinemaMode={isCinemaMode}
               onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
               showMinimap={showMinimap}
@@ -6706,10 +6826,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               <div className="pointer-events-auto">
                 <TreeFloatingStudioDock
                   zoomPercent={zoomPercent}
-                  onZoomIn={() => setZoomPercent((z) => Math.min(130, z + 10))}
-                  onZoomOut={() => setZoomPercent((z) => Math.max(50, z - 10))}
-                  onResetZoom={() => setZoomPercent(100)}
+                  onZoomIn={handleManualZoomIn}
+                  onZoomOut={handleManualZoomOut}
+                  onResetZoom={handleManualResetZoom}
                   onFitAndCenter={handleFitAndCenterCanvas}
+                  isAutoFitActive={isAutoFitMode}
                   isCinemaMode={isCinemaMode}
                   onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
                   showMinimap={showMinimap}
