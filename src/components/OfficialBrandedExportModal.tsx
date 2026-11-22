@@ -107,10 +107,15 @@ export const OfficialBrandedExportModal: React.FC<
 
   const isFreeRestricted = !meta.isEligibleForCertifiedExport;
   const poster = posterOptions?.poster;
+  const charter = posterOptions?.lineageCharter;
+  const orderedPreviewLineageRows =
+    exportKind === 'lineage_spine' && charter?.direction === 'bottom_up'
+      ? [...lineageRows].reverse()
+      : lineageRows;
   const resolvedDocTitle =
     poster?.customTitle?.trim() ||
     (exportKind === 'lineage_spine'
-      ? `مستخرج عمود النسب الموثق — عائلة ${meta.familyName}`
+      ? `صك عمود النسب الموثق — عائلة ${meta.familyName}`
       : `مستخرج المشجرة العائلية — عائلة ${meta.familyName}`);
 
   const handlePrintPdf = () => {
@@ -185,10 +190,14 @@ export const OfficialBrandedExportModal: React.FC<
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 bg-[#FAF6F0]/70 flex-1">
           {/* Certificate Sheet Frame */}
           <div
-            className="rounded-2xl bg-[#FFFDF9] border-2 border-[#8D4925]/65 p-4 sm:p-6 shadow-xs relative overflow-hidden space-y-4"
+            className="rounded-2xl p-4 sm:p-6 shadow-xs relative overflow-hidden space-y-4"
             style={{
-              fontFamily: getTreeArabicFontDefinition(posterOptions?.fontFamily)
-                .cssFamily,
+              fontFamily:
+                charter?.fontCssFamily ||
+                getTreeArabicFontDefinition(posterOptions?.fontFamily).cssFamily,
+              backgroundColor: charter?.sheetBg || '#FFFDF9',
+              border: `2px double ${charter?.goldHex || '#8D4925'}`,
+              color: charter?.textPrimaryHex || '#252321',
             }}
           >
             {isFreeRestricted && (
@@ -203,19 +212,54 @@ export const OfficialBrandedExportModal: React.FC<
             )}
 
             {/* Official Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#EDE6DA]">
+            <div
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4"
+              style={{
+                borderBottom: `1px solid ${charter?.cardStrokeHex || '#EDE6DA'}`,
+              }}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[#252321] text-[#F3D299] border-2 border-[#D8755B] flex items-center justify-center font-display font-extrabold text-sm shrink-0">
+                <div
+                  className="w-12 h-12 rounded-2xl border-2 flex items-center justify-center font-display font-extrabold text-sm shrink-0"
+                  style={{
+                    backgroundColor: charter?.isDarkSurface ? '#0E192B' : '#252321',
+                    color: '#F3D299',
+                    borderColor: charter?.goldHex || '#D8755B',
+                  }}
+                >
                   جذوري
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold text-[#8D4925]">
+                  <div
+                    className="text-[11px] font-bold"
+                    style={{ color: charter?.primaryHex || '#8D4925' }}
+                  >
                     منصة جذوري للأنساب العربية الموثقة · Juthori
                   </div>
-                  <div className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
+                  <div
+                    className="text-base sm:text-lg font-display font-extrabold"
+                    style={{ color: charter?.textPrimaryHex || '#252321' }}
+                  >
                     {resolvedDocTitle}
                   </div>
-                  {poster && (
+                  {charter && (
+                    <div
+                      className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold"
+                      style={{ color: charter.textMutedHex }}
+                    >
+                      <span>الهوية: {charter.themeLabel}</span>
+                      <span>·</span>
+                      <span>الخط: {charter.fontLabel}</span>
+                      <span>·</span>
+                      <span>
+                        الاتجاه:{' '}
+                        {charter.direction === 'bottom_up'
+                          ? 'صعوداً من أمين السجل'
+                          : 'نزولاً من الجذر الأعلى'}
+                      </span>
+                    </div>
+                  )}
+                  {!charter && poster && (
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[#8D4925]">
                       <span>
                         المقاس:{' '}
@@ -327,35 +371,103 @@ export const OfficialBrandedExportModal: React.FC<
 
             {/* Body Preview */}
             {exportKind === 'lineage_spine' ? (
-              <div className="space-y-2 py-1 max-h-64 overflow-y-auto pr-1">
-                <div className="text-[11px] font-display font-bold text-[#8D4925] text-center">
-                  معاينة المحطات المفتوحة في المستخرج ({lineageRows.length} محطة)
+              <div className="space-y-3 py-1 max-h-72 overflow-y-auto pr-1">
+                {charter?.nasabNarration && (
+                  <div
+                    className="rounded-xl px-3.5 py-2.5 text-center space-y-1"
+                    style={{
+                      backgroundColor: charter.canvasBg,
+                      border: `1px solid ${charter.goldHex}80`,
+                    }}
+                  >
+                    <div
+                      className="text-[10px] font-display font-bold"
+                      style={{ color: charter.primaryHex }}
+                    >
+                      الصياغة النسبية المتصلة
+                    </div>
+                    <p
+                      className="text-xs sm:text-sm font-bold leading-relaxed"
+                      style={{ color: charter.textPrimaryHex }}
+                    >
+                      «{charter.nasabNarration}»
+                    </p>
+                  </div>
+                )}
+
+                <div
+                  className="text-[11px] font-display font-bold text-center"
+                  style={{ color: charter?.primaryHex || '#8D4925' }}
+                >
+                  معاينة المحطات المفتوحة في الصك ({orderedPreviewLineageRows.length} محطة)
                 </div>
                 <div className="flex flex-col items-center gap-1.5">
-                  {lineageRows.map((row) => (
+                  {orderedPreviewLineageRows.map((row) => (
                     <div
                       key={row.id}
-                      className={`w-full max-w-md rounded-xl px-3.5 py-2 border text-right flex items-center justify-between gap-2 ${
-                        row.isSummit
-                          ? 'bg-[#252321] text-white border-[#D8755B]'
+                      className="w-full max-w-md rounded-xl px-3.5 py-2 border text-right flex items-center justify-between gap-2"
+                      style={{
+                        backgroundColor: row.isSummit
+                          ? charter?.isDarkSurface
+                            ? '#1E3252'
+                            : '#252321'
                           : row.isRoot
-                          ? 'bg-[#FFF8EB] text-[#252321] border-[#D97706]'
-                          : 'bg-white text-[#252321] border-[#B98A78]/50'
-                      }`}
+                          ? charter?.canvasBg || '#FFF8EB'
+                          : charter?.isDarkSurface
+                          ? '#182944'
+                          : '#FFFFFF',
+                        color: row.isSummit
+                          ? '#FFFFFF'
+                          : charter?.textPrimaryHex || '#252321',
+                        borderColor: row.isSummit || row.isRoot
+                          ? charter?.goldHex || '#D97706'
+                          : charter?.cardStrokeHex || 'rgba(185,138,120,0.5)',
+                      }}
                     >
                       <span className="text-xs sm:text-sm font-display font-extrabold truncate">
                         {row.title}
                       </span>
                       <span
-                        className={`text-[10px] font-bold shrink-0 ${
-                          row.isSummit ? 'text-[#F3D299]' : 'text-[#8D4925]'
-                        }`}
+                        className="text-[10px] font-bold shrink-0"
+                        style={{
+                          color: row.isSummit
+                            ? '#F3D299'
+                            : charter?.primaryHex || '#8D4925',
+                        }}
                       >
                         {row.subtitle}
                       </span>
                     </div>
                   ))}
                 </div>
+
+                {charter?.verifiedSources && charter.verifiedSources.length > 0 && (
+                  <div
+                    className="rounded-xl p-3 space-y-1.5"
+                    style={{
+                      backgroundColor: charter.canvasBg,
+                      border: `1px solid ${charter.cardStrokeHex}`,
+                    }}
+                  >
+                    <div
+                      className="text-[11px] font-display font-extrabold"
+                      style={{ color: charter.primaryHex }}
+                    >
+                      ملخص المراجع التاريخية الموثقة ({charter.verifiedSources.length})
+                    </div>
+                    <ul className="space-y-1 text-[11px]">
+                      {charter.verifiedSources.slice(0, 4).map((src, sIdx) => (
+                        <li
+                          key={sIdx}
+                          className="truncate"
+                          style={{ color: charter.textPrimaryHex }}
+                        >
+                          {sIdx + 1}. {src}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-2 py-1 max-h-64 overflow-y-auto pr-1">

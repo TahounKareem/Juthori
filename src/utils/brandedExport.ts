@@ -14,12 +14,31 @@ import {
 
 export type BrandedExportKind = 'lineage_spine' | 'family_tree';
 
+export interface LineageCharterExportOptions {
+  themeLabel: string;
+  direction: 'top_down' | 'bottom_up';
+  fontCssFamily: string;
+  fontLabel: string;
+  canvasFontName: string;
+  nasabNarration?: string;
+  verifiedSources?: string[];
+  isDarkSurface?: boolean;
+  primaryHex: string;
+  goldHex: string;
+  canvasBg: string;
+  sheetBg: string;
+  textPrimaryHex: string;
+  textMutedHex: string;
+  cardStrokeHex: string;
+}
+
 export interface ExportPosterOptions {
   poster: TreePosterSettings;
   theme?: TreeCardThemeDefinition;
   fontFamily?: TreeArabicFontId;
   layoutLabel?: string;
   verificationUrl?: string;
+  lineageCharter?: LineageCharterExportOptions;
 }
 
 export interface ExportTreeMemberSummary {
@@ -385,26 +404,33 @@ export function printOfficialBrandedDocumentViaIframe(params: {
 
   const poster = posterOptions?.poster;
   const theme = posterOptions?.theme;
+  const charter = posterOptions?.lineageCharter;
   const fontDef = getTreeArabicFontDefinition(posterOptions?.fontFamily);
+  const resolvedFontCss = charter?.fontCssFamily || fontDef.cssFamily;
   const inkSaver = Boolean(poster?.inkSaverMode);
-  const isDarkTheme = Boolean(theme?.isDarkSurface) && !inkSaver;
+  const isDarkTheme =
+    Boolean(charter ? charter.isDarkSurface : theme?.isDarkSurface) && !inkSaver;
 
-  const primaryColor = theme?.primaryHex || '#8D4925';
-  const goldColor = theme?.goldAccentHex || '#D4AF37';
+  const primaryColor = charter?.primaryHex || theme?.primaryHex || '#8D4925';
+  const goldColor = charter?.goldHex || theme?.goldAccentHex || '#D4AF37';
   const pageBg = inkSaver
     ? '#FFFFFF'
-    : isDarkTheme
-    ? '#181614'
-    : theme?.canvasBg || '#FAF6F0';
+    : charter?.canvasBg || (isDarkTheme ? '#181614' : theme?.canvasBg || '#FAF6F0');
   const sheetBg = inkSaver
     ? '#FFFFFF'
+    : charter?.sheetBg || (isDarkTheme ? '#211D18' : '#FFFDF9');
+  const textColor = inkSaver
+    ? '#1F1B17'
+    : charter?.textPrimaryHex || (isDarkTheme ? '#FAF3E3' : theme?.textPrimaryHex || '#252321');
+  const mutedTextColor = inkSaver
+    ? '#5C5248'
+    : charter?.textMutedHex || (isDarkTheme ? '#D6C4A1' : theme?.textMutedHex || '#6B5E53');
+  const cardBg = inkSaver
+    ? '#FFFFFF'
     : isDarkTheme
-    ? '#211D18'
-    : '#FFFDF9';
-  const textColor = isDarkTheme ? '#FAF3E3' : theme?.textPrimaryHex || '#252321';
-  const mutedTextColor = isDarkTheme ? '#D6C4A1' : theme?.textMutedHex || '#6B5E53';
-  const cardBg = isDarkTheme ? '#28231D' : '#FFFFFF';
-  const cardBorder = isDarkTheme ? `${goldColor}99` : theme?.cardStrokeHex || '#D5C5B5';
+    ? charter?.sheetBg || '#1B2D4A'
+    : '#FFFFFF';
+  const cardBorder = charter?.cardStrokeHex || (isDarkTheme ? `${goldColor}99` : theme?.cardStrokeHex || '#D5C5B5');
 
   const paperCss =
     poster?.paperSize === 'A3'
@@ -426,7 +452,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
   const docTitle =
     customTitle ||
     (exportKind === 'lineage_spine'
-      ? `وثيقة عمود النسب المرجعي — عائلة ${meta.familyName}`
+      ? `صك عمود النسب الموثق — عائلة ${meta.familyName}`
       : `وثيقة المشجرة العائلية الموثقة — عائلة ${meta.familyName}`);
 
   const headerCalligraphyHtml =
@@ -434,7 +460,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       ? ''
       : poster?.headerStyle === 'basmala_only'
       ? `<div class="calligraphy-banner"><div class="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div></div>`
-      : poster
+      : poster || charter
       ? `<div class="calligraphy-banner">
            <div class="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
            <div class="verse">﴿ يَا أَيُّهَا النَّاسُ إِنَّا خَلَقْنَاكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَاكُمْ شُعُوبًا وَقَبَائِلَ لِتَعَارَفُوا ﴾</div>
@@ -442,7 +468,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       : '';
 
   const showLegend = poster ? poster.showLegend : false;
-  const showQrCode = poster ? poster.showQrCode : false;
+  const showQrCode = poster ? poster.showQrCode : Boolean(charter);
   const showStampAndDates = poster ? poster.showStampAndDates : true;
   const qrPayload =
     posterOptions?.verificationUrl ||
@@ -455,23 +481,65 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       ? 3
       : 2;
 
+  const isBottomUpCharter = charter?.direction === 'bottom_up';
+  const orderedLineageRows =
+    exportKind === 'lineage_spine' && isBottomUpCharter
+      ? [...lineageRows].reverse()
+      : lineageRows;
+
+  const nasabNarrationHtml =
+    exportKind === 'lineage_spine' && charter?.nasabNarration?.trim()
+      ? `<div class="nasab-box">
+           <div class="nasab-label">الصياغة النسبية المتصلة المعتمدة</div>
+           <div class="nasab-text">«${escapeHtml(charter.nasabNarration.trim())}»</div>
+         </div>`
+      : '';
+
+  const verifiedSourcesSummaryHtml =
+    exportKind === 'lineage_spine' &&
+    charter?.verifiedSources &&
+    charter.verifiedSources.length > 0
+      ? `<div class="sources-box">
+           <div class="sources-title">ملخص الشواهد والمراجع التاريخية الموثقة (${charter.verifiedSources.length})</div>
+           <ul class="sources-list">
+             ${charter.verifiedSources
+               .slice(0, 8)
+               .map(
+                 (src, idx) =>
+                   `<li><span class="src-num">${String(idx + 1).padStart(2, '0')}</span><span>${escapeHtml(src)}</span></li>`
+               )
+               .join('')}
+           </ul>
+         </div>`
+      : '';
+
   const bodyContentHtml =
     exportKind === 'lineage_spine'
       ? `
-      <div class="section-heading">التسلسل المرجعي الموثق من الأعلى إلى المعاصر (${lineageRows.length} محطة)</div>
+      ${nasabNarrationHtml}
+      <div class="section-heading">${
+        isBottomUpCharter
+          ? `السلسلة النسبية الموثقة من أمين السجل صعوداً إلى الجذر الأعلى (${orderedLineageRows.length} محطة)`
+          : `التسلسل المرجعي الموثق من الجذر الأعلى نزولاً إلى الفروع (${orderedLineageRows.length} محطة)`
+      }</div>
       <div class="spine-list">
-        ${lineageRows
+        ${orderedLineageRows
           .map(
             (r, idx) => `
           <div class="spine-card ${r.isSummit ? 'summit' : r.isRoot ? 'root' : ''}">
             <div class="spine-subtitle">${escapeHtml(r.subtitle)}</div>
             <div class="spine-title">${escapeHtml(r.title)}</div>
           </div>
-          ${idx < lineageRows.length - 1 ? '<div class="connector">↑</div>' : ''}
+          ${
+            idx < orderedLineageRows.length - 1
+              ? `<div class="connector">${isBottomUpCharter ? '↑' : '↓'}</div>`
+              : ''
+          }
         `
           )
           .join('')}
       </div>
+      ${verifiedSourcesSummaryHtml}
     `
       : `
       <div class="section-heading">سجل أفراد وعُقد المشجرة العائلية (${treeMembers.length} فرداً وعقدة${
@@ -531,7 +599,7 @@ export function printOfficialBrandedDocumentViaIframe(params: {
     body {
       margin: 0;
       padding: 0;
-      font-family: ${fontDef.cssFamily};
+      font-family: ${resolvedFontCss};
       background: ${pageBg};
       color: ${textColor};
       direction: rtl;
@@ -553,18 +621,75 @@ export function printOfficialBrandedDocumentViaIframe(params: {
       border-bottom: 1px dashed ${goldColor}66;
     }
     .basmala {
-      font-family: ${fontDef.cssFamily};
+      font-family: ${resolvedFontCss};
       font-size: 20px;
       font-weight: 800;
       color: ${primaryColor};
       letter-spacing: 0.3px;
     }
     .verse {
-      font-family: ${fontDef.cssFamily};
+      font-family: ${resolvedFontCss};
       font-size: 13px;
       font-weight: 700;
       color: ${mutedTextColor};
       margin-top: 4px;
+    }
+    .nasab-box {
+      background: ${inkSaver ? '#FAFAFA' : isDarkTheme ? '#1B2D4A' : pageBg};
+      border: 1.5px solid ${goldColor}88;
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .nasab-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: ${primaryColor};
+      margin-bottom: 4px;
+    }
+    .nasab-text {
+      font-family: ${resolvedFontCss};
+      font-size: 14.5px;
+      font-weight: 700;
+      color: ${textColor};
+      line-height: 1.8;
+    }
+    .sources-box {
+      margin-top: 18px;
+      background: ${inkSaver ? '#FAFAFA' : isDarkTheme ? '#1B2D4A' : pageBg};
+      border: 1px solid ${goldColor}77;
+      border-radius: 14px;
+      padding: 12px 16px;
+      page-break-inside: avoid;
+    }
+    .sources-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: ${primaryColor};
+      margin-bottom: 8px;
+    }
+    .sources-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 12px;
+      font-size: 11px;
+      color: ${textColor};
+    }
+    .sources-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.5;
+    }
+    .src-num {
+      font-family: monospace;
+      font-weight: 800;
+      color: ${primaryColor};
+      flex-shrink: 0;
     }
     .header {
       border-bottom: 2px solid ${goldColor}45;
@@ -854,25 +979,29 @@ export function downloadHighResBrandedPng(params: {
 
   const poster = posterOptions?.poster;
   const theme = posterOptions?.theme;
+  const charter = posterOptions?.lineageCharter;
   const fontDef = getTreeArabicFontDefinition(posterOptions?.fontFamily);
-  const canvasFontStack = `'${fontDef.canvasFontName}', Cairo, Tajawal, serif`;
+  const canvasFontStack = `'${
+    charter?.canvasFontName || fontDef.canvasFontName
+  }', Cairo, Tajawal, serif`;
   const inkSaver = Boolean(poster?.inkSaverMode);
-  const isDarkTheme = Boolean(theme?.isDarkSurface) && !inkSaver;
+  const isDarkTheme =
+    Boolean(charter ? charter.isDarkSurface : theme?.isDarkSurface) && !inkSaver;
 
-  const primaryHex = theme?.primaryHex || '#8D4925';
-  const goldHex = theme?.goldAccentHex || '#D4AF37';
+  const primaryHex = charter?.primaryHex || theme?.primaryHex || '#8D4925';
+  const goldHex = charter?.goldHex || theme?.goldAccentHex || '#D4AF37';
   const bgOuter = inkSaver
     ? '#FFFFFF'
-    : isDarkTheme
-    ? '#181614'
-    : theme?.canvasBg || '#FAF6F0';
+    : charter?.canvasBg || (isDarkTheme ? '#181614' : theme?.canvasBg || '#FAF6F0');
   const bgSheet = inkSaver
     ? '#FFFFFF'
-    : isDarkTheme
-    ? '#211D18'
-    : '#FFFDF9';
-  const textDark = isDarkTheme ? '#FAF3E3' : theme?.textPrimaryHex || '#252321';
-  const textMuted = isDarkTheme ? '#D6C4A1' : theme?.textMutedHex || '#6B5E53';
+    : charter?.sheetBg || (isDarkTheme ? '#211D18' : '#FFFDF9');
+  const textDark = inkSaver
+    ? '#1F1B17'
+    : charter?.textPrimaryHex || (isDarkTheme ? '#FAF3E3' : theme?.textPrimaryHex || '#252321');
+  const textMuted = inkSaver
+    ? '#5C5248'
+    : charter?.textMutedHex || (isDarkTheme ? '#D6C4A1' : theme?.textMutedHex || '#6B5E53');
 
   const scale = poster?.paperSize === 'A2_A1' ? 3 : 2.5;
   const logicalWidth =
@@ -882,9 +1011,15 @@ export function downloadHighResBrandedPng(params: {
       ? 1240
       : 1080;
 
+  const isBottomUpCharter = charter?.direction === 'bottom_up';
+  const orderedLineageRows =
+    exportKind === 'lineage_spine' && isBottomUpCharter
+      ? [...lineageRows].reverse()
+      : lineageRows;
+
   const entries =
     exportKind === 'lineage_spine'
-      ? lineageRows.map((r) => ({
+      ? orderedLineageRows.map((r) => ({
           title: r.title,
           subtitle: r.subtitle,
           tone: r.isSummit
@@ -915,16 +1050,34 @@ export function downloadHighResBrandedPng(params: {
       ? 3
       : 2;
   const rowsCount = Math.max(1, Math.ceil(entries.length / cols));
-  const hasCalligraphy = poster && poster.headerStyle !== 'none';
+  const hasCalligraphy =
+    (poster && poster.headerStyle !== 'none') || Boolean(charter);
   const calligraphyOffset = hasCalligraphy
-    ? poster?.headerStyle === 'basmala_verse'
-      ? 64
-      : 36
+    ? poster?.headerStyle === 'basmala_only'
+      ? 36
+      : 64
     : 0;
+  const hasNasabBanner =
+    exportKind === 'lineage_spine' && Boolean(charter?.nasabNarration?.trim());
+  const nasabOffset = hasNasabBanner ? 74 : 0;
+  const verifiedSourcesSlice =
+    exportKind === 'lineage_spine' && charter?.verifiedSources
+      ? charter.verifiedSources.slice(0, 6)
+      : [];
+  const sourcesOffset =
+    verifiedSourcesSlice.length > 0
+      ? 54 + Math.ceil(verifiedSourcesSlice.length / 2) * 26
+      : 0;
   const legendOffset = poster?.showLegend ? 44 : 0;
   const logicalHeight = Math.max(
-    880,
-    330 + calligraphyOffset + rowsCount * rowHeight + legendOffset + 150
+    900,
+    340 +
+      calligraphyOffset +
+      nasabOffset +
+      rowsCount * rowHeight +
+      sourcesOffset +
+      legendOffset +
+      150
   );
 
   const canvas = document.createElement('canvas');
@@ -1057,14 +1210,41 @@ export function downloadHighResBrandedPng(params: {
     ctx.fillText(`الإصدار: ${meta.hijriDate}`, 76, metaY + 32);
   }
 
+  // Optional Classical Nasab Narration Box (for Lineage Charter PNG)
+  let currentSubBaseY = metaY + 78;
+  if (hasNasabBanner && charter?.nasabNarration) {
+    const nasabBoxY = metaY + 66;
+    ctx.fillStyle = inkSaver ? '#FAFAFA' : isDarkTheme ? '#1B2D4A' : bgOuter;
+    ctx.fillRect(56, nasabBoxY, logicalWidth - 112, 58);
+    ctx.strokeStyle = goldHex;
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(56, nasabBoxY, logicalWidth - 112, 58);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = primaryHex;
+    ctx.font = `700 11.5px ${canvasFontStack}`;
+    ctx.fillText('الصياغة النسبية المتصلة المعتمدة', logicalWidth / 2, nasabBoxY + 20);
+
+    ctx.fillStyle = textDark;
+    ctx.font = `700 14px ${canvasFontStack}`;
+    const trimmedNasab =
+      charter.nasabNarration.length > 98
+        ? `${charter.nasabNarration.slice(0, 96)}…`
+        : charter.nasabNarration;
+    ctx.fillText(`«${trimmedNasab}»`, logicalWidth / 2, nasabBoxY + 44);
+    currentSubBaseY = nasabBoxY + 82;
+  }
+
   // Section Subtitle
-  const subY = metaY + 86;
+  const subY = currentSubBaseY;
   ctx.textAlign = 'center';
   ctx.fillStyle = primaryHex;
-  ctx.font = '800 15px Cairo, Tajawal, sans-serif';
+  ctx.font = `800 15px ${canvasFontStack}`;
   ctx.fillText(
     exportKind === 'lineage_spine'
-      ? `السلسلة المرجعية المفتوحة (${entries.length} محطة موثقة)`
+      ? isBottomUpCharter
+        ? `السلسلة النسبية من أمين السجل صعوداً إلى الجذر الأعلى (${entries.length} محطة)`
+        : `السلسلة المرجعية من الجذر الأعلى نزولاً إلى الفروع (${entries.length} محطة)`
       : `سجل عُقد وأفراد المشجرة (${entries.length} عقدة${
           posterOptions?.layoutLabel ? ` · ${posterOptions.layoutLabel}` : ''
         })`,
@@ -1137,6 +1317,38 @@ export function downloadHighResBrandedPng(params: {
       ctx.stroke();
     }
   });
+
+  // Optional Verified Sources Summary (ONLY if unlocked/VIP)
+  if (verifiedSourcesSlice.length > 0) {
+    const srcBoxY = startY + rowsCount * rowHeight + 14;
+    const srcBoxH = 44 + Math.ceil(verifiedSourcesSlice.length / 2) * 24;
+    ctx.fillStyle = inkSaver ? '#FAFAFA' : isDarkTheme ? '#1B2D4A' : bgOuter;
+    ctx.fillRect(56, srcBoxY, logicalWidth - 112, srcBoxH);
+    ctx.strokeStyle = `${goldHex}88`;
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(56, srcBoxY, logicalWidth - 112, srcBoxH);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = primaryHex;
+    ctx.font = `800 12.5px ${canvasFontStack}`;
+    ctx.fillText(
+      `ملخص الشواهد والمراجع التاريخية الموثقة (${charter?.verifiedSources?.length || verifiedSourcesSlice.length})`,
+      logicalWidth - 74,
+      srcBoxY + 22
+    );
+
+    const halfW = (logicalWidth - 148) / 2;
+    ctx.fillStyle = textDark;
+    ctx.font = `600 11.5px ${canvasFontStack}`;
+    verifiedSourcesSlice.forEach((src, sIdx) => {
+      const col = sIdx % 2;
+      const row = Math.floor(sIdx / 2);
+      const sx = logicalWidth - 74 - col * (halfW + 16);
+      const sy = srcBoxY + 46 + row * 24;
+      const clipped = src.length > 48 ? `${src.slice(0, 46)}…` : src;
+      ctx.fillText(`${sIdx + 1}. ${clipped}`, sx, sy);
+    });
+  }
 
   // Optional Legend Bar
   const footerY = logicalHeight - 108;

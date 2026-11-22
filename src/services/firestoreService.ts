@@ -3141,6 +3141,71 @@ export async function fetchUserTreeDisplaySettingsFromFirebase<T = Record<string
   return null;
 }
 
+export async function saveUserLineageStudioPrefsToFirebase(
+  userId: string,
+  familyName: string,
+  prefs: Record<string, unknown>,
+  userEmail?: string
+): Promise<boolean> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const targetUids = resolveAuthorizedCloudUids(safeUid, emailUid);
+  if (targetUids.length === 0) return false;
+
+  const updatedAt = new Date().toISOString();
+  const payloadJson = JSON.stringify(prefs);
+  if (payloadJson.length > 100000) return false;
+
+  let wroteAny = false;
+  for (const uid of targetUids) {
+    try {
+      const res = await dualSetDoc(
+        ['users', uid, 'family_tree', 'lineage_studio_prefs'],
+        {
+          userId: uid,
+          familyName: (familyName || 'العائلة').slice(0, 95),
+          peopleJson: payloadJson,
+          updatedAt,
+        }
+      );
+      if (res.primaryWritten || res.mirrorWritten) {
+        wroteAny = true;
+      }
+    } catch {
+      // Ignore transient error on secondary uid
+    }
+  }
+  return wroteAny;
+}
+
+export async function fetchUserLineageStudioPrefsFromFirebase<
+  T = Record<string, unknown>,
+>(userId: string, userEmail?: string): Promise<T | null> {
+  const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const emailUid = canonicalCustomerEmailUid(userEmail);
+  const candidateUids = resolveAuthorizedCloudUids(safeUid, emailUid);
+
+  for (const uid of candidateUids) {
+    try {
+      const data = await dualGetDoc<{ peopleJson?: string }>([
+        'users',
+        uid,
+        'family_tree',
+        'lineage_studio_prefs',
+      ]);
+      if (data?.peopleJson) {
+        const parsed = JSON.parse(data.peopleJson) as T;
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch {
+      // Try next uid
+    }
+  }
+  return null;
+}
+
 export async function saveMirrorDefaultTreeSettingsToFirebase(
   userId: string,
   familyName: string,
