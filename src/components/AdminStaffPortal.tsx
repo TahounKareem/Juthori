@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Award,
   BarChart3,
   BookOpen,
+  Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Crown,
   Edit2,
@@ -22,6 +28,7 @@ import {
   MessageSquare,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   Trash2,
@@ -136,6 +143,162 @@ interface AdminStaffPortalProps {
 
 const TEAM_SESSION_KEY = 'juthori_team_authenticated_session';
 const TEAM_LAST_LOGIN_TS_KEY = 'juthori_team_last_login_timestamp';
+const CMS_PAGE_SIZE = 10;
+
+function normalizeCmsArabicText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ');
+}
+
+function getCmsArticleSortTimestamp(article: KnowledgeArticleRecord): number {
+  const pubRaw = (article.publishDate || '').trim();
+  const createdRaw = (article.createdAt || article.updatedAt || '').trim();
+  const pubTs = pubRaw ? Date.parse(pubRaw) : NaN;
+  const createdTs = createdRaw ? Date.parse(createdRaw) : NaN;
+  if (!Number.isNaN(pubTs)) {
+    // Use publishDate as primary day key, and createdAt time-of-day/timestamp as tiebreaker
+    return pubTs + (Number.isNaN(createdTs) ? 0 : (createdTs % 86400000) / 100000);
+  }
+  if (!Number.isNaN(createdTs)) return createdTs;
+  return 0;
+}
+
+const CMS_COUNTRY_NAMES_NORMALIZED = new Set(
+  [
+    'السعودية',
+    'المملكة العربية السعودية',
+    'العراق',
+    'مصر',
+    'سوريا',
+    'سورية',
+    'الأردن',
+    'فلسطين',
+    'لبنان',
+    'الكويت',
+    'قطر',
+    'البحرين',
+    'الإمارات',
+    'الإمارات العربية المتحدة',
+    'عمان',
+    'سلطنة عمان',
+    'اليمن',
+    'المغرب',
+    'الجزائر',
+    'تونس',
+    'ليبيا',
+    'السودان',
+    'موريتانيا',
+    'الصومال',
+    'جيبوتي',
+    'جزر القمر',
+    'الأحواز',
+    'الشام',
+    'بلاد الشام',
+    'الحجاز',
+    'نجد',
+    'الخليج',
+    'الخليج العربي',
+    'المغرب العربي',
+    'الأندلس',
+    'تركيا',
+    'إيران',
+    'الهند',
+    'باكستان',
+    'أفغانستان',
+    'إندونيسيا',
+    'ماليزيا',
+    'أمريكا',
+    'الولايات المتحدة',
+    'بريطانيا',
+    'فرنسا',
+    'ألمانيا',
+    'إسبانيا',
+    'إيطاليا',
+    'كندا',
+    'أستراليا',
+    'روسيا',
+    'الصين',
+    'اليابان',
+    'البرازيل',
+    'الأرجنتين',
+    'السويد',
+    'هولندا',
+    'بلجيكا',
+    'النمسا',
+    'سويسرا',
+    'اليونان',
+    'قبرص',
+    'تشاد',
+    'النيجر',
+    'مالي',
+    'السنغال',
+    'إثيوبيا',
+    'إريتريا',
+    'كينيا',
+    'تنزانيا',
+    'نيجيريا',
+    'جنوب أفريقيا',
+    'مالطا',
+    'صقلية',
+    'أذربيجان',
+    'أوزبكستان',
+  ].map(normalizeCmsArabicText)
+);
+
+const CMS_BASE_THEMATIC_SUBFILTERS = new Set(
+  Object.values(KNOWLEDGE_BASE_SECTIONS)
+    .flatMap((cfg) => cfg.baseFilters || [])
+    .map(normalizeCmsArabicText)
+);
+
+function isCmsCountrySubSection(
+  label: string,
+  allArticles: KnowledgeArticleRecord[]
+): boolean {
+  const norm = normalizeCmsArabicText(label);
+  if (!norm || norm === normalizeCmsArabicText('عام')) return false;
+  if (CMS_COUNTRY_NAMES_NORMALIZED.has(norm)) return true;
+  if (CMS_BASE_THEMATIC_SUBFILTERS.has(norm)) return false;
+  // Any custom sub-filter used exclusively inside "الروايات والذاكرة" represents a country/region
+  const matchingArticles = allArticles.filter(
+    (art) => normalizeCmsArabicText(art.filter || '') === norm
+  );
+  if (
+    matchingArticles.length > 0 &&
+    matchingArticles.every(
+      (art) => (art.section || 'الروايات والذاكرة') === 'الروايات والذاكرة'
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function buildCmsPaginationRange(
+  currentPage: number,
+  totalPages: number
+): Array<number | 'ellipsis'> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+  }
+  const pages: Array<number | 'ellipsis'> = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) pages.push('ellipsis');
+  for (let p = start; p <= end; p += 1) {
+    pages.push(p);
+  }
+  if (end < totalPages - 1) pages.push('ellipsis');
+  pages.push(totalPages);
+  return pages;
+}
 
 const ALL_TEAM_ROLES: TeamRoleType[] = [
   'المايسترو',
@@ -281,6 +444,53 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [cmsFilterMode, setCmsFilterMode] = useState<
     'all' | 'needs_work' | 'mine'
   >('all');
+  const [cmsSearchQuery, setCmsSearchQuery] = useState('');
+  const [cmsTypeFilter, setCmsTypeFilter] = useState<'ALL' | KnowledgeContentType>(
+    'ALL'
+  );
+  const [cmsSectionFilter, setCmsSectionFilter] = useState<string>('ALL');
+  const [cmsSubFilter, setCmsSubFilter] = useState<string>('ALL');
+  const [cmsStatusFilter, setCmsStatusFilter] = useState<
+    'ALL' | 'published' | 'draft'
+  >('ALL');
+  const [cmsAuthorFilter, setCmsAuthorFilter] = useState<string>('ALL');
+  const [cmsEditorFilter, setCmsEditorFilter] = useState<string>('ALL');
+  const [cmsDateFilter, setCmsDateFilter] = useState<string>('');
+  const [cmsSortOrder, setCmsSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [cmsCurrentPage, setCmsCurrentPage] = useState<number>(1);
+  const [pendingDeleteArticle, setPendingDeleteArticle] =
+    useState<KnowledgeArticleRecord | null>(null);
+  const [isDeletingArticle, setIsDeletingArticle] = useState<boolean>(false);
+  const cmsCardTopRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setCmsCurrentPage(1);
+  }, [
+    cmsFilterMode,
+    cmsSearchQuery,
+    cmsTypeFilter,
+    cmsSectionFilter,
+    cmsSubFilter,
+    cmsStatusFilter,
+    cmsAuthorFilter,
+    cmsEditorFilter,
+    cmsDateFilter,
+    cmsSortOrder,
+  ]);
+
+  const resetAllCmsFilters = () => {
+    setCmsFilterMode('all');
+    setCmsSearchQuery('');
+    setCmsTypeFilter('ALL');
+    setCmsSectionFilter('ALL');
+    setCmsSubFilter('ALL');
+    setCmsStatusFilter('ALL');
+    setCmsAuthorFilter('ALL');
+    setCmsEditorFilter('ALL');
+    setCmsDateFilter('');
+    setCmsSortOrder('newest');
+    setCmsCurrentPage(1);
+  };
 
   // Toast feedback
   const [toastBanner, setToastBanner] = useState<string | null>(null);
@@ -998,12 +1208,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   };
 
   const handleDeleteKnowledgeArticle = async (articleId: string) => {
+    setIsDeletingArticle(true);
     try {
       await deleteKnowledgeArticleFromFirebase(articleId);
       setKnowledgeArticles((prev) => prev.filter((a) => a.id !== articleId));
+      setPendingDeleteArticle(null);
       triggerToast('تم حذف الموضوع من المركز المعرفي.');
     } catch {
       triggerToast('تعذر حذف الموضوع.');
+    } finally {
+      setIsDeletingArticle(false);
     }
   };
 
@@ -2915,32 +3129,203 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             article: art,
             rigor: computeArticleRigorScore(art),
           }));
-          const needsWorkCount = articlesWithRigor.filter(
-            ({ article, rigor }) => article.status === 'draft' || rigor.score < 85
-          ).length;
-          const mineCount = articlesWithRigor.filter(({ article }) =>
-            isMineArticle(article)
-          ).length;
-          const filteredCmsArticles = articlesWithRigor.filter(
-            ({ article, rigor }) => {
-              if (cmsFilterMode === 'needs_work') {
-                return article.status === 'draft' || rigor.score < 85;
-              }
-              if (cmsFilterMode === 'mine') {
-                return isMineArticle(article);
-              }
-              return true;
-            }
+
+          // Dynamic filter options built from schema + real Firestore articles
+          const sectionOptions = Array.from(
+            new Set([
+              ...Object.keys(KNOWLEDGE_BASE_SECTIONS),
+              ...knowledgeArticles
+                .map((art) => (art.section || '').trim())
+                .filter(Boolean),
+            ])
           );
+
+          const subFilterOptions = Array.from(
+            new Set(
+              cmsSectionFilter !== 'ALL'
+                ? [
+                    ...(KNOWLEDGE_BASE_SECTIONS[cmsSectionFilter]?.baseFilters || []),
+                    ...knowledgeArticles
+                      .filter(
+                        (art) =>
+                          (art.section || 'الروايات والذاكرة') === cmsSectionFilter
+                      )
+                      .map((art) => (art.filter || '').trim())
+                      .filter(Boolean),
+                  ]
+                : [
+                    ...Object.values(KNOWLEDGE_BASE_SECTIONS).flatMap(
+                      (cfg) => cfg.baseFilters || []
+                    ),
+                    ...knowledgeArticles
+                      .map((art) => (art.filter || '').trim())
+                      .filter(Boolean),
+                  ]
+            )
+          );
+
+          const countrySubFilterOptions = subFilterOptions
+            .filter((flt) => isCmsCountrySubSection(flt, knowledgeArticles))
+            .sort((a, b) => a.localeCompare(b, 'ar'));
+          const otherSubFilterOptions = subFilterOptions.filter(
+            (flt) => !isCmsCountrySubSection(flt, knowledgeArticles)
+          );
+
+          const authorOptions = Array.from(
+            new Set(
+              knowledgeArticles
+                .map((art) => (art.author || art.authorName || '').trim())
+                .filter(Boolean)
+            )
+          ).sort((a, b) => a.localeCompare(b, 'ar'));
+
+          const editorOptions = Array.from(
+            new Set(
+              knowledgeArticles
+                .map((art) => (art.editor || '').trim())
+                .filter(Boolean)
+            )
+          ).sort((a, b) => a.localeCompare(b, 'ar'));
+
+          const normalizedSearch = normalizeCmsArabicText(cmsSearchQuery);
+
+          const filteredCmsArticles = articlesWithRigor
+            .filter(({ article, rigor }) => {
+              if (cmsFilterMode === 'needs_work') {
+                if (!(article.status === 'draft' || rigor.score < 85)) return false;
+              } else if (cmsFilterMode === 'mine') {
+                if (!isMineArticle(article)) return false;
+              }
+
+              if (normalizedSearch) {
+                const normTitle = normalizeCmsArabicText(article.title || '');
+                if (!normTitle.includes(normalizedSearch)) return false;
+              }
+
+              if (cmsTypeFilter !== 'ALL') {
+                const artType = article.type || 'مقال';
+                if (artType !== cmsTypeFilter) return false;
+              }
+
+              if (cmsSectionFilter !== 'ALL') {
+                const artSection = article.section || 'الروايات والذاكرة';
+                if (artSection !== cmsSectionFilter) return false;
+              }
+
+              if (cmsSubFilter !== 'ALL') {
+                const artFilter = (article.filter || 'عام').trim();
+                if (artFilter !== cmsSubFilter) return false;
+              }
+
+              if (cmsStatusFilter !== 'ALL') {
+                const isDraft = article.status === 'draft';
+                if (cmsStatusFilter === 'draft' && !isDraft) return false;
+                if (cmsStatusFilter === 'published' && isDraft) return false;
+              }
+
+              if (cmsAuthorFilter !== 'ALL') {
+                const artAuthor = (article.author || article.authorName || '').trim();
+                if (artAuthor !== cmsAuthorFilter) return false;
+              }
+
+              if (cmsEditorFilter !== 'ALL') {
+                const artEditor = (article.editor || '').trim();
+                if (artEditor !== cmsEditorFilter) return false;
+              }
+
+              if (cmsDateFilter) {
+                const pubDate = (article.publishDate || '').trim();
+                const createdDate = (article.createdAt || '').trim();
+                const matchesDate =
+                  pubDate.startsWith(cmsDateFilter) ||
+                  createdDate.startsWith(cmsDateFilter);
+                if (!matchesDate) return false;
+              }
+
+              return true;
+            })
+            .sort((a, b) => {
+              const tsA = getCmsArticleSortTimestamp(a.article);
+              const tsB = getCmsArticleSortTimestamp(b.article);
+              if (tsA !== tsB) {
+                return cmsSortOrder === 'newest' ? tsB - tsA : tsA - tsB;
+              }
+              return (a.article.title || '').localeCompare(b.article.title || '', 'ar');
+            });
+
+          const activeFiltersCount =
+            (cmsFilterMode !== 'all' ? 1 : 0) +
+            (normalizedSearch ? 1 : 0) +
+            (cmsTypeFilter !== 'ALL' ? 1 : 0) +
+            (cmsSectionFilter !== 'ALL' ? 1 : 0) +
+            (cmsSubFilter !== 'ALL' ? 1 : 0) +
+            (cmsStatusFilter !== 'ALL' ? 1 : 0) +
+            (cmsAuthorFilter !== 'ALL' ? 1 : 0) +
+            (cmsEditorFilter !== 'ALL' ? 1 : 0) +
+            (cmsDateFilter ? 1 : 0);
+
+          const hasAnyActiveFilter = activeFiltersCount > 0;
+
+          const totalFilteredCount = filteredCmsArticles.length;
+          const totalPages = Math.max(
+            1,
+            Math.ceil(totalFilteredCount / CMS_PAGE_SIZE)
+          );
+          const safeCurrentPage = Math.min(cmsCurrentPage, totalPages);
+          const pageStartIndex = (safeCurrentPage - 1) * CMS_PAGE_SIZE;
+          const paginatedCmsArticles = filteredCmsArticles.slice(
+            pageStartIndex,
+            pageStartIndex + CMS_PAGE_SIZE
+          );
+          const showingFrom = totalFilteredCount === 0 ? 0 : pageStartIndex + 1;
+          const showingTo = Math.min(
+            pageStartIndex + CMS_PAGE_SIZE,
+            totalFilteredCount
+          );
+          const paginationRange = buildCmsPaginationRange(
+            safeCurrentPage,
+            totalPages
+          );
+
+          const goToCmsPage = (targetPage: number) => {
+            const clamped = Math.max(1, Math.min(totalPages, targetPage));
+            setCmsCurrentPage(clamped);
+            cmsCardTopRef.current?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+            });
+          };
+
+          const handleSectionFilterChange = (nextSection: string) => {
+            setCmsSectionFilter(nextSection);
+            if (nextSection === 'ALL') return;
+            const validNextSubs = new Set([
+              ...(KNOWLEDGE_BASE_SECTIONS[nextSection]?.baseFilters || []),
+              ...knowledgeArticles
+                .filter(
+                  (art) => (art.section || 'الروايات والذاكرة') === nextSection
+                )
+                .map((art) => (art.filter || '').trim())
+                .filter(Boolean),
+            ]);
+            if (cmsSubFilter !== 'ALL' && !validNextSubs.has(cmsSubFilter)) {
+              setCmsSubFilter('ALL');
+            }
+          };
 
           return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-[#E2DACB] overflow-hidden">
-              <div className="p-5 sm:p-6 border-b border-[#E2DACB] space-y-3">
+            <div
+              ref={cmsCardTopRef}
+              className="bg-white rounded-2xl shadow-sm border border-[#E2DACB] overflow-hidden"
+            >
+              <div className="p-5 sm:p-6 border-b border-[#E2DACB] space-y-4">
                 <div className="flex flex-wrap justify-between items-center gap-3">
-                  <h3 className="text-lg font-bold text-[#252321]">
-                    إدارة المقالات والمركز المعرفي
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#252321]">
+                      إدارة المقالات والمركز المعرفي
+                    </h3>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -2965,41 +3350,228 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </div>
                 </div>
 
-                {/* شريط التصفية الذكية المرتبط بالدوائر الإحصائية */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setCmsFilterMode('all')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                      cmsFilterMode === 'all'
-                        ? 'bg-[#EDE6DA] text-[#8D4925] border-[#C5A059]'
-                        : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB] hover:bg-[#EDE6DA]/60'
-                    }`}
-                  >
-                    الكل ({knowledgeArticles.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCmsFilterMode('needs_work')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                      cmsFilterMode === 'needs_work'
-                        ? 'bg-[#EDE6DA] text-[#8D4925] border-[#D8755B]'
-                        : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB] hover:bg-[#EDE6DA]/60'
-                    }`}
-                  >
-                    المسودات والقابلة لرفع الرصانة ({needsWorkCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCmsFilterMode('mine')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                      cmsFilterMode === 'mine'
-                        ? 'bg-[#EDE6DA] text-[#8D4925] border-[#C5A059]'
-                        : 'bg-[#FAF6F0] text-[#5C5346] border-[#E2DACB] hover:bg-[#EDE6DA]/60'
-                    }`}
-                  >
-                    الموثّقة باسمك ({mineCount})
-                  </button>
+                {/* شريط البحث السريع + عداد النتائج + الفلاتر الشاملة */}
+                <div className="rounded-xl bg-[#FAF6F0]/80 border border-[#E2DACB] p-3.5 space-y-3">
+                  {/* الصف الأول: البحث اللحظي بالعنوان وبجانبه عداد النتائج وزر مسح الفلاتر */}
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-2.5">
+                    <div className="flex-1 relative">
+                      <Search className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={cmsSearchQuery}
+                        onChange={(e) => setCmsSearchQuery(e.target.value)}
+                        placeholder="ابحث سريعاً بكتابة الحروف الأولى من عنوان المقال..."
+                        aria-label="البحث السريع في عناوين المقالات"
+                        className="w-full pr-10 pl-9 py-2.5 rounded-xl bg-white border border-[#D8CFC0] focus:border-[#8D4925] focus:ring-2 focus:ring-[#C5A059]/25 outline-none text-xs sm:text-sm font-medium text-[#252321] placeholder:text-[#8C8272] transition"
+                      />
+                      {cmsSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setCmsSearchQuery('')}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-[#6E6456] hover:text-[#252321] hover:bg-[#FAF6F0] transition cursor-pointer"
+                          title="مسح نص البحث"
+                          aria-label="مسح نص البحث"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* عداد النتائج المطابقة + زر مسح الفلاتر بجانب شريط البحث */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#D8CFC0] text-xs font-bold text-[#252321]">
+                        <Filter className="w-3.5 h-3.5 text-[#8D4925]" />
+                        <span>
+                          النتائج المطابقة:{' '}
+                          <span className="text-[#8D4925] font-extrabold">
+                            {totalFilteredCount}
+                          </span>
+                          <span className="text-[#6E6456] font-semibold">
+                            {' '}
+                            من أصل {knowledgeArticles.length} مقال
+                          </span>
+                        </span>
+                        {activeFiltersCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-[#D8755B]/15 text-[#8D4925] text-[10px] font-extrabold">
+                            {activeFiltersCount} فلتر
+                          </span>
+                        )}
+                      </div>
+
+                      {hasAnyActiveFilter && (
+                        <button
+                          type="button"
+                          onClick={resetAllCmsFilters}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-[#EDE6DA]/60 text-[#8D4925] border border-[#D8755B]/55 text-xs font-bold transition cursor-pointer"
+                          title="مسح جميع الفلاتر والعودة لعرض كل المقالات"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>مسح الفلاتر</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* الصف الثاني: فلاتر حقول المقال السبعة */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
+                    {/* نوع الموضوع */}
+                    <label className="block space-y-1">
+                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                        نوع الموضوع
+                      </span>
+                      <select
+                        value={cmsTypeFilter}
+                        onChange={(e) =>
+                          setCmsTypeFilter(
+                            e.target.value as 'ALL' | KnowledgeContentType
+                          )
+                        }
+                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                      >
+                        <option value="ALL">الكل</option>
+                        <option value="مقال">مقال</option>
+                        <option value="فيديو">فيديو</option>
+                      </select>
+                    </label>
+
+                    {/* القسم الرئيسي */}
+                    <label className="block space-y-1">
+                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                        القسم الرئيسي
+                      </span>
+                      <select
+                        value={cmsSectionFilter}
+                        onChange={(e) =>
+                          handleSectionFilterChange(e.target.value)
+                        }
+                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                      >
+                        <option value="ALL">كل الأقسام</option>
+                        {sectionOptions.map((sec) => (
+                          <option key={sec} value={sec}>
+                            {sec}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {/* القسم الفرعي (مع فصل بصري واضح بين الدول وباقي الأقسام الفرعية) */}
+                    <label className="block space-y-1">
+                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                        القسم الفرعي
+                      </span>
+                      <select
+                        value={cmsSubFilter}
+                        onChange={(e) => setCmsSubFilter(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                      >
+                        <option value="ALL">الكل</option>
+                        {otherSubFilterOptions.length > 0 && (
+                          <optgroup label="── الأقسام والتصنيفات ──">
+                            {otherSubFilterOptions.map((flt) => (
+                              <option key={`other-${flt}`} value={flt}>
+                                {flt}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {countrySubFilterOptions.length > 0 && (
+                          <optgroup label="── الدول ──">
+                            {countrySubFilterOptions.map((country) => (
+                              <option key={`country-${country}`} value={country}>
+                                {country}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </label>
+
+                    {/* حالة النشر */}
+                    <label className="block space-y-1">
+                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                        حالة النشر
+                      </span>
+                      <select
+                        value={cmsStatusFilter}
+                        onChange={(e) =>
+                          setCmsStatusFilter(
+                            e.target.value as 'ALL' | 'published' | 'draft'
+                          )
+                        }
+                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                      >
+                        <option value="ALL">الكل</option>
+                        <option value="published">منشور للجمهور</option>
+                        <option value="draft">مسودة تحريرية</option>
+                      </select>
+                    </label>
+
+                    {/* تاريخ إدخال / نشر المقال */}
+                    <div className="space-y-1">
+                      <span className="flex items-center justify-between text-[11px] font-bold text-[#6E6456]">
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-[#8D4925]" />
+                          <span>تاريخ المقال</span>
+                        </span>
+                        {cmsDateFilter && (
+                          <button
+                            type="button"
+                            onClick={() => setCmsDateFilter('')}
+                            className="text-[10px] text-[#8D4925] hover:underline cursor-pointer"
+                          >
+                            مسح
+                          </button>
+                        )}
+                      </span>
+                      <input
+                        type="date"
+                        dir="ltr"
+                        value={cmsDateFilter}
+                        onChange={(e) => setCmsDateFilter(e.target.value)}
+                        aria-label="تصفية حسب تاريخ إدخال أو نشر المقال"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-mono text-[#252321] cursor-pointer"
+                      />
+                    </div>
+
+                    {/* الكاتب / المنتج */}
+                    <label className="block space-y-1">
+                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                        الكاتب / المنتج
+                      </span>
+                      <select
+                        value={cmsAuthorFilter}
+                        onChange={(e) => setCmsAuthorFilter(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                      >
+                        <option value="ALL">الكل</option>
+                        {authorOptions.map((authorName) => (
+                          <option key={authorName} value={authorName}>
+                            {authorName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {/* تحرير */}
+                    <label className="block space-y-1">
+                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                        تحرير
+                      </span>
+                      <select
+                        value={cmsEditorFilter}
+                        onChange={(e) => setCmsEditorFilter(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                      >
+                        <option value="ALL">الكل</option>
+                        {editorOptions.map((editorName) => (
+                          <option key={editorName} value={editorName}>
+                            {editorName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -3009,13 +3581,42 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     <tr>
                       <th className="p-4">العنوان</th>
                       <th className="p-4">النوع</th>
-                      <th className="p-4">القسم/التصفية</th>
-                      <th className="p-4">تاريخ النشر</th>
+                      <th className="p-4">القسم / القسم الفرعي</th>
+                      <th className="p-4 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCmsSortOrder((prev) =>
+                              prev === 'newest' ? 'oldest' : 'newest'
+                            )
+                          }
+                          title={
+                            cmsSortOrder === 'newest'
+                              ? 'مرتّب من الأحدث إلى الأقدم — اضغط للعرض من الأقدم إلى الأحدث'
+                              : 'مرتّب من الأقدم إلى الأحدث — اضغط للعرض من الأحدث إلى الأقدم'
+                          }
+                          aria-label={
+                            cmsSortOrder === 'newest'
+                              ? 'تاريخ النشر (الأحدث أولاً) — اضغط لعكس الترتيب'
+                              : 'تاريخ النشر (الأقدم أولاً) — اضغط لعكس الترتيب'
+                          }
+                          className="inline-flex items-center gap-1.5 text-[#252321] hover:text-[#8D4925] transition-colors cursor-pointer group"
+                        >
+                          <span>تاريخ النشر</span>
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-white border border-[#D8CFC0] group-hover:border-[#8D4925] text-[#8D4925] transition-colors">
+                            {cmsSortOrder === 'newest' ? (
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            ) : (
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
                       <th className="p-4">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EFEAE0] text-xs sm:text-sm">
-                    {filteredCmsArticles.map(({ article, rigor }) => {
+                    {paginatedCmsArticles.map(({ article, rigor }) => {
                       const artType = article.type || 'مقال';
                       const artSection = article.section || 'الروايات والذاكرة';
                       const artFilter = article.filter || 'عام';
@@ -3067,7 +3668,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           </td>
                           <td className="p-4">
                             <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
+                              className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 whitespace-nowrap ${
                                 artType === 'مقال'
                                   ? 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/50'
                                   : 'bg-[#D8755B]/15 text-[#D8755B] border border-[#D8755B]/30'
@@ -3087,7 +3688,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             </div>
                             <div className="text-xs text-[#8C8272]">{artFilter}</div>
                           </td>
-                          <td className="p-4 text-[#5C5346] font-mono text-xs">
+                          <td
+                            dir="ltr"
+                            className="p-4 text-[#5C5346] font-mono text-xs whitespace-nowrap text-right"
+                          >
                             {article.publishDate || 'غير محدد'}
                           </td>
                           <td className="p-4">
@@ -3103,9 +3707,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               </button>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  handleDeleteKnowledgeArticle(article.id)
-                                }
+                                onClick={() => setPendingDeleteArticle(article)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors text-xs font-bold cursor-pointer"
                                 title="حذف"
                               >
@@ -3117,21 +3719,113 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </tr>
                       );
                     })}
-                    {filteredCmsArticles.length === 0 && (
+                    {totalFilteredCount === 0 && (
                       <tr>
                         <td
                           colSpan={5}
-                          className="p-8 text-center text-[#6E6456] font-bold"
+                          className="p-10 text-center text-[#6E6456] space-y-2.5"
                         >
-                          {cmsFilterMode === 'all'
-                            ? 'لا توجد مقالات مضافة بعد'
-                            : 'لا توجد مواد مطابقة لهذه التصفية حالياً'}
+                          <div className="font-bold text-sm text-[#252321]">
+                            {knowledgeArticles.length === 0
+                              ? 'لا توجد مقالات مضافة بعد'
+                              : 'لا توجد مقالات مطابقة لمعايير البحث والتصفية الحالية'}
+                          </div>
+                          {hasAnyActiveFilter && knowledgeArticles.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={resetAllCmsFilters}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#C5A059] text-xs font-bold transition cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>عرض كل المقالات ({knowledgeArticles.length})</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {/* تذييل الجدول: عداد العرض + أزرار التنقل بين الصفحات (10 مقالات في الصفحة) */}
+              {totalFilteredCount > 0 && (
+                <div className="px-5 py-3.5 bg-[#FAF6F0] border-t border-[#E2DACB] flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs font-bold text-[#5C5346]">
+                    عرض{' '}
+                    <span className="text-[#252321] font-extrabold font-mono">
+                      {showingFrom}–{showingTo}
+                    </span>{' '}
+                    من أصل{' '}
+                    <span className="text-[#8D4925] font-extrabold font-mono">
+                      {totalFilteredCount}
+                    </span>{' '}
+                    مقال
+                    {totalFilteredCount !== knowledgeArticles.length && (
+                      <span className="text-[#8C8272] font-semibold">
+                        {' '}
+                        (إجمالي المركز: {knowledgeArticles.length})
+                      </span>
+                    )}
+                    <span className="text-[#8C8272] font-semibold mr-2">
+                      · صفحة {safeCurrentPage} من {totalPages}
+                    </span>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <nav
+                      aria-label="التنقل بين صفحات المقالات"
+                      className="flex flex-wrap items-center gap-1.5"
+                    >
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage <= 1}
+                        onClick={() => goToCmsPage(safeCurrentPage - 1)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-[#D8CFC0] text-xs font-bold text-[#252321] hover:bg-[#EDE6DA]/60 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>السابق</span>
+                      </button>
+
+                      {paginationRange.map((entry, idx) =>
+                        entry === 'ellipsis' ? (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            className="px-2 text-xs font-bold text-[#8C8272] select-none"
+                          >
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={entry}
+                            type="button"
+                            onClick={() => goToCmsPage(entry)}
+                            aria-current={
+                              entry === safeCurrentPage ? 'page' : undefined
+                            }
+                            className={`min-w-8 h-8 px-2 rounded-lg text-xs font-extrabold font-mono border transition cursor-pointer ${
+                              entry === safeCurrentPage
+                                ? 'bg-[#8D4925] text-white border-[#8D4925] shadow-xs'
+                                : 'bg-white text-[#252321] border-[#D8CFC0] hover:bg-[#EDE6DA]/70'
+                            }`}
+                          >
+                            {entry}
+                          </button>
+                        )
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage >= totalPages}
+                        onClick={() => goToCmsPage(safeCurrentPage + 1)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-[#D8CFC0] text-xs font-bold text-[#252321] hover:bg-[#EDE6DA]/60 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <span>التالي</span>
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                    </nav>
+                  )}
+                </div>
+              )}
             </div>
 
             {previewKnowledgeCenter && (
@@ -3937,7 +4631,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                   <div>
                     <label className="block text-xs font-bold text-[#252321] mb-1.5">
-                      التصفية / الفلتر الفرعي *
+                      القسم الفرعي *
                     </label>
                     <select
                       value={articleFilter}
@@ -3953,7 +4647,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           {flt}
                         </option>
                       ))}
-                      <option value="__custom__">+ إضافة فلتر فرعي جديد...</option>
+                      <option value="__custom__">+ إضافة قسم فرعي جديد...</option>
                     </select>
                   </div>
 
@@ -4617,6 +5311,99 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL: تأكيد حذف مقال من المركز المعرفي
+         ===================================================================== */}
+      {pendingDeleteArticle && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cms-delete-confirm-title"
+          onClick={() => {
+            if (!isDeletingArticle) setPendingDeleteArticle(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-2xl border border-[#E2DACB] shadow-2xl overflow-hidden text-right"
+          >
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h3
+                    id="cms-delete-confirm-title"
+                    className="text-base font-extrabold text-[#252321]"
+                  >
+                    تأكيد حذف المقال
+                  </h3>
+                  <p className="text-xs text-[#6E6456] leading-relaxed">
+                    هل أنت متأكد من رغبتك في حذف هذا الموضوع نهائياً من المركز المعرفي؟ لا يمكن التراجع عن هذا الإجراء بعد التنفيذ.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isDeletingArticle}
+                  onClick={() => setPendingDeleteArticle(null)}
+                  className="p-1.5 rounded-lg text-[#6E6456] hover:bg-[#FAF6F0] hover:text-[#252321] transition cursor-pointer disabled:opacity-40"
+                  aria-label="إغلاق نافذة التأكيد"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] space-y-1">
+                <div className="text-sm font-bold text-[#252321] line-clamp-2">
+                  {pendingDeleteArticle.title}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-[#6E6456]">
+                  <span>
+                    {pendingDeleteArticle.section || 'الروايات والذاكرة'}
+                  </span>
+                  <span>·</span>
+                  <span>{pendingDeleteArticle.filter || 'عام'}</span>
+                  {pendingDeleteArticle.publishDate && (
+                    <>
+                      <span>·</span>
+                      <span dir="ltr" className="font-mono">
+                        {pendingDeleteArticle.publishDate}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EFEAE0]">
+                <button
+                  type="button"
+                  disabled={isDeletingArticle}
+                  onClick={() => setPendingDeleteArticle(null)}
+                  className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D8CFC0] text-xs font-bold text-[#252321] transition cursor-pointer disabled:opacity-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingArticle}
+                  onClick={() =>
+                    handleDeleteKnowledgeArticle(pendingDeleteArticle.id)
+                  }
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 shadow-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>
+                    {isDeletingArticle ? 'جاري الحذف...' : 'نعم، تأكيد الحذف'}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
