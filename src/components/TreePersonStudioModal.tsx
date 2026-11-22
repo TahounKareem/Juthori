@@ -121,6 +121,7 @@ export interface TreePersonStudioModalProps {
   isVerticalOnlyModal: boolean;
   isHorizontalBridgeAboveFamily?: boolean;
   isSpouseRole: boolean;
+  isAnySpouseRole?: boolean;
   isDaughterRole: boolean;
   showMotherSelector: boolean;
   motherSelectorFatherName?: string;
@@ -251,6 +252,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
   isVerticalOnlyModal,
   isHorizontalBridgeAboveFamily = false,
   isSpouseRole,
+  isAnySpouseRole = false,
   isDaughterRole,
   showMotherSelector,
   motherSelectorFatherName,
@@ -358,6 +360,27 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
 
   const isCreatingInlineMother = formMotherId === NEW_MOTHER_SENTINEL;
   const cleanPreviewFirst = formFirstName.trim();
+
+  // Dynamic contextual label for the first expandable detail pill
+  const identityPanelLabel =
+    showMotherSelector && !isSpouseRole
+      ? 'المكانة والأم'
+      : isSpouseRole || isAnySpouseRole || isDaughterRole
+      ? 'المكانة والمصاهرة'
+      : 'المكانة والألقاب';
+
+  // Only keep the top selector when the father already has recorded wives to pick from;
+  // otherwise move the quiet auto-link confirmation line down right above Save / Cancel.
+  const hasExistingFatherWivesSelector = Boolean(
+    smartAddMotherContext &&
+      smartAddMotherContext.fatherName &&
+      smartAddMotherContext.existingFatherWives.length > 0
+  );
+  const showAutoLinkMotherFooterNote = Boolean(
+    smartAddMotherContext &&
+      smartAddMotherContext.fatherName &&
+      smartAddMotherContext.existingFatherWives.length === 0
+  );
 
   // If validation asks for inline new mother name, gently reveal the identity panel
   useEffect(() => {
@@ -481,92 +504,79 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
         </div>
 
         {/* ================================================================= */}
-        {/* 2. SMART ADD-MOTHER PANEL (When adding mother for child w/ father) */}
+        {/* 2. EXISTING WIVES PICKER (ONLY when father already has wives)     */}
         {/* ================================================================= */}
-        {smartAddMotherContext && smartAddMotherContext.fatherName && (
+        {hasExistingFatherWivesSelector && smartAddMotherContext && (
           <div
             data-testid="smart-add-mother-panel"
             className="mx-5 mt-4 rounded-2xl bg-[#FEF9EC] border border-[#C5A059]/50 p-3.5 space-y-2.5 shrink-0"
           >
-            {smartAddMotherContext.existingFatherWives.length > 0 ? (
-              <>
-                <div className="space-y-0.5">
-                  <div className="text-xs font-display font-extrabold text-[#7A4B1B] flex items-center gap-1.5">
-                    <Heart className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
-                    <span>
-                      اختيار الأم من زوجات ({smartAddMotherContext.fatherName}) أو إضافة زوجة جديدة
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#5E4A39]">
-                    اختر إحدى زوجات {smartAddMotherContext.fatherName} لربط «{smartAddMotherContext.childName}» بها فوراً دون تكرار، أو أضف أماً جديدة.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {smartAddMotherContext.existingFatherWives.map((wife) => {
-                    const active =
-                      smartAddMotherContext.choiceMode === 'select_existing' &&
-                      smartAddMotherContext.selectedExistingMotherId === wife.id;
-                    return (
-                      <button
-                        key={wife.id}
-                        type="button"
-                        data-testid={`smart-mother-wife-option-${wife.id}`}
-                        onClick={() => {
-                          smartAddMotherContext.onChangeChoiceMode(
-                            'select_existing'
-                          );
-                          smartAddMotherContext.onChangeSelectedExistingMotherId(
-                            wife.id
-                          );
-                        }}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-2 ${
-                          active
-                            ? 'bg-gradient-to-b from-[#B9623D] to-[#8D4925] text-[#FFFDF8] border-[#8D4925] shadow-xs'
-                            : 'bg-white text-[#2D241E] border-[#D4AF37]/40 hover:border-[#8D4925]'
-                        }`}
-                      >
-                        <span aria-hidden="true">💍</span>
-                        <span>
-                          {wife.firstName}
-                          {wife.kunya ? ` (${wife.kunya})` : ''}
-                        </span>
-                        {active && (
-                          <Check className="w-3.5 h-3.5 text-[#F9E4B0]" />
-                        )}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    data-testid="smart-mother-create-new-btn"
-                    onClick={() =>
-                      smartAddMotherContext.onChangeChoiceMode('create_new')
-                    }
-                    className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-                      smartAddMotherContext.choiceMode === 'create_new'
-                        ? 'bg-[#F5E6CE] text-[#7A4B1B] border-[#C59B27] shadow-2xs'
-                        : 'bg-white text-[#8D4925] border-dashed border-[#C5A059] hover:bg-[#FAF4E8]'
-                    }`}
-                  >
-                    <span>
-                      + إضافة أم جديدة (تُسجّل كزوجة لـ{' '}
-                      {smartAddMotherContext.fatherName})
-                    </span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-start gap-2 text-xs text-[#7A4B1B] leading-relaxed">
-                <Heart className="w-4 h-4 text-[#C59B27] shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <div className="text-xs font-display font-extrabold text-[#7A4B1B] flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
                 <span>
-                  سيتم ربطها تلقائياً كزوجة للأب (
-                  <strong>{smartAddMotherContext.fatherName}</strong>) وأمٍ لـ (
-                  <strong>{smartAddMotherContext.childName}</strong>) في خطوة واحدة.
+                  اختيار الأم من زوجات ({smartAddMotherContext.fatherName}) أو إضافة زوجة جديدة
                 </span>
               </div>
-            )}
+              <p className="text-[11px] text-[#5E4A39]">
+                اختر إحدى زوجات {smartAddMotherContext.fatherName} لربط «{smartAddMotherContext.childName}» بها فوراً دون تكرار، أو أضف أماً جديدة.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {smartAddMotherContext.existingFatherWives.map((wife) => {
+                const active =
+                  smartAddMotherContext.choiceMode === 'select_existing' &&
+                  smartAddMotherContext.selectedExistingMotherId === wife.id;
+                return (
+                  <button
+                    key={wife.id}
+                    type="button"
+                    data-testid={`smart-mother-wife-option-${wife.id}`}
+                    onClick={() => {
+                      smartAddMotherContext.onChangeChoiceMode(
+                        'select_existing'
+                      );
+                      smartAddMotherContext.onChangeSelectedExistingMotherId(
+                        wife.id
+                      );
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-2 ${
+                      active
+                        ? 'bg-gradient-to-b from-[#B9623D] to-[#8D4925] text-[#FFFDF8] border-[#8D4925] shadow-xs'
+                        : 'bg-white text-[#2D241E] border-[#D4AF37]/40 hover:border-[#8D4925]'
+                    }`}
+                  >
+                    <span aria-hidden="true">💍</span>
+                    <span>
+                      {wife.firstName}
+                      {wife.kunya ? ` (${wife.kunya})` : ''}
+                    </span>
+                    {active && (
+                      <Check className="w-3.5 h-3.5 text-[#F9E4B0]" />
+                    )}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                data-testid="smart-mother-create-new-btn"
+                onClick={() =>
+                  smartAddMotherContext.onChangeChoiceMode('create_new')
+                }
+                className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  smartAddMotherContext.choiceMode === 'create_new'
+                    ? 'bg-[#F5E6CE] text-[#7A4B1B] border-[#C59B27] shadow-2xs'
+                    : 'bg-white text-[#8D4925] border-dashed border-[#C5A059] hover:bg-[#FAF4E8]'
+                }`}
+              >
+                <span>
+                  + إضافة أم جديدة (تُسجّل كزوجة لـ{' '}
+                  {smartAddMotherContext.fatherName})
+                </span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -607,28 +617,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
             </div>
           ) : (
             <>
-              {isVerticalOnlyModal && (
-                <div className="rounded-2xl bg-[#FAF4E8] border border-[#D4AF37]/40 p-3 text-xs text-[#4A3B2F] leading-relaxed">
-                  {isHorizontalBridgeAboveFamily ? (
-                    <>
-                      <strong className="text-[#8D4925]">
-                        فرع أفقي فوق العائلة وحتى الجذر:
-                      </strong>{' '}
-                      يُسجَّل هذا الفرع بشكل أفقي مجاور في نطاق الوصل الواقع بين العائلة ونقطة الجذر الموثقة.
-                    </>
-                  ) : (
-                    <>
-                      <strong className="text-[#8D4925]">
-                        حلقة ربط عمودية نحو الجذر:
-                      </strong>{' '}
-                      تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة.
-                    </>
-                  )}
-                </div>
-              )}
-
               {/* =========================================================== */}
               {/* PRIMARY INSTANT ENTRY ROW: Clickable Avatar + Name Input *  */}
+              {/* Always sits first directly beneath the modal header         */}
               {/* =========================================================== */}
               <div className="flex items-center gap-4">
                 {/* Clickable Portrait Ring for Instant Upload */}
@@ -725,7 +716,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     تفاصيل إضافية:
                   </span>
 
-                  {/* Pill 1: المكانة والأم */}
+                  {/* Pill 1: Dynamic contextual label (المكانة والأم / المكانة والمصاهرة / المكانة والألقاب) */}
                   <button
                     type="button"
                     aria-expanded={activeDetailPanel === 'identity'}
@@ -738,7 +729,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     }`}
                   >
                     <Sparkles className="w-3 h-3 text-[#B68422] shrink-0" />
-                    <span>المكانة والأم</span>
+                    <span>{identityPanelLabel}</span>
                     {hasIdentityDetails && activeDetailPanel !== 'identity' && (
                       <span
                         aria-hidden="true"
@@ -845,11 +836,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         </div>
                       )}
 
-                      <div
-                        className={`w-full flex items-center gap-3 px-3.5 ${
-                          previewCrownLabel ? 'pt-3 pb-2.5' : 'py-2.5'
-                        }`}
-                      >
+                      <div className="w-full flex items-center gap-3 px-3.5 py-2.5">
                         <div
                           className="w-11 h-11 rounded-full shrink-0 overflow-hidden flex items-center justify-center"
                           style={{
@@ -1672,6 +1659,43 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
           {formError && (
             <div className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-xs font-bold text-red-700">
               {formError}
+            </div>
+          )}
+
+          {/* Quiet Contextual Info Strip (Positioned cleanly above Save / Cancel) */}
+          {!isSelectingExistingMother &&
+            showAutoLinkMotherFooterNote &&
+            smartAddMotherContext?.fatherName && (
+              <div
+                data-testid="smart-add-mother-panel"
+                className="rounded-xl bg-[#FAF4E8]/85 border border-[#D4AF37]/30 px-3.5 py-2 flex items-center gap-2 text-[11.5px] text-[#7A5424] leading-relaxed"
+              >
+                <Heart className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                <span>
+                  سيتم ربطها تلقائياً كزوجة للأب (
+                  <strong>{smartAddMotherContext.fatherName}</strong>) وأمٍ لـ (
+                  <strong>{smartAddMotherContext.childName}</strong>) في خطوة واحدة.
+                </span>
+              </div>
+            )}
+
+          {!isSelectingExistingMother && isVerticalOnlyModal && (
+            <div className="rounded-xl bg-[#FAF4E8]/85 border border-[#D4AF37]/30 px-3.5 py-2 text-[11.5px] text-[#5E4A39] leading-relaxed">
+              {isHorizontalBridgeAboveFamily ? (
+                <>
+                  <strong className="text-[#8D4925]">
+                    فرع أفقي فوق العائلة وحتى الجذر:
+                  </strong>{' '}
+                  يُسجَّل هذا الفرع بشكل أفقي مجاور في نطاق الوصل الواقع بين العائلة ونقطة الجذر الموثقة.
+                </>
+              ) : (
+                <>
+                  <strong className="text-[#8D4925]">
+                    حلقة ربط عمودية نحو الجذر:
+                  </strong>{' '}
+                  تُسجَّل كعقدة عمودية منفردة لربط عمود أسرتك بنقطة الجذر الموثقة.
+                </>
+              )}
             </div>
           )}
 

@@ -1929,6 +1929,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             : `إضافة حلقة ربط فوق (${cleanFam}) نحو الجذر`,
         subtitle: `نطاق الوصل بين العائلة والجذر · شجرة عائلة ${result.familyName}`,
         isSpouseRole: false,
+        isAnySpouseRole: false,
         isDaughterRole: false,
         showMotherSelector: false,
         motherSelectorFatherId: undefined as string | undefined,
@@ -1978,6 +1979,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           : `تعديل بطاقة الفرد: ${target.firstName}`,
         subtitle: `شجرة عائلة ${result.familyName}`,
         isSpouseRole: isMarriedInWife,
+        isAnySpouseRole: isMarriedInWife,
         isDaughterRole: isDaughterNode,
         showMotherSelector:
           !isMarriedInWife &&
@@ -2096,6 +2098,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       bindingHeadline: dynamicHeadline,
       subtitle: `شجرة عائلة ${result.familyName}`,
       isSpouseRole,
+      isAnySpouseRole: isSpouseRole || rel === 'spouse',
       isDaughterRole,
       showMotherSelector:
         canHaveMotherSelection &&
@@ -3678,11 +3681,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     );
   };
 
-  // ============================================================================
+  const hasPersonTopCrown = (p: InteractiveTreePerson): boolean =>
+    treeDisplaySettings.nodeShape === 'card' &&
+    Boolean(
+      p.isRecordKeeper ||
+        (treeDisplaySettings.showPrestigeBadges &&
+          resolvePrestigeBadgeMeta(p.prestigeBadge, p.gender))
+    );
+
   // ============================================================================
   // RENDER PERSON CARD (Structured 3-Zone Luxury Plaque Anatomy + 3-Zone Rules)
   // ============================================================================
-  const renderPersonCard = (person: InteractiveTreePerson) => {
+  const renderPersonCard = (
+    person: InteractiveTreePerson,
+    options?: { forceCrownTopClearance?: boolean }
+  ) => {
     const isRadialOpen = radialTargetNodeId === person.id;
     const isCardSelected = selectedPersonIdForSpouses === person.id;
     const showInteractiveControls = isRadialOpen || isCardSelected;
@@ -4030,14 +4043,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       ? activeTreeTheme.leafFemaleStroke
       : activeTreeTheme.leafStroke;
 
+    const needsCrownTopClearance =
+      treeDisplaySettings.nodeShape === 'card' &&
+      (Boolean(topCrownLabel) || Boolean(options?.forceCrownTopClearance));
+
     return (
       <div
         key={person.id}
         data-testid={`tree-person-card-${person.id}`}
         className={`relative group overflow-visible transition-all flex flex-col items-center ${
-          treeDisplaySettings.nodeShape === 'card' && topCrownLabel
-            ? 'pt-2.5'
-            : ''
+          needsCrownTopClearance ? 'pt-2.5' : ''
         } ${!isVerticalOnlyLink ? 'pb-1.5' : ''} ${
           isRadialOpen ? 'z-40' : 'z-10'
         }`}
@@ -4299,11 +4314,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             {/* ZONE 2: Clean Core Identity Zone (Gilded Portrait + Same-Line Title/Name + Personal Line ONLY) */}
             <div
               className={`relative w-full flex items-center ${
-                isCompactDensity
-                  ? 'gap-2.5 px-2.5 py-2'
-                  : topCrownLabel
-                  ? 'gap-3 px-3.5 pt-3 pb-2.5'
-                  : 'gap-3 px-3.5 py-2.5'
+                isCompactDensity ? 'gap-2.5 px-2.5 py-2' : 'gap-3 px-3.5 py-2.5'
               }`}
             >
               {/* Subtle Right-Edge Heritage Accent Strip for Record Keeper */}
@@ -4984,6 +4995,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       ...childRouting.leftMaternalGroups.map((g) => g.spouse.id),
     ]);
 
+    const coupleRowHasCrown =
+      hasPersonTopCrown(person) ||
+      (shouldShowSpouses && spouses.some((sp) => hasPersonTopCrown(sp)));
+
     // Double horizontal golden marital bridge (used for single wife or each side of 2-wife centered hub)
     const renderHorizontalMaritalBridge = (
       spouse: InteractiveTreePerson,
@@ -4991,6 +5006,26 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     ) => {
       const hasUnionChildren =
         !isBranchCollapsed && spouseIdsWithAssignedChildren.has(spouse.id);
+      const isCardShape = treeDisplaySettings.nodeShape === 'card';
+      const isCompact = treeDisplaySettings.cardDensity === 'compact';
+      const bridgeTopMarginClass = isCardShape
+        ? isCompact
+          ? coupleRowHasCrown
+            ? 'mt-[25px]'
+            : 'mt-[15px]'
+          : coupleRowHasCrown
+          ? 'mt-[31px]'
+          : 'mt-[21px]'
+        : 'mt-9';
+      const stemTopOffsetClass = isCardShape
+        ? isCompact
+          ? coupleRowHasCrown
+            ? 'top-[37px]'
+            : 'top-[27px]'
+          : coupleRowHasCrown
+          ? 'top-[43px]'
+          : 'top-[33px]'
+        : 'top-[48px]';
       return (
         <div
           data-testid={`marital-bridge-${side}-${spouse.id}`}
@@ -5001,10 +5036,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           {hasUnionChildren && (
             <div
               data-testid={`marital-bridge-offspring-stem-${spouse.id}`}
-              className="absolute top-[48px] bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-[#C5A059] z-10"
+              className={`absolute ${stemTopOffsetClass} bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-[#C5A059] z-10`}
             />
           )}
-          <div className="w-full mt-9 flex items-center justify-center relative z-20">
+          <div
+            className={`w-full ${bridgeTopMarginClass} flex items-center justify-center relative z-20`}
+          >
             <div className="w-full flex flex-col gap-[3px]">
               <div className="w-full h-[1.5px] bg-[#C5A059]/85" />
               <div className="w-full h-[1.5px] bg-[#C5A059]/85" />
@@ -5038,13 +5075,17 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           >
             {side === 'right' ? (
               <>
-                {renderPersonCard(sp)}
+                {renderPersonCard(sp, {
+                  forceCrownTopClearance: coupleRowHasCrown,
+                })}
                 {renderHorizontalMaritalBridge(sp, 'right')}
               </>
             ) : (
               <>
                 {renderHorizontalMaritalBridge(sp, 'left')}
-                {renderPersonCard(sp)}
+                {renderPersonCard(sp, {
+                  forceCrownTopClearance: coupleRowHasCrown,
+                })}
               </>
             )}
           </div>
@@ -5076,6 +5117,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             {ordered.map((sp, idx) => {
               const isOutermost =
                 side === 'right' ? idx === 0 : idx === ordered.length - 1;
+              const extendDropStemForCrownAlignment =
+                coupleRowHasCrown && !hasPersonTopCrown(sp);
               return (
                 <div
                   key={sp.id}
@@ -5083,7 +5126,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   className="flex flex-col items-center relative px-1.5"
                 >
                   {/* Overhead golden marital rail + independent vertical drop stem + 💍 medallion */}
-                  <div className="relative w-full h-9 flex flex-col items-center justify-center">
+                  <div
+                    className={`relative w-full ${
+                      extendDropStemForCrownAlignment ? 'h-[46px]' : 'h-9'
+                    } flex flex-col items-center justify-center`}
+                  >
                     <div
                       className={`absolute top-[2px] h-[2px] bg-[#C5A059] ${
                         isOutermost
@@ -5191,20 +5238,46 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             data-testid={`pedigree-siblings-row-${clusterKey}`}
             className="flex flex-row flex-nowrap items-start justify-center"
           >
-            {clusterChildren.map((childNode, idx) => {
-              const isFirst = idx === 0;
-              const isLast = idx === clusterChildren.length - 1;
-              const childKinshipWord =
-                childNode.person.gender === 'female' ? 'بنت' : 'بن';
-              const childOnKinship = isKinshipEdge(childNode.person.id);
+            {(() => {
+              const doesSiblingRowHaveCrown = (
+                cn: PedigreeTreeNode<InteractiveTreePerson>
+              ) => {
+                if (hasPersonTopCrown(cn.person)) return true;
+                const cnShowSpouses =
+                  cn.person.generationLevel <= FIFTH_GRANDFATHER_LEVEL &&
+                  cn.spouses.length > 0 &&
+                  (treeDisplaySettings.spouseDisplayMode === 'always' ||
+                    (treeDisplaySettings.spouseDisplayMode === 'on_select' &&
+                      (selectedPersonIdForSpouses === cn.person.id ||
+                        radialTargetNodeId === cn.person.id)));
+                return (
+                  cnShowSpouses &&
+                  cn.spouses.some((sp) => hasPersonTopCrown(sp))
+                );
+              };
+              const anySiblingHasCrown = clusterChildren.some(
+                doesSiblingRowHaveCrown
+              );
+              return clusterChildren.map((childNode, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === clusterChildren.length - 1;
+                const childKinshipWord =
+                  childNode.person.gender === 'female' ? 'بنت' : 'بن';
+                const childOnKinship = isKinshipEdge(childNode.person.id);
+                const extendStemToMatchCrownedSibling =
+                  anySiblingHasCrown && !doesSiblingRowHaveCrown(childNode);
 
-              return (
-                <div
-                  key={childNode.person.id}
-                  data-testid={`pedigree-sibling-col-${childNode.person.id}`}
-                  className="flex flex-col items-center relative"
-                >
-                  <div className="relative w-full h-8 flex flex-col items-center justify-end">
+                return (
+                  <div
+                    key={childNode.person.id}
+                    data-testid={`pedigree-sibling-col-${childNode.person.id}`}
+                    className="flex flex-col items-center relative"
+                  >
+                    <div
+                      className={`relative w-full ${
+                        extendStemToMatchCrownedSibling ? 'h-[42px]' : 'h-8'
+                      } flex flex-col items-center justify-end`}
+                    >
                     <div
                       className={`absolute top-0 h-[2px] ${
                         childOnKinship
@@ -5248,7 +5321,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   </div>
                 </div>
               );
-            })}
+              });
+            })()}
           </div>
         </div>
       );
@@ -5318,14 +5392,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   {hasElevatedMultiBus && (
                     /* Vertical extension connecting top paternal arrow cleanly down into the husband card */
                     <div
-                      className={`absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-9 ${
+                      className={`absolute top-0 left-1/2 -translate-x-1/2 w-[2px] ${
+                        coupleRowHasCrown && !hasPersonTopCrown(person)
+                          ? 'h-[46px]'
+                          : 'h-9'
+                      } ${
                         treeNode.isDirectSpineEdge
                           ? activeTreeTheme.connectorStrong
                           : activeTreeTheme.connectorSoft
                       }`}
                     />
                   )}
-                  {renderPersonCard(person)}
+                  {renderPersonCard(person, {
+                    forceCrownTopClearance: coupleRowHasCrown,
+                  })}
                 </div>
 
                 {/* ROW 1 — COL 3: LEFT FLANK (physical left in RTL) */}
@@ -7117,6 +7197,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               modalConfig.relationKind === 'horizontal_branch_above_family'
             }
             isSpouseRole={modalMeta.isSpouseRole}
+            isAnySpouseRole={modalMeta.isAnySpouseRole}
             isDaughterRole={modalMeta.isDaughterRole}
             showMotherSelector={modalMeta.showMotherSelector}
             motherSelectorFatherName={modalMeta.motherSelectorFatherName}
