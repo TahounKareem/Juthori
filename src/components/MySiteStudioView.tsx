@@ -1101,6 +1101,9 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         setIsPublished(false);
         setFeedbackBanner({ tone: 'warning', text: outcome.messageAr });
       } else {
+        if (nextPublishState) {
+          setIsPublished(false);
+        }
         setFeedbackBanner({ tone: 'error', text: outcome.messageAr });
       }
     }

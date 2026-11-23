@@ -54,6 +54,8 @@ import {
   submitTreeEnrichmentRequest,
   submitVaultPhotoFaceIdentification,
 } from '../services/priority4Service';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../services/firebase';
 import { processMediaFileForUpload } from '../utils/mediaPipeline';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { ACTIVE_PUBLIC_SITE_DISPLAY_HOST } from '../config/referralAndSiteConfig';
@@ -259,6 +261,16 @@ export const PublicFamilyMicrositePage: React.FC<
     return () => clearInterval(interval);
   }, []);
 
+  const [authSyncKey, setAuthSyncKey] = useState<string>(() =>
+    auth.currentUser?.uid || 'guest'
+  );
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setAuthSyncKey(u?.uid || 'guest');
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (previewData) {
       setSiteData(previewData);
@@ -280,7 +292,7 @@ export const PublicFamilyMicrositePage: React.FC<
     return () => {
       mounted = false;
     };
-  }, [siteSlug, previewData]);
+  }, [siteSlug, previewData, authSyncKey]);
 
   useEffect(() => {
     if (viewerEmail) {

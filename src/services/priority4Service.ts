@@ -212,10 +212,10 @@ async function readDualDoc<T>(
 
   const [mirrorRes, primaryRes] = await Promise.allSettled([
     allowMirror
-      ? fastTimeout(getDoc(doc(mirrorDb, ...segments)), 2500)
+      ? fastTimeout(getDoc(doc(mirrorDb, ...segments)), 5500)
       : Promise.reject(new Error('SKIP_MIRROR')),
     allowPrimary
-      ? fastTimeout(getDoc(doc(primary.primaryDb, ...segments)), 2800)
+      ? fastTimeout(getDoc(doc(primary.primaryDb, ...segments)), 6000)
       : Promise.reject(new Error('SKIP_PRIMARY')),
   ]);
 
@@ -1438,11 +1438,13 @@ export async function checkPublicSiteSlugAvailability(
   }
 
   const slug = validation.normalized;
-  const existing = await readDualDoc<PublicMicrositeData>([
-    'public_sites',
-    slug,
+  const [existing, existingHeader] = await Promise.all([
+    readDualDoc<PublicMicrositeData>(['public_sites', slug]),
+    readDualDoc<PublicSiteDirectoryHeader>(['public_site_directory', slug]),
   ]);
-  if (!existing) {
+
+  const ownerRef = existing || existingHeader;
+  if (!ownerRef) {
     return {
       available: true,
       normalizedSlug: slug,
@@ -1452,14 +1454,21 @@ export async function checkPublicSiteSlugAvailability(
   }
 
   const safeUid = (currentUserId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const authUid = auth.currentUser?.uid || '';
+  const mirrorUid = mirrorAuth.currentUser?.uid || '';
   const emailUid = canonicalCustomerEmailUid(currentUserEmail);
+  const existingOwnerEmail = existing?.ownerEmail;
   const isMine =
-    Boolean(existing.ownerId) &&
-    (existing.ownerId === safeUid ||
-      (Boolean(emailUid) && existing.ownerId === emailUid) ||
+    Boolean(ownerRef.ownerId) &&
+    (ownerRef.ownerId === safeUid ||
+      (Boolean(authUid) &&
+        (ownerRef.ownerId === authUid || ownerRef.ownerUid === authUid)) ||
+      (Boolean(mirrorUid) &&
+        (ownerRef.ownerId === mirrorUid || ownerRef.ownerUid === mirrorUid)) ||
+      (Boolean(emailUid) && ownerRef.ownerId === emailUid) ||
       (Boolean(currentUserEmail) &&
-        Boolean(existing.ownerEmail) &&
-        existing.ownerEmail!.toLowerCase() ===
+        typeof existingOwnerEmail === 'string' &&
+        existingOwnerEmail.toLowerCase() ===
           currentUserEmail!.trim().toLowerCase()));
 
   if (isMine) {
@@ -1683,14 +1692,24 @@ export function sanitizeTreeMembersForPublicSite(
       typeof n.prestigeBadge === 'string' && n.prestigeBadge.trim()
         ? n.prestigeBadge.trim().slice(0, 40)
         : undefined;
+    const normalizeSafePublicPhoto = (
+      raw: unknown,
+      maxInlineChars: number
+    ): string | undefined => {
+      if (typeof raw !== 'string') return undefined;
+      const trimmed = raw.trim();
+      if (!trimmed) return undefined;
+      if (trimmed.startsWith('data:')) {
+        return trimmed.length <= maxInlineChars ? trimmed : undefined;
+      }
+      return trimmed.slice(0, 2000);
+    };
+    const rawPhotoThumbUrl = normalizeSafePublicPhoto(
+      n.photoThumbnailUrl,
+      45000
+    );
     const rawPhotoUrl =
-      typeof n.photoUrl === 'string' && n.photoUrl.trim()
-        ? n.photoUrl.trim()
-        : undefined;
-    const rawPhotoThumbUrl =
-      typeof n.photoThumbnailUrl === 'string' && n.photoThumbnailUrl.trim()
-        ? n.photoThumbnailUrl.trim()
-        : undefined;
+      normalizeSafePublicPhoto(n.photoUrl, 45000) || rawPhotoThumbUrl;
     const maidenFamilyLine =
       typeof n.maidenFamilyLine === 'string' && n.maidenFamilyLine.trim()
         ? n.maidenFamilyLine.trim().slice(0, 90)
@@ -1939,19 +1958,27 @@ export function projectSelectedVaultItemsForPublicSite(
         (Boolean(item.folderId) && folderSet.has(item.folderId))
     )
     .slice(0, 80)
-    .map((item) =>
-      cleanUndefined({
+    .map((item) => {
+      const thumb = (item.thumbnailDataUrl || '').trim();
+      const full = (item.fileDataUrl || '').trim();
+      const safePreview =
+        thumb && (!thumb.startsWith('data:') || thumb.length <= 120000)
+          ? thumb
+          : full && (!full.startsWith('data:') || full.length <= 120000)
+          ? full
+          : '';
+      return cleanUndefined({
         id: item.id,
         folderId: item.folderId,
         title: (item.title || 'وثيقة عائلية').slice(0, 160),
         mediaType: item.mediaType,
         dateOrOccasion: (item.dateOrOccasion || '').slice(0, 80),
         description: item.description ? item.description.slice(0, 400) : undefined,
-        previewUrl: item.thumbnailDataUrl || item.fileDataUrl || '',
+        previewUrl: safePreview,
         watermarkText,
         faceIdNotes: existingNotesMap.get(item.id),
-      })
-    );
+      });
+    });
 }
 
 interface PublicSiteDirectoryHeader {
@@ -2043,12 +2070,14 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     | 'SAVED_DRAFT'
     | 'TIER_REQUIRED'
     | 'EMAIL_UNVERIFIED'
-    | 'SLUG_TAKEN';
+    | 'SLUG_TAKEN'
+    | 'PUBLISH_FAILED';
   normalizedSlug: string;
   messageAr: string;
   doc?: PublicMicrositeData;
 }> {
   const safeUid = (
+    auth.currentUser?.uid ||
     params.ownerId ||
     canonicalCustomerEmailUid(params.ownerEmail) ||
     'usr_owner'
@@ -2228,16 +2257,141 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     updatedAt: nowIso,
   };
 
-  await Promise.allSettled([
-    writeDualDoc(
-      ['public_sites', normalizedSlug],
-      docPayload as unknown as Record<string, unknown>
-    ),
-    writeDualDoc(
-      ['public_site_directory', normalizedSlug],
-      directoryHeader as unknown as Record<string, unknown>
-    ),
-  ]);
+  const primaryWriteResults: {
+    siteOk: boolean;
+    dirOk: boolean;
+    primaryError?: string;
+    mirrorSiteOk: boolean;
+    mirrorError?: string;
+  } = {
+    siteOk: false,
+    dirOk: false,
+    mirrorSiteOk: false,
+  };
+
+  const primaryHandle = resolveP4PrimaryHandle(
+    ['public_sites', normalizedSlug],
+    'write'
+  );
+  const mirrorUid = mirrorAuth.currentUser?.uid;
+
+  const writeTasks: Array<Promise<void>> = [];
+
+  if (primaryHandle.allowed) {
+    writeTasks.push(
+      fastTimeout(
+        setDoc(doc(primaryHandle.primaryDb, 'public_sites', normalizedSlug), docPayload),
+        10000
+      )
+        .then(() => {
+          primaryWriteResults.siteOk = true;
+        })
+        .catch((err) => {
+          primaryWriteResults.primaryError =
+            err instanceof Error ? err.message : String(err);
+          console.warn(
+            '[Juthori MySite] Primary public_sites write failed:',
+            primaryWriteResults.primaryError
+          );
+        })
+    );
+    writeTasks.push(
+      fastTimeout(
+        setDoc(
+          doc(primaryHandle.primaryDb, 'public_site_directory', normalizedSlug),
+          directoryHeader
+        ),
+        10000
+      )
+        .then(() => {
+          primaryWriteResults.dirOk = true;
+        })
+        .catch((err) => {
+          console.warn(
+            '[Juthori MySite] Primary public_site_directory write failed:',
+            err instanceof Error ? err.message : String(err)
+          );
+        })
+    );
+  } else {
+    primaryWriteResults.primaryError = 'UNAUTHENTICATED_PRIMARY';
+  }
+
+  if (mirrorUid && canP4Write(mirrorAuth, ['public_sites', normalizedSlug])) {
+    const mirrorDocPayload = cleanUndefined({
+      ...docPayload,
+      ownerId: mirrorUid,
+      ownerUid: mirrorUid,
+    });
+    const mirrorDirHeader = cleanUndefined({
+      ...directoryHeader,
+      ownerId: mirrorUid,
+      ownerUid: mirrorUid,
+    });
+    writeTasks.push(
+      fastTimeout(
+        setDoc(doc(mirrorDb, 'public_sites', normalizedSlug), mirrorDocPayload),
+        10000
+      )
+        .then(() => {
+          primaryWriteResults.mirrorSiteOk = true;
+        })
+        .catch((err) => {
+          primaryWriteResults.mirrorError =
+            err instanceof Error ? err.message : String(err);
+          console.warn(
+            '[Juthori MySite] Mirror public_sites write failed:',
+            primaryWriteResults.mirrorError
+          );
+        })
+    );
+    writeTasks.push(
+      fastTimeout(
+        setDoc(
+          doc(mirrorDb, 'public_site_directory', normalizedSlug),
+          mirrorDirHeader
+        ),
+        10000
+      ).catch(() => {})
+    );
+  }
+
+  if (writeTasks.length > 0) {
+    await Promise.allSettled(writeTasks);
+  }
+
+  const persistedToCloud =
+    primaryWriteResults.siteOk || primaryWriteResults.mirrorSiteOk;
+
+  if (!persistedToCloud) {
+    const combinedErr = `${primaryWriteResults.primaryError || ''} ${
+      primaryWriteResults.mirrorError || ''
+    }`;
+    let failureMessage =
+      'تعذّر حفظ ونشر البوابة العائلية في قاعدة البيانات السحابية حالياً. يرجى المحاولة مرة أخرى.';
+    if (
+      combinedErr.includes('Missing or insufficient permissions') ||
+      combinedErr.includes('PERMISSION_DENIED')
+    ) {
+      failureMessage =
+        'تعذّر نشر البوابة سحابياً بسبب صلاحيات قواعد Firestore في مشروع Firebase (juthori-com). يرجى نشر أحدث ملف قواعد firestore.rules في لوحة Firebase Console ثم إعادة الضغط على «نشر وتفعيل الموقع».';
+    } else if (combinedErr.includes('UNAUTHENTICATED')) {
+      failureMessage =
+        'انتهت جلسة المصادقة السحابية. يرجى تسجيل الدخول مجدداً ثم الضغط على «نشر وتفعيل الموقع».';
+    } else if (
+      combinedErr.includes('exceeds the maximum allowed size') ||
+      combinedErr.includes('INVALID_ARGUMENT')
+    ) {
+      failureMessage =
+        'حجم الصور المضمنة في البوابة تجاوز الحد السحابي المسموح (1 ميجابايت). يرجى تقليل الصور المرفقة وإعادة النشر.';
+    }
+    return {
+      ok: false,
+      code: 'PUBLISH_FAILED',
+      normalizedSlug,
+      messageAr: failureMessage,
+    };
+  }
 
   // Unpublish old slug if registrar renamed the site slug
   if (
