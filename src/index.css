@@ -281,5 +281,35 @@
   transform-origin: center bottom;
 }
 
+@keyframes fsVinylSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fs-vinyl-spin {
+  animation: fsVinylSpin 10s linear infinite;
+}
+
+.fs-epistle-ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 33px,
+    color-mix(in srgb, var(--fs-gold) 14%, transparent) 33px,
+    color-mix(in srgb, var(--fs-gold) 14%, transparent) 34px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-wave-bar-playing,
+  .fs-vinyl-spin {
+    animation: none !important;
+  }
+}
+
 
 

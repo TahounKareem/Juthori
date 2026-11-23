@@ -7,6 +7,7 @@ import {
   Eye,
   FileText,
   Globe,
+  Heart,
   Image as ImageIcon,
   Layers,
   Loader2,
@@ -91,6 +92,11 @@ import {
   HERO_LAYOUT_OPTIONS,
   TYPOGRAPHY_PAIR_OPTIONS,
 } from './FamilySiteHeritageVisuals';
+import {
+  EMOTIONAL_INTERLUDE_POSITION_OPTIONS,
+  EMOTIONAL_INTERLUDE_PRESETS,
+  EMOTIONAL_INTERLUDE_QUOTE_SUGGESTIONS,
+} from './FamilySiteEditorialPrimitives';
 import { MySiteSectionHubPanel } from './MySiteSectionHubPanel';
 import { MySiteLinkPrivacyPanel } from './MySiteLinkPrivacyPanel';
 import { ModernSwitch } from './MySiteStudioControls';
@@ -121,7 +127,8 @@ type IdentityInspectorSectionId =
   | 'hero_cover'
   | 'diwan_title_bio'
   | 'family_crest'
-  | 'theme_typography';
+  | 'theme_typography'
+  | 'emotional_interlude';
 
 const OFFICIAL_BRAND_HOST = 'juthori.com';
 
@@ -664,10 +671,16 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         thumbnailDataUrl: processed.thumbnailDataUrl,
         mimeType: processed.mimeType || 'image/jpeg',
       });
+      const finalUrl = uploaded.url || processed.mainDataUrl;
       setVisualBranding((prev) => ({
         ...prev,
         showHumanWarmthInterludes: true,
-        customInterludeImageUrl: uploaded.url || processed.mainDataUrl,
+        customInterludeImageUrl: finalUrl,
+        emotionalInterlude: {
+          ...prev.emotionalInterlude,
+          enabled: true,
+          customImageUrl: finalUrl,
+        },
       }));
     } finally {
       setUploadingInterlude(false);
@@ -1496,72 +1509,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       className="w-full accent-[#9E5631] cursor-pointer"
                     />
                   </div>
-
-                  {/* Human Warmth Cinematic Interludes Control */}
-                  <div className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-xs font-display font-extrabold text-[#2C1E14]">
-                          الفواصل السردية الإنسانية الدافئة
-                        </div>
-                        <p className="text-[11px] text-[#7A5C43] mt-0.5">
-                          لوحات بانورامية وجدانية تفصل بين فصول الديوان بروح
-                          العائلة وصلة الرحم
-                        </p>
-                      </div>
-                      <ModernSwitch
-                        checked={
-                          visualBranding.showHumanWarmthInterludes !== false
-                        }
-                        onChange={(next) =>
-                          setVisualBranding((prev) => ({
-                            ...prev,
-                            showHumanWarmthInterludes: next,
-                          }))
-                        }
-                        ariaLabel="تفعيل الفواصل السردية الإنسانية"
-                      />
-                    </div>
-
-                    {visualBranding.showHumanWarmthInterludes !== false && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EAE0CF]">
-                        <span className="text-[11px] text-[#6B5440]">
-                          {visualBranding.customInterludeImageUrl
-                            ? 'تُعرض صورتكم العائلية الخاصة في الفاصل الأول'
-                            : 'تُعرض المشاهد التراثية العائلية المنسّقة افتراضياً'}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            disabled={uploadingInterlude}
-                            onClick={() => interludeFileRef.current?.click()}
-                            className="h-8 px-3 rounded-lg bg-white hover:bg-[#F3E9D8] border border-[#DFC798] text-[11px] font-display font-bold text-[#7B401F] inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
-                          >
-                            <Camera className="w-3.5 h-3.5 text-[#9E5631]" />
-                            <span>
-                              {uploadingInterlude
-                                ? 'جاري الرفع...'
-                                : 'رفع صورة تجمع عائلي'}
-                            </span>
-                          </button>
-                          {visualBranding.customInterludeImageUrl && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setVisualBranding((prev) => ({
-                                  ...prev,
-                                  customInterludeImageUrl: undefined,
-                                }))
-                              }
-                              className="h-8 px-2.5 rounded-lg bg-white hover:bg-red-50 border border-[#E6DAC3] text-[11px] font-bold text-red-700 cursor-pointer whitespace-nowrap"
-                            >
-                              استعادة الافتراضي
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </CalmInspectorAccordion>
 
                 {/* #2: عنوان الديوان والنبذة التعريفية (Strictly Title, Tag, Bio) */}
@@ -1874,6 +1821,314 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         );
                       })}
                     </div>
+                  </div>
+                </CalmInspectorAccordion>
+
+                {/* #5: الوقفة الوجدانية واللمسة الإنسانية (Single Curated Emotional Interlude Control) */}
+                <CalmInspectorAccordion
+                  id="emotional_interlude"
+                  icon={<Heart className="w-4 h-4" />}
+                  title="الوقفة الوجدانية واللمسة الإنسانية"
+                  isOpen={activeIdentitySection === 'emotional_interlude'}
+                  onToggle={() => toggleIdentitySection('emotional_interlude')}
+                  summary={
+                    <span className="truncate">
+                      {visualBranding.emotionalInterlude.enabled
+                        ? EMOTIONAL_INTERLUDE_POSITION_OPTIONS.find(
+                            (p) =>
+                              p.id ===
+                              visualBranding.emotionalInterlude.position
+                          )?.label || 'مفعّلة'
+                        : 'مخفية'}
+                    </span>
+                  }
+                >
+                  <div className="space-y-4">
+                    {/* 1. Master Toggle */}
+                    <div className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                          تفعيل الوقفة الوجدانية في الموقع
+                        </div>
+                        <p className="text-[11px] text-[#7A5C43] mt-0.5 leading-relaxed">
+                          لوحة إنسانية دافئة واحدة فقط تجمع صورة عائلية مؤطرة
+                          بالذهب وعبارة شاعرية مؤثرة دون أي تكرار
+                        </p>
+                      </div>
+                      <ModernSwitch
+                        checked={visualBranding.emotionalInterlude.enabled}
+                        onChange={(next) =>
+                          setVisualBranding((prev) => ({
+                            ...prev,
+                            showHumanWarmthInterludes: next,
+                            emotionalInterlude: {
+                              ...prev.emotionalInterlude,
+                              enabled: next,
+                            },
+                          }))
+                        }
+                        ariaLabel="تفعيل الوقفة الوجدانية في الموقع"
+                      />
+                    </div>
+
+                    {visualBranding.emotionalInterlude.enabled && (
+                      <>
+                        {/* 2. Position Selector */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-display font-extrabold text-[#5C4938]">
+                            موضع ظهور الوقفة الوجدانية في الموقع
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {EMOTIONAL_INTERLUDE_POSITION_OPTIONS.map((pos) => {
+                              const active =
+                                visualBranding.emotionalInterlude.position ===
+                                pos.id;
+                              return (
+                                <button
+                                  key={pos.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setVisualBranding((prev) => ({
+                                      ...prev,
+                                      emotionalInterlude: {
+                                        ...prev.emotionalInterlude,
+                                        position: pos.id,
+                                      },
+                                    }))
+                                  }
+                                  className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
+                                    active
+                                      ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/35'
+                                      : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <span className="text-xs font-display font-extrabold text-[#2C1E14]">
+                                      {pos.label}
+                                    </span>
+                                    {active && (
+                                      <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className="text-[10.5px] text-[#7A5C43] mt-0.5 leading-snug">
+                                    {pos.description}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 3. Scene Picker (4 Curated Warm Scenes + Custom Upload) */}
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs font-display font-extrabold text-[#5C4938]">
+                              اختر مشهداً إنسانياً دافئاً أو ارفع صورتكم الخاصة
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                disabled={uploadingInterlude}
+                                onClick={() =>
+                                  interludeFileRef.current?.click()
+                                }
+                                className="h-8 px-3 rounded-lg bg-[#9E5631] hover:bg-[#844524] text-white text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                              >
+                                {uploadingInterlude ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Camera className="w-3.5 h-3.5" />
+                                )}
+                                <span>
+                                  {uploadingInterlude
+                                    ? 'جاري الرفع...'
+                                    : 'رفع صورة عائلية خاصة'}
+                                </span>
+                              </button>
+                              {visualBranding.emotionalInterlude
+                                .customImageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setVisualBranding((prev) => ({
+                                      ...prev,
+                                      customInterludeImageUrl: undefined,
+                                      emotionalInterlude: {
+                                        ...prev.emotionalInterlude,
+                                        customImageUrl: undefined,
+                                      },
+                                    }))
+                                  }
+                                  className="h-8 px-2.5 rounded-lg bg-white hover:bg-red-50 border border-[#E6DAC3] text-[11px] font-bold text-red-700 cursor-pointer whitespace-nowrap"
+                                >
+                                  إلغاء الخاصة
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {visualBranding.emotionalInterlude.customImageUrl && (
+                            <div className="rounded-xl bg-[#FBF5EA] border border-[#C5A059] p-2.5 flex items-center gap-3">
+                              <img
+                                src={
+                                  visualBranding.emotionalInterlude
+                                    .customImageUrl
+                                }
+                                alt="صورة الوقفة الوجدانية الخاصة"
+                                referrerPolicy="no-referrer"
+                                className="w-16 h-12 rounded-lg object-cover border border-[#DFC798] shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                                  صورتكم العائلية الخاصة مفعّلة حالياً
+                                </div>
+                                <div className="text-[11px] text-[#7A5C43]">
+                                  يمكنك التبديل في أي وقت لأحد المشاهد التراثية
+                                  أدناه
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {EMOTIONAL_INTERLUDE_PRESETS.map((scene) => {
+                              const isSelected =
+                                !visualBranding.emotionalInterlude
+                                  .customImageUrl &&
+                                visualBranding.emotionalInterlude
+                                  .imagePresetId === scene.id;
+                              return (
+                                <button
+                                  key={scene.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setVisualBranding((prev) => ({
+                                      ...prev,
+                                      customInterludeImageUrl: undefined,
+                                      emotionalInterlude: {
+                                        ...prev.emotionalInterlude,
+                                        imagePresetId: scene.id,
+                                        customImageUrl: undefined,
+                                      },
+                                    }))
+                                  }
+                                  className={`group rounded-xl overflow-hidden border text-right transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'border-[#C5A059] ring-2 ring-[#C5A059]/40 bg-[#FBF5EA]'
+                                      : 'border-[#EAE0CF] hover:border-[#D4B988] bg-white'
+                                  }`}
+                                >
+                                  <div className="aspect-[4/3] w-full overflow-hidden relative bg-[#2C1E14]">
+                                    <img
+                                      src={scene.imageUrl}
+                                      alt={scene.label}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                    {isSelected && (
+                                      <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-[#9E5631] text-white flex items-center justify-center shadow-sm">
+                                        <Check className="w-3 h-3" />
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="p-2">
+                                    <div className="text-[11px] font-display font-extrabold text-[#2C1E14] truncate">
+                                      {scene.label}
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 4. Editable Kicker & Poetic Quote + 4 One-Click Suggestions */}
+                        <div className="space-y-3 pt-1">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-display font-bold text-[#5C4938]">
+                              العنوان الفرعي للوقفة
+                            </label>
+                            <input
+                              type="text"
+                              value={visualBranding.emotionalInterlude.kicker}
+                              onChange={(e) =>
+                                setVisualBranding((prev) => ({
+                                  ...prev,
+                                  emotionalInterlude: {
+                                    ...prev.emotionalInterlude,
+                                    kicker: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="مثال: صلة الأجيال وامتداد الدوحة"
+                              className="w-full h-9.5 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 text-xs font-display font-bold text-[#2C1E14] focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-display font-bold text-[#5C4938]">
+                              العبارة الوجدانية المؤثرة
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={visualBranding.emotionalInterlude.quote}
+                              onChange={(e) =>
+                                setVisualBranding((prev) => ({
+                                  ...prev,
+                                  emotionalInterlude: {
+                                    ...prev.emotionalInterlude,
+                                    quote: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="اكتب عبارة دافئة تعبّر عن روح عائلتكم..."
+                              className="w-full rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 py-2 text-xs text-[#2C1E14] leading-relaxed focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="text-[11px] font-display font-bold text-[#7A5C43]">
+                              اقتراحات جاهزة (تُطبق بنقرة واحدة):
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                              {EMOTIONAL_INTERLUDE_QUOTE_SUGGESTIONS.map(
+                                (sug) => {
+                                  const active =
+                                    visualBranding.emotionalInterlude.quote.trim() ===
+                                    sug.quote.trim();
+                                  return (
+                                    <button
+                                      key={sug.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setVisualBranding((prev) => ({
+                                          ...prev,
+                                          emotionalInterlude: {
+                                            ...prev.emotionalInterlude,
+                                            kicker: sug.kicker,
+                                            quote: sug.quote,
+                                          },
+                                        }))
+                                      }
+                                      className={`rounded-xl px-3 py-2 border text-right text-[11px] leading-relaxed transition-colors cursor-pointer ${
+                                        active
+                                          ? 'bg-[#FBF5EA] border-[#C5A059] text-[#2C1E14] font-bold'
+                                          : 'bg-white border-[#EAE0CF] hover:border-[#D4B988] text-[#5C4938]'
+                                      }`}
+                                    >
+                                      <span className="text-[#C5A059] ml-1">
+                                        ✦
+                                      </span>
+                                      {sug.quote}
+                                    </button>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CalmInspectorAccordion>
               </div>

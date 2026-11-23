@@ -21,9 +21,7 @@ import {
   MapPin,
   MessageSquare,
   Mic,
-  Pause,
   Pin,
-  Play,
   PlusCircle,
   QrCode,
   Scroll,
@@ -31,13 +29,14 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  ThumbsUp,
   Users,
-  Volume2,
   X,
 } from 'lucide-react';
 import {
   EnrichmentRequestType,
   KinshipInvitationDoc,
+  MajlisReactionKey,
   ModuleVisibility,
   PortalSectionKey,
   PublicMicrositeData,
@@ -47,6 +46,7 @@ import {
   fetchKinshipInvitationByToken,
   fetchPublishedMicrositeBySlug,
   incrementElderMemorialPrayer,
+  incrementMajlisTopicReaction,
   normalizeVisualBranding,
   submitEventRsvpOnMicrosite,
   submitSiteAccessRequest,
@@ -71,14 +71,17 @@ import {
   PublicVisualTreeMirror,
 } from './FamilySiteHeritageVisuals';
 import {
+  AcousticVinylConsole,
   AnimatedHeritageCounter,
   CuratedMuseumVaultWall,
   FullBleedVelvetBand,
+  GuildSpecialtyWatermark,
   HeritageAmbientWatermark,
-  HumanWarmthInterludeBanner,
   OpenEditorialCanvasSection,
   ScrollProgressGoldBar,
   ScrollRevealChapter,
+  SingleEmotionalInterludeShowcase,
+  StorybookReadingModal,
 } from './FamilySiteEditorialPrimitives';
 import { JuthoriLogo } from './JuthoriLogo';
 
@@ -132,9 +135,56 @@ const INVALID_LOCATION_TOKENS = new Set([
   'unknown',
 ]);
 
-const AUDIO_WAVEFORM_HEIGHTS = [
-  34, 58, 44, 84, 64, 96, 52, 78, 90, 48, 72, 92, 56, 70, 42, 62,
+const MAJLIS_QUICK_PHRASES = [
+  'بارك الله في جهودكم وجمعنا دوماً على خير',
+  'فكرة رائعة ونحن معكم بإذن الله',
+  'ذكريات جميلة رحم الله الأجداد وبارك في الأبناء',
 ];
+
+const MAJLIS_REACTION_META: Array<{
+  key: MajlisReactionKey;
+  label: string;
+}> = [
+  { key: 'greatIdea', label: 'فكرة رائعة' },
+  { key: 'withYou', label: 'معكم بإذن الله' },
+  { key: 'blessGathering', label: 'جمعكم الله على خير' },
+];
+
+function parseArabicCalendarLeaf(isoDate?: string): {
+  day: string;
+  month: string;
+  year: string;
+  weekday: string;
+} {
+  const val = (isoDate || '').trim();
+  const isoMatch = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!isoMatch) {
+    return { day: '✦', month: val || 'قريباً', year: '', weekday: '' };
+  }
+  const y = Number(isoMatch[1]);
+  const m = Number(isoMatch[2]);
+  const d = Number(isoMatch[3]);
+  const dt = new Date(y, m - 1, d);
+  if (Number.isNaN(dt.getTime())) {
+    return { day: String(d), month: '', year: String(y), weekday: '' };
+  }
+  try {
+    const month = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+      month: 'long',
+    }).format(dt);
+    const weekday = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+      weekday: 'long',
+    }).format(dt);
+    return {
+      day: String(d),
+      month,
+      year: `${y} م`,
+      weekday,
+    };
+  } catch {
+    return { day: String(d), month: `${m}`, year: `${y} م`, weekday: '' };
+  }
+}
 
 function cleanLocationField(raw?: string): string {
   const trimmed = (raw || '').trim();
@@ -337,6 +387,22 @@ export const PublicFamilyMicrositePage: React.FC<
   // Oral Heritage Audio Player
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const [playingClipId, setPlayingClipId] = useState<string | null>(null);
+  const [audioCurrentTime, setAudioCurrentTime] = useState<number>(0);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
+
+  // Full-Screen Storybook Reader Modal State
+  const [readingStoryModal, setReadingStoryModal] = useState<{
+    title: string;
+    eraOrYearLabel: string;
+    body: string;
+    imageUrl?: string;
+    chapterNumber: number;
+  } | null>(null);
+
+  // Majlis One-Click Reaction Guard State
+  const [reactedMajlisKeys, setReactedMajlisKeys] = useState<
+    Record<string, boolean>
+  >({});
 
   // Bespoke Micro-Interaction States (Scroll-Spy, Prayer Warm Glow, Event Details Copy)
   const [activeNavSection, setActiveNavSection] =
@@ -657,6 +723,8 @@ export const PublicFamilyMicrositePage: React.FC<
       return;
     }
     if (audioElementRef.current) {
+      setAudioCurrentTime(0);
+      setAudioDuration(0);
       audioElementRef.current.src = src;
       audioElementRef.current.play().catch(() => {});
       setPlayingClipId(clipId);
@@ -1305,6 +1373,52 @@ export const PublicFamilyMicrositePage: React.FC<
     }));
   };
 
+  const handleMajlisReaction = async (
+    topicId: string,
+    reactionKey: MajlisReactionKey
+  ) => {
+    const guardKey = `${topicId}:${reactionKey}`;
+    if (reactedMajlisKeys[guardKey]) return;
+    setReactedMajlisKeys((prev) => ({ ...prev, [guardKey]: true }));
+
+    setSiteData((prev) => {
+      if (!prev?.cmsModules) return prev;
+      return {
+        ...prev,
+        cmsModules: {
+          ...prev.cmsModules,
+          majlisAndGuardiansModule: {
+            ...prev.cmsModules.majlisAndGuardiansModule,
+            topics: prev.cmsModules.majlisAndGuardiansModule.topics.map((t) => {
+              if (t.id !== topicId) return t;
+              const current = t.reactions || {
+                greatIdea: 0,
+                withYou: 0,
+                blessGathering: 0,
+              };
+              return {
+                ...t,
+                reactions: {
+                  ...current,
+                  [reactionKey]: (current[reactionKey] || 0) + 1,
+                },
+              };
+            }),
+          },
+        },
+      };
+    });
+
+    if (!previewData && siteData) {
+      const updated = await incrementMajlisTopicReaction({
+        siteSlug: siteData.siteSlug,
+        topicId,
+        reactionKey,
+      });
+      if (updated) setSiteData(updated);
+    }
+  };
+
   const handleSubmitFaceId = async (vaultItemId: string) => {
     if (!faceIdSenderName.trim() || !faceIdNote.trim()) return;
     if (previewData) {
@@ -1382,89 +1496,137 @@ export const PublicFamilyMicrositePage: React.FC<
     </ScrollRevealChapter>
   );
 
-  // Inner reusable content blocks (shared cleanly between standalone & Bento pairs)
+  // 1. SIGNED ROYAL EPISTLE SCROLL (PATRIARCH WELCOME QUOTE)
   const renderPatriarchQuoteBlock = (isPaired: boolean) => (
     <div
       id={isPaired ? 'portal-sec-patriarch_quote' : undefined}
-      className={
+      className={`relative scroll-mt-24 rounded-3xl border overflow-hidden fs-epistle-ruled ${
         isPaired
-          ? 'relative scroll-mt-24 rounded-3xl fs-surface border p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-[0_14px_38px_-18px_rgba(32,22,14,0.14)] overflow-hidden h-full'
-          : 'py-2 sm:py-5 text-center flex flex-col items-center space-y-5'
-      }
-      style={
-        isPaired
-          ? {
-              borderColor:
-                'color-mix(in srgb, var(--fs-gold) 46%, transparent)',
-              background:
-                'linear-gradient(155deg, var(--fs-surface) 0%, var(--fs-gold-soft) 100%)',
-            }
-          : undefined
-      }
+          ? 'p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-[0_16px_42px_-20px_rgba(38,24,12,0.18)] h-full'
+          : 'max-w-4xl mx-auto p-7 sm:p-10 lg:p-12 space-y-7 shadow-[0_18px_48px_-22px_rgba(38,24,12,0.18)]'
+      }`}
+      style={{
+        borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+        backgroundColor: 'var(--fs-surface)',
+      }}
     >
-      {isPaired && <HeritageAmbientWatermark variant="tree" position="left" />}
+      {/* Delicate Double Manuscript Inner Frame */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-2.5 rounded-[18px] border opacity-30"
+        style={{ borderColor: 'var(--fs-gold)' }}
+      />
+      {/* Top Gilded Hairline */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-10 top-0 h-[2px]"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
+        }}
+      />
+
+      {/* Large Calligrapher's Quill & Inkwell Watermark */}
+      <HeritageAmbientWatermark
+        variant="quill_inkwell"
+        position="left"
+        opacityClass="opacity-[0.095]"
+      />
 
       <div
         className={`relative z-10 ${
           isPaired
             ? 'space-y-4 text-right'
-            : 'flex flex-col items-center space-y-4 max-w-3xl mx-auto'
+            : 'flex flex-col items-center text-center space-y-5'
         }`}
       >
-        <div className="text-[11px] font-bold tracking-wide fs-accent-text">
-          ✦ كلمة عميد ومؤسس الديوان العائلي
+        <div className="inline-flex items-center gap-2 text-[11px] font-bold tracking-wide fs-accent-text">
+          <Scroll className="w-3.5 h-3.5 fs-gold-text" />
+          <span>رسالة موقّعة من عميد ومؤسس الديوان العائلي</span>
         </div>
 
         <blockquote
           className={`relative ${
             isPaired
-              ? 'text-lg sm:text-xl lg:text-2xl leading-relaxed'
-              : 'text-xl sm:text-2xl lg:text-[28px] leading-relaxed sm:leading-loose px-4 sm:px-8'
+              ? 'text-lg sm:text-xl lg:text-[22px] leading-[1.9]'
+              : 'text-xl sm:text-2xl lg:text-[28px] leading-[1.95] max-w-3xl px-2 sm:px-6'
           } fs-display-font font-bold text-balance`}
         >
           <span
             aria-hidden="true"
-            className="fs-gold-text text-3xl sm:text-4xl leading-none align-middle ml-1.5 opacity-80"
+            className="fs-gold-text text-4xl sm:text-5xl leading-none align-middle ml-2 opacity-85"
           >
             «
           </span>
           {branding.patriarchQuote.text.trim()}
           <span
             aria-hidden="true"
-            className="fs-gold-text text-3xl sm:text-4xl leading-none align-middle mr-1.5 opacity-80"
+            className="fs-gold-text text-4xl sm:text-5xl leading-none align-middle mr-2 opacity-85"
           >
             »
           </span>
         </blockquote>
       </div>
 
-      {/* Signed Family Crest & Author Plinth */}
+      {/* Signed Parchment Plinth + Embossed Golden Wax Seal */}
       <div
-        className={`relative z-10 flex items-center gap-3 pt-4 border-t fs-border ${
-          isPaired ? '' : 'justify-center px-6'
+        className={`relative z-10 flex flex-wrap items-center gap-4 pt-5 border-t border-dashed ${
+          isPaired ? 'justify-between' : 'justify-center sm:justify-between max-w-2xl mx-auto w-full'
         }`}
+        style={{
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+        }}
       >
-        <FamilyCrestEmblem
-          familyName={siteData.familyName}
-          crestMode={branding.crestMode}
-          crestStyle={branding.crestStyle}
-          customCrestUrl={branding.customCrestUrl}
-          size="xs"
-        />
-        <div className={isPaired ? 'text-right' : 'text-right'}>
-          <div className="text-sm sm:text-base font-bold fs-accent-text fs-display-font">
-            {branding.patriarchQuote.authorName}
-          </div>
-          {branding.patriarchQuote.authorTitle && (
-            <div className="text-xs fs-muted">
-              {branding.patriarchQuote.authorTitle}
+        <div className="flex items-center gap-3.5">
+          <FamilyCrestEmblem
+            familyName={siteData.familyName}
+            crestMode={branding.crestMode}
+            crestStyle={branding.crestStyle}
+            customCrestUrl={branding.customCrestUrl}
+            size="xs"
+          />
+          <div className="text-right">
+            <div className="text-[10.5px] font-bold fs-muted">
+              توقيع عميد الأسرة
             </div>
-          )}
+            <div className="text-base sm:text-lg font-bold fs-accent-text fs-display-font">
+              {branding.patriarchQuote.authorName}
+            </div>
+            {branding.patriarchQuote.authorTitle && (
+              <div className="text-xs fs-muted">
+                {branding.patriarchQuote.authorTitle}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Embossed Golden Wax Seal Medallion */}
+        <div
+          aria-hidden="true"
+          className="relative w-16 h-16 rounded-full flex items-center justify-center shrink-0 shadow-[0_8px_20px_-6px_rgba(146,98,28,0.55)]"
+          style={{
+            background:
+              'radial-gradient(circle at 32% 28%, #F8E2A8 0%, #CFA14A 52%, #8C611A 100%)',
+          }}
+        >
+          <div
+            className="w-[54px] h-[54px] rounded-full border border-dashed flex flex-col items-center justify-center text-center leading-tight"
+            style={{
+              borderColor: 'rgba(255, 249, 232, 0.72)',
+              color: '#3B250A',
+            }}
+          >
+            <span className="text-[9px] font-bold tracking-tight">ختم</span>
+            <span className="text-[10px] font-extrabold fs-display-font">
+              الديوان
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
 
+  // 1B. CARTOGRAPHIC TOPOGRAPHIC ATLAS (CONNECTED ROUTE NODES + COMPASS ROSE)
   const renderAtlasCards = (inBentoPair: boolean) => {
     const locations = cms.atlasAndStatsModule.locations;
     const maxLoc = Math.max(
@@ -1475,88 +1637,137 @@ export const PublicFamilyMicrositePage: React.FC<
       1,
       locations.reduce((s, l) => s + (l.householdsOrMembersCount || 1), 0)
     );
-    const isSingleLoc =
-      locations.length === 1 && !compactPreview && !inBentoPair;
 
     return (
       <div
-        className={
-          inBentoPair
-            ? 'grid grid-cols-1 gap-3.5'
-            : getAdaptiveGridClass(locations.length, compactPreview, 3)
-        }
+        className="relative overflow-hidden rounded-3xl fs-surface border p-5 sm:p-7 shadow-[0_14px_38px_-18px_rgba(32,22,14,0.16)]"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+          background:
+            'linear-gradient(155deg, var(--fs-surface) 0%, var(--fs-surface-alt) 100%)',
+        }}
       >
-        {locations.map((loc) => {
-          const countVal = loc.householdsOrMembersCount || 1;
-          const widthPct = Math.max(14, Math.round((countVal / maxLoc) * 100));
-          const sharePct = Math.max(1, Math.round((countVal / totalLoc) * 100));
-          const cityClean = cleanLocationField(loc.city);
-          const countryClean = cleanLocationField(loc.country);
-          const primaryLabel = cityClean || countryClean || 'حاضرة عائلية';
-          const secondaryLabel =
-            cityClean && countryClean && cityClean !== countryClean
-              ? countryClean
-              : '';
+        {/* Topographic Contour Lines & Cartographic Compass Rose Watermark */}
+        <HeritageAmbientWatermark
+          variant="topographic_map"
+          opacityClass="opacity-[0.12]"
+        />
 
-          return (
+        {/* Cartographic Legend Header */}
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-dashed fs-border">
+          <div className="inline-flex items-center gap-2 text-xs font-bold fs-accent-text">
+            <Compass className="w-4 h-4 fs-gold-text" />
+            <span>خريطة ومسارات انتشار حواضر العائلة</span>
+          </div>
+          <div className="text-[11px] font-bold fs-muted tabular-nums">
+            {locations.length} {locations.length === 1 ? 'حاضرة موثّقة' : 'حواضر وديار موثّقة'}
+          </div>
+        </div>
+
+        {/* Connected Vertical Dotted Gilded Route Path */}
+        <div className="relative z-10 pr-2 sm:pr-4">
+          {locations.length > 1 && (
             <div
-              key={loc.id}
-              className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-all ${
-                isSingleLoc
-                  ? 'p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5'
-                  : 'p-4 sm:p-5 space-y-3'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3 flex-1">
-                <div className="flex items-center gap-3 min-w-0">
+              aria-hidden="true"
+              className="pointer-events-none absolute right-[23px] sm:right-[31px] top-6 bottom-6 border-r-2 border-dashed opacity-60"
+              style={{ borderColor: 'var(--fs-gold)' }}
+            />
+          )}
+
+          <div
+            className={
+              inBentoPair || locations.length <= 3
+                ? 'space-y-4'
+                : 'grid grid-cols-1 md:grid-cols-2 gap-4'
+            }
+          >
+            {locations.map((loc, idx) => {
+              const countVal = loc.householdsOrMembersCount || 1;
+              const widthPct = Math.max(
+                14,
+                Math.round((countVal / maxLoc) * 100)
+              );
+              const sharePct = Math.max(
+                1,
+                Math.round((countVal / totalLoc) * 100)
+              );
+              const cityClean = cleanLocationField(loc.city);
+              const countryClean = cleanLocationField(loc.country);
+              const primaryLabel = cityClean || countryClean || 'حاضرة عائلية';
+              const secondaryLabel =
+                cityClean && countryClean && cityClean !== countryClean
+                  ? countryClean
+                  : '';
+
+              return (
+                <div
+                  key={loc.id}
+                  className="relative flex items-start gap-3.5 sm:gap-4 group"
+                >
+                  {/* Glowing Gilded Map Pin Node on Route Path */}
+                  <div className="relative z-10 mt-3 shrink-0">
+                    <div
+                      className="w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-sm transition-transform duration-300 group-hover:scale-110"
+                      style={{
+                        backgroundColor: 'var(--fs-surface)',
+                        borderColor: 'var(--fs-gold)',
+                        boxShadow:
+                          '0 0 0 4px color-mix(in srgb, var(--fs-gold) 18%, transparent)',
+                        color: 'var(--fs-accent)',
+                      }}
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Route Station Card */}
                   <div
-                    className="w-10 h-10 rounded-full border flex items-center justify-center shrink-0"
+                    className="flex-1 rounded-2xl fs-surface/95 backdrop-blur-xs border p-4 sm:p-5 space-y-3 shadow-xs hover:shadow-md transition-all"
                     style={{
-                      backgroundColor: 'var(--fs-gold-soft)',
                       borderColor:
-                        'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
-                      color: 'var(--fs-accent)',
+                        'color-mix(in srgb, var(--fs-gold) 34%, transparent)',
                     }}
                   >
-                    <Landmark className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm sm:text-base font-bold fs-display-font truncate">
-                      {primaryLabel}
-                    </div>
-                    {secondaryLabel && (
-                      <div className="text-xs fs-muted truncate">
-                        {secondaryLabel}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10.5px] font-mono font-bold fs-gold-text tabular-nums">
+                            0{idx + 1}
+                          </span>
+                          <h3 className="text-sm sm:text-base font-bold fs-display-font truncate">
+                            {primaryLabel}
+                          </h3>
+                        </div>
+                        {secondaryLabel && (
+                          <div className="text-xs fs-muted mt-0.5 flex items-center gap-1">
+                            <Landmark className="w-3 h-3 fs-gold-text shrink-0" />
+                            <span>{secondaryLabel}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                <div className="text-left shrink-0">
-                  <div className="text-sm font-bold fs-accent-text tabular-nums">
-                    {countVal} عائلة/فرد
-                  </div>
-                  <div className="text-[11px] font-semibold fs-muted tabular-nums">
-                    {sharePct}% من الحضور
-                  </div>
-                </div>
-              </div>
+                      <div className="text-left shrink-0">
+                        <div className="text-sm font-bold fs-accent-text tabular-nums">
+                          {countVal} عائلة/فرد
+                        </div>
+                        <div className="text-[11px] font-semibold fs-muted tabular-nums">
+                          {sharePct}% من التركز
+                        </div>
+                      </div>
+                    </div>
 
-              <div
-                className={`space-y-1.5 ${
-                  isSingleLoc ? 'sm:w-56 shrink-0' : ''
-                }`}
-              >
-                <div className="h-2 rounded-full fs-surface-alt overflow-hidden border fs-border">
-                  <div
-                    className="h-full rounded-full fs-accent-gold-bar transition-all duration-500"
-                    style={{ width: `${widthPct}%` }}
-                  />
+                    <div className="h-2 rounded-full fs-surface-alt overflow-hidden border fs-border">
+                      <div
+                        className="h-full rounded-full fs-accent-gold-bar transition-all duration-500"
+                        style={{ width: `${widthPct}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   };
@@ -1647,14 +1858,16 @@ export const PublicFamilyMicrositePage: React.FC<
     );
   };
 
-  // Sculpted Circular Gold-Ringed Medallion Cards for Professions
+  // 6A. EXECUTIVE GUILD MEDALLION CARDS FOR PROFESSIONS (ZERO EMPTY LEFT STRIP)
   const renderProfessionsCards = (inBentoPair: boolean) => {
     const items = cms.professionsModule.items;
     return (
       <div
         className={
           inBentoPair
-            ? 'grid grid-cols-1 gap-4'
+            ? items.length === 1
+              ? 'grid grid-cols-1 gap-4'
+              : 'grid grid-cols-1 sm:grid-cols-2 gap-4'
             : getAdaptiveGridClass(items.length, compactPreview, 3)
         }
       >
@@ -1664,54 +1877,74 @@ export const PublicFamilyMicrositePage: React.FC<
           return (
             <article
               key={prof.id}
-              className="group rounded-2xl fs-surface border p-5 shadow-[0_10px_28px_-16px_rgba(32,22,14,0.16)] hover:-translate-y-0.5 transition-all flex items-center gap-4"
+              className="group relative overflow-hidden rounded-3xl fs-surface border pt-7 pb-6 px-6 text-center shadow-[0_14px_34px_-18px_rgba(32,22,14,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-between gap-4"
               style={{
                 borderColor:
-                  'color-mix(in srgb, var(--fs-gold) 38%, transparent)',
+                  'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+                background:
+                  'linear-gradient(175deg, var(--fs-surface) 0%, var(--fs-surface-alt) 100%)',
               }}
             >
-              {/* Double Gold-Ringed Circular Executive Monogram Medallion */}
+              {/* Top Gilded Guild Ribbon */}
               <div
-                className="w-14 h-14 rounded-full p-[2.5px] shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-105"
-                style={{
-                  background:
-                    'linear-gradient(135deg, #F3D999 0%, var(--fs-gold) 55%, var(--fs-accent) 100%)',
-                }}
-              >
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-1.5 fs-accent-gold-bar opacity-85"
+              />
+
+              {/* Auto-Detected Specialty SVG Watermark (Medical / Engineering / Law / Education / Guild) */}
+              <GuildSpecialtyWatermark
+                fieldCategory={prof.fieldCategory}
+                specialty={prof.specialtyOrProfession}
+              />
+
+              <div className="relative z-10 flex flex-col items-center space-y-3 w-full">
+                {/* Double Gold-Ringed Circular Executive Monogram Medallion */}
                 <div
-                  className="w-full h-full rounded-full border flex items-center justify-center font-bold fs-display-font text-lg"
+                  className="w-16 h-16 rounded-full p-[3px] shadow-md transition-transform duration-300 group-hover:scale-105"
                   style={{
-                    borderColor: 'var(--fs-surface)',
                     background:
-                      'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
-                    color: 'var(--fs-gold)',
+                      'linear-gradient(135deg, #F4DA9B 0%, var(--fs-gold) 55%, var(--fs-accent) 100%)',
                   }}
                 >
-                  {monogram}
+                  <div
+                    className="w-full h-full rounded-full border-2 flex items-center justify-center font-bold fs-display-font text-xl"
+                    style={{
+                      borderColor: 'var(--fs-surface)',
+                      background:
+                        'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+                      color: 'var(--fs-gold)',
+                    }}
+                  >
+                    {monogram}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-[11px] font-bold tracking-wide fs-accent-text">
+                    ✦ {prof.fieldCategory}
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold fs-display-font leading-snug">
+                    {prof.memberName}
+                  </h3>
+                  <p className="text-xs sm:text-sm fs-muted leading-relaxed">
+                    {prof.specialtyOrProfession}
+                  </p>
                 </div>
               </div>
 
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
-                  <span className="font-bold fs-accent-text">
-                    {prof.fieldCategory}
-                  </span>
-                  {cleanCity && (
-                    <>
-                      <span className="opacity-35">·</span>
-                      <span className="fs-muted inline-flex items-center gap-1">
-                        <MapPin className="w-3 h-3 fs-gold-text" />
-                        <span>{cleanCity}</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-                <h3 className="text-base font-bold fs-display-font truncate">
-                  {prof.memberName}
-                </h3>
-                <div className="text-xs fs-muted leading-snug">
-                  {prof.specialtyOrProfession}
-                </div>
+              {/* Clean Footer Guild Plinth */}
+              <div className="relative z-10 w-full pt-3 border-t border-dashed fs-border flex items-center justify-center gap-2 text-xs fs-muted">
+                {cleanCity ? (
+                  <>
+                    <MapPin className="w-3.5 h-3.5 fs-gold-text shrink-0" />
+                    <span className="font-semibold">{cleanCity}</span>
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="w-3.5 h-3.5 fs-gold-text shrink-0" />
+                    <span className="font-semibold">كفاءة عائلية موثّقة</span>
+                  </>
+                )}
               </div>
             </article>
           );
@@ -1843,156 +2076,230 @@ export const PublicFamilyMicrositePage: React.FC<
     );
   };
 
+  // 6B. ROYAL PERFORATED INVITATION TICKET FOR UPCOMING EVENTS
   const renderEventsCards = (inBentoPair: boolean) => {
-    const isSingleEvent =
-      cms.eventsModule.items.length === 1 && !compactPreview && !inBentoPair;
+    const items = cms.eventsModule.items;
     return (
       <div
         className={
-          inBentoPair
-            ? 'grid grid-cols-1 gap-4'
-            : getAdaptiveGridClass(
-                cms.eventsModule.items.length,
-                compactPreview,
-                2
-              )
+          inBentoPair || items.length === 1
+            ? 'grid grid-cols-1 gap-5'
+            : 'grid grid-cols-1 gap-5'
         }
       >
-        {cms.eventsModule.items.map((ev) => {
+        {items.map((ev) => {
           const cd = formatCountdownParts(ev.eventDateIso);
-          const formattedEventDate = formatArabicLongDate(ev.eventDateIso);
+          const calLeaf = parseArabicCalendarLeaf(ev.eventDateIso);
           const attendingTotal = (ev.rsvps || [])
             .filter((r) => r.status === 'attending')
             .reduce((sum, r) => sum + 1 + (r.companionsCount || 0), 0);
           const isCopied = copiedEventId === ev.id;
+          const cleanVenue = cleanLocationField(ev.locationLabel);
+
           return (
             <article
               key={ev.id}
-              className={`rounded-2xl fs-surface border p-5 sm:p-6 space-y-4 shadow-xs relative overflow-hidden ${
-                isSingleEvent ? 'sm:p-7' : ''
-              }`}
+              className="relative rounded-3xl fs-surface border shadow-[0_16px_42px_-20px_rgba(32,22,14,0.2)] overflow-hidden"
               style={{
                 borderColor:
-                  'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
+                  'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                background:
+                  'linear-gradient(135deg, var(--fs-surface) 0%, var(--fs-surface-alt) 100%)',
               }}
             >
+              {/* Top Gilded Invitation Ribbon */}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 top-0 h-1 fs-accent-gold-bar opacity-80"
+                className="pointer-events-none absolute inset-x-0 top-0 h-1.5 fs-accent-gold-bar opacity-90"
+              />
+
+              {/* Perforated Semicircular Ticket Notches (Left & Right Edges) */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border z-20"
+                style={{
+                  backgroundColor: 'var(--fs-canvas)',
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                }}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none hidden md:block absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border z-20"
+                style={{
+                  backgroundColor: 'var(--fs-canvas)',
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                }}
               />
 
               <div
-                className={`flex ${
+                className={`relative z-10 grid ${
                   compactPreview || inBentoPair
-                    ? 'flex-col items-stretch gap-3'
-                    : 'flex-col md:flex-row md:items-start justify-between gap-4'
-                } pt-1`}
+                    ? 'grid-cols-1'
+                    : 'grid-cols-1 md:grid-cols-12'
+                }`}
               >
-                <div className="space-y-1.5 min-w-0 flex-1">
-                  <div className="inline-flex items-center gap-1.5 text-[11px] font-bold fs-accent-text">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{formattedEventDate}</span>
-                  </div>
-                  <h3
-                    className={`${
-                      isSingleEvent
-                        ? 'text-lg sm:text-xl'
-                        : 'text-base sm:text-lg'
-                    } font-bold fs-display-font break-words leading-snug`}
+                {/* RIGHT MAIN TICKET BODY: Split Tear-Off Calendar Leaf + Invitation Details */}
+                <div
+                  className={`${
+                    compactPreview || inBentoPair
+                      ? 'p-5'
+                      : 'md:col-span-8 p-6 sm:p-7'
+                  } flex flex-col sm:flex-row items-start gap-5`}
+                >
+                  {/* Split Tear-Off Calendar Leaf */}
+                  <div
+                    className="w-24 sm:w-28 rounded-2xl overflow-hidden border shadow-sm shrink-0 text-center"
+                    style={{
+                      borderColor:
+                        'color-mix(in srgb, var(--fs-gold) 55%, transparent)',
+                      backgroundColor: 'var(--fs-surface)',
+                    }}
                   >
-                    {ev.title}
-                  </h3>
-                  {cleanLocationField(ev.locationLabel) && (
-                    <div className="text-xs fs-muted flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 fs-accent-text shrink-0" />
-                      <span>{cleanLocationField(ev.locationLabel)}</span>
+                    <div
+                      className="py-1.5 px-2 text-[10.5px] font-bold tracking-wide text-[#FFF8EA]"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, var(--fs-accent) 0%, var(--fs-hero-bg) 100%)',
+                      }}
+                    >
+                      {calLeaf.month}
+                    </div>
+                    <div className="py-2.5 px-2">
+                      <div className="text-3xl sm:text-4xl font-extrabold fs-display-font fs-accent-text tabular-nums leading-none">
+                        {calLeaf.day}
+                      </div>
+                      {calLeaf.year && (
+                        <div className="text-[10.5px] font-bold fs-muted mt-1 tabular-nums">
+                          {calLeaf.year}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Invitation Typography & Venue */}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold fs-accent-text">
+                      <Sparkles className="w-3.5 h-3.5 fs-gold-text" />
+                      <span>
+                        بطاقة دعوة عائلية رسمية
+                        {calLeaf.weekday ? ` · يوم ${calLeaf.weekday}` : ''}
+                      </span>
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold fs-display-font leading-snug break-words">
+                      {ev.title}
+                    </h3>
+                    {cleanVenue && (
+                      <div className="text-xs sm:text-sm fs-muted flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 fs-accent-text shrink-0" />
+                        <span>{cleanVenue}</span>
+                      </div>
+                    )}
+                    {ev.hostNote && (
+                      <p className="text-xs sm:text-sm fs-muted leading-relaxed pt-1">
+                        {ev.hostNote}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* LEFT PERFORATED TICKET STUB: Countdown + RSVP & Copy Actions */}
+                <div
+                  className={`${
+                    compactPreview || inBentoPair
+                      ? 'border-t px-5 py-4'
+                      : 'md:col-span-4 border-t md:border-t-0 md:border-r p-6 sm:p-7'
+                  } border-dashed flex flex-col justify-between gap-4`}
+                  style={{
+                    borderColor:
+                      'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+                    backgroundColor: 'var(--fs-gold-soft)',
+                  }}
+                >
+                  <div className="space-y-3">
+                    {!cd.expired ? (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { val: cd.days, lbl: 'يوم' },
+                          { val: cd.hours, lbl: 'ساعة' },
+                          { val: cd.minutes, lbl: 'دقيقة' },
+                        ].map((unit) => (
+                          <div
+                            key={unit.lbl}
+                            className="py-2 px-1.5 rounded-xl fs-surface border text-center"
+                            style={{
+                              borderColor:
+                                'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+                            }}
+                          >
+                            <div className="text-base font-bold fs-accent-text tabular-nums leading-none">
+                              {unit.val}
+                            </div>
+                            <div className="text-[9.5px] fs-muted mt-1 font-semibold">
+                              {unit.lbl}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs font-bold fs-accent-text text-center py-1.5 rounded-xl fs-surface border fs-border">
+                        ✦ {cd.label}
+                      </div>
+                    )}
+
+                    <div className="text-xs font-semibold fs-muted text-center tabular-nums">
+                      {attendingTotal > 0
+                        ? `المؤكّد حضورهم حتى الآن: ${attendingTotal}`
+                        : 'الدعوة مفتوحة لأفراد العائلة الكرام'}
+                    </div>
+                  </div>
+
+                  {!compactPreview && (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRsvpOpenEventId(
+                            rsvpOpenEventId === ev.id ? null : ev.id
+                          )
+                        }
+                        className="w-full py-2.5 px-4 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity shadow-xs"
+                      >
+                        تأكيد الحضور (RSVP)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyEventDetails(ev)}
+                        className="w-full py-2 px-3 rounded-xl fs-surface border fs-border text-xs font-bold fs-accent-text inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity"
+                      >
+                        {isCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>تم نسخ بطاقة الموعد</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>نسخ بطاقة الموعد</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
-
-                {!cd.expired && (
-                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                    {[
-                      { val: cd.days, lbl: 'يوم' },
-                      { val: cd.hours, lbl: 'ساعة' },
-                      { val: cd.minutes, lbl: 'دقيقة' },
-                    ].map((unit) => (
-                      <div
-                        key={unit.lbl}
-                        className="px-2.5 py-2 rounded-xl fs-surface-alt border text-center min-w-[50px]"
-                        style={{
-                          borderColor:
-                            'color-mix(in srgb, var(--fs-gold) 38%, transparent)',
-                        }}
-                      >
-                        <div className="text-sm font-bold fs-accent-text tabular-nums leading-none">
-                          {unit.val}
-                        </div>
-                        <div className="text-[9.5px] fs-muted mt-1">
-                          {unit.lbl}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {ev.hostNote && (
-                <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                  {ev.hostNote}
-                </p>
-              )}
-
-              <div className="pt-3.5 border-t fs-border flex flex-wrap items-center justify-between gap-2.5">
-                <span className="text-xs font-semibold fs-muted tabular-nums">
-                  {attendingTotal > 0
-                    ? `المؤكد حضورهم: ${attendingTotal}`
-                    : 'الدعوة مفتوحة لأفراد العائلة الكرام'}
-                </span>
-                {!compactPreview && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleCopyEventDetails(ev)}
-                      className="px-3 py-1.5 rounded-xl fs-surface-alt border fs-border text-xs font-bold fs-accent-text inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity"
-                    >
-                      {isCopied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>تم النسخ</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>نسخ الموعد</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRsvpOpenEventId(
-                          rsvpOpenEventId === ev.id ? null : ev.id
-                        )
-                      }
-                      className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity"
-                    >
-                      تأكيد الحضور
-                    </button>
-                  </div>
-                )}
               </div>
 
               {rsvpOpenEventId === ev.id && (
-                <div className="rounded-xl fs-surface-alt border fs-border p-3.5 space-y-2.5">
-                  <input
-                    type="text"
-                    value={rsvpName}
-                    onChange={(e) => setRsvpName(e.target.value)}
-                    placeholder="الاسم الكامل"
-                    className="w-full px-3 py-1.5 rounded-lg fs-surface border fs-border text-xs"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="relative z-10 border-t fs-border fs-surface-alt px-5 sm:px-7 py-4 space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                    <input
+                      type="text"
+                      value={rsvpName}
+                      onChange={(e) => setRsvpName(e.target.value)}
+                      placeholder="الاسم الكامل"
+                      className="sm:col-span-4 px-3 py-2 rounded-xl fs-surface border fs-border text-xs"
+                    />
                     <select
                       value={rsvpStatus}
                       onChange={(e) =>
@@ -2000,7 +2307,7 @@ export const PublicFamilyMicrositePage: React.FC<
                           e.target.value as 'attending' | 'apologizing'
                         )
                       }
-                      className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
+                      className="sm:col-span-4 px-3 py-2 rounded-xl fs-surface border fs-border text-xs"
                     >
                       <option value="attending">سأحضر بإذن الله</option>
                       <option value="apologizing">
@@ -2015,217 +2322,236 @@ export const PublicFamilyMicrositePage: React.FC<
                       onChange={(e) =>
                         setRsvpCompanions(Number(e.target.value) || 0)
                       }
-                      placeholder="عدد المرافقين"
-                      className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
+                      placeholder="المرافقون"
+                      className="sm:col-span-2 px-3 py-2 rounded-xl fs-surface border fs-border text-xs"
                     />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSubmitRsvp(ev.id)}
-                    className="w-full py-2 rounded-lg fs-accent-bg text-xs font-bold cursor-pointer"
-                  >
-                    حفظ تأكيد الحضور
-                  </button>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderStoriesCards = (inBentoPair: boolean) => {
-    const isSingleStory =
-      cms.storiesModule.items.length === 1 && !compactPreview && !inBentoPair;
-    return (
-      <div
-        className={
-          inBentoPair
-            ? 'grid grid-cols-1 gap-4'
-            : getAdaptiveGridClass(
-                cms.storiesModule.items.length,
-                compactPreview,
-                2
-              )
-        }
-      >
-        {cms.storiesModule.items.map((st) => (
-          <article
-            key={st.id}
-            className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
-              isSingleStory && st.imageUrl
-                ? 'grid grid-cols-1 md:grid-cols-12'
-                : 'flex flex-col'
-            }`}
-          >
-            {st.imageUrl && (
-              <div
-                className={`overflow-hidden fs-surface-alt ${
-                  isSingleStory
-                    ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[260px] border-b md:border-b-0 md:border-l fs-border'
-                    : 'aspect-[16/9] w-full border-b fs-border'
-                }`}
-              >
-                <img
-                  src={st.imageUrl}
-                  alt={st.title}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-            <div
-              className={`${
-                isSingleStory && st.imageUrl
-                  ? 'md:col-span-7 p-6 sm:p-8'
-                  : 'p-5 sm:p-6'
-              } space-y-2.5 flex-1`}
-            >
-              <div className="text-xs font-bold fs-accent-text tabular-nums">
-                {formatArabicLongDate(st.eraOrYearLabel)}
-              </div>
-              <h3
-                className={`${
-                  isSingleStory ? 'text-xl sm:text-2xl' : 'text-lg'
-                } font-bold fs-display-font`}
-              >
-                {st.title}
-              </h3>
-              <p className="text-xs sm:text-sm fs-muted leading-loose whitespace-pre-line max-w-2xl">
-                {st.body}
-              </p>
-            </div>
-          </article>
-        ))}
-      </div>
-    );
-  };
-
-  const renderOralHeritageCards = (inBentoPair: boolean) => {
-    const clips = cms.oralHeritageModule.items;
-    const isSingleClip = clips.length === 1 && !compactPreview && !inBentoPair;
-    return (
-      <div
-        className={
-          inBentoPair
-            ? 'grid grid-cols-1 gap-4'
-            : getAdaptiveGridClass(clips.length, compactPreview, 2)
-        }
-      >
-        {clips.map((clip) => {
-          const isPlaying = playingClipId === clip.id;
-          const hasAudio = Boolean(clip.audioDataOrUrl);
-          return (
-            <article
-              key={clip.id}
-              className={`rounded-2xl fs-surface border p-5 sm:p-6 shadow-xs transition-shadow hover:shadow-md ${
-                isSingleClip
-                  ? 'grid grid-cols-1 md:grid-cols-12 gap-6 items-center'
-                  : 'space-y-4'
-              }`}
-              style={{
-                borderColor: isPlaying ? 'var(--fs-gold)' : 'var(--fs-border)',
-              }}
-            >
-              <div
-                className={`${isSingleClip ? 'md:col-span-6' : ''} space-y-3.5`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3.5 min-w-0">
                     <button
                       type="button"
-                      disabled={!hasAudio}
-                      onClick={() =>
-                        handleTogglePlayClip(clip.id, clip.audioDataOrUrl)
-                      }
-                      aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل'}
-                      className="w-12 h-12 rounded-full fs-accent-bg flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-45 shadow-sm ring-2 ring-offset-2 transition-transform hover:scale-105"
-                      style={{
-                        ['--tw-ring-color' as string]: 'var(--fs-gold)',
-                        ['--tw-ring-offset-color' as string]:
-                          'var(--fs-surface)',
-                      }}
+                      onClick={() => handleSubmitRsvp(ev.id)}
+                      className="sm:col-span-2 py-2 px-3 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer"
                     >
-                      {isPlaying ? (
-                        <Pause className="w-5 h-5" />
-                      ) : (
-                        <Play className="w-5 h-5 mr-0.5" />
-                      )}
+                      حفظ التأكيد
                     </button>
-                    <div className="min-w-0">
-                      <h3 className="text-sm sm:text-base font-bold fs-display-font truncate">
-                        {clip.title}
-                      </h3>
-                      <div className="text-xs fs-muted truncate mt-0.5">
-                        {clip.speakerName}
-                        {clip.recordedYearLabel
-                          ? ` · ${clip.recordedYearLabel}`
-                          : ''}
-                      </div>
-                    </div>
                   </div>
-                  <Volume2
-                    className={`w-4 h-4 shrink-0 ${
-                      isPlaying
-                        ? 'fs-accent-text opacity-100'
-                        : 'fs-gold-text opacity-80'
-                    }`}
-                  />
                 </div>
-
-                {/* Stylized Museum Gold Audio Waveform */}
-                <div
-                  className="rounded-xl fs-surface-alt border fs-border px-3.5 py-2.5 flex items-center justify-between gap-3"
-                  aria-hidden="true"
-                >
-                  <div className="flex items-end gap-1 h-7 flex-1">
-                    {AUDIO_WAVEFORM_HEIGHTS.map((h, idx) => (
-                      <span
-                        key={idx}
-                        className={`flex-1 rounded-full transition-all ${
-                          isPlaying ? 'fs-wave-bar-playing' : ''
-                        }`}
-                        style={{
-                          height: `${h}%`,
-                          background:
-                            idx % 3 === 0
-                              ? 'var(--fs-accent)'
-                              : 'var(--fs-gold)',
-                          opacity: isPlaying ? 0.95 : 0.55,
-                          animationDelay: `${(idx % 6) * 0.14}s`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[10.5px] font-bold fs-muted shrink-0">
-                    {isPlaying
-                      ? 'قيد التشغيل'
-                      : hasAudio
-                        ? 'تسجيل موثق'
-                        : 'مروية نصية'}
-                  </span>
-                </div>
-              </div>
-
-              {clip.transcriptExcerpt && (
-                <blockquote
-                  className={`${
-                    isSingleClip
-                      ? 'md:col-span-6 md:border-r md:pr-6 border-t md:border-t-0 pt-4 md:pt-0'
-                      : 'pt-3.5 border-t'
-                  } fs-border`}
-                >
-                  <p className="text-sm sm:text-[15px] fs-display-font leading-loose">
-                    <span className="fs-gold-text font-bold ml-1">«</span>
-                    {clip.transcriptExcerpt}
-                    <span className="fs-gold-text font-bold mr-1">»</span>
-                  </p>
-                </blockquote>
               )}
             </article>
           );
         })}
+      </div>
+    );
+  };
+
+  // 3. OPEN HERITAGE STORYBOOK SPREAD (CHRONICLE BOOK PAGES + FULL READER MODAL)
+  const renderStoriesCards = (inBentoPair: boolean) => {
+    const stories = cms.storiesModule.items;
+    return (
+      <div className="space-y-6">
+        {stories.map((st, idx) => {
+          const chapterNum = idx + 1;
+          const chapterCode = String(chapterNum).padStart(2, '0');
+          const formattedEra = formatArabicLongDate(st.eraOrYearLabel);
+          const isTwoPageSpread = !inBentoPair && !compactPreview;
+
+          return (
+            <article
+              key={st.id}
+              className="relative overflow-hidden rounded-3xl fs-surface border shadow-[0_18px_46px_-22px_rgba(40,26,14,0.22)]"
+              style={{
+                borderColor:
+                  'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                background:
+                  'linear-gradient(160deg, var(--fs-surface) 0%, var(--fs-surface-alt) 100%)',
+              }}
+            >
+              {/* Delicate Book Cover Hairline Frame */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-2.5 rounded-[18px] border opacity-25"
+                style={{ borderColor: 'var(--fs-gold)' }}
+              />
+
+              {/* Central Book Spine Binding Shadow (Desktop Open Spread) */}
+              {isTwoPageSpread && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none hidden md:block absolute inset-y-0 right-[41.666%] w-8 -translate-x-1/2 z-10"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent 0%, rgba(56,36,18,0.09) 46%, rgba(56,36,18,0.14) 50%, rgba(56,36,18,0.06) 58%, transparent 100%)',
+                  }}
+                />
+              )}
+
+              <div
+                className={`relative z-10 grid ${
+                  isTwoPageSpread ? 'grid-cols-1 md:grid-cols-12' : 'grid-cols-1'
+                }`}
+              >
+                {/* RIGHT PAGE: Classic Corner-Bracketed Museum Photo Plate OR Illuminated Frontispiece */}
+                <div
+                  className={`${
+                    isTwoPageSpread
+                      ? 'md:col-span-5 p-6 sm:p-8 flex flex-col justify-center border-b md:border-b-0 md:border-l'
+                      : 'p-5 border-b'
+                  } fs-border`}
+                  style={{
+                    background:
+                      'linear-gradient(145deg, var(--fs-gold-soft) 0%, var(--fs-surface-alt) 100%)',
+                  }}
+                >
+                  {st.imageUrl ? (
+                    <div
+                      className="relative rounded-2xl bg-[#FFFDF8] p-2.5 border shadow-md"
+                      style={{
+                        borderColor:
+                          'color-mix(in srgb, var(--fs-gold) 55%, transparent)',
+                      }}
+                    >
+                      {/* Classic Gilded Photo Corner Brackets */}
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1.5 right-1.5 w-3.5 h-3.5 border-t-2 border-r-2 rounded-tr-xs"
+                        style={{ borderColor: 'var(--fs-gold)' }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute bottom-1.5 left-1.5 w-3.5 h-3.5 border-b-2 border-l-2 rounded-bl-xs"
+                        style={{ borderColor: 'var(--fs-gold)' }}
+                      />
+                      <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#2A1D13]">
+                        <img
+                          src={st.imageUrl}
+                          alt={st.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="rounded-2xl border border-dashed p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[190px]"
+                      style={{
+                        borderColor:
+                          'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+                        backgroundColor: 'var(--fs-surface)',
+                      }}
+                    >
+                      <div
+                        className="w-14 h-14 rounded-full border-2 flex items-center justify-center shadow-xs"
+                        style={{
+                          borderColor: 'var(--fs-gold)',
+                          backgroundColor: 'var(--fs-gold-soft)',
+                          color: 'var(--fs-accent)',
+                        }}
+                      >
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] font-bold fs-accent-text tracking-wide">
+                          ✦ مروية موثّقة · الفصل {chapterCode}
+                        </div>
+                        {formattedEra && (
+                          <div className="text-xs font-bold fs-muted tabular-nums">
+                            {formattedEra}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* LEFT PAGE: Illuminated Narrative Chronicle Text + Full Reading Mode Button */}
+                <div
+                  className={`${
+                    isTwoPageSpread
+                      ? 'md:col-span-7 p-6 sm:p-8 lg:p-10'
+                      : 'p-5 sm:p-6'
+                  } flex flex-col justify-between space-y-5 fs-epistle-ruled`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-dashed fs-border text-[11px] font-bold">
+                      <span className="fs-accent-text">
+                        ✦ مروية موثقة · الفصل {chapterCode}
+                      </span>
+                      {formattedEra && (
+                        <span className="fs-muted tabular-nums">
+                          {formattedEra}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3
+                      className={`${
+                        isTwoPageSpread
+                          ? 'text-xl sm:text-2xl'
+                          : 'text-lg sm:text-xl'
+                      } font-bold fs-display-font leading-snug`}
+                    >
+                      {st.title}
+                    </h3>
+
+                    <p className="text-xs sm:text-sm fs-muted leading-[2.0] whitespace-pre-line line-clamp-6">
+                      <span className="fs-gold-text text-lg font-bold ml-1.5">
+                        ✦
+                      </span>
+                      {st.body}
+                    </p>
+                  </div>
+
+                  {!compactPreview && (
+                    <div className="pt-3 border-t fs-border flex items-center justify-between gap-3">
+                      <span className="text-[11px] fs-muted">
+                        من سجل ذاكرة عائلة {siteData.familyName}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReadingStoryModal({
+                            title: st.title,
+                            eraOrYearLabel: st.eraOrYearLabel,
+                            body: st.body,
+                            imageUrl: st.imageUrl,
+                            chapterNumber: chapterNum,
+                          })
+                        }
+                        className="px-4 py-2 rounded-xl fs-surface border text-xs font-bold fs-accent-text inline-flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity shadow-2xs"
+                        style={{
+                          borderColor:
+                            'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                        }}
+                      >
+                        <BookOpen className="w-3.5 h-3.5 fs-gold-text" />
+                        <span>قراءة الحكاية في وضع السرد الكامل</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // 5. ACOUSTIC VINYL & 42-BAR EQUALIZER CONSOLE FOR ORAL HERITAGE
+  const renderOralHeritageCards = (inBentoPair: boolean) => {
+    const clips = cms.oralHeritageModule.items;
+    return (
+      <div className="space-y-5">
+        {clips.map((clip) => (
+          <AcousticVinylConsole
+            key={clip.id}
+            clip={clip}
+            isPlaying={playingClipId === clip.id}
+            currentTimeSec={playingClipId === clip.id ? audioCurrentTime : 0}
+            durationSec={playingClipId === clip.id ? audioDuration : 0}
+            inBentoPair={inBentoPair}
+            compactPreview={compactPreview}
+            onTogglePlay={handleTogglePlayClip}
+          />
+        ))}
       </div>
     );
   };
@@ -2233,13 +2559,13 @@ export const PublicFamilyMicrositePage: React.FC<
   // Standalone Section Renderer (alternates Open Editorial Canvas, Full-Bleed Velvet Band, & Framed Pavilions)
   const renderStandaloneSection = (key: PortalSectionKey): React.ReactNode => {
     switch (key) {
-      // 1. PATRIARCH WELCOME QUOTE — OPEN EDITORIAL CANVAS (ZERO OUTER BOX)
+      // 1. PATRIARCH WELCOME QUOTE — SIGNED ROYAL EPISTLE SCROLL
       case 'patriarch_quote':
         return wrapInStandardContainer(
           <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
-            watermarkVariant="tree"
+            watermarkVariant="quill_inkwell"
           >
             {renderPatriarchQuoteBlock(false)}
           </OpenEditorialCanvasSection>,
@@ -2289,13 +2615,13 @@ export const PublicFamilyMicrositePage: React.FC<
           </ScrollRevealChapter>
         );
 
-      // 3. CURATED MUSEUM VAULT WALL — OPEN EDITORIAL CANVAS + ASYMMETRIC MASONRY + LIGHTBOX
+      // 3. CURATED MUSEUM VAULT WALL — FULL-BLEED FRAMED ARTWORKS + GALLERY WATERMARK
       case 'vault_gallery':
         return wrapInStandardContainer(
           <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
-            watermarkVariant="arabesque"
+            watermarkVariant="gallery_frames"
           >
             <HeritagePavilionHeader
               kicker="مقتنيات أرشيفية مختارة"
@@ -2359,12 +2685,13 @@ export const PublicFamilyMicrositePage: React.FC<
           key
         );
 
-      // 5. EVENTS WITH LIVE COUNTDOWN + RSVP — FRAMED PAVILION
+      // 5. EVENTS WITH ROYAL PERFORATED INVITATION TICKETS + FESTIVE CHANDELIER WATERMARK
       case 'events':
         return wrapInStandardContainer(
-          <HeritageSectionPavilion
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
+            watermarkVariant="festive_chandelier"
           >
             <HeritagePavilionHeader
               kicker="لقاءات وصلة رحم"
@@ -2372,17 +2699,17 @@ export const PublicFamilyMicrositePage: React.FC<
               icon={<Calendar className="w-3.5 h-3.5" />}
             />
             {renderEventsCards(false)}
-          </HeritageSectionPavilion>,
+          </OpenEditorialCanvasSection>,
           key
         );
 
-      // 6. ANCESTOR STORIES — OPEN EDITORIAL CANVAS WITH QUILL WATERMARK
+      // 6. ANCESTOR STORIES — OPEN HERITAGE STORYBOOK SPREADS
       case 'stories':
         return wrapInStandardContainer(
           <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
-            watermarkVariant="quill_wave"
+            watermarkVariant="storybook_open"
           >
             <HeritagePavilionHeader
               kicker="سِير ومواقف خالدة"
@@ -2412,13 +2739,13 @@ export const PublicFamilyMicrositePage: React.FC<
           key
         );
 
-      // 8. ATLAS OF HOMELANDS — OPEN EDITORIAL CANVAS WITH COMPASS WATERMARK
+      // 8. ATLAS OF HOMELANDS — CARTOGRAPHIC TOPOGRAPHIC ROUTE ATLAS
       case 'atlas':
         return wrapInStandardContainer(
           <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
-            watermarkVariant="compass"
+            watermarkVariant="topographic_map"
           >
             <HeritagePavilionHeader
               kicker="الانتشار الجغرافي والديار"
@@ -2430,13 +2757,13 @@ export const PublicFamilyMicrositePage: React.FC<
           key
         );
 
-      // 9. ORAL HERITAGE & AUDIO ARCHIVE — FRAMED PAVILION
+      // 9. ORAL HERITAGE & AUDIO ARCHIVE — ACOUSTIC VINYL STUDIO CONSOLE
       case 'oral_heritage':
         return wrapInStandardContainer(
-          <HeritageSectionPavilion
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
-            watermarkVariant="manuscript"
+            watermarkVariant="acoustic_oud"
           >
             <HeritagePavilionHeader
               kicker="أصوات وقصائد ومرويات"
@@ -2444,11 +2771,11 @@ export const PublicFamilyMicrositePage: React.FC<
               icon={<Mic className="w-3.5 h-3.5" />}
             />
             {renderOralHeritageCards(false)}
-          </HeritageSectionPavilion>,
+          </OpenEditorialCanvasSection>,
           key
         );
 
-      // 10. PROFESSIONS DIRECTORY — OPEN EDITORIAL CANVAS WITH CIRCULAR MEDALLIONS
+      // 10. PROFESSIONS DIRECTORY — EXECUTIVE GUILD MEDALLION CARDS
       case 'professions':
         return wrapInStandardContainer(
           <OpenEditorialCanvasSection
@@ -2466,7 +2793,7 @@ export const PublicFamilyMicrositePage: React.FC<
           key
         );
 
-      // 11. MEMORIAL CORNER (OPEN LANTERN CANVAS) + ROYAL SEALED TIME VAULT (FULL-BLEED VELVET BAND)
+      // 11. MEMORIAL CORNER (ILLUMINATED ANDALUSIAN MIHRAB SANCTUARY) + ROYAL SEALED TIME VAULT
       case 'memorial': {
         const elders = cms.memorialAndCapsuleModule.elders;
         const isSingleElder = elders.length === 1 && !compactPreview;
@@ -2485,7 +2812,7 @@ export const PublicFamilyMicrositePage: React.FC<
                 <OpenEditorialCanvasSection
                   id={`portal-sec-${key}`}
                   compactPreview={compactPreview}
-                  watermarkVariant="lantern"
+                  watermarkVariant="mihrab_lantern"
                 >
                   <HeritagePavilionHeader
                     kicker="برّ ووفاء للراحلين"
@@ -2493,131 +2820,151 @@ export const PublicFamilyMicrositePage: React.FC<
                     icon={<Heart className="w-3.5 h-3.5" />}
                   />
                   <div
-                    className={getAdaptiveGridClass(
-                      elders.length,
-                      compactPreview,
-                      2
-                    )}
+                    className={
+                      isSingleElder
+                        ? 'max-w-xl mx-auto'
+                        : getAdaptiveGridClass(
+                            elders.length,
+                            compactPreview,
+                            2
+                          )
+                    }
                   >
                     {elders.map((el) => {
                       const hasPrayed = Boolean(prayedElderIds[el.id]);
                       return (
                         <article
                           key={el.id}
-                          className={`rounded-t-[44px] rounded-b-2xl fs-surface border shadow-[0_12px_34px_-18px_rgba(32,22,14,0.18)] relative overflow-hidden ${
-                            isSingleElder
-                              ? 'p-6 sm:p-8 space-y-4'
-                              : 'p-5 sm:p-6 space-y-3.5'
-                          }`}
+                          className="relative overflow-hidden rounded-t-[130px] rounded-b-3xl fs-surface border pt-10 pb-7 px-6 sm:px-8 text-center shadow-[0_18px_46px_-22px_rgba(32,22,14,0.22)] flex flex-col items-center justify-between gap-5"
                           style={{
                             borderColor:
-                              'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+                              'color-mix(in srgb, var(--fs-gold) 50%, transparent)',
+                            background:
+                              'linear-gradient(180deg, var(--fs-gold-soft) 0%, var(--fs-surface) 38%, var(--fs-surface) 100%)',
                           }}
                         >
+                          {/* Inner Andalusian Mihrab Arch Hairline */}
                           <div
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-x-10 top-0 h-[2px]"
-                            style={{
-                              background:
-                                'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
-                            }}
+                            className="pointer-events-none absolute inset-3 rounded-t-[118px] rounded-b-2xl border opacity-30"
+                            style={{ borderColor: 'var(--fs-gold)' }}
                           />
 
-                          <div className="flex flex-wrap items-start justify-between gap-3 pt-1">
-                            <div className="flex items-center gap-3.5">
+                          {/* Hanging Illuminated Lantern Watermark inside Arch */}
+                          <HeritageAmbientWatermark
+                            variant="mihrab_lantern"
+                            position="center"
+                            opacityClass="opacity-[0.065]"
+                          />
+
+                          <div className="relative z-10 flex flex-col items-center space-y-3.5 w-full">
+                            {/* Subtle Hanging Lantern Apex Ornament */}
+                            <div
+                              aria-hidden="true"
+                              className="text-xs font-bold fs-gold-text tracking-widest"
+                            >
+                              ✦ ❖ ✦
+                            </div>
+
+                            {/* Double-Ringed Golden Memorial Medallion */}
+                            <div
+                              className="w-16 h-16 rounded-full p-[3px] shadow-md"
+                              style={{
+                                background:
+                                  'linear-gradient(135deg, #F5DC9F 0%, var(--fs-gold) 55%, var(--fs-accent) 100%)',
+                              }}
+                            >
                               <div
-                                className="w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold fs-display-font text-base shrink-0 shadow-xs"
+                                className="w-full h-full rounded-full border-2 flex items-center justify-center font-bold fs-display-font text-xl"
                                 style={{
-                                  borderColor: 'var(--fs-gold)',
-                                  backgroundColor: 'var(--fs-gold-soft)',
+                                  borderColor: 'var(--fs-surface)',
+                                  backgroundColor: 'var(--fs-surface)',
                                   color: 'var(--fs-accent)',
                                 }}
                               >
                                 {getArabicMonogram(el.fullName)}
                               </div>
-                              <div className="space-y-0.5">
-                                <h3
-                                  className={`${
-                                    isSingleElder
-                                      ? 'text-lg sm:text-xl'
-                                      : 'text-base sm:text-lg'
-                                  } font-bold fs-display-font`}
-                                >
-                                  {el.fullName}
-                                </h3>
-                                <div className="text-xs fs-muted flex flex-wrap items-center gap-2">
-                                  <span className="font-semibold fs-accent-text">
-                                    رحمه الله وغفر له
-                                  </span>
-                                  {el.passingYearLabel && (
-                                    <>
-                                      <span className="opacity-45">·</span>
-                                      <span className="tabular-nums">
-                                        {el.passingYearLabel}
-                                      </span>
-                                    </>
-                                  )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {el.passingYearLabel && (
+                                <div className="text-[11px] font-bold fs-gold-text tabular-nums">
+                                  توفّي إلى رحمة الله · {el.passingYearLabel}
                                 </div>
+                              )}
+                              <h3 className="text-xl sm:text-2xl font-bold fs-display-font leading-snug">
+                                {el.fullName}
+                              </h3>
+                              <div className="text-xs sm:text-sm font-bold fs-accent-text">
+                                رحمه الله وغفر له وأسكنه فسيح جناته
                               </div>
                             </div>
 
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handlePrayForElder(el.id)}
-                                className="px-3.5 py-2 rounded-full border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer tabular-nums transition-all duration-200"
-                                style={
-                                  hasPrayed
-                                    ? {
-                                        backgroundColor: 'var(--fs-gold-soft)',
-                                        borderColor: 'var(--fs-gold)',
-                                        color: 'var(--fs-accent)',
-                                        boxShadow:
-                                          '0 0 18px rgba(200, 160, 84, 0.35)',
-                                      }
-                                    : {
-                                        backgroundColor: 'var(--fs-surface-alt)',
-                                        borderColor: 'var(--fs-border)',
-                                        color: 'var(--fs-accent)',
-                                      }
-                                }
+                            {el.biographyNote && (
+                              <p className="text-xs sm:text-sm fs-muted leading-loose max-w-md pt-2 border-t border-dashed fs-border">
+                                {el.biographyNote}
+                              </p>
+                            )}
+
+                            {el.ongoingCharityTitle && (
+                              <div
+                                className="w-full rounded-2xl fs-surface-alt border px-4 py-3 text-xs flex items-center justify-center gap-2 text-center"
+                                style={{
+                                  borderColor:
+                                    'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
+                                }}
                               >
-                                <Heart
-                                  className={`w-3.5 h-3.5 ${
-                                    hasPrayed ? 'fill-current' : ''
-                                  }`}
-                                />
-                                <span>دعوت له ({el.prayersCount || 0})</span>
-                              </button>
-                              {hasPrayed && (
-                                <span className="text-[10.5px] font-bold fs-accent-text">
-                                  تقبّل الله دعاءكم ✦
+                                <Sparkles className="w-3.5 h-3.5 fs-gold-text shrink-0" />
+                                <span>
+                                  <strong className="fs-accent-text">
+                                    الصدقة الجارية:{' '}
+                                  </strong>
+                                  {el.ongoingCharityTitle}
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
 
-                          <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                            {el.biographyNote}
-                          </p>
-
-                          {el.ongoingCharityTitle && (
-                            <div
-                              className="rounded-xl fs-surface-alt border px-3.5 py-2.5 text-xs flex items-center gap-2"
-                              style={{
-                                borderColor:
-                                  'color-mix(in srgb, var(--fs-gold) 32%, transparent)',
-                              }}
+                          {/* Prominent Golden Halo Prayer CTA */}
+                          <div className="relative z-10 w-full flex flex-col items-center gap-1.5 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => handlePrayForElder(el.id)}
+                              className="w-full sm:w-auto px-6 py-3 rounded-full border text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-2 cursor-pointer tabular-nums transition-all duration-300 hover:-translate-y-0.5"
+                              style={
+                                hasPrayed
+                                  ? {
+                                      background:
+                                        'linear-gradient(135deg, #F5DC9F 0%, var(--fs-gold) 100%)',
+                                      borderColor: 'var(--fs-gold)',
+                                      color: '#2A1B0B',
+                                      boxShadow:
+                                        '0 0 26px rgba(212, 169, 85, 0.5)',
+                                    }
+                                  : {
+                                      backgroundColor: 'var(--fs-surface-alt)',
+                                      borderColor:
+                                        'color-mix(in srgb, var(--fs-gold) 55%, transparent)',
+                                      color: 'var(--fs-accent)',
+                                    }
+                              }
                             >
-                              <Sparkles className="w-3.5 h-3.5 fs-gold-text shrink-0" />
+                              <Heart
+                                className={`w-4 h-4 ${
+                                  hasPrayed ? 'fill-current' : ''
+                                }`}
+                              />
                               <span>
-                                <strong className="fs-accent-text">
-                                  الصدقة الجارية:{' '}
-                                </strong>
-                                {el.ongoingCharityTitle}
+                                اللهم ارحمه واغفر له · أمّن على الدعاء (
+                                {el.prayersCount || 0})
                               </span>
-                            </div>
-                          )}
+                            </button>
+                            {hasPrayed && (
+                              <span className="text-[11px] font-bold fs-accent-text">
+                                تقبّل الله دعاءكم وأثابكم خيراً ✦
+                              </span>
+                            )}
+                          </div>
                         </article>
                       );
                     })}
@@ -2725,7 +3072,7 @@ export const PublicFamilyMicrositePage: React.FC<
         );
       }
 
-      // 12. ELEVATED FAMILY DIWAN (GUIDED MAJLIS & GUARDIANS OF MEMORY)
+      // 12. VIBRANT INTERACTIVE FAMILY MAJLIS SALON & GUARDIANS OF MEMORY
       case 'majlis':
         return wrapInStandardContainer(
           <HeritageSectionPavilion
@@ -2738,6 +3085,7 @@ export const PublicFamilyMicrositePage: React.FC<
               icon={<MessageSquare className="w-3.5 h-3.5" />}
             />
 
+            {/* Guardians of Memory Honor Bar */}
             {cms.majlisAndGuardiansModule.showGuardiansHonorRoll &&
               guardians.length > 0 && (
                 <div
@@ -2746,124 +3094,265 @@ export const PublicFamilyMicrositePage: React.FC<
                     background:
                       'linear-gradient(135deg, var(--fs-gold-soft) 0%, var(--fs-surface) 100%)',
                     borderColor:
-                      'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+                      'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
                   }}
                 >
                   <div className="text-xs font-bold fs-accent-text flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 fs-gold-text" />
+                    <ShieldCheck className="w-4 h-4 fs-gold-text shrink-0" />
                     <span>وسام شرف حرّاس ذاكرة العائلة الأكثر إثراءً:</span>
                   </div>
-                  <div className="flex flex-wrap gap-3 text-xs font-bold tabular-nums">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-bold tabular-nums">
                     {guardians.map((g, i) => (
-                      <span key={`${g.name}-${i}`}>
-                        <span className="fs-gold-text ml-1">✦</span>
-                        {g.name} ({g.approvedCount} إثراء)
+                      <span key={`${g.name}-${i}`} className="inline-flex items-center gap-1">
+                        <span className="fs-gold-text">✦</span>
+                        <span>{g.name}</span>
+                        <span className="fs-muted font-semibold">
+                          ({g.approvedCount} إثراء)
+                        </span>
                       </span>
                     ))}
                   </div>
                 </div>
               )}
 
-            <div className="space-y-4">
-              {cms.majlisAndGuardiansModule.topics.map((topic) => (
-                <article
-                  key={topic.id}
-                  className="rounded-2xl fs-surface border fs-border p-5 sm:p-6 space-y-4 shadow-xs"
-                >
-                  <div className="space-y-1.5">
-                    <div className="inline-flex items-center gap-1.5 text-xs fs-accent-text font-bold">
-                      {topic.isWeeklyElderPrompt && (
-                        <Pin className="w-3.5 h-3.5 fs-gold-text" />
-                      )}
-                      <span>محور حوار في ديوان العائلة</span>
-                    </div>
-                    <h3 className="text-base sm:text-lg font-bold fs-display-font">
-                      {topic.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                      {topic.promptQuestion}
-                    </p>
-                  </div>
+            {/* Vibrant Interactive Majlis Topic Threads */}
+            <div className="space-y-6">
+              {cms.majlisAndGuardiansModule.topics.map((topic) => {
+                const replies = topic.replies || [];
+                const reactions = topic.reactions || {
+                  greatIdea: 0,
+                  withYou: 0,
+                  blessGathering: 0,
+                };
+                return (
+                  <article
+                    key={topic.id}
+                    className="rounded-3xl fs-surface border overflow-hidden shadow-[0_14px_38px_-18px_rgba(32,22,14,0.16)]"
+                    style={{
+                      borderColor:
+                        'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+                    }}
+                  >
+                    {/* Pinned Majlis Topic Header Banner */}
+                    <div
+                      className="p-5 sm:p-7 border-b fs-border space-y-4"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, var(--fs-gold-soft) 0%, var(--fs-surface) 75%)',
+                      }}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="inline-flex items-center gap-1.5 font-bold fs-accent-text">
+                          {topic.isWeeklyElderPrompt ? (
+                            <Pin className="w-3.5 h-3.5 fs-gold-text" />
+                          ) : (
+                            <MessageSquare className="w-3.5 h-3.5 fs-gold-text" />
+                          )}
+                          <span>
+                            {topic.isWeeklyElderPrompt
+                              ? 'محور مثبّت في مجلس العائلة'
+                              : 'محور حوار في ديوان العائلة'}
+                          </span>
+                        </div>
+                        {!topic.isLocked && (
+                          <span className="text-[11px] font-bold fs-accent-text inline-flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 fs-gold-text" />
+                            <span>باب النقاش مفتوح الآن</span>
+                          </span>
+                        )}
+                      </div>
 
-                  {topic.replies && topic.replies.length > 0 && (
-                    <div className="space-y-2.5 pt-3 border-t fs-border">
-                      {topic.replies.map((rep) => (
-                        <div
-                          key={rep.id}
-                          className="rounded-xl fs-surface-alt border fs-border px-4 py-3 flex items-start gap-3 text-xs"
-                        >
-                          <div
-                            className="w-8 h-8 rounded-full border flex items-center justify-center font-bold fs-display-font shrink-0 text-xs"
-                            style={{
-                              backgroundColor: 'var(--fs-surface)',
-                              borderColor:
-                                'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                              color: 'var(--fs-accent)',
-                            }}
-                          >
-                            {getArabicMonogram(rep.authorName)}
+                      <div className="space-y-2">
+                        <h3 className="text-lg sm:text-xl font-bold fs-display-font leading-snug">
+                          {topic.title}
+                        </h3>
+                        <p className="text-sm sm:text-[15px] leading-relaxed font-medium opacity-90">
+                          {topic.promptQuestion}
+                        </p>
+                      </div>
+
+                      {/* One-Click Quick Reaction Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {MAJLIS_REACTION_META.map((rx) => {
+                          const guardKey = `${topic.id}:${rx.key}`;
+                          const isReacted = Boolean(
+                            reactedMajlisKeys[guardKey]
+                          );
+                          const count = reactions[rx.key] || 0;
+                          return (
+                            <button
+                              key={rx.key}
+                              type="button"
+                              disabled={compactPreview || isReacted}
+                              onClick={() =>
+                                handleMajlisReaction(topic.id, rx.key)
+                              }
+                              className="px-3.5 py-1.5 rounded-full border text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer disabled:cursor-default tabular-nums"
+                              style={
+                                isReacted
+                                  ? {
+                                      backgroundColor: 'var(--fs-accent)',
+                                      borderColor: 'var(--fs-accent)',
+                                      color: '#FFFFFF',
+                                    }
+                                  : {
+                                      backgroundColor: 'var(--fs-surface)',
+                                      borderColor:
+                                        'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                                      color: 'var(--fs-accent)',
+                                    }
+                              }
+                            >
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>{rx.label}</span>
+                              {count > 0 && (
+                                <span className="opacity-85">({count})</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Threaded Majlis Replies OR Inviting First-Voice Welcome Card */}
+                    <div className="p-5 sm:p-7 space-y-5">
+                      {replies.length > 0 ? (
+                        <div className="space-y-3">
+                          <div className="text-[11px] font-bold fs-muted tabular-nums">
+                            ✦ مشاركات أفراد العائلة ({replies.length})
                           </div>
-                          <div className="space-y-0.5 flex-1 min-w-0">
-                            <div className="font-bold fs-accent-text">
-                              {rep.authorName}
+                          {replies.map((rep) => (
+                            <div
+                              key={rep.id}
+                              className="rounded-2xl fs-surface-alt border fs-border px-4 py-3.5 flex items-start gap-3.5"
+                            >
+                              <div
+                                className="w-9 h-9 rounded-full border-2 flex items-center justify-center font-bold fs-display-font shrink-0 text-xs shadow-2xs"
+                                style={{
+                                  backgroundColor: 'var(--fs-surface)',
+                                  borderColor:
+                                    'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+                                  color: 'var(--fs-accent)',
+                                }}
+                              >
+                                {getArabicMonogram(rep.authorName)}
+                              </div>
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-xs sm:text-sm font-bold fs-accent-text">
+                                    {rep.authorName}
+                                  </span>
+                                  {rep.createdAt && (
+                                    <span className="text-[10.5px] fs-muted tabular-nums">
+                                      {formatArabicLongDate(rep.createdAt)}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs sm:text-sm leading-relaxed">
+                                  {rep.body}
+                                </p>
+                              </div>
                             </div>
-                            <p className="leading-relaxed">{rep.body}</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          className="rounded-2xl border border-dashed p-5 text-center space-y-1.5"
+                          style={{
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                            backgroundColor: 'var(--fs-surface-alt)',
+                          }}
+                        >
+                          <div className="text-xs font-bold fs-accent-text">
+                            ✦ ديوان العائلة بانتظار صوتك الأول
+                          </div>
+                          <p className="text-xs fs-muted leading-relaxed max-w-md mx-auto">
+                            كن أول من يفتتح الحديث في مجلس عائلة{' '}
+                            {siteData.familyName} وشارك أهلك رأيك وذكرياتك أدناه.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Guestbook Reply Composer with One-Click Quick Phrases */}
+                      {!topic.isLocked && !compactPreview && (
+                        <div className="pt-4 border-t border-dashed fs-border space-y-3">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-bold fs-muted ml-1">
+                              عبارات سريعة:
+                            </span>
+                            {MAJLIS_QUICK_PHRASES.map((phrase) => (
+                              <button
+                                key={phrase}
+                                type="button"
+                                onClick={() =>
+                                  setMajlisReplyInputs((prev) => ({
+                                    ...prev,
+                                    [topic.id]: {
+                                      name: prev[topic.id]?.name || '',
+                                      body: phrase,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 rounded-lg fs-surface-alt border fs-border text-[11px] font-semibold fs-accent-text hover:opacity-85 transition-opacity cursor-pointer"
+                              >
+                                + {phrase}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                            <input
+                              type="text"
+                              value={majlisReplyInputs[topic.id]?.name || ''}
+                              onChange={(e) =>
+                                setMajlisReplyInputs((prev) => ({
+                                  ...prev,
+                                  [topic.id]: {
+                                    name: e.target.value,
+                                    body: prev[topic.id]?.body || '',
+                                  },
+                                }))
+                              }
+                              placeholder="اسمك الكريم"
+                              className="sm:col-span-4 px-3.5 py-2.5 rounded-xl fs-surface-alt border fs-border text-xs focus:outline-none focus:ring-1"
+                              style={{
+                                ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={majlisReplyInputs[topic.id]?.body || ''}
+                              onChange={(e) =>
+                                setMajlisReplyInputs((prev) => ({
+                                  ...prev,
+                                  [topic.id]: {
+                                    name: prev[topic.id]?.name || '',
+                                    body: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="أضف مشاركتك وذكرياتك في المجلس..."
+                              className="sm:col-span-6 px-3.5 py-2.5 rounded-xl fs-surface-alt border fs-border text-xs focus:outline-none focus:ring-1"
+                              style={{
+                                ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSubmitMajlisReply(topic.id)}
+                              className="sm:col-span-2 py-2.5 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-95 transition-opacity shadow-xs"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>إرسال</span>
+                            </button>
                           </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-
-                  {!topic.isLocked && !compactPreview && (
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-3 border-t fs-border">
-                      <input
-                        type="text"
-                        value={majlisReplyInputs[topic.id]?.name || ''}
-                        onChange={(e) =>
-                          setMajlisReplyInputs((prev) => ({
-                            ...prev,
-                            [topic.id]: {
-                              name: e.target.value,
-                              body: prev[topic.id]?.body || '',
-                            },
-                          }))
-                        }
-                        placeholder="اسمك الكريم"
-                        className="sm:col-span-4 px-3.5 py-2.5 rounded-xl fs-surface border fs-border text-xs focus:outline-none focus:ring-1"
-                        style={{
-                          ['--tw-ring-color' as string]: 'var(--fs-gold)',
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={majlisReplyInputs[topic.id]?.body || ''}
-                        onChange={(e) =>
-                          setMajlisReplyInputs((prev) => ({
-                            ...prev,
-                            [topic.id]: {
-                              name: prev[topic.id]?.name || '',
-                              body: e.target.value,
-                            },
-                          }))
-                        }
-                        placeholder="أضف مشاركتك وذكرياتك في المجلس..."
-                        className="sm:col-span-6 px-3.5 py-2.5 rounded-xl fs-surface border fs-border text-xs focus:outline-none focus:ring-1"
-                        style={{
-                          ['--tw-ring-color' as string]: 'var(--fs-gold)',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleSubmitMajlisReply(topic.id)}
-                        className="sm:col-span-2 py-2.5 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-95 transition-opacity shadow-2xs"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>مشاركة</span>
-                      </button>
-                    </div>
-                  )}
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </HeritageSectionPavilion>,
           key
@@ -2876,9 +3365,14 @@ export const PublicFamilyMicrositePage: React.FC<
   // ===========================================================================
   const buildEditorialChapterBlocks = (): Array<{
     key: string;
+    sectionKeys: PortalSectionKey[];
     node: React.ReactNode;
   }> => {
-    const blocks: Array<{ key: string; node: React.ReactNode }> = [];
+    const blocks: Array<{
+      key: string;
+      sectionKeys: PortalSectionKey[];
+      node: React.ReactNode;
+    }> = [];
     let i = 0;
 
     while (i < orderedActiveSections.length) {
@@ -2896,11 +3390,12 @@ export const PublicFamilyMicrositePage: React.FC<
         const quoteFirst = cur === 'patriarch_quote';
         blocks.push({
           key: `bento-${cur}-${next}`,
+          sectionKeys: [cur, next],
           node: wrapInStandardContainer(
             <OpenEditorialCanvasSection
               id="portal-bento-roots-atlas"
               compactPreview={compactPreview}
-              watermarkVariant="compass"
+              watermarkVariant="topographic_map"
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 <div
@@ -2944,6 +3439,7 @@ export const PublicFamilyMicrositePage: React.FC<
         const notablesFirst = cur === 'notables';
         blocks.push({
           key: `bento-${cur}-${next}`,
+          sectionKeys: [cur, next],
           node: wrapInStandardContainer(
             <OpenEditorialCanvasSection
               id="portal-bento-honors-talent"
@@ -2999,11 +3495,12 @@ export const PublicFamilyMicrositePage: React.FC<
         const storiesFirst = cur === 'stories';
         blocks.push({
           key: `bento-${cur}-${next}`,
+          sectionKeys: [cur, next],
           node: wrapInStandardContainer(
             <OpenEditorialCanvasSection
               id="portal-bento-stories-oral"
               compactPreview={compactPreview}
-              watermarkVariant="quill_wave"
+              watermarkVariant="storybook_open"
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div
@@ -3053,11 +3550,12 @@ export const PublicFamilyMicrositePage: React.FC<
         const newsFirst = cur === 'news';
         blocks.push({
           key: `bento-${cur}-${next}`,
+          sectionKeys: [cur, next],
           node: wrapInStandardContainer(
             <OpenEditorialCanvasSection
               id="portal-bento-news-events"
               compactPreview={compactPreview}
-              watermarkVariant="arabesque"
+              watermarkVariant="festive_chandelier"
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div
@@ -3097,6 +3595,7 @@ export const PublicFamilyMicrositePage: React.FC<
 
       blocks.push({
         key: cur,
+        sectionKeys: [cur],
         node: renderStandaloneSection(cur),
       });
       i += 1;
@@ -3106,19 +3605,61 @@ export const PublicFamilyMicrositePage: React.FC<
   };
 
   const editorialChapterBlocks = buildEditorialChapterBlocks();
-  const showHumanInterludes =
-    branding.showHumanWarmthInterludes !== false &&
-    editorialChapterBlocks.length >= 2;
-  const interlude1AfterIdx = showHumanInterludes
-    ? Math.min(1, editorialChapterBlocks.length - 2)
-    : -1;
-  const interlude2AfterIdx =
-    showHumanInterludes && editorialChapterBlocks.length >= 4
-      ? Math.max(
-          interlude1AfterIdx + 2,
-          Math.floor((editorialChapterBlocks.length * 2) / 3) - 1
-        )
-      : -1;
+
+  // STRICTLY ONE EMOTIONAL INTERLUDE SLOT (RESPECTS EXACT STUDIO PLACEMENT CHOICE)
+  const singleInterludeSlot = (() => {
+    if (
+      !branding.emotionalInterlude.enabled ||
+      editorialChapterBlocks.length === 0
+    ) {
+      return { beforeFirst: false, afterIdx: -1 };
+    }
+    const pos = branding.emotionalInterlude.position;
+    const findBlockIdx = (targets: PortalSectionKey[]) =>
+      editorialChapterBlocks.findIndex((b) =>
+        b.sectionKeys.some((k) => targets.includes(k))
+      );
+
+    if (pos === 'after_tree') {
+      const idx = findBlockIdx(['tree_mirror']);
+      return {
+        beforeFirst: false,
+        afterIdx: idx >= 0 ? idx : 0,
+      };
+    }
+    if (pos === 'after_welcome_atlas') {
+      const idx = findBlockIdx(['atlas', 'patriarch_quote']);
+      return {
+        beforeFirst: false,
+        afterIdx: idx >= 0 ? idx : 0,
+      };
+    }
+    if (pos === 'after_vault') {
+      const idx = findBlockIdx(['vault_gallery']);
+      return {
+        beforeFirst: false,
+        afterIdx:
+          idx >= 0
+            ? idx
+            : Math.min(
+                editorialChapterBlocks.length - 1,
+                Math.floor(editorialChapterBlocks.length / 2)
+              ),
+      };
+    }
+    // 'before_memorial'
+    const memIdx = findBlockIdx(['memorial']);
+    if (memIdx === 0) {
+      return { beforeFirst: true, afterIdx: -1 };
+    }
+    if (memIdx > 0) {
+      return { beforeFirst: false, afterIdx: memIdx - 1 };
+    }
+    return {
+      beforeFirst: false,
+      afterIdx: Math.max(0, editorialChapterBlocks.length - 2),
+    };
+  })();
 
   // Curated concise primary nav links (max 5 clean single-line links so Diwan title never truncates)
   const curatedNavSections = (() => {
@@ -3168,7 +3709,16 @@ export const PublicFamilyMicrositePage: React.FC<
     >
       <audio
         ref={audioElementRef}
-        onEnded={() => setPlayingClipId(null)}
+        onTimeUpdate={(e) =>
+          setAudioCurrentTime(e.currentTarget.currentTime || 0)
+        }
+        onLoadedMetadata={(e) =>
+          setAudioDuration(e.currentTarget.duration || 0)
+        }
+        onEnded={() => {
+          setPlayingClipId(null);
+          setAudioCurrentTime(0);
+        }}
         className="hidden"
       />
 
@@ -3566,30 +4116,31 @@ export const PublicFamilyMicrositePage: React.FC<
           </div>
         )}
 
+        {/* Strictly Single Emotional Interlude if positioned before block 0 */}
+        {singleInterludeSlot.beforeFirst &&
+          wrapInStandardContainer(
+            <SingleEmotionalInterludeShowcase
+              config={branding.emotionalInterlude}
+              familyName={siteData.familyName}
+              compactPreview={compactPreview}
+            />,
+            'single-emotional-interlude',
+            false
+          )}
+
         {editorialChapterBlocks.map((block, idx) => (
           <React.Fragment key={block.key}>
             {block.node}
 
-            {/* Human Warmth Cinematic Interlude 1 (Roots & Generations) */}
-            {idx === interlude1AfterIdx &&
+            {/* Strictly Single Editorial Emotional Interlude Showcase */}
+            {idx === singleInterludeSlot.afterIdx &&
               wrapInStandardContainer(
-                <HumanWarmthInterludeBanner
-                  variant="roots"
-                  customImageUrl={branding.customInterludeImageUrl}
+                <SingleEmotionalInterludeShowcase
+                  config={branding.emotionalInterlude}
+                  familyName={siteData.familyName}
                   compactPreview={compactPreview}
                 />,
-                'human-interlude-roots',
-                false
-              )}
-
-            {/* Human Warmth Cinematic Interlude 2 (Kinship & Loyalty) */}
-            {idx === interlude2AfterIdx &&
-              wrapInStandardContainer(
-                <HumanWarmthInterludeBanner
-                  variant="kinship"
-                  compactPreview={compactPreview}
-                />,
-                'human-interlude-kinship',
+                'single-emotional-interlude',
                 false
               )}
           </React.Fragment>
@@ -4077,6 +4628,15 @@ export const PublicFamilyMicrositePage: React.FC<
           invitation={activeInvitation}
           onClose={() => setShowInviteClaimModal(false)}
           onClaimCompleted={handleInviteClaimSuccess}
+        />
+      )}
+
+      {readingStoryModal && !compactPreview && (
+        <StorybookReadingModal
+          story={readingStoryModal}
+          familyName={siteData.familyName}
+          formatArabicLongDate={formatArabicLongDate}
+          onClose={() => setReadingStoryModal(null)}
         />
       )}
     </div>

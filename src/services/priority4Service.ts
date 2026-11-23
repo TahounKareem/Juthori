@@ -998,6 +998,37 @@ export const DEFAULT_PORTAL_SECTION_ORDER: PortalSectionKey[] = [
   'majlis',
 ];
 
+export type EmotionalInterludePosition =
+  | 'after_tree'
+  | 'after_vault'
+  | 'before_memorial'
+  | 'after_welcome_atlas';
+
+export type EmotionalInterludePresetId =
+  | 'grandfather_warmth'
+  | 'majlis_gathering'
+  | 'courtyard_olive'
+  | 'heirloom_hands';
+
+export interface EmotionalInterludeConfig {
+  enabled: boolean;
+  position: EmotionalInterludePosition;
+  imagePresetId: EmotionalInterludePresetId;
+  customImageUrl?: string;
+  kicker: string;
+  quote: string;
+}
+
+export const DEFAULT_EMOTIONAL_INTERLUDE_CONFIG: EmotionalInterludeConfig = {
+  enabled: true,
+  position: 'after_tree',
+  imagePresetId: 'grandfather_warmth',
+  customImageUrl: undefined,
+  kicker: 'صلة الأجيال وامتداد الدوحة',
+  quote:
+    'الجذور العميقة لا تشيخ... بل تزهر في عيون الأبناء والأحفاد جيلاً بعد جيل',
+};
+
 export interface FamilyPortalVisualBranding {
   crestMode: 'auto_gilded' | 'custom_image';
   crestStyle: FamilyCrestStyle;
@@ -1014,6 +1045,7 @@ export interface FamilyPortalVisualBranding {
     authorName: string;
     authorTitle: string;
   };
+  emotionalInterlude: EmotionalInterludeConfig;
   showHumanWarmthInterludes?: boolean;
   customInterludeImageUrl?: string;
   sectionOrder: PortalSectionKey[];
@@ -1036,6 +1068,7 @@ export function buildDefaultVisualBranding(
       authorName: familyName ? `عميد عائلة ${familyName}` : 'عميد العائلة',
       authorTitle: 'كلمة ترحيبية لأبناء وبنات العائلة',
     },
+    emotionalInterlude: { ...DEFAULT_EMOTIONAL_INTERLUDE_CONFIG },
     showHumanWarmthInterludes: true,
     customInterludeImageUrl: undefined,
     sectionOrder: [...DEFAULT_PORTAL_SECTION_ORDER],
@@ -1072,6 +1105,29 @@ export function normalizeVisualBranding(
             (k) => !validUniqueIncoming.includes(k)
           ),
         ];
+
+  const validPositions: EmotionalInterludePosition[] = [
+    'after_tree',
+    'after_vault',
+    'before_memorial',
+    'after_welcome_atlas',
+  ];
+  const validPresets: EmotionalInterludePresetId[] = [
+    'grandfather_warmth',
+    'majlis_gathering',
+    'courtyard_olive',
+    'heirloom_hands',
+  ];
+  const rawInterlude = raw.emotionalInterlude;
+  const resolvedInterludeEnabled =
+    typeof rawInterlude?.enabled === 'boolean'
+      ? rawInterlude.enabled
+      : typeof raw.showHumanWarmthInterludes === 'boolean'
+        ? raw.showHumanWarmthInterludes
+        : base.emotionalInterlude.enabled;
+  const resolvedInterludeCustomUrl =
+    rawInterlude?.customImageUrl || raw.customInterludeImageUrl || undefined;
+
   return {
     crestMode: raw.crestMode === 'custom_image' ? 'custom_image' : 'auto_gilded',
     crestStyle: raw.crestStyle || base.crestStyle,
@@ -1094,11 +1150,25 @@ export function normalizeVisualBranding(
       authorTitle:
         raw.patriarchQuote?.authorTitle || base.patriarchQuote.authorTitle,
     },
-    showHumanWarmthInterludes:
-      typeof raw.showHumanWarmthInterludes === 'boolean'
-        ? raw.showHumanWarmthInterludes
-        : true,
-    customInterludeImageUrl: raw.customInterludeImageUrl || undefined,
+    emotionalInterlude: {
+      enabled: resolvedInterludeEnabled,
+      position:
+        rawInterlude?.position && validPositions.includes(rawInterlude.position)
+          ? rawInterlude.position
+          : base.emotionalInterlude.position,
+      imagePresetId:
+        rawInterlude?.imagePresetId &&
+        validPresets.includes(rawInterlude.imagePresetId)
+          ? rawInterlude.imagePresetId
+          : base.emotionalInterlude.imagePresetId,
+      customImageUrl: resolvedInterludeCustomUrl,
+      kicker:
+        (rawInterlude?.kicker || '').trim() || base.emotionalInterlude.kicker,
+      quote:
+        (rawInterlude?.quote || '').trim() || base.emotionalInterlude.quote,
+    },
+    showHumanWarmthInterludes: resolvedInterludeEnabled,
+    customInterludeImageUrl: resolvedInterludeCustomUrl,
     sectionOrder: mergedOrder,
   };
 }
@@ -1234,6 +1304,11 @@ export interface FamilyMicrositeCmsModules {
       isWeeklyElderPrompt?: boolean;
       isLocked: boolean;
       createdAt: string;
+      reactions?: {
+        greatIdea?: number;
+        withYou?: number;
+        blessGathering?: number;
+      };
       replies: Array<{
         id: string;
         authorName: string;
@@ -2677,6 +2752,54 @@ export async function addReplyToGuidedMajlisTopic(params: {
         },
       ].slice(-120);
       return { ...topic, replies };
+    }
+  );
+
+  const updated: PublicMicrositeData = {
+    ...existing,
+    cmsModules: {
+      ...existing.cmsModules,
+      majlisAndGuardiansModule: {
+        ...existing.cmsModules.majlisAndGuardiansModule,
+        topics: nextTopics,
+      },
+    },
+    updatedAt: nowIso,
+  };
+
+  await writeDualDoc(
+    ['public_sites', slug],
+    updated as unknown as Record<string, unknown>
+  );
+  return updated;
+}
+
+export type MajlisReactionKey = 'greatIdea' | 'withYou' | 'blessGathering';
+
+export async function incrementMajlisTopicReaction(params: {
+  siteSlug: string;
+  topicId: string;
+  reactionKey: MajlisReactionKey;
+}): Promise<PublicMicrositeData | null> {
+  const slug = normalizePublicSiteSlug(params.siteSlug);
+  const existing = await readDualDoc<PublicMicrositeData>([
+    'public_sites',
+    slug,
+  ]);
+  if (!existing || !existing.cmsModules) return null;
+
+  const nowIso = new Date().toISOString();
+  const nextTopics = existing.cmsModules.majlisAndGuardiansModule.topics.map(
+    (topic) => {
+      if (topic.id !== params.topicId) return topic;
+      const cur = topic.reactions || {};
+      return {
+        ...topic,
+        reactions: {
+          ...cur,
+          [params.reactionKey]: (cur[params.reactionKey] || 0) + 1,
+        },
+      };
     }
   );
 
