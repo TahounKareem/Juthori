@@ -67,7 +67,10 @@ import {
   TreeBranchGaugeVisual,
   VaultPolaroidFanVisual,
 } from './HomeBentoMicroVisuals';
-import { WORKSPACE_PRIMARY_BTN_CLASS } from './UnifiedWorkspaceHeader';
+import {
+  HeritagePlaqueOrnamentLayer,
+  WORKSPACE_PRIMARY_BTN_CLASS,
+} from './UnifiedWorkspaceHeader';
 import {
   RoyalRoleFamilyBadge,
   resolveRoyalRoleLabel,
@@ -557,36 +560,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       {/* ===================================================================
           TIER 1 — Royal Hero & Gamified Legacy Journey Compass
          =================================================================== */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#FDFBF7] via-[#F9F3E8] to-[#F3E9D8] border border-[#E6DAC3] shadow-[0_2px_12px_rgba(44,30,20,0.03)]">
-        {/* Thin gilded crown hairline */}
-        <div
-          className="h-[2px] w-full bg-gradient-to-l from-[#8D4925]/35 via-[#D4AF6A] to-[#8D4925]/35"
-          aria-hidden="true"
-        />
-
-        {/* Ultra-subtle Islamic geometric lattice watermark */}
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.055] text-[#8D4925]"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <pattern
-              id="juthoriRoyalLattice"
-              width="56"
-              height="56"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M28 0 L56 28 L28 56 L0 28 Z M28 10 L46 28 L28 46 L10 28 Z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="0.9"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#juthoriRoyalLattice)" />
-        </svg>
+      <section className="group relative rounded-2xl bg-gradient-to-l from-[#FCF8F0] via-[#FDFBF7] to-[#FAF5EA] border border-[#E6DAC3] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_18px_-6px_rgba(44,30,20,0.05)]">
+        {/* Shared Masked Heritage Filigree Watermark, Specular Gold Crest & Micro Corner Filigrees */}
+        <HeritagePlaqueOrnamentLayer scale="hero" />
 
         <div className="relative z-10 p-5 sm:p-7 space-y-6">
           {/* Top Row: Pure Greeting + Royal Role/Family Badge | Wallet & Subscriptions */}
