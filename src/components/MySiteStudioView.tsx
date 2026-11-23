@@ -692,8 +692,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     useState<IdentityInspectorSectionId | null>('theme_typography');
   const [showSectionOrderDrawer, setShowSectionOrderDrawer] =
     useState<boolean>(false);
-  const [showEditorialSectionOrder, setShowEditorialSectionOrder] =
-    useState<boolean>(true);
   const [workspaceMode, setWorkspaceMode] = useState<
     'split_studio' | 'fullscreen_preview'
   >('split_studio');
@@ -3053,82 +3051,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             {/* ------------------------------------------------------------- */}
             {studioTab === 'editorial_modules' && (
               <div className="space-y-3">
-                {/* 3.0 Unified 12-Section Narrative Display Order Manager */}
-                <section
-                  data-testid="editorial-section-order-panel"
-                  className="rounded-2xl bg-[#FFFDF9] border border-[#DFCCA8] shadow-2xs overflow-hidden"
-                >
-                  <div className="px-4 py-3.5 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-l from-[#FBF5E8]/75 to-[#FFFDF9]">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setShowEditorialSectionOrder((v) => !v)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setShowEditorialSectionOrder((v) => !v);
-                        }
-                      }}
-                      className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-[#FBF4E4] border border-[#D4AF6A]/65 text-[#8D4925] flex items-center justify-center shrink-0">
-                        <Layers className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-display font-extrabold text-[#252321] truncate">
-                            ترتيب ظهور أقسام الموقع
-                          </h4>
-                          <span className="px-2 py-0.5 rounded-full bg-[#FAF6F0] border border-[#DFCCA8] text-[10px] font-display font-extrabold text-[#8D4925] tabular-nums shrink-0">
-                            {visualBranding.sectionOrder.length} قسماً
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#252321]/60 truncate">
-                          تحكّم بتسلسل ظهور الأقسام الـ 12 في بوابة العائلة وشريط التنقل
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={handleResetSectionOrderToRecommended}
-                        disabled={isRecommendedSectionOrder}
-                        className="h-8 px-2.5 rounded-xl bg-white hover:bg-[#FBF4E4] border border-[#D4AF6A]/70 text-[11px] font-display font-bold text-[#7B401F] inline-flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-default cursor-pointer transition-colors whitespace-nowrap"
-                        title="استعادة الترتيب السردي النموذجي الموصى به"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>استعادة الترتيب الموصى به</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowEditorialSectionOrder((v) => !v)}
-                        aria-label={
-                          showEditorialSectionOrder
-                            ? 'طي ترتيب الأقسام'
-                            : 'توسيع ترتيب الأقسام'
-                        }
-                        className="w-8 h-8 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center cursor-pointer"
-                      >
-                        {showEditorialSectionOrder ? (
-                          <ChevronUp className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {showEditorialSectionOrder && (
-                    <div className="px-4 pb-4 pt-2.5 border-t border-[#F0E9DD] bg-[#FAF6F0]/35 space-y-2.5">
-                      <p className="text-[11px] text-[#5C4938] leading-relaxed">
-                        تظهر الأقسام المفعّلة ذات المحتوى بنفس هذا التسلسل من الأعلى إلى الأسفل في الصفحة العامة وشريط التنقل العلوي والذيل.
-                      </p>
-                      {renderSectionOrderList()}
-                    </div>
-                  )}
-                </section>
-
                 {/* 3A. Family News */}
                 <CollapsibleStudioModuleCard
                   icon={<Sparkles className="w-4 h-4" />}
