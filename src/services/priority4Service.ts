@@ -34,6 +34,8 @@ import {
   buildVerifiedLineageSnapshot,
   canonicalCustomerEmailUid,
   fetchUserFamilyTreeFromFirebase,
+  fetchUserProfile,
+  fetchUserProfileByEmail,
   fetchUserTreeDisplaySettingsFromFirebase,
   fetchUserVaultArchive,
   isRuntimeStaffSession,
@@ -2109,7 +2111,29 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     };
   }
 
-  if (params.isPublished && !params.emailVerified) {
+  let effectiveEmailVerified =
+    Boolean(params.emailVerified) ||
+    auth.currentUser?.emailVerified === true ||
+    Boolean(
+      auth.currentUser?.providerData?.some((p) => p.providerId === 'google.com')
+    );
+
+  if (params.isPublished && !effectiveEmailVerified) {
+    try {
+      const liveProfile =
+        (await fetchUserProfile(safeUid)) ||
+        (params.ownerEmail
+          ? await fetchUserProfileByEmail(params.ownerEmail)
+          : null);
+      if (liveProfile?.emailVerified === true) {
+        effectiveEmailVerified = true;
+      }
+    } catch {
+      // Fall through cleanly if live check fails
+    }
+  }
+
+  if (params.isPublished && !effectiveEmailVerified) {
     return {
       ok: false,
       code: 'EMAIL_UNVERIFIED',

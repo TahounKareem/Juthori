@@ -436,8 +436,26 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   );
   const isGoogleOnlyPasswordlessSession =
     isGoogleAuthSession && !hasPasswordAuthProvider;
-  const [isEmailVerified, setIsEmailVerified] =
-    useState<boolean>(isGoogleAuthSession);
+  const emailVerifiedCacheKey = `juthori_email_verified_v1_${(
+    userEmail ||
+    resolvedCustomerUid ||
+    'guest'
+  )
+    .trim()
+    .toLowerCase()}`;
+  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(() => {
+    if (isGoogleAuthSession || auth.currentUser?.emailVerified === true) {
+      return true;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        return window.localStorage.getItem(emailVerifiedCacheKey) === 'true';
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
   const [emailVerifiedAt, setEmailVerifiedAt] = useState<string | null>(null);
   const [dismissedEmailBannerInProfile, setDismissedEmailBannerInProfile] =
     useState(false);
@@ -536,13 +554,28 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               (p) => p.providerId === 'google.com'
             )
           );
-          if (googleVerified || profile.emailVerified === true) {
+          const firebaseVerified = auth.currentUser?.emailVerified === true;
+          if (
+            googleVerified ||
+            firebaseVerified ||
+            profile.emailVerified === true
+          ) {
             setIsEmailVerified(true);
+            try {
+              window.localStorage.setItem(emailVerifiedCacheKey, 'true');
+            } catch {
+              // ignore storage errors
+            }
             if (profile.emailVerifiedAt) {
               setEmailVerifiedAt(profile.emailVerifiedAt);
             }
           } else {
             setIsEmailVerified(false);
+            try {
+              window.localStorage.removeItem(emailVerifiedCacheKey);
+            } catch {
+              // ignore storage errors
+            }
           }
 
           if (typeof profile.walletBalance === 'number') {
@@ -1394,6 +1427,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
       const verifiedIso = data.verifiedAt || new Date().toISOString();
       setIsEmailVerified(true);
+      try {
+        window.localStorage.setItem(emailVerifiedCacheKey, 'true');
+      } catch {
+        // ignore storage errors
+      }
       setEmailVerifiedAt(verifiedIso);
       setVerificationOtpSent(false);
       setVerificationOtpInput('');
