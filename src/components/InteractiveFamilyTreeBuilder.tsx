@@ -237,6 +237,8 @@ export interface PublicTreeMirrorConfig {
   displaySettings: TreeDisplaySettings;
   /** Optional compact preview height inside MySiteStudioView */
   compactPreview?: boolean;
+  /** When true, fills 100% of the immersive fullscreen tree theater viewport */
+  theaterMode?: boolean;
   /** Optional visitor CTA to suggest adding a branch or relative */
   onProposeEnrichment?: () => void;
 }
@@ -6436,7 +6438,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const sideNoteElement = renderTreeUpperLayersSideNote();
 
   return (
-    <div className="w-full space-y-3.5 text-right">
+    <div
+      className={
+        publicMirrorMode?.theaterMode
+          ? 'w-full h-full flex-1 min-h-0 flex flex-col text-right'
+          : 'w-full space-y-3.5 text-right'
+      }
+    >
       {!isPublicMirror && (
         <>
           {/* Hidden JSON Backup Import Input */}
@@ -6620,7 +6628,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         }
         className={
           isCinemaMode
-            ? 'fixed inset-0 z-[60] flex flex-col bg-[#FAF6F0] overflow-hidden'
+            ? 'fixed inset-0 z-[80] flex flex-col bg-[#FAF6F0] overflow-hidden'
+            : publicMirrorMode?.theaterMode
+            ? `flex-1 min-h-0 rounded-2xl border-2 ${activeTreeTheme.canvasBorder} shadow-lg relative overflow-hidden transition-colors flex flex-col`
             : `rounded-3xl border-2 ${activeTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
         }
       >
@@ -6802,7 +6812,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         {/* Split Studio Workspace: Side Inspector (Desktop 370px / Mobile Bottom Sheet) + 100%-Height Live Tree Canvas */}
         <div
           className={`flex flex-col lg:flex-row relative flex-1 min-w-0 ${
-            isCinemaMode
+            isCinemaMode || publicMirrorMode?.theaterMode
               ? 'min-h-0'
               : isPublicMirror && publicMirrorMode?.compactPreview
               ? 'min-h-[420px] max-h-[560px]'
@@ -6899,7 +6909,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   ? 'no-scrollbar cursor-grab active:cursor-grabbing px-4 sm:px-8 pt-10 pb-12'
                   : 'scroll-smooth px-2 sm:px-4 pt-4 pb-24'
               } ${
-                isCinemaMode
+                isCinemaMode || publicMirrorMode?.theaterMode
                   ? 'min-h-0'
                   : isPublicMirror && publicMirrorMode?.compactPreview
                   ? 'min-h-[420px]'

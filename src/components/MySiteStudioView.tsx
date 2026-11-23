@@ -29,6 +29,7 @@ import {
   Plus,
   QrCode,
   Quote,
+  RotateCcw,
   Save,
   ShieldCheck,
   SlidersHorizontal,
@@ -83,6 +84,7 @@ import {
   PublicSitePrivacyConfig,
   RawTreePersonForPublicProjection,
   SiteAccessMode,
+  DEFAULT_PORTAL_SECTION_ORDER,
   buildDefaultCmsModules,
   buildDefaultVisualBranding,
   checkPublicSiteSlugAvailability,
@@ -690,6 +692,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     useState<IdentityInspectorSectionId | null>('theme_typography');
   const [showSectionOrderDrawer, setShowSectionOrderDrawer] =
     useState<boolean>(false);
+  const [showEditorialSectionOrder, setShowEditorialSectionOrder] =
+    useState<boolean>(true);
   const [workspaceMode, setWorkspaceMode] = useState<
     'split_studio' | 'fullscreen_preview'
   >('split_studio');
@@ -1011,6 +1015,66 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       return { ...prev, sectionOrder: order };
     });
   };
+
+  const isRecommendedSectionOrder = useMemo(() => {
+    if (
+      visualBranding.sectionOrder.length !== DEFAULT_PORTAL_SECTION_ORDER.length
+    ) {
+      return false;
+    }
+    return DEFAULT_PORTAL_SECTION_ORDER.every(
+      (key, idx) => visualBranding.sectionOrder[idx] === key
+    );
+  }, [visualBranding.sectionOrder]);
+
+  const handleResetSectionOrderToRecommended = () => {
+    setVisualBranding((prev) => ({
+      ...prev,
+      sectionOrder: [...DEFAULT_PORTAL_SECTION_ORDER],
+    }));
+  };
+
+  const renderSectionOrderList = () => (
+    <div className="space-y-1.5 pt-1" data-testid="section-order-list">
+      {visualBranding.sectionOrder.map((secKey, idx) => (
+        <div
+          key={secKey}
+          className="rounded-xl bg-white border border-[#E6DAC3] hover:border-[#D4AF6A] px-3 py-2 flex items-center justify-between gap-2.5 text-xs transition-colors"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-6 h-6 rounded-lg bg-[#FBF4E4] border border-[#D4AF6A]/65 text-[11px] font-display font-extrabold text-[#7B401F] flex items-center justify-center tabular-nums shrink-0">
+              {idx + 1}
+            </span>
+            <span className="font-display font-bold text-[#2C1E14] truncate">
+              {PORTAL_SECTION_LABELS[secKey]}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              disabled={idx === 0}
+              onClick={() => handleMoveSectionOrder(secKey, 'up')}
+              title="تقديم للأعلى"
+              aria-label={`تقديم قسم ${PORTAL_SECTION_LABELS[secKey]} للأعلى`}
+              className="w-6.5 h-6.5 rounded-lg bg-[#FAF6EE] hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-30 cursor-pointer transition-colors"
+            >
+              <ArrowUp className="w-3.5 h-3.5 text-[#5C4938]" />
+            </button>
+            <button
+              type="button"
+              disabled={idx === visualBranding.sectionOrder.length - 1}
+              onClick={() => handleMoveSectionOrder(secKey, 'down')}
+              title="تأخير للأسفل"
+              aria-label={`تأخير قسم ${PORTAL_SECTION_LABELS[secKey]} للأسفل`}
+              className="w-6.5 h-6.5 rounded-lg bg-[#FAF6EE] hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-30 cursor-pointer transition-colors"
+            >
+              <ArrowDown className="w-3.5 h-3.5 text-[#5C4938]" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   const privacyConfigObject: PublicSitePrivacyConfig = useMemo(
     () => ({
@@ -2583,74 +2647,52 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                     )}
                   </div>
 
-                  {/* Preserved Section Display Order Sub-Drawer */}
+                  {/* Synced Section Display Order Sub-Drawer */}
                   <div className="pt-3 border-t border-[#F0E8DA] space-y-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowSectionOrderDrawer((v) => !v)}
-                      className="w-full flex items-center justify-between gap-2 text-right px-3 py-2 rounded-xl bg-[#FAF6EE]/70 hover:bg-[#FAF6EE] border border-[#E6DAC3] transition-colors cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2 text-xs font-display font-bold text-[#4A3A2B]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#FAF6EE]/70 border border-[#E6DAC3]">
+                      <button
+                        type="button"
+                        onClick={() => setShowSectionOrderDrawer((v) => !v)}
+                        className="flex items-center gap-2 text-xs font-display font-bold text-[#4A3A2B] cursor-pointer"
+                      >
                         <Layers className="w-3.5 h-3.5 text-[#9E5631]" />
                         <span>ترتيب ظهور أقسام الموقع</span>
-                      </span>
-                      <span className="flex items-center gap-1.5 text-[11px] font-display font-bold text-[#8C5327]">
-                        <span className="tabular-nums">
+                        <span className="px-2 py-0.5 rounded-full bg-white border border-[#E6DAC3] text-[10.5px] font-display font-bold text-[#8C5327] tabular-nums">
                           {visualBranding.sectionOrder.length} قسماً
                         </span>
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                            showSectionOrderDrawer ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </span>
-                    </button>
+                      </button>
 
-                    {showSectionOrderDrawer && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                        {visualBranding.sectionOrder.map((secKey, idx) => (
-                          <div
-                            key={secKey}
-                            className="rounded-xl bg-white border border-[#E6DAC3] px-3 py-2 flex items-center justify-between gap-2 text-xs"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="w-5 h-5 rounded-md bg-[#FAF6EE] border border-[#E6DAC3] text-[10px] font-bold text-[#8C5327] flex items-center justify-center tabular-nums shrink-0">
-                                {idx + 1}
-                              </span>
-                              <span className="font-display font-bold text-[#2C1E14] truncate">
-                                {PORTAL_SECTION_LABELS[secKey]}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                disabled={idx === 0}
-                                onClick={() =>
-                                  handleMoveSectionOrder(secKey, 'up')
-                                }
-                                title="تقديم للأعلى"
-                                className="w-6 h-6 rounded-md bg-[#FAF6EE] hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-35 cursor-pointer"
-                              >
-                                <ArrowUp className="w-3 h-3 text-[#5C4938]" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={
-                                  idx === visualBranding.sectionOrder.length - 1
-                                }
-                                onClick={() =>
-                                  handleMoveSectionOrder(secKey, 'down')
-                                }
-                                title="تأخير للأسفل"
-                                className="w-6 h-6 rounded-md bg-[#FAF6EE] hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-35 cursor-pointer"
-                              >
-                                <ArrowDown className="w-3 h-3 text-[#5C4938]" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleResetSectionOrderToRecommended}
+                          disabled={isRecommendedSectionOrder}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-[#FBF4E4] border border-[#D4AF6A]/65 text-[10.5px] font-display font-bold text-[#7B401F] disabled:opacity-45 disabled:cursor-default cursor-pointer transition-colors"
+                          title="إعادة الترتيب السردي الموصى به للأقسام الـ 12"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>استعادة الترتيب الموصى به</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowSectionOrderDrawer((v) => !v)}
+                          aria-label={
+                            showSectionOrderDrawer
+                              ? 'طي قائمة الترتيب'
+                              : 'توسيع قائمة الترتيب'
+                          }
+                          className="w-7 h-7 rounded-lg bg-white hover:bg-[#EFE6D7] border border-[#E6DAC3] flex items-center justify-center text-[#8C5327] cursor-pointer"
+                        >
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                              showSectionOrderDrawer ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
                       </div>
-                    )}
+                    </div>
+
+                    {showSectionOrderDrawer && renderSectionOrderList()}
                   </div>
                 </CalmInspectorAccordion>
               </div>
@@ -2713,7 +2755,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-display font-extrabold text-[#252321] flex items-center gap-2">
                       <GitBranch className="w-4 h-4 text-[#D8755B]" />
-                      <span>إعدادات مرآة شجرة العائلة والخصوصية</span>
+                      <span>إعدادات دوحة نسب العائلة والخصوصية</span>
                     </h3>
                     <VisibilityPillSelector
                       value={treeVisibility}
@@ -2827,7 +2869,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                     <div className="space-y-3 pt-2 border-t border-[#F0E9DD]">
                       <div className="space-y-1">
                         <label className="text-xs font-display font-bold text-[#8D4925]">
-                          نقطة البداية في المرآة العامة (الجد المؤسس الظاهر):
+                          نقطة البداية في دوحة النسب العامة (الجد المؤسس الظاهر):
                         </label>
                         <select
                           value={startRootPersonId}
@@ -3011,6 +3053,82 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             {/* ------------------------------------------------------------- */}
             {studioTab === 'editorial_modules' && (
               <div className="space-y-3">
+                {/* 3.0 Unified 12-Section Narrative Display Order Manager */}
+                <section
+                  data-testid="editorial-section-order-panel"
+                  className="rounded-2xl bg-[#FFFDF9] border border-[#DFCCA8] shadow-2xs overflow-hidden"
+                >
+                  <div className="px-4 py-3.5 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-l from-[#FBF5E8]/75 to-[#FFFDF9]">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setShowEditorialSectionOrder((v) => !v)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setShowEditorialSectionOrder((v) => !v);
+                        }
+                      }}
+                      className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-[#FBF4E4] border border-[#D4AF6A]/65 text-[#8D4925] flex items-center justify-center shrink-0">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-display font-extrabold text-[#252321] truncate">
+                            ترتيب ظهور أقسام الموقع
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full bg-[#FAF6F0] border border-[#DFCCA8] text-[10px] font-display font-extrabold text-[#8D4925] tabular-nums shrink-0">
+                            {visualBranding.sectionOrder.length} قسماً
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#252321]/60 truncate">
+                          تحكّم بتسلسل ظهور الأقسام الـ 12 في بوابة العائلة وشريط التنقل
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleResetSectionOrderToRecommended}
+                        disabled={isRecommendedSectionOrder}
+                        className="h-8 px-2.5 rounded-xl bg-white hover:bg-[#FBF4E4] border border-[#D4AF6A]/70 text-[11px] font-display font-bold text-[#7B401F] inline-flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-default cursor-pointer transition-colors whitespace-nowrap"
+                        title="استعادة الترتيب السردي النموذجي الموصى به"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>استعادة الترتيب الموصى به</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditorialSectionOrder((v) => !v)}
+                        aria-label={
+                          showEditorialSectionOrder
+                            ? 'طي ترتيب الأقسام'
+                            : 'توسيع ترتيب الأقسام'
+                        }
+                        className="w-8 h-8 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center cursor-pointer"
+                      >
+                        {showEditorialSectionOrder ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {showEditorialSectionOrder && (
+                    <div className="px-4 pb-4 pt-2.5 border-t border-[#F0E9DD] bg-[#FAF6F0]/35 space-y-2.5">
+                      <p className="text-[11px] text-[#5C4938] leading-relaxed">
+                        تظهر الأقسام المفعّلة ذات المحتوى بنفس هذا التسلسل من الأعلى إلى الأسفل في الصفحة العامة وشريط التنقل العلوي والذيل.
+                      </p>
+                      {renderSectionOrderList()}
+                    </div>
+                  )}
+                </section>
+
                 {/* 3A. Family News */}
                 <CollapsibleStudioModuleCard
                   icon={<Sparkles className="w-4 h-4" />}

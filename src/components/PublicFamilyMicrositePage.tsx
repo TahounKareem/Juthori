@@ -9,6 +9,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Compass,
   Copy,
   EyeOff,
   FileText,
@@ -74,6 +75,7 @@ import {
   PORTAL_SECTION_LABELS,
   PublicVisualTreeMirror,
 } from './FamilySiteHeritageVisuals';
+import { JuthoriLogo } from './JuthoriLogo';
 
 interface PublicFamilyMicrositePageProps {
   siteSlug: string;
@@ -100,7 +102,7 @@ const SESSION_AUTHORIZED_EMAIL_KEY = 'juthori_microsite_circle_email_v1';
 
 const SECTION_SHORT_NAV: Record<PortalSectionKey, string> = {
   patriarch_quote: 'كلمة العميد',
-  tree_mirror: 'شجرة العائلة',
+  tree_mirror: 'دوحة النسب',
   vault_gallery: 'معرض الخزانة',
   news: 'الأخبار',
   events: 'المناسبات',
@@ -1351,7 +1353,7 @@ export const PublicFamilyMicrositePage: React.FC<
           </HeritageSectionPavilion>
         );
 
-      // 2. INTERACTIVE VISUAL TREE MIRROR
+      // 2. CEREMONIAL FAMILY TREE GATEHOUSE & FULLSCREEN THEATER
       case 'tree_mirror':
         return (
           <HeritageSectionPavilion
@@ -1360,14 +1362,15 @@ export const PublicFamilyMicrositePage: React.FC<
             compactPreview={compactPreview}
           >
             <HeritagePavilionHeader
-              kicker="مشجرة الأجيال المعاصرة"
-              title={`مرآة شجرة عائلة ${siteData.familyName}`}
-              subtitle="استعرض فروع العائلة وأجيالها المتصلة عبر لوحة المشجرة التفاعلية بالسحب والتكبير."
+              kicker="✦ السجل الشجري الجامع"
+              title={`دوحة نسب عائلة ${siteData.familyName}`}
+              subtitle="استعرض تسلسل أجيال وفروع العائلة المسجلة في الديوان العائلي عبر بوابة المشجرة التفاعلية."
               icon={<GitBranch className="w-3.5 h-3.5" />}
             />
             <PublicVisualTreeMirror
               members={treeMembers}
               familyName={siteData.familyName}
+              generationsCount={generationsCount}
               treeDisplaySettings={siteData.treeDisplaySettings}
               isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
               compactPreview={compactPreview}
@@ -1376,7 +1379,6 @@ export const PublicFamilyMicrositePage: React.FC<
                 setEnrSuccessMessage(null);
                 setShowEnrichmentModal(true);
               }}
-              onStartOwnSearch={onStartOwnLineageSearch}
             />
           </HeritageSectionPavilion>
         );
@@ -1742,8 +1744,14 @@ export const PublicFamilyMicrositePage: React.FC<
                       className="pointer-events-none absolute inset-x-0 top-0 h-1 fs-accent-gold-bar opacity-80"
                     />
 
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pt-1">
-                      <div className="space-y-1.5">
+                    <div
+                      className={`flex ${
+                        compactPreview
+                          ? 'flex-col items-stretch gap-3'
+                          : 'flex-col md:flex-row md:items-start justify-between gap-4'
+                      } pt-1`}
+                    >
+                      <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="inline-flex items-center gap-1.5 text-[11px] font-bold fs-accent-text">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>{formattedEventDate}</span>
@@ -1753,7 +1761,7 @@ export const PublicFamilyMicrositePage: React.FC<
                             isSingleEvent
                               ? 'text-lg sm:text-xl'
                               : 'text-base sm:text-lg'
-                          } font-bold fs-display-font`}
+                          } font-bold fs-display-font break-words leading-snug`}
                         >
                           {ev.title}
                         </h3>
@@ -1766,7 +1774,7 @@ export const PublicFamilyMicrositePage: React.FC<
                       </div>
 
                       {!cd.expired && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                           {[
                             { val: cd.days, lbl: 'يوم' },
                             { val: cd.hours, lbl: 'ساعة' },
@@ -2547,11 +2555,17 @@ export const PublicFamilyMicrositePage: React.FC<
                   style={{ borderColor: 'var(--fs-gold)' }}
                 />
 
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="flex items-start gap-4">
+                <div
+                  className={`relative z-10 flex ${
+                    compactPreview
+                      ? 'flex-col items-stretch gap-4'
+                      : 'flex-col xl:flex-row xl:items-center justify-between gap-6'
+                  }`}
+                >
+                  <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
                     {/* Wax-Seal Time Vault Medallion */}
                     <div
-                      className="w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center shrink-0 shadow-md"
+                      className="w-13 h-13 sm:w-14 sm:h-14 rounded-full border-2 flex flex-col items-center justify-center shrink-0 shadow-md"
                       style={{
                         borderColor: 'var(--fs-gold)',
                         background:
@@ -2563,12 +2577,16 @@ export const PublicFamilyMicrositePage: React.FC<
                       <span className="text-[8.5px] font-bold mt-0.5">مختوم</span>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="inline-flex items-center gap-1.5 text-xs font-bold fs-gold-text">
-                        <Clock className="w-3.5 h-3.5" />
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
                         <span>خزينة كبسولة الزمن العائلية</span>
                       </div>
-                      <h3 className="text-lg sm:text-2xl font-bold fs-display-font">
+                      <h3
+                        className={`${
+                          compactPreview ? 'text-lg' : 'text-lg sm:text-2xl'
+                        } font-bold fs-display-font leading-snug break-words`}
+                      >
                         {cap.title}
                       </h3>
                       <div className="text-xs opacity-80">
@@ -2579,7 +2597,7 @@ export const PublicFamilyMicrositePage: React.FC<
 
                   {/* Segmented Gilded Countdown Units */}
                   {!capCountdown.expired && (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
                       {[
                         { val: capCountdown.days, lbl: 'يوم' },
                         { val: capCountdown.hours, lbl: 'ساعة' },
@@ -2842,7 +2860,7 @@ export const PublicFamilyMicrositePage: React.FC<
               aria-label="أقسام البوابة"
               className="hidden lg:flex items-center gap-1 text-xs font-bold overflow-x-auto no-scrollbar"
             >
-              {orderedActiveSections.slice(0, 7).map((secKey) => {
+              {orderedActiveSections.map((secKey) => {
                 const isActive = activeNavSection === secKey;
                 return (
                   <button
@@ -2874,7 +2892,7 @@ export const PublicFamilyMicrositePage: React.FC<
             </nav>
           )}
 
-          {/* Left: Theme-Harmonized Share/QR + Propose Enrichment */}
+          {/* Left: Pure Family Header Actions (Share/QR + Propose Enrichment) */}
           <div className="flex items-center gap-2 shrink-0">
             {!compactPreview && (
               <>
@@ -2901,16 +2919,6 @@ export const PublicFamilyMicrositePage: React.FC<
                   <PlusCircle className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">اقتراح إثراء</span>
                 </button>
-                {!isOwnerPreview && (
-                  <button
-                    type="button"
-                    onClick={onExitToMainApp}
-                    title="منصة جذوري"
-                    className="h-9 px-2.5 rounded-xl border fs-border text-xs font-bold opacity-80 hover:opacity-100 cursor-pointer whitespace-nowrap"
-                  >
-                    جذوري
-                  </button>
-                )}
               </>
             )}
           </div>
@@ -3213,6 +3221,154 @@ export const PublicFamilyMicrositePage: React.FC<
             </div>
           </div>
         )}
+
+        {/* =============================================================== */}
+        {/* PEAK-END LUXURY JUTHORI SIGNATURE BANNER                        */}
+        {/* =============================================================== */}
+        <section
+          data-testid="juthori-peak-end-signature-banner"
+          className={`relative overflow-hidden rounded-3xl fs-surface border shadow-[0_18px_46px_-22px_rgba(32,22,14,0.22)] ${
+            compactPreview ? 'p-5' : 'p-6 sm:p-8 lg:p-10'
+          }`}
+          style={{
+            borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+            background:
+              'linear-gradient(135deg, var(--fs-surface) 0%, var(--fs-surface-alt) 58%, var(--fs-gold-soft) 100%)',
+          }}
+        >
+          {/* Gilded Top & Bottom Hairline Accents */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-10 top-0 h-[1.5px]"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-2 rounded-[20px] border opacity-30"
+            style={{ borderColor: 'var(--fs-gold)' }}
+          />
+
+          {/* Quiet Andalusian Geometric Corner Filigree Watermark */}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 220 220"
+            className="pointer-events-none select-none absolute -left-8 -bottom-10 w-44 h-44 sm:w-56 sm:h-56 opacity-[0.14]"
+            style={{ color: 'var(--fs-gold)' }}
+          >
+            <g fill="none" stroke="currentColor" strokeWidth="1">
+              <circle cx="110" cy="110" r="94" strokeDasharray="3 4" />
+              <circle cx="110" cy="110" r="68" />
+              <rect
+                x="56"
+                y="56"
+                width="108"
+                height="108"
+                transform="rotate(45 110 110)"
+              />
+              <rect x="56" y="56" width="108" height="108" />
+              <polygon points="110,28 130,86 192,110 130,134 110,192 90,134 28,110 90,86" />
+              <circle cx="110" cy="110" r="22" />
+            </g>
+          </svg>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 160 160"
+            className="pointer-events-none select-none absolute -right-6 -top-8 w-32 h-32 opacity-[0.1]"
+            style={{ color: 'var(--fs-gold)' }}
+          >
+            <g fill="none" stroke="currentColor" strokeWidth="0.9">
+              <circle cx="80" cy="80" r="62" />
+              <rect
+                x="38"
+                y="38"
+                width="84"
+                height="84"
+                transform="rotate(45 80 80)"
+              />
+              <rect x="38" y="38" width="84" height="84" />
+            </g>
+          </svg>
+
+          <div
+            className={`relative z-10 flex ${
+              compactPreview
+                ? 'flex-col items-center text-center gap-4'
+                : 'flex-col lg:flex-row lg:items-center justify-between gap-6'
+            }`}
+          >
+            {/* Right: Official Juthori Logo + Heritage Value Proposition */}
+            <div
+              className={`flex ${
+                compactPreview
+                  ? 'flex-col items-center text-center gap-3'
+                  : 'flex-col sm:flex-row sm:items-center gap-4 sm:gap-5'
+              } min-w-0 flex-1`}
+            >
+              <div
+                className="p-2 rounded-2xl border shadow-xs shrink-0"
+                style={{
+                  backgroundColor: 'var(--fs-surface)',
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                }}
+              >
+                <JuthoriLogo size={compactPreview ? 'sm' : 'md'} />
+              </div>
+
+              <div className="space-y-1.5 min-w-0">
+                <div className="text-[11px] font-bold fs-accent-text tracking-wide">
+                  ✦ موثّق عبر منصة جذوري للأنساب والإرث العائلي
+                </div>
+                <h2
+                  className={`${
+                    compactPreview
+                      ? 'text-base leading-snug'
+                      : 'text-lg sm:text-xl lg:text-2xl leading-snug'
+                  } font-bold fs-display-font text-balance`}
+                >
+                  هل تودّ تأسيس ديوان رقمي فاخر وتوثيق عمود النسب التاريخي لعائلتك؟
+                </h2>
+                <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-2xl">
+                  انضم إلى العائلات الموثقة في جذوري — استكشف الجذور التاريخية،
+                  ابنِ مشجرتك التفاعلية، وأطلق موقع عائلتك الخاص في دقائق.
+                </p>
+              </div>
+            </div>
+
+            {/* Left: Dual Heritage CTAs */}
+            <div
+              className={`flex ${
+                compactPreview
+                  ? 'flex-col w-full gap-2'
+                  : 'flex-col sm:flex-row lg:flex-col xl:flex-row items-stretch sm:items-center gap-2.5 shrink-0'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={onStartOwnLineageSearch || onExitToMainApp}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl fs-accent-bg text-xs sm:text-sm font-bold shadow-sm hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap"
+              >
+                <span>أسّس ديوان عائلتك في جذوري</span>
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={onExitToMainApp}
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl fs-surface border text-xs sm:text-sm font-bold fs-accent-text hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap shadow-2xs"
+                style={{
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                }}
+              >
+                <Compass className="w-4 h-4 shrink-0" />
+                <span>استكشف مرصد الأنساب</span>
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* ================================================================= */}
@@ -3261,7 +3417,7 @@ export const PublicFamilyMicrositePage: React.FC<
           </div>
 
           <div className="md:col-span-4 flex flex-wrap gap-x-4 gap-y-2 text-xs opacity-90">
-            {orderedActiveSections.slice(0, 7).map((secKey) => (
+            {orderedActiveSections.map((secKey) => (
               <button
                 key={secKey}
                 type="button"

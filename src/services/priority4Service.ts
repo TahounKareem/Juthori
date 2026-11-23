@@ -968,7 +968,7 @@ export type PortalSectionKey =
   | 'memorial'
   | 'majlis';
 
-export const DEFAULT_PORTAL_SECTION_ORDER: PortalSectionKey[] = [
+export const LEGACY_DEFAULT_PORTAL_SECTION_ORDER: PortalSectionKey[] = [
   'patriarch_quote',
   'tree_mirror',
   'vault_gallery',
@@ -979,6 +979,21 @@ export const DEFAULT_PORTAL_SECTION_ORDER: PortalSectionKey[] = [
   'atlas',
   'oral_heritage',
   'professions',
+  'memorial',
+  'majlis',
+];
+
+export const DEFAULT_PORTAL_SECTION_ORDER: PortalSectionKey[] = [
+  'patriarch_quote',
+  'atlas',
+  'tree_mirror',
+  'notables',
+  'stories',
+  'vault_gallery',
+  'oral_heritage',
+  'professions',
+  'news',
+  'events',
   'memorial',
   'majlis',
 ];
@@ -1030,12 +1045,29 @@ export function normalizeVisualBranding(
   const base = buildDefaultVisualBranding(familyName);
   if (!raw || typeof raw !== 'object') return base;
   const incomingOrder = Array.isArray(raw.sectionOrder) ? raw.sectionOrder : [];
-  const mergedOrder: PortalSectionKey[] = [
-    ...incomingOrder.filter((k): k is PortalSectionKey =>
-      DEFAULT_PORTAL_SECTION_ORDER.includes(k as PortalSectionKey)
-    ),
-    ...DEFAULT_PORTAL_SECTION_ORDER.filter((k) => !incomingOrder.includes(k)),
-  ];
+  const validUniqueIncoming: PortalSectionKey[] = [];
+  for (const k of incomingOrder) {
+    if (
+      DEFAULT_PORTAL_SECTION_ORDER.includes(k as PortalSectionKey) &&
+      !validUniqueIncoming.includes(k as PortalSectionKey)
+    ) {
+      validUniqueIncoming.push(k as PortalSectionKey);
+    }
+  }
+  const isExactLegacyFactoryOrder =
+    validUniqueIncoming.length === LEGACY_DEFAULT_PORTAL_SECTION_ORDER.length &&
+    LEGACY_DEFAULT_PORTAL_SECTION_ORDER.every(
+      (k, idx) => validUniqueIncoming[idx] === k
+    );
+  const mergedOrder: PortalSectionKey[] =
+    validUniqueIncoming.length === 0 || isExactLegacyFactoryOrder
+      ? [...DEFAULT_PORTAL_SECTION_ORDER]
+      : [
+          ...validUniqueIncoming,
+          ...DEFAULT_PORTAL_SECTION_ORDER.filter(
+            (k) => !validUniqueIncoming.includes(k)
+          ),
+        ];
   return {
     crestMode: raw.crestMode === 'custom_image' ? 'custom_image' : 'auto_gilded',
     crestStyle: raw.crestStyle || base.crestStyle,

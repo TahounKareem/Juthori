@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
-import { Lock, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { GitBranch, Maximize2, Plus, Sparkles, Users, X } from 'lucide-react';
 import { FamilySiteThemeDefinition } from '../config/referralAndSiteConfig';
 import {
-  COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR,
   FamilyCrestStyle,
   FamilyPortalVisualBranding,
   HeroCoverPresetId,
@@ -162,7 +162,7 @@ export const TYPOGRAPHY_PAIR_OPTIONS: ReadonlyArray<{
 
 export const PORTAL_SECTION_LABELS: Record<PortalSectionKey, string> = {
   patriarch_quote: 'كلمة ووصية عميد العائلة',
-  tree_mirror: 'مرآة شجرة العائلة التفاعلية',
+  tree_mirror: 'دوحة نسب العائلة التفاعلية',
   vault_gallery: 'معرض خزانة الصور والوثائق',
   news: 'أخبار وتباشير العائلة',
   events: 'المناسبات واللقاءات القادمة',
@@ -172,7 +172,7 @@ export const PORTAL_SECTION_LABELS: Record<PortalSectionKey, string> = {
   oral_heritage: 'الموروث الصوتي والشعري',
   professions: 'دليل الكفاءات والتخصصات',
   memorial: 'ركن الوفاء وكبسولة الزمن',
-  majlis: 'مجلس العائلة وحراس الذاكرة',
+  majlis: 'مجلس العائلة وحرّاس الذاكرة',
 };
 
 // =============================================================================
@@ -889,7 +889,7 @@ const READ_ONLY_MIRROR_CAPS: DashboardAccessCapabilities = {
   arePremiumTabsUnlocked: true,
   canAccessTreeDirectly: true,
   requiresCharterUpgradeForTree: false,
-  tierHeaderTitle: 'مرآة شجرة العائلة',
+  tierHeaderTitle: 'دوحة نسب العائلة التفاعلية',
   membershipTierKey: 'annual_vip',
   maxTreeMembers: 5000,
   maxVaultDocuments: null,
@@ -902,22 +902,24 @@ const READ_ONLY_MIRROR_CAPS: DashboardAccessCapabilities = {
 interface PublicVisualTreeMirrorProps {
   members: SanitizedPublicTreeMember[];
   familyName: string;
+  generationsCount?: number;
   treeDisplaySettings?: TreeDisplaySettings;
   isAuthorizedFamilyViewer?: boolean;
   compactPreview?: boolean;
   onProposeEnrichment?: () => void;
-  onStartOwnSearch?: () => void;
 }
 
 export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   members,
   familyName,
+  generationsCount,
   treeDisplaySettings,
   isAuthorizedFamilyViewer = false,
   compactPreview = false,
   onProposeEnrichment,
-  onStartOwnSearch,
 }) => {
+  const [isTheaterOpen, setIsTheaterOpen] = useState(false);
+
   const resolvedDisplaySettings = useMemo(
     () => normalizeTreeDisplaySettings(treeDisplaySettings),
     [treeDisplaySettings]
@@ -999,6 +1001,13 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
     });
   }, [members, isAuthorizedFamilyViewer]);
 
+  const resolvedGenerationsCount = useMemo(() => {
+    if (typeof generationsCount === 'number' && generationsCount > 0) {
+      return generationsCount;
+    }
+    return new Set(mappedMirrorMembers.map((m) => m.generationLevel)).size;
+  }, [generationsCount, mappedMirrorMembers]);
+
   const mirrorLineageResult = useMemo<LineageSearchResult>(
     () => ({
       matched: false,
@@ -1029,144 +1038,422 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
     [familyName]
   );
 
+  // Lock page scroll and allow Escape key to close the Fullscreen Tree Theater
+  useEffect(() => {
+    if (!isTheaterOpen || typeof document === 'undefined') return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsTheaterOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isTheaterOpen]);
+
+  if (mappedMirrorMembers.length === 0) {
+    return (
+      <div className="rounded-3xl fs-surface-alt border fs-border p-10 text-center space-y-2">
+        <div className="text-sm font-bold fs-display-font">
+          لم تُضف فروع معاصرة للعرض العام بعد
+        </div>
+        <p className="text-xs fs-muted">
+          ستظهر دوحة نسب عائلة {familyName} هنا بنفس التصميم المعتمد فور إضافة
+          الأفراد في «شجرتي».
+        </p>
+      </div>
+    );
+  }
+
+  const theaterModal =
+    isTheaterOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`قاعة استعراض دوحة نسب عائلة ${familyName}`}
+            className="fixed inset-0 z-[70] flex flex-col bg-[#F7F1E4] text-[#231E1A]"
+          >
+            {/* Theater Top Bar */}
+            <header className="shrink-0 bg-[#221D19] text-[#FAF5EB] border-b border-[#C8A054]/35 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-[#C8A054]/15 border border-[#C8A054]/55 text-[#E3C17C] flex items-center justify-center shrink-0">
+                  <GitBranch className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-[#E3C17C] tracking-wide">
+                    ✦ قاعة استعراض السجل الشجري الجامع
+                  </div>
+                  <h2 className="text-sm sm:text-lg font-display font-bold truncate">
+                    دوحة نسب عائلة {familyName}
+                  </h2>
+                </div>
+                <div className="hidden md:flex items-center gap-2 mr-2 text-[11px] text-[#FAF5EB]/80 tabular-nums">
+                  <span className="px-2.5 py-1 rounded-lg bg-white/8 border border-white/15">
+                    {mappedMirrorMembers.length} فرد موثق
+                  </span>
+                  {resolvedGenerationsCount > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-white/8 border border-white/15">
+                      {resolvedGenerationsCount} أجيال متصلة
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {onProposeEnrichment && !compactPreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTheaterOpen(false);
+                      onProposeEnrichment();
+                    }}
+                    className="h-9 px-3.5 rounded-xl bg-white/10 hover:bg-white/18 border border-[#C8A054]/45 text-[#FAF5EB] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#E3C17C]" />
+                    <span className="hidden sm:inline">
+                      اقترح إضافة فرع أو قريب
+                    </span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-testid="close-tree-theater-btn"
+                  onClick={() => setIsTheaterOpen(false)}
+                  className="h-9 px-4 rounded-xl bg-[#C8A054] hover:bg-[#b58d43] text-[#1D1610] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs whitespace-nowrap"
+                >
+                  <span>إغلاق والعودة للديوان</span>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </header>
+
+            {/* Full-Height Exact «شجرتي» Interactive Tree Stage */}
+            <div className="flex-1 min-h-0 flex flex-col p-2.5 sm:p-4 overflow-hidden">
+              <InteractiveFamilyTreeBuilder
+                result={mirrorLineageResult}
+                accountType={AccountLegalType.Individual}
+                caps={READ_ONLY_MIRROR_CAPS}
+                onUpgradeAnnualVip={MIRROR_NOOP_VOID}
+                onSignCharterAndEnableTree={MIRROR_NOOP_VOID}
+                onLogActivity={MIRROR_NOOP_LOG}
+                publicMirrorMode={{
+                  members: mappedMirrorMembers,
+                  displaySettings: resolvedDisplaySettings,
+                  compactPreview: false,
+                  theaterMode: true,
+                  onProposeEnrichment: !compactPreview
+                    ? () => {
+                        setIsTheaterOpen(false);
+                        onProposeEnrichment?.();
+                      }
+                    : undefined,
+                }}
+              />
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <div className="space-y-5">
-      {/* Royal Gilded Authentication Seal Plaque (Strict Commercial Paywall Isolation) */}
+    <>
+      {/* ROYAL TREE GATEHOUSE CARD (Ceremonial Gateway — Zero Scroll Hijack) */}
       <div
-        className="relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_6px_24px_rgba(44,30,20,0.06)]"
+        data-testid="royal-tree-gatehouse-card"
+        className={`relative overflow-hidden rounded-3xl border shadow-[0_12px_36px_rgba(44,30,20,0.06)] ${
+          compactPreview
+            ? 'min-h-[300px] px-4 py-8'
+            : 'min-h-[380px] sm:min-h-[430px] px-5 sm:px-10 py-10 sm:py-14'
+        } flex items-center justify-center`}
         style={{
-          background:
-            'linear-gradient(135deg, rgba(200,160,84,0.14) 0%, var(--fs-surface) 48%, rgba(200,160,84,0.08) 100%)',
-          borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+          backgroundColor: 'var(--fs-surface-alt)',
         }}
       >
-        {/* Subtle inset gilded top hairline */}
+        {/* Blurred Heritage Tree Silhouette Backdrop (Atmospheric Teaser) */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px]"
+          className="pointer-events-none select-none absolute inset-0 overflow-hidden"
+        >
+          <svg
+            viewBox="0 0 1100 540"
+            preserveAspectRatio="xMidYMid slice"
+            className="w-full h-full blur-[6px] opacity-35 scale-105"
+          >
+            {/* Connecting Genealogy Lines */}
+            <g
+              fill="none"
+              stroke="var(--fs-accent)"
+              strokeWidth="2.5"
+              strokeOpacity="0.65"
+            >
+              {/* Tier 1 -> Tier 2 */}
+              <path d="M550 94 V145 M275 145 H825 M275 145 V184 M550 145 V184 M825 145 V184" />
+              {/* Tier 2 -> Tier 3 */}
+              <path d="M275 248 V292 M155 292 H395 M155 292 V328 M275 292 V328 M395 292 V328" />
+              <path d="M550 248 V292 M490 292 H610 M490 292 V328 M610 292 V328" />
+              <path d="M825 248 V292 M725 292 H945 M725 292 V328 M835 292 V328 M945 292 V328" />
+              {/* Tier 3 -> Tier 4 */}
+              <path d="M155 390 V440 M395 390 V440 M610 390 V440 M835 390 V440" />
+            </g>
+
+            {/* Tier 1 Crown Node */}
+            <g>
+              <rect
+                x="460"
+                y="34"
+                width="180"
+                height="62"
+                rx="16"
+                fill="var(--fs-hero-bg)"
+                stroke="var(--fs-gold)"
+                strokeWidth="3"
+              />
+              <rect
+                x="494"
+                y="54"
+                width="112"
+                height="10"
+                rx="5"
+                fill="var(--fs-gold)"
+                fillOpacity="0.85"
+              />
+              <rect
+                x="518"
+                y="72"
+                width="64"
+                height="7"
+                rx="3.5"
+                fill="#FFFFFF"
+                fillOpacity="0.55"
+              />
+            </g>
+
+            {/* Tier 2 Branch Nodes */}
+            {[275, 550, 825].map((cx) => (
+              <g key={`t2-${cx}`}>
+                <rect
+                  x={cx - 76}
+                  y="184"
+                  width="152"
+                  height="64"
+                  rx="14"
+                  fill="var(--fs-surface)"
+                  stroke="var(--fs-gold)"
+                  strokeWidth="2.4"
+                />
+                <circle
+                  cx={cx + 48}
+                  cy="216"
+                  r="15"
+                  fill="var(--fs-gold)"
+                  fillOpacity="0.45"
+                />
+                <rect
+                  x={cx - 56}
+                  y="204"
+                  width="82"
+                  height="9"
+                  rx="4.5"
+                  fill="var(--fs-ink)"
+                  fillOpacity="0.55"
+                />
+                <rect
+                  x={cx - 38}
+                  y="222"
+                  width="64"
+                  height="7"
+                  rx="3.5"
+                  fill="var(--fs-muted)"
+                  fillOpacity="0.45"
+                />
+              </g>
+            ))}
+
+            {/* Tier 3 Descendant Nodes */}
+            {[155, 275, 395, 490, 610, 725, 835, 945].map((cx) => (
+              <g key={`t3-${cx}`}>
+                <rect
+                  x={cx - 48}
+                  y="328"
+                  width="96"
+                  height="62"
+                  rx="12"
+                  fill="var(--fs-surface)"
+                  stroke="var(--fs-accent)"
+                  strokeWidth="1.8"
+                  strokeOpacity="0.55"
+                />
+                <rect
+                  x={cx - 30}
+                  y="348"
+                  width="60"
+                  height="8"
+                  rx="4"
+                  fill="var(--fs-ink)"
+                  fillOpacity="0.48"
+                />
+                <rect
+                  x={cx - 20}
+                  y="364"
+                  width="40"
+                  height="6"
+                  rx="3"
+                  fill="var(--fs-gold)"
+                  fillOpacity="0.65"
+                />
+              </g>
+            ))}
+
+            {/* Tier 4 Leaf Nodes */}
+            {[155, 395, 610, 835].map((cx) => (
+              <rect
+                key={`t4-${cx}`}
+                x={cx - 44}
+                y="440"
+                width="88"
+                height="48"
+                rx="11"
+                fill="var(--fs-surface)"
+                stroke="var(--fs-gold)"
+                strokeWidth="1.6"
+                strokeOpacity="0.6"
+              />
+            ))}
+          </svg>
+        </div>
+
+        {/* Warm Ivory & Gold Atmospheric Veil */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
+              'radial-gradient(circle at 50% 48%, rgba(255,253,249,0.58) 0%, rgba(246,240,227,0.82) 68%, rgba(238,228,208,0.92) 100%)',
           }}
         />
-        {/* Faint archival star watermark behind seal */}
-        <svg
+
+        {/* Delicate Inner Archival Corner Hairline */}
+        <div
           aria-hidden="true"
-          viewBox="0 0 120 120"
-          className="pointer-events-none select-none absolute -top-6 -left-6 w-28 h-28 opacity-[0.07]"
-          style={{ color: 'var(--fs-gold)' }}
+          className="pointer-events-none absolute inset-3 rounded-2xl border opacity-40"
+          style={{ borderColor: 'var(--fs-gold)' }}
+        />
+
+        {/* Centered Gilded Charter Gatehouse Plaque */}
+        <div
+          className={`relative z-10 w-full max-w-xl rounded-3xl fs-surface/95 backdrop-blur-md border shadow-[0_18px_48px_rgba(32,22,14,0.12)] text-center flex flex-col items-center ${
+            compactPreview ? 'p-5 space-y-4' : 'p-6 sm:p-9 space-y-5'
+          }`}
+          style={{
+            borderColor: 'color-mix(in srgb, var(--fs-gold) 55%, transparent)',
+          }}
         >
-          <polygon
-            points="60,8 74,40 108,40 82,62 92,96 60,76 28,96 38,62 12,40 46,40"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r="46"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="0.9"
-            strokeDasharray="3 4"
-          />
-        </svg>
-
-        <div className="relative z-10 flex items-start gap-3.5">
-          {/* Royal Wax-Seal Authentication Medallion */}
-          <div className="relative shrink-0">
-            <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center border-2 shadow-xs"
-              style={{
-                background:
-                  'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
-                color: 'var(--fs-gold)',
-                borderColor: 'var(--fs-gold)',
-              }}
-            >
-              <Lock className="w-4 h-4" />
-            </div>
-            <span
-              aria-hidden="true"
-              className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold border"
-              style={{
-                backgroundColor: 'var(--fs-gold)',
-                color: 'var(--fs-hero-bg)',
-                borderColor: 'var(--fs-surface)',
-              }}
-            >
-              ✦
-            </span>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-md border"
-                style={{
-                  backgroundColor: 'var(--fs-gold-soft)',
-                  borderColor: 'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                  color: 'var(--fs-accent)',
-                }}
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>ختم توثيق النسب التاريخي</span>
-              </span>
-              <span className="text-xs sm:text-sm font-bold fs-display-font">
-                عمود النسب المحقّق لعائلة {familyName}
-              </span>
-            </div>
-            <p className="text-xs fs-muted leading-relaxed max-w-2xl">
-              {COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR}
-            </p>
-          </div>
-        </div>
-
-        {onStartOwnSearch && !compactPreview && (
-          <button
-            type="button"
-            onClick={onStartOwnSearch}
-            className="relative z-10 px-4 py-2.5 rounded-xl fs-accent-bg text-xs font-bold shrink-0 cursor-pointer hover:opacity-95 transition-opacity whitespace-nowrap shadow-xs border"
+          {/* Top Gilded Crown Line */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-12 top-0 h-[2px]"
             style={{
-              borderColor: 'color-mix(in srgb, var(--fs-gold) 40%, transparent)',
+              background:
+                'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
+            }}
+          />
+
+          {/* Royal Tree Seal Medallion */}
+          <div
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex items-center justify-center shadow-md"
+            style={{
+              background:
+                'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+              borderColor: 'var(--fs-gold)',
+              color: 'var(--fs-gold)',
             }}
           >
-            استكشف عمود النسب في جذوري
-          </button>
-        )}
+            <GitBranch className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+
+          <div className="space-y-2">
+            <h3
+              className={`${
+                compactPreview ? 'text-lg' : 'text-xl sm:text-2xl'
+              } font-bold fs-display-font`}
+            >
+              دوحة نسب عائلة {familyName}
+            </h3>
+            <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-md mx-auto">
+              توثّق هذه الدوحة تسلسل أجيال وفروع عائلة {familyName} المسجلة في
+              الديوان العائلي ضمن لوحة تفاعلية كاملة قابلة للتكبير والبحث.
+            </p>
+          </div>
+
+          {/* Non-Zero Metadata Capsules */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold tabular-nums">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl fs-surface-alt border fs-accent-text"
+              style={{
+                borderColor:
+                  'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+              }}
+            >
+              <Users className="w-3.5 h-3.5 fs-gold-text" />
+              <span>{mappedMirrorMembers.length} فرد موثق</span>
+            </span>
+            {resolvedGenerationsCount > 0 && (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl fs-surface-alt border fs-accent-text"
+                style={{
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5 fs-gold-text" />
+                <span>{resolvedGenerationsCount} أجيال متصلة</span>
+              </span>
+            )}
+          </div>
+
+          {/* Gatehouse Action Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1 w-full">
+            <button
+              type="button"
+              data-testid="open-tree-theater-btn"
+              onClick={() => setIsTheaterOpen(true)}
+              className="px-5 sm:px-6 py-3 rounded-2xl fs-accent-bg text-xs sm:text-sm font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer shadow-md hover:opacity-95 transition-all border"
+              style={{
+                borderColor:
+                  'color-mix(in srgb, var(--fs-gold) 50%, transparent)',
+              }}
+            >
+              <Maximize2 className="w-4 h-4 shrink-0" />
+              <span>✦ فتح واستعراض دوحة العائلة التفاعلية</span>
+            </button>
+
+            {onProposeEnrichment && !compactPreview && (
+              <button
+                type="button"
+                onClick={onProposeEnrichment}
+                className="px-4 py-3 rounded-2xl fs-surface border text-xs sm:text-sm font-bold fs-accent-text inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity shadow-2xs"
+                style={{
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                }}
+              >
+                <Plus className="w-4 h-4 shrink-0" />
+                <span>اقترح إضافة فرع أو قريب</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Exact Read-Only Mirror of «شجرتي» Engine (100% Unified Display Settings) */}
-      {mappedMirrorMembers.length > 0 ? (
-        <InteractiveFamilyTreeBuilder
-          result={mirrorLineageResult}
-          accountType={AccountLegalType.Individual}
-          caps={READ_ONLY_MIRROR_CAPS}
-          onUpgradeAnnualVip={MIRROR_NOOP_VOID}
-          onSignCharterAndEnableTree={MIRROR_NOOP_VOID}
-          onLogActivity={MIRROR_NOOP_LOG}
-          publicMirrorMode={{
-            members: mappedMirrorMembers,
-            displaySettings: resolvedDisplaySettings,
-            compactPreview,
-            onProposeEnrichment: !compactPreview
-              ? onProposeEnrichment
-              : undefined,
-          }}
-        />
-      ) : (
-        <div className="rounded-3xl fs-surface-alt border fs-border p-10 text-center space-y-2">
-          <div className="text-sm font-bold fs-display-font">
-            لم تُضف فروع معاصرة للعرض العام بعد
-          </div>
-          <p className="text-xs fs-muted">
-            ستظهر مشجرة عائلة {familyName} هنا بنفس التصميم المعتمد فور إضافة
-            الأفراد في «شجرتي».
-          </p>
-        </div>
-      )}
-    </div>
+      {theaterModal}
+    </>
   );
 };
 
