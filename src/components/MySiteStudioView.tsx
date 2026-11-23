@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Award,
   BookOpen,
@@ -30,6 +31,7 @@ import {
   Quote,
   Save,
   ShieldCheck,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Trash2,
@@ -54,10 +56,18 @@ import {
   VaultFolderRecord,
   buildDeterministicReferralCode,
   fetchUserFamilyTreeFromFirebase,
+  fetchUserTreeDisplaySettingsFromFirebase,
   fetchUserVaultArchive,
   readUserFamilyTreeFromLocal,
   readVaultArchiveFromLocal,
 } from '../services/firestoreService';
+import {
+  JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+  SharedVisualSyncEventDetail,
+  TreeDisplaySettings,
+  normalizeTreeDisplaySettings,
+  readSharedTreeDisplaySettingsFromLocal,
+} from '../utils/treeStudioConfig';
 import {
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
@@ -112,6 +122,7 @@ interface MySiteStudioViewProps {
   onUpgradeAnnualVip: () => void;
   onSignCharterAndEnableTree?: () => void;
   onOpenEmailVerification?: () => void;
+  onOpenTreeSettings?: () => void;
   onLogActivity: (action: string, detail: string) => void;
 }
 
@@ -516,6 +527,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   onUpgradeAnnualVip,
   onSignCharterAndEnableTree,
   onOpenEmailVerification,
+  onOpenTreeSettings,
   onLogActivity,
 }) => {
   const defaultSlug = useMemo(() => {
@@ -641,6 +653,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const [allVaultItems, setAllVaultItems] = useState<FamilyVaultMediaItem[]>(
     []
   );
+  const [liveTreeDisplaySettings, setLiveTreeDisplaySettings] =
+    useState<TreeDisplaySettings>(() =>
+      normalizeTreeDisplaySettings(
+        readSharedTreeDisplaySettingsFromLocal(userId || '', result.familyName)
+      )
+    );
 
   // Studio UI States
   const [activeIdentitySection, setActiveIdentitySection] =
@@ -780,6 +798,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         if (mounted && Array.isArray(remoteTree) && remoteTree.length > 0) {
           setRawTreeMembers(remoteTree);
         }
+        const remoteTreeSettings =
+          await fetchUserTreeDisplaySettingsFromFirebase(userId);
+        if (mounted && remoteTreeSettings) {
+          setLiveTreeDisplaySettings(
+            normalizeTreeDisplaySettings(remoteTreeSettings)
+          );
+        }
       }
 
       const existingSite = await fetchPublishedMicrositeBySlug(defaultSlug);
@@ -788,6 +813,14 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         setPreviousPublishedSlug(existingSite.siteSlug);
         setSiteAccessMode(existingSite.siteAccessMode || 'PUBLIC');
         if (existingSite.themeId) setThemeId(existingSite.themeId);
+        if (existingSite.treeDisplaySettings) {
+          setLiveTreeDisplaySettings((prev) =>
+            normalizeTreeDisplaySettings({
+              ...existingSite.treeDisplaySettings,
+              ...prev,
+            })
+          );
+        }
         if (existingSite.familyEmblemTag)
           setEmblemTag(existingSite.familyEmblemTag);
         if (existingSite.bioTitle) setBioTitle(existingSite.bioTitle);
@@ -1038,6 +1071,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       privacyConfig: privacyConfigObject,
       rawTreeMembers,
       allVaultItems,
+      treeDisplaySettings: liveTreeDisplaySettings,
       cmsModules,
       visualBranding,
     });
@@ -1120,6 +1154,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         rawTreeMembers,
         result.familyName
       ),
+      treeDisplaySettings: liveTreeDisplaySettings,
       cmsModules,
       visualBranding,
       createdAt: new Date().toISOString(),
@@ -1149,9 +1184,45 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     selectedVaultItemIds,
     selectedFolderIds,
     enableDynamicWatermark,
+    liveTreeDisplaySettings,
     cmsModules,
     visualBranding,
   ]);
+
+  // Listen for live visual/display updates from «شجرتي» or «عمود نسبي»
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleSharedVisualSync = (ev: Event) => {
+      const detail = (ev as CustomEvent<SharedVisualSyncEventDetail>).detail;
+      if (!detail) return;
+      if (detail.displaySettings) {
+        setLiveTreeDisplaySettings(
+          normalizeTreeDisplaySettings(detail.displaySettings)
+        );
+        return;
+      }
+      if (detail.appearance) {
+        setLiveTreeDisplaySettings((prev) =>
+          normalizeTreeDisplaySettings({
+            ...prev,
+            cardTheme: detail.appearance.cardTheme,
+            fontFamily: detail.appearance.fontFamily,
+            canvasBackground: detail.appearance.canvasBackground,
+          })
+        );
+      }
+    };
+    window.addEventListener(
+      JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+      handleSharedVisualSync as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+        handleSharedVisualSync as EventListener
+      );
+    };
+  }, []);
 
   // =========================================================================
   // CMS MUTATION HELPERS
@@ -2620,6 +2691,32 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       value={treeVisibility}
                       onChange={setTreeVisibility}
                     />
+                  </div>
+
+                  {/* Single Source of Truth Banner → Direct Shortcut to «إعدادات شجرتي» */}
+                  <div className="rounded-xl border border-[#DFCCA8] bg-gradient-to-l from-[#FBF4E4]/90 to-[#FFFDF9] px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-[#F5E6C8] border border-[#D4AF6A]/60 text-[#8D4925] flex items-center justify-center shrink-0 mt-0.5">
+                        <SlidersHorizontal className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs leading-relaxed text-[#4A3B2C] font-medium">
+                        يتم عرض الشجرة بنفس التصميم والخطوط والألوان والحقول
+                        المعتمدة في{' '}
+                        <span className="font-display font-extrabold text-[#7B401F]">
+                          إعدادات شجرتي
+                        </span>
+                      </p>
+                    </div>
+                    {onOpenTreeSettings && (
+                      <button
+                        type="button"
+                        onClick={onOpenTreeSettings}
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733A1C] text-white text-xs font-display font-bold shadow-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                      >
+                        <span>فتح إعدادات شجرتي</span>
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   {/* 4 Female Display Policies */}

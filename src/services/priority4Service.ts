@@ -34,6 +34,7 @@ import {
   buildVerifiedLineageSnapshot,
   canonicalCustomerEmailUid,
   fetchUserFamilyTreeFromFirebase,
+  fetchUserTreeDisplaySettingsFromFirebase,
   fetchUserVaultArchive,
   isRuntimeStaffSession,
   normalizeResearchTicketDocId,
@@ -43,6 +44,10 @@ import {
   sendCustomerNotification,
   updateUserProfile,
 } from './firestoreService';
+import {
+  TreeDisplaySettings,
+  normalizeTreeDisplaySettings,
+} from '../utils/treeStudioConfig';
 import { createKashafiItem } from './kashafiService';
 import {
   DashboardAccessCapabilities,
@@ -857,6 +862,12 @@ export interface SanitizedPublicTreeMember {
   id: string;
   displayName: string;
   familyCircleDisplayName?: string;
+  /** Raw first name as entered in «شجرتي» (never forcibly suffixed with familyName) */
+  firstName?: string;
+  /** Raw first name revealed only to authorized Family Circle members when living/female masking applies */
+  familyCircleFirstName?: string;
+  honorificTitle?: string;
+  prestigeBadge?: string;
   epithet?: string;
   kunya?: string;
   relationLabel: string;
@@ -864,10 +875,24 @@ export interface SanitizedPublicTreeMember {
   gender: 'male' | 'female';
   isProtectedLiving: boolean;
   isDeceased: boolean;
+  vitalStatus?: 'unspecified' | 'living' | 'deceased';
+  birthCalendar?: 'hijri' | 'gregorian';
+  birthPrecision?: 'year_only' | 'full_date' | 'approximate' | 'era';
   birthYear?: string;
   deathYear?: string;
   birthPlace?: string;
+  deathPlace?: string;
   fatherId?: string;
+  motherId?: string;
+  spouseIds?: string[];
+  siblingOfId?: string;
+  isRecordKeeper?: boolean;
+  isDirectSpineLineage?: boolean;
+  femalePrivacyMasked?: boolean;
+  photoUrl?: string;
+  photoThumbnailUrl?: string;
+  maidenFamilyLine?: string;
+  marriageAllianceNote?: string;
   bioSnippet?: string;
 }
 
@@ -1216,6 +1241,8 @@ export interface PublicMicrositeData {
   bioDescription?: string;
   privacyConfig: PublicSitePrivacyConfig;
   publishedTreeMembers?: SanitizedPublicTreeMember[];
+  /** Exact saved visual & anatomy settings from «إعدادات شجرتي» (Single Source of Truth) */
+  treeDisplaySettings?: TreeDisplaySettings;
   publishedVaultItems?: PublicVaultProjectedItem[];
   treeMetrics?: ContemporaryTreeMetrics;
   cmsModules?: FamilyMicrositeCmsModules;
@@ -1573,6 +1600,25 @@ export function sanitizeTreeMembersForPublicSite(
     const rawFatherId = n.fatherId ? String(n.fatherId) : undefined;
     const cleanFatherId =
       rawFatherId && validFinalIds.has(rawFatherId) ? rawFatherId : undefined;
+    const rawMotherId = n.motherId ? String(n.motherId) : undefined;
+    const cleanMotherId =
+      rawMotherId && validFinalIds.has(rawMotherId) ? rawMotherId : undefined;
+    const rawSiblingOfId =
+      typeof n.siblingOfId === 'string' && n.siblingOfId
+        ? n.siblingOfId
+        : undefined;
+    const cleanSiblingOfId =
+      rawSiblingOfId && validFinalIds.has(rawSiblingOfId)
+        ? rawSiblingOfId
+        : undefined;
+    const rawSpouseIds = Array.isArray(n.spouseIds)
+      ? (n.spouseIds as unknown[]).map((sid) => String(sid))
+      : typeof n.spouseId === 'string' && n.spouseId
+      ? [n.spouseId]
+      : [];
+    const cleanSpouseIds = Array.from(
+      new Set(rawSpouseIds.filter((sid) => sid && validFinalIds.has(sid)))
+    );
 
     const fatherNode = rawFatherId ? byId.get(rawFatherId) : undefined;
     const fatherFirst = fatherNode
@@ -1582,6 +1628,9 @@ export function sanitizeTreeMembersForPublicSite(
       ? ['كريمة', fatherFirst, nodeFam].filter(Boolean).join(' ').trim()
       : nodeFam
       ? `كريمة عائلة ${nodeFam}`
+      : 'كريمة العائلة';
+    const conciseSymbolicFemaleFirst = fatherFirst
+      ? `كريمة ${fatherFirst}`
       : 'كريمة العائلة';
 
     const relationLabel = String(
@@ -1605,6 +1654,53 @@ export function sanitizeTreeMembersForPublicSite(
       ? String(n.deathDateValue).slice(0, 20)
       : undefined;
 
+    const normalizedVitalStatus: 'unspecified' | 'living' | 'deceased' =
+      isDeceased
+        ? 'deceased'
+        : vitalStatus === 'living'
+        ? 'living'
+        : 'unspecified';
+    const birthCalendar: 'hijri' | 'gregorian' | undefined =
+      n.birthCalendar === 'hijri' || n.birthCalendar === 'gregorian'
+        ? n.birthCalendar
+        : undefined;
+    const birthPrecision:
+      | 'year_only'
+      | 'full_date'
+      | 'approximate'
+      | 'era'
+      | undefined =
+      n.birthPrecision === 'year_only' ||
+      n.birthPrecision === 'full_date' ||
+      n.birthPrecision === 'approximate' ||
+      n.birthPrecision === 'era'
+        ? n.birthPrecision
+        : undefined;
+    const isRecordKeeper = Boolean(n.isRecordKeeper) || undefined;
+    const isDirectSpineLineage = Boolean(n.isDirectSpineLineage) || undefined;
+    const femalePrivacyMasked = Boolean(n.femalePrivacyMasked) || undefined;
+    const prestigeBadge =
+      typeof n.prestigeBadge === 'string' && n.prestigeBadge.trim()
+        ? n.prestigeBadge.trim().slice(0, 40)
+        : undefined;
+    const rawPhotoUrl =
+      typeof n.photoUrl === 'string' && n.photoUrl.trim()
+        ? n.photoUrl.trim()
+        : undefined;
+    const rawPhotoThumbUrl =
+      typeof n.photoThumbnailUrl === 'string' && n.photoThumbnailUrl.trim()
+        ? n.photoThumbnailUrl.trim()
+        : undefined;
+    const maidenFamilyLine =
+      typeof n.maidenFamilyLine === 'string' && n.maidenFamilyLine.trim()
+        ? n.maidenFamilyLine.trim().slice(0, 90)
+        : undefined;
+    const marriageAllianceNote =
+      typeof n.marriageAllianceNote === 'string' &&
+      n.marriageAllianceNote.trim()
+        ? n.marriageAllianceNote.trim().slice(0, 90)
+        : undefined;
+
     const hideBirth =
       isLiving &&
       (Boolean(opts.hideLivingBirthDates) ||
@@ -1619,12 +1715,23 @@ export function sanitizeTreeMembersForPublicSite(
           gender === 'female' && femalePolicy === 'SYMBOLIC_TITLE'
             ? undefined
             : fullRealName || firstName,
+        firstName: 'فرد محمي',
+        familyCircleFirstName:
+          gender === 'female' && femalePolicy === 'SYMBOLIC_TITLE'
+            ? undefined
+            : firstName,
         relationLabel,
         generationLevel,
         gender,
         isProtectedLiving: true,
         isDeceased: false,
+        vitalStatus: 'living',
         fatherId: cleanFatherId,
+        motherId: cleanMotherId,
+        spouseIds: cleanSpouseIds.length > 0 ? cleanSpouseIds : undefined,
+        siblingOfId: cleanSiblingOfId,
+        isRecordKeeper,
+        isDirectSpineLineage,
       });
     }
 
@@ -1634,17 +1741,27 @@ export function sanitizeTreeMembersForPublicSite(
         return cleanUndefined({
           id,
           displayName: symbolicFemaleLabel,
+          firstName: conciseSymbolicFemaleFirst,
           relationLabel,
           generationLevel,
           gender,
           isProtectedLiving: false,
           isDeceased,
+          vitalStatus: normalizedVitalStatus,
+          birthCalendar,
+          birthPrecision,
           birthYear: hideBirth ? undefined : rawBirthYear,
           deathYear: rawDeathYear,
           birthPlace: n.birthPlace
             ? String(n.birthPlace).slice(0, 80)
             : undefined,
           fatherId: cleanFatherId,
+          motherId: cleanMotherId,
+          spouseIds: cleanSpouseIds.length > 0 ? cleanSpouseIds : undefined,
+          siblingOfId: cleanSiblingOfId,
+          isRecordKeeper,
+          isDirectSpineLineage,
+          femalePrivacyMasked: true,
         });
       }
 
@@ -1653,17 +1770,30 @@ export function sanitizeTreeMembersForPublicSite(
           id,
           displayName: symbolicFemaleLabel,
           familyCircleDisplayName: fullRealName || firstName,
+          firstName: conciseSymbolicFemaleFirst,
+          familyCircleFirstName: firstName,
+          honorificTitle: honorific || undefined,
+          prestigeBadge,
           relationLabel,
           generationLevel,
           gender,
           isProtectedLiving: false,
           isDeceased,
+          vitalStatus: normalizedVitalStatus,
+          birthCalendar,
+          birthPrecision,
           birthYear: hideBirth ? undefined : rawBirthYear,
           deathYear: rawDeathYear,
           birthPlace: n.birthPlace
             ? String(n.birthPlace).slice(0, 80)
             : undefined,
           fatherId: cleanFatherId,
+          motherId: cleanMotherId,
+          spouseIds: cleanSpouseIds.length > 0 ? cleanSpouseIds : undefined,
+          siblingOfId: cleanSiblingOfId,
+          isRecordKeeper,
+          isDirectSpineLineage,
+          femalePrivacyMasked,
         });
       }
     }
@@ -1678,6 +1808,9 @@ export function sanitizeTreeMembersForPublicSite(
     return cleanUndefined({
       id,
       displayName: fullRealName || firstName,
+      firstName,
+      honorificTitle: honorific || undefined,
+      prestigeBadge,
       epithet: rawEpithet || undefined,
       kunya: rawKunya || undefined,
       relationLabel,
@@ -1685,10 +1818,27 @@ export function sanitizeTreeMembersForPublicSite(
       gender,
       isProtectedLiving: false,
       isDeceased,
+      vitalStatus: normalizedVitalStatus,
+      birthCalendar,
+      birthPrecision,
       birthYear: hideBirth ? undefined : rawBirthYear,
       deathYear: rawDeathYear,
       birthPlace: n.birthPlace ? String(n.birthPlace).slice(0, 80) : undefined,
+      deathPlace:
+        typeof n.deathPlace === 'string' && n.deathPlace.trim()
+          ? n.deathPlace.trim().slice(0, 80)
+          : undefined,
       fatherId: cleanFatherId,
+      motherId: cleanMotherId,
+      spouseIds: cleanSpouseIds.length > 0 ? cleanSpouseIds : undefined,
+      siblingOfId: cleanSiblingOfId,
+      isRecordKeeper,
+      isDirectSpineLineage,
+      femalePrivacyMasked,
+      photoUrl: rawPhotoUrl,
+      photoThumbnailUrl: rawPhotoThumbUrl,
+      maidenFamilyLine,
+      marriageAllianceNote,
       bioSnippet: bioText ? String(bioText).slice(0, 280) : undefined,
     });
   });
@@ -1885,6 +2035,7 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
   allVaultItems: FamilyVaultMediaItem[];
   cmsModules: FamilyMicrositeCmsModules;
   visualBranding?: FamilyPortalVisualBranding;
+  treeDisplaySettings?: TreeDisplaySettings;
 }): Promise<{
   ok: boolean;
   code:
@@ -2004,6 +2155,26 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
         )
       : [];
 
+  let resolvedTreeDisplaySettings = params.treeDisplaySettings
+    ? normalizeTreeDisplaySettings(params.treeDisplaySettings)
+    : existing?.treeDisplaySettings
+    ? normalizeTreeDisplaySettings(existing.treeDisplaySettings)
+    : undefined;
+
+  if (!resolvedTreeDisplaySettings) {
+    try {
+      const cloudDisplay =
+        await fetchUserTreeDisplaySettingsFromFirebase<
+          Partial<TreeDisplaySettings>
+        >(safeUid, params.ownerEmail);
+      if (cloudDisplay) {
+        resolvedTreeDisplaySettings = normalizeTreeDisplaySettings(cloudDisplay);
+      }
+    } catch {
+      // Fall back to default normalized settings when offline
+    }
+  }
+
   const docPayload: PublicMicrositeData = cleanUndefined({
     siteSlug: normalizedSlug,
     ownerId: safeUid,
@@ -2029,6 +2200,8 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     bioDescription: (params.bioDescription || '').slice(0, 3800),
     privacyConfig: params.privacyConfig,
     publishedTreeMembers,
+    treeDisplaySettings:
+      resolvedTreeDisplaySettings || normalizeTreeDisplaySettings(undefined),
     publishedVaultItems,
     treeMetrics: computeContemporaryTreeMetrics(
       params.rawTreeMembers,

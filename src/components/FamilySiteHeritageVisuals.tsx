@@ -1,16 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import {
-  GitBranch,
-  List,
-  Lock,
-  Minus,
-  Plus,
-  RotateCcw,
-  Search,
-  Sparkles,
-  User,
-  X,
-} from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Lock, Sparkles } from 'lucide-react';
 import { FamilySiteThemeDefinition } from '../config/referralAndSiteConfig';
 import {
   COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR,
@@ -22,6 +11,22 @@ import {
   PortalTypographyId,
   SanitizedPublicTreeMember,
 } from '../services/priority4Service';
+import {
+  AccountLegalType,
+  DashboardAccessCapabilities,
+  DashboardStateMode,
+  LineageSearchResult,
+} from '../types/juthori';
+import {
+  TreeDisplaySettings,
+  TreePrestigeBadgeId,
+  normalizeTreeDisplaySettings,
+} from '../utils/treeStudioConfig';
+import {
+  ArabicHonorificTitle,
+  InteractiveFamilyTreeBuilder,
+  InteractiveTreePerson,
+} from './InteractiveFamilyTreeBuilder';
 
 // =============================================================================
 // 1. BESPOKE VISUAL PRESETS & LABELS
@@ -870,11 +875,35 @@ export const ThemeMiniSiteThumbnail: React.FC<{
 };
 
 // =============================================================================
-// 5. INTERACTIVE VISUAL TREE MIRROR (PUBLIC FAMILY PORTAL)
+// 5. EXACT READ-ONLY INTERACTIVE TREE MIRROR (UNIFIED «شجرتي» ENGINE)
 // =============================================================================
+const MIRROR_NOOP_VOID = () => {};
+const MIRROR_NOOP_LOG = (_action: string, _detail: string) => {};
+
+const READ_ONLY_MIRROR_CAPS: DashboardAccessCapabilities = {
+  isVip: true,
+  isMatched: false,
+  isRootUnlocked: false,
+  areUpperAncestorsUnlocked: false,
+  showFifthBridgeNode: false,
+  arePremiumTabsUnlocked: true,
+  canAccessTreeDirectly: true,
+  requiresCharterUpgradeForTree: false,
+  tierHeaderTitle: 'مرآة شجرة العائلة',
+  membershipTierKey: 'annual_vip',
+  maxTreeMembers: 5000,
+  maxVaultDocuments: null,
+  canPublishPublicSite: false,
+  canInviteFamilyContributors: false,
+  hasRegistrarBadge: false,
+  hasPriorityResearchObservatory: false,
+};
+
 interface PublicVisualTreeMirrorProps {
   members: SanitizedPublicTreeMember[];
   familyName: string;
+  treeDisplaySettings?: TreeDisplaySettings;
+  isAuthorizedFamilyViewer?: boolean;
   compactPreview?: boolean;
   onProposeEnrichment?: () => void;
   onStartOwnSearch?: () => void;
@@ -883,196 +912,122 @@ interface PublicVisualTreeMirrorProps {
 export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   members,
   familyName,
+  treeDisplaySettings,
+  isAuthorizedFamilyViewer = false,
   compactPreview = false,
   onProposeEnrichment,
   onStartOwnSearch,
 }) => {
-  const [viewMode, setViewMode] = useState<'visual_tree' | 'generations_list'>(
-    'visual_tree'
+  const resolvedDisplaySettings = useMemo(
+    () => normalizeTreeDisplaySettings(treeDisplaySettings),
+    [treeDisplaySettings]
   );
-  const [zoomPercent, setZoomPercent] = useState<number>(100);
-  const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const normalizedQuery = searchTerm.trim().toLowerCase();
-
-  // Group members by generation level (top oldest -> bottom youngest)
-  const generationRows = useMemo(() => {
-    const byGen = new Map<number, SanitizedPublicTreeMember[]>();
-    for (const m of members) {
-      const g = typeof m.generationLevel === 'number' ? m.generationLevel : 0;
-      const list = byGen.get(g) || [];
-      list.push(m);
-      byGen.set(g, list);
-    }
-    const sortedLevels = Array.from(byGen.keys()).sort((a, b) => b - a);
-    return sortedLevels.map((level, index) => ({
-      level,
-      ordinalLabel:
-        [
-          'الجيل المؤسس',
-          'الجيل الثاني',
-          'الجيل الثالث',
-          'الجيل الرابع',
-          'الجيل الخامس',
-          'الجيل السادس',
-          'الجيل السابع',
-        ][index] || `الجيل ${index + 1}`,
-      people: byGen.get(level) || [],
-    }));
-  }, [members]);
-
-  // Build parent -> children map for true connected pedigree tree layout
-  const { rootMembers, childrenMap } = useMemo(() => {
-    const idSet = new Set(members.map((m) => m.id));
-    const cMap = new Map<string, SanitizedPublicTreeMember[]>();
-    const roots: SanitizedPublicTreeMember[] = [];
+  // Convert sanitized public members into InteractiveTreePerson nodes while
+  // preserving exact «شجرتي» 3-tier node anatomy (firstName without forced familyName)
+  // and full relational links (fatherId, motherId, spouseIds, siblingOfId).
+  const mappedMirrorMembers = useMemo<InteractiveTreePerson[]>(() => {
+    const validIds = new Set(members.map((m) => m.id));
+    const spousePairs = new Map<string, Set<string>>();
 
     for (const m of members) {
-      if (m.fatherId && idSet.has(m.fatherId)) {
-        const list = cMap.get(m.fatherId) || [];
-        list.push(m);
-        cMap.set(m.fatherId, list);
-      } else {
-        roots.push(m);
+      if (!spousePairs.has(m.id)) spousePairs.set(m.id, new Set());
+      if (Array.isArray(m.spouseIds)) {
+        for (const sid of m.spouseIds) {
+          if (sid && sid !== m.id && validIds.has(sid)) {
+            spousePairs.get(m.id)!.add(sid);
+            if (!spousePairs.has(sid)) spousePairs.set(sid, new Set());
+            spousePairs.get(sid)!.add(m.id);
+          }
+        }
       }
     }
 
-    // Sort roots highest generation first
-    roots.sort((a, b) => (b.generationLevel || 0) - (a.generationLevel || 0));
-    return { rootMembers: roots, childrenMap: cMap };
-  }, [members]);
+    return members.map((m): InteractiveTreePerson => {
+      const resolvedFirstName = (
+        (isAuthorizedFamilyViewer && m.familyCircleFirstName) ||
+        (isAuthorizedFamilyViewer && !m.firstName && m.familyCircleDisplayName) ||
+        m.firstName ||
+        m.displayName ||
+        'فرد من العائلة'
+      ).trim();
 
-  const matchingCount = useMemo(() => {
-    if (!normalizedQuery) return members.length;
-    return members.filter((m) =>
-      `${m.displayName} ${m.epithet || ''} ${m.kunya || ''} ${m.relationLabel} ${m.birthPlace || ''}`
-        .toLowerCase()
-        .includes(normalizedQuery)
-    ).length;
-  }, [members, normalizedQuery]);
+      const safeFatherId =
+        m.fatherId && validIds.has(m.fatherId) ? m.fatherId : undefined;
+      const safeMotherId =
+        m.motherId && validIds.has(m.motherId) ? m.motherId : undefined;
+      const safeSiblingOfId =
+        m.siblingOfId && validIds.has(m.siblingOfId)
+          ? m.siblingOfId
+          : undefined;
 
-  const renderTreeBranch = (
-    node: SanitizedPublicTreeMember,
-    depth = 0
-  ): React.ReactNode => {
-    if (depth > 8) return null;
-    const children = childrenMap.get(node.id) || [];
-    const isMatch =
-      normalizedQuery.length > 0 &&
-      `${node.displayName} ${node.epithet || ''} ${node.kunya || ''} ${node.relationLabel} ${node.birthPlace || ''}`
-        .toLowerCase()
-        .includes(normalizedQuery);
-    const isDimmed = normalizedQuery.length > 0 && !isMatch;
+      const resolvedVitalStatus: 'unspecified' | 'living' | 'deceased' =
+        m.vitalStatus || (m.isDeceased ? 'deceased' : 'living');
 
-    return (
-      <div
-        key={node.id}
-        className="flex flex-col items-center relative shrink-0"
-      >
-        {/* Pedigree Member Card */}
-        <div
-          className={`w-[156px] rounded-2xl border px-3 py-2.5 text-center transition-all duration-200 relative ${
-            isMatch
-              ? 'fs-surface border-2 shadow-lg ring-2 ring-[#D4AF6A]/60 scale-[1.03]'
-              : 'fs-surface fs-border shadow-xs hover:shadow-md'
-          } ${isDimmed ? 'opacity-35' : 'opacity-100'}`}
-          style={isMatch ? { borderColor: 'var(--fs-gold)' } : undefined}
-        >
-          <div className="flex flex-col items-center gap-1.5">
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border overflow-hidden shrink-0"
-              style={{
-                backgroundColor: 'var(--fs-hero-bg)',
-                color: 'var(--fs-gold)',
-                borderColor: 'var(--fs-gold)',
-              }}
-            >
-              <User className="w-4 h-4" />
-            </div>
-            <div className="w-full min-w-0">
-              <div className="text-xs font-bold leading-snug truncate fs-display-font">
-                {node.displayName}
-              </div>
-              {(node.epithet || node.kunya) ? (
-                <div
-                  title={[node.epithet, node.kunya].filter(Boolean).join(' · ')}
-                  className="text-[10px] fs-muted truncate mt-0.5"
-                >
-                  {node.epithet && (
-                    <span className="font-semibold text-[#9A6B25]">
-                      {node.epithet}
-                    </span>
-                  )}
-                  {node.epithet && node.kunya && (
-                    <span className="mx-1 text-[#C59B27]/80 font-bold">·</span>
-                  )}
-                  {node.kunya && <span>{node.kunya}</span>}
-                </div>
-              ) : (
-                <div className="text-[10px] fs-muted truncate mt-0.5">
-                  {node.relationLabel}
-                </div>
-              )}
-            </div>
-            {(node.birthYear || node.birthPlace || node.isDeceased) && (
-              <div className="text-[9.5px] fs-muted tabular-nums truncate w-full pt-1 border-t fs-border">
-                {[
-                  node.birthYear,
-                  node.birthPlace,
-                  node.isDeceased ? 'رحمه الله' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </div>
-            )}
-          </div>
-        </div>
+      return {
+        id: m.id,
+        firstName: resolvedFirstName,
+        familyName: '',
+        epithet: m.epithet,
+        kunya: m.kunya || '',
+        honorificTitle: (m.honorificTitle as ArabicHonorificTitle) || 'بدون',
+        prestigeBadge: m.prestigeBadge as TreePrestigeBadgeId | undefined,
+        gender: m.gender === 'female' ? 'female' : 'male',
+        generationLevel:
+          typeof m.generationLevel === 'number' ? m.generationLevel : 0,
+        isRecordKeeper: Boolean(m.isRecordKeeper),
+        isDirectSpineLineage: Boolean(m.isDirectSpineLineage),
+        relationToTargetLabel: m.relationLabel || 'فرد من العائلة',
+        fatherId: safeFatherId,
+        motherId: safeMotherId,
+        siblingOfId: safeSiblingOfId,
+        spouseIds: Array.from(spousePairs.get(m.id) || []),
+        maidenFamilyLine: m.maidenFamilyLine,
+        marriageAllianceNote: m.marriageAllianceNote,
+        vitalStatus: resolvedVitalStatus,
+        birthPrecision: m.birthPrecision || 'year_only',
+        birthCalendar: m.birthCalendar || 'hijri',
+        birthDateValue: m.birthYear || '',
+        birthPlace: m.birthPlace || '',
+        deathDateValue: m.deathYear,
+        deathPlace: m.deathPlace,
+        femalePrivacyMasked: Boolean(m.femalePrivacyMasked),
+        biography: m.bioSnippet,
+        photoUrl: m.photoUrl,
+        photoThumbnailUrl: m.photoThumbnailUrl,
+      };
+    });
+  }, [members, isAuthorizedFamilyViewer]);
 
-        {/* Golden Heritage Connector Lines to Children */}
-        {children.length > 0 && (
-          <div className="flex flex-col items-center">
-            <div
-              className="w-[2px] h-5"
-              style={{ backgroundColor: 'var(--fs-gold)', opacity: 0.7 }}
-            />
-            <div className="flex items-start justify-center relative">
-              {children.map((child, idx) => {
-                const isFirst = idx === 0;
-                const isLast = idx === children.length - 1;
-                const isOnly = children.length === 1;
-                return (
-                  <div
-                    key={child.id}
-                    className="flex flex-col items-center relative px-2.5"
-                  >
-                    {!isOnly && (
-                      <div
-                        className="absolute top-0 h-[2px]"
-                        style={{
-                          backgroundColor: 'var(--fs-gold)',
-                          opacity: 0.7,
-                          right: isFirst ? '50%' : 0,
-                          left: isLast ? '50%' : 0,
-                        }}
-                      />
-                    )}
-                    <div
-                      className="w-[2px] h-5"
-                      style={{
-                        backgroundColor: 'var(--fs-gold)',
-                        opacity: 0.7,
-                      }}
-                    />
-                    {renderTreeBranch(child, depth + 1)}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const mirrorLineageResult = useMemo<LineageSearchResult>(
+    () => ({
+      matched: false,
+      engineSource: 'neo4j_verified_graph',
+      clientName: '',
+      fatherName: '',
+      grandfatherName: '',
+      familyName,
+      familyCode: '',
+      originCountry: '',
+      rootBranchName: '',
+      rootBranchCode: '',
+      rootTribeName: '',
+      rootTribeCode: '',
+      rootSummaryLabel: '',
+      upperAncestors: [],
+      adamSpineNodes: [],
+      capsules: [],
+      requiresBlindDisambiguation: false,
+      disambiguationOptions: [],
+      verifiedSourceCitation: '',
+      secondarySources: [],
+      historicalRegion: '',
+      conflictingNarrativesNote: '',
+      confidenceLabel: '',
+      recommendedInitialState: DashboardStateMode.AnnualVip,
+    }),
+    [familyName]
+  );
 
   return (
     <div className="space-y-5">
@@ -1117,199 +1072,33 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
         )}
       </div>
 
-      {/* Tree Mirror Interactive Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Mode Switcher */}
-          <div className="inline-flex rounded-xl fs-surface-alt border fs-border p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('visual_tree')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
-                viewMode === 'visual_tree'
-                  ? 'fs-accent-bg shadow-2xs'
-                  : 'fs-muted hover:opacity-90'
-              }`}
-            >
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>المخطط الشجري البصري</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('generations_list')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
-                viewMode === 'generations_list'
-                  ? 'fs-accent-bg shadow-2xs'
-                  : 'fs-muted hover:opacity-90'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>سجل الأجيال المفصل</span>
-            </button>
-          </div>
-
-          {/* Search inside Tree */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 fs-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="ابحث عن اسم في الشجرة..."
-              className="h-9 pr-8 pl-7 rounded-xl fs-surface border fs-border text-xs focus:outline-none w-48 sm:w-56"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                aria-label="مسح البحث"
-                className="absolute left-2 top-1/2 -translate-y-1/2 fs-muted hover:opacity-100 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {normalizedQuery && (
-            <span className="text-[11px] font-bold fs-accent-text tabular-nums">
-              {matchingCount} نتيجة
-            </span>
-          )}
-        </div>
-
-        {/* Zoom Controls (Visual Mode) + Enrichment Action */}
-        <div className="flex items-center gap-2">
-          {viewMode === 'visual_tree' && (
-            <div className="inline-flex items-center gap-1 rounded-xl fs-surface border fs-border px-1.5 py-1">
-              <button
-                type="button"
-                onClick={() => setZoomPercent((z) => Math.max(60, z - 15))}
-                title="تصغير"
-                className="w-6 h-6 rounded-lg hover:bg-black/5 flex items-center justify-center cursor-pointer"
-              >
-                <Minus className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-[11px] font-bold tabular-nums px-1.5">
-                {zoomPercent}%
-              </span>
-              <button
-                type="button"
-                onClick={() => setZoomPercent((z) => Math.min(130, z + 15))}
-                title="تكبير"
-                className="w-6 h-6 rounded-lg hover:bg-black/5 flex items-center justify-center cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-              {zoomPercent !== 100 && (
-                <button
-                  type="button"
-                  onClick={() => setZoomPercent(100)}
-                  title="إعادة الضبط"
-                  className="w-6 h-6 rounded-lg hover:bg-black/5 flex items-center justify-center cursor-pointer"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {onProposeEnrichment && !compactPreview && (
-            <button
-              type="button"
-              onClick={onProposeEnrichment}
-              className="h-9 px-3.5 rounded-xl fs-surface border fs-border hover:opacity-90 text-xs font-bold fs-accent-text cursor-pointer whitespace-nowrap"
-            >
-              + اقترح إضافة فرع أو قريب
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Mode 1: Visual Connected Pedigree Tree Canvas */}
-      {viewMode === 'visual_tree' ? (
-        <div className="rounded-3xl fs-surface-alt border fs-border p-6 overflow-x-auto relative">
-          <div
-            className="min-w-max mx-auto flex items-start justify-center gap-8 py-2 transition-transform origin-top duration-200"
-            style={{
-              transform: `scale(${zoomPercent / 100})`,
-            }}
-          >
-            {rootMembers.map((root) => renderTreeBranch(root, 0))}
-          </div>
-        </div>
+      {/* Exact Read-Only Mirror of «شجرتي» Engine (100% Unified Display Settings) */}
+      {mappedMirrorMembers.length > 0 ? (
+        <InteractiveFamilyTreeBuilder
+          result={mirrorLineageResult}
+          accountType={AccountLegalType.Individual}
+          caps={READ_ONLY_MIRROR_CAPS}
+          onUpgradeAnnualVip={MIRROR_NOOP_VOID}
+          onSignCharterAndEnableTree={MIRROR_NOOP_VOID}
+          onLogActivity={MIRROR_NOOP_LOG}
+          publicMirrorMode={{
+            members: mappedMirrorMembers,
+            displaySettings: resolvedDisplaySettings,
+            compactPreview,
+            onProposeEnrichment: !compactPreview
+              ? onProposeEnrichment
+              : undefined,
+          }}
+        />
       ) : (
-        /* Mode 2: Detailed Generations Register */
-        <div className="space-y-4">
-          {generationRows.map((row) => {
-            const visibleInRow = normalizedQuery
-              ? row.people.filter((m) =>
-                  `${m.displayName} ${m.epithet || ''} ${m.kunya || ''} ${m.relationLabel} ${m.birthPlace || ''}`
-                    .toLowerCase()
-                    .includes(normalizedQuery)
-                )
-              : row.people;
-            if (visibleInRow.length === 0) return null;
-
-            return (
-              <div
-                key={row.level}
-                className="rounded-2xl fs-surface border fs-border p-4 sm:p-5 space-y-3"
-              >
-                <div className="flex items-center justify-between border-b fs-border pb-2.5">
-                  <span className="text-sm font-bold fs-display-font fs-accent-text">
-                    {row.ordinalLabel}
-                  </span>
-                  <span className="text-xs fs-muted tabular-nums">
-                    {visibleInRow.length} أفراد
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {visibleInRow.map((member) => (
-                    <div
-                      key={member.id}
-                      className="rounded-xl fs-surface-alt border fs-border p-3 flex items-center gap-3"
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden border"
-                        style={{
-                          backgroundColor: 'var(--fs-hero-bg)',
-                          color: 'var(--fs-gold)',
-                          borderColor: 'var(--fs-gold)',
-                        }}
-                      >
-                        {member.displayName.charAt(0)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold truncate fs-display-font">
-                          {member.displayName}
-                        </div>
-                        {(member.epithet || member.kunya) && (
-                          <div className="text-[11px] fs-muted truncate">
-                            {member.epithet && (
-                              <span className="font-semibold text-[#9A6B25]">
-                                {member.epithet}
-                              </span>
-                            )}
-                            {member.epithet && member.kunya && (
-                              <span className="mx-1 text-[#C59B27]/80 font-bold">
-                                ·
-                              </span>
-                            )}
-                            {member.kunya && <span>{member.kunya}</span>}
-                          </div>
-                        )}
-                        <div className="text-xs fs-muted truncate">
-                          {member.relationLabel}
-                          {member.birthYear ? ` · ${member.birthYear}` : ''}
-                          {member.birthPlace ? ` · ${member.birthPlace}` : ''}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+        <div className="rounded-3xl fs-surface-alt border fs-border p-10 text-center space-y-2">
+          <div className="text-sm font-bold fs-display-font">
+            لم تُضف فروع معاصرة للعرض العام بعد
+          </div>
+          <p className="text-xs fs-muted">
+            ستظهر مشجرة عائلة {familyName} هنا بنفس التصميم المعتمد فور إضافة
+            الأفراد في «شجرتي».
+          </p>
         </div>
       )}
     </div>

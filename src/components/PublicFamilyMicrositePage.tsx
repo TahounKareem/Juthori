@@ -1157,6 +1157,8 @@ export const PublicFamilyMicrositePage: React.FC<
             <PublicVisualTreeMirror
               members={treeMembers}
               familyName={siteData.familyName}
+              treeDisplaySettings={siteData.treeDisplaySettings}
+              isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
               compactPreview={compactPreview}
               onProposeEnrichment={() => {
                 setEnrType('ADD_TREE_MEMBER');

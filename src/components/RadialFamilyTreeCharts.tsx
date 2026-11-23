@@ -37,8 +37,9 @@ interface RadialFamilyTreeChartsProps<T extends RadialChartPersonLike> {
     kunyaOrTitle: string;
     isMaskedNow: boolean;
   };
-  onSelectPerson: (person: T) => void;
-  onAddRelative: (person: T) => void;
+  onSelectPerson?: (person: T) => void;
+  onAddRelative?: (person: T) => void;
+  readOnly?: boolean;
 }
 
 interface ChartArcNode<T extends RadialChartPersonLike> {
@@ -140,6 +141,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
   getDisplayName,
   onSelectPerson,
   onAddRelative,
+  readOnly = false,
 }: RadialFamilyTreeChartsProps<T>) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedPerson, setFocusedPerson] = useState<T | null>(null);
@@ -352,31 +354,39 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
             </div>
           ) : (
             <span className="opacity-80">
-              {isFan
+              {readOnly
+                ? isFan
+                  ? 'مروحة الأنساب التراثية (180°) — استعرض أفراد العائلة وأجيالها'
+                  : 'الهالة الدائرية الكاملة (360°) — يتمركز الجد الأعلى في القلب وتتوزع الأجيال في مدارات دائرية'
+                : isFan
                 ? 'مروحة الأنساب التراثية (180°) — انقر على أي قوس أو فرد لتعديل بياناته أو إضافة فرع'
                 : 'الهالة الدائرية الكاملة (360°) — يتمركز الجد الأعلى في القلب وتتوزع الأجيال في مدارات دائرية'}
             </span>
           )}
         </div>
 
-        {activePersonForBar && (
+        {activePersonForBar && !readOnly && (
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => onSelectPerson(activePersonForBar)}
-              className="px-2.5 py-1 rounded-lg bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <Edit2 className="w-3 h-3" />
-              <span>تعديل البطاقة</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onAddRelative(activePersonForBar)}
-              className="px-2.5 py-1 rounded-lg bg-[#8D4925] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              <span>إضافة قريب</span>
-            </button>
+            {onSelectPerson && (
+              <button
+                type="button"
+                onClick={() => onSelectPerson(activePersonForBar)}
+                className="px-2.5 py-1 rounded-lg bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Edit2 className="w-3 h-3" />
+                <span>تعديل البطاقة</span>
+              </button>
+            )}
+            {onAddRelative && (
+              <button
+                type="button"
+                onClick={() => onAddRelative(activePersonForBar)}
+                className="px-2.5 py-1 rounded-lg bg-[#8D4925] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>إضافة قريب</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -528,7 +538,9 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
                   }
                   onClick={() => {
                     setFocusedPerson(arc.person);
-                    onSelectPerson(arc.person);
+                    if (!readOnly) {
+                      onSelectPerson?.(arc.person);
+                    }
                   }}
                 >
                   <path
@@ -612,7 +624,7 @@ export function RadialFamilyTreeCharts<T extends RadialChartPersonLike>({
               onClick={() => {
                 if (layout.centerRoot) {
                   setFocusedPerson(layout.centerRoot);
-                  onSelectPerson(layout.centerRoot);
+                  if (!readOnly) onSelectPerson?.(layout.centerRoot);
                 }
               }}
             >

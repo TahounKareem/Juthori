@@ -112,6 +112,9 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   blockedUserIds = [],
   onBlockCommunityUser,
 }) => {
+  const [openTreeSettingsOnMount, setOpenTreeSettingsOnMount] =
+    React.useState(false);
+
   if (activeTab === DashboardTab.Home) {
     return (
       <CustomerHomeOverview
@@ -164,6 +167,8 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         userEmail={userEmail}
         onOpenVaultForPerson={onOpenVaultForPerson}
         onRequestReferenceCorrectionTicket={onRequestReferenceCorrectionTicket}
+        initialOpenSettings={openTreeSettingsOnMount}
+        onConsumeInitialOpenSettings={() => setOpenTreeSettingsOnMount(false)}
       />
     );
   }
@@ -202,6 +207,10 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         onUpgradeAnnualVip={onUpgradeAnnualVip}
         onSignCharterAndEnableTree={onSignCharterAndEnableTree}
         onOpenEmailVerification={onOpenEmailVerification}
+        onOpenTreeSettings={() => {
+          setOpenTreeSettingsOnMount(true);
+          onNavigateTab(DashboardTab.MyTree);
+        }}
         onLogActivity={onLogActivity}
       />
     );

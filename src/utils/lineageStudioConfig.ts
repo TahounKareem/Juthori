@@ -1,5 +1,16 @@
 import React from 'react';
 import { UpperAncestorNode } from '../types/juthori';
+import {
+  DEFAULT_TREE_DISPLAY_SETTINGS,
+  TREE_ARABIC_FONT_OPTIONS,
+  TREE_CANVAS_BACKGROUND_OPTIONS,
+  TREE_CARD_THEMES,
+  TreeArabicFontId,
+  TreeCanvasBackground,
+  TreeCardThemeDefinition,
+  TreeCardThemeId,
+  getTreeCanvasBackgroundStyle,
+} from './treeStudioConfig';
 
 export type LineageViewMode =
   | 'royal_pillar'
@@ -11,19 +22,14 @@ export type LineageViewMode =
 
 export type LineageDirection = 'top_down' | 'bottom_up';
 
-export type LineageThemeId =
-  | 'golden_parchment'
-  | 'andalusian_emerald'
-  | 'sultanic_burgundy'
-  | 'diriyah_oasis'
-  | 'royal_navy_gold';
+/** Single Source of Truth: exact 10 museum theme IDs from treeStudioConfig.ts */
+export type LineageThemeId = TreeCardThemeId;
 
-export type LineageFontId = 'amiri' | 'classical' | 'modern';
+/** Single Source of Truth: exact 4 Arabic font IDs from treeStudioConfig.ts */
+export type LineageFontId = TreeArabicFontId;
 
-export type LineageBackdropId =
-  | 'ornate_parchment'
-  | 'soft_geometric'
-  | 'clean_marble';
+/** Single Source of Truth: exact 3 canvas backdrop IDs from treeStudioConfig.ts */
+export type LineageBackdropId = TreeCanvasBackground;
 
 export interface LineageStudioPrefs {
   viewMode: LineageViewMode;
@@ -37,9 +43,9 @@ export interface LineageStudioPrefs {
 export const DEFAULT_LINEAGE_STUDIO_PREFS: LineageStudioPrefs = {
   viewMode: 'royal_pillar',
   direction: 'top_down',
-  themeId: 'golden_parchment',
-  fontId: 'amiri',
-  backdropId: 'ornate_parchment',
+  themeId: DEFAULT_TREE_DISPLAY_SETTINGS.cardTheme,
+  fontId: DEFAULT_TREE_DISPLAY_SETTINGS.fontFamily,
+  backdropId: DEFAULT_TREE_DISPLAY_SETTINGS.canvasBackground,
   showNasabStrip: true,
 };
 
@@ -94,268 +100,103 @@ export interface LineageThemePalette {
   buttonPrimaryText: string;
 }
 
-export const LINEAGE_THEMES: Record<LineageThemeId, LineageThemePalette> = {
-  golden_parchment: {
-    id: 'golden_parchment',
-    label: 'رقّ المخطوط الذهبي',
-    subtitle: 'عاجي دافئ وذهب عتيق',
-    isDark: false,
-    swatchPrimary: '#FAF4E8',
-    swatchSecondary: '#8D4925',
-    swatchGold: '#C9A243',
-    canvasBg: '#F9F3E7',
-    canvasBgGradient:
-      'linear-gradient(180deg, #FBF7EE 0%, #F6EFE0 52%, #F9F3E7 100%)',
-    canvasBorder: '#DFC99B',
-    surfaceBg: '#FFFDF9',
-    surfaceAltBg: '#FAF4E8',
-    surfaceBorder: '#DECBA8',
-    surfaceHoverBorder: '#B78334',
-    accentHex: '#8D4925',
-    accentSoftBg: 'rgba(141, 73, 37, 0.08)',
-    accentTextHex: '#7A3E1E',
-    goldHex: '#C59A38',
-    goldSoftBg: '#FBF3DF',
-    goldBorderHex: '#D4AF37',
-    textPrimaryHex: '#231D17',
-    textSecondaryHex: '#4E4136',
-    textMutedHex: '#736150',
-    railGradient:
-      'linear-gradient(180deg, rgba(197,154,56,0.25) 0%, rgba(197,154,56,0.85) 50%, rgba(141,73,37,0.45) 100%)',
-    patternStrokeHex: '#B68D40',
-    patternOpacity: 0.075,
-    summitBg: 'linear-gradient(135deg, #2C2117 0%, #412E1D 55%, #2C2117 100%)',
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '').trim();
+  if (clean.length !== 6) return `rgba(141, 73, 37, ${alpha})`;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Derives a full LineageThemePalette directly from the canonical
+ * TreeCardThemeDefinition (Single Source of Truth across عمود نسبي & شجرتي).
+ */
+export function deriveLineageThemePaletteFromTreeTheme(
+  t: TreeCardThemeDefinition
+): LineageThemePalette {
+  const isDark = t.isDarkSurface;
+  const primary = t.primaryHex;
+  const secondary = t.secondaryHex;
+  const gold = t.goldAccentHex;
+
+  return {
+    id: t.id,
+    label: t.label,
+    subtitle: t.subtitle,
+    isDark,
+    swatchPrimary: t.swatches[0],
+    swatchSecondary: t.swatches[1],
+    swatchGold: t.swatches[2],
+    canvasBg: t.canvasBg,
+    canvasBgGradient: isDark
+      ? `linear-gradient(180deg, #1E1B17 0%, ${t.canvasBg} 52%, #141210 100%)`
+      : `linear-gradient(180deg, ${t.cardFillHex} 0%, ${t.canvasBg} 55%, ${t.canvasBg} 100%)`,
+    canvasBorder: isDark
+      ? hexToRgba(gold, 0.5)
+      : hexToRgba(t.cardStrokeHex, 0.55),
+    surfaceBg: t.cardFillHex,
+    surfaceAltBg: isDark ? '#1D1915' : t.canvasBg,
+    surfaceBorder: isDark
+      ? hexToRgba(gold, 0.42)
+      : hexToRgba(t.cardStrokeHex, 0.52),
+    surfaceHoverBorder: isDark ? gold : primary,
+    accentHex: primary,
+    accentSoftBg: hexToRgba(primary, isDark ? 0.16 : 0.08),
+    accentTextHex: isDark ? gold : primary,
+    goldHex: gold,
+    goldSoftBg: isDark ? hexToRgba(gold, 0.16) : hexToRgba(gold, 0.14),
+    goldBorderHex: isDark ? hexToRgba(gold, 0.65) : gold,
+    textPrimaryHex: t.textPrimaryHex,
+    textSecondaryHex: isDark ? t.textMutedHex : t.textPrimaryHex,
+    textMutedHex: t.textMutedHex,
+    railGradient: isDark
+      ? `linear-gradient(180deg, ${hexToRgba(gold, 0.25)} 0%, ${hexToRgba(gold, 0.85)} 50%, ${hexToRgba(primary, 0.45)} 100%)`
+      : `linear-gradient(180deg, ${hexToRgba(gold, 0.35)} 0%, ${hexToRgba(primary, 0.82)} 50%, ${hexToRgba(gold, 0.5)} 100%)`,
+    patternStrokeHex: isDark ? gold : t.canvasDot,
+    patternOpacity: isDark ? 0.09 : 0.075,
+    summitBg: isDark
+      ? 'linear-gradient(135deg, #2D261C 0%, #1C1813 55%, #2A2319 100%)'
+      : `linear-gradient(135deg, ${t.textPrimaryHex} 0%, ${primary} 60%, ${t.textPrimaryHex} 100%)`,
     summitText: '#FFFBF2',
-    summitSubtext: '#F3D28B',
-    summitBorder: '#D4AF37',
-    rootBg: 'linear-gradient(135deg, #FFFDF8 0%, #FDF4E0 100%)',
-    rootBorder: '#C89B3C',
-    rootAccent: '#9A631A',
-    directFamilyBg: 'linear-gradient(135deg, #FFFDF7 0%, #FBF1DA 100%)',
-    directFamilyBorder: '#C99732',
-    directFamilyAccent: '#8A5616',
-    keeperBg: 'linear-gradient(135deg, #FFFFFF 0%, #F8F1E3 100%)',
-    keeperBorder: '#8D4925',
-    keeperAccent: '#8D4925',
-    connectorBg: '#FFFDF8',
-    connectorBorder: '#D8BD85',
-    connectorText: '#7D4B1B',
-    statusBg: '#EEF6F0',
-    statusBorder: '#B9DEC5',
-    statusText: '#14532D',
-    buttonPrimaryBg: '#8D4925',
-    buttonPrimaryHoverBg: '#733A1C',
-    buttonPrimaryText: '#FFFBF2',
-  },
-  andalusian_emerald: {
-    id: 'andalusian_emerald',
-    label: 'الزمرد الأندلسي',
-    subtitle: 'رخام زمردي ومذهّب هادئ',
-    isDark: false,
-    swatchPrimary: '#EFF5F1',
-    swatchSecondary: '#0F5132',
-    swatchGold: '#C59B38',
-    canvasBg: '#F1F6F2',
-    canvasBgGradient:
-      'linear-gradient(180deg, #F5F9F6 0%, #ECF3EE 52%, #F2F6F3 100%)',
-    canvasBorder: '#BDD3C4',
-    surfaceBg: '#FCFDFC',
-    surfaceAltBg: '#EFF5F1',
-    surfaceBorder: '#C6D9CC',
-    surfaceHoverBorder: '#0F5132',
-    accentHex: '#0F5132',
-    accentSoftBg: 'rgba(15, 81, 50, 0.08)',
-    accentTextHex: '#0D452A',
-    goldHex: '#C29636',
-    goldSoftBg: '#F9F3E1',
-    goldBorderHex: '#C9A144',
-    textPrimaryHex: '#13241B',
-    textSecondaryHex: '#354F41',
-    textMutedHex: '#567062',
-    railGradient:
-      'linear-gradient(180deg, rgba(15,81,50,0.25) 0%, rgba(194,150,54,0.85) 50%, rgba(15,81,50,0.45) 100%)',
-    patternStrokeHex: '#1C6B46',
-    patternOpacity: 0.065,
-    summitBg: 'linear-gradient(135deg, #0D3523 0%, #154E35 55%, #0C2F1F 100%)',
-    summitText: '#F7FBF8',
-    summitSubtext: '#F0D58C',
-    summitBorder: '#C9A144',
-    rootBg: 'linear-gradient(135deg, #FFFFFF 0%, #EFF7F1 100%)',
-    rootBorder: '#C29636',
-    rootAccent: '#0F5132',
-    directFamilyBg: 'linear-gradient(135deg, #FFFEFA 0%, #F7F1DE 100%)',
-    directFamilyBorder: '#C29636',
-    directFamilyAccent: '#0F5132',
-    keeperBg: 'linear-gradient(135deg, #FFFFFF 0%, #EDF5F0 100%)',
-    keeperBorder: '#0F5132',
-    keeperAccent: '#0F5132',
-    connectorBg: '#FCFDFC',
-    connectorBorder: '#B7D1BF',
-    connectorText: '#0F5132',
-    statusBg: '#E6F4EC',
-    statusBorder: '#A9D5BB',
-    statusText: '#0D452A',
-    buttonPrimaryBg: '#0F5132',
-    buttonPrimaryHoverBg: '#0A3D25',
-    buttonPrimaryText: '#F8FBF9',
-  },
-  sultanic_burgundy: {
-    id: 'sultanic_burgundy',
-    label: 'العنابي السلطاني',
-    subtitle: 'عاجي وعنابي ديواني مذهّب',
-    isDark: false,
-    swatchPrimary: '#FAF3F2',
-    swatchSecondary: '#6E1E31',
-    swatchGold: '#C89C3C',
-    canvasBg: '#F9F2F0',
-    canvasBgGradient:
-      'linear-gradient(180deg, #FCF7F6 0%, #F5EAE7 52%, #FAF3F1 100%)',
-    canvasBorder: '#DFC0B9',
-    surfaceBg: '#FFFDFC',
-    surfaceAltBg: '#F8EFEA',
-    surfaceBorder: '#DFC5BE',
-    surfaceHoverBorder: '#6E1E31',
-    accentHex: '#6E1E31',
-    accentSoftBg: 'rgba(110, 30, 49, 0.08)',
-    accentTextHex: '#61182A',
-    goldHex: '#C59A3B',
-    goldSoftBg: '#FBF3E2',
-    goldBorderHex: '#CE9F3E',
-    textPrimaryHex: '#251519',
-    textSecondaryHex: '#54383F',
-    textMutedHex: '#785B62',
-    railGradient:
-      'linear-gradient(180deg, rgba(110,30,49,0.28) 0%, rgba(200,156,60,0.85) 50%, rgba(110,30,49,0.45) 100%)',
-    patternStrokeHex: '#84293E',
-    patternOpacity: 0.06,
-    summitBg: 'linear-gradient(135deg, #4B1220 0%, #6E1E31 55%, #420F1B 100%)',
-    summitText: '#FFF9F8',
-    summitSubtext: '#F5D58E',
-    summitBorder: '#D4AF37',
-    rootBg: 'linear-gradient(135deg, #FFFDFC 0%, #FDF2EE 100%)',
-    rootBorder: '#C89C3C',
-    rootAccent: '#6E1E31',
-    directFamilyBg: 'linear-gradient(135deg, #FFFDF9 0%, #FAF0DD 100%)',
-    directFamilyBorder: '#C89C3C',
-    directFamilyAccent: '#6E1E31',
-    keeperBg: 'linear-gradient(135deg, #FFFFFF 0%, #F9EEEC 100%)',
-    keeperBorder: '#6E1E31',
-    keeperAccent: '#6E1E31',
-    connectorBg: '#FFFDFC',
-    connectorBorder: '#DCB8B0',
-    connectorText: '#6E1E31',
-    statusBg: '#F4ECE2',
-    statusBorder: '#D7B98A',
-    statusText: '#6B3E16',
-    buttonPrimaryBg: '#6E1E31',
-    buttonPrimaryHoverBg: '#571625',
-    buttonPrimaryText: '#FFF9F7',
-  },
-  diriyah_oasis: {
-    id: 'diriyah_oasis',
-    label: 'واحة الدرعية',
-    subtitle: 'طين نجدي دافئ وذهب أصيل',
-    isDark: false,
-    swatchPrimary: '#F5EEE2',
-    swatchSecondary: '#7B4B28',
-    swatchGold: '#B88930',
-    canvasBg: '#F4ECE0',
-    canvasBgGradient:
-      'linear-gradient(180deg, #F8F2E8 0%, #EFE5D5 52%, #F5EEE2 100%)',
-    canvasBorder: '#D6C2A3',
-    surfaceBg: '#FFFCF6',
-    surfaceAltBg: '#F5ECE0',
-    surfaceBorder: '#D9C5A8',
-    surfaceHoverBorder: '#7B4B28',
-    accentHex: '#7B4B28',
-    accentSoftBg: 'rgba(123, 75, 40, 0.09)',
-    accentTextHex: '#693E1F',
-    goldHex: '#B6862C',
-    goldSoftBg: '#F9F0DA',
-    goldBorderHex: '#C5983E',
-    textPrimaryHex: '#241B14',
-    textSecondaryHex: '#514134',
-    textMutedHex: '#725E4E',
-    railGradient:
-      'linear-gradient(180deg, rgba(123,75,40,0.3) 0%, rgba(182,134,44,0.85) 50%, rgba(123,75,40,0.45) 100%)',
-    patternStrokeHex: '#8E5B32',
-    patternOpacity: 0.07,
-    summitBg: 'linear-gradient(135deg, #3D2818 0%, #5B3B22 55%, #342113 100%)',
-    summitText: '#FFFBF3',
-    summitSubtext: '#F2D086',
-    summitBorder: '#C5983E',
-    rootBg: 'linear-gradient(135deg, #FFFCF7 0%, #F7ECDA 100%)',
-    rootBorder: '#B6862C',
-    rootAccent: '#7B4B28',
-    directFamilyBg: 'linear-gradient(135deg, #FFFCF6 0%, #F7EBD5 100%)',
-    directFamilyBorder: '#C5983E',
-    directFamilyAccent: '#7B4B28',
-    keeperBg: 'linear-gradient(135deg, #FFFFFF 0%, #F4EADD 100%)',
-    keeperBorder: '#7B4B28',
-    keeperAccent: '#7B4B28',
-    connectorBg: '#FFFCF6',
-    connectorBorder: '#D2BA97',
-    connectorText: '#7B4B28',
-    statusBg: '#EAF3EC',
-    statusBorder: '#B3D5BC',
-    statusText: '#1A4E2C',
-    buttonPrimaryBg: '#7B4B28',
-    buttonPrimaryHoverBg: '#623A1E',
-    buttonPrimaryText: '#FFFBF3',
-  },
-  royal_navy_gold: {
-    id: 'royal_navy_gold',
-    label: 'الكحلي المذهّب الملكي',
-    subtitle: 'ليلي ملكي ومخطوط ذهبي',
-    isDark: true,
-    swatchPrimary: '#111E33',
-    swatchSecondary: '#1E3454',
-    swatchGold: '#E4BF69',
-    canvasBg: '#0E192B',
-    canvasBgGradient:
-      'linear-gradient(180deg, #111F36 0%, #0C1626 52%, #101D32 100%)',
-    canvasBorder: '#2C4366',
-    surfaceBg: '#16253D',
-    surfaceAltBg: '#1B2D4A',
-    surfaceBorder: '#2F486E',
-    surfaceHoverBorder: '#E4BF69',
-    accentHex: '#E4BF69',
-    accentSoftBg: 'rgba(228, 191, 105, 0.14)',
-    accentTextHex: '#F3D68D',
-    goldHex: '#E4BF69',
-    goldSoftBg: 'rgba(228, 191, 105, 0.13)',
-    goldBorderHex: '#D4AC51',
-    textPrimaryHex: '#F8F4EA',
-    textSecondaryHex: '#D4DCE8',
-    textMutedHex: '#9FB0C8',
-    railGradient:
-      'linear-gradient(180deg, rgba(228,191,105,0.22) 0%, rgba(228,191,105,0.88) 50%, rgba(228,191,105,0.28) 100%)',
-    patternStrokeHex: '#E4BF69',
-    patternOpacity: 0.085,
-    summitBg: 'linear-gradient(135deg, #1E3252 0%, #274066 55%, #172740 100%)',
-    summitText: '#FFFBF0',
-    summitSubtext: '#F5D88E',
-    summitBorder: '#E4BF69',
-    rootBg: 'linear-gradient(135deg, #182944 0%, #213657 100%)',
-    rootBorder: '#D4AC51',
-    rootAccent: '#F3D68D',
-    directFamilyBg: 'linear-gradient(135deg, #1A2C48 0%, #243958 100%)',
-    directFamilyBorder: '#E4BF69',
-    directFamilyAccent: '#F3D68D',
-    keeperBg: 'linear-gradient(135deg, #182944 0%, #1F3454 100%)',
-    keeperBorder: '#E4BF69',
-    keeperAccent: '#F3D68D',
-    connectorBg: '#16253D',
-    connectorBorder: '#3C5982',
-    connectorText: '#F3D68D',
-    statusBg: 'rgba(228, 191, 105, 0.14)',
-    statusBorder: 'rgba(228, 191, 105, 0.42)',
-    statusText: '#F6DD9C',
-    buttonPrimaryBg: '#C89F43',
-    buttonPrimaryHoverBg: '#B38B32',
-    buttonPrimaryText: '#0E192B',
-  },
-};
+    summitSubtext: isDark ? '#F6DFA4' : '#F3D79B',
+    summitBorder: gold,
+    rootBg: isDark
+      ? 'linear-gradient(135deg, #28231C 0%, #1F1B16 100%)'
+      : `linear-gradient(135deg, ${t.cardFillHex} 0%, ${t.canvasBg} 100%)`,
+    rootBorder: gold,
+    rootAccent: isDark ? gold : primary,
+    directFamilyBg: isDark
+      ? 'linear-gradient(135deg, #2B241B 0%, #201B15 100%)'
+      : `linear-gradient(135deg, ${t.cardFillHex} 0%, ${hexToRgba(gold, 0.16)} 100%)`,
+    directFamilyBorder: isDark ? gold : primary,
+    directFamilyAccent: isDark ? gold : primary,
+    keeperBg: isDark
+      ? 'linear-gradient(135deg, #2E271E 0%, #1E1A15 100%)'
+      : `linear-gradient(135deg, #FFFFFF 0%, ${t.canvasBg} 100%)`,
+    keeperBorder: primary,
+    keeperAccent: isDark ? gold : primary,
+    connectorBg: isDark ? '#24201B' : t.cardFillHex,
+    connectorBorder: isDark ? hexToRgba(gold, 0.52) : hexToRgba(primary, 0.38),
+    connectorText: isDark ? gold : primary,
+    statusBg: isDark ? 'rgba(20, 83, 45, 0.28)' : '#EEF6F0',
+    statusBorder: isDark ? 'rgba(74, 222, 128, 0.35)' : '#B9DEC5',
+    statusText: isDark ? '#BBF7D0' : '#14532D',
+    buttonPrimaryBg: primary,
+    buttonPrimaryHoverBg: secondary,
+    buttonPrimaryText: isDark ? '#181614' : '#FFFBF2',
+  };
+}
+
+export const LINEAGE_THEMES: Record<LineageThemeId, LineageThemePalette> = (
+  Object.keys(TREE_CARD_THEMES) as TreeCardThemeId[]
+).reduce((acc, themeId) => {
+  acc[themeId] = deriveLineageThemePaletteFromTreeTheme(
+    TREE_CARD_THEMES[themeId]
+  );
+  return acc;
+}, {} as Record<LineageThemeId, LineageThemePalette>);
 
 export interface LineageFontDefinition {
   id: LineageFontId;
@@ -365,29 +206,17 @@ export interface LineageFontDefinition {
   canvasFontName: string;
 }
 
-export const LINEAGE_FONTS: Record<LineageFontId, LineageFontDefinition> = {
-  amiri: {
-    id: 'amiri',
-    label: 'النسخ التراثي الأصيل (Amiri)',
-    sampleText: 'عمود نسبٍ أصيل',
-    cssFamily: "'Amiri', 'Noto Naskh Arabic', Georgia, serif",
-    canvasFontName: 'Amiri',
-  },
-  classical: {
-    id: 'classical',
-    label: 'الكلاسيكي الوقور (Scheherazade)',
-    sampleText: 'عمود نسبٍ أصيل',
-    cssFamily: "'Scheherazade New', 'Aref Ruqaa', 'Amiri', serif",
-    canvasFontName: 'Scheherazade New',
-  },
-  modern: {
-    id: 'modern',
-    label: 'العصري الهندسي الواضح (Cairo)',
-    sampleText: 'عمود نسبٍ أصيل',
-    cssFamily: "'Cairo', 'Readex Pro', 'IBM Plex Sans Arabic', sans-serif",
-    canvasFontName: 'Cairo',
-  },
-};
+export const LINEAGE_FONTS: Record<LineageFontId, LineageFontDefinition> =
+  TREE_ARABIC_FONT_OPTIONS.reduce((acc, f) => {
+    acc[f.id] = {
+      id: f.id,
+      label: f.label,
+      sampleText: 'عمود نسبٍ أصيل',
+      cssFamily: f.cssFamily,
+      canvasFontName: f.canvasFontName,
+    };
+    return acc;
+  }, {} as Record<LineageFontId, LineageFontDefinition>);
 
 export interface LineageViewModeOption {
   id: LineageViewMode;
@@ -433,59 +262,85 @@ export interface LineageBackdropOption {
   label: string;
 }
 
-export const LINEAGE_BACKDROP_OPTIONS: LineageBackdropOption[] = [
-  { id: 'ornate_parchment', label: 'رقّ تراثي مزخرف' },
-  { id: 'soft_geometric', label: 'نسيج هندسي ناعم' },
-  { id: 'clean_marble', label: 'رخامي صافي' },
-];
+export const LINEAGE_BACKDROP_OPTIONS: LineageBackdropOption[] =
+  TREE_CANVAS_BACKGROUND_OPTIONS.map((opt) => ({
+    id: opt.id,
+    label: opt.label,
+  }));
 
-export function getLineageTheme(themeId?: LineageThemeId): LineageThemePalette {
-  return (
-    (themeId && LINEAGE_THEMES[themeId]) || LINEAGE_THEMES.golden_parchment
-  );
+const LEGACY_LINEAGE_THEME_MAP: Record<string, LineageThemeId> = {
+  golden_parchment: 'heritage',
+  andalusian_emerald: 'emerald_gold',
+  sultanic_burgundy: 'royal_burgundy',
+  diriyah_oasis: 'diriyah_oasis',
+  royal_navy_gold: 'royal_kiswah',
+};
+
+const LEGACY_LINEAGE_FONT_MAP: Record<string, LineageFontId> = {
+  amiri: 'amiri',
+  classical: 'noto_naskh',
+  modern: 'cairo_modern',
+};
+
+const LEGACY_LINEAGE_BACKDROP_MAP: Record<string, LineageBackdropId> = {
+  ornate_parchment: 'parchment',
+  soft_geometric: 'dots',
+  clean_marble: 'marble',
+};
+
+export function normalizeLineageThemeId(raw?: string | null): LineageThemeId {
+  if (!raw) return DEFAULT_LINEAGE_STUDIO_PREFS.themeId;
+  if (raw in LINEAGE_THEMES) return raw as LineageThemeId;
+  if (raw in LEGACY_LINEAGE_THEME_MAP) return LEGACY_LINEAGE_THEME_MAP[raw];
+  return DEFAULT_LINEAGE_STUDIO_PREFS.themeId;
 }
 
-export function getLineageFont(fontId?: LineageFontId): LineageFontDefinition {
-  return (fontId && LINEAGE_FONTS[fontId]) || LINEAGE_FONTS.amiri;
+export function normalizeLineageFontId(raw?: string | null): LineageFontId {
+  if (!raw) return DEFAULT_LINEAGE_STUDIO_PREFS.fontId;
+  if (raw in LINEAGE_FONTS) return raw as LineageFontId;
+  if (raw in LEGACY_LINEAGE_FONT_MAP) return LEGACY_LINEAGE_FONT_MAP[raw];
+  return DEFAULT_LINEAGE_STUDIO_PREFS.fontId;
+}
+
+export function normalizeLineageBackdropId(
+  raw?: string | null
+): LineageBackdropId {
+  if (!raw) return DEFAULT_LINEAGE_STUDIO_PREFS.backdropId;
+  if (raw === 'parchment' || raw === 'dots' || raw === 'marble') return raw;
+  if (raw in LEGACY_LINEAGE_BACKDROP_MAP) {
+    return LEGACY_LINEAGE_BACKDROP_MAP[raw];
+  }
+  return DEFAULT_LINEAGE_STUDIO_PREFS.backdropId;
+}
+
+export function getLineageTheme(
+  themeId?: LineageThemeId | string
+): LineageThemePalette {
+  const normalized = normalizeLineageThemeId(themeId);
+  return LINEAGE_THEMES[normalized] || LINEAGE_THEMES.diriyah_oasis;
+}
+
+export function getLineageFont(
+  fontId?: LineageFontId | string
+): LineageFontDefinition {
+  const normalized = normalizeLineageFontId(fontId);
+  return LINEAGE_FONTS[normalized] || LINEAGE_FONTS.amiri;
 }
 
 /**
- * Generates an SVG background style tailored to the active theme & canvas backdrop.
+ * Generates exact canvas backdrop styles synchronized 1:1 with «شجرتي»
+ * (`getTreeCanvasBackgroundStyle` in treeStudioConfig.ts).
  */
 export function getLineageCanvasBackdropStyle(
   backdropId: LineageBackdropId,
   theme: LineageThemePalette
 ): React.CSSProperties {
-  const stroke = encodeURIComponent(theme.patternStrokeHex);
-  const opacity = theme.patternOpacity;
-
-  if (backdropId === 'ornate_parchment') {
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'><g fill='none' stroke='${stroke}' stroke-opacity='${opacity}' stroke-width='0.9'><path d='M36 4 L44 28 L68 36 L44 44 L36 68 L28 44 L4 36 L28 28 Z'/><circle cx='36' cy='36' r='10'/><path d='M0 0 L12 12 M72 0 L60 12 M0 72 L12 60 M72 72 L60 60'/></g></svg>`;
-    return {
-      backgroundColor: theme.canvasBg,
-      backgroundImage: `url("data:image/svg+xml,${svg}"), ${theme.canvasBgGradient}`,
-      backgroundSize: '72px 72px, 100% 100%',
-    };
-  }
-
-  if (backdropId === 'soft_geometric') {
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><g fill='none' stroke='${stroke}' stroke-opacity='${opacity}' stroke-width='0.75'><path d='M20 0 L40 20 L20 40 L0 20 Z'/><circle cx='20' cy='20' r='2'/></g></svg>`;
-    return {
-      backgroundColor: theme.canvasBg,
-      backgroundImage: `url("data:image/svg+xml,${svg}"), ${theme.canvasBgGradient}`,
-      backgroundSize: '40px 40px, 100% 100%',
-    };
-  }
-
-  // clean_marble
-  return {
-    backgroundColor: theme.canvasBg,
-    backgroundImage: theme.isDark
-      ? 'radial-gradient(ellipse at 20% 10%, rgba(228,191,105,0.08), transparent 55%), radial-gradient(ellipse at 85% 90%, rgba(120,165,230,0.07), transparent 50%), ' +
-        theme.canvasBgGradient
-      : 'radial-gradient(ellipse at 18% 12%, rgba(255,255,255,0.85), transparent 55%), radial-gradient(ellipse at 84% 85%, rgba(212,175,55,0.07), transparent 52%), ' +
-        theme.canvasBgGradient,
-  };
+  const treeTheme =
+    TREE_CARD_THEMES[theme.id] || TREE_CARD_THEMES.diriyah_oasis;
+  return getTreeCanvasBackgroundStyle(
+    treeTheme,
+    normalizeLineageBackdropId(backdropId)
+  );
 }
 
 // ============================================================================
@@ -874,22 +729,11 @@ export function normalizeLineageStudioPrefs(
       ? raw.direction
       : DEFAULT_LINEAGE_STUDIO_PREFS.direction;
 
-  const themeId: LineageThemeId =
-    raw.themeId && raw.themeId in LINEAGE_THEMES
-      ? raw.themeId
-      : DEFAULT_LINEAGE_STUDIO_PREFS.themeId;
-
-  const fontId: LineageFontId =
-    raw.fontId && raw.fontId in LINEAGE_FONTS
-      ? raw.fontId
-      : DEFAULT_LINEAGE_STUDIO_PREFS.fontId;
-
-  const backdropId: LineageBackdropId =
-    raw.backdropId === 'ornate_parchment' ||
-    raw.backdropId === 'soft_geometric' ||
-    raw.backdropId === 'clean_marble'
-      ? raw.backdropId
-      : DEFAULT_LINEAGE_STUDIO_PREFS.backdropId;
+  const themeId = normalizeLineageThemeId(raw.themeId as string | undefined);
+  const fontId = normalizeLineageFontId(raw.fontId as string | undefined);
+  const backdropId = normalizeLineageBackdropId(
+    raw.backdropId as string | undefined
+  );
 
   return {
     viewMode,

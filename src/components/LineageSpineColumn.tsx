@@ -49,16 +49,28 @@ import {
 } from './HeritageNodeAvatar';
 import { OfficialBrandedExportModal } from './OfficialBrandedExportModal';
 import { ExportPosterOptions } from '../utils/brandedExport';
-import { DEFAULT_POSTER_SETTINGS } from '../utils/treeStudioConfig';
+import {
+  DEFAULT_POSTER_SETTINGS,
+  JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+  SharedVisualSyncEventDetail,
+  TreeDisplaySettings,
+  dispatchSharedVisualAppearanceSync,
+  normalizeTreeDisplaySettings,
+  readSharedTreeDisplaySettingsFromLocal,
+  readSharedVisualAppearanceFromLocal,
+  writeSharedTreeDisplaySettingsToLocal,
+} from '../utils/treeStudioConfig';
 import {
   DEFAULT_STARTER_VAULT_FOLDERS,
   DIRECT_FAMILY_VAULT_NODE_ID,
   FamilyVaultMediaItem,
   VaultFolderRecord,
   fetchUserLineageStudioPrefsFromFirebase,
+  fetchUserTreeDisplaySettingsFromFirebase,
   fetchUserVaultArchive,
   readVaultArchiveFromLocal,
   saveUserLineageStudioPrefsToFirebase,
+  saveUserTreeDisplaySettingsToFirebase,
   saveUserVaultArchive,
 } from '../services/firestoreService';
 import {
@@ -332,9 +344,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // STUDIO PREFERENCES (4 View Modes, Direction, 5 Themes, 3 Fonts, 3 Backdrops)
   // Auto-saved to localStorage & Firestore workspace profile
   // ============================================================================
-  const [studioPrefs, setStudioPrefs] = useState<LineageStudioPrefs>(() =>
-    loadLineageStudioPrefsFromLocal(userId)
-  );
+  const [studioPrefs, setStudioPrefs] = useState<LineageStudioPrefs>(() => {
+    const localLineage = loadLineageStudioPrefsFromLocal(userId);
+    const sharedVisual = readSharedVisualAppearanceFromLocal(
+      userId,
+      result.familyName
+    );
+    if (!sharedVisual) return localLineage;
+    return normalizeLineageStudioPrefs({
+      ...localLineage,
+      themeId: sharedVisual.cardTheme,
+      fontId: sharedVisual.fontFamily,
+      backdropId: sharedVisual.canvasBackground,
+    });
+  });
   const [isCustomizerOpen, setIsCustomizerOpen] = useState<boolean>(false);
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -343,25 +366,91 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   const panoramicScrollRef = useRef<HTMLDivElement | null>(null);
   const canvasTopRef = useRef<HTMLDivElement | null>(null);
 
-  // Sync preferences from cloud on mount/user change
+  // Sync preferences from unified cloud Single Source of Truth on mount/user change
   useEffect(() => {
     const localLoaded = loadLineageStudioPrefsFromLocal(userId);
-    setStudioPrefs(localLoaded);
+    const sharedLocal = readSharedVisualAppearanceFromLocal(
+      userId,
+      result.familyName
+    );
+    const mergedInitial = normalizeLineageStudioPrefs(
+      sharedLocal
+        ? {
+            ...localLoaded,
+            themeId: sharedLocal.cardTheme,
+            fontId: sharedLocal.fontFamily,
+            backdropId: sharedLocal.canvasBackground,
+          }
+        : localLoaded
+    );
+    setStudioPrefs(mergedInitial);
     if (!userId || isResearcherDirectPreview) return;
     let mounted = true;
-    fetchUserLineageStudioPrefsFromFirebase<Partial<LineageStudioPrefs>>(
-      userId,
-      userEmail
-    ).then((cloudPrefs) => {
-      if (!mounted || !cloudPrefs) return;
-      const normalized = normalizeLineageStudioPrefs(cloudPrefs);
-      setStudioPrefs(normalized);
-      saveLineageStudioPrefsToLocal(userId, normalized);
+    Promise.all([
+      fetchUserLineageStudioPrefsFromFirebase<Partial<LineageStudioPrefs>>(
+        userId,
+        userEmail
+      ).catch(() => null),
+      fetchUserTreeDisplaySettingsFromFirebase<Partial<TreeDisplaySettings>>(
+        userId,
+        userEmail
+      ).catch(() => null),
+    ]).then(([cloudLineagePrefs, cloudTreeDisplay]) => {
+      if (!mounted) return;
+      if (!cloudLineagePrefs && !cloudTreeDisplay) return;
+      const baseLineage = cloudLineagePrefs
+        ? normalizeLineageStudioPrefs(cloudLineagePrefs)
+        : mergedInitial;
+      if (cloudTreeDisplay) {
+        const normalizedTree = normalizeTreeDisplaySettings(cloudTreeDisplay);
+        const synced = normalizeLineageStudioPrefs({
+          ...baseLineage,
+          themeId: normalizedTree.cardTheme,
+          fontId: normalizedTree.fontFamily,
+          backdropId: normalizedTree.canvasBackground,
+        });
+        setStudioPrefs(synced);
+        saveLineageStudioPrefsToLocal(userId, synced);
+        writeSharedTreeDisplaySettingsToLocal(
+          userId,
+          result.familyName,
+          normalizedTree
+        );
+      } else {
+        setStudioPrefs(baseLineage);
+        saveLineageStudioPrefsToLocal(userId, baseLineage);
+      }
     });
     return () => {
       mounted = false;
     };
-  }, [userId, userEmail, isResearcherDirectPreview]);
+  }, [userId, userEmail, result.familyName, isResearcherDirectPreview]);
+
+  // Listen to real-time visual theme/font/backdrop updates from «شجرتي»
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleVisualSync = (evt: Event) => {
+      const detail = (evt as CustomEvent<SharedVisualSyncEventDetail>).detail;
+      if (!detail || detail.source === 'lineage') return;
+      if (detail.userId && userId && detail.userId !== userId) return;
+      setStudioPrefs((prev) => {
+        const next = normalizeLineageStudioPrefs({
+          ...prev,
+          themeId: detail.appearance.cardTheme,
+          fontId: detail.appearance.fontFamily,
+          backdropId: detail.appearance.canvasBackground,
+        });
+        saveLineageStudioPrefsToLocal(userId, next);
+        return next;
+      });
+    };
+    window.addEventListener(JUTHORI_SHARED_VISUAL_SYNC_EVENT, handleVisualSync);
+    return () =>
+      window.removeEventListener(
+        JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+        handleVisualSync
+      );
+  }, [userId]);
 
   // Escape key exits Majlis Fullscreen Mode
   useEffect(() => {
@@ -379,6 +468,49 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     setStudioPrefs((prev) => {
       const next = normalizeLineageStudioPrefs({ ...prev, ...patch });
       saveLineageStudioPrefsToLocal(userId, next);
+
+      const visualChanged =
+        patch.themeId !== undefined ||
+        patch.fontId !== undefined ||
+        patch.backdropId !== undefined;
+
+      if (visualChanged) {
+        const currentTreeSettings = readSharedTreeDisplaySettingsFromLocal(
+          userId,
+          result.familyName
+        );
+        const syncedTreeSettings = normalizeTreeDisplaySettings({
+          ...currentTreeSettings,
+          cardTheme: next.themeId,
+          fontFamily: next.fontId,
+          canvasBackground: next.backdropId,
+        });
+        writeSharedTreeDisplaySettingsToLocal(
+          userId,
+          result.familyName,
+          syncedTreeSettings
+        );
+        dispatchSharedVisualAppearanceSync({
+          source: 'lineage',
+          userId,
+          familyName: result.familyName,
+          appearance: {
+            cardTheme: syncedTreeSettings.cardTheme,
+            fontFamily: syncedTreeSettings.fontFamily,
+            canvasBackground: syncedTreeSettings.canvasBackground,
+          },
+          displaySettings: syncedTreeSettings,
+        });
+        if (userId && !isResearcherDirectPreview) {
+          saveUserTreeDisplaySettingsToFirebase(
+            userId,
+            result.familyName,
+            syncedTreeSettings as unknown as Record<string, unknown>,
+            userEmail
+          ).catch(() => {});
+        }
+      }
+
       if (userId && !isResearcherDirectPreview) {
         saveUserLineageStudioPrefsToFirebase(
           userId,

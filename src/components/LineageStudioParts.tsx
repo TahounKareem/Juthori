@@ -183,15 +183,16 @@ const COMPACT_VIEW_MODE_LABELS: Record<LineageViewMode, string> = {
 };
 
 const COMPACT_FONT_LABELS: Record<LineageFontId, string> = {
-  amiri: 'نسخ أميري',
-  classical: 'كلاسيكي',
-  modern: 'عصري',
+  amiri: 'النسخ (Amiri)',
+  noto_naskh: 'كلاسيكي وقور',
+  cairo_modern: 'حديث (Cairo)',
+  ruqaa_festive: 'رقعة احتفالي',
 };
 
 const COMPACT_BACKDROP_LABELS: Record<LineageBackdropId, string> = {
-  ornate_parchment: 'رقّ تراثي',
-  soft_geometric: 'نقش هندسي',
-  clean_marble: 'صافي',
+  parchment: 'رقّ تراثي',
+  dots: 'نقاط هندسية',
+  marble: 'رخامي صافي',
 };
 
 interface LineageCustomizationPanelProps {
@@ -383,20 +384,20 @@ export const LineageCustomizationPanel: React.FC<
           aria-hidden="true"
         />
 
-        {/* 5 Dual-Tone Theme Color Swatch Circles */}
+        {/* 10 Unified Museum Theme Color Swatch Circles (Synced 1:1 with شجرتي) */}
         <div
-          className="inline-flex items-center gap-2 shrink-0"
+          className="inline-flex flex-wrap items-center gap-2"
           role="group"
-          aria-label="الهوية اللونية"
+          aria-label="الهوية اللونية الموحدة"
         >
           <span
-            className="text-[11px] font-display font-bold inline-flex items-center gap-1"
+            className="text-[11px] font-display font-bold inline-flex items-center gap-1 shrink-0"
             style={{ color: theme.textMutedHex }}
           >
             <Palette className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
             <span>الثيم</span>
           </span>
-          <div className="inline-flex items-center gap-1.5">
+          <div className="inline-flex flex-wrap items-center gap-1.5">
             {(Object.keys(LINEAGE_THEMES) as LineageThemeId[]).map((tId) => {
               const t = LINEAGE_THEMES[tId];
               const active = prefs.themeId === tId;
@@ -404,20 +405,20 @@ export const LineageCustomizationPanel: React.FC<
                 <button
                   key={tId}
                   type="button"
-                  title={t.label}
+                  title={`${t.label} — ${t.subtitle}`}
                   aria-label={t.label}
                   data-testid={`lineage-theme-${tId}`}
                   onClick={() => onUpdatePrefs({ themeId: tId })}
                   className="relative w-7 h-7 rounded-full inline-flex items-center justify-center transition-transform duration-150 hover:scale-105 cursor-pointer shrink-0"
                   style={{
-                    background: `linear-gradient(135deg, ${t.swatchPrimary} 52%, ${t.swatchGold} 48%)`,
+                    background: `linear-gradient(135deg, ${t.swatchPrimary} 0% 34%, ${t.swatchSecondary} 34% 70%, ${t.swatchGold} 70% 100%)`,
                     boxShadow: active
                       ? `0 0 0 2px ${theme.surfaceBg}, 0 0 0 4px ${theme.goldHex}`
-                      : 'inset 0 0 0 1px rgba(0,0,0,0.16)',
+                      : 'inset 0 0 0 1px rgba(0,0,0,0.18)',
                   }}
                 >
                   {active && (
-                    <span className="w-3.5 h-3.5 rounded-full bg-white/90 text-[#2C1E14] flex items-center justify-center shadow-2xs">
+                    <span className="w-3.5 h-3.5 rounded-full bg-white/95 text-[#2C1E14] flex items-center justify-center shadow-2xs">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </span>
                   )}
@@ -433,9 +434,9 @@ export const LineageCustomizationPanel: React.FC<
           aria-hidden="true"
         />
 
-        {/* 3 Compact Arabic Font Pills */}
+        {/* 4 Unified Arabic Font Pills (Synced 1:1 with شجرتي) */}
         <div
-          className="inline-flex items-center gap-1 shrink-0"
+          className="inline-flex flex-wrap items-center gap-1"
           role="group"
           aria-label="الخط العربي"
         >

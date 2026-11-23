@@ -1347,6 +1347,157 @@ export function buildDeterministicQrMatrix(
   return grid;
 }
 
+export const TREE_CANVAS_BACKGROUND_OPTIONS: Array<{
+  id: TreeCanvasBackground;
+  label: string;
+  shortLabel: string;
+}> = [
+  { id: 'parchment', label: 'رقّ مخطوطة تراثي', shortLabel: 'رقّ تراثي' },
+  { id: 'dots', label: 'نقاط هندسية ناعمة', shortLabel: 'نقاط هندسية' },
+  { id: 'marble', label: 'رخامي صافي', shortLabel: 'رخامي صافي' },
+];
+
+export interface SharedVisualAppearance {
+  cardTheme: TreeCardThemeId;
+  fontFamily: TreeArabicFontId;
+  canvasBackground: TreeCanvasBackground;
+}
+
+export interface SharedVisualSyncEventDetail {
+  source: 'lineage' | 'tree' | 'mysite';
+  userId?: string;
+  familyName?: string;
+  appearance: SharedVisualAppearance;
+  displaySettings?: TreeDisplaySettings;
+}
+
+export const JUTHORI_SHARED_VISUAL_SYNC_EVENT =
+  'juthori:shared-visual-theme-sync';
+
+const SHARED_VISUAL_APPEARANCE_PREFIX = 'juthori_shared_visual_appearance_v1';
+
+export function getTreeDisplaySettingsStorageKey(
+  userId?: string,
+  familyName?: string
+): string {
+  return `juthori_tree_display_settings_v3_${userId || 'guest'}_${
+    familyName || 'default'
+  }`;
+}
+
+export function getSharedVisualAppearanceStorageKey(userId?: string): string {
+  return `${SHARED_VISUAL_APPEARANCE_PREFIX}_${userId || 'guest'}`;
+}
+
+export function readSharedVisualAppearanceFromLocal(
+  userId?: string,
+  familyName?: string
+): SharedVisualAppearance | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const exactRaw = window.localStorage.getItem(
+      getTreeDisplaySettingsStorageKey(userId, familyName)
+    );
+    if (exactRaw) {
+      const normalized = normalizeTreeDisplaySettings(JSON.parse(exactRaw));
+      return {
+        cardTheme: normalized.cardTheme,
+        fontFamily: normalized.fontFamily,
+        canvasBackground: normalized.canvasBackground,
+      };
+    }
+    const sharedRaw = window.localStorage.getItem(
+      getSharedVisualAppearanceStorageKey(userId)
+    );
+    if (sharedRaw) {
+      const parsed = JSON.parse(sharedRaw) as Partial<SharedVisualAppearance>;
+      const normalized = normalizeTreeDisplaySettings(parsed);
+      return {
+        cardTheme: normalized.cardTheme,
+        fontFamily: normalized.fontFamily,
+        canvasBackground: normalized.canvasBackground,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function readSharedTreeDisplaySettingsFromLocal(
+  userId?: string,
+  familyName?: string
+): TreeDisplaySettings {
+  if (typeof window === 'undefined') {
+    return normalizeTreeDisplaySettings(DEFAULT_TREE_DISPLAY_SETTINGS);
+  }
+  try {
+    const exactRaw = window.localStorage.getItem(
+      getTreeDisplaySettingsStorageKey(userId, familyName)
+    );
+    const sharedRaw = window.localStorage.getItem(
+      getSharedVisualAppearanceStorageKey(userId)
+    );
+    const base = exactRaw
+      ? normalizeTreeDisplaySettings(JSON.parse(exactRaw))
+      : normalizeTreeDisplaySettings(DEFAULT_TREE_DISPLAY_SETTINGS);
+    if (!exactRaw && sharedRaw) {
+      const sharedParsed = JSON.parse(
+        sharedRaw
+      ) as Partial<SharedVisualAppearance>;
+      return normalizeTreeDisplaySettings({
+        ...base,
+        ...sharedParsed,
+      });
+    }
+    return base;
+  } catch {
+    return normalizeTreeDisplaySettings(DEFAULT_TREE_DISPLAY_SETTINGS);
+  }
+}
+
+export function writeSharedTreeDisplaySettingsToLocal(
+  userId: string | undefined,
+  familyName: string | undefined,
+  settings: TreeDisplaySettings
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const normalized = normalizeTreeDisplaySettings(settings);
+    window.localStorage.setItem(
+      getTreeDisplaySettingsStorageKey(userId, familyName),
+      JSON.stringify(normalized)
+    );
+    const appearance: SharedVisualAppearance = {
+      cardTheme: normalized.cardTheme,
+      fontFamily: normalized.fontFamily,
+      canvasBackground: normalized.canvasBackground,
+    };
+    window.localStorage.setItem(
+      getSharedVisualAppearanceStorageKey(userId),
+      JSON.stringify(appearance)
+    );
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+export function dispatchSharedVisualAppearanceSync(
+  detail: SharedVisualSyncEventDetail
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent<SharedVisualSyncEventDetail>(
+        JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+        { detail }
+      )
+    );
+  } catch {
+    // Ignore event dispatch errors in restricted contexts
+  }
+}
+
 export function getTreeCanvasBackgroundStyle(
   theme: TreeCardThemeDefinition,
   bgMode: TreeCanvasBackground

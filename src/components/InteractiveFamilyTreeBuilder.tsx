@@ -111,15 +111,21 @@ import {
 } from '../utils/familyTreeLayout';
 import {
   DEFAULT_TREE_DISPLAY_SETTINGS,
+  JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+  SharedVisualSyncEventDetail,
   TREE_CARD_THEMES,
   TreeDisplaySettings,
   TreePrestigeBadgeId,
   TreeSettingsTabId,
+  dispatchSharedVisualAppearanceSync,
   formatCardSingleCalendarVitalDates,
   getTreeArabicFontDefinition,
   getTreeCanvasBackgroundStyle,
+  getTreeDisplaySettingsStorageKey,
   normalizeTreeDisplaySettings,
+  readSharedTreeDisplaySettingsFromLocal,
   resolvePrestigeBadgeMeta,
+  writeSharedTreeDisplaySettingsToLocal,
 } from '../utils/treeStudioConfig';
 import { RadialFamilyTreeCharts } from './RadialFamilyTreeCharts';
 import { TreeStudioSideInspector } from './TreeStudioSideInspector';
@@ -224,6 +230,17 @@ export interface InteractiveTreePerson {
   referenceRankLabel?: string;
 }
 
+export interface PublicTreeMirrorConfig {
+  /** Pre-sanitized contemporary family members converted for exact read-only rendering */
+  members: InteractiveTreePerson[];
+  /** Exact saved TreeDisplaySettings from «إعدادات شجرتي» (Single Source of Truth) */
+  displaySettings: TreeDisplaySettings;
+  /** Optional compact preview height inside MySiteStudioView */
+  compactPreview?: boolean;
+  /** Optional visitor CTA to suggest adding a branch or relative */
+  onProposeEnrichment?: () => void;
+}
+
 interface InteractiveFamilyTreeBuilderProps {
   result: LineageSearchResult;
   accountType: AccountLegalType;
@@ -256,6 +273,11 @@ interface InteractiveFamilyTreeBuilderProps {
     personName: string,
     referenceRank?: string
   ) => void;
+  /** When true, opens «إعدادات شجرتي» side inspector automatically on mount */
+  initialOpenSettings?: boolean;
+  onConsumeInitialOpenSettings?: () => void;
+  /** When provided, renders the exact «شجرتي» engine in strict read-only public mirror mode */
+  publicMirrorMode?: PublicTreeMirrorConfig;
 }
 
 /**
@@ -351,7 +373,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   userEmail,
   onOpenVaultForPerson,
   onRequestReferenceCorrectionTicket,
+  initialOpenSettings = false,
+  onConsumeInitialOpenSettings,
+  publicMirrorMode,
 }) => {
+  const isPublicMirror = Boolean(publicMirrorMode);
   const effectiveMaxTreeMembers = (caps.maxTreeMembers || 250) + extraTreeCapacity;
   const formatSavedDateTime = (d: Date) =>
     d.toLocaleString('ar-SA', {
@@ -631,6 +657,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   };
 
   const [people, setPeople] = useState<InteractiveTreePerson[]>(() => {
+    if (publicMirrorMode) {
+      return publicMirrorMode.members;
+    }
     const cached = readUserFamilyTreeFromLocal<InteractiveTreePerson>(
       userId,
       userEmail,
@@ -641,6 +670,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       : buildInitialTree();
   });
 
+  // In read-only public mirror mode, keep people synced strictly with incoming sanitized members
+  useEffect(() => {
+    if (!publicMirrorMode) return;
+    setPeople(publicMirrorMode.members);
+  }, [publicMirrorMode]);
+
   const isTreeHydratedRef = useRef<boolean>(false);
   const skipNextAutoSaveRef = useRef<boolean>(false);
   const [treeSaveState, setTreeSaveState] = useState<
@@ -650,6 +685,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   // Hydrate saved tree from Firestore BEFORE enabling auto-save (prevents mount overwrite bug)
   useEffect(() => {
+    if (isPublicMirror) return;
     let active = true;
     isTreeHydratedRef.current = false;
     setTreeSaveState('loading');
@@ -714,11 +750,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     return () => {
       active = false;
     };
-  }, [userId, userEmail, result.familyName]);
+  }, [isPublicMirror, userId, userEmail, result.familyName]);
 
   // Sync Record Keeper photoUrl when user uploads a new profile avatar
   useEffect(() => {
-    if (!userAvatarUrl) return;
+    if (isPublicMirror || !userAvatarUrl) return;
     setPeople((prev) =>
       prev.map((node) =>
         node.isRecordKeeper && node.photoUrl !== userAvatarUrl
@@ -726,10 +762,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           : node
       )
     );
-  }, [userAvatarUrl]);
+  }, [isPublicMirror, userAvatarUrl]);
 
   // Persist family tree nodes to Firebase + Local Cache and sync with خزانتي (`juthori:tree-updated`) whenever modified
   useEffect(() => {
+    if (isPublicMirror) return;
     if (people.length > 0 && typeof window !== 'undefined') {
       try {
         const syncKey = getTreeStorageKeyForVaultSync(userId, result.familyName);
@@ -850,6 +887,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   }, [userId, result.familyName]);
 
   useEffect(() => {
+    if (isPublicMirror) return;
     let mounted = true;
     fetchUserVaultArchive(userId, result.familyName, userEmail).then((archive) => {
       if (!mounted) return;
@@ -881,14 +919,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // COLLAPSIBLE «إعدادات شجرتي» 4-TAB STUDIO PREFERENCES (Local + Firestore Sync)
   // ============================================================================
   const treeDisplaySettingsStorageKey = useMemo(
-    () =>
-      `juthori_tree_display_settings_v3_${userId || 'guest'}_${
-        result.familyName || 'default'
-      }`,
+    () => getTreeDisplaySettingsStorageKey(userId, result.familyName),
     [userId, result.familyName]
   );
 
-  const [isTreeSettingsOpen, setIsTreeSettingsOpen] = useState(false);
+  const [isTreeSettingsOpen, setIsTreeSettingsOpen] = useState(
+    () => !isPublicMirror && Boolean(initialOpenSettings)
+  );
   const [activeSettingsTab, setActiveSettingsTab] =
     useState<TreeSettingsTabId>('layout');
   const [settingsSyncStatus, setSettingsSyncStatus] = useState<
@@ -920,6 +957,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
   const spotlightTimerRef = useRef<number | null>(null);
   const hasHydratedCloudSettingsRef = useRef(false);
+  const skipNextVisualBroadcastRef = useRef(false);
+
+  // Open «إعدادات شجرتي» drawer directly when navigated from «موقعي» shortcut
+  useEffect(() => {
+    if (isPublicMirror || !initialOpenSettings) return;
+    setIsTreeSettingsOpen(true);
+    onConsumeInitialOpenSettings?.();
+  }, [isPublicMirror, initialOpenSettings, onConsumeInitialOpenSettings]);
 
   // Escape key exits Fullscreen Cinema Mode gracefully
   useEffect(() => {
@@ -943,22 +988,48 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   const [treeDisplaySettings, setTreeDisplaySettings] =
     useState<TreeDisplaySettings>(() => {
-      if (typeof window === 'undefined') {
-        return normalizeTreeDisplaySettings(DEFAULT_TREE_DISPLAY_SETTINGS);
+      if (publicMirrorMode) {
+        return normalizeTreeDisplaySettings(publicMirrorMode.displaySettings);
       }
-      try {
-        const raw = window.localStorage.getItem(treeDisplaySettingsStorageKey);
-        if (!raw) {
-          return normalizeTreeDisplaySettings(DEFAULT_TREE_DISPLAY_SETTINGS);
-        }
-        return normalizeTreeDisplaySettings(JSON.parse(raw));
-      } catch {
-        return normalizeTreeDisplaySettings(DEFAULT_TREE_DISPLAY_SETTINGS);
-      }
+      return readSharedTreeDisplaySettingsFromLocal(userId, result.familyName);
     });
+
+  // In read-only public mirror mode, strictly mirror the saved «إعدادات شجرتي»
+  useEffect(() => {
+    if (!publicMirrorMode) return;
+    setTreeDisplaySettings(
+      normalizeTreeDisplaySettings(publicMirrorMode.displaySettings)
+    );
+  }, [publicMirrorMode]);
+
+  // Listen to real-time theme/font/backdrop changes from «عمود نسبي»
+  useEffect(() => {
+    if (isPublicMirror || typeof window === 'undefined') return;
+    const handleVisualSync = (evt: Event) => {
+      const detail = (evt as CustomEvent<SharedVisualSyncEventDetail>).detail;
+      if (!detail || detail.source === 'tree') return;
+      if (detail.userId && userId && detail.userId !== userId) return;
+      skipNextVisualBroadcastRef.current = true;
+      setTreeDisplaySettings((prev) =>
+        normalizeTreeDisplaySettings({
+          ...prev,
+          cardTheme: detail.appearance.cardTheme,
+          fontFamily: detail.appearance.fontFamily,
+          canvasBackground: detail.appearance.canvasBackground,
+        })
+      );
+    };
+    window.addEventListener(JUTHORI_SHARED_VISUAL_SYNC_EVENT, handleVisualSync);
+    return () =>
+      window.removeEventListener(
+        JUTHORI_SHARED_VISUAL_SYNC_EVENT,
+        handleVisualSync
+      );
+  }, [isPublicMirror, userId]);
 
   // Hydrate saved studio settings from Firestore so preferences persist across devices
   useEffect(() => {
+    if (isPublicMirror) return;
     let active = true;
     if (!userId && !userEmail) {
       hasHydratedCloudSettingsRef.current = true;
@@ -972,7 +1043,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         if (!active) return;
         if (cloudSettings) {
           const normalized = normalizeTreeDisplaySettings(cloudSettings);
+          skipNextVisualBroadcastRef.current = true;
           setTreeDisplaySettings(normalized);
+          writeSharedTreeDisplaySettingsToLocal(
+            userId,
+            result.familyName,
+            normalized
+          );
           setSettingsSyncStatus('synced');
         }
         hasHydratedCloudSettingsRef.current = true;
@@ -983,19 +1060,31 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     return () => {
       active = false;
     };
-  }, [userId, userEmail]);
+  }, [isPublicMirror, userId, userEmail, result.familyName]);
 
-  // Immediate localStorage persistence + debounced Firestore cloud auto-save
+  // Immediate localStorage persistence + real-time cross-view sync + debounced Firestore cloud auto-save
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(
-          treeDisplaySettingsStorageKey,
-          JSON.stringify(treeDisplaySettings)
-        );
-      } catch {
-        // Ignore storage quota errors
-      }
+    if (isPublicMirror) return;
+    writeSharedTreeDisplaySettingsToLocal(
+      userId,
+      result.familyName,
+      treeDisplaySettings
+    );
+
+    if (skipNextVisualBroadcastRef.current) {
+      skipNextVisualBroadcastRef.current = false;
+    } else {
+      dispatchSharedVisualAppearanceSync({
+        source: 'tree',
+        userId,
+        familyName: result.familyName,
+        appearance: {
+          cardTheme: treeDisplaySettings.cardTheme,
+          fontFamily: treeDisplaySettings.fontFamily,
+          canvasBackground: treeDisplaySettings.canvasBackground,
+        },
+        displaySettings: treeDisplaySettings,
+      });
     }
 
     if (!userId && !userEmail) return;
@@ -1019,6 +1108,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     return () => window.clearTimeout(timer);
   }, [
+    isPublicMirror,
     treeDisplaySettingsStorageKey,
     treeDisplaySettings,
     userId,
@@ -4117,6 +4207,30 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           ? 'w-9 h-9'
           : 'w-11 h-11';
 
+      if (isPublicMirror) {
+        return (
+          <div
+            className={`relative ${boxSizeClass} rounded-full shrink-0 overflow-hidden flex items-center justify-center`}
+            style={{
+              boxShadow: `0 0 0 1.5px ${avatarFrameHex}99`,
+            }}
+          >
+            <HeritageNodeAvatar
+              personRole={avatarPersonRole}
+              gender={person.gender}
+              avatarStyle={treeDisplaySettings.avatarStyle}
+              customImageUrl={person.photoThumbnailUrl || person.photoUrl}
+              preferRealPhoto={treeDisplaySettings.preferRealPhotos}
+              displayName={mainName}
+              frameAccentHex={avatarFrameHex}
+              isPrivacyMasked={isMaskedNow}
+              size="md"
+              className="!w-full !h-full !border-0"
+            />
+          </div>
+        );
+      }
+
       return (
         <button
           type="button"
@@ -4162,58 +4276,59 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     // Floating Hover/Select-Only Edit & Delete Capsule
     const renderFloatingEditDeleteCapsule = (
       positionClass = 'absolute -top-2.5 -left-2 z-30'
-    ) => (
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className={`${positionClass} flex items-center gap-0.5 px-1 py-0.5 rounded-full backdrop-blur-md border shadow-xs transition-opacity duration-200 ${
-          showInteractiveControls
-            ? 'opacity-100 pointer-events-auto'
-            : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
-        } ${
-          isDark
-            ? 'bg-[#26201A]/95 border-[#D4AF37]/45'
-            : 'bg-white/95 border-[#D6C3A5]/80'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => openEditPersonModal(person)}
-          title={
-            isRecordKeeperCharterSigned
-              ? 'تعديل بيانات الفرد'
-              : 'يلزم التوقيع على ميثاق أمين السجل لتعديل السجلات'
-          }
-          aria-label={`تعديل ${person.firstName}`}
-          className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+    ) =>
+      isPublicMirror ? null : (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`${positionClass} flex items-center gap-0.5 px-1 py-0.5 rounded-full backdrop-blur-md border shadow-xs transition-opacity duration-200 ${
+            showInteractiveControls
+              ? 'opacity-100 pointer-events-auto'
+              : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
+          } ${
             isDark
-              ? 'text-[#F3D299] hover:bg-[#D4AF37]/25'
-              : 'text-[#6F584B] hover:bg-[#F5ECE0] hover:text-[#8D4925]'
+              ? 'bg-[#26201A]/95 border-[#D4AF37]/45'
+              : 'bg-white/95 border-[#D6C3A5]/80'
           }`}
         >
-          <Edit2 className="w-2.5 h-2.5" />
-        </button>
-        {!person.isRecordKeeper && (
           <button
             type="button"
-            data-testid={`delete-tree-node-btn-${person.id}`}
-            onClick={() => handleDeleteNode(person)}
-            title="حذف العقدة"
-            aria-label={`حذف ${person.firstName}`}
+            onClick={() => openEditPersonModal(person)}
+            title={
+              isRecordKeeperCharterSigned
+                ? 'تعديل بيانات الفرد'
+                : 'يلزم التوقيع على ميثاق أمين السجل لتعديل السجلات'
+            }
+            aria-label={`تعديل ${person.firstName}`}
             className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
               isDark
-                ? 'text-[#D6C4A1]/80 hover:bg-red-900/60 hover:text-red-200'
-                : 'text-[#6F584B]/80 hover:bg-red-50 hover:text-red-700'
+                ? 'text-[#F3D299] hover:bg-[#D4AF37]/25'
+                : 'text-[#6F584B] hover:bg-[#F5ECE0] hover:text-[#8D4925]'
             }`}
           >
-            <Trash2 className="w-2.5 h-2.5" />
+            <Edit2 className="w-2.5 h-2.5" />
           </button>
-        )}
-      </div>
-    );
+          {!person.isRecordKeeper && (
+            <button
+              type="button"
+              data-testid={`delete-tree-node-btn-${person.id}`}
+              onClick={() => handleDeleteNode(person)}
+              title="حذف العقدة"
+              aria-label={`حذف ${person.firstName}`}
+              className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                isDark
+                  ? 'text-[#D6C4A1]/80 hover:bg-red-900/60 hover:text-red-200'
+                  : 'text-[#6F584B]/80 hover:bg-red-50 hover:text-red-700'
+              }`}
+            >
+              <Trash2 className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </div>
+      );
 
     // Miniature Gilded Vault Attachment Pill (for Zone 3 Pedestal & Compact Shapes)
     const renderInlineVaultBadge = () =>
-      personMediaCount > 0 ? (
+      !isPublicMirror && personMediaCount > 0 ? (
         <button
           type="button"
           data-testid={`tree-card-vault-badge-${person.id}`}
@@ -4236,7 +4351,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const renderPlusNodeButton = (
       wrapperClass = 'absolute -bottom-[11px] left-1/2 -translate-x-1/2 z-30'
     ) =>
-      !isVerticalOnlyLink ? (
+      !isPublicMirror && !isVerticalOnlyLink ? (
         <div
           className={`${wrapperClass} transition-opacity duration-200 ${
             showInteractiveControls
@@ -4697,27 +4812,39 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 </div>
 
                 {/* Pedestal Left: Documentation Richness Badges (Vault Count + Biography Scroll) */}
-                {(personMediaCount > 0 || hasBiography) && (
+                {((!isPublicMirror && personMediaCount > 0) || hasBiography) && (
                   <div className="flex items-center gap-1 shrink-0">
                     {renderInlineVaultBadge()}
-                    {hasBiography && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditPersonModal(person);
-                        }}
-                        title="سيرة ذاتية موثقة — انقر للاستعراض"
-                        aria-label={`سيرة ذاتية موثقة لـ ${person.firstName}`}
-                        className={`inline-flex items-center justify-center w-[19px] h-[17px] rounded-md border transition-colors cursor-pointer ${
-                          isDark
-                            ? 'bg-[#D4AF37]/12 hover:bg-[#D4AF37]/25 border-[#D4AF37]/40 text-[#EBD08A]'
-                            : 'bg-[#FFFDF7] hover:bg-[#F7E8C3] border-[#D4AF37]/45 text-[#8A5616]'
-                        }`}
-                      >
-                        <ScrollText className="w-2.5 h-2.5" />
-                      </button>
-                    )}
+                    {hasBiography &&
+                      (isPublicMirror ? (
+                        <span
+                          title={person.biography || 'سيرة ذاتية موثقة'}
+                          className={`inline-flex items-center justify-center w-[19px] h-[17px] rounded-md border ${
+                            isDark
+                              ? 'bg-[#D4AF37]/12 border-[#D4AF37]/40 text-[#EBD08A]'
+                              : 'bg-[#FFFDF7] border-[#D4AF37]/45 text-[#8A5616]'
+                          }`}
+                        >
+                          <ScrollText className="w-2.5 h-2.5" />
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditPersonModal(person);
+                          }}
+                          title="سيرة ذاتية موثقة — انقر للاستعراض"
+                          aria-label={`سيرة ذاتية موثقة لـ ${person.firstName}`}
+                          className={`inline-flex items-center justify-center w-[19px] h-[17px] rounded-md border transition-colors cursor-pointer ${
+                            isDark
+                              ? 'bg-[#D4AF37]/12 hover:bg-[#D4AF37]/25 border-[#D4AF37]/40 text-[#EBD08A]'
+                              : 'bg-[#FFFDF7] hover:bg-[#F7E8C3] border-[#D4AF37]/45 text-[#8A5616]'
+                          }`}
+                        >
+                          <ScrollText className="w-2.5 h-2.5" />
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
@@ -4733,7 +4860,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         {/* ================================================================== */}
         {/* RADIAL NODE QUICK-SELECTOR OVERLAY (من الجد الخامس نزولاً فقط)        */}
         {/* ================================================================== */}
-        {isRadialOpen &&
+        {!isPublicMirror &&
+          isRadialOpen &&
           !isVerticalOnlyLink &&
           (() => {
             const quickPolicy = resolveNodeQuickActionPolicy(people, person);
@@ -5193,8 +5321,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     // Interactive Golden Marital Ring Medallion (`💍`) with quick-add child strictly from THIS couple union
     const renderMaritalRingMedallion = (spouse: InteractiveTreePerson) => {
       const unionKey = `${person.id}::${spouse.id}`;
-      const isQuickOpen = activeUnionQuickAddKey === unionKey;
-      const canAddFromUnion = !isVerticalOnlyZone && person.gender === 'male';
+      const isQuickOpen = !isPublicMirror && activeUnionQuickAddKey === unionKey;
+      const canAddFromUnion =
+        !isPublicMirror && !isVerticalOnlyZone && person.gender === 'male';
       return (
         <div className="relative flex items-center justify-center z-30">
           <button
@@ -5940,7 +6069,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               );
             })()
           )
-        ) : children.length === 0 && person.isRecordKeeper ? (
+        ) : !isPublicMirror && children.length === 0 && person.isRecordKeeper ? (
           /* Quiet quick-add action directly beneath Record Keeper when no children exist yet */
           <div className="flex flex-col items-center">
             <div className="w-[2px] h-6 border-r-2 border-dashed border-[#B98A78]/75" />
@@ -6188,7 +6317,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             )}
 
           {/* Quiet quick-add buttons cleanly beneath Record Keeper when he has no children yet */}
-          {person.isRecordKeeper && children.length === 0 && (
+          {!isPublicMirror && person.isRecordKeeper && children.length === 0 && (
             <div className="mt-2 flex items-center gap-1.5">
               <button
                 type="button"
@@ -6301,220 +6430,28 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   return (
     <div className="w-full space-y-3.5 text-right">
-      {/* Hidden JSON Backup Import Input */}
-      <input
-        ref={jsonImportInputRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={handleImportTreeJsonFile}
-      />
+      {!isPublicMirror && (
+        <>
+          {/* Hidden JSON Backup Import Input */}
+          <input
+            ref={jsonImportInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleImportTreeJsonFile}
+          />
 
-      {/* ==================================================================== */}
-      {/* 1. UNIFIED WORKSPACE HEADER (Zero Layout Shift across all 6 pages)  */}
-      {/* ==================================================================== */}
-      <UnifiedWorkspaceHeader
-        testId="tree-unified-header"
-        icon={<TreePine className="w-5 h-5" />}
-        title={`شجرة عائلة ${result.familyName}`}
-        centerSlot={
-          <div className="inline-flex items-center gap-1.5">
-            <TreeFloatingStudioDock
-              variant="header"
-              zoomPercent={zoomPercent}
-              onZoomIn={handleManualZoomIn}
-              onZoomOut={handleManualZoomOut}
-              onResetZoom={handleManualResetZoom}
-              onFitAndCenter={handleFitAndCenterCanvas}
-              isAutoFitActive={isAutoFitMode}
-              isCinemaMode={isCinemaMode}
-              onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
-              showMinimap={showMinimap}
-              onToggleMinimap={() => setShowMinimap((v) => !v)}
-              isDarkSurface={activeTreeTheme.isDarkSurface}
-            />
-
-            <TreeSmartNodeSearch
-              expandable
-              people={visiblePeopleForTree}
-              onSelectPerson={handleSpotlightPerson}
-            />
-          </div>
-        }
-        actions={
-          <>
-            {/* Compact Share / Invite Family Icon */}
-            <button
-              type="button"
-              data-testid="invite-family-icon-btn"
-              onClick={() => {
-                setCopiedInviteLink(false);
-                setShowInviteFamilyModal(true);
-              }}
-              title="مشاركة ودعوة العائلة"
-              aria-label="مشاركة ودعوة العائلة"
-              className={WORKSPACE_ICON_BTN_CLASS}
-            >
-              <UserPlus className="w-4 h-4 shrink-0" />
-            </button>
-
-            {/* Secondary: Kinship Calculator */}
-            <button
-              type="button"
-              data-testid="open-kinship-calculator-btn"
-              onClick={() => {
-                if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
-                  const keeper =
-                    visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
-                    visiblePeopleForTree[0];
-                  setKinshipPersonAId(keeper.id);
-                }
-                if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
-                  const other =
-                    visiblePeopleForTree.find(
-                      (p) =>
-                        p.id !==
-                        (kinshipPersonAId || visiblePeopleForTree[0]?.id)
-                    ) || visiblePeopleForTree[1];
-                  if (other) setKinshipPersonBId(other.id);
-                }
-                setShowKinshipModal(true);
-              }}
-              className={`h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                isKinshipHighlightedOnCanvas
-                  ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
-                  : 'bg-white/90 hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
-              }`}
-            >
-              <GitFork className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
-              <span>صلة القرابة ✦</span>
-            </button>
-
-            {/* Secondary: Studio Settings (Matches تخصيص المظهر position in Lineage) */}
-            <button
-              type="button"
-              data-testid="toggle-tree-settings-btn"
-              onClick={() => setIsTreeSettingsOpen((open) => !open)}
-              className={
-                isTreeSettingsOpen
-                  ? 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/55 shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0'
-                  : 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] transition-all cursor-pointer whitespace-nowrap shrink-0'
-              }
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
-              <span>إعدادات شجرتي</span>
-            </button>
-
-            {/* Primary CTA: Official Branded Tree Export & Print */}
-            <button
-              type="button"
-              data-testid="open-tree-official-export-btn"
-              onClick={() => setShowOfficialExportModal(true)}
-              className={WORKSPACE_PRIMARY_BTN_CLASS}
-            >
-              <Download className="w-4 h-4 shrink-0" />
-              <span>تصدير الشجرة</span>
-            </button>
-          </>
-        }
-      />
-
-      {/* ==================================================================== */}
-      {/* 1B. MANDATORY RECORD KEEPER CHARTER GATE BANNER                      */}
-      {/* (لا تُتاح إضافة أي عقدة أو سجل للشجرة إلا بعد التوقيع على ميثاق أمين السجل) */}
-      {/* ==================================================================== */}
-      {!isRecordKeeperCharterSigned && (
-        <div
-          data-testid="tree-charter-required-banner"
-          className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF3E6] to-[#FFF8EB] border-2 border-[#D4AF37] px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0 mt-0.5">
-              <FileSignature className="w-4 h-4" />
-            </div>
-            <div className="space-y-0.5">
-              <h3 className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
-                يلزم التوقيع على «ميثاق أمين السجل» قبل إضافة أي عقدة أو تعديل سجلات المشجرة
-              </h3>
-              <p className="text-[11px] sm:text-xs text-[#252321]/75 leading-relaxed">
-                حفاظاً على أمانة التوثيق النَّسبي، تُفعَّل صلاحية إضافة الأفراد والفروع والحلقات العمودية فور اعتماد توقيعك الإلكتروني على ميثاق أمين السجل.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            data-testid="require-charter-before-add-btn"
-            onClick={onSignCharterAndEnableTree}
-            className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors shadow-2xs"
-          >
-            <FileSignature className="w-3.5 h-3.5" />
-            <span>التوقيع على ميثاق أمين السجل وتفعيل الإضافة ←</span>
-          </button>
-        </div>
-      )}
-
-      {exportedBanner && (
-        <div className="rounded-2xl bg-[#EDE6DA] border-2 border-[#D8755B] px-5 py-3.5 flex items-center justify-between gap-3 text-xs sm:text-sm text-[#252321]">
-          <div className="flex items-center gap-2 font-bold">
-            <CheckCircle2 className="w-4 h-4 text-[#D8755B] shrink-0" />
-            <span>
-              تم تجهيز ملف شجرة عائلة {result.familyName} ({people.length} عقدة) للطباعة والحفظ.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setExportedBanner(false)}
-            className="text-xs font-bold text-[#D8755B] hover:underline cursor-pointer"
-          >
-            إغلاق
-          </button>
-        </div>
-      )}
-
-      {/* ==================================================================== */}
-      {/* 2. PREMIUM STUDIO WORKSPACE: SIDE INSPECTOR + FLOATING CANVAS HUD    */}
-      {/* ==================================================================== */}
-      <div
-        data-testid="tree-studio-workspace"
-        className={
-          isCinemaMode
-            ? 'fixed inset-0 z-[60] flex flex-col bg-[#FAF6F0] overflow-hidden'
-            : `rounded-3xl border-2 ${activeTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
-        }
-      >
-        {/* Responsive Sub-Header Bar (Visible ONLY on Tablet/Mobile <1200px or inside Fullscreen Cinema Mode) */}
-        <div
-          data-testid="tree-settings-collapsible-bar"
-          className={`px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex-wrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20 ${
-            isCinemaMode ? 'flex' : 'flex min-[1200px]:hidden'
-          }`}
-        >
-          {/* Cinema-mode controls when full-screen is active */}
-          {isCinemaMode && (
-            <>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsTreeSettingsOpen((open) => !open)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
-                    isTreeSettingsOpen
-                      ? 'bg-gradient-to-l from-[#8D4925] to-[#A65A33] text-white border-[#8D4925] shadow-xs'
-                      : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
-                  }`}
-                >
-                  <SlidersHorizontal
-                    className={`w-3.5 h-3.5 ${
-                      isTreeSettingsOpen ? 'text-[#F6DCA2]' : 'text-[#D8755B]'
-                    }`}
-                  />
-                  <span>إعدادات شجرتي</span>
-                </button>
-              </div>
-
-              <div className="hidden min-[1200px]:flex items-center justify-center flex-1 min-w-0">
+          {/* ==================================================================== */}
+          {/* 1. UNIFIED WORKSPACE HEADER (Zero Layout Shift across all 6 pages)  */}
+          {/* ==================================================================== */}
+          <UnifiedWorkspaceHeader
+            testId="tree-unified-header"
+            icon={<TreePine className="w-5 h-5" />}
+            title={`شجرة عائلة ${result.familyName}`}
+            centerSlot={
+              <div className="inline-flex items-center gap-1.5">
                 <TreeFloatingStudioDock
-                  variant="inline"
+                  variant="header"
                   zoomPercent={zoomPercent}
                   onZoomIn={handleManualZoomIn}
                   onZoomOut={handleManualZoomOut}
@@ -6527,18 +6464,267 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   onToggleMinimap={() => setShowMinimap((v) => !v)}
                   isDarkSurface={activeTreeTheme.isDarkSurface}
                 />
+
+                <TreeSmartNodeSearch
+                  expandable
+                  people={visiblePeopleForTree}
+                  onSelectPerson={handleSpotlightPerson}
+                />
               </div>
-            </>
+            }
+            actions={
+              <>
+                {/* Compact Share / Invite Family Icon */}
+                <button
+                  type="button"
+                  data-testid="invite-family-icon-btn"
+                  onClick={() => {
+                    setCopiedInviteLink(false);
+                    setShowInviteFamilyModal(true);
+                  }}
+                  title="مشاركة ودعوة العائلة"
+                  aria-label="مشاركة ودعوة العائلة"
+                  className={WORKSPACE_ICON_BTN_CLASS}
+                >
+                  <UserPlus className="w-4 h-4 shrink-0" />
+                </button>
+
+                {/* Secondary: Kinship Calculator */}
+                <button
+                  type="button"
+                  data-testid="open-kinship-calculator-btn"
+                  onClick={() => {
+                    if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
+                      const keeper =
+                        visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
+                        visiblePeopleForTree[0];
+                      setKinshipPersonAId(keeper.id);
+                    }
+                    if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
+                      const other =
+                        visiblePeopleForTree.find(
+                          (p) =>
+                            p.id !==
+                            (kinshipPersonAId || visiblePeopleForTree[0]?.id)
+                        ) || visiblePeopleForTree[1];
+                      if (other) setKinshipPersonBId(other.id);
+                    }
+                    setShowKinshipModal(true);
+                  }}
+                  className={`h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    isKinshipHighlightedOnCanvas
+                      ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
+                      : 'bg-white/90 hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
+                  }`}
+                >
+                  <GitFork className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                  <span>صلة القرابة ✦</span>
+                </button>
+
+                {/* Secondary: Studio Settings (Matches تخصيص المظهر position in Lineage) */}
+                <button
+                  type="button"
+                  data-testid="toggle-tree-settings-btn"
+                  onClick={() => setIsTreeSettingsOpen((open) => !open)}
+                  className={
+                    isTreeSettingsOpen
+                      ? 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/55 shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0'
+                      : 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] transition-all cursor-pointer whitespace-nowrap shrink-0'
+                  }
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+                  <span>إعدادات شجرتي</span>
+                </button>
+
+                {/* Primary CTA: Official Branded Tree Export & Print */}
+                <button
+                  type="button"
+                  data-testid="open-tree-official-export-btn"
+                  onClick={() => setShowOfficialExportModal(true)}
+                  className={WORKSPACE_PRIMARY_BTN_CLASS}
+                >
+                  <Download className="w-4 h-4 shrink-0" />
+                  <span>تصدير الشجرة</span>
+                </button>
+              </>
+            }
+          />
+
+          {/* ==================================================================== */}
+          {/* 1B. MANDATORY RECORD KEEPER CHARTER GATE BANNER                      */}
+          {/* ==================================================================== */}
+          {!isRecordKeeperCharterSigned && (
+            <div
+              data-testid="tree-charter-required-banner"
+              className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF3E6] to-[#FFF8EB] border-2 border-[#D4AF37] px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0 mt-0.5">
+                  <FileSignature className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                    يلزم التوقيع على «ميثاق أمين السجل» قبل إضافة أي عقدة أو تعديل سجلات المشجرة
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-[#252321]/75 leading-relaxed">
+                    حفاظاً على أمانة التوثيق النَّسبي، تُفعَّل صلاحية إضافة الأفراد والفروع والحلقات العمودية فور اعتماد توقيعك الإلكتروني على ميثاق أمين السجل.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                data-testid="require-charter-before-add-btn"
+                onClick={onSignCharterAndEnableTree}
+                className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors shadow-2xs"
+              >
+                <FileSignature className="w-3.5 h-3.5" />
+                <span>التوقيع على ميثاق أمين السجل وتفعيل الإضافة ←</span>
+              </button>
+            </div>
           )}
 
-          {/* Smart Node Search on <1200px or Cinema Mode */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto flex-1 min-w-0">
-            <TreeSmartNodeSearch
-              people={visiblePeopleForTree}
-              onSelectPerson={handleSpotlightPerson}
-            />
+          {exportedBanner && (
+            <div className="rounded-2xl bg-[#EDE6DA] border-2 border-[#D8755B] px-5 py-3.5 flex items-center justify-between gap-3 text-xs sm:text-sm text-[#252321]">
+              <div className="flex items-center gap-2 font-bold">
+                <CheckCircle2 className="w-4 h-4 text-[#D8755B] shrink-0" />
+                <span>
+                  تم تجهيز ملف شجرة عائلة {result.familyName} ({people.length} عقدة) للطباعة والحفظ.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExportedBanner(false)}
+                className="text-xs font-bold text-[#D8755B] hover:underline cursor-pointer"
+              >
+                إغلاق
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ==================================================================== */}
+      {/* 2. PREMIUM STUDIO WORKSPACE: SIDE INSPECTOR + FLOATING CANVAS HUD    */}
+      {/* ==================================================================== */}
+      <div
+        data-testid={
+          isPublicMirror ? 'public-exact-tree-mirror' : 'tree-studio-workspace'
+        }
+        className={
+          isCinemaMode
+            ? 'fixed inset-0 z-[60] flex flex-col bg-[#FAF6F0] overflow-hidden'
+            : `rounded-3xl border-2 ${activeTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
+        }
+      >
+        {/* Visitor Read-Only Mirror Toolbar (Pan/Zoom + Search + Suggest Relative) */}
+        {isPublicMirror ? (
+          <div
+            data-testid="public-mirror-tree-toolbar"
+            className={`px-3.5 py-2.5 border-b flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 transition-colors ${
+              activeTreeTheme.isDarkSurface
+                ? 'bg-[#1D1915]/95 border-[#D4AF37]/30 text-[#FAF3E3]'
+                : 'bg-[#FFFDF9]/95 border-[#E2D5BE] text-[#252321]'
+            }`}
+          >
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[200px]">
+              <TreeSmartNodeSearch
+                people={visiblePeopleForTree}
+                onSelectPerson={handleSpotlightPerson}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <TreeFloatingStudioDock
+                variant="header"
+                zoomPercent={zoomPercent}
+                onZoomIn={handleManualZoomIn}
+                onZoomOut={handleManualZoomOut}
+                onResetZoom={handleManualResetZoom}
+                onFitAndCenter={handleFitAndCenterCanvas}
+                isAutoFitActive={isAutoFitMode}
+                isCinemaMode={isCinemaMode}
+                onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+                showMinimap={showMinimap}
+                onToggleMinimap={() => setShowMinimap((v) => !v)}
+                isDarkSurface={activeTreeTheme.isDarkSurface}
+              />
+
+              {publicMirrorMode?.onProposeEnrichment && (
+                <button
+                  type="button"
+                  data-testid="public-mirror-propose-branch-btn"
+                  onClick={publicMirrorMode.onProposeEnrichment}
+                  className="h-9 px-3.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-2xs whitespace-nowrap"
+                  style={{
+                    backgroundColor: activeTreeTheme.primaryHex,
+                    color: activeTreeTheme.isDarkSurface ? '#181614' : '#FFFDF9',
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
+                  <span>اقترح إضافة فرع أو قريب</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Responsive Sub-Header Bar (Visible ONLY on Tablet/Mobile <1200px or inside Fullscreen Cinema Mode) */
+          <div
+            data-testid="tree-settings-collapsible-bar"
+            className={`px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex-wrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20 ${
+              isCinemaMode ? 'flex' : 'flex min-[1200px]:hidden'
+            }`}
+          >
+            {/* Cinema-mode controls when full-screen is active */}
+            {isCinemaMode && (
+              <>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsTreeSettingsOpen((open) => !open)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
+                      isTreeSettingsOpen
+                        ? 'bg-gradient-to-l from-[#8D4925] to-[#A65A33] text-white border-[#8D4925] shadow-xs'
+                        : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
+                    }`}
+                  >
+                    <SlidersHorizontal
+                      className={`w-3.5 h-3.5 ${
+                        isTreeSettingsOpen ? 'text-[#F6DCA2]' : 'text-[#D8755B]'
+                      }`}
+                    />
+                    <span>إعدادات شجرتي</span>
+                  </button>
+                </div>
+
+                <div className="hidden min-[1200px]:flex items-center justify-center flex-1 min-w-0">
+                  <TreeFloatingStudioDock
+                    variant="inline"
+                    zoomPercent={zoomPercent}
+                    onZoomIn={handleManualZoomIn}
+                    onZoomOut={handleManualZoomOut}
+                    onResetZoom={handleManualResetZoom}
+                    onFitAndCenter={handleFitAndCenterCanvas}
+                    isAutoFitActive={isAutoFitMode}
+                    isCinemaMode={isCinemaMode}
+                    onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+                    showMinimap={showMinimap}
+                    onToggleMinimap={() => setShowMinimap((v) => !v)}
+                    isDarkSurface={activeTreeTheme.isDarkSurface}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Smart Node Search on <1200px or Cinema Mode */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto flex-1 min-w-0">
+              <TreeSmartNodeSearch
+                people={visiblePeopleForTree}
+                onSelectPerson={handleSpotlightPerson}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Active Sub-tree Focus Banner */}
         {focusedSubtreePerson && (
@@ -6568,68 +6754,78 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         )}
 
         {/* Active Kinship Path Highlight Banner */}
-        {isKinshipHighlightedOnCanvas && kinshipPathResult && (
-          <div
-            data-testid="kinship-active-banner"
-            className="px-4 py-2 bg-[#252321] text-white border-b border-[#C5A059]/50 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0"
-          >
-            <div className="flex flex-wrap items-center gap-2 font-display">
-              <Sparkles className="w-3.5 h-3.5 text-[#F3D299] shrink-0" />
-              <span className="font-extrabold text-[#F3D299]">
-                {kinshipPathResult.relationshipLabel}
-              </span>
-              {kinshipPathResult.commonAncestor && (
-                <span className="text-white/75 text-[11px]">
-                  · الجد الجامع: {kinshipPathResult.commonAncestor.firstName} (
-                  {kinshipPathResult.degreeCount} درجات)
+        {!isPublicMirror &&
+          isKinshipHighlightedOnCanvas &&
+          kinshipPathResult && (
+            <div
+              data-testid="kinship-active-banner"
+              className="px-4 py-2 bg-[#252321] text-white border-b border-[#C5A059]/50 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0"
+            >
+              <div className="flex flex-wrap items-center gap-2 font-display">
+                <Sparkles className="w-3.5 h-3.5 text-[#F3D299] shrink-0" />
+                <span className="font-extrabold text-[#F3D299]">
+                  {kinshipPathResult.relationshipLabel}
                 </span>
-              )}
+                {kinshipPathResult.commonAncestor && (
+                  <span className="text-white/75 text-[11px]">
+                    · الجد الجامع: {kinshipPathResult.commonAncestor.firstName} (
+                    {kinshipPathResult.degreeCount} درجات)
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowKinshipModal(true)}
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[#F3D299] text-[11px] font-bold cursor-pointer"
+                >
+                  تفاصيل المسار
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsKinshipHighlightedOnCanvas(false)}
+                  className="px-2.5 py-1 rounded-lg bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-bold cursor-pointer"
+                >
+                  إلغاء الإضاءة
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowKinshipModal(true)}
-                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[#F3D299] text-[11px] font-bold cursor-pointer"
-              >
-                تفاصيل المسار
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsKinshipHighlightedOnCanvas(false)}
-                className="px-2.5 py-1 rounded-lg bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-bold cursor-pointer"
-              >
-                إلغاء الإضاءة
-              </button>
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Split Studio Workspace: Side Inspector (Desktop 370px / Mobile Bottom Sheet) + 100%-Height Live Tree Canvas */}
         <div
           className={`flex flex-col lg:flex-row relative flex-1 min-w-0 ${
-            isCinemaMode ? 'min-h-0' : 'min-h-[580px]'
+            isCinemaMode
+              ? 'min-h-0'
+              : isPublicMirror && publicMirrorMode?.compactPreview
+              ? 'min-h-[420px] max-h-[560px]'
+              : isPublicMirror
+              ? 'min-h-[520px] max-h-[760px]'
+              : 'min-h-[580px]'
           }`}
         >
-          <TreeStudioSideInspector
-            isOpen={isTreeSettingsOpen}
-            onClose={() => setIsTreeSettingsOpen(false)}
-            activeTab={activeSettingsTab}
-            onTabChange={setActiveSettingsTab}
-            settings={treeDisplaySettings}
-            onUpdateSettings={setTreeDisplaySettings}
-            depthOptions={DEPTH_SELECTOR_OPTIONS}
-            spineDepth={spineDepth}
-            onSelectSpineDepth={handleSelectSpineDepth}
-            canApplyMirrorDefault={
-              isRecordKeeperCharterSigned || caps.hasRegistrarBadge
-            }
-            onApplyMirrorDefault={handleApplyAsMirrorDefault}
-            mirrorPresetFeedback={mirrorPresetFeedback}
-            familyName={result.familyName}
-            onOpenExportModal={() => setShowOfficialExportModal(true)}
-            onExportJsonBackup={handleExportTreeJsonBackup}
-            onImportJsonBackup={() => jsonImportInputRef.current?.click()}
-          />
+          {!isPublicMirror && (
+            <TreeStudioSideInspector
+              isOpen={isTreeSettingsOpen}
+              onClose={() => setIsTreeSettingsOpen(false)}
+              activeTab={activeSettingsTab}
+              onTabChange={setActiveSettingsTab}
+              settings={treeDisplaySettings}
+              onUpdateSettings={setTreeDisplaySettings}
+              depthOptions={DEPTH_SELECTOR_OPTIONS}
+              spineDepth={spineDepth}
+              onSelectSpineDepth={handleSelectSpineDepth}
+              canApplyMirrorDefault={
+                isRecordKeeperCharterSigned || caps.hasRegistrarBadge
+              }
+              onApplyMirrorDefault={handleApplyAsMirrorDefault}
+              mirrorPresetFeedback={mirrorPresetFeedback}
+              familyName={result.familyName}
+              onOpenExportModal={() => setShowOfficialExportModal(true)}
+              onExportJsonBackup={handleExportTreeJsonBackup}
+              onImportJsonBackup={() => jsonImportInputRef.current?.click()}
+            />
+          )}
 
           {/* Live Tree Canvas Stage */}
           <div
@@ -6646,8 +6842,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             <div
               ref={canvasViewportRef}
               dir="rtl"
-              className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y scroll-smooth px-2 sm:px-4 pt-4 pb-24 ${
-                isCinemaMode ? 'min-h-0' : 'min-h-[540px]'
+              className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y scroll-smooth px-2 sm:px-4 pt-4 ${
+                isPublicMirror ? 'pb-12' : 'pb-24'
+              } ${
+                isCinemaMode
+                  ? 'min-h-0'
+                  : isPublicMirror && publicMirrorMode?.compactPreview
+                  ? 'min-h-[400px]'
+                  : 'min-h-[520px]'
               }`}
             >
               <div ref={canvasContentRef} className="w-max min-w-full">
@@ -6662,14 +6864,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               settings={treeDisplaySettings}
               zoomPercent={zoomPercent}
               getDisplayName={getCleanCardDisplay}
-              onSelectPerson={(p) => openEditPersonModal(p)}
-              onAddRelative={(p) => {
-                if (!isRecordKeeperCharterSigned) {
-                  onSignCharterAndEnableTree();
-                  return;
-                }
-                openAddRelativeModal(p, 'son');
-              }}
+              readOnly={isPublicMirror}
+              onSelectPerson={
+                isPublicMirror ? undefined : (p) => openEditPersonModal(p)
+              }
+              onAddRelative={
+                isPublicMirror
+                  ? undefined
+                  : (p) => {
+                      if (!isRecordKeeperCharterSigned) {
+                        onSignCharterAndEnableTree();
+                        return;
+                      }
+                      openAddRelativeModal(p, 'son');
+                    }
+              }
             />
           ) : treeDisplaySettings.layoutOrientation === 'sideways' ? (
             <div
@@ -6743,7 +6952,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   pedigreeLayout.root &&
                   renderSidewaysPedigreeSubtree(pedigreeLayout.root)
                 )}
-                {!focusedSubtreePerson && renderSidewaysFamilyAnchor()}
+                {!isPublicMirror &&
+                  !focusedSubtreePerson &&
+                  renderSidewaysFamilyAnchor()}
               </div>
 
               {!focusedSubtreePerson &&
@@ -6768,14 +6979,17 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               }}
             >
               {/* ================================================================ */}
-              {/* A. NATURAL LINEAGE SPINE (CENTERED ABOVE TREE)                   */}
+              {/* A. NATURAL LINEAGE SPINE (CENTERED ABOVE TREE — OWNER VIEW ONLY) */}
               {/* ================================================================ */}
-              {!focusedSubtreePerson && renderNaturalLineageSpineAboveTree()}
+              {!isPublicMirror &&
+                !focusedSubtreePerson &&
+                renderNaturalLineageSpineAboveTree()}
 
               {/* ================================================================ */}
-              {/* B. SINGLE CONSOLIDATED UPWARD PARENT PLACEHOLDER (NO DUPLICATES) */}
+              {/* B. SINGLE CONSOLIDATED UPWARD PARENT PLACEHOLDER (OWNER ONLY)    */}
               {/* ================================================================ */}
-              {!focusedSubtreePerson &&
+              {!isPublicMirror &&
+                !focusedSubtreePerson &&
                 topMostDirectAncestor &&
                 renderTopAncestorAdditionBar(
                   topMostDirectAncestor,
@@ -6893,105 +7107,113 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </div>
             )}
 
-            {/* Quiet Translucent Glass Status Capsule (Capacity + Auto-Save) in Canvas Bottom-Left */}
-            <div
-              data-testid="tree-canvas-status-capsule"
-              className={`absolute bottom-16 min-[1200px]:bottom-3.5 left-3.5 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-[11px] font-display shadow-xs transition-colors ${
-                activeTreeTheme.isDarkSurface
-                  ? 'bg-[#1D1B19]/75 border-[#F3D299]/20 text-[#F3EFEA]/85'
-                  : 'bg-[#FFFDF9]/82 border-[#E2D5BE]/90 text-[#6F5F50]'
-              }`}
-            >
-              <button
-                type="button"
-                data-testid="tree-capacity-badge"
-                onClick={() => {
-                  setCapacityPurchaseFeedback(null);
-                  setShowCapacityAddonModal(true);
-                }}
-                title="اضغط لإدارة سعة أفراد المشجرة"
-                className={`inline-flex items-center gap-1 font-semibold tabular-nums cursor-pointer transition-colors ${
-                  activeTreeTheme.isDarkSurface
-                    ? 'hover:text-[#F3D299]'
-                    : 'hover:text-[#9E5631]'
-                }`}
-              >
-                <strong
-                  className={
+            {/* Quiet Translucent Glass Status Capsule (Capacity + Auto-Save) — Owner Mode Only */}
+            {!isPublicMirror && (
+              <>
+                <div
+                  data-testid="tree-canvas-status-capsule"
+                  className={`absolute bottom-16 min-[1200px]:bottom-3.5 left-3.5 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border text-[11px] font-display shadow-xs transition-colors ${
                     activeTreeTheme.isDarkSurface
-                      ? 'font-bold text-[#F3D299]'
-                      : 'font-bold text-[#2C1E14]'
-                  }
+                      ? 'bg-[#1D1B19]/75 border-[#F3D299]/20 text-[#F3EFEA]/85'
+                      : 'bg-[#FFFDF9]/82 border-[#E2D5BE]/90 text-[#6F5F50]'
+                  }`}
                 >
-                  {people.length} / {effectiveMaxTreeMembers}
-                </strong>
-                <span>فرداً</span>
-              </button>
+                  <button
+                    type="button"
+                    data-testid="tree-capacity-badge"
+                    onClick={() => {
+                      setCapacityPurchaseFeedback(null);
+                      setShowCapacityAddonModal(true);
+                    }}
+                    title="اضغط لإدارة سعة أفراد المشجرة"
+                    className={`inline-flex items-center gap-1 font-semibold tabular-nums cursor-pointer transition-colors ${
+                      activeTreeTheme.isDarkSurface
+                        ? 'hover:text-[#F3D299]'
+                        : 'hover:text-[#9E5631]'
+                    }`}
+                  >
+                    <strong
+                      className={
+                        activeTreeTheme.isDarkSurface
+                          ? 'font-bold text-[#F3D299]'
+                          : 'font-bold text-[#2C1E14]'
+                      }
+                    >
+                      {people.length} / {effectiveMaxTreeMembers}
+                    </strong>
+                    <span>فرداً</span>
+                  </button>
 
-              <span aria-hidden="true" className="opacity-45">
-                ·
-              </span>
+                  <span aria-hidden="true" className="opacity-45">
+                    ·
+                  </span>
 
-              <button
-                type="button"
-                data-testid="tree-last-saved-badge"
-                disabled={treeSaveState === 'saving' || treeSaveState === 'loading'}
-                onClick={handleManualSaveTree}
-                title={
-                  lastSavedLabel
-                    ? `آخر حفظ: ${lastSavedLabel} — اضغط للحفظ الآن`
-                    : 'حُفظ تلقائياً — اضغط للحفظ الآن'
-                }
-                className={`inline-flex items-center gap-1.5 tabular-nums cursor-pointer transition-colors disabled:cursor-default ${
-                  activeTreeTheme.isDarkSurface
-                    ? 'hover:text-[#F3D299]'
-                    : 'hover:text-[#2C1E14]'
-                }`}
-              >
-                {treeSaveState === 'loading' || treeSaveState === 'saving' ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-[#9E5631] shrink-0" />
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    className="w-1.5 h-1.5 rounded-full bg-emerald-500/85 shrink-0"
-                  />
-                )}
-                <span>
-                  {treeSaveState === 'loading'
-                    ? 'جاري التحميل...'
-                    : treeSaveState === 'saving'
-                    ? 'جاري الحفظ...'
-                    : 'حُفظ تلقائياً'}
-                </span>
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    data-testid="tree-last-saved-badge"
+                    disabled={
+                      treeSaveState === 'saving' || treeSaveState === 'loading'
+                    }
+                    onClick={handleManualSaveTree}
+                    title={
+                      lastSavedLabel
+                        ? `آخر حفظ: ${lastSavedLabel} — اضغط للحفظ الآن`
+                        : 'حُفظ تلقائياً — اضغط للحفظ الآن'
+                    }
+                    className={`inline-flex items-center gap-1.5 tabular-nums cursor-pointer transition-colors disabled:cursor-default ${
+                      activeTreeTheme.isDarkSurface
+                        ? 'hover:text-[#F3D299]'
+                        : 'hover:text-[#2C1E14]'
+                    }`}
+                  >
+                    {treeSaveState === 'loading' || treeSaveState === 'saving' ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-[#9E5631] shrink-0" />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="w-1.5 h-1.5 rounded-full bg-emerald-500/85 shrink-0"
+                      />
+                    )}
+                    <span>
+                      {treeSaveState === 'loading'
+                        ? 'جاري التحميل...'
+                        : treeSaveState === 'saving'
+                        ? 'جاري الحفظ...'
+                        : 'حُفظ تلقائياً'}
+                    </span>
+                  </button>
+                </div>
 
-            {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock (Tablet/Mobile < 1200px only) */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex min-[1200px]:hidden flex-col items-center gap-2">
-              <div className="pointer-events-auto">
-                <TreeFloatingStudioDock
-                  zoomPercent={zoomPercent}
-                  onZoomIn={handleManualZoomIn}
-                  onZoomOut={handleManualZoomOut}
-                  onResetZoom={handleManualResetZoom}
-                  onFitAndCenter={handleFitAndCenterCanvas}
-                  isAutoFitActive={isAutoFitMode}
-                  isCinemaMode={isCinemaMode}
-                  onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
-                  showMinimap={showMinimap}
-                  onToggleMinimap={() => setShowMinimap((v) => !v)}
-                  isDarkSurface={activeTreeTheme.isDarkSurface}
-                />
-              </div>
-            </div>
+                {/* Quiet Canvas Bottom Edge: Floating Glass Studio Dock (Tablet/Mobile < 1200px only) */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 z-30 px-3 flex min-[1200px]:hidden flex-col items-center gap-2">
+                  <div className="pointer-events-auto">
+                    <TreeFloatingStudioDock
+                      zoomPercent={zoomPercent}
+                      onZoomIn={handleManualZoomIn}
+                      onZoomOut={handleManualZoomOut}
+                      onResetZoom={handleManualResetZoom}
+                      onFitAndCenter={handleFitAndCenterCanvas}
+                      isAutoFitActive={isAutoFitMode}
+                      isCinemaMode={isCinemaMode}
+                      onToggleCinemaMode={() => setIsCinemaMode((v) => !v)}
+                      showMinimap={showMinimap}
+                      onToggleMinimap={() => setShowMinimap((v) => !v)}
+                      isDarkSurface={activeTreeTheme.isDarkSurface}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ==================================================================== */}
-      {/* 2A. VERIFICATION FOLLOW-UP RIBBON (Below Tree Canvas, Matching عمود نسبي) */}
-      {/* ==================================================================== */}
-      {!isCinemaMode && sideNoteElement}
+      {!isPublicMirror && (
+        <>
+          {/* ==================================================================== */}
+          {/* 2A. VERIFICATION FOLLOW-UP RIBBON (Below Tree Canvas, Matching عمود نسبي) */}
+          {/* ==================================================================== */}
+          {!isCinemaMode && sideNoteElement}
 
       {/* ==================================================================== */}
       {/* 2B. DEPTH UNLOCK / UPGRADE MODAL (إذا اختار العميل مدى غير مفتوح بعد) */}
@@ -8396,13 +8618,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         onUnlockRoot5Usd={onUnlockRoot5Usd}
         onUpgradeAnnualVip={onUpgradeAnnualVip}
         onSignCharterAndEnableTree={onSignCharterAndEnableTree}
-        onLogExport={(fmt, verId) =>
-          onLogActivity(
-            'تصدير مشجرة العائلة الموثقة',
-            `تصدير شجرة عائلة ${result.familyName} بصيغة (${fmt}) · معرّف التحقق ${verId}`
-          )
-        }
-      />
+          onLogExport={(fmt, verId) =>
+            onLogActivity(
+              'تصدير مشجرة العائلة الموثقة',
+              `تصدير شجرة عائلة ${result.familyName} بصيغة (${fmt}) · معرّف التحقق ${verId}`
+            )
+          }
+        />
+        </>
+      )}
     </div>
   );
 };
