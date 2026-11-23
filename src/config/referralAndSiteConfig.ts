@@ -63,10 +63,10 @@ export const FAMILY_SITE_THEMES: ReadonlyArray<FamilySiteThemeDefinition> = [
   {
     id: 'classical_marble',
     nameAr: 'المرمر الكلاسيكي',
-    subtitleAr: 'صفاء رخامي هادئ يبرز المشجرات المعاصرة والصور الأرشيفية',
-    swatchHero: '#1F2933',
-    swatchAccent: '#8D6E48',
-    swatchCanvas: '#F7F7F5',
+    subtitleAr: 'فخامة رخام الترافرتين الدافئ بلمسات النحاس والذهب المعتّق',
+    swatchHero: '#1E252D',
+    swatchAccent: '#6E5438',
+    swatchCanvas: '#F6F2EA',
   },
 ];
 
@@ -171,6 +171,12 @@ export const ACTIVE_PUBLIC_SITE_DISPLAY_HOST = ACTIVE_PUBLIC_SITE_ORIGIN.replace
   /^https?:\/\//i,
   ''
 ).replace(/\/+$/, '');
+
+/**
+ * Clean canonical brand domain displayed in public portal footers, crests, and print badges
+ * so visitors always see `juthori.com/{slug}` even while hosted on temporary staging infrastructure.
+ */
+export const CANONICAL_BRAND_DISPLAY_HOST = 'juthori.com';
 
 /**
  * Rewrites AI Studio internal authenticated preview origins (`https://ais-dev-...run.app`)

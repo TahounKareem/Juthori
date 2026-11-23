@@ -6,14 +6,17 @@ import {
   Briefcase,
   Calendar,
   Camera,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
   EyeOff,
   FileText,
   GitBranch,
   Globe,
   Heart,
   HelpCircle,
+  Landmark,
   Loader2,
   Lock,
   MapPin,
@@ -58,13 +61,15 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { processMediaFileForUpload } from '../utils/mediaPipeline';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
-import { ACTIVE_PUBLIC_SITE_DISPLAY_HOST } from '../config/referralAndSiteConfig';
+import { CANONICAL_BRAND_DISPLAY_HOST } from '../config/referralAndSiteConfig';
 import {
   ClaimedKinshipSessionPayload,
   KinshipInviteClaimModal,
 } from './KinshipInviteClaimModal';
 import {
   FamilyCrestEmblem,
+  HeritagePavilionHeader,
+  HeritageSectionPavilion,
   HeroArchitecturalBackdrop,
   PORTAL_SECTION_LABELS,
   PublicVisualTreeMirror,
@@ -108,31 +113,100 @@ const SECTION_SHORT_NAV: Record<PortalSectionKey, string> = {
   majlis: 'المجلس',
 };
 
-function SectionOrnamentHeader({
-  kicker,
-  title,
-  icon,
-  action,
-}: {
-  kicker: string;
-  title: string;
-  icon: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-4 border-b fs-border">
-      <div className="space-y-1">
-        <div className="inline-flex items-center gap-1.5 text-xs font-bold fs-accent-text">
-          {icon}
-          <span>{kicker}</span>
-        </div>
-        <h2 className="text-xl sm:text-2xl font-bold fs-display-font">
-          {title}
-        </h2>
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
+const INVALID_LOCATION_TOKENS = new Set([
+  'غير محدد',
+  'غير محددة',
+  'غير معروف',
+  'غير معروفة',
+  '—',
+  '-',
+  'none',
+  'n/a',
+  'unknown',
+]);
+
+const AUDIO_WAVEFORM_HEIGHTS = [
+  34, 58, 44, 84, 64, 96, 52, 78, 90, 48, 72, 92, 56, 70, 42, 62,
+];
+
+function cleanLocationField(raw?: string): string {
+  const trimmed = (raw || '').trim();
+  if (!trimmed || INVALID_LOCATION_TOKENS.has(trimmed.toLowerCase())) {
+    return '';
+  }
+  return trimmed;
+}
+
+function formatCleanLocation(...parts: Array<string | undefined>): string {
+  return parts
+    .map((p) => cleanLocationField(p))
+    .filter(Boolean)
+    .filter((v, idx, arr) => arr.indexOf(v) === idx)
+    .join(' — ');
+}
+
+function sanitizePublicBio(raw?: string): string {
+  if (!raw) return '';
+  let text = raw.trim();
+  // Remove duplicated parenthetical country/region like `في العراق (العراق)` -> `في العراق`
+  text = text.replace(
+    /([\u0600-\u06FFa-zA-Z]+(?:\s+[\u0600-\u06FFa-zA-Z]+){0,2})\s*\(\s*\1\s*\)/g,
+    '$1'
   );
+  // Strip any raw `غير محدد` / `غير محددة` tokens and dangling separators
+  text = text.replace(/\(\s*غير\s+محدد[ة]?\s*\)/g, '');
+  text = text.replace(/غير\s+محدد[ة]?\s*[—·-]\s*/g, '');
+  text = text.replace(/\s*[—·-]\s*غير\s+محدد[ة]?/g, '');
+  text = text.replace(/\s+في\s+غير\s+محدد[ة]?/g, '');
+  text = text.replace(/غير\s+محدد[ة]?/g, '');
+  return text.replace(/\s{2,}/g, ' ').trim();
+}
+
+function formatArabicLongDate(raw?: string): string {
+  const val = (raw || '').trim();
+  if (!val) return '';
+  const isoMatch = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!isoMatch) return val;
+  const year = Number(isoMatch[1]);
+  const month = Number(isoMatch[2]);
+  const day = Number(isoMatch[3]);
+  const dt = new Date(year, month - 1, day);
+  if (Number.isNaN(dt.getTime())) return val;
+  try {
+    const formatted = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(dt);
+    return formatted.includes('م') ? formatted : `${formatted} م`;
+  } catch {
+    return val;
+  }
+}
+
+function getAdaptiveGridClass(
+  count: number,
+  compactPreview: boolean,
+  maxCols: 2 | 3 = 3
+): string {
+  if (count <= 1) return 'grid grid-cols-1 gap-5';
+  if (compactPreview) {
+    return maxCols === 3
+      ? 'grid grid-cols-1 sm:grid-cols-2 gap-3.5'
+      : 'grid grid-cols-1 gap-3.5';
+  }
+  if (count === 2 || maxCols === 2) {
+    return 'grid grid-cols-1 md:grid-cols-2 gap-5';
+  }
+  return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5';
+}
+
+function getArabicMonogram(name?: string): string {
+  const cleaned = (name || '')
+    .trim()
+    .replace(/^(د\.|أ\.|م\.|الشيخ|المهندس|الدكتور|الأستاذ|الحاج)\s+/u, '')
+    .trim();
+  return (cleaned[0] || 'ع').toUpperCase();
 }
 
 export const PublicFamilyMicrositePage: React.FC<
@@ -254,12 +328,46 @@ export const PublicFamilyMicrositePage: React.FC<
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const [playingClipId, setPlayingClipId] = useState<string | null>(null);
 
+  // Bespoke Micro-Interaction States (Scroll-Spy, Prayer Warm Glow, Event Details Copy)
+  const [activeNavSection, setActiveNavSection] =
+    useState<PortalSectionKey | null>(null);
+  const [prayedElderIds, setPrayedElderIds] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
+
   // Live ticker for countdowns (Events & Time Capsule)
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   useEffect(() => {
     const interval = setInterval(() => setNowTick(Date.now()), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Scroll-Spy observer for Warm Glass Sticky Navbar active section highlight
+  useEffect(() => {
+    if (compactPreview || typeof window === 'undefined') return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const sectionEls = Array.from(
+      document.querySelectorAll<HTMLElement>('[id^="portal-sec-"]')
+    );
+    if (sectionEls.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible.length > 0) {
+          const rawId = visible[0].target.id.replace('portal-sec-', '');
+          setActiveNavSection(rawId as PortalSectionKey);
+        }
+      },
+      { rootMargin: '-22% 0px -58% 0px', threshold: [0.1, 0.35, 0.6] }
+    );
+
+    sectionEls.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [compactPreview, siteData]);
 
   const [authSyncKey, setAuthSyncKey] = useState<string>(() =>
     auth.currentUser?.uid || 'guest'
@@ -531,10 +639,16 @@ export const PublicFamilyMicrositePage: React.FC<
 
   const formatCountdownParts = (
     isoDate: string
-  ): { expired: boolean; days: number; hours: number; label: string } => {
+  ): {
+    expired: boolean;
+    days: number;
+    hours: number;
+    minutes: number;
+    label: string;
+  } => {
     const targetMs = new Date(isoDate).getTime();
     if (Number.isNaN(targetMs)) {
-      return { expired: false, days: 0, hours: 0, label: isoDate };
+      return { expired: false, days: 0, hours: 0, minutes: 0, label: isoDate };
     }
     const diff = targetMs - nowTick;
     if (diff <= 0) {
@@ -542,17 +656,43 @@ export const PublicFamilyMicrositePage: React.FC<
         expired: true,
         days: 0,
         hours: 0,
-        label: 'حان الموعد / متاح الآن',
+        minutes: 0,
+        label: 'حان الموعد · متاح الآن',
       };
     }
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
     return {
       expired: false,
       days,
       hours,
-      label: `متبقٍّ ${days} يوم و ${hours} ساعة`,
+      minutes,
+      label: `متبقٍّ ${days} يوم · ${hours} ساعة · ${minutes} دقيقة`,
     };
+  };
+
+  const handleCopyEventDetails = (ev: {
+    id: string;
+    title: string;
+    eventDateIso: string;
+    locationLabel: string;
+    hostNote?: string;
+  }) => {
+    const formattedDate = formatArabicLongDate(ev.eventDateIso);
+    const lines = [
+      `✦ ${ev.title}`,
+      `التاريخ: ${formattedDate}`,
+      ev.locationLabel ? `الموقع: ${ev.locationLabel}` : '',
+      ev.hostNote ? `ملاحظة: ${ev.hostNote}` : '',
+    ].filter(Boolean);
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+    }
+    setCopiedEventId(ev.id);
+    window.setTimeout(() => {
+      setCopiedEventId((prev) => (prev === ev.id ? null : prev));
+    }, 2200);
   };
 
   if (loading) {
@@ -584,8 +724,8 @@ export const PublicFamilyMicrositePage: React.FC<
           </h1>
           <p className="text-sm text-[#252321]/70 leading-relaxed">
             المعرّف{' '}
-            <span className="font-mono font-semibold">
-              {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{siteSlug}
+            <span dir="ltr" className="font-mono font-semibold inline-block">
+              {CANONICAL_BRAND_DISPLAY_HOST}/{siteSlug}
             </span>{' '}
             إما متاح للحجز لأمين سجل جديد أو أن مالكه أوقف نشره العام مؤقتاً.
           </p>
@@ -866,7 +1006,7 @@ export const PublicFamilyMicrositePage: React.FC<
       !sectionReadiness[key].hasRealContent
   );
 
-  // Real Heritage Metrics for Floating Stats Bar
+  // Real Heritage Metrics for Floating Stats Bar (Zero-Free Policy)
   const generationsCount =
     siteData.treeMetrics?.generationsCount ||
     new Set(treeMembers.map((m) => m.generationLevel)).size;
@@ -875,30 +1015,62 @@ export const PublicFamilyMicrositePage: React.FC<
   const locationsCount = cms.atlasAndStatsModule.locations.length;
   const vaultCount = vaultItems.length;
 
+  const floatingMetrics: Array<{
+    key: string;
+    value: string | number;
+    label: string;
+    isSeal?: boolean;
+  }> = [];
+  if (membersCount > 0) {
+    floatingMetrics.push({
+      key: 'members',
+      value: membersCount,
+      label: 'أفراد العائلة الموثقون',
+    });
+  }
+  if (generationsCount > 0) {
+    floatingMetrics.push({
+      key: 'generations',
+      value: generationsCount,
+      label: 'الأجيال المتصلة',
+    });
+  }
+  if (vaultCount > 0) {
+    floatingMetrics.push({
+      key: 'vault',
+      value: vaultCount,
+      label: 'مقتنيات الخزانة المعروضة',
+    });
+  }
+  if (locationsCount > 0) {
+    floatingMetrics.push({
+      key: 'locations',
+      value: locationsCount,
+      label: 'الديار والحواضر',
+    });
+  }
+  if (floatingMetrics.length < 4) {
+    floatingMetrics.push({
+      key: 'verified_status',
+      value: 'موثّق ✦',
+      label: siteData.isRegistrarCertified
+        ? 'سجل عائلي معتمد'
+        : 'بوابة عائلية رسمية',
+      isSeal: true,
+    });
+  }
+
   const portalTitle =
     siteData.bioTitle?.trim() || `ديوان عائلة ${siteData.familyName}`;
-  const cleanHeroLocation = [siteData.originRegion, siteData.originCountry]
-    .map((v) => (v || '').trim())
-    .filter(
-      (v) =>
-        Boolean(v) &&
-        ![
-          'غير محدد',
-          'غير محددة',
-          'غير معروف',
-          'غير معروفة',
-          '—',
-          '-',
-          'none',
-          'n/a',
-          'unknown',
-        ].includes(v.toLowerCase())
-    )
-    .filter((v, idx, arr) => arr.indexOf(v) === idx)
-    .join(' — ');
+  const cleanHeroLocation = formatCleanLocation(
+    siteData.originRegion,
+    siteData.originCountry
+  );
+  const sanitizedHeroBio = sanitizePublicBio(siteData.bioDescription);
 
   const scrollToSection = (key: PortalSectionKey) => {
     if (compactPreview) return;
+    setActiveNavSection(key);
     const el = document.getElementById(`portal-sec-${key}`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -995,6 +1167,7 @@ export const PublicFamilyMicrositePage: React.FC<
   };
 
   const handlePrayForElder = async (elderId: string) => {
+    setPrayedElderIds((prev) => ({ ...prev, [elderId]: true }));
     if (previewData) {
       setSiteData((prev) => {
         if (!prev?.cmsModules) return prev;
@@ -1110,37 +1283,62 @@ export const PublicFamilyMicrositePage: React.FC<
   };
 
   // ===========================================================================
-  // SECTION RENDERER BY ORDERED SECTION KEY
+  // SECTION RENDERER BY ORDERED SECTION KEY (FRAMED HERITAGE PAVILIONS)
   // ===========================================================================
   const renderSectionByKey = (key: PortalSectionKey): React.ReactNode => {
     switch (key) {
       // 1. PATRIARCH WELCOME QUOTE
       case 'patriarch_quote':
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24"
+            compactPreview={compactPreview}
+            watermarkVariant="manuscript"
           >
-            <div
-              className="rounded-3xl fs-surface border fs-border p-7 sm:p-10 text-center relative overflow-hidden shadow-xs"
-              style={{ borderColor: 'var(--fs-gold)' }}
-            >
+            <div className="py-2 sm:py-4 text-center flex flex-col items-center space-y-5">
               <div
-                className="w-11 h-11 rounded-full mx-auto mb-4 flex items-center justify-center border"
+                className="w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs"
                 style={{
-                  backgroundColor: 'var(--fs-surface-alt)',
-                  borderColor: 'var(--fs-gold)',
+                  backgroundColor: 'var(--fs-gold-soft)',
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
                   color: 'var(--fs-accent)',
                 }}
               >
                 <Quote className="w-5 h-5" />
               </div>
-              <blockquote className="max-w-3xl mx-auto text-lg sm:text-2xl leading-relaxed sm:leading-loose fs-display-font font-bold">
-                «{branding.patriarchQuote.text.trim()}»
+
+              <div className="text-[11px] font-bold tracking-wide fs-accent-text">
+                كلمة عميد ومؤسس الديوان العائلي
+              </div>
+
+              <blockquote className="max-w-3xl mx-auto text-lg sm:text-2xl lg:text-[26px] leading-relaxed sm:leading-loose fs-display-font font-bold">
+                <span className="fs-gold-text ml-1.5">«</span>
+                {branding.patriarchQuote.text.trim()}
+                <span className="fs-gold-text mr-1.5">»</span>
               </blockquote>
-              <div className="mt-5 pt-4 border-t fs-border inline-flex flex-col items-center gap-0.5 px-6">
-                <div className="text-sm font-bold fs-accent-text">
+
+              <div className="w-28 flex items-center gap-2" aria-hidden="true">
+                <div
+                  className="h-px flex-1"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent, var(--fs-gold))',
+                  }}
+                />
+                <span className="text-[10px] fs-gold-text">✦</span>
+                <div
+                  className="h-px flex-1"
+                  style={{
+                    background:
+                      'linear-gradient(270deg, transparent, var(--fs-gold))',
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="text-sm sm:text-base font-bold fs-accent-text fs-display-font">
                   {branding.patriarchQuote.authorName}
                 </div>
                 {branding.patriarchQuote.authorTitle && (
@@ -1150,21 +1348,22 @@ export const PublicFamilyMicrositePage: React.FC<
                 )}
               </div>
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
 
       // 2. INTERACTIVE VISUAL TREE MIRROR
       case 'tree_mirror':
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="مشجرة الأجيال المعاصرة"
               title={`مرآة شجرة عائلة ${siteData.familyName}`}
-              icon={<GitBranch className="w-4 h-4" />}
+              subtitle="استعرض فروع العائلة وأجيالها المتصلة عبر لوحة المشجرة التفاعلية بالسحب والتكبير."
+              icon={<GitBranch className="w-3.5 h-3.5" />}
             />
             <PublicVisualTreeMirror
               members={treeMembers}
@@ -1179,21 +1378,22 @@ export const PublicFamilyMicrositePage: React.FC<
               }}
               onStartOwnSearch={onStartOwnLineageSearch}
             />
-          </section>
+          </HeritageSectionPavilion>
         );
 
       // 3. MUSEUM VAULT GALLERY + LIGHTBOX
-      case 'vault_gallery':
+      case 'vault_gallery': {
+        const isSingleVault = vaultItems.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="مقتنيات أرشيفية مختارة"
               title="معرض خزانة الصور والوثائق"
-              icon={<Camera className="w-4 h-4" />}
+              icon={<Camera className="w-3.5 h-3.5" />}
               action={
                 !compactPreview ? (
                   <button
@@ -1203,7 +1403,11 @@ export const PublicFamilyMicrositePage: React.FC<
                       setEnrSuccessMessage(null);
                       setShowEnrichmentModal(true);
                     }}
-                    className="px-3.5 py-2 rounded-xl fs-surface border fs-border text-xs font-bold fs-accent-text cursor-pointer hover:opacity-90"
+                    className="px-3.5 py-2 rounded-xl fs-surface border text-xs font-bold fs-accent-text cursor-pointer hover:opacity-90 transition-opacity shadow-2xs"
+                    style={{
+                      borderColor:
+                        'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                    }}
                   >
                     + إهداء صورة للخزانة
                   </button>
@@ -1212,20 +1416,28 @@ export const PublicFamilyMicrositePage: React.FC<
             />
 
             <div
-              className={
-                compactPreview
-                  ? 'grid grid-cols-2 gap-3'
-                  : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5'
-              }
+              className={getAdaptiveGridClass(
+                vaultItems.length,
+                compactPreview,
+                3
+              )}
             >
               {vaultItems.map((item) => (
                 <article
                   key={item.id}
-                  className="group rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col"
+                  className={`group rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs hover:shadow-md transition-all ${
+                    isSingleVault
+                      ? 'grid grid-cols-1 md:grid-cols-12'
+                      : 'flex flex-col'
+                  }`}
                 >
                   <div
                     onClick={() => !compactPreview && setLightboxVaultItem(item)}
-                    className="relative aspect-[4/3] fs-surface-alt overflow-hidden cursor-pointer flex items-center justify-center"
+                    className={`relative fs-surface-alt overflow-hidden cursor-pointer flex items-center justify-center ${
+                      isSingleVault
+                        ? 'md:col-span-7 aspect-[16/10] md:aspect-auto md:min-h-[300px]'
+                        : 'aspect-[4/3]'
+                    }`}
                   >
                     {item.previewUrl ? (
                       <img
@@ -1240,9 +1452,7 @@ export const PublicFamilyMicrositePage: React.FC<
 
                     {/* Subtle Archival Dynamic Watermark */}
                     {item.watermarkText && (
-                      <div
-                        className="absolute bottom-2.5 right-2.5 px-2.5 py-0.5 rounded-md bg-black/50 backdrop-blur-xs text-[10px] text-white/90 font-semibold pointer-events-none"
-                      >
+                      <div className="absolute bottom-2.5 right-2.5 px-2.5 py-0.5 rounded-md bg-black/50 backdrop-blur-xs text-[10px] text-white/90 font-semibold pointer-events-none">
                         {item.watermarkText}
                       </div>
                     )}
@@ -1262,20 +1472,32 @@ export const PublicFamilyMicrositePage: React.FC<
                     )}
                   </div>
 
-                  <div className="p-4 flex-1 flex flex-col justify-between gap-2.5">
-                    <div>
-                      <h3 className="text-sm font-bold fs-display-font line-clamp-1">
+                  <div
+                    className={`${
+                      isSingleVault ? 'md:col-span-5 p-6 sm:p-7' : 'p-4'
+                    } flex-1 flex flex-col justify-between gap-3`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-bold fs-accent-text">
+                        {item.mediaType === 'document'
+                          ? 'وثيقة أرشيفية'
+                          : 'صورة تراثية'}
+                      </div>
+                      <h3
+                        className={`${
+                          isSingleVault ? 'text-lg sm:text-xl' : 'text-sm'
+                        } font-bold fs-display-font line-clamp-2`}
+                      >
                         {item.title}
                       </h3>
-                      <div className="text-[11px] fs-muted mt-0.5 tabular-nums">
-                        {item.dateOrOccasion}
-                        {item.mediaType === 'document' ? ' · وثيقة' : ' · صورة'}
+                      <div className="text-xs fs-muted tabular-nums">
+                        {formatArabicLongDate(item.dateOrOccasion)}
                       </div>
                     </div>
 
                     {siteData.privacyConfig.enablePhotoFacePrompt &&
                       !compactPreview && (
-                        <div className="pt-2 border-t fs-border space-y-2">
+                        <div className="pt-3 border-t fs-border space-y-2">
                           <button
                             type="button"
                             onClick={() =>
@@ -1287,7 +1509,8 @@ export const PublicFamilyMicrositePage: React.FC<
                           >
                             <HelpCircle className="w-3.5 h-3.5" />
                             <span>
-                              هل تعرف شخصاً في هذه الصورة؟ ({item.faceIdNotes?.length || 0})
+                              هل تعرف شخصاً في هذه الصورة؟ (
+                              {item.faceIdNotes?.length || 0})
                             </span>
                           </button>
                           {faceIdOpenItemId === item.id && (
@@ -1323,36 +1546,49 @@ export const PublicFamilyMicrositePage: React.FC<
                 </article>
               ))}
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
+      }
 
       // 4. FAMILY NEWS & BLESSINGS
-      case 'news':
+      case 'news': {
+        const isSingleNews =
+          cms.newsModule.items.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="تباشير وأفراح العائلة"
               title="أخبار ومستجدات العائلة"
-              icon={<Sparkles className="w-4 h-4" />}
+              icon={<Sparkles className="w-3.5 h-3.5" />}
             />
             <div
-              className={
-                compactPreview
-                  ? 'grid grid-cols-1 gap-3'
-                  : 'grid grid-cols-1 md:grid-cols-2 gap-5'
-              }
+              className={getAdaptiveGridClass(
+                cms.newsModule.items.length,
+                compactPreview,
+                2
+              )}
             >
               {cms.newsModule.items.map((item) => (
                 <article
                   key={item.id}
-                  className="rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs flex flex-col justify-between"
+                  className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
+                    isSingleNews && item.imageUrl
+                      ? 'grid grid-cols-1 md:grid-cols-12'
+                      : 'flex flex-col justify-between'
+                  }`}
                 >
                   {item.imageUrl && (
-                    <div className="aspect-[16/9] w-full overflow-hidden fs-surface-alt border-b fs-border">
+                    <div
+                      className={`overflow-hidden fs-surface-alt ${
+                        isSingleNews
+                          ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[240px] border-b md:border-b-0 md:border-l fs-border'
+                          : 'aspect-[16/9] w-full border-b fs-border'
+                      }`}
+                    >
                       <img
                         src={item.imageUrl}
                         alt={item.title}
@@ -1361,17 +1597,34 @@ export const PublicFamilyMicrositePage: React.FC<
                       />
                     </div>
                   )}
-                  <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                  <div
+                    className={`${
+                      isSingleNews && item.imageUrl
+                        ? 'md:col-span-7 p-6 sm:p-7'
+                        : 'p-5 sm:p-6'
+                    } space-y-3.5 flex-1 flex flex-col justify-between`}
+                  >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="font-bold fs-accent-text">
+                        <span
+                          className="px-2.5 py-0.5 rounded-md font-bold fs-accent-text border"
+                          style={{
+                            backgroundColor: 'var(--fs-gold-soft)',
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 35%, transparent)',
+                          }}
+                        >
                           {item.category}
                         </span>
                         <span className="fs-muted tabular-nums">
-                          {item.dateLabel}
+                          {formatArabicLongDate(item.dateLabel)}
                         </span>
                       </div>
-                      <h3 className="text-base sm:text-lg font-bold fs-display-font">
+                      <h3
+                        className={`${
+                          isSingleNews ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
+                        } font-bold fs-display-font`}
+                      >
                         {item.title}
                       </h3>
                       <p className="text-xs sm:text-sm fs-muted leading-relaxed">
@@ -1379,7 +1632,7 @@ export const PublicFamilyMicrositePage: React.FC<
                       </p>
                     </div>
 
-                    <div className="pt-3 border-t fs-border space-y-2.5">
+                    <div className="pt-3.5 border-t fs-border space-y-2.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs fs-muted tabular-nums">
                           التبريكات ({item.blessings?.length || 0})
@@ -1440,87 +1693,148 @@ export const PublicFamilyMicrositePage: React.FC<
                 </article>
               ))}
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
+      }
 
-      // 5. EVENTS WITH LIVE COUNTDOWN (DAYS & HOURS) + RSVP
-      case 'events':
+      // 5. EVENTS WITH LIVE COUNTDOWN (DAYS, HOURS, MINUTES) + COPY + RSVP
+      case 'events': {
+        const isSingleEvent =
+          cms.eventsModule.items.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="لقاءات وصلة رحم"
               title="المناسبات والملتقيات القادمة"
-              icon={<Calendar className="w-4 h-4" />}
+              icon={<Calendar className="w-3.5 h-3.5" />}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div
+              className={getAdaptiveGridClass(
+                cms.eventsModule.items.length,
+                compactPreview,
+                2
+              )}
+            >
               {cms.eventsModule.items.map((ev) => {
                 const cd = formatCountdownParts(ev.eventDateIso);
+                const formattedEventDate = formatArabicLongDate(ev.eventDateIso);
                 const attendingTotal = (ev.rsvps || [])
                   .filter((r) => r.status === 'attending')
                   .reduce((sum, r) => sum + 1 + (r.companionsCount || 0), 0);
+                const isCopied = copiedEventId === ev.id;
                 return (
                   <article
                     key={ev.id}
-                    className="rounded-2xl fs-surface border fs-border p-5 space-y-4 shadow-xs"
+                    className={`rounded-2xl fs-surface border p-5 sm:p-6 space-y-4 shadow-xs relative overflow-hidden ${
+                      isSingleEvent ? 'sm:p-7' : ''
+                    }`}
+                    style={{
+                      borderColor:
+                        'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
+                    }}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <h3 className="text-base sm:text-lg font-bold fs-display-font">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-0 top-0 h-1 fs-accent-gold-bar opacity-80"
+                    />
+
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pt-1">
+                      <div className="space-y-1.5">
+                        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold fs-accent-text">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{formattedEventDate}</span>
+                        </div>
+                        <h3
+                          className={`${
+                            isSingleEvent
+                              ? 'text-lg sm:text-xl'
+                              : 'text-base sm:text-lg'
+                          } font-bold fs-display-font`}
+                        >
                           {ev.title}
                         </h3>
-                        <div className="text-xs fs-muted flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 fs-accent-text" />
-                            <span>{ev.locationLabel}</span>
-                          </span>
-                          <span>·</span>
-                          <span className="tabular-nums">{ev.eventDateIso}</span>
-                        </div>
+                        {cleanLocationField(ev.locationLabel) && (
+                          <div className="text-xs fs-muted flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 fs-accent-text shrink-0" />
+                            <span>{cleanLocationField(ev.locationLabel)}</span>
+                          </div>
+                        )}
                       </div>
+
                       {!cd.expired && (
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <div className="px-2.5 py-1.5 rounded-xl fs-surface-alt border fs-border text-center min-w-[48px]">
-                            <div className="text-sm font-bold fs-accent-text tabular-nums leading-none">
-                              {cd.days}
+                          {[
+                            { val: cd.days, lbl: 'يوم' },
+                            { val: cd.hours, lbl: 'ساعة' },
+                            { val: cd.minutes, lbl: 'دقيقة' },
+                          ].map((unit) => (
+                            <div
+                              key={unit.lbl}
+                              className="px-2.5 py-2 rounded-xl fs-surface-alt border text-center min-w-[50px]"
+                              style={{
+                                borderColor:
+                                  'color-mix(in srgb, var(--fs-gold) 38%, transparent)',
+                              }}
+                            >
+                              <div className="text-sm font-bold fs-accent-text tabular-nums leading-none">
+                                {unit.val}
+                              </div>
+                              <div className="text-[9.5px] fs-muted mt-1">
+                                {unit.lbl}
+                              </div>
                             </div>
-                            <div className="text-[9px] fs-muted mt-0.5">يوم</div>
-                          </div>
-                          <div className="px-2.5 py-1.5 rounded-xl fs-surface-alt border fs-border text-center min-w-[48px]">
-                            <div className="text-sm font-bold fs-accent-text tabular-nums leading-none">
-                              {cd.hours}
-                            </div>
-                            <div className="text-[9px] fs-muted mt-0.5">ساعة</div>
-                          </div>
+                          ))}
                         </div>
                       )}
                     </div>
 
                     {ev.hostNote && (
-                      <p className="text-xs fs-muted leading-relaxed">
+                      <p className="text-xs sm:text-sm fs-muted leading-relaxed">
                         {ev.hostNote}
                       </p>
                     )}
 
-                    <div className="pt-3 border-t fs-border flex items-center justify-between gap-2">
+                    <div className="pt-3.5 border-t fs-border flex flex-wrap items-center justify-between gap-2.5">
                       <span className="text-xs font-semibold fs-muted tabular-nums">
-                        المؤكد حضورهم: {attendingTotal}
+                        {attendingTotal > 0
+                          ? `المؤكد حضورهم: ${attendingTotal}`
+                          : 'الدعوة مفتوحة لأفراد العائلة الكرام'}
                       </span>
                       {!compactPreview && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setRsvpOpenEventId(
-                              rsvpOpenEventId === ev.id ? null : ev.id
-                            )
-                          }
-                          className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer"
-                        >
-                          تأكيد الحضور (RSVP)
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyEventDetails(ev)}
+                            className="px-3 py-1.5 rounded-xl fs-surface-alt border fs-border text-xs font-bold fs-accent-text inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity"
+                          >
+                            {isCopied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>تم النسخ</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>نسخ تفاصيل الموعد</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRsvpOpenEventId(
+                                rsvpOpenEventId === ev.id ? null : ev.id
+                              )
+                            }
+                            className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity"
+                          >
+                            تأكيد الحضور (RSVP)
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -1544,7 +1858,9 @@ export const PublicFamilyMicrositePage: React.FC<
                             className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
                           >
                             <option value="attending">سأحضر بإذن الله</option>
-                            <option value="apologizing">أعتذر مع التمنيات بالتوفيق</option>
+                            <option value="apologizing">
+                              أعتذر مع التمنيات بالتوفيق
+                            </option>
                           </select>
                           <input
                             type="number"
@@ -1571,30 +1887,50 @@ export const PublicFamilyMicrositePage: React.FC<
                 );
               })}
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
+      }
 
       // 6. ANCESTOR STORIES & MEMORIES
-      case 'stories':
+      case 'stories': {
+        const isSingleStory =
+          cms.storiesModule.items.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
+            watermarkVariant="manuscript"
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="سِير ومواقف خالدة"
               title="قصص الأجداد وذاكرة العائلة"
-              icon={<BookOpen className="w-4 h-4" />}
+              icon={<BookOpen className="w-3.5 h-3.5" />}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div
+              className={getAdaptiveGridClass(
+                cms.storiesModule.items.length,
+                compactPreview,
+                2
+              )}
+            >
               {cms.storiesModule.items.map((st) => (
                 <article
                   key={st.id}
-                  className="rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs flex flex-col"
+                  className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
+                    isSingleStory && st.imageUrl
+                      ? 'grid grid-cols-1 md:grid-cols-12'
+                      : 'flex flex-col'
+                  }`}
                 >
                   {st.imageUrl && (
-                    <div className="aspect-[16/9] w-full overflow-hidden fs-surface-alt border-b fs-border">
+                    <div
+                      className={`overflow-hidden fs-surface-alt ${
+                        isSingleStory
+                          ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[260px] border-b md:border-b-0 md:border-l fs-border'
+                          : 'aspect-[16/9] w-full border-b fs-border'
+                      }`}
+                    >
                       <img
                         src={st.imageUrl}
                         alt={st.title}
@@ -1603,54 +1939,78 @@ export const PublicFamilyMicrositePage: React.FC<
                       />
                     </div>
                   )}
-                  <div className="p-6 space-y-2.5 flex-1">
+                  <div
+                    className={`${
+                      isSingleStory && st.imageUrl
+                        ? 'md:col-span-7 p-6 sm:p-8'
+                        : 'p-6'
+                    } space-y-2.5 flex-1`}
+                  >
                     <div className="text-xs font-bold fs-accent-text tabular-nums">
-                      {st.eraOrYearLabel}
+                      {formatArabicLongDate(st.eraOrYearLabel)}
                     </div>
-                    <h3 className="text-lg font-bold fs-display-font">
+                    <h3
+                      className={`${
+                        isSingleStory ? 'text-xl sm:text-2xl' : 'text-lg'
+                      } font-bold fs-display-font`}
+                    >
                       {st.title}
                     </h3>
-                    <p className="text-xs sm:text-sm fs-muted leading-loose whitespace-pre-line">
+                    <p className="text-xs sm:text-sm fs-muted leading-loose whitespace-pre-line max-w-2xl">
                       {st.body}
                     </p>
                   </div>
                 </article>
               ))}
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
+      }
 
       // 7. HALL OF FAME / NOTABLES
-      case 'notables':
+      case 'notables': {
+        const isSingleNotable =
+          cms.notablesModule.items.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="أعلام وإنجازات مشرّفة"
               title={`لوحة شرف عائلة ${siteData.familyName}`}
-              icon={<Award className="w-4 h-4" />}
+              icon={<Award className="w-3.5 h-3.5" />}
             />
             <div
-              className={
-                compactPreview
-                  ? 'grid grid-cols-1 gap-3'
-                  : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5'
-              }
+              className={getAdaptiveGridClass(
+                cms.notablesModule.items.length,
+                compactPreview,
+                3
+              )}
             >
               {cms.notablesModule.items.map((n) => (
                 <article
                   key={n.id}
-                  className="rounded-2xl fs-surface border fs-border p-5 space-y-3 shadow-xs hover:shadow-md transition-shadow"
+                  className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-shadow ${
+                    isSingleNotable
+                      ? 'p-6 sm:p-7 flex flex-col md:flex-row md:items-center gap-6'
+                      : 'p-5 space-y-3'
+                  }`}
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div
+                    className={`flex items-center gap-3.5 ${
+                      isSingleNotable ? 'md:w-5/12 shrink-0' : ''
+                    }`}
+                  >
                     <div
-                      className="w-14 h-14 rounded-2xl overflow-hidden border-2 flex items-center justify-center shrink-0"
+                      className={`${
+                        isSingleNotable ? 'w-16 h-16' : 'w-14 h-14'
+                      } rounded-2xl overflow-hidden border-2 flex items-center justify-center shrink-0 shadow-xs`}
                       style={{
                         borderColor: 'var(--fs-gold)',
-                        backgroundColor: 'var(--fs-hero-bg)',
+                        background:
+                          'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
                         color: 'var(--fs-gold)',
                       }}
                     >
@@ -1665,8 +2025,12 @@ export const PublicFamilyMicrositePage: React.FC<
                         <Award className="w-6 h-6" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="text-base font-bold fs-display-font truncate">
+                    <div className="min-w-0 space-y-0.5">
+                      <h3
+                        className={`${
+                          isSingleNotable ? 'text-lg' : 'text-base'
+                        } font-bold fs-display-font truncate`}
+                      >
                         {n.fullName}
                       </h3>
                       <div className="text-xs font-semibold fs-accent-text truncate">
@@ -1679,289 +2043,630 @@ export const PublicFamilyMicrositePage: React.FC<
                       )}
                     </div>
                   </div>
-                  <p className="text-xs sm:text-sm fs-muted leading-relaxed pt-2 border-t fs-border">
+                  <p
+                    className={`text-xs sm:text-sm fs-muted leading-relaxed ${
+                      isSingleNotable
+                        ? 'md:border-r md:pr-6 pt-3 md:pt-0 border-t md:border-t-0 fs-border flex-1'
+                        : 'pt-2.5 border-t fs-border'
+                    }`}
+                  >
                     {n.achievementSummary}
                   </p>
                 </article>
               ))}
             </div>
-          </section>
-        );
-
-      // 8. ATLAS OF HOMELANDS
-      case 'atlas': {
-        const maxLoc = Math.max(
-          1,
-          ...cms.atlasAndStatsModule.locations.map(
-            (l) => l.householdsOrMembersCount || 1
-          )
-        );
-        return (
-          <section
-            key={key}
-            id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
-          >
-            <SectionOrnamentHeader
-              kicker="الانتشار الجغرافي والديار"
-              title="أطلس ديار وحواضر العائلة"
-              icon={<MapPin className="w-4 h-4" />}
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {cms.atlasAndStatsModule.locations.map((loc) => {
-                const widthPct = Math.max(
-                  15,
-                  Math.round(
-                    ((loc.householdsOrMembersCount || 1) / maxLoc) * 100
-                  )
-                );
-                return (
-                  <div
-                    key={loc.id}
-                    className="rounded-2xl fs-surface border fs-border p-4 space-y-2.5 shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-sm font-bold fs-display-font">
-                          {loc.city}
-                        </div>
-                        <div className="text-xs fs-muted">{loc.country}</div>
-                      </div>
-                      <span className="text-sm font-bold fs-accent-text tabular-nums">
-                        {loc.householdsOrMembersCount} عائلة/فرد
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full fs-surface-alt overflow-hidden">
-                      <div
-                        className="h-full rounded-full fs-accent-bg"
-                        style={{ width: `${widthPct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          </HeritageSectionPavilion>
         );
       }
 
-      // 9. ORAL HERITAGE & AUDIO ARCHIVE
-      case 'oral_heritage':
+      // 8. ATLAS OF HOMELANDS (COMPASS WATERMARK + SHARE % + THEME-GOLD BAR)
+      case 'atlas': {
+        const locations = cms.atlasAndStatsModule.locations;
+        const maxLoc = Math.max(
+          1,
+          ...locations.map((l) => l.householdsOrMembersCount || 1)
+        );
+        const totalLoc = Math.max(
+          1,
+          locations.reduce((s, l) => s + (l.householdsOrMembersCount || 1), 0)
+        );
+        const isSingleLoc = locations.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
+            watermarkVariant="compass"
           >
-            <SectionOrnamentHeader
-              kicker="أصوات وقصائد ومرويات"
-              title="الموروث الصوتي والشعري"
-              icon={<Mic className="w-4 h-4" />}
+            <HeritagePavilionHeader
+              kicker="الانتشار الجغرافي والديار"
+              title="أطلس ديار وحواضر العائلة"
+              icon={<MapPin className="w-3.5 h-3.5" />}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {cms.oralHeritageModule.items.map((clip) => {
-                const isPlaying = playingClipId === clip.id;
+            <div
+              className={getAdaptiveGridClass(
+                locations.length,
+                compactPreview,
+                3
+              )}
+            >
+              {locations.map((loc) => {
+                const countVal = loc.householdsOrMembersCount || 1;
+                const widthPct = Math.max(
+                  14,
+                  Math.round((countVal / maxLoc) * 100)
+                );
+                const sharePct = Math.max(
+                  1,
+                  Math.round((countVal / totalLoc) * 100)
+                );
+                const cityClean = cleanLocationField(loc.city);
+                const countryClean = cleanLocationField(loc.country);
+                const primaryLabel = cityClean || countryClean || 'حاضرة عائلية';
+                const secondaryLabel =
+                  cityClean && countryClean && cityClean !== countryClean
+                    ? countryClean
+                    : '';
+
                 return (
                   <div
-                    key={clip.id}
-                    className="rounded-2xl fs-surface border fs-border p-5 space-y-3 shadow-xs"
+                    key={loc.id}
+                    className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-shadow ${
+                      isSingleLoc
+                        ? 'p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5'
+                        : 'p-4 sm:p-5 space-y-3.5'
+                    }`}
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3 flex-1">
                       <div className="flex items-center gap-3 min-w-0">
-                        <button
-                          type="button"
-                          disabled={!clip.audioDataOrUrl}
-                          onClick={() =>
-                            handleTogglePlayClip(clip.id, clip.audioDataOrUrl)
-                          }
-                          className="w-11 h-11 rounded-full fs-accent-bg flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-45"
+                        <div
+                          className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0"
+                          style={{
+                            backgroundColor: 'var(--fs-gold-soft)',
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                            color: 'var(--fs-accent)',
+                          }}
                         >
-                          {isPlaying ? (
-                            <Pause className="w-5 h-5" />
-                          ) : (
-                            <Play className="w-5 h-5" />
-                          )}
-                        </button>
+                          <Landmark className="w-4 h-4" />
+                        </div>
                         <div className="min-w-0">
-                          <h3 className="text-sm font-bold fs-display-font truncate">
-                            {clip.title}
-                          </h3>
-                          <div className="text-xs fs-muted truncate">
-                            {clip.speakerName} · {clip.recordedYearLabel}
+                          <div className="text-sm sm:text-base font-bold fs-display-font truncate">
+                            {primaryLabel}
                           </div>
+                          {secondaryLabel && (
+                            <div className="text-xs fs-muted truncate">
+                              {secondaryLabel}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <Volume2 className="w-4 h-4 fs-accent-text shrink-0 opacity-75" />
+
+                      <div className="text-left shrink-0">
+                        <div className="text-sm font-bold fs-accent-text tabular-nums">
+                          {countVal} عائلة/فرد
+                        </div>
+                        <div className="text-[11px] font-semibold fs-muted tabular-nums">
+                          {sharePct}% من الحضور
+                        </div>
+                      </div>
                     </div>
-                    {clip.transcriptExcerpt && (
-                      <p className="text-xs fs-muted leading-relaxed pt-2 border-t fs-border">
-                        «{clip.transcriptExcerpt}»
-                      </p>
-                    )}
+
+                    <div
+                      className={`space-y-1.5 ${
+                        isSingleLoc ? 'sm:w-56 shrink-0' : ''
+                      }`}
+                    >
+                      <div className="h-2 rounded-full fs-surface-alt overflow-hidden border fs-border">
+                        <div
+                          className="h-full rounded-full fs-accent-gold-bar transition-all duration-500"
+                          style={{ width: `${widthPct}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
+      }
 
-      // 10. PROFESSIONS DIRECTORY
-      case 'professions':
+      // 9. ORAL HERITAGE & AUDIO ARCHIVE (GOLD WAVEFORM PLAYER + CALLIGRAPHIC QUOTE)
+      case 'oral_heritage': {
+        const clips = cms.oralHeritageModule.items;
+        const isSingleClip = clips.length === 1 && !compactPreview;
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
+            watermarkVariant="manuscript"
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
+              kicker="أصوات وقصائد ومرويات"
+              title="الموروث الصوتي والشعري"
+              icon={<Mic className="w-3.5 h-3.5" />}
+            />
+            <div
+              className={getAdaptiveGridClass(clips.length, compactPreview, 2)}
+            >
+              {clips.map((clip) => {
+                const isPlaying = playingClipId === clip.id;
+                const hasAudio = Boolean(clip.audioDataOrUrl);
+                return (
+                  <article
+                    key={clip.id}
+                    className={`rounded-2xl fs-surface border p-5 sm:p-6 shadow-xs transition-shadow hover:shadow-md ${
+                      isSingleClip
+                        ? 'grid grid-cols-1 md:grid-cols-12 gap-6 items-center'
+                        : 'space-y-4'
+                    }`}
+                    style={{
+                      borderColor: isPlaying
+                        ? 'var(--fs-gold)'
+                        : 'var(--fs-border)',
+                    }}
+                  >
+                    <div
+                      className={`${
+                        isSingleClip ? 'md:col-span-6' : ''
+                      } space-y-3.5`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <button
+                            type="button"
+                            disabled={!hasAudio}
+                            onClick={() =>
+                              handleTogglePlayClip(clip.id, clip.audioDataOrUrl)
+                            }
+                            aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل'}
+                            className="w-12 h-12 rounded-full fs-accent-bg flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-45 shadow-sm ring-2 ring-offset-2 transition-transform hover:scale-105"
+                            style={{
+                              ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                              ['--tw-ring-offset-color' as string]:
+                                'var(--fs-surface)',
+                            }}
+                          >
+                            {isPlaying ? (
+                              <Pause className="w-5 h-5" />
+                            ) : (
+                              <Play className="w-5 h-5 mr-0.5" />
+                            )}
+                          </button>
+                          <div className="min-w-0">
+                            <h3 className="text-sm sm:text-base font-bold fs-display-font truncate">
+                              {clip.title}
+                            </h3>
+                            <div className="text-xs fs-muted truncate mt-0.5">
+                              {clip.speakerName}
+                              {clip.recordedYearLabel
+                                ? ` · ${clip.recordedYearLabel}`
+                                : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <Volume2
+                          className={`w-4 h-4 shrink-0 ${
+                            isPlaying
+                              ? 'fs-accent-text opacity-100'
+                              : 'fs-gold-text opacity-80'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Stylized Museum Gold Audio Waveform */}
+                      <div
+                        className="rounded-xl fs-surface-alt border fs-border px-3.5 py-2.5 flex items-center justify-between gap-3"
+                        aria-hidden="true"
+                      >
+                        <div className="flex items-end gap-1 h-7 flex-1">
+                          {AUDIO_WAVEFORM_HEIGHTS.map((h, idx) => (
+                            <span
+                              key={idx}
+                              className={`flex-1 rounded-full transition-all ${
+                                isPlaying ? 'fs-wave-bar-playing' : ''
+                              }`}
+                              style={{
+                                height: `${h}%`,
+                                background:
+                                  idx % 3 === 0
+                                    ? 'var(--fs-accent)'
+                                    : 'var(--fs-gold)',
+                                opacity: isPlaying ? 0.95 : 0.55,
+                                animationDelay: `${(idx % 6) * 0.14}s`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[10.5px] font-bold fs-muted shrink-0">
+                          {isPlaying
+                            ? 'قيد التشغيل'
+                            : hasAudio
+                            ? 'تسجيل موثق'
+                            : 'مروية نصية'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {clip.transcriptExcerpt && (
+                      <blockquote
+                        className={`${
+                          isSingleClip
+                            ? 'md:col-span-6 md:border-r md:pr-6 border-t md:border-t-0 pt-4 md:pt-0'
+                            : 'pt-3.5 border-t'
+                        } fs-border`}
+                      >
+                        <p className="text-sm sm:text-[15px] fs-display-font leading-loose">
+                          <span className="fs-gold-text font-bold ml-1">«</span>
+                          {clip.transcriptExcerpt}
+                          <span className="fs-gold-text font-bold mr-1">»</span>
+                        </p>
+                      </blockquote>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </HeritageSectionPavilion>
+        );
+      }
+
+      // 10. PROFESSIONS DIRECTORY (EXECUTIVE MONOGRAM MEDALLION CARDS)
+      case 'professions': {
+        const items = cms.professionsModule.items;
+        const isSingleProf = items.length === 1 && !compactPreview;
+        return (
+          <HeritageSectionPavilion
+            key={key}
+            id={`portal-sec-${key}`}
+            compactPreview={compactPreview}
+          >
+            <HeritagePavilionHeader
               kicker="التكافل والخبرات العائلية"
               title="دليل الكفاءات والتخصصات"
-              icon={<Briefcase className="w-4 h-4" />}
+              icon={<Briefcase className="w-3.5 h-3.5" />}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {cms.professionsModule.items.map((prof) => (
-                <div
-                  key={prof.id}
-                  className="rounded-2xl fs-surface border fs-border p-4 space-y-1.5 shadow-2xs"
-                >
-                  <div className="text-[11px] font-bold fs-accent-text">
-                    {prof.fieldCategory}
-                  </div>
-                  <div className="text-sm font-bold fs-display-font">
-                    {prof.memberName}
-                  </div>
-                  <div className="text-xs fs-muted">
-                    {prof.specialtyOrProfession}
-                    {prof.cityCountryLabel ? ` · ${prof.cityCountryLabel}` : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
+            <div
+              className={getAdaptiveGridClass(items.length, compactPreview, 3)}
+            >
+              {items.map((prof) => {
+                const monogram = getArabicMonogram(prof.memberName);
+                const cleanCity = cleanLocationField(prof.cityCountryLabel);
+                return (
+                  <article
+                    key={prof.id}
+                    className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-all flex items-center gap-4 ${
+                      isSingleProf ? 'p-6 sm:p-7' : 'p-4 sm:p-5'
+                    }`}
+                  >
+                    {/* Gilded Circular Executive Monogram Medallion */}
+                    <div
+                      className={`${
+                        isSingleProf ? 'w-14 h-14 text-lg' : 'w-12 h-12 text-base'
+                      } rounded-full border-2 flex items-center justify-center font-bold fs-display-font shrink-0 shadow-xs`}
+                      style={{
+                        background:
+                          'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+                        borderColor: 'var(--fs-gold)',
+                        color: 'var(--fs-gold)',
+                      }}
+                    >
+                      {monogram}
+                    </div>
 
-      // 11. MEMORIAL & TIME CAPSULE
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-md text-[10.5px] font-bold fs-accent-text border"
+                          style={{
+                            backgroundColor: 'var(--fs-gold-soft)',
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
+                          }}
+                        >
+                          {prof.fieldCategory}
+                        </span>
+                        {cleanCity && (
+                          <span className="text-[11px] fs-muted inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3 fs-gold-text" />
+                            <span>{cleanCity}</span>
+                          </span>
+                        )}
+                      </div>
+                      <h3
+                        className={`${
+                          isSingleProf ? 'text-base sm:text-lg' : 'text-sm sm:text-base'
+                        } font-bold fs-display-font truncate`}
+                      >
+                        {prof.memberName}
+                      </h3>
+                      <div className="text-xs fs-muted leading-snug">
+                        {prof.specialtyOrProfession}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </HeritageSectionPavilion>
+        );
+      }
+
+      // 11. MEMORIAL CORNER & ROYAL SEALED TIME VAULT
       case 'memorial': {
+        const elders = cms.memorialAndCapsuleModule.elders;
+        const isSingleElder = elders.length === 1 && !compactPreview;
         const cap = cms.memorialAndCapsuleModule.timeCapsule;
         const capCountdown = cap.enabled
           ? formatCountdownParts(cap.unlockDateIso)
           : null;
+        const formattedUnlockDate = formatArabicLongDate(cap.unlockDateIso);
+
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
+            watermarkVariant="manuscript"
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="برّ ووفاء للراحلين ورسائل للأجيال"
               title="ركن الوفاء والدعاء وكبسولة الزمن"
-              icon={<Heart className="w-4 h-4" />}
+              icon={<Heart className="w-3.5 h-3.5" />}
             />
 
-            {cms.memorialAndCapsuleModule.elders.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {cms.memorialAndCapsuleModule.elders.map((el) => (
-                  <article
-                    key={el.id}
-                    className="rounded-2xl fs-surface border fs-border p-5 space-y-3 shadow-xs"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-base font-bold fs-display-font">
-                          {el.fullName}
-                        </h3>
-                        <div className="text-xs fs-muted tabular-nums">
-                          {el.passingYearLabel}
+            {elders.length > 0 && (
+              <div
+                className={getAdaptiveGridClass(
+                  elders.length,
+                  compactPreview,
+                  2
+                )}
+              >
+                {elders.map((el) => {
+                  const hasPrayed = Boolean(prayedElderIds[el.id]);
+                  return (
+                    <article
+                      key={el.id}
+                      className={`rounded-2xl fs-surface border shadow-xs relative overflow-hidden ${
+                        isSingleElder ? 'p-6 sm:p-7 space-y-4' : 'p-5 space-y-3.5'
+                      }`}
+                      style={{
+                        borderColor:
+                          'color-mix(in srgb, var(--fs-gold) 40%, transparent)',
+                      }}
+                    >
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-6 top-0 h-[1.5px]"
+                        style={{
+                          background:
+                            'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
+                        }}
+                      />
+
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <h3
+                            className={`${
+                              isSingleElder ? 'text-lg sm:text-xl' : 'text-base'
+                            } font-bold fs-display-font`}
+                          >
+                            {el.fullName}
+                          </h3>
+                          <div className="text-xs fs-muted flex flex-wrap items-center gap-2">
+                            <span className="font-semibold fs-accent-text">
+                              رحمه الله وغفر له
+                            </span>
+                            {el.passingYearLabel && (
+                              <>
+                                <span className="opacity-45">·</span>
+                                <span className="tabular-nums">
+                                  {el.passingYearLabel}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handlePrayForElder(el.id)}
+                            className="px-3.5 py-2 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer tabular-nums transition-all duration-200"
+                            style={
+                              hasPrayed
+                                ? {
+                                    backgroundColor: 'var(--fs-gold-soft)',
+                                    borderColor: 'var(--fs-gold)',
+                                    color: 'var(--fs-accent)',
+                                    boxShadow:
+                                      '0 0 18px rgba(200, 160, 84, 0.35)',
+                                  }
+                                : {
+                                    backgroundColor: 'var(--fs-surface-alt)',
+                                    borderColor: 'var(--fs-border)',
+                                    color: 'var(--fs-accent)',
+                                  }
+                            }
+                          >
+                            <Heart
+                              className={`w-3.5 h-3.5 ${
+                                hasPrayed ? 'fill-current' : ''
+                              }`}
+                            />
+                            <span>دعوت له ({el.prayersCount || 0})</span>
+                          </button>
+                          {hasPrayed && (
+                            <span className="text-[10.5px] font-bold fs-accent-text">
+                              تقبّل الله دعاءكم ✦
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handlePrayForElder(el.id)}
-                        className="px-3 py-1.5 rounded-xl fs-surface-alt border fs-border hover:opacity-90 text-xs font-bold fs-accent-text inline-flex items-center gap-1.5 cursor-pointer tabular-nums shrink-0"
-                      >
-                        <Heart className="w-3.5 h-3.5" />
-                        <span>دعوت له ({el.prayersCount || 0})</span>
-                      </button>
-                    </div>
-                    <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                      {el.biographyNote}
-                    </p>
-                    {el.ongoingCharityTitle && (
-                      <div className="rounded-xl fs-surface-alt border fs-border px-3.5 py-2 text-xs">
-                        <span className="font-bold fs-accent-text">
-                          الصدقة الجارية:{' '}
-                        </span>
-                        <span>{el.ongoingCharityTitle}</span>
-                      </div>
-                    )}
-                  </article>
-                ))}
+
+                      <p className="text-xs sm:text-sm fs-muted leading-relaxed">
+                        {el.biographyNote}
+                      </p>
+
+                      {el.ongoingCharityTitle && (
+                        <div
+                          className="rounded-xl fs-surface-alt border px-3.5 py-2.5 text-xs flex items-center gap-2"
+                          style={{
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 32%, transparent)',
+                          }}
+                        >
+                          <Sparkles className="w-3.5 h-3.5 fs-gold-text shrink-0" />
+                          <span>
+                            <strong className="fs-accent-text">
+                              الصدقة الجارية:{' '}
+                            </strong>
+                            {el.ongoingCharityTitle}
+                          </span>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
 
+            {/* ROYAL SEALED TIME VAULT */}
             {cap.enabled && cap.sealedMessage.trim() && capCountdown && (
               <div
-                className="rounded-3xl fs-hero p-6 sm:p-8 space-y-3 border"
+                className="relative overflow-hidden rounded-3xl fs-hero p-6 sm:p-8 border shadow-lg"
                 style={{ borderColor: 'var(--fs-gold)' }}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="inline-flex items-center gap-2 text-xs font-bold fs-gold-text">
-                    <Clock className="w-4 h-4" />
-                    <span>كبسولة الزمن العائلية</span>
+                {/* Delicate inner frame hairline */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-2.5 rounded-2xl border opacity-25"
+                  style={{ borderColor: 'var(--fs-gold)' }}
+                />
+
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div className="flex items-start gap-4">
+                    {/* Wax-Seal Time Vault Medallion */}
+                    <div
+                      className="w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center shrink-0 shadow-md"
+                      style={{
+                        borderColor: 'var(--fs-gold)',
+                        background:
+                          'radial-gradient(circle at 35% 30%, rgba(212,175,106,0.32), rgba(20,16,13,0.6))',
+                        color: 'var(--fs-gold)',
+                      }}
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span className="text-[8.5px] font-bold mt-0.5">مختوم</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold fs-gold-text">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>خزينة كبسولة الزمن العائلية</span>
+                      </div>
+                      <h3 className="text-lg sm:text-2xl font-bold fs-display-font">
+                        {cap.title}
+                      </h3>
+                      <div className="text-xs opacity-80">
+                        بقلم: {cap.authorElderName}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs opacity-85 tabular-nums">
-                    {capCountdown.label}
-                  </span>
+
+                  {/* Segmented Gilded Countdown Units */}
+                  {!capCountdown.expired && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {[
+                        { val: capCountdown.days, lbl: 'يوم' },
+                        { val: capCountdown.hours, lbl: 'ساعة' },
+                        { val: capCountdown.minutes, lbl: 'دقيقة' },
+                      ].map((unit) => (
+                        <div
+                          key={unit.lbl}
+                          className="px-3.5 py-2.5 rounded-2xl bg-white/8 backdrop-blur-xs border text-center min-w-[64px]"
+                          style={{
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                          }}
+                        >
+                          <div className="text-base sm:text-lg font-bold fs-gold-text tabular-nums leading-none">
+                            {unit.val}
+                          </div>
+                          <div className="text-[10px] opacity-80 mt-1">
+                            {unit.lbl}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold fs-display-font">
-                  {cap.title}
-                </h3>
-                <div className="text-xs opacity-75">
-                  بقلم: {cap.authorElderName}
+
+                <div className="relative z-10 mt-5 pt-4 border-t border-white/15">
+                  {capCountdown.expired ? (
+                    <p className="text-sm sm:text-base leading-loose">
+                      {cap.sealedMessage}
+                    </p>
+                  ) : (
+                    <p className="text-xs sm:text-sm opacity-90 leading-relaxed">
+                      الرسالة محفوظة ومختومة رقمياً حتى موعد الفتح الرسمي في{' '}
+                      <strong className="fs-gold-text">
+                        {formattedUnlockDate}
+                      </strong>
+                      .
+                    </p>
+                  )}
                 </div>
-                {capCountdown.expired ? (
-                  <p className="text-sm leading-loose pt-2 border-t border-white/15">
-                    {cap.sealedMessage}
-                  </p>
-                ) : (
-                  <p className="text-xs opacity-80 pt-2 border-t border-white/15">
-                    الرسالة محفوظة ومختومة رقمياً حتى تاريخ الفتح المحدد ({cap.unlockDateIso}).
-                  </p>
-                )}
               </div>
             )}
-          </section>
+          </HeritageSectionPavilion>
         );
       }
 
-      // 12. GUIDED MAJLIS & GUARDIANS OF MEMORY
+      // 12. ELEVATED FAMILY DIWAN (GUIDED MAJLIS & GUARDIANS OF MEMORY)
       case 'majlis':
         return (
-          <section
+          <HeritageSectionPavilion
             key={key}
             id={`portal-sec-${key}`}
-            className="scroll-mt-24 space-y-5"
+            compactPreview={compactPreview}
           >
-            <SectionOrnamentHeader
+            <HeritagePavilionHeader
               kicker="حوار العائلة وتكريم المساهمين"
               title="مجلس العائلة وحرّاس الذاكرة"
-              icon={<MessageSquare className="w-4 h-4" />}
+              icon={<MessageSquare className="w-3.5 h-3.5" />}
             />
 
             {cms.majlisAndGuardiansModule.showGuardiansHonorRoll &&
               guardians.length > 0 && (
-                <div className="rounded-2xl fs-surface-alt border fs-border p-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-xs font-bold fs-accent-text flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>حرّاس ذاكرة العائلة الأكثر إثراءً:</span>
+                <div
+                  className="rounded-2xl border p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, var(--fs-gold-soft) 0%, var(--fs-surface) 100%)',
+                    borderColor:
+                      'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+                  }}
+                >
+                  <div className="text-xs font-bold fs-accent-text flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 fs-gold-text" />
+                    <span>وسام شرف حرّاس ذاكرة العائلة الأكثر إثراءً:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {guardians.map((g, i) => (
                       <span
                         key={`${g.name}-${i}`}
-                        className="px-3 py-1 rounded-xl fs-surface border fs-border text-xs font-bold tabular-nums"
+                        className="px-3 py-1 rounded-xl fs-surface border text-xs font-bold tabular-nums shadow-2xs"
+                        style={{
+                          borderColor:
+                            'color-mix(in srgb, var(--fs-gold) 40%, transparent)',
+                        }}
                       >
-                        ✦ {g.name} ({g.approvedCount} إثراء)
+                        <span className="fs-gold-text ml-1">✦</span>
+                        {g.name} ({g.approvedCount} إثراء)
                       </span>
                     ))}
                   </div>
@@ -1972,14 +2677,14 @@ export const PublicFamilyMicrositePage: React.FC<
               {cms.majlisAndGuardiansModule.topics.map((topic) => (
                 <article
                   key={topic.id}
-                  className="rounded-2xl fs-surface border fs-border p-5 space-y-3.5 shadow-xs"
+                  className="rounded-2xl fs-surface border fs-border p-5 sm:p-6 space-y-4 shadow-xs"
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs fs-accent-text font-bold">
+                  <div className="space-y-1.5">
+                    <div className="inline-flex items-center gap-1.5 text-xs fs-accent-text font-bold">
                       {topic.isWeeklyElderPrompt && (
-                        <Pin className="w-3.5 h-3.5" />
+                        <Pin className="w-3.5 h-3.5 fs-gold-text" />
                       )}
-                      <span>محور حوار عائلي</span>
+                      <span>محور حوار في ديوان العائلة</span>
                     </div>
                     <h3 className="text-base sm:text-lg font-bold fs-display-font">
                       {topic.title}
@@ -1990,23 +2695,36 @@ export const PublicFamilyMicrositePage: React.FC<
                   </div>
 
                   {topic.replies && topic.replies.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t fs-border">
+                    <div className="space-y-2.5 pt-3 border-t fs-border">
                       {topic.replies.map((rep) => (
                         <div
                           key={rep.id}
-                          className="rounded-xl fs-surface-alt border fs-border px-3.5 py-2.5 text-xs space-y-1"
+                          className="rounded-xl fs-surface-alt border fs-border px-4 py-3 flex items-start gap-3 text-xs"
                         >
-                          <div className="font-bold fs-accent-text">
-                            {rep.authorName}
+                          <div
+                            className="w-8 h-8 rounded-full border flex items-center justify-center font-bold fs-display-font shrink-0 text-xs"
+                            style={{
+                              backgroundColor: 'var(--fs-surface)',
+                              borderColor:
+                                'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                              color: 'var(--fs-accent)',
+                            }}
+                          >
+                            {getArabicMonogram(rep.authorName)}
                           </div>
-                          <p className="leading-relaxed">{rep.body}</p>
+                          <div className="space-y-0.5 flex-1 min-w-0">
+                            <div className="font-bold fs-accent-text">
+                              {rep.authorName}
+                            </div>
+                            <p className="leading-relaxed">{rep.body}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {!topic.isLocked && !compactPreview && (
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-3 border-t fs-border">
                       <input
                         type="text"
                         value={majlisReplyInputs[topic.id]?.name || ''}
@@ -2020,7 +2738,10 @@ export const PublicFamilyMicrositePage: React.FC<
                           }))
                         }
                         placeholder="اسمك الكريم"
-                        className="sm:col-span-4 px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
+                        className="sm:col-span-4 px-3.5 py-2.5 rounded-xl fs-surface border fs-border text-xs focus:outline-none focus:ring-1"
+                        style={{
+                          ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                        }}
                       />
                       <input
                         type="text"
@@ -2034,13 +2755,16 @@ export const PublicFamilyMicrositePage: React.FC<
                             },
                           }))
                         }
-                        placeholder="أضف مشاركتك في المجلس..."
-                        className="sm:col-span-6 px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
+                        placeholder="أضف مشاركتك وذكرياتك في المجلس..."
+                        className="sm:col-span-6 px-3.5 py-2.5 rounded-xl fs-surface border fs-border text-xs focus:outline-none focus:ring-1"
+                        style={{
+                          ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                        }}
                       />
                       <button
                         type="button"
                         onClick={() => handleSubmitMajlisReply(topic.id)}
-                        className="sm:col-span-2 py-2 px-3 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer"
+                        className="sm:col-span-2 py-2.5 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-95 transition-opacity shadow-2xs"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>مشاركة</span>
@@ -2050,10 +2774,22 @@ export const PublicFamilyMicrositePage: React.FC<
                 </article>
               ))}
             </div>
-          </section>
+          </HeritageSectionPavilion>
         );
     }
   };
+
+  const statsGridColsClass = compactPreview
+    ? floatingMetrics.length === 3
+      ? 'grid-cols-3'
+      : 'grid-cols-2'
+    : floatingMetrics.length === 4
+    ? 'grid-cols-2 md:grid-cols-4'
+    : floatingMetrics.length === 3
+    ? 'grid-cols-1 sm:grid-cols-3'
+    : floatingMetrics.length === 2
+    ? 'grid-cols-2'
+    : 'grid-cols-1';
 
   return (
     <div
@@ -2071,12 +2807,19 @@ export const PublicFamilyMicrositePage: React.FC<
       />
 
       {/* ================================================================= */}
-      {/* 1. STICKY GLASSMORPHIC TOP NAVIGATION BAR                         */}
+      {/* 1. WARM GLASS STICKY TOP NAVIGATION BAR (WITH SCROLL-SPY)         */}
       {/* ================================================================= */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/85 border-b fs-border">
+      <header
+        className="sticky top-0 z-30 fs-nav-glass border-b shadow-[0_2px_16px_rgba(44,30,20,0.04)]"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 28%, transparent)',
+        }}
+      >
         <div
           className={`${
-            compactPreview ? 'px-4 py-2.5' : 'max-w-6xl mx-auto px-4 sm:px-6 py-3'
+            compactPreview
+              ? 'px-4 py-2.5'
+              : 'max-w-6xl mx-auto px-4 sm:px-6 py-3'
           } flex items-center justify-between gap-4`}
         >
           {/* Right: Mini Crest + Diwan Title */}
@@ -2088,38 +2831,61 @@ export const PublicFamilyMicrositePage: React.FC<
               customCrestUrl={branding.customCrestUrl}
               size="xs"
             />
-            <span className="text-sm sm:text-base font-bold fs-display-font truncate text-[#231F1C]">
+            <span className="text-sm sm:text-base font-bold fs-display-font truncate">
               {portalTitle}
             </span>
           </div>
 
-          {/* Center: Dynamic Anchor Links (ONLY Sections with Real Content) */}
+          {/* Center: Dynamic Anchor Links with Active Scroll-Spy Indicator */}
           {!compactPreview && orderedActiveSections.length > 0 && (
             <nav
               aria-label="أقسام البوابة"
-              className="hidden lg:flex items-center gap-5 text-xs font-bold text-[#231F1C]/80 overflow-x-auto"
+              className="hidden lg:flex items-center gap-1 text-xs font-bold overflow-x-auto no-scrollbar"
             >
-              {orderedActiveSections.slice(0, 6).map((secKey) => (
-                <button
-                  key={secKey}
-                  type="button"
-                  onClick={() => scrollToSection(secKey)}
-                  className="hover:opacity-100 fs-accent-text/80 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  {SECTION_SHORT_NAV[secKey]}
-                </button>
-              ))}
+              {orderedActiveSections.slice(0, 7).map((secKey) => {
+                const isActive = activeNavSection === secKey;
+                return (
+                  <button
+                    key={secKey}
+                    type="button"
+                    onClick={() => scrollToSection(secKey)}
+                    className={`relative px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'fs-accent-text'
+                        : 'opacity-75 hover:opacity-100'
+                    }`}
+                    style={
+                      isActive
+                        ? { backgroundColor: 'var(--fs-gold-soft)' }
+                        : undefined
+                    }
+                  >
+                    <span>{SECTION_SHORT_NAV[secKey]}</span>
+                    {isActive && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-3 bottom-0 h-[2px] rounded-full"
+                        style={{ backgroundColor: 'var(--fs-gold)' }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </nav>
           )}
 
-          {/* Left: Share/QR + Propose Enrichment */}
+          {/* Left: Theme-Harmonized Share/QR + Propose Enrichment */}
           <div className="flex items-center gap-2 shrink-0">
             {!compactPreview && (
               <>
                 <button
                   type="button"
                   onClick={() => setShowQrModal(true)}
-                  className="h-8 px-3 rounded-xl fs-surface-alt border fs-border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 whitespace-nowrap"
+                  className="h-9 px-3 rounded-xl fs-surface border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-2xs transition-opacity"
+                  style={{
+                    borderColor:
+                      'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                  }}
                 >
                   <QrCode className="w-3.5 h-3.5 fs-accent-text" />
                   <span className="hidden sm:inline">مشاركة وQR</span>
@@ -2130,7 +2896,7 @@ export const PublicFamilyMicrositePage: React.FC<
                     setEnrSuccessMessage(null);
                     setShowEnrichmentModal(true);
                   }}
-                  className="h-8 px-3 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap"
+                  className="h-9 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-xs transition-opacity"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">اقتراح إثراء</span>
@@ -2140,7 +2906,7 @@ export const PublicFamilyMicrositePage: React.FC<
                     type="button"
                     onClick={onExitToMainApp}
                     title="منصة جذوري"
-                    className="h-8 px-2.5 rounded-xl border fs-border text-xs font-bold text-[#231F1C]/75 hover:text-[#231F1C] cursor-pointer whitespace-nowrap"
+                    className="h-9 px-2.5 rounded-xl border fs-border text-xs font-bold opacity-80 hover:opacity-100 cursor-pointer whitespace-nowrap"
                   >
                     جذوري
                   </button>
@@ -2157,7 +2923,9 @@ export const PublicFamilyMicrositePage: React.FC<
           {justClaimedRelative && (
             <div className="rounded-2xl fs-surface border fs-border px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-bold fs-accent-text">
-                ✦ أهلاً بك يا {justClaimedRelative.name} ({justClaimedRelative.kinshipRelation}) في دائرة عائلة {siteData.familyName} الموثقة.
+                ✦ أهلاً بك يا {justClaimedRelative.name} (
+                {justClaimedRelative.kinshipRelation}) في دائرة عائلة{' '}
+                {siteData.familyName} الموثقة.
               </span>
               {!viewerIsAnnualVip && onUpgradeOwnMembershipToAnnualVip && (
                 <button
@@ -2194,7 +2962,7 @@ export const PublicFamilyMicrositePage: React.FC<
       )}
 
       {/* ================================================================= */}
-      {/* 2. CINEMATIC HERITAGE HERO + FLOATING HERITAGE STATS BAR          */}
+      {/* 2. CINEMATIC HERITAGE HERO + ZERO-FREE FLOATING STATS BAR         */}
       {/* ================================================================= */}
       <section className="relative overflow-hidden fs-hero">
         <HeroArchitecturalBackdrop branding={branding} />
@@ -2231,14 +2999,14 @@ export const PublicFamilyMicrositePage: React.FC<
                 >
                   {portalTitle}
                 </h1>
-                {siteData.bioDescription &&
+                {sanitizedHeroBio &&
                   siteData.privacyConfig.showBio !== false && (
                     <p
                       className={`${
                         compactPreview ? 'text-xs' : 'text-sm sm:text-base'
                       } opacity-90 leading-relaxed max-w-2xl mx-auto`}
                     >
-                      {siteData.bioDescription}
+                      {sanitizedHeroBio}
                     </p>
                   )}
               </div>
@@ -2280,10 +3048,10 @@ export const PublicFamilyMicrositePage: React.FC<
                 >
                   {portalTitle}
                 </h1>
-                {siteData.bioDescription &&
+                {sanitizedHeroBio &&
                   siteData.privacyConfig.showBio !== false && (
                     <p className="text-sm sm:text-base opacity-90 leading-relaxed max-w-2xl">
-                      {siteData.bioDescription}
+                      {sanitizedHeroBio}
                     </p>
                   )}
                 <div className="flex flex-wrap items-center gap-4 text-xs opacity-90 pt-1">
@@ -2312,7 +3080,7 @@ export const PublicFamilyMicrositePage: React.FC<
                     size={compactPreview ? 'md' : 'lg'}
                   />
                   <div dir="ltr" className="text-xs font-bold fs-gold-text">
-                    {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{siteData.siteSlug}
+                    {CANONICAL_BRAND_DISPLAY_HOST}/{siteData.siteSlug}
                   </div>
                 </div>
               </div>
@@ -2342,10 +3110,10 @@ export const PublicFamilyMicrositePage: React.FC<
               >
                 {portalTitle}
               </h1>
-              {siteData.bioDescription &&
+              {sanitizedHeroBio &&
                 siteData.privacyConfig.showBio !== false && (
                   <p className="text-xs sm:text-sm opacity-90 leading-relaxed max-w-2xl">
-                    {siteData.bioDescription}
+                    {sanitizedHeroBio}
                   </p>
                 )}
               <div className="flex flex-wrap items-center justify-center gap-3 text-xs fs-gold-text font-semibold pt-1">
@@ -2361,84 +3129,86 @@ export const PublicFamilyMicrositePage: React.FC<
         </div>
       </section>
 
-      {/* FLOATING HERITAGE STATS BAR */}
-      <div
-        className={`relative z-20 ${
-          compactPreview
-            ? 'px-4 -mt-8'
-            : 'max-w-5xl mx-auto w-full px-4 sm:px-6 -mt-10'
-        }`}
-      >
+      {/* FLOATING HERITAGE STATS BAR (SYMMETRICAL & ZERO-FREE) */}
+      {floatingMetrics.length > 0 && (
         <div
-          className={`rounded-2xl fs-surface border fs-border shadow-lg grid ${
+          className={`relative z-20 ${
             compactPreview
-              ? 'grid-cols-2 divide-y'
-              : 'grid-cols-2 md:grid-cols-4'
-          } overflow-hidden`}
+              ? 'px-4 -mt-8'
+              : 'max-w-5xl mx-auto w-full px-4 sm:px-6 -mt-10'
+          }`}
         >
-          <div className="p-4 text-center border-l fs-border">
-            <div className="text-xl sm:text-2xl font-bold fs-display-font fs-accent-text tabular-nums">
-              {membersCount}
-            </div>
-            <div className="text-[11px] font-bold fs-muted mt-0.5">
-              أفراد العائلة الموثقون
-            </div>
-          </div>
-          <div className="p-4 text-center md:border-l fs-border">
-            <div className="text-xl sm:text-2xl font-bold fs-display-font fs-accent-text tabular-nums">
-              {generationsCount}
-            </div>
-            <div className="text-[11px] font-bold fs-muted mt-0.5">
-              الأجيال المتصلة
-            </div>
-          </div>
-          <div className="p-4 text-center border-l fs-border">
-            <div className="text-xl sm:text-2xl font-bold fs-display-font fs-accent-text tabular-nums">
-              {vaultCount}
-            </div>
-            <div className="text-[11px] font-bold fs-muted mt-0.5">
-              مقتنيات الخزانة المعروضة
-            </div>
-          </div>
-          <div className="p-4 text-center">
-            <div className="text-xl sm:text-2xl font-bold fs-display-font fs-accent-text tabular-nums">
-              {locationsCount || 1}
-            </div>
-            <div className="text-[11px] font-bold fs-muted mt-0.5">
-              الديار والحواضر
-            </div>
+          <div
+            className={`relative rounded-2xl fs-surface border shadow-[0_14px_38px_rgba(32,22,14,0.1)] grid ${statsGridColsClass} overflow-hidden`}
+            style={{
+              borderColor: 'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+            }}
+          >
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-10 top-0 h-[1.5px]"
+              style={{
+                background:
+                  'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
+              }}
+            />
+            {floatingMetrics.map((metric, idx) => (
+              <div
+                key={metric.key}
+                className={`p-4 sm:p-5 text-center flex flex-col items-center justify-center ${
+                  idx < floatingMetrics.length - 1
+                    ? 'border-b sm:border-b-0 sm:border-l fs-border'
+                    : ''
+                }`}
+              >
+                <div
+                  className={`${
+                    metric.isSeal
+                      ? 'text-lg sm:text-xl'
+                      : 'text-xl sm:text-2xl tabular-nums'
+                  } font-bold fs-display-font fs-accent-text`}
+                >
+                  {metric.value}
+                </div>
+                <div className="text-[11px] font-bold fs-muted mt-1">
+                  {metric.label}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      )}
 
       {/* ================================================================= */}
-      {/* 3. DYNAMIC ORDERED CONTENT SECTIONS (ZERO EMPTY SECTIONS)         */}
+      {/* 3. DYNAMIC ORDERED FRAMED PAVILIONS (ZERO EMPTY SECTIONS)         */}
       {/* ================================================================= */}
       <main
         className={`${
           compactPreview
-            ? 'px-4 py-8 space-y-8'
-            : 'max-w-6xl mx-auto w-full px-4 sm:px-6 py-12 space-y-14'
+            ? 'px-4 py-7 space-y-6'
+            : 'max-w-6xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14 space-y-9 sm:space-y-12'
         } flex-1`}
       >
         {orderedActiveSections.map((secKey) => renderSectionByKey(secKey))}
 
         {/* Transparent Owner-Only Studio Note for Hidden Empty Sections */}
         {isOwnerPreview && hiddenEmptySectionsForOwner.length > 0 && (
-          <div className="rounded-2xl border border-dashed fs-border fs-surface-alt/70 p-4 flex items-start gap-3 text-xs">
+          <div className="rounded-2xl border border-dashed fs-border fs-surface-alt/75 p-4 flex items-start gap-3 text-xs">
             <EyeOff className="w-4 h-4 fs-accent-text shrink-0 mt-0.5" />
             <div className="space-y-1">
               <div className="font-bold">
                 ملاحظة استوديو أمين السجل (لا تظهر للزوار):
               </div>
               <p className="fs-muted leading-relaxed">
-                تم إخفاء الأقسام التالية تلقائياً من الموقع الحي لعدم إضافة محتوى فيها بعد:{' '}
+                تم إخفاء الأقسام التالية تلقائياً من الموقع الحي لعدم إضافة محتوى
+                فيها بعد:{' '}
                 <strong className="fs-accent-text">
                   {hiddenEmptySectionsForOwner
                     .map((k) => PORTAL_SECTION_LABELS[k])
                     .join(' · ')}
                 </strong>
-                . ستظهر فوراً بتصميمها الكامل بمجرد إضافة أول عنصر فيها من لوحة «موقعي».
+                . ستظهر فوراً بتصميمها الكامل بمجرد إضافة أول عنصر فيها من لوحة
+                «موقعي».
               </p>
             </div>
           </div>
@@ -2446,9 +3216,22 @@ export const PublicFamilyMicrositePage: React.FC<
       </main>
 
       {/* ================================================================= */}
-      {/* 4. LUXURY BESPOKE PORTAL FOOTER                                   */}
+      {/* 4. LUXURY BESPOKE PORTAL FOOTER (ZERO RAW LEAKS)                  */}
       {/* ================================================================= */}
-      <footer className="fs-hero border-t border-white/10 mt-10">
+      <footer
+        className="fs-hero border-t mt-8 relative overflow-hidden"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 35%, transparent)',
+        }}
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px]"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
+          }}
+        />
         <div
           className={`${
             compactPreview
@@ -2468,21 +3251,22 @@ export const PublicFamilyMicrositePage: React.FC<
               <div className="text-base font-bold fs-display-font">
                 {portalTitle}
               </div>
-              <div className="text-xs opacity-75">
-                {[siteData.originRegion, siteData.originCountry]
-                  .filter(Boolean)
-                  .join(' — ')}
-              </div>
+              {cleanHeroLocation && (
+                <div className="text-xs opacity-80 inline-flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 fs-gold-text" />
+                  <span>{cleanHeroLocation}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="md:col-span-4 flex flex-wrap gap-x-4 gap-y-2 text-xs opacity-85">
-            {orderedActiveSections.slice(0, 6).map((secKey) => (
+          <div className="md:col-span-4 flex flex-wrap gap-x-4 gap-y-2 text-xs opacity-90">
+            {orderedActiveSections.slice(0, 7).map((secKey) => (
               <button
                 key={secKey}
                 type="button"
                 onClick={() => scrollToSection(secKey)}
-                className="hover:underline cursor-pointer"
+                className="hover:underline underline-offset-4 cursor-pointer"
               >
                 {SECTION_SHORT_NAV[secKey]}
               </button>
@@ -2494,7 +3278,11 @@ export const PublicFamilyMicrositePage: React.FC<
               <button
                 type="button"
                 onClick={() => setShowQrModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border text-xs font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+                style={{
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
+                }}
               >
                 <Share2 className="w-4 h-4 fs-gold-text" />
                 <span>بطاقة الدعوة ورمز QR</span>
@@ -2503,10 +3291,14 @@ export const PublicFamilyMicrositePage: React.FC<
           </div>
         </div>
 
-        <div className="border-t border-white/10 py-4 px-5 text-center text-[11px] opacity-75 flex flex-wrap items-center justify-center gap-2">
+        <div className="border-t border-white/10 py-4 px-5 text-center text-[11px] opacity-80 flex flex-wrap items-center justify-center gap-2">
           <Scroll className="w-3.5 h-3.5 fs-gold-text" />
           <span>
-            بوابة عائلية موثّقة رقمياً عبر منصة «جذوري» للأنساب والإرث العائلي العربي · {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{siteData.siteSlug}
+            بوابة عائلية موثّقة رقمياً عبر منصة «جذوري» للأنساب والإرث العائلي
+            العربي ·{' '}
+            <span dir="ltr" className="font-mono fs-gold-text inline-block">
+              {CANONICAL_BRAND_DISPLAY_HOST}/{siteData.siteSlug}
+            </span>
           </span>
         </div>
       </footer>

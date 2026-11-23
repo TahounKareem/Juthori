@@ -564,14 +564,39 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const [bioTitle, setBioTitle] = useState<string>(
     initialSiteSettings?.bioTitle || `ديوان وسجل عائلة ${result.familyName}`
   );
-  const [bioDescription, setBioDescription] = useState<string>(
-    initialSiteSettings?.bioDescription ||
-      `بوابة رقمية موثقة تجمع فروع عائلة ${result.familyName} المعاصرة في ${
-        result.originRegion
-          ? `${result.originRegion} (${result.originCountry})`
-          : result.originCountry
-      } لحفظ الذاكرة العائلية وصلة الرحم وتوثيق المناسبات والصور التراثية.`
-  );
+  const [bioDescription, setBioDescription] = useState<string>(() => {
+    if (initialSiteSettings?.bioDescription) {
+      return initialSiteSettings.bioDescription;
+    }
+    const invalidTokens = new Set([
+      'غير محدد',
+      'غير محددة',
+      'غير معروف',
+      'غير معروفة',
+      '—',
+      '-',
+      'none',
+      'n/a',
+      'unknown',
+    ]);
+    const cleanRegion = (result.originRegion || '').trim();
+    const cleanCountry = (result.originCountry || '').trim();
+    const validRegion =
+      cleanRegion && !invalidTokens.has(cleanRegion.toLowerCase())
+        ? cleanRegion
+        : '';
+    const validCountry =
+      cleanCountry && !invalidTokens.has(cleanCountry.toLowerCase())
+        ? cleanCountry
+        : '';
+    const locationPhrase =
+      validRegion && validCountry && validRegion !== validCountry
+        ? `${validRegion} (${validCountry})`
+        : validRegion || validCountry;
+    return `بوابة رقمية موثقة تجمع فروع عائلة ${result.familyName} المعاصرة${
+      locationPhrase ? ` في ${locationPhrase}` : ''
+    } لحفظ الذاكرة العائلية وصلة الرحم وتوثيق المناسبات والصور التراثية.`;
+  });
 
   // Rich Visual Branding State
   const [visualBranding, setVisualBranding] =

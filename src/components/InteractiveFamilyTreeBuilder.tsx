@@ -955,6 +955,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     useState(false);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
+  const mirrorDragPanRef = useRef<{
+    active: boolean;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  }>({ active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
   const spotlightTimerRef = useRef<number | null>(null);
   const hasHydratedCloudSettingsRef = useRef(false);
   const skipNextVisualBroadcastRef = useRef(false);
@@ -6842,14 +6849,61 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             <div
               ref={canvasViewportRef}
               dir="rtl"
-              className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y scroll-smooth px-2 sm:px-4 pt-4 ${
-                isPublicMirror ? 'pb-12' : 'pb-24'
+              onMouseDown={
+                isPublicMirror
+                  ? (e) => {
+                      const target = e.target as HTMLElement | null;
+                      if (target?.closest('button, input, a, select, textarea')) {
+                        return;
+                      }
+                      const vp = canvasViewportRef.current;
+                      if (!vp) return;
+                      mirrorDragPanRef.current = {
+                        active: true,
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        scrollLeft: vp.scrollLeft,
+                        scrollTop: vp.scrollTop,
+                      };
+                    }
+                  : undefined
+              }
+              onMouseMove={
+                isPublicMirror
+                  ? (e) => {
+                      const drag = mirrorDragPanRef.current;
+                      const vp = canvasViewportRef.current;
+                      if (!drag.active || !vp) return;
+                      e.preventDefault();
+                      vp.scrollLeft = drag.scrollLeft - (e.clientX - drag.startX);
+                      vp.scrollTop = drag.scrollTop - (e.clientY - drag.startY);
+                    }
+                  : undefined
+              }
+              onMouseUp={
+                isPublicMirror
+                  ? () => {
+                      mirrorDragPanRef.current.active = false;
+                    }
+                  : undefined
+              }
+              onMouseLeave={
+                isPublicMirror
+                  ? () => {
+                      mirrorDragPanRef.current.active = false;
+                    }
+                  : undefined
+              }
+              className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y ${
+                isPublicMirror
+                  ? 'no-scrollbar cursor-grab active:cursor-grabbing px-4 sm:px-8 pt-10 pb-12'
+                  : 'scroll-smooth px-2 sm:px-4 pt-4 pb-24'
               } ${
                 isCinemaMode
                   ? 'min-h-0'
                   : isPublicMirror && publicMirrorMode?.compactPreview
-                  ? 'min-h-[400px]'
-                  : 'min-h-[520px]'
+                  ? 'min-h-[420px]'
+                  : 'min-h-[540px]'
               }`}
             >
               <div ref={canvasContentRef} className="w-max min-w-full">

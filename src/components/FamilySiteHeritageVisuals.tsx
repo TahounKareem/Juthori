@@ -1031,41 +1031,106 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Refined Gilded Commercial Lineage Teaser (Strict Paywall Isolation) */}
+      {/* Royal Gilded Authentication Seal Plaque (Strict Commercial Paywall Isolation) */}
       <div
-        className="rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
+        className="relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_6px_24px_rgba(44,30,20,0.06)]"
         style={{
           background:
-            'linear-gradient(135deg, rgba(212,175,106,0.12) 0%, rgba(255,255,255,0.45) 100%)',
-          borderColor: 'var(--fs-gold)',
+            'linear-gradient(135deg, rgba(200,160,84,0.14) 0%, var(--fs-surface) 48%, rgba(200,160,84,0.08) 100%)',
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
         }}
       >
-        <div className="flex items-start gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
-            style={{
-              backgroundColor: 'var(--fs-hero-bg)',
-              color: 'var(--fs-gold)',
-              borderColor: 'var(--fs-gold)',
-            }}
-          >
-            <Lock className="w-4 h-4" />
-          </div>
-          <div className="space-y-0.5">
-            <div className="text-xs font-bold fs-accent-text flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>عمود النسب التاريخي المحقّق لعائلة {familyName}</span>
+        {/* Subtle inset gilded top hairline */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px]"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
+          }}
+        />
+        {/* Faint archival star watermark behind seal */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 120 120"
+          className="pointer-events-none select-none absolute -top-6 -left-6 w-28 h-28 opacity-[0.07]"
+          style={{ color: 'var(--fs-gold)' }}
+        >
+          <polygon
+            points="60,8 74,40 108,40 82,62 92,96 60,76 28,96 38,62 12,40 46,40"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r="46"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.9"
+            strokeDasharray="3 4"
+          />
+        </svg>
+
+        <div className="relative z-10 flex items-start gap-3.5">
+          {/* Royal Wax-Seal Authentication Medallion */}
+          <div className="relative shrink-0">
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center border-2 shadow-xs"
+              style={{
+                background:
+                  'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+                color: 'var(--fs-gold)',
+                borderColor: 'var(--fs-gold)',
+              }}
+            >
+              <Lock className="w-4 h-4" />
             </div>
-            <p className="text-xs fs-muted leading-relaxed">
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold border"
+              style={{
+                backgroundColor: 'var(--fs-gold)',
+                color: 'var(--fs-hero-bg)',
+                borderColor: 'var(--fs-surface)',
+              }}
+            >
+              ✦
+            </span>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-md border"
+                style={{
+                  backgroundColor: 'var(--fs-gold-soft)',
+                  borderColor: 'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                  color: 'var(--fs-accent)',
+                }}
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>ختم توثيق النسب التاريخي</span>
+              </span>
+              <span className="text-xs sm:text-sm font-bold fs-display-font">
+                عمود النسب المحقّق لعائلة {familyName}
+              </span>
+            </div>
+            <p className="text-xs fs-muted leading-relaxed max-w-2xl">
               {COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR}
             </p>
           </div>
         </div>
+
         {onStartOwnSearch && !compactPreview && (
           <button
             type="button"
             onClick={onStartOwnSearch}
-            className="px-4 py-2 rounded-xl fs-accent-bg text-xs font-bold shrink-0 cursor-pointer hover:opacity-95 transition-opacity whitespace-nowrap"
+            className="relative z-10 px-4 py-2.5 rounded-xl fs-accent-bg text-xs font-bold shrink-0 cursor-pointer hover:opacity-95 transition-opacity whitespace-nowrap shadow-xs border"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--fs-gold) 40%, transparent)',
+            }}
           >
             استكشف عمود النسب في جذوري
           </button>
@@ -1101,6 +1166,178 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
           </p>
         </div>
       )}
+    </div>
+  );
+};
+
+// =============================================================================
+// 6. FRAMED MUSEUM HERITAGE PAVILION & ORNAMENTED SECTION HEADER
+// =============================================================================
+export const HeritageSectionPavilion: React.FC<{
+  id: string;
+  compactPreview?: boolean;
+  watermarkVariant?: 'arabesque' | 'compass' | 'manuscript';
+  children: React.ReactNode;
+}> = ({
+  id,
+  compactPreview = false,
+  watermarkVariant = 'arabesque',
+  children,
+}) => {
+  return (
+    <section id={id} className="scroll-mt-24">
+      <div
+        className={`relative overflow-hidden rounded-3xl border fs-pavilion ${
+          compactPreview ? 'p-4 sm:p-5 space-y-4' : 'p-6 sm:p-9 lg:p-10 space-y-6'
+        }`}
+        style={{
+          borderColor: 'color-mix(in srgb, var(--fs-gold) 32%, transparent)',
+        }}
+      >
+        {/* Delicate Gilded Top Crown Hairline */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-10 top-0 h-[1.5px]"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
+          }}
+        />
+
+        {/* Faint Corner Filigree Watermark (Top-Left) */}
+        {watermarkVariant === 'compass' ? (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 220 220"
+            className="pointer-events-none select-none absolute -top-10 -left-10 w-52 h-52 opacity-[0.065]"
+            style={{ color: 'var(--fs-gold)' }}
+          >
+            <circle
+              cx="110"
+              cy="110"
+              r="86"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.1"
+            />
+            <circle
+              cx="110"
+              cy="110"
+              r="62"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.8"
+              strokeDasharray="4 4"
+            />
+            <path
+              d="M110 14 L122 98 L206 110 L122 122 L110 206 L98 122 L14 110 L98 98 Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
+            <path
+              d="M44 44 L103 103 M176 44 L117 103 M176 176 L117 117 M44 176 L103 117"
+              stroke="currentColor"
+              strokeWidth="0.7"
+            />
+          </svg>
+        ) : (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 200 200"
+            className="pointer-events-none select-none absolute -top-12 -left-12 w-48 h-48 opacity-[0.055]"
+            style={{ color: 'var(--fs-gold)' }}
+          >
+            <g fill="none" stroke="currentColor" strokeWidth="1">
+              <rect x="44" y="44" width="112" height="112" />
+              <rect
+                x="44"
+                y="44"
+                width="112"
+                height="112"
+                transform="rotate(45 100 100)"
+              />
+              <circle cx="100" cy="100" r="78" strokeDasharray="3 5" />
+              <circle cx="100" cy="100" r="36" />
+            </g>
+          </svg>
+        )}
+
+        {/* Secondary Quiet Filigree Echo (Bottom-Right) */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 140 140"
+          className="pointer-events-none select-none absolute -bottom-10 -right-10 w-36 h-36 opacity-[0.04]"
+          style={{ color: 'var(--fs-accent)' }}
+        >
+          <g fill="none" stroke="currentColor" strokeWidth="1">
+            <rect x="30" y="30" width="80" height="80" />
+            <rect
+              x="30"
+              y="30"
+              width="80"
+              height="80"
+              transform="rotate(45 70 70)"
+            />
+            <circle cx="70" cy="70" r="56" />
+          </g>
+        </svg>
+
+        <div className="relative z-10 space-y-6">{children}</div>
+      </div>
+    </section>
+  );
+};
+
+export const HeritagePavilionHeader: React.FC<{
+  kicker: string;
+  title: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  action?: React.ReactNode;
+}> = ({ kicker, title, subtitle, icon, action }) => {
+  return (
+    <div className="space-y-3.5">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="space-y-1.5">
+          <div
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold fs-accent-text"
+            style={{
+              backgroundColor: 'var(--fs-gold-soft)',
+              borderColor: 'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
+            }}
+          >
+            {icon}
+            <span>{kicker}</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl lg:text-[26px] font-bold fs-display-font leading-snug">
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-2xl">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
+      </div>
+
+      {/* Gilded Architectural Divider Hairline */}
+      <div className="flex items-center gap-2.5" aria-hidden="true">
+        <span
+          className="text-[10px] leading-none"
+          style={{ color: 'var(--fs-gold)' }}
+        >
+          ✦
+        </span>
+        <div
+          className="h-px flex-1"
+          style={{
+            background:
+              'linear-gradient(270deg, var(--fs-gold) 0%, color-mix(in srgb, var(--fs-gold) 28%, transparent) 55%, transparent 100%)',
+          }}
+        />
+      </div>
     </div>
   );
 };
