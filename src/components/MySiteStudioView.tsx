@@ -93,6 +93,7 @@ import {
 } from './FamilySiteHeritageVisuals';
 import { MySiteSectionHubPanel } from './MySiteSectionHubPanel';
 import { MySiteLinkPrivacyPanel } from './MySiteLinkPrivacyPanel';
+import { ModernSwitch } from './MySiteStudioControls';
 
 interface MySiteStudioViewProps {
   result: LineageSearchResult;
@@ -402,6 +403,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [uploadingCrest, setUploadingCrest] = useState(false);
   const [uploadingHeroCover, setUploadingHeroCover] = useState(false);
+  const [uploadingInterlude, setUploadingInterlude] = useState(false);
   const [slugStatus, setSlugStatus] = useState<{
     checking: boolean;
     available?: boolean;
@@ -416,6 +418,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
   const crestFileRef = useRef<HTMLInputElement | null>(null);
   const heroCoverFileRef = useRef<HTMLInputElement | null>(null);
+  const interludeFileRef = useRef<HTMLInputElement | null>(null);
 
   // Load private `شجرتي` & `خزانتي` + remote published microsite if exists
   useEffect(() => {
@@ -642,6 +645,32 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       }));
     } finally {
       setUploadingHeroCover(false);
+    }
+  };
+
+  const handleUploadInterludePhoto = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingInterlude(true);
+    try {
+      const processed = await processMediaFileForUpload(file, 'vault_photo');
+      const uploaded = await uploadMediaToCloudWithFallback({
+        uid: userId,
+        category: 'vault',
+        itemId: `interlude_${Date.now()}`,
+        mainDataUrl: processed.mainDataUrl,
+        thumbnailDataUrl: processed.thumbnailDataUrl,
+        mimeType: processed.mimeType || 'image/jpeg',
+      });
+      setVisualBranding((prev) => ({
+        ...prev,
+        showHumanWarmthInterludes: true,
+        customInterludeImageUrl: uploaded.url || processed.mainDataUrl,
+      }));
+    } finally {
+      setUploadingInterlude(false);
     }
   };
 
@@ -962,6 +991,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         accept="image/*"
         className="hidden"
         onChange={handleUploadHeroCover}
+      />
+      <input
+        ref={interludeFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUploadInterludePhoto}
       />
 
       {/* =================================================================== */}
@@ -1459,6 +1495,72 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       }
                       className="w-full accent-[#9E5631] cursor-pointer"
                     />
+                  </div>
+
+                  {/* Human Warmth Cinematic Interludes Control */}
+                  <div className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                          الفواصل السردية الإنسانية الدافئة
+                        </div>
+                        <p className="text-[11px] text-[#7A5C43] mt-0.5">
+                          لوحات بانورامية وجدانية تفصل بين فصول الديوان بروح
+                          العائلة وصلة الرحم
+                        </p>
+                      </div>
+                      <ModernSwitch
+                        checked={
+                          visualBranding.showHumanWarmthInterludes !== false
+                        }
+                        onChange={(next) =>
+                          setVisualBranding((prev) => ({
+                            ...prev,
+                            showHumanWarmthInterludes: next,
+                          }))
+                        }
+                        ariaLabel="تفعيل الفواصل السردية الإنسانية"
+                      />
+                    </div>
+
+                    {visualBranding.showHumanWarmthInterludes !== false && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EAE0CF]">
+                        <span className="text-[11px] text-[#6B5440]">
+                          {visualBranding.customInterludeImageUrl
+                            ? 'تُعرض صورتكم العائلية الخاصة في الفاصل الأول'
+                            : 'تُعرض المشاهد التراثية العائلية المنسّقة افتراضياً'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={uploadingInterlude}
+                            onClick={() => interludeFileRef.current?.click()}
+                            className="h-8 px-3 rounded-lg bg-white hover:bg-[#F3E9D8] border border-[#DFC798] text-[11px] font-display font-bold text-[#7B401F] inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-[#9E5631]" />
+                            <span>
+                              {uploadingInterlude
+                                ? 'جاري الرفع...'
+                                : 'رفع صورة تجمع عائلي'}
+                            </span>
+                          </button>
+                          {visualBranding.customInterludeImageUrl && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setVisualBranding((prev) => ({
+                                  ...prev,
+                                  customInterludeImageUrl: undefined,
+                                }))
+                              }
+                              className="h-8 px-2.5 rounded-lg bg-white hover:bg-red-50 border border-[#E6DAC3] text-[11px] font-bold text-red-700 cursor-pointer whitespace-nowrap"
+                            >
+                              استعادة الافتراضي
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CalmInspectorAccordion>
 

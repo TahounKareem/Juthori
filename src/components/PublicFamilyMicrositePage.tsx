@@ -12,16 +12,13 @@ import {
   Compass,
   Copy,
   EyeOff,
-  FileText,
   GitBranch,
   Globe,
   Heart,
-  HelpCircle,
   Landmark,
   Loader2,
   Lock,
   MapPin,
-  Maximize2,
   MessageSquare,
   Mic,
   Pause,
@@ -29,7 +26,6 @@ import {
   Play,
   PlusCircle,
   QrCode,
-  Quote,
   Scroll,
   Send,
   Share2,
@@ -45,7 +41,6 @@ import {
   ModuleVisibility,
   PortalSectionKey,
   PublicMicrositeData,
-  PublicVaultProjectedItem,
   addBlessingToFamilyNews,
   addReplyToGuidedMajlisTopic,
   buildDefaultCmsModules,
@@ -75,6 +70,16 @@ import {
   PORTAL_SECTION_LABELS,
   PublicVisualTreeMirror,
 } from './FamilySiteHeritageVisuals';
+import {
+  AnimatedHeritageCounter,
+  CuratedMuseumVaultWall,
+  FullBleedVelvetBand,
+  HeritageAmbientWatermark,
+  HumanWarmthInterludeBanner,
+  OpenEditorialCanvasSection,
+  ScrollProgressGoldBar,
+  ScrollRevealChapter,
+} from './FamilySiteEditorialPrimitives';
 import { JuthoriLogo } from './JuthoriLogo';
 
 interface PublicFamilyMicrositePageProps {
@@ -234,8 +239,6 @@ export const PublicFamilyMicrositePage: React.FC<
   );
   const [loading, setLoading] = useState<boolean>(!previewData);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [lightboxVaultItem, setLightboxVaultItem] =
-    useState<PublicVaultProjectedItem | null>(null);
 
   // Kinship Capability-Token Invitation State (`?invite={inviteToken}`)
   const [activeInvitation, setActiveInvitation] =
@@ -1342,116 +1345,957 @@ export const PublicFamilyMicrositePage: React.FC<
   };
 
   // ===========================================================================
-  // SECTION RENDERER BY ORDERED SECTION KEY (FRAMED HERITAGE PAVILIONS)
+  // EDITORIAL SCROLLYTELLING CHAPTER RENDERERS (3 ALTERNATING VISUAL RHYTHMS)
   // ===========================================================================
-  const renderSectionByKey = (key: PortalSectionKey): React.ReactNode => {
-    switch (key) {
-      // 1. PATRIARCH WELCOME QUOTE
-      case 'patriarch_quote':
-        return (
-          <HeritageSectionPavilion
-            key={key}
-            id={`portal-sec-${key}`}
-            compactPreview={compactPreview}
-            watermarkVariant="manuscript"
+  const wrapInStandardContainer = (
+    node: React.ReactNode,
+    blockKey: string,
+    hasMarker = true
+  ) => (
+    <ScrollRevealChapter
+      key={blockKey}
+      immediate={compactPreview}
+      className={
+        compactPreview
+          ? 'px-4'
+          : 'relative max-w-6xl mx-auto w-full px-4 sm:px-6'
+      }
+    >
+      {/* Subtle Illuminated Lineage Thread Chapter Node (xl desktop) */}
+      {!compactPreview && hasMarker && (
+        <span
+          aria-hidden="true"
+          className="hidden xl:flex pointer-events-none absolute -right-5 top-10 w-3 h-3 rounded-full items-center justify-center"
+          style={{
+            backgroundColor: 'var(--fs-canvas)',
+            border: '1.5px solid var(--fs-gold)',
+            boxShadow: '0 0 10px color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+          }}
+        >
+          <span
+            className="w-1 h-1 rounded-full"
+            style={{ backgroundColor: 'var(--fs-gold)' }}
+          />
+        </span>
+      )}
+      {node}
+    </ScrollRevealChapter>
+  );
+
+  // Inner reusable content blocks (shared cleanly between standalone & Bento pairs)
+  const renderPatriarchQuoteBlock = (isPaired: boolean) => (
+    <div
+      id={isPaired ? 'portal-sec-patriarch_quote' : undefined}
+      className={
+        isPaired
+          ? 'relative scroll-mt-24 rounded-3xl fs-surface border p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-[0_14px_38px_-18px_rgba(32,22,14,0.14)] overflow-hidden h-full'
+          : 'py-2 sm:py-5 text-center flex flex-col items-center space-y-5'
+      }
+      style={
+        isPaired
+          ? {
+              borderColor:
+                'color-mix(in srgb, var(--fs-gold) 46%, transparent)',
+              background:
+                'linear-gradient(155deg, var(--fs-surface) 0%, var(--fs-gold-soft) 100%)',
+            }
+          : undefined
+      }
+    >
+      {isPaired && <HeritageAmbientWatermark variant="tree" position="left" />}
+
+      <div
+        className={`relative z-10 ${
+          isPaired
+            ? 'space-y-4 text-right'
+            : 'flex flex-col items-center space-y-4 max-w-3xl mx-auto'
+        }`}
+      >
+        <div className="text-[11px] font-bold tracking-wide fs-accent-text">
+          ✦ كلمة عميد ومؤسس الديوان العائلي
+        </div>
+
+        <blockquote
+          className={`relative ${
+            isPaired
+              ? 'text-lg sm:text-xl lg:text-2xl leading-relaxed'
+              : 'text-xl sm:text-2xl lg:text-[28px] leading-relaxed sm:leading-loose px-4 sm:px-8'
+          } fs-display-font font-bold text-balance`}
+        >
+          <span
+            aria-hidden="true"
+            className="fs-gold-text text-3xl sm:text-4xl leading-none align-middle ml-1.5 opacity-80"
           >
-            <div className="py-2 sm:py-4 text-center flex flex-col items-center space-y-5">
+            «
+          </span>
+          {branding.patriarchQuote.text.trim()}
+          <span
+            aria-hidden="true"
+            className="fs-gold-text text-3xl sm:text-4xl leading-none align-middle mr-1.5 opacity-80"
+          >
+            »
+          </span>
+        </blockquote>
+      </div>
+
+      {/* Signed Family Crest & Author Plinth */}
+      <div
+        className={`relative z-10 flex items-center gap-3 pt-4 border-t fs-border ${
+          isPaired ? '' : 'justify-center px-6'
+        }`}
+      >
+        <FamilyCrestEmblem
+          familyName={siteData.familyName}
+          crestMode={branding.crestMode}
+          crestStyle={branding.crestStyle}
+          customCrestUrl={branding.customCrestUrl}
+          size="xs"
+        />
+        <div className={isPaired ? 'text-right' : 'text-right'}>
+          <div className="text-sm sm:text-base font-bold fs-accent-text fs-display-font">
+            {branding.patriarchQuote.authorName}
+          </div>
+          {branding.patriarchQuote.authorTitle && (
+            <div className="text-xs fs-muted">
+              {branding.patriarchQuote.authorTitle}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAtlasCards = (inBentoPair: boolean) => {
+    const locations = cms.atlasAndStatsModule.locations;
+    const maxLoc = Math.max(
+      1,
+      ...locations.map((l) => l.householdsOrMembersCount || 1)
+    );
+    const totalLoc = Math.max(
+      1,
+      locations.reduce((s, l) => s + (l.householdsOrMembersCount || 1), 0)
+    );
+    const isSingleLoc =
+      locations.length === 1 && !compactPreview && !inBentoPair;
+
+    return (
+      <div
+        className={
+          inBentoPair
+            ? 'grid grid-cols-1 gap-3.5'
+            : getAdaptiveGridClass(locations.length, compactPreview, 3)
+        }
+      >
+        {locations.map((loc) => {
+          const countVal = loc.householdsOrMembersCount || 1;
+          const widthPct = Math.max(14, Math.round((countVal / maxLoc) * 100));
+          const sharePct = Math.max(1, Math.round((countVal / totalLoc) * 100));
+          const cityClean = cleanLocationField(loc.city);
+          const countryClean = cleanLocationField(loc.country);
+          const primaryLabel = cityClean || countryClean || 'حاضرة عائلية';
+          const secondaryLabel =
+            cityClean && countryClean && cityClean !== countryClean
+              ? countryClean
+              : '';
+
+          return (
+            <div
+              key={loc.id}
+              className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-all ${
+                isSingleLoc
+                  ? 'p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5'
+                  : 'p-4 sm:p-5 space-y-3'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3 flex-1">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-full border flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: 'var(--fs-gold-soft)',
+                      borderColor:
+                        'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                      color: 'var(--fs-accent)',
+                    }}
+                  >
+                    <Landmark className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm sm:text-base font-bold fs-display-font truncate">
+                      {primaryLabel}
+                    </div>
+                    {secondaryLabel && (
+                      <div className="text-xs fs-muted truncate">
+                        {secondaryLabel}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-left shrink-0">
+                  <div className="text-sm font-bold fs-accent-text tabular-nums">
+                    {countVal} عائلة/فرد
+                  </div>
+                  <div className="text-[11px] font-semibold fs-muted tabular-nums">
+                    {sharePct}% من الحضور
+                  </div>
+                </div>
+              </div>
+
               <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs"
+                className={`space-y-1.5 ${
+                  isSingleLoc ? 'sm:w-56 shrink-0' : ''
+                }`}
+              >
+                <div className="h-2 rounded-full fs-surface-alt overflow-hidden border fs-border">
+                  <div
+                    className="h-full rounded-full fs-accent-gold-bar transition-all duration-500"
+                    style={{ width: `${widthPct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Sculpted Arch-Topped Pedestal Cards for Notables (breaks rectangular monotony)
+  const renderNotablesCards = (inBentoPair: boolean) => {
+    const items = cms.notablesModule.items;
+    return (
+      <div
+        className={
+          inBentoPair
+            ? items.length === 1
+              ? 'grid grid-cols-1 gap-5'
+              : 'grid grid-cols-1 sm:grid-cols-2 gap-4'
+            : getAdaptiveGridClass(items.length, compactPreview, 3)
+        }
+      >
+        {items.map((n) => (
+          <article
+            key={n.id}
+            className="group relative rounded-t-[110px] rounded-b-2xl fs-surface border pt-7 pb-6 px-5 sm:px-6 text-center shadow-[0_12px_34px_-18px_rgba(32,22,14,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col items-center justify-between gap-4"
+            style={{
+              borderColor:
+                'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+            }}
+          >
+            {/* Delicate Inner Arch Crest Line */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-2.5 rounded-t-[100px] rounded-b-xl border opacity-25"
+              style={{ borderColor: 'var(--fs-gold)' }}
+            />
+
+            <div className="relative z-10 flex flex-col items-center space-y-3 w-full">
+              {/* Double Gold-Ringed Circular Medallion Portrait */}
+              <div
+                className="w-20 h-20 rounded-full p-[3px] shadow-md transition-transform duration-300 group-hover:scale-105"
                 style={{
-                  backgroundColor: 'var(--fs-gold-soft)',
-                  borderColor:
-                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
-                  color: 'var(--fs-accent)',
+                  background:
+                    'linear-gradient(135deg, #F3D999 0%, var(--fs-gold) 55%, var(--fs-accent) 100%)',
                 }}
               >
-                <Quote className="w-5 h-5" />
-              </div>
-
-              <div className="text-[11px] font-bold tracking-wide fs-accent-text">
-                كلمة عميد ومؤسس الديوان العائلي
-              </div>
-
-              <blockquote className="max-w-3xl mx-auto text-lg sm:text-2xl lg:text-[26px] leading-relaxed sm:leading-loose fs-display-font font-bold">
-                <span className="fs-gold-text ml-1.5">«</span>
-                {branding.patriarchQuote.text.trim()}
-                <span className="fs-gold-text mr-1.5">»</span>
-              </blockquote>
-
-              <div className="w-28 flex items-center gap-2" aria-hidden="true">
                 <div
-                  className="h-px flex-1"
+                  className="w-full h-full rounded-full overflow-hidden border-2 flex items-center justify-center"
                   style={{
+                    borderColor: 'var(--fs-surface)',
                     background:
-                      'linear-gradient(90deg, transparent, var(--fs-gold))',
+                      'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+                    color: 'var(--fs-gold)',
                   }}
-                />
-                <span className="text-[10px] fs-gold-text">✦</span>
-                <div
-                  className="h-px flex-1"
-                  style={{
-                    background:
-                      'linear-gradient(270deg, transparent, var(--fs-gold))',
-                  }}
-                />
-              </div>
-
-              <div className="flex flex-col items-center gap-0.5">
-                <div className="text-sm sm:text-base font-bold fs-accent-text fs-display-font">
-                  {branding.patriarchQuote.authorName}
+                >
+                  {n.imageUrl ? (
+                    <img
+                      src={n.imageUrl}
+                      alt={n.fullName}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xl font-bold fs-display-font">
+                      {getArabicMonogram(n.fullName)}
+                    </span>
+                  )}
                 </div>
-                {branding.patriarchQuote.authorTitle && (
-                  <div className="text-xs fs-muted">
-                    {branding.patriarchQuote.authorTitle}
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-[11px] font-bold fs-accent-text tracking-wide">
+                  ✦ {n.roleOrTitle}
+                </div>
+                <h3 className="text-base sm:text-lg font-bold fs-display-font leading-snug">
+                  {n.fullName}
+                </h3>
+                {n.eraLabel && (
+                  <div className="text-[11px] fs-muted tabular-nums">
+                    {n.eraLabel}
                   </div>
                 )}
               </div>
             </div>
-          </HeritageSectionPavilion>
+
+            <p className="relative z-10 text-xs sm:text-sm fs-muted leading-relaxed pt-3 border-t fs-border w-full">
+              {n.achievementSummary}
+            </p>
+          </article>
+        ))}
+      </div>
+    );
+  };
+
+  // Sculpted Circular Gold-Ringed Medallion Cards for Professions
+  const renderProfessionsCards = (inBentoPair: boolean) => {
+    const items = cms.professionsModule.items;
+    return (
+      <div
+        className={
+          inBentoPair
+            ? 'grid grid-cols-1 gap-4'
+            : getAdaptiveGridClass(items.length, compactPreview, 3)
+        }
+      >
+        {items.map((prof) => {
+          const monogram = getArabicMonogram(prof.memberName);
+          const cleanCity = cleanLocationField(prof.cityCountryLabel);
+          return (
+            <article
+              key={prof.id}
+              className="group rounded-2xl fs-surface border p-5 shadow-[0_10px_28px_-16px_rgba(32,22,14,0.16)] hover:-translate-y-0.5 transition-all flex items-center gap-4"
+              style={{
+                borderColor:
+                  'color-mix(in srgb, var(--fs-gold) 38%, transparent)',
+              }}
+            >
+              {/* Double Gold-Ringed Circular Executive Monogram Medallion */}
+              <div
+                className="w-14 h-14 rounded-full p-[2.5px] shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-105"
+                style={{
+                  background:
+                    'linear-gradient(135deg, #F3D999 0%, var(--fs-gold) 55%, var(--fs-accent) 100%)',
+                }}
+              >
+                <div
+                  className="w-full h-full rounded-full border flex items-center justify-center font-bold fs-display-font text-lg"
+                  style={{
+                    borderColor: 'var(--fs-surface)',
+                    background:
+                      'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+                    color: 'var(--fs-gold)',
+                  }}
+                >
+                  {monogram}
+                </div>
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                  <span className="font-bold fs-accent-text">
+                    {prof.fieldCategory}
+                  </span>
+                  {cleanCity && (
+                    <>
+                      <span className="opacity-35">·</span>
+                      <span className="fs-muted inline-flex items-center gap-1">
+                        <MapPin className="w-3 h-3 fs-gold-text" />
+                        <span>{cleanCity}</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+                <h3 className="text-base font-bold fs-display-font truncate">
+                  {prof.memberName}
+                </h3>
+                <div className="text-xs fs-muted leading-snug">
+                  {prof.specialtyOrProfession}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderNewsCards = (inBentoPair: boolean) => {
+    const isSingleNews =
+      cms.newsModule.items.length === 1 && !compactPreview && !inBentoPair;
+    return (
+      <div
+        className={
+          inBentoPair
+            ? 'grid grid-cols-1 gap-4'
+            : getAdaptiveGridClass(cms.newsModule.items.length, compactPreview, 2)
+        }
+      >
+        {cms.newsModule.items.map((item) => (
+          <article
+            key={item.id}
+            className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
+              isSingleNews && item.imageUrl
+                ? 'grid grid-cols-1 md:grid-cols-12'
+                : 'flex flex-col justify-between'
+            }`}
+          >
+            {item.imageUrl && (
+              <div
+                className={`overflow-hidden fs-surface-alt ${
+                  isSingleNews
+                    ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[240px] border-b md:border-b-0 md:border-l fs-border'
+                    : 'aspect-[16/9] w-full border-b fs-border'
+                }`}
+              >
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            <div
+              className={`${
+                isSingleNews && item.imageUrl
+                  ? 'md:col-span-7 p-6 sm:p-7'
+                  : 'p-5 sm:p-6'
+              } space-y-3.5 flex-1 flex flex-col justify-between`}
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-bold fs-accent-text">
+                    ✦ {item.category}
+                  </span>
+                  <span className="fs-muted tabular-nums">
+                    {formatArabicLongDate(item.dateLabel)}
+                  </span>
+                </div>
+                <h3
+                  className={`${
+                    isSingleNews ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
+                  } font-bold fs-display-font`}
+                >
+                  {item.title}
+                </h3>
+                <p className="text-xs sm:text-sm fs-muted leading-relaxed">
+                  {item.summary}
+                </p>
+              </div>
+
+              <div className="pt-3.5 border-t fs-border space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs fs-muted tabular-nums">
+                    التبريكات ({item.blessings?.length || 0})
+                  </span>
+                  {!compactPreview && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenBlessingId(
+                          openBlessingId === item.id ? null : item.id
+                        )
+                      }
+                      className="text-xs font-bold fs-accent-text hover:underline cursor-pointer"
+                    >
+                      + أرسل تهنئة ومباركة
+                    </button>
+                  )}
+                </div>
+
+                {openBlessingId === item.id && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={blessingInputs[item.id] || ''}
+                      onChange={(e) =>
+                        setBlessingInputs((prev) => ({
+                          ...prev,
+                          [item.id]: e.target.value,
+                        }))
+                      }
+                      placeholder="اكتب اسمك الكريم للمباركة..."
+                      className="flex-1 px-3 py-1.5 rounded-xl fs-surface-alt border fs-border text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSendBlessing(item.id)}
+                      className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer"
+                    >
+                      مبارك
+                    </button>
+                  </div>
+                )}
+
+                {item.blessings && item.blessings.length > 0 && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] fs-muted">
+                    {item.blessings.slice(-5).map((b) => (
+                      <span key={b.id}>✦ {b.senderName}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  };
+
+  const renderEventsCards = (inBentoPair: boolean) => {
+    const isSingleEvent =
+      cms.eventsModule.items.length === 1 && !compactPreview && !inBentoPair;
+    return (
+      <div
+        className={
+          inBentoPair
+            ? 'grid grid-cols-1 gap-4'
+            : getAdaptiveGridClass(
+                cms.eventsModule.items.length,
+                compactPreview,
+                2
+              )
+        }
+      >
+        {cms.eventsModule.items.map((ev) => {
+          const cd = formatCountdownParts(ev.eventDateIso);
+          const formattedEventDate = formatArabicLongDate(ev.eventDateIso);
+          const attendingTotal = (ev.rsvps || [])
+            .filter((r) => r.status === 'attending')
+            .reduce((sum, r) => sum + 1 + (r.companionsCount || 0), 0);
+          const isCopied = copiedEventId === ev.id;
+          return (
+            <article
+              key={ev.id}
+              className={`rounded-2xl fs-surface border p-5 sm:p-6 space-y-4 shadow-xs relative overflow-hidden ${
+                isSingleEvent ? 'sm:p-7' : ''
+              }`}
+              style={{
+                borderColor:
+                  'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
+              }}
+            >
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-1 fs-accent-gold-bar opacity-80"
+              />
+
+              <div
+                className={`flex ${
+                  compactPreview || inBentoPair
+                    ? 'flex-col items-stretch gap-3'
+                    : 'flex-col md:flex-row md:items-start justify-between gap-4'
+                } pt-1`}
+              >
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <div className="inline-flex items-center gap-1.5 text-[11px] font-bold fs-accent-text">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{formattedEventDate}</span>
+                  </div>
+                  <h3
+                    className={`${
+                      isSingleEvent
+                        ? 'text-lg sm:text-xl'
+                        : 'text-base sm:text-lg'
+                    } font-bold fs-display-font break-words leading-snug`}
+                  >
+                    {ev.title}
+                  </h3>
+                  {cleanLocationField(ev.locationLabel) && (
+                    <div className="text-xs fs-muted flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 fs-accent-text shrink-0" />
+                      <span>{cleanLocationField(ev.locationLabel)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {!cd.expired && (
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {[
+                      { val: cd.days, lbl: 'يوم' },
+                      { val: cd.hours, lbl: 'ساعة' },
+                      { val: cd.minutes, lbl: 'دقيقة' },
+                    ].map((unit) => (
+                      <div
+                        key={unit.lbl}
+                        className="px-2.5 py-2 rounded-xl fs-surface-alt border text-center min-w-[50px]"
+                        style={{
+                          borderColor:
+                            'color-mix(in srgb, var(--fs-gold) 38%, transparent)',
+                        }}
+                      >
+                        <div className="text-sm font-bold fs-accent-text tabular-nums leading-none">
+                          {unit.val}
+                        </div>
+                        <div className="text-[9.5px] fs-muted mt-1">
+                          {unit.lbl}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {ev.hostNote && (
+                <p className="text-xs sm:text-sm fs-muted leading-relaxed">
+                  {ev.hostNote}
+                </p>
+              )}
+
+              <div className="pt-3.5 border-t fs-border flex flex-wrap items-center justify-between gap-2.5">
+                <span className="text-xs font-semibold fs-muted tabular-nums">
+                  {attendingTotal > 0
+                    ? `المؤكد حضورهم: ${attendingTotal}`
+                    : 'الدعوة مفتوحة لأفراد العائلة الكرام'}
+                </span>
+                {!compactPreview && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyEventDetails(ev)}
+                      className="px-3 py-1.5 rounded-xl fs-surface-alt border fs-border text-xs font-bold fs-accent-text inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity"
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>تم النسخ</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>نسخ الموعد</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRsvpOpenEventId(
+                          rsvpOpenEventId === ev.id ? null : ev.id
+                        )
+                      }
+                      className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity"
+                    >
+                      تأكيد الحضور
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {rsvpOpenEventId === ev.id && (
+                <div className="rounded-xl fs-surface-alt border fs-border p-3.5 space-y-2.5">
+                  <input
+                    type="text"
+                    value={rsvpName}
+                    onChange={(e) => setRsvpName(e.target.value)}
+                    placeholder="الاسم الكامل"
+                    className="w-full px-3 py-1.5 rounded-lg fs-surface border fs-border text-xs"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={rsvpStatus}
+                      onChange={(e) =>
+                        setRsvpStatus(
+                          e.target.value as 'attending' | 'apologizing'
+                        )
+                      }
+                      className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
+                    >
+                      <option value="attending">سأحضر بإذن الله</option>
+                      <option value="apologizing">
+                        أعتذر مع التمنيات بالتوفيق
+                      </option>
+                    </select>
+                    <input
+                      type="number"
+                      min={0}
+                      max={15}
+                      value={rsvpCompanions}
+                      onChange={(e) =>
+                        setRsvpCompanions(Number(e.target.value) || 0)
+                      }
+                      placeholder="عدد المرافقين"
+                      className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSubmitRsvp(ev.id)}
+                    className="w-full py-2 rounded-lg fs-accent-bg text-xs font-bold cursor-pointer"
+                  >
+                    حفظ تأكيد الحضور
+                  </button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderStoriesCards = (inBentoPair: boolean) => {
+    const isSingleStory =
+      cms.storiesModule.items.length === 1 && !compactPreview && !inBentoPair;
+    return (
+      <div
+        className={
+          inBentoPair
+            ? 'grid grid-cols-1 gap-4'
+            : getAdaptiveGridClass(
+                cms.storiesModule.items.length,
+                compactPreview,
+                2
+              )
+        }
+      >
+        {cms.storiesModule.items.map((st) => (
+          <article
+            key={st.id}
+            className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
+              isSingleStory && st.imageUrl
+                ? 'grid grid-cols-1 md:grid-cols-12'
+                : 'flex flex-col'
+            }`}
+          >
+            {st.imageUrl && (
+              <div
+                className={`overflow-hidden fs-surface-alt ${
+                  isSingleStory
+                    ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[260px] border-b md:border-b-0 md:border-l fs-border'
+                    : 'aspect-[16/9] w-full border-b fs-border'
+                }`}
+              >
+                <img
+                  src={st.imageUrl}
+                  alt={st.title}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            <div
+              className={`${
+                isSingleStory && st.imageUrl
+                  ? 'md:col-span-7 p-6 sm:p-8'
+                  : 'p-5 sm:p-6'
+              } space-y-2.5 flex-1`}
+            >
+              <div className="text-xs font-bold fs-accent-text tabular-nums">
+                {formatArabicLongDate(st.eraOrYearLabel)}
+              </div>
+              <h3
+                className={`${
+                  isSingleStory ? 'text-xl sm:text-2xl' : 'text-lg'
+                } font-bold fs-display-font`}
+              >
+                {st.title}
+              </h3>
+              <p className="text-xs sm:text-sm fs-muted leading-loose whitespace-pre-line max-w-2xl">
+                {st.body}
+              </p>
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  };
+
+  const renderOralHeritageCards = (inBentoPair: boolean) => {
+    const clips = cms.oralHeritageModule.items;
+    const isSingleClip = clips.length === 1 && !compactPreview && !inBentoPair;
+    return (
+      <div
+        className={
+          inBentoPair
+            ? 'grid grid-cols-1 gap-4'
+            : getAdaptiveGridClass(clips.length, compactPreview, 2)
+        }
+      >
+        {clips.map((clip) => {
+          const isPlaying = playingClipId === clip.id;
+          const hasAudio = Boolean(clip.audioDataOrUrl);
+          return (
+            <article
+              key={clip.id}
+              className={`rounded-2xl fs-surface border p-5 sm:p-6 shadow-xs transition-shadow hover:shadow-md ${
+                isSingleClip
+                  ? 'grid grid-cols-1 md:grid-cols-12 gap-6 items-center'
+                  : 'space-y-4'
+              }`}
+              style={{
+                borderColor: isPlaying ? 'var(--fs-gold)' : 'var(--fs-border)',
+              }}
+            >
+              <div
+                className={`${isSingleClip ? 'md:col-span-6' : ''} space-y-3.5`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <button
+                      type="button"
+                      disabled={!hasAudio}
+                      onClick={() =>
+                        handleTogglePlayClip(clip.id, clip.audioDataOrUrl)
+                      }
+                      aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل'}
+                      className="w-12 h-12 rounded-full fs-accent-bg flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-45 shadow-sm ring-2 ring-offset-2 transition-transform hover:scale-105"
+                      style={{
+                        ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                        ['--tw-ring-offset-color' as string]:
+                          'var(--fs-surface)',
+                      }}
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-5 h-5" />
+                      ) : (
+                        <Play className="w-5 h-5 mr-0.5" />
+                      )}
+                    </button>
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-bold fs-display-font truncate">
+                        {clip.title}
+                      </h3>
+                      <div className="text-xs fs-muted truncate mt-0.5">
+                        {clip.speakerName}
+                        {clip.recordedYearLabel
+                          ? ` · ${clip.recordedYearLabel}`
+                          : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <Volume2
+                    className={`w-4 h-4 shrink-0 ${
+                      isPlaying
+                        ? 'fs-accent-text opacity-100'
+                        : 'fs-gold-text opacity-80'
+                    }`}
+                  />
+                </div>
+
+                {/* Stylized Museum Gold Audio Waveform */}
+                <div
+                  className="rounded-xl fs-surface-alt border fs-border px-3.5 py-2.5 flex items-center justify-between gap-3"
+                  aria-hidden="true"
+                >
+                  <div className="flex items-end gap-1 h-7 flex-1">
+                    {AUDIO_WAVEFORM_HEIGHTS.map((h, idx) => (
+                      <span
+                        key={idx}
+                        className={`flex-1 rounded-full transition-all ${
+                          isPlaying ? 'fs-wave-bar-playing' : ''
+                        }`}
+                        style={{
+                          height: `${h}%`,
+                          background:
+                            idx % 3 === 0
+                              ? 'var(--fs-accent)'
+                              : 'var(--fs-gold)',
+                          opacity: isPlaying ? 0.95 : 0.55,
+                          animationDelay: `${(idx % 6) * 0.14}s`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10.5px] font-bold fs-muted shrink-0">
+                    {isPlaying
+                      ? 'قيد التشغيل'
+                      : hasAudio
+                        ? 'تسجيل موثق'
+                        : 'مروية نصية'}
+                  </span>
+                </div>
+              </div>
+
+              {clip.transcriptExcerpt && (
+                <blockquote
+                  className={`${
+                    isSingleClip
+                      ? 'md:col-span-6 md:border-r md:pr-6 border-t md:border-t-0 pt-4 md:pt-0'
+                      : 'pt-3.5 border-t'
+                  } fs-border`}
+                >
+                  <p className="text-sm sm:text-[15px] fs-display-font leading-loose">
+                    <span className="fs-gold-text font-bold ml-1">«</span>
+                    {clip.transcriptExcerpt}
+                    <span className="fs-gold-text font-bold mr-1">»</span>
+                  </p>
+                </blockquote>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Standalone Section Renderer (alternates Open Editorial Canvas, Full-Bleed Velvet Band, & Framed Pavilions)
+  const renderStandaloneSection = (key: PortalSectionKey): React.ReactNode => {
+    switch (key) {
+      // 1. PATRIARCH WELCOME QUOTE — OPEN EDITORIAL CANVAS (ZERO OUTER BOX)
+      case 'patriarch_quote':
+        return wrapInStandardContainer(
+          <OpenEditorialCanvasSection
+            id={`portal-sec-${key}`}
+            compactPreview={compactPreview}
+            watermarkVariant="tree"
+          >
+            {renderPatriarchQuoteBlock(false)}
+          </OpenEditorialCanvasSection>,
+          key
         );
 
-      // 2. CEREMONIAL FAMILY TREE GATEHOUSE & FULLSCREEN THEATER
+      // 2. CEREMONIAL FAMILY TREE GATEHOUSE — FULL-BLEED DEEP THEME VELVET BAND
       case 'tree_mirror':
         return (
-          <HeritageSectionPavilion
+          <ScrollRevealChapter
             key={key}
-            id={`portal-sec-${key}`}
-            compactPreview={compactPreview}
+            immediate={compactPreview}
+            className={compactPreview ? 'px-4' : 'w-full'}
           >
-            <HeritagePavilionHeader
-              kicker="✦ السجل الشجري الجامع"
-              title={`دوحة نسب عائلة ${siteData.familyName}`}
-              subtitle="استعرض تسلسل أجيال وفروع العائلة المسجلة في الديوان العائلي عبر بوابة المشجرة التفاعلية."
-              icon={<GitBranch className="w-3.5 h-3.5" />}
-            />
-            <PublicVisualTreeMirror
-              members={treeMembers}
-              familyName={siteData.familyName}
-              generationsCount={generationsCount}
-              treeDisplaySettings={siteData.treeDisplaySettings}
-              isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
+            <FullBleedVelvetBand
+              id={`portal-sec-${key}`}
               compactPreview={compactPreview}
-              onProposeEnrichment={
-                canProposeEnrichment
-                  ? () => {
-                      setEnrType('ADD_TREE_MEMBER');
-                      setEnrSuccessMessage(null);
-                      setShowEnrichmentModal(true);
-                    }
-                  : undefined
-              }
-            />
-          </HeritageSectionPavilion>
+            >
+              <div className="space-y-6">
+                <HeritagePavilionHeader
+                  kicker="✦ السجل الشجري الجامع"
+                  title={`دوحة نسب عائلة ${siteData.familyName}`}
+                  subtitle="استعرض تسلسل أجيال وفروع العائلة المسجلة في الديوان العائلي عبر بوابة المشجرة التفاعلية."
+                  icon={<GitBranch className="w-3.5 h-3.5" />}
+                  tone="dark"
+                />
+                <PublicVisualTreeMirror
+                  members={treeMembers}
+                  familyName={siteData.familyName}
+                  generationsCount={generationsCount}
+                  treeDisplaySettings={siteData.treeDisplaySettings}
+                  isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
+                  compactPreview={compactPreview}
+                  velvetBandMode
+                  onProposeEnrichment={
+                    canProposeEnrichment
+                      ? () => {
+                          setEnrType('ADD_TREE_MEMBER');
+                          setEnrSuccessMessage(null);
+                          setShowEnrichmentModal(true);
+                        }
+                      : undefined
+                  }
+                />
+              </div>
+            </FullBleedVelvetBand>
+          </ScrollRevealChapter>
         );
 
-      // 3. MUSEUM VAULT GALLERY + LIGHTBOX
-      case 'vault_gallery': {
-        const isSingleVault = vaultItems.length === 1 && !compactPreview;
-        return (
-          <HeritageSectionPavilion
-            key={key}
+      // 3. CURATED MUSEUM VAULT WALL — OPEN EDITORIAL CANVAS + ASYMMETRIC MASONRY + LIGHTBOX
+      case 'vault_gallery':
+        return wrapInStandardContainer(
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
+            watermarkVariant="arabesque"
           >
             <HeritagePavilionHeader
               kicker="مقتنيات أرشيفية مختارة"
@@ -1477,149 +2321,31 @@ export const PublicFamilyMicrositePage: React.FC<
                 ) : undefined
               }
             />
-
-            <div
-              className={getAdaptiveGridClass(
-                vaultItems.length,
-                compactPreview,
-                3
+            <CuratedMuseumVaultWall
+              items={vaultItems}
+              treeMembers={treeMembers}
+              familyName={siteData.familyName}
+              compactPreview={compactPreview}
+              enablePhotoFacePrompt={Boolean(
+                siteData.privacyConfig.enablePhotoFacePrompt
               )}
-            >
-              {vaultItems.map((item) => (
-                <article
-                  key={item.id}
-                  className={`group rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs hover:shadow-md transition-all ${
-                    isSingleVault
-                      ? 'grid grid-cols-1 md:grid-cols-12'
-                      : 'flex flex-col'
-                  }`}
-                >
-                  <div
-                    onClick={() => !compactPreview && setLightboxVaultItem(item)}
-                    className={`relative fs-surface-alt overflow-hidden cursor-pointer flex items-center justify-center ${
-                      isSingleVault
-                        ? 'md:col-span-7 aspect-[16/10] md:aspect-auto md:min-h-[300px]'
-                        : 'aspect-[4/3]'
-                    }`}
-                  >
-                    {item.previewUrl ? (
-                      <img
-                        src={item.previewUrl}
-                        alt={item.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <FileText className="w-10 h-10 fs-accent-text opacity-60" />
-                    )}
-
-                    {/* Subtle Archival Dynamic Watermark */}
-                    {item.watermarkText && (
-                      <div className="absolute bottom-2.5 right-2.5 px-2.5 py-0.5 rounded-md bg-black/50 backdrop-blur-xs text-[10px] text-white/90 font-semibold pointer-events-none">
-                        {item.watermarkText}
-                      </div>
-                    )}
-
-                    {!compactPreview && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLightboxVaultItem(item);
-                        }}
-                        title="معاينة مكبرة"
-                        className="absolute top-2.5 left-2.5 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/75 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                      >
-                        <Maximize2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div
-                    className={`${
-                      isSingleVault ? 'md:col-span-5 p-6 sm:p-7' : 'p-4'
-                    } flex-1 flex flex-col justify-between gap-3`}
-                  >
-                    <div className="space-y-1.5">
-                      <div className="text-[11px] font-bold fs-accent-text">
-                        {item.mediaType === 'document'
-                          ? 'وثيقة أرشيفية'
-                          : 'صورة تراثية'}
-                      </div>
-                      <h3
-                        className={`${
-                          isSingleVault ? 'text-lg sm:text-xl' : 'text-sm'
-                        } font-bold fs-display-font line-clamp-2`}
-                      >
-                        {item.title}
-                      </h3>
-                      <div className="text-xs fs-muted tabular-nums">
-                        {formatArabicLongDate(item.dateOrOccasion)}
-                      </div>
-                    </div>
-
-                    {siteData.privacyConfig.enablePhotoFacePrompt &&
-                      !compactPreview && (
-                        <div className="pt-3 border-t fs-border space-y-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFaceIdOpenItemId(
-                                faceIdOpenItemId === item.id ? null : item.id
-                              )
-                            }
-                            className="text-[11px] font-bold fs-accent-text hover:underline inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <HelpCircle className="w-3.5 h-3.5" />
-                            <span>
-                              هل تعرف شخصاً في هذه الصورة؟ (
-                              {item.faceIdNotes?.length || 0})
-                            </span>
-                          </button>
-                          {faceIdOpenItemId === item.id && (
-                            <div className="space-y-1.5 pt-1">
-                              <input
-                                type="text"
-                                value={faceIdSenderName}
-                                onChange={(e) =>
-                                  setFaceIdSenderName(e.target.value)
-                                }
-                                placeholder="اسمك الكريم"
-                                className="w-full px-2.5 py-1.5 rounded-lg fs-surface-alt border fs-border text-xs"
-                              />
-                              <input
-                                type="text"
-                                value={faceIdNote}
-                                onChange={(e) => setFaceIdNote(e.target.value)}
-                                placeholder="مثال: الواقف يميناً هو الجد..."
-                                className="w-full px-2.5 py-1.5 rounded-lg fs-surface-alt border fs-border text-xs"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleSubmitFaceId(item.id)}
-                                className="w-full py-1.5 rounded-lg fs-accent-bg text-xs font-bold cursor-pointer"
-                              >
-                                إرسال التعريف
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </HeritageSectionPavilion>
+              formatArabicLongDate={formatArabicLongDate}
+              faceIdOpenItemId={faceIdOpenItemId}
+              setFaceIdOpenItemId={setFaceIdOpenItemId}
+              faceIdSenderName={faceIdSenderName}
+              setFaceIdSenderName={setFaceIdSenderName}
+              faceIdNote={faceIdNote}
+              setFaceIdNote={setFaceIdNote}
+              onSubmitFaceId={handleSubmitFaceId}
+            />
+          </OpenEditorialCanvasSection>,
+          key
         );
-      }
 
-      // 4. FAMILY NEWS & BLESSINGS
-      case 'news': {
-        const isSingleNews =
-          cms.newsModule.items.length === 1 && !compactPreview;
-        return (
+      // 4. FAMILY NEWS & BLESSINGS — FRAMED PAVILION
+      case 'news':
+        return wrapInStandardContainer(
           <HeritageSectionPavilion
-            key={key}
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
           >
@@ -1628,145 +2354,15 @@ export const PublicFamilyMicrositePage: React.FC<
               title="أخبار ومستجدات العائلة"
               icon={<Sparkles className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(
-                cms.newsModule.items.length,
-                compactPreview,
-                2
-              )}
-            >
-              {cms.newsModule.items.map((item) => (
-                <article
-                  key={item.id}
-                  className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
-                    isSingleNews && item.imageUrl
-                      ? 'grid grid-cols-1 md:grid-cols-12'
-                      : 'flex flex-col justify-between'
-                  }`}
-                >
-                  {item.imageUrl && (
-                    <div
-                      className={`overflow-hidden fs-surface-alt ${
-                        isSingleNews
-                          ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[240px] border-b md:border-b-0 md:border-l fs-border'
-                          : 'aspect-[16/9] w-full border-b fs-border'
-                      }`}
-                    >
-                      <img
-                        src={item.imageUrl}
-                        alt={item.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div
-                    className={`${
-                      isSingleNews && item.imageUrl
-                        ? 'md:col-span-7 p-6 sm:p-7'
-                        : 'p-5 sm:p-6'
-                    } space-y-3.5 flex-1 flex flex-col justify-between`}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2 text-xs">
-                        <span
-                          className="px-2.5 py-0.5 rounded-md font-bold fs-accent-text border"
-                          style={{
-                            backgroundColor: 'var(--fs-gold-soft)',
-                            borderColor:
-                              'color-mix(in srgb, var(--fs-gold) 35%, transparent)',
-                          }}
-                        >
-                          {item.category}
-                        </span>
-                        <span className="fs-muted tabular-nums">
-                          {formatArabicLongDate(item.dateLabel)}
-                        </span>
-                      </div>
-                      <h3
-                        className={`${
-                          isSingleNews ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
-                        } font-bold fs-display-font`}
-                      >
-                        {item.title}
-                      </h3>
-                      <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                        {item.summary}
-                      </p>
-                    </div>
-
-                    <div className="pt-3.5 border-t fs-border space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs fs-muted tabular-nums">
-                          التبريكات ({item.blessings?.length || 0})
-                        </span>
-                        {!compactPreview && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenBlessingId(
-                                openBlessingId === item.id ? null : item.id
-                              )
-                            }
-                            className="text-xs font-bold fs-accent-text hover:underline cursor-pointer"
-                          >
-                            + أرسل تهنئة ومباركة
-                          </button>
-                        )}
-                      </div>
-
-                      {openBlessingId === item.id && (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={blessingInputs[item.id] || ''}
-                            onChange={(e) =>
-                              setBlessingInputs((prev) => ({
-                                ...prev,
-                                [item.id]: e.target.value,
-                              }))
-                            }
-                            placeholder="اكتب اسمك الكريم للمباركة..."
-                            className="flex-1 px-3 py-1.5 rounded-xl fs-surface-alt border fs-border text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSendBlessing(item.id)}
-                            className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer"
-                          >
-                            مبارك
-                          </button>
-                        </div>
-                      )}
-
-                      {item.blessings && item.blessings.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 text-[11px] fs-muted">
-                          {item.blessings.slice(-5).map((b) => (
-                            <span
-                              key={b.id}
-                              className="px-2.5 py-0.5 rounded-lg fs-surface-alt border fs-border"
-                            >
-                              ✦ {b.senderName}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </HeritageSectionPavilion>
+            {renderNewsCards(false)}
+          </HeritageSectionPavilion>,
+          key
         );
-      }
 
-      // 5. EVENTS WITH LIVE COUNTDOWN (DAYS, HOURS, MINUTES) + COPY + RSVP
-      case 'events': {
-        const isSingleEvent =
-          cms.eventsModule.items.length === 1 && !compactPreview;
-        return (
+      // 5. EVENTS WITH LIVE COUNTDOWN + RSVP — FRAMED PAVILION
+      case 'events':
+        return wrapInStandardContainer(
           <HeritageSectionPavilion
-            key={key}
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
           >
@@ -1775,374 +2371,51 @@ export const PublicFamilyMicrositePage: React.FC<
               title="المناسبات والملتقيات القادمة"
               icon={<Calendar className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(
-                cms.eventsModule.items.length,
-                compactPreview,
-                2
-              )}
-            >
-              {cms.eventsModule.items.map((ev) => {
-                const cd = formatCountdownParts(ev.eventDateIso);
-                const formattedEventDate = formatArabicLongDate(ev.eventDateIso);
-                const attendingTotal = (ev.rsvps || [])
-                  .filter((r) => r.status === 'attending')
-                  .reduce((sum, r) => sum + 1 + (r.companionsCount || 0), 0);
-                const isCopied = copiedEventId === ev.id;
-                return (
-                  <article
-                    key={ev.id}
-                    className={`rounded-2xl fs-surface border p-5 sm:p-6 space-y-4 shadow-xs relative overflow-hidden ${
-                      isSingleEvent ? 'sm:p-7' : ''
-                    }`}
-                    style={{
-                      borderColor:
-                        'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
-                    }}
-                  >
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-x-0 top-0 h-1 fs-accent-gold-bar opacity-80"
-                    />
-
-                    <div
-                      className={`flex ${
-                        compactPreview
-                          ? 'flex-col items-stretch gap-3'
-                          : 'flex-col md:flex-row md:items-start justify-between gap-4'
-                      } pt-1`}
-                    >
-                      <div className="space-y-1.5 min-w-0 flex-1">
-                        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold fs-accent-text">
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>{formattedEventDate}</span>
-                        </div>
-                        <h3
-                          className={`${
-                            isSingleEvent
-                              ? 'text-lg sm:text-xl'
-                              : 'text-base sm:text-lg'
-                          } font-bold fs-display-font break-words leading-snug`}
-                        >
-                          {ev.title}
-                        </h3>
-                        {cleanLocationField(ev.locationLabel) && (
-                          <div className="text-xs fs-muted flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 fs-accent-text shrink-0" />
-                            <span>{cleanLocationField(ev.locationLabel)}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {!cd.expired && (
-                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                          {[
-                            { val: cd.days, lbl: 'يوم' },
-                            { val: cd.hours, lbl: 'ساعة' },
-                            { val: cd.minutes, lbl: 'دقيقة' },
-                          ].map((unit) => (
-                            <div
-                              key={unit.lbl}
-                              className="px-2.5 py-2 rounded-xl fs-surface-alt border text-center min-w-[50px]"
-                              style={{
-                                borderColor:
-                                  'color-mix(in srgb, var(--fs-gold) 38%, transparent)',
-                              }}
-                            >
-                              <div className="text-sm font-bold fs-accent-text tabular-nums leading-none">
-                                {unit.val}
-                              </div>
-                              <div className="text-[9.5px] fs-muted mt-1">
-                                {unit.lbl}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {ev.hostNote && (
-                      <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                        {ev.hostNote}
-                      </p>
-                    )}
-
-                    <div className="pt-3.5 border-t fs-border flex flex-wrap items-center justify-between gap-2.5">
-                      <span className="text-xs font-semibold fs-muted tabular-nums">
-                        {attendingTotal > 0
-                          ? `المؤكد حضورهم: ${attendingTotal}`
-                          : 'الدعوة مفتوحة لأفراد العائلة الكرام'}
-                      </span>
-                      {!compactPreview && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleCopyEventDetails(ev)}
-                            className="px-3 py-1.5 rounded-xl fs-surface-alt border fs-border text-xs font-bold fs-accent-text inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity"
-                          >
-                            {isCopied ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span>تم النسخ</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5" />
-                                <span>نسخ تفاصيل الموعد</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setRsvpOpenEventId(
-                                rsvpOpenEventId === ev.id ? null : ev.id
-                              )
-                            }
-                            className="px-3.5 py-1.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity"
-                          >
-                            تأكيد الحضور (RSVP)
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {rsvpOpenEventId === ev.id && (
-                      <div className="rounded-xl fs-surface-alt border fs-border p-3.5 space-y-2.5">
-                        <input
-                          type="text"
-                          value={rsvpName}
-                          onChange={(e) => setRsvpName(e.target.value)}
-                          placeholder="الاسم الكامل"
-                          className="w-full px-3 py-1.5 rounded-lg fs-surface border fs-border text-xs"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <select
-                            value={rsvpStatus}
-                            onChange={(e) =>
-                              setRsvpStatus(
-                                e.target.value as 'attending' | 'apologizing'
-                              )
-                            }
-                            className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
-                          >
-                            <option value="attending">سأحضر بإذن الله</option>
-                            <option value="apologizing">
-                              أعتذر مع التمنيات بالتوفيق
-                            </option>
-                          </select>
-                          <input
-                            type="number"
-                            min={0}
-                            max={15}
-                            value={rsvpCompanions}
-                            onChange={(e) =>
-                              setRsvpCompanions(Number(e.target.value) || 0)
-                            }
-                            placeholder="عدد المرافقين"
-                            className="px-2.5 py-1.5 rounded-lg fs-surface border fs-border text-xs"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSubmitRsvp(ev.id)}
-                          className="w-full py-2 rounded-lg fs-accent-bg text-xs font-bold cursor-pointer"
-                        >
-                          حفظ تأكيد الحضور
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          </HeritageSectionPavilion>
+            {renderEventsCards(false)}
+          </HeritageSectionPavilion>,
+          key
         );
-      }
 
-      // 6. ANCESTOR STORIES & MEMORIES
-      case 'stories': {
-        const isSingleStory =
-          cms.storiesModule.items.length === 1 && !compactPreview;
-        return (
-          <HeritageSectionPavilion
-            key={key}
+      // 6. ANCESTOR STORIES — OPEN EDITORIAL CANVAS WITH QUILL WATERMARK
+      case 'stories':
+        return wrapInStandardContainer(
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
-            watermarkVariant="manuscript"
+            watermarkVariant="quill_wave"
           >
             <HeritagePavilionHeader
               kicker="سِير ومواقف خالدة"
               title="قصص الأجداد وذاكرة العائلة"
               icon={<BookOpen className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(
-                cms.storiesModule.items.length,
-                compactPreview,
-                2
-              )}
-            >
-              {cms.storiesModule.items.map((st) => (
-                <article
-                  key={st.id}
-                  className={`rounded-2xl fs-surface border fs-border overflow-hidden shadow-xs ${
-                    isSingleStory && st.imageUrl
-                      ? 'grid grid-cols-1 md:grid-cols-12'
-                      : 'flex flex-col'
-                  }`}
-                >
-                  {st.imageUrl && (
-                    <div
-                      className={`overflow-hidden fs-surface-alt ${
-                        isSingleStory
-                          ? 'md:col-span-5 aspect-[16/10] md:aspect-auto md:min-h-[260px] border-b md:border-b-0 md:border-l fs-border'
-                          : 'aspect-[16/9] w-full border-b fs-border'
-                      }`}
-                    >
-                      <img
-                        src={st.imageUrl}
-                        alt={st.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div
-                    className={`${
-                      isSingleStory && st.imageUrl
-                        ? 'md:col-span-7 p-6 sm:p-8'
-                        : 'p-6'
-                    } space-y-2.5 flex-1`}
-                  >
-                    <div className="text-xs font-bold fs-accent-text tabular-nums">
-                      {formatArabicLongDate(st.eraOrYearLabel)}
-                    </div>
-                    <h3
-                      className={`${
-                        isSingleStory ? 'text-xl sm:text-2xl' : 'text-lg'
-                      } font-bold fs-display-font`}
-                    >
-                      {st.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm fs-muted leading-loose whitespace-pre-line max-w-2xl">
-                      {st.body}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </HeritageSectionPavilion>
+            {renderStoriesCards(false)}
+          </OpenEditorialCanvasSection>,
+          key
         );
-      }
 
-      // 7. HALL OF FAME / NOTABLES
-      case 'notables': {
-        const isSingleNotable =
-          cms.notablesModule.items.length === 1 && !compactPreview;
-        return (
-          <HeritageSectionPavilion
-            key={key}
+      // 7. HALL OF FAME / NOTABLES — OPEN EDITORIAL CANVAS WITH ARCH-TOPPED PEDESTALS
+      case 'notables':
+        return wrapInStandardContainer(
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
+            watermarkVariant="arabesque"
           >
             <HeritagePavilionHeader
               kicker="أعلام وإنجازات مشرّفة"
               title={`لوحة شرف عائلة ${siteData.familyName}`}
               icon={<Award className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(
-                cms.notablesModule.items.length,
-                compactPreview,
-                3
-              )}
-            >
-              {cms.notablesModule.items.map((n) => (
-                <article
-                  key={n.id}
-                  className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-shadow ${
-                    isSingleNotable
-                      ? 'p-6 sm:p-7 flex flex-col md:flex-row md:items-center gap-6'
-                      : 'p-5 space-y-3'
-                  }`}
-                >
-                  <div
-                    className={`flex items-center gap-3.5 ${
-                      isSingleNotable ? 'md:w-5/12 shrink-0' : ''
-                    }`}
-                  >
-                    <div
-                      className={`${
-                        isSingleNotable ? 'w-16 h-16' : 'w-14 h-14'
-                      } rounded-2xl overflow-hidden border-2 flex items-center justify-center shrink-0 shadow-xs`}
-                      style={{
-                        borderColor: 'var(--fs-gold)',
-                        background:
-                          'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
-                        color: 'var(--fs-gold)',
-                      }}
-                    >
-                      {n.imageUrl ? (
-                        <img
-                          src={n.imageUrl}
-                          alt={n.fullName}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Award className="w-6 h-6" />
-                      )}
-                    </div>
-                    <div className="min-w-0 space-y-0.5">
-                      <h3
-                        className={`${
-                          isSingleNotable ? 'text-lg' : 'text-base'
-                        } font-bold fs-display-font truncate`}
-                      >
-                        {n.fullName}
-                      </h3>
-                      <div className="text-xs font-semibold fs-accent-text truncate">
-                        {n.roleOrTitle}
-                      </div>
-                      {n.eraLabel && (
-                        <div className="text-[11px] fs-muted tabular-nums">
-                          {n.eraLabel}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p
-                    className={`text-xs sm:text-sm fs-muted leading-relaxed ${
-                      isSingleNotable
-                        ? 'md:border-r md:pr-6 pt-3 md:pt-0 border-t md:border-t-0 fs-border flex-1'
-                        : 'pt-2.5 border-t fs-border'
-                    }`}
-                  >
-                    {n.achievementSummary}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </HeritageSectionPavilion>
+            {renderNotablesCards(false)}
+          </OpenEditorialCanvasSection>,
+          key
         );
-      }
 
-      // 8. ATLAS OF HOMELANDS (COMPASS WATERMARK + SHARE % + THEME-GOLD BAR)
-      case 'atlas': {
-        const locations = cms.atlasAndStatsModule.locations;
-        const maxLoc = Math.max(
-          1,
-          ...locations.map((l) => l.householdsOrMembersCount || 1)
-        );
-        const totalLoc = Math.max(
-          1,
-          locations.reduce((s, l) => s + (l.householdsOrMembersCount || 1), 0)
-        );
-        const isSingleLoc = locations.length === 1 && !compactPreview;
-        return (
-          <HeritageSectionPavilion
-            key={key}
+      // 8. ATLAS OF HOMELANDS — OPEN EDITORIAL CANVAS WITH COMPASS WATERMARK
+      case 'atlas':
+        return wrapInStandardContainer(
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
             watermarkVariant="compass"
@@ -2152,102 +2425,15 @@ export const PublicFamilyMicrositePage: React.FC<
               title="أطلس ديار وحواضر العائلة"
               icon={<MapPin className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(
-                locations.length,
-                compactPreview,
-                3
-              )}
-            >
-              {locations.map((loc) => {
-                const countVal = loc.householdsOrMembersCount || 1;
-                const widthPct = Math.max(
-                  14,
-                  Math.round((countVal / maxLoc) * 100)
-                );
-                const sharePct = Math.max(
-                  1,
-                  Math.round((countVal / totalLoc) * 100)
-                );
-                const cityClean = cleanLocationField(loc.city);
-                const countryClean = cleanLocationField(loc.country);
-                const primaryLabel = cityClean || countryClean || 'حاضرة عائلية';
-                const secondaryLabel =
-                  cityClean && countryClean && cityClean !== countryClean
-                    ? countryClean
-                    : '';
-
-                return (
-                  <div
-                    key={loc.id}
-                    className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-shadow ${
-                      isSingleLoc
-                        ? 'p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5'
-                        : 'p-4 sm:p-5 space-y-3.5'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3 flex-1">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0"
-                          style={{
-                            backgroundColor: 'var(--fs-gold-soft)',
-                            borderColor:
-                              'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                            color: 'var(--fs-accent)',
-                          }}
-                        >
-                          <Landmark className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm sm:text-base font-bold fs-display-font truncate">
-                            {primaryLabel}
-                          </div>
-                          {secondaryLabel && (
-                            <div className="text-xs fs-muted truncate">
-                              {secondaryLabel}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-left shrink-0">
-                        <div className="text-sm font-bold fs-accent-text tabular-nums">
-                          {countVal} عائلة/فرد
-                        </div>
-                        <div className="text-[11px] font-semibold fs-muted tabular-nums">
-                          {sharePct}% من الحضور
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`space-y-1.5 ${
-                        isSingleLoc ? 'sm:w-56 shrink-0' : ''
-                      }`}
-                    >
-                      <div className="h-2 rounded-full fs-surface-alt overflow-hidden border fs-border">
-                        <div
-                          className="h-full rounded-full fs-accent-gold-bar transition-all duration-500"
-                          style={{ width: `${widthPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </HeritageSectionPavilion>
+            {renderAtlasCards(false)}
+          </OpenEditorialCanvasSection>,
+          key
         );
-      }
 
-      // 9. ORAL HERITAGE & AUDIO ARCHIVE (GOLD WAVEFORM PLAYER + CALLIGRAPHIC QUOTE)
-      case 'oral_heritage': {
-        const clips = cms.oralHeritageModule.items;
-        const isSingleClip = clips.length === 1 && !compactPreview;
-        return (
+      // 9. ORAL HERITAGE & AUDIO ARCHIVE — FRAMED PAVILION
+      case 'oral_heritage':
+        return wrapInStandardContainer(
           <HeritageSectionPavilion
-            key={key}
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
             watermarkVariant="manuscript"
@@ -2257,459 +2443,292 @@ export const PublicFamilyMicrositePage: React.FC<
               title="الموروث الصوتي والشعري"
               icon={<Mic className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(clips.length, compactPreview, 2)}
-            >
-              {clips.map((clip) => {
-                const isPlaying = playingClipId === clip.id;
-                const hasAudio = Boolean(clip.audioDataOrUrl);
-                return (
-                  <article
-                    key={clip.id}
-                    className={`rounded-2xl fs-surface border p-5 sm:p-6 shadow-xs transition-shadow hover:shadow-md ${
-                      isSingleClip
-                        ? 'grid grid-cols-1 md:grid-cols-12 gap-6 items-center'
-                        : 'space-y-4'
-                    }`}
-                    style={{
-                      borderColor: isPlaying
-                        ? 'var(--fs-gold)'
-                        : 'var(--fs-border)',
-                    }}
-                  >
-                    <div
-                      className={`${
-                        isSingleClip ? 'md:col-span-6' : ''
-                      } space-y-3.5`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <button
-                            type="button"
-                            disabled={!hasAudio}
-                            onClick={() =>
-                              handleTogglePlayClip(clip.id, clip.audioDataOrUrl)
-                            }
-                            aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل'}
-                            className="w-12 h-12 rounded-full fs-accent-bg flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-45 shadow-sm ring-2 ring-offset-2 transition-transform hover:scale-105"
-                            style={{
-                              ['--tw-ring-color' as string]: 'var(--fs-gold)',
-                              ['--tw-ring-offset-color' as string]:
-                                'var(--fs-surface)',
-                            }}
-                          >
-                            {isPlaying ? (
-                              <Pause className="w-5 h-5" />
-                            ) : (
-                              <Play className="w-5 h-5 mr-0.5" />
-                            )}
-                          </button>
-                          <div className="min-w-0">
-                            <h3 className="text-sm sm:text-base font-bold fs-display-font truncate">
-                              {clip.title}
-                            </h3>
-                            <div className="text-xs fs-muted truncate mt-0.5">
-                              {clip.speakerName}
-                              {clip.recordedYearLabel
-                                ? ` · ${clip.recordedYearLabel}`
-                                : ''}
-                            </div>
-                          </div>
-                        </div>
-                        <Volume2
-                          className={`w-4 h-4 shrink-0 ${
-                            isPlaying
-                              ? 'fs-accent-text opacity-100'
-                              : 'fs-gold-text opacity-80'
-                          }`}
-                        />
-                      </div>
-
-                      {/* Stylized Museum Gold Audio Waveform */}
-                      <div
-                        className="rounded-xl fs-surface-alt border fs-border px-3.5 py-2.5 flex items-center justify-between gap-3"
-                        aria-hidden="true"
-                      >
-                        <div className="flex items-end gap-1 h-7 flex-1">
-                          {AUDIO_WAVEFORM_HEIGHTS.map((h, idx) => (
-                            <span
-                              key={idx}
-                              className={`flex-1 rounded-full transition-all ${
-                                isPlaying ? 'fs-wave-bar-playing' : ''
-                              }`}
-                              style={{
-                                height: `${h}%`,
-                                background:
-                                  idx % 3 === 0
-                                    ? 'var(--fs-accent)'
-                                    : 'var(--fs-gold)',
-                                opacity: isPlaying ? 0.95 : 0.55,
-                                animationDelay: `${(idx % 6) * 0.14}s`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-[10.5px] font-bold fs-muted shrink-0">
-                          {isPlaying
-                            ? 'قيد التشغيل'
-                            : hasAudio
-                            ? 'تسجيل موثق'
-                            : 'مروية نصية'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {clip.transcriptExcerpt && (
-                      <blockquote
-                        className={`${
-                          isSingleClip
-                            ? 'md:col-span-6 md:border-r md:pr-6 border-t md:border-t-0 pt-4 md:pt-0'
-                            : 'pt-3.5 border-t'
-                        } fs-border`}
-                      >
-                        <p className="text-sm sm:text-[15px] fs-display-font leading-loose">
-                          <span className="fs-gold-text font-bold ml-1">«</span>
-                          {clip.transcriptExcerpt}
-                          <span className="fs-gold-text font-bold mr-1">»</span>
-                        </p>
-                      </blockquote>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          </HeritageSectionPavilion>
+            {renderOralHeritageCards(false)}
+          </HeritageSectionPavilion>,
+          key
         );
-      }
 
-      // 10. PROFESSIONS DIRECTORY (EXECUTIVE MONOGRAM MEDALLION CARDS)
-      case 'professions': {
-        const items = cms.professionsModule.items;
-        const isSingleProf = items.length === 1 && !compactPreview;
-        return (
-          <HeritageSectionPavilion
-            key={key}
+      // 10. PROFESSIONS DIRECTORY — OPEN EDITORIAL CANVAS WITH CIRCULAR MEDALLIONS
+      case 'professions':
+        return wrapInStandardContainer(
+          <OpenEditorialCanvasSection
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
+            watermarkVariant="arabesque"
           >
             <HeritagePavilionHeader
               kicker="التكافل والخبرات العائلية"
               title="دليل الكفاءات والتخصصات"
               icon={<Briefcase className="w-3.5 h-3.5" />}
             />
-            <div
-              className={getAdaptiveGridClass(items.length, compactPreview, 3)}
-            >
-              {items.map((prof) => {
-                const monogram = getArabicMonogram(prof.memberName);
-                const cleanCity = cleanLocationField(prof.cityCountryLabel);
-                return (
-                  <article
-                    key={prof.id}
-                    className={`rounded-2xl fs-surface border fs-border shadow-xs hover:shadow-md transition-all flex items-center gap-4 ${
-                      isSingleProf ? 'p-6 sm:p-7' : 'p-4 sm:p-5'
-                    }`}
-                  >
-                    {/* Gilded Circular Executive Monogram Medallion */}
-                    <div
-                      className={`${
-                        isSingleProf ? 'w-14 h-14 text-lg' : 'w-12 h-12 text-base'
-                      } rounded-full border-2 flex items-center justify-center font-bold fs-display-font shrink-0 shadow-xs`}
-                      style={{
-                        background:
-                          'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
-                        borderColor: 'var(--fs-gold)',
-                        color: 'var(--fs-gold)',
-                      }}
-                    >
-                      {monogram}
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className="inline-block px-2 py-0.5 rounded-md text-[10.5px] font-bold fs-accent-text border"
-                          style={{
-                            backgroundColor: 'var(--fs-gold-soft)',
-                            borderColor:
-                              'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
-                          }}
-                        >
-                          {prof.fieldCategory}
-                        </span>
-                        {cleanCity && (
-                          <span className="text-[11px] fs-muted inline-flex items-center gap-1">
-                            <MapPin className="w-3 h-3 fs-gold-text" />
-                            <span>{cleanCity}</span>
-                          </span>
-                        )}
-                      </div>
-                      <h3
-                        className={`${
-                          isSingleProf ? 'text-base sm:text-lg' : 'text-sm sm:text-base'
-                        } font-bold fs-display-font truncate`}
-                      >
-                        {prof.memberName}
-                      </h3>
-                      <div className="text-xs fs-muted leading-snug">
-                        {prof.specialtyOrProfession}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </HeritageSectionPavilion>
+            {renderProfessionsCards(false)}
+          </OpenEditorialCanvasSection>,
+          key
         );
-      }
 
-      // 11. MEMORIAL CORNER & ROYAL SEALED TIME VAULT
+      // 11. MEMORIAL CORNER (OPEN LANTERN CANVAS) + ROYAL SEALED TIME VAULT (FULL-BLEED VELVET BAND)
       case 'memorial': {
         const elders = cms.memorialAndCapsuleModule.elders;
         const isSingleElder = elders.length === 1 && !compactPreview;
         const cap = cms.memorialAndCapsuleModule.timeCapsule;
-        const capCountdown = cap.enabled
+        const hasCapsule =
+          cap.enabled && Boolean(cap.sealedMessage.trim());
+        const capCountdown = hasCapsule
           ? formatCountdownParts(cap.unlockDateIso)
           : null;
         const formattedUnlockDate = formatArabicLongDate(cap.unlockDateIso);
 
         return (
-          <HeritageSectionPavilion
-            key={key}
-            id={`portal-sec-${key}`}
-            compactPreview={compactPreview}
-            watermarkVariant="manuscript"
-          >
-            <HeritagePavilionHeader
-              kicker="برّ ووفاء للراحلين ورسائل للأجيال"
-              title="ركن الوفاء والدعاء وكبسولة الزمن"
-              icon={<Heart className="w-3.5 h-3.5" />}
-            />
+          <div key={key} className="space-y-6 sm:space-y-8">
+            {elders.length > 0 &&
+              wrapInStandardContainer(
+                <OpenEditorialCanvasSection
+                  id={`portal-sec-${key}`}
+                  compactPreview={compactPreview}
+                  watermarkVariant="lantern"
+                >
+                  <HeritagePavilionHeader
+                    kicker="برّ ووفاء للراحلين"
+                    title="ركن الوفاء والدعاء لأجداد العائلة"
+                    icon={<Heart className="w-3.5 h-3.5" />}
+                  />
+                  <div
+                    className={getAdaptiveGridClass(
+                      elders.length,
+                      compactPreview,
+                      2
+                    )}
+                  >
+                    {elders.map((el) => {
+                      const hasPrayed = Boolean(prayedElderIds[el.id]);
+                      return (
+                        <article
+                          key={el.id}
+                          className={`rounded-t-[44px] rounded-b-2xl fs-surface border shadow-[0_12px_34px_-18px_rgba(32,22,14,0.18)] relative overflow-hidden ${
+                            isSingleElder
+                              ? 'p-6 sm:p-8 space-y-4'
+                              : 'p-5 sm:p-6 space-y-3.5'
+                          }`}
+                          style={{
+                            borderColor:
+                              'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+                          }}
+                        >
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-x-10 top-0 h-[2px]"
+                            style={{
+                              background:
+                                'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
+                            }}
+                          />
 
-            {elders.length > 0 && (
-              <div
-                className={getAdaptiveGridClass(
-                  elders.length,
-                  compactPreview,
-                  2
-                )}
-              >
-                {elders.map((el) => {
-                  const hasPrayed = Boolean(prayedElderIds[el.id]);
-                  return (
-                    <article
-                      key={el.id}
-                      className={`rounded-2xl fs-surface border shadow-xs relative overflow-hidden ${
-                        isSingleElder ? 'p-6 sm:p-7 space-y-4' : 'p-5 space-y-3.5'
-                      }`}
-                      style={{
-                        borderColor:
-                          'color-mix(in srgb, var(--fs-gold) 40%, transparent)',
-                      }}
-                    >
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-x-6 top-0 h-[1.5px]"
-                        style={{
-                          background:
-                            'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
-                        }}
-                      />
+                          <div className="flex flex-wrap items-start justify-between gap-3 pt-1">
+                            <div className="flex items-center gap-3.5">
+                              <div
+                                className="w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold fs-display-font text-base shrink-0 shadow-xs"
+                                style={{
+                                  borderColor: 'var(--fs-gold)',
+                                  backgroundColor: 'var(--fs-gold-soft)',
+                                  color: 'var(--fs-accent)',
+                                }}
+                              >
+                                {getArabicMonogram(el.fullName)}
+                              </div>
+                              <div className="space-y-0.5">
+                                <h3
+                                  className={`${
+                                    isSingleElder
+                                      ? 'text-lg sm:text-xl'
+                                      : 'text-base sm:text-lg'
+                                  } font-bold fs-display-font`}
+                                >
+                                  {el.fullName}
+                                </h3>
+                                <div className="text-xs fs-muted flex flex-wrap items-center gap-2">
+                                  <span className="font-semibold fs-accent-text">
+                                    رحمه الله وغفر له
+                                  </span>
+                                  {el.passingYearLabel && (
+                                    <>
+                                      <span className="opacity-45">·</span>
+                                      <span className="tabular-nums">
+                                        {el.passingYearLabel}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
 
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <h3
-                            className={`${
-                              isSingleElder ? 'text-lg sm:text-xl' : 'text-base'
-                            } font-bold fs-display-font`}
-                          >
-                            {el.fullName}
-                          </h3>
-                          <div className="text-xs fs-muted flex flex-wrap items-center gap-2">
-                            <span className="font-semibold fs-accent-text">
-                              رحمه الله وغفر له
-                            </span>
-                            {el.passingYearLabel && (
-                              <>
-                                <span className="opacity-45">·</span>
-                                <span className="tabular-nums">
-                                  {el.passingYearLabel}
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handlePrayForElder(el.id)}
+                                className="px-3.5 py-2 rounded-full border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer tabular-nums transition-all duration-200"
+                                style={
+                                  hasPrayed
+                                    ? {
+                                        backgroundColor: 'var(--fs-gold-soft)',
+                                        borderColor: 'var(--fs-gold)',
+                                        color: 'var(--fs-accent)',
+                                        boxShadow:
+                                          '0 0 18px rgba(200, 160, 84, 0.35)',
+                                      }
+                                    : {
+                                        backgroundColor: 'var(--fs-surface-alt)',
+                                        borderColor: 'var(--fs-border)',
+                                        color: 'var(--fs-accent)',
+                                      }
+                                }
+                              >
+                                <Heart
+                                  className={`w-3.5 h-3.5 ${
+                                    hasPrayed ? 'fill-current' : ''
+                                  }`}
+                                />
+                                <span>دعوت له ({el.prayersCount || 0})</span>
+                              </button>
+                              {hasPrayed && (
+                                <span className="text-[10.5px] font-bold fs-accent-text">
+                                  تقبّل الله دعاءكم ✦
                                 </span>
-                              </>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handlePrayForElder(el.id)}
-                            className="px-3.5 py-2 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer tabular-nums transition-all duration-200"
-                            style={
-                              hasPrayed
-                                ? {
-                                    backgroundColor: 'var(--fs-gold-soft)',
-                                    borderColor: 'var(--fs-gold)',
-                                    color: 'var(--fs-accent)',
-                                    boxShadow:
-                                      '0 0 18px rgba(200, 160, 84, 0.35)',
-                                  }
-                                : {
-                                    backgroundColor: 'var(--fs-surface-alt)',
-                                    borderColor: 'var(--fs-border)',
-                                    color: 'var(--fs-accent)',
-                                  }
-                            }
-                          >
-                            <Heart
-                              className={`w-3.5 h-3.5 ${
-                                hasPrayed ? 'fill-current' : ''
-                              }`}
-                            />
-                            <span>دعوت له ({el.prayersCount || 0})</span>
-                          </button>
-                          {hasPrayed && (
-                            <span className="text-[10.5px] font-bold fs-accent-text">
-                              تقبّل الله دعاءكم ✦
-                            </span>
+                          <p className="text-xs sm:text-sm fs-muted leading-relaxed">
+                            {el.biographyNote}
+                          </p>
+
+                          {el.ongoingCharityTitle && (
+                            <div
+                              className="rounded-xl fs-surface-alt border px-3.5 py-2.5 text-xs flex items-center gap-2"
+                              style={{
+                                borderColor:
+                                  'color-mix(in srgb, var(--fs-gold) 32%, transparent)',
+                              }}
+                            >
+                              <Sparkles className="w-3.5 h-3.5 fs-gold-text shrink-0" />
+                              <span>
+                                <strong className="fs-accent-text">
+                                  الصدقة الجارية:{' '}
+                                </strong>
+                                {el.ongoingCharityTitle}
+                              </span>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </OpenEditorialCanvasSection>,
+                `${key}-elders`
+              )}
+
+            {/* ROYAL SEALED TIME VAULT — FULL-BLEED DEEP VELVET BAND */}
+            {hasCapsule && capCountdown && (
+              <ScrollRevealChapter
+                immediate={compactPreview}
+                className={compactPreview ? 'px-4' : 'w-full'}
+              >
+                <FullBleedVelvetBand
+                  id={elders.length === 0 ? `portal-sec-${key}` : 'portal-sec-time-capsule'}
+                  compactPreview={compactPreview}
+                >
+                  <div
+                    className={`flex ${
+                      compactPreview
+                        ? 'flex-col items-stretch gap-5'
+                        : 'flex-col xl:flex-row xl:items-center justify-between gap-8'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4 sm:gap-5 min-w-0 flex-1">
+                      {/* Wax-Seal Time Vault Medallion */}
+                      <div
+                        className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 flex flex-col items-center justify-center shrink-0 shadow-lg"
+                        style={{
+                          borderColor: 'var(--fs-gold)',
+                          background:
+                            'radial-gradient(circle at 35% 30%, rgba(243,210,153,0.34), rgba(18,13,10,0.7))',
+                          color: '#F3D299',
+                        }}
+                      >
+                        <Lock className="w-5 h-5" />
+                        <span className="text-[9px] font-bold mt-0.5">مختوم</span>
+                      </div>
+
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#F3D299]">
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span>✦ خزينة كبسولة الزمن العائلية</span>
+                        </div>
+                        <h3
+                          className={`${
+                            compactPreview ? 'text-lg' : 'text-xl sm:text-3xl'
+                          } font-bold fs-display-font leading-snug break-words text-[#FFF9EE]`}
+                        >
+                          {cap.title}
+                        </h3>
+                        <div className="text-xs sm:text-sm text-[#FFF9EE]/80">
+                          بقلم: {cap.authorElderName}
+                        </div>
+                        <div className="pt-2">
+                          {capCountdown.expired ? (
+                            <p className="text-sm sm:text-base leading-loose text-[#FFF9EE]/95 max-w-2xl">
+                              {cap.sealedMessage}
+                            </p>
+                          ) : (
+                            <p className="text-xs sm:text-sm text-[#FFF9EE]/85 leading-relaxed max-w-2xl">
+                              الرسالة محفوظة ومختومة رقمياً حتى موعد الفتح الرسمي في{' '}
+                              <strong className="text-[#F3D299]">
+                                {formattedUnlockDate}
+                              </strong>
+                              .
+                            </p>
                           )}
                         </div>
                       </div>
-
-                      <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                        {el.biographyNote}
-                      </p>
-
-                      {el.ongoingCharityTitle && (
-                        <div
-                          className="rounded-xl fs-surface-alt border px-3.5 py-2.5 text-xs flex items-center gap-2"
-                          style={{
-                            borderColor:
-                              'color-mix(in srgb, var(--fs-gold) 32%, transparent)',
-                          }}
-                        >
-                          <Sparkles className="w-3.5 h-3.5 fs-gold-text shrink-0" />
-                          <span>
-                            <strong className="fs-accent-text">
-                              الصدقة الجارية:{' '}
-                            </strong>
-                            {el.ongoingCharityTitle}
-                          </span>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* ROYAL SEALED TIME VAULT */}
-            {cap.enabled && cap.sealedMessage.trim() && capCountdown && (
-              <div
-                className="relative overflow-hidden rounded-3xl fs-hero p-6 sm:p-8 border shadow-lg"
-                style={{ borderColor: 'var(--fs-gold)' }}
-              >
-                {/* Delicate inner frame hairline */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-2.5 rounded-2xl border opacity-25"
-                  style={{ borderColor: 'var(--fs-gold)' }}
-                />
-
-                <div
-                  className={`relative z-10 flex ${
-                    compactPreview
-                      ? 'flex-col items-stretch gap-4'
-                      : 'flex-col xl:flex-row xl:items-center justify-between gap-6'
-                  }`}
-                >
-                  <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
-                    {/* Wax-Seal Time Vault Medallion */}
-                    <div
-                      className="w-13 h-13 sm:w-14 sm:h-14 rounded-full border-2 flex flex-col items-center justify-center shrink-0 shadow-md"
-                      style={{
-                        borderColor: 'var(--fs-gold)',
-                        background:
-                          'radial-gradient(circle at 35% 30%, rgba(212,175,106,0.32), rgba(20,16,13,0.6))',
-                        color: 'var(--fs-gold)',
-                      }}
-                    >
-                      <Lock className="w-4 h-4" />
-                      <span className="text-[8.5px] font-bold mt-0.5">مختوم</span>
                     </div>
 
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="inline-flex items-center gap-1.5 text-xs font-bold fs-gold-text">
-                        <Clock className="w-3.5 h-3.5 shrink-0" />
-                        <span>خزينة كبسولة الزمن العائلية</span>
+                    {/* Segmented Gilded Countdown Units */}
+                    {!capCountdown.expired && (
+                      <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                        {[
+                          { val: capCountdown.days, lbl: 'يوم' },
+                          { val: capCountdown.hours, lbl: 'ساعة' },
+                          { val: capCountdown.minutes, lbl: 'دقيقة' },
+                        ].map((unit) => (
+                          <div
+                            key={unit.lbl}
+                            className="px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-xs border text-center min-w-[74px]"
+                            style={{
+                              borderColor:
+                                'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+                            }}
+                          >
+                            <div className="text-xl sm:text-2xl font-bold text-[#F3D299] tabular-nums leading-none">
+                              {unit.val}
+                            </div>
+                            <div className="text-[10.5px] text-[#FFF9EE]/80 mt-1.5 font-semibold">
+                              {unit.lbl}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <h3
-                        className={`${
-                          compactPreview ? 'text-lg' : 'text-lg sm:text-2xl'
-                        } font-bold fs-display-font leading-snug break-words`}
-                      >
-                        {cap.title}
-                      </h3>
-                      <div className="text-xs opacity-80">
-                        بقلم: {cap.authorElderName}
-                      </div>
-                    </div>
+                    )}
                   </div>
-
-                  {/* Segmented Gilded Countdown Units */}
-                  {!capCountdown.expired && (
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      {[
-                        { val: capCountdown.days, lbl: 'يوم' },
-                        { val: capCountdown.hours, lbl: 'ساعة' },
-                        { val: capCountdown.minutes, lbl: 'دقيقة' },
-                      ].map((unit) => (
-                        <div
-                          key={unit.lbl}
-                          className="px-3.5 py-2.5 rounded-2xl bg-white/8 backdrop-blur-xs border text-center min-w-[64px]"
-                          style={{
-                            borderColor:
-                              'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                          }}
-                        >
-                          <div className="text-base sm:text-lg font-bold fs-gold-text tabular-nums leading-none">
-                            {unit.val}
-                          </div>
-                          <div className="text-[10px] opacity-80 mt-1">
-                            {unit.lbl}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative z-10 mt-5 pt-4 border-t border-white/15">
-                  {capCountdown.expired ? (
-                    <p className="text-sm sm:text-base leading-loose">
-                      {cap.sealedMessage}
-                    </p>
-                  ) : (
-                    <p className="text-xs sm:text-sm opacity-90 leading-relaxed">
-                      الرسالة محفوظة ومختومة رقمياً حتى موعد الفتح الرسمي في{' '}
-                      <strong className="fs-gold-text">
-                        {formattedUnlockDate}
-                      </strong>
-                      .
-                    </p>
-                  )}
-                </div>
-              </div>
+                </FullBleedVelvetBand>
+              </ScrollRevealChapter>
             )}
-          </HeritageSectionPavilion>
+          </div>
         );
       }
 
       // 12. ELEVATED FAMILY DIWAN (GUIDED MAJLIS & GUARDIANS OF MEMORY)
       case 'majlis':
-        return (
+        return wrapInStandardContainer(
           <HeritageSectionPavilion
-            key={key}
             id={`portal-sec-${key}`}
             compactPreview={compactPreview}
           >
@@ -2734,16 +2753,9 @@ export const PublicFamilyMicrositePage: React.FC<
                     <ShieldCheck className="w-4 h-4 fs-gold-text" />
                     <span>وسام شرف حرّاس ذاكرة العائلة الأكثر إثراءً:</span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3 text-xs font-bold tabular-nums">
                     {guardians.map((g, i) => (
-                      <span
-                        key={`${g.name}-${i}`}
-                        className="px-3 py-1 rounded-xl fs-surface border text-xs font-bold tabular-nums shadow-2xs"
-                        style={{
-                          borderColor:
-                            'color-mix(in srgb, var(--fs-gold) 40%, transparent)',
-                        }}
-                      >
+                      <span key={`${g.name}-${i}`}>
                         <span className="fs-gold-text ml-1">✦</span>
                         {g.name} ({g.approvedCount} إثراء)
                       </span>
@@ -2853,10 +2865,285 @@ export const PublicFamilyMicrositePage: React.FC<
                 </article>
               ))}
             </div>
-          </HeritageSectionPavilion>
+          </HeritageSectionPavilion>,
+          key
         );
     }
   };
+
+  // ===========================================================================
+  // SMART BENTO CHAPTER PAIRING (RESPECTS EXACT `sectionOrder`, ZERO HALF-EMPTY ROWS)
+  // ===========================================================================
+  const buildEditorialChapterBlocks = (): Array<{
+    key: string;
+    node: React.ReactNode;
+  }> => {
+    const blocks: Array<{ key: string; node: React.ReactNode }> = [];
+    let i = 0;
+
+    while (i < orderedActiveSections.length) {
+      const cur = orderedActiveSections[i];
+      const next = orderedActiveSections[i + 1];
+
+      // Pair 1: patriarch_quote + atlas (either adjacent order, when atlas <= 3 locations)
+      if (
+        !compactPreview &&
+        next &&
+        ((cur === 'patriarch_quote' && next === 'atlas') ||
+          (cur === 'atlas' && next === 'patriarch_quote')) &&
+        cms.atlasAndStatsModule.locations.length <= 3
+      ) {
+        const quoteFirst = cur === 'patriarch_quote';
+        blocks.push({
+          key: `bento-${cur}-${next}`,
+          node: wrapInStandardContainer(
+            <OpenEditorialCanvasSection
+              id="portal-bento-roots-atlas"
+              compactPreview={compactPreview}
+              watermarkVariant="compass"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                <div
+                  className={
+                    quoteFirst ? 'lg:col-span-5' : 'lg:col-span-5 lg:order-2'
+                  }
+                >
+                  {renderPatriarchQuoteBlock(true)}
+                </div>
+                <div
+                  id="portal-sec-atlas"
+                  className={`${
+                    quoteFirst ? 'lg:col-span-7' : 'lg:col-span-7 lg:order-1'
+                  } scroll-mt-24 flex flex-col justify-center space-y-5`}
+                >
+                  <HeritagePavilionHeader
+                    kicker="الانتشار الجغرافي والديار"
+                    title="أطلس ديار وحواضر العائلة"
+                    icon={<MapPin className="w-3.5 h-3.5" />}
+                  />
+                  {renderAtlasCards(true)}
+                </div>
+              </div>
+            </OpenEditorialCanvasSection>,
+            `bento-${cur}-${next}`
+          ),
+        });
+        i += 2;
+        continue;
+      }
+
+      // Pair 2: notables + professions (either adjacent order, when each <= 2 items)
+      if (
+        !compactPreview &&
+        next &&
+        ((cur === 'notables' && next === 'professions') ||
+          (cur === 'professions' && next === 'notables')) &&
+        cms.notablesModule.items.length <= 2 &&
+        cms.professionsModule.items.length <= 2
+      ) {
+        const notablesFirst = cur === 'notables';
+        blocks.push({
+          key: `bento-${cur}-${next}`,
+          node: wrapInStandardContainer(
+            <OpenEditorialCanvasSection
+              id="portal-bento-honors-talent"
+              compactPreview={compactPreview}
+              watermarkVariant="arabesque"
+            >
+              <HeritagePavilionHeader
+                kicker="مفخرة العائلة وتكافل خبراتها"
+                title="مفخرة العائلة وكفاءاتها"
+                icon={<Award className="w-3.5 h-3.5" />}
+              />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div
+                  id="portal-sec-notables"
+                  className={`${
+                    notablesFirst ? 'lg:col-span-6' : 'lg:col-span-6 lg:order-2'
+                  } scroll-mt-24 space-y-4`}
+                >
+                  <div className="text-xs font-bold fs-accent-text tracking-wide">
+                    ✦ لوحة الشرف والأعلام
+                  </div>
+                  {renderNotablesCards(true)}
+                </div>
+                <div
+                  id="portal-sec-professions"
+                  className={`${
+                    notablesFirst ? 'lg:col-span-6' : 'lg:col-span-6 lg:order-1'
+                  } scroll-mt-24 space-y-4`}
+                >
+                  <div className="text-xs font-bold fs-accent-text tracking-wide">
+                    ✦ دليل الكفاءات والتخصصات
+                  </div>
+                  {renderProfessionsCards(true)}
+                </div>
+              </div>
+            </OpenEditorialCanvasSection>,
+            `bento-${cur}-${next}`
+          ),
+        });
+        i += 2;
+        continue;
+      }
+
+      // Pair 3: stories + oral_heritage (either adjacent order, when each <= 2 items)
+      if (
+        !compactPreview &&
+        next &&
+        ((cur === 'stories' && next === 'oral_heritage') ||
+          (cur === 'oral_heritage' && next === 'stories')) &&
+        cms.storiesModule.items.length <= 2 &&
+        cms.oralHeritageModule.items.length <= 2
+      ) {
+        const storiesFirst = cur === 'stories';
+        blocks.push({
+          key: `bento-${cur}-${next}`,
+          node: wrapInStandardContainer(
+            <OpenEditorialCanvasSection
+              id="portal-bento-stories-oral"
+              compactPreview={compactPreview}
+              watermarkVariant="quill_wave"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div
+                  id="portal-sec-stories"
+                  className={`${
+                    storiesFirst ? 'lg:col-span-6' : 'lg:col-span-6 lg:order-2'
+                  } scroll-mt-24 space-y-5`}
+                >
+                  <HeritagePavilionHeader
+                    kicker="سِير ومواقف خالدة"
+                    title="قصص الأجداد"
+                    icon={<BookOpen className="w-3.5 h-3.5" />}
+                  />
+                  {renderStoriesCards(true)}
+                </div>
+                <div
+                  id="portal-sec-oral_heritage"
+                  className={`${
+                    storiesFirst ? 'lg:col-span-6' : 'lg:col-span-6 lg:order-1'
+                  } scroll-mt-24 space-y-5`}
+                >
+                  <HeritagePavilionHeader
+                    kicker="أصوات وقصائد ومرويات"
+                    title="الموروث الصوتي والشعري"
+                    icon={<Mic className="w-3.5 h-3.5" />}
+                  />
+                  {renderOralHeritageCards(true)}
+                </div>
+              </div>
+            </OpenEditorialCanvasSection>,
+            `bento-${cur}-${next}`
+          ),
+        });
+        i += 2;
+        continue;
+      }
+
+      // Pair 4: news + events (either adjacent order, when each <= 2 items)
+      if (
+        !compactPreview &&
+        next &&
+        ((cur === 'news' && next === 'events') ||
+          (cur === 'events' && next === 'news')) &&
+        cms.newsModule.items.length <= 2 &&
+        cms.eventsModule.items.length <= 2
+      ) {
+        const newsFirst = cur === 'news';
+        blocks.push({
+          key: `bento-${cur}-${next}`,
+          node: wrapInStandardContainer(
+            <OpenEditorialCanvasSection
+              id="portal-bento-news-events"
+              compactPreview={compactPreview}
+              watermarkVariant="arabesque"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div
+                  id="portal-sec-news"
+                  className={`${
+                    newsFirst ? 'lg:col-span-6' : 'lg:col-span-6 lg:order-2'
+                  } scroll-mt-24 space-y-5`}
+                >
+                  <HeritagePavilionHeader
+                    kicker="تباشير وأفراح العائلة"
+                    title="أخبار ومستجدات العائلة"
+                    icon={<Sparkles className="w-3.5 h-3.5" />}
+                  />
+                  {renderNewsCards(true)}
+                </div>
+                <div
+                  id="portal-sec-events"
+                  className={`${
+                    newsFirst ? 'lg:col-span-6' : 'lg:col-span-6 lg:order-1'
+                  } scroll-mt-24 space-y-5`}
+                >
+                  <HeritagePavilionHeader
+                    kicker="لقاءات وصلة رحم"
+                    title="المناسبات والملتقيات"
+                    icon={<Calendar className="w-3.5 h-3.5" />}
+                  />
+                  {renderEventsCards(true)}
+                </div>
+              </div>
+            </OpenEditorialCanvasSection>,
+            `bento-${cur}-${next}`
+          ),
+        });
+        i += 2;
+        continue;
+      }
+
+      blocks.push({
+        key: cur,
+        node: renderStandaloneSection(cur),
+      });
+      i += 1;
+    }
+
+    return blocks;
+  };
+
+  const editorialChapterBlocks = buildEditorialChapterBlocks();
+  const showHumanInterludes =
+    branding.showHumanWarmthInterludes !== false &&
+    editorialChapterBlocks.length >= 2;
+  const interlude1AfterIdx = showHumanInterludes
+    ? Math.min(1, editorialChapterBlocks.length - 2)
+    : -1;
+  const interlude2AfterIdx =
+    showHumanInterludes && editorialChapterBlocks.length >= 4
+      ? Math.max(
+          interlude1AfterIdx + 2,
+          Math.floor((editorialChapterBlocks.length * 2) / 3) - 1
+        )
+      : -1;
+
+  // Curated concise primary nav links (max 5 clean single-line links so Diwan title never truncates)
+  const curatedNavSections = (() => {
+    if (orderedActiveSections.length <= 5) return orderedActiveSections;
+    const priorityOrder: PortalSectionKey[] = [
+      'tree_mirror',
+      'vault_gallery',
+      'atlas',
+      'notables',
+      'stories',
+      'news',
+      'events',
+      'majlis',
+      'memorial',
+      'patriarch_quote',
+      'oral_heritage',
+      'professions',
+    ];
+    const topFiveSet = new Set(
+      priorityOrder
+        .filter((k) => orderedActiveSections.includes(k))
+        .slice(0, 5)
+    );
+    return orderedActiveSections.filter((k) => topFiveSet.has(k));
+  })();
 
   const statsGridColsClass = compactPreview
     ? floatingMetrics.length === 3
@@ -2886,14 +3173,15 @@ export const PublicFamilyMicrositePage: React.FC<
       />
 
       {/* ================================================================= */}
-      {/* 1. WARM GLASS STICKY TOP NAVIGATION BAR (WITH SCROLL-SPY)         */}
+      {/* 1. WARM GLASS STICKY TOP NAVIGATION BAR (UNTRUNCATED TITLE + 2px GOLD PROGRESS) */}
       {/* ================================================================= */}
       <header
-        className="sticky top-0 z-30 fs-nav-glass border-b shadow-[0_2px_16px_rgba(44,30,20,0.04)]"
+        className="sticky top-0 z-30 fs-nav-glass border-b shadow-[0_2px_16px_rgba(44,30,20,0.04)] relative"
         style={{
           borderColor: 'color-mix(in srgb, var(--fs-gold) 28%, transparent)',
         }}
       >
+        <ScrollProgressGoldBar disabled={compactPreview} />
         <div
           className={`${
             compactPreview
@@ -2901,8 +3189,8 @@ export const PublicFamilyMicrositePage: React.FC<
               : 'max-w-6xl mx-auto px-4 sm:px-6 py-3'
           } flex items-center justify-between gap-4`}
         >
-          {/* Right: Mini Crest + Diwan Title */}
-          <div className="flex items-center gap-2.5 min-w-0">
+          {/* Right: Mini Crest + Full Uncropped Diwan Family Title */}
+          <div className="flex items-center gap-2.5 shrink-0 max-w-[230px] sm:max-w-none">
             <FamilyCrestEmblem
               familyName={siteData.familyName}
               crestMode={branding.crestMode}
@@ -2910,40 +3198,35 @@ export const PublicFamilyMicrositePage: React.FC<
               customCrestUrl={branding.customCrestUrl}
               size="xs"
             />
-            <span className="text-sm sm:text-base font-bold fs-display-font truncate">
+            <span className="text-sm sm:text-base font-bold fs-display-font truncate sm:overflow-visible sm:whitespace-nowrap">
               {portalTitle}
             </span>
           </div>
 
-          {/* Center: Dynamic Anchor Links with Active Scroll-Spy Indicator */}
-          {!compactPreview && orderedActiveSections.length > 0 && (
+          {/* Center: Curated Primary Anchor Links (Max 5 Concise Text Links — Never Crowds Title) */}
+          {!compactPreview && curatedNavSections.length > 0 && (
             <nav
               aria-label="أقسام البوابة"
-              className="hidden lg:flex items-center gap-1 text-xs font-bold overflow-x-auto no-scrollbar"
+              className="hidden lg:flex items-center gap-5 text-xs font-bold"
             >
-              {orderedActiveSections.map((secKey) => {
+              {curatedNavSections.map((secKey) => {
                 const isActive = activeNavSection === secKey;
                 return (
                   <button
                     key={secKey}
                     type="button"
                     onClick={() => scrollToSection(secKey)}
-                    className={`relative px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    className={`relative py-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                       isActive
                         ? 'fs-accent-text'
                         : 'opacity-75 hover:opacity-100'
                     }`}
-                    style={
-                      isActive
-                        ? { backgroundColor: 'var(--fs-gold-soft)' }
-                        : undefined
-                    }
                   >
                     <span>{SECTION_SHORT_NAV[secKey]}</span>
                     {isActive && (
                       <span
                         aria-hidden="true"
-                        className="absolute inset-x-3 bottom-0 h-[2px] rounded-full"
+                        className="absolute inset-x-0 bottom-0 h-[2px] rounded-full"
                         style={{ backgroundColor: 'var(--fs-gold)' }}
                       />
                     )}
@@ -3200,7 +3483,7 @@ export const PublicFamilyMicrositePage: React.FC<
         </div>
       </section>
 
-      {/* FLOATING HERITAGE STATS BAR (SYMMETRICAL & ZERO-FREE) */}
+      {/* FLOATING HERITAGE STATS BAR (LIVE COUNT-UP + ZERO-FREE) */}
       {floatingMetrics.length > 0 && (
         <div
           className={`relative z-20 ${
@@ -3239,7 +3522,14 @@ export const PublicFamilyMicrositePage: React.FC<
                       : 'text-xl sm:text-2xl tabular-nums'
                   } font-bold fs-display-font fs-accent-text`}
                 >
-                  {metric.value}
+                  {typeof metric.value === 'number' ? (
+                    <AnimatedHeritageCounter
+                      value={metric.value}
+                      disabled={compactPreview}
+                    />
+                  ) : (
+                    metric.value
+                  )}
                 </div>
                 <div className="text-[11px] font-bold fs-muted mt-1">
                   {metric.label}
@@ -3251,187 +3541,240 @@ export const PublicFamilyMicrositePage: React.FC<
       )}
 
       {/* ================================================================= */}
-      {/* 3. DYNAMIC ORDERED FRAMED PAVILIONS (ZERO EMPTY SECTIONS)         */}
+      {/* 3. EDITORIAL SCROLLYTELLING CHAPTERS + VELVET BANDS + INTERLUDES  */}
       {/* ================================================================= */}
       <main
-        className={`${
+        className={`relative flex-1 w-full ${
           compactPreview
-            ? 'px-4 py-7 space-y-6'
-            : 'max-w-6xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14 space-y-9 sm:space-y-12'
-        } flex-1`}
+            ? 'py-6 space-y-6'
+            : 'py-8 sm:py-12 space-y-8 sm:space-y-12'
+        }`}
       >
-        {orderedActiveSections.map((secKey) => renderSectionByKey(secKey))}
-
-        {/* Transparent Owner-Only Studio Note for Hidden Empty Sections */}
-        {isOwnerPreview && hiddenEmptySectionsForOwner.length > 0 && (
-          <div className="rounded-2xl border border-dashed fs-border fs-surface-alt/75 p-4 flex items-start gap-3 text-xs">
-            <EyeOff className="w-4 h-4 fs-accent-text shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <div className="font-bold">
-                ملاحظة استوديو أمين السجل (لا تظهر للزوار):
-              </div>
-              <p className="fs-muted leading-relaxed">
-                تم إخفاء الأقسام التالية تلقائياً من الموقع الحي لعدم إضافة محتوى
-                فيها بعد:{' '}
-                <strong className="fs-accent-text">
-                  {hiddenEmptySectionsForOwner
-                    .map((k) => PORTAL_SECTION_LABELS[k])
-                    .join(' · ')}
-                </strong>
-                . ستظهر فوراً بتصميمها الكامل بمجرد إضافة أول عنصر فيها من لوحة
-                «موقعي».
-              </p>
-            </div>
+        {/* Subtle Illuminated Vertical Lineage Thread (Desktop xl rail) */}
+        {!compactPreview && editorialChapterBlocks.length > 1 && (
+          <div
+            aria-hidden="true"
+            className="hidden xl:block pointer-events-none absolute inset-y-12 left-1/2 -translate-x-1/2 w-full max-w-6xl"
+          >
+            <div
+              className="absolute -right-[14px] top-0 bottom-0 w-px opacity-35"
+              style={{
+                background:
+                  'linear-gradient(180deg, transparent 0%, var(--fs-gold) 12%, var(--fs-gold) 88%, transparent 100%)',
+              }}
+            />
           </div>
         )}
+
+        {editorialChapterBlocks.map((block, idx) => (
+          <React.Fragment key={block.key}>
+            {block.node}
+
+            {/* Human Warmth Cinematic Interlude 1 (Roots & Generations) */}
+            {idx === interlude1AfterIdx &&
+              wrapInStandardContainer(
+                <HumanWarmthInterludeBanner
+                  variant="roots"
+                  customImageUrl={branding.customInterludeImageUrl}
+                  compactPreview={compactPreview}
+                />,
+                'human-interlude-roots',
+                false
+              )}
+
+            {/* Human Warmth Cinematic Interlude 2 (Kinship & Loyalty) */}
+            {idx === interlude2AfterIdx &&
+              wrapInStandardContainer(
+                <HumanWarmthInterludeBanner
+                  variant="kinship"
+                  compactPreview={compactPreview}
+                />,
+                'human-interlude-kinship',
+                false
+              )}
+          </React.Fragment>
+        ))}
+
+        {/* Transparent Owner-Only Studio Note for Hidden Empty Sections */}
+        {isOwnerPreview &&
+          hiddenEmptySectionsForOwner.length > 0 &&
+          wrapInStandardContainer(
+            <div className="rounded-2xl border border-dashed fs-border fs-surface-alt/75 p-4 flex items-start gap-3 text-xs">
+              <EyeOff className="w-4 h-4 fs-accent-text shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="font-bold">
+                  ملاحظة استوديو أمين السجل (لا تظهر للزوار):
+                </div>
+                <p className="fs-muted leading-relaxed">
+                  تم إخفاء الأقسام التالية تلقائياً من الموقع الحي لعدم إضافة
+                  محتوى فيها بعد:{' '}
+                  <strong className="fs-accent-text">
+                    {hiddenEmptySectionsForOwner
+                      .map((k) => PORTAL_SECTION_LABELS[k])
+                      .join(' · ')}
+                  </strong>
+                  . ستظهر فوراً بتصميمها الكامل بمجرد إضافة أول عنصر فيها من
+                  لوحة «موقعي».
+                </p>
+              </div>
+            </div>,
+            'owner-hidden-note',
+            false
+          )}
 
         {/* =============================================================== */}
         {/* PEAK-END LUXURY JUTHORI SIGNATURE BANNER                        */}
         {/* =============================================================== */}
-        <section
-          data-testid="juthori-peak-end-signature-banner"
-          className={`relative overflow-hidden rounded-3xl fs-surface border shadow-[0_18px_46px_-22px_rgba(32,22,14,0.22)] ${
-            compactPreview ? 'p-5' : 'p-6 sm:p-8 lg:p-10'
-          }`}
-          style={{
-            borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
-            background:
-              'linear-gradient(135deg, var(--fs-surface) 0%, var(--fs-surface-alt) 58%, var(--fs-gold-soft) 100%)',
-          }}
-        >
-          {/* Gilded Top & Bottom Hairline Accents */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-10 top-0 h-[1.5px]"
-            style={{
-              background:
-                'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
-            }}
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-2 rounded-[20px] border opacity-30"
-            style={{ borderColor: 'var(--fs-gold)' }}
-          />
-
-          {/* Quiet Andalusian Geometric Corner Filigree Watermark */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 220 220"
-            className="pointer-events-none select-none absolute -left-8 -bottom-10 w-44 h-44 sm:w-56 sm:h-56 opacity-[0.14]"
-            style={{ color: 'var(--fs-gold)' }}
-          >
-            <g fill="none" stroke="currentColor" strokeWidth="1">
-              <circle cx="110" cy="110" r="94" strokeDasharray="3 4" />
-              <circle cx="110" cy="110" r="68" />
-              <rect
-                x="56"
-                y="56"
-                width="108"
-                height="108"
-                transform="rotate(45 110 110)"
-              />
-              <rect x="56" y="56" width="108" height="108" />
-              <polygon points="110,28 130,86 192,110 130,134 110,192 90,134 28,110 90,86" />
-              <circle cx="110" cy="110" r="22" />
-            </g>
-          </svg>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 160 160"
-            className="pointer-events-none select-none absolute -right-6 -top-8 w-32 h-32 opacity-[0.1]"
-            style={{ color: 'var(--fs-gold)' }}
-          >
-            <g fill="none" stroke="currentColor" strokeWidth="0.9">
-              <circle cx="80" cy="80" r="62" />
-              <rect
-                x="38"
-                y="38"
-                width="84"
-                height="84"
-                transform="rotate(45 80 80)"
-              />
-              <rect x="38" y="38" width="84" height="84" />
-            </g>
-          </svg>
-
-          <div
-            className={`relative z-10 flex ${
-              compactPreview
-                ? 'flex-col items-center text-center gap-4'
-                : 'flex-col lg:flex-row lg:items-center justify-between gap-6'
+        {wrapInStandardContainer(
+          <section
+            data-testid="juthori-peak-end-signature-banner"
+            className={`relative overflow-hidden rounded-3xl fs-surface border shadow-[0_18px_46px_-22px_rgba(32,22,14,0.22)] ${
+              compactPreview ? 'p-5' : 'p-6 sm:p-8 lg:p-10'
             }`}
+            style={{
+              borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
+              background:
+                'linear-gradient(135deg, var(--fs-surface) 0%, var(--fs-surface-alt) 58%, var(--fs-gold-soft) 100%)',
+            }}
           >
-            {/* Right: Official Juthori Logo + Heritage Value Proposition */}
+            {/* Gilded Top & Bottom Hairline Accents */}
             <div
-              className={`flex ${
-                compactPreview
-                  ? 'flex-col items-center text-center gap-3'
-                  : 'flex-col sm:flex-row sm:items-center gap-4 sm:gap-5'
-              } min-w-0 flex-1`}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-10 top-0 h-[1.5px]"
+              style={{
+                background:
+                  'linear-gradient(90deg, transparent 0%, var(--fs-gold) 50%, transparent 100%)',
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-2 rounded-[20px] border opacity-30"
+              style={{ borderColor: 'var(--fs-gold)' }}
+            />
+
+            {/* Quiet Andalusian Geometric Corner Filigree Watermark */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 220 220"
+              className="pointer-events-none select-none absolute -left-8 -bottom-10 w-44 h-44 sm:w-56 sm:h-56 opacity-[0.14]"
+              style={{ color: 'var(--fs-gold)' }}
             >
-              <div
-                className="p-2 rounded-2xl border shadow-xs shrink-0"
-                style={{
-                  backgroundColor: 'var(--fs-surface)',
-                  borderColor:
-                    'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                }}
-              >
-                <JuthoriLogo size={compactPreview ? 'sm' : 'md'} />
-              </div>
+              <g fill="none" stroke="currentColor" strokeWidth="1">
+                <circle cx="110" cy="110" r="94" strokeDasharray="3 4" />
+                <circle cx="110" cy="110" r="68" />
+                <rect
+                  x="56"
+                  y="56"
+                  width="108"
+                  height="108"
+                  transform="rotate(45 110 110)"
+                />
+                <rect x="56" y="56" width="108" height="108" />
+                <polygon points="110,28 130,86 192,110 130,134 110,192 90,134 28,110 90,86" />
+                <circle cx="110" cy="110" r="22" />
+              </g>
+            </svg>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 160 160"
+              className="pointer-events-none select-none absolute -right-6 -top-8 w-32 h-32 opacity-[0.1]"
+              style={{ color: 'var(--fs-gold)' }}
+            >
+              <g fill="none" stroke="currentColor" strokeWidth="0.9">
+                <circle cx="80" cy="80" r="62" />
+                <rect
+                  x="38"
+                  y="38"
+                  width="84"
+                  height="84"
+                  transform="rotate(45 80 80)"
+                />
+                <rect x="38" y="38" width="84" height="84" />
+              </g>
+            </svg>
 
-              <div className="space-y-1.5 min-w-0">
-                <div className="text-[11px] font-bold fs-accent-text tracking-wide">
-                  ✦ موثّق عبر منصة جذوري للأنساب والإرث العائلي
-                </div>
-                <h2
-                  className={`${
-                    compactPreview
-                      ? 'text-base leading-snug'
-                      : 'text-lg sm:text-xl lg:text-2xl leading-snug'
-                  } font-bold fs-display-font text-balance`}
-                >
-                  هل تودّ تأسيس ديوان رقمي فاخر وتوثيق عمود النسب التاريخي لعائلتك؟
-                </h2>
-                <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-2xl">
-                  انضم إلى العائلات الموثقة في جذوري — استكشف الجذور التاريخية،
-                  ابنِ مشجرتك التفاعلية، وأطلق موقع عائلتك الخاص في دقائق.
-                </p>
-              </div>
-            </div>
-
-            {/* Left: Dual Heritage CTAs */}
             <div
-              className={`flex ${
+              className={`relative z-10 flex ${
                 compactPreview
-                  ? 'flex-col w-full gap-2'
-                  : 'flex-col sm:flex-row lg:flex-col xl:flex-row items-stretch sm:items-center gap-2.5 shrink-0'
+                  ? 'flex-col items-center text-center gap-4'
+                  : 'flex-col lg:flex-row lg:items-center justify-between gap-6'
               }`}
             >
-              <button
-                type="button"
-                onClick={onStartOwnLineageSearch || onExitToMainApp}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl fs-accent-bg text-xs sm:text-sm font-bold shadow-sm hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap"
+              {/* Right: Official Juthori Logo + Heritage Value Proposition */}
+              <div
+                className={`flex ${
+                  compactPreview
+                    ? 'flex-col items-center text-center gap-3'
+                    : 'flex-col sm:flex-row sm:items-center gap-4 sm:gap-5'
+                } min-w-0 flex-1`}
               >
-                <span>أسّس ديوان عائلتك في جذوري</span>
-                <ArrowLeft className="w-4 h-4 shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={onExitToMainApp}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl fs-surface border text-xs sm:text-sm font-bold fs-accent-text hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap shadow-2xs"
-                style={{
-                  borderColor:
-                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
-                }}
+                <div
+                  className="p-2 rounded-2xl border shadow-xs shrink-0"
+                  style={{
+                    backgroundColor: 'var(--fs-surface)',
+                    borderColor:
+                      'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                  }}
+                >
+                  <JuthoriLogo size={compactPreview ? 'sm' : 'md'} />
+                </div>
+
+                <div className="space-y-1.5 min-w-0">
+                  <div className="text-[11px] font-bold fs-accent-text tracking-wide">
+                    ✦ موثّق عبر منصة جذوري للأنساب والإرث العائلي
+                  </div>
+                  <h2
+                    className={`${
+                      compactPreview
+                        ? 'text-base leading-snug'
+                        : 'text-lg sm:text-xl lg:text-2xl leading-snug'
+                    } font-bold fs-display-font text-balance`}
+                  >
+                    هل تودّ تأسيس ديوان رقمي فاخر وتوثيق عمود النسب التاريخي
+                    لعائلتك؟
+                  </h2>
+                  <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-2xl">
+                    انضم إلى العائلات الموثقة في جذوري — استكشف الجذور
+                    التاريخية، ابنِ مشجرتك التفاعلية، وأطلق موقع عائلتك الخاص في
+                    دقائق.
+                  </p>
+                </div>
+              </div>
+
+              {/* Left: Dual Heritage CTAs */}
+              <div
+                className={`flex ${
+                  compactPreview
+                    ? 'flex-col w-full gap-2'
+                    : 'flex-col sm:flex-row lg:flex-col xl:flex-row items-stretch sm:items-center gap-2.5 shrink-0'
+                }`}
               >
-                <Compass className="w-4 h-4 shrink-0" />
-                <span>استكشف مرصد الأنساب</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={onStartOwnLineageSearch || onExitToMainApp}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl fs-accent-bg text-xs sm:text-sm font-bold shadow-sm hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap"
+                >
+                  <span>أسّس ديوان عائلتك في جذوري</span>
+                  <ArrowLeft className="w-4 h-4 shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onExitToMainApp}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl fs-surface border text-xs sm:text-sm font-bold fs-accent-text hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap shadow-2xs"
+                  style={{
+                    borderColor:
+                      'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
+                  }}
+                >
+                  <Compass className="w-4 h-4 shrink-0" />
+                  <span>استكشف مرصد الأنساب</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>,
+          'peak-end-signature-banner',
+          false
+        )}
       </main>
 
       {/* ================================================================= */}
@@ -3523,52 +3866,8 @@ export const PublicFamilyMicrositePage: React.FC<
       </footer>
 
       {/* ================================================================= */}
-      {/* MODALS: VAULT LIGHTBOX, ENRICHMENT PROPOSAL, QR CARD, INVITE CLAIM */}
+      {/* MODALS: ENRICHMENT PROPOSAL, QR CARD, INVITE CLAIM                */}
       {/* ================================================================= */}
-      {lightboxVaultItem && !compactPreview && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setLightboxVaultItem(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-3xl rounded-3xl fs-surface border fs-border overflow-hidden shadow-2xl"
-          >
-            <div className="bg-[#161412] flex items-center justify-center p-4 relative max-h-[70vh]">
-              {lightboxVaultItem.previewUrl ? (
-                <img
-                  src={lightboxVaultItem.previewUrl}
-                  alt={lightboxVaultItem.title}
-                  referrerPolicy="no-referrer"
-                  className="max-h-[65vh] w-auto object-contain rounded-xl"
-                />
-              ) : (
-                <FileText className="w-16 h-16 fs-gold-text" />
-              )}
-              <button
-                type="button"
-                onClick={() => setLightboxVaultItem(null)}
-                className="absolute top-3 left-3 w-9 h-9 rounded-full bg-black/65 text-white flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold fs-display-font">
-                  {lightboxVaultItem.title}
-                </h3>
-                <div className="text-xs fs-muted mt-0.5">
-                  {lightboxVaultItem.dateOrOccasion}
-                  {lightboxVaultItem.watermarkText
-                    ? ` · ${lightboxVaultItem.watermarkText}`
-                    : ''}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showEnrichmentModal && !compactPreview && (
         <div

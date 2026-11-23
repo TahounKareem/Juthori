@@ -1014,6 +1014,8 @@ export interface FamilyPortalVisualBranding {
     authorName: string;
     authorTitle: string;
   };
+  showHumanWarmthInterludes?: boolean;
+  customInterludeImageUrl?: string;
   sectionOrder: PortalSectionKey[];
 }
 
@@ -1034,6 +1036,8 @@ export function buildDefaultVisualBranding(
       authorName: familyName ? `عميد عائلة ${familyName}` : 'عميد العائلة',
       authorTitle: 'كلمة ترحيبية لأبناء وبنات العائلة',
     },
+    showHumanWarmthInterludes: true,
+    customInterludeImageUrl: undefined,
     sectionOrder: [...DEFAULT_PORTAL_SECTION_ORDER],
   };
 }
@@ -1090,6 +1094,11 @@ export function normalizeVisualBranding(
       authorTitle:
         raw.patriarchQuote?.authorTitle || base.patriarchQuote.authorTitle,
     },
+    showHumanWarmthInterludes:
+      typeof raw.showHumanWarmthInterludes === 'boolean'
+        ? raw.showHumanWarmthInterludes
+        : true,
+    customInterludeImageUrl: raw.customInterludeImageUrl || undefined,
     sectionOrder: mergedOrder,
   };
 }

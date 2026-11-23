@@ -27,6 +27,7 @@ import {
   InteractiveFamilyTreeBuilder,
   InteractiveTreePerson,
 } from './InteractiveFamilyTreeBuilder';
+import { LivingFamilyConstellation } from './FamilySiteEditorialPrimitives';
 
 // =============================================================================
 // 1. BESPOKE VISUAL PRESETS & LABELS
@@ -906,6 +907,7 @@ interface PublicVisualTreeMirrorProps {
   treeDisplaySettings?: TreeDisplaySettings;
   isAuthorizedFamilyViewer?: boolean;
   compactPreview?: boolean;
+  velvetBandMode?: boolean;
   onProposeEnrichment?: () => void;
 }
 
@@ -916,6 +918,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   treeDisplaySettings,
   isAuthorizedFamilyViewer = false,
   compactPreview = false,
+  velvetBandMode = false,
   onProposeEnrichment,
 }) => {
   const [isTheaterOpen, setIsTheaterOpen] = useState(false);
@@ -1163,17 +1166,21 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
 
   return (
     <>
-      {/* ROYAL TREE GATEHOUSE CARD (Ceremonial Gateway — Zero Scroll Hijack) */}
+      {/* ROYAL TREE GATEHOUSE CARD (Ceremonial Gateway + Living Family Constellation) */}
       <div
         data-testid="royal-tree-gatehouse-card"
-        className={`relative overflow-hidden rounded-3xl border shadow-[0_12px_36px_rgba(44,30,20,0.06)] ${
+        className={`relative overflow-hidden rounded-3xl border shadow-[0_16px_44px_rgba(12,8,5,0.22)] ${
           compactPreview
-            ? 'min-h-[300px] px-4 py-8'
-            : 'min-h-[380px] sm:min-h-[430px] px-5 sm:px-10 py-10 sm:py-14'
+            ? 'min-h-[300px] px-4 py-7'
+            : 'min-h-[380px] sm:min-h-[430px] px-5 sm:px-10 py-10 sm:py-12'
         } flex items-center justify-center`}
         style={{
-          borderColor: 'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
-          backgroundColor: 'var(--fs-surface-alt)',
+          borderColor: velvetBandMode
+            ? 'color-mix(in srgb, var(--fs-gold) 45%, transparent)'
+            : 'color-mix(in srgb, var(--fs-gold) 44%, transparent)',
+          backgroundColor: velvetBandMode
+            ? 'rgba(255, 250, 240, 0.04)'
+            : 'var(--fs-surface-alt)',
         }}
       >
         {/* Blurred Heritage Tree Silhouette Backdrop (Atmospheric Teaser) */}
@@ -1184,26 +1191,24 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
           <svg
             viewBox="0 0 1100 540"
             preserveAspectRatio="xMidYMid slice"
-            className="w-full h-full blur-[6px] opacity-35 scale-105"
+            className={`w-full h-full blur-[5px] scale-105 ${
+              velvetBandMode ? 'opacity-25' : 'opacity-35'
+            }`}
           >
             {/* Connecting Genealogy Lines */}
             <g
               fill="none"
-              stroke="var(--fs-accent)"
+              stroke={velvetBandMode ? 'var(--fs-gold)' : 'var(--fs-accent)'}
               strokeWidth="2.5"
               strokeOpacity="0.65"
             >
-              {/* Tier 1 -> Tier 2 */}
               <path d="M550 94 V145 M275 145 H825 M275 145 V184 M550 145 V184 M825 145 V184" />
-              {/* Tier 2 -> Tier 3 */}
               <path d="M275 248 V292 M155 292 H395 M155 292 V328 M275 292 V328 M395 292 V328" />
               <path d="M550 248 V292 M490 292 H610 M490 292 V328 M610 292 V328" />
               <path d="M825 248 V292 M725 292 H945 M725 292 V328 M835 292 V328 M945 292 V328" />
-              {/* Tier 3 -> Tier 4 */}
               <path d="M155 390 V440 M395 390 V440 M610 390 V440 M835 390 V440" />
             </g>
 
-            {/* Tier 1 Crown Node */}
             <g>
               <rect
                 x="460"
@@ -1224,18 +1229,8 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                 fill="var(--fs-gold)"
                 fillOpacity="0.85"
               />
-              <rect
-                x="518"
-                y="72"
-                width="64"
-                height="7"
-                rx="3.5"
-                fill="#FFFFFF"
-                fillOpacity="0.55"
-              />
             </g>
 
-            {/* Tier 2 Branch Nodes */}
             {[275, 550, 825].map((cx) => (
               <g key={`t2-${cx}`}>
                 <rect
@@ -1244,7 +1239,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                   width="152"
                   height="64"
                   rx="14"
-                  fill="var(--fs-surface)"
+                  fill={velvetBandMode ? 'rgba(255,255,255,0.12)' : 'var(--fs-surface)'}
                   stroke="var(--fs-gold)"
                   strokeWidth="2.4"
                 />
@@ -1255,104 +1250,55 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                   fill="var(--fs-gold)"
                   fillOpacity="0.45"
                 />
-                <rect
-                  x={cx - 56}
-                  y="204"
-                  width="82"
-                  height="9"
-                  rx="4.5"
-                  fill="var(--fs-ink)"
-                  fillOpacity="0.55"
-                />
-                <rect
-                  x={cx - 38}
-                  y="222"
-                  width="64"
-                  height="7"
-                  rx="3.5"
-                  fill="var(--fs-muted)"
-                  fillOpacity="0.45"
-                />
               </g>
             ))}
 
-            {/* Tier 3 Descendant Nodes */}
             {[155, 275, 395, 490, 610, 725, 835, 945].map((cx) => (
-              <g key={`t3-${cx}`}>
-                <rect
-                  x={cx - 48}
-                  y="328"
-                  width="96"
-                  height="62"
-                  rx="12"
-                  fill="var(--fs-surface)"
-                  stroke="var(--fs-accent)"
-                  strokeWidth="1.8"
-                  strokeOpacity="0.55"
-                />
-                <rect
-                  x={cx - 30}
-                  y="348"
-                  width="60"
-                  height="8"
-                  rx="4"
-                  fill="var(--fs-ink)"
-                  fillOpacity="0.48"
-                />
-                <rect
-                  x={cx - 20}
-                  y="364"
-                  width="40"
-                  height="6"
-                  rx="3"
-                  fill="var(--fs-gold)"
-                  fillOpacity="0.65"
-                />
-              </g>
-            ))}
-
-            {/* Tier 4 Leaf Nodes */}
-            {[155, 395, 610, 835].map((cx) => (
               <rect
-                key={`t4-${cx}`}
-                x={cx - 44}
-                y="440"
-                width="88"
-                height="48"
-                rx="11"
-                fill="var(--fs-surface)"
+                key={`t3-${cx}`}
+                x={cx - 48}
+                y="328"
+                width="96"
+                height="62"
+                rx="12"
+                fill={velvetBandMode ? 'rgba(255,255,255,0.08)' : 'var(--fs-surface)'}
                 stroke="var(--fs-gold)"
-                strokeWidth="1.6"
-                strokeOpacity="0.6"
+                strokeWidth="1.8"
+                strokeOpacity="0.55"
               />
             ))}
           </svg>
         </div>
 
-        {/* Warm Ivory & Gold Atmospheric Veil */}
+        {/* Atmospheric Veil */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{
-            background:
-              'radial-gradient(circle at 50% 48%, rgba(255,253,249,0.58) 0%, rgba(246,240,227,0.82) 68%, rgba(238,228,208,0.92) 100%)',
+            background: velvetBandMode
+              ? 'radial-gradient(circle at 50% 45%, rgba(255,244,220,0.05) 0%, rgba(16,12,9,0.52) 72%, rgba(12,9,7,0.75) 100%)'
+              : 'radial-gradient(circle at 50% 48%, rgba(255,253,249,0.58) 0%, rgba(246,240,227,0.82) 68%, rgba(238,228,208,0.92) 100%)',
           }}
         />
 
         {/* Delicate Inner Archival Corner Hairline */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-3 rounded-2xl border opacity-40"
+          className="pointer-events-none absolute inset-3 rounded-2xl border opacity-35"
           style={{ borderColor: 'var(--fs-gold)' }}
         />
 
         {/* Centered Gilded Charter Gatehouse Plaque */}
         <div
-          className={`relative z-10 w-full max-w-xl rounded-3xl fs-surface/95 backdrop-blur-md border shadow-[0_18px_48px_rgba(32,22,14,0.12)] text-center flex flex-col items-center ${
+          className={`relative z-10 w-full max-w-2xl rounded-3xl backdrop-blur-md border shadow-[0_22px_54px_rgba(10,7,5,0.28)] text-center flex flex-col items-center ${
             compactPreview ? 'p-5 space-y-4' : 'p-6 sm:p-9 space-y-5'
+          } ${
+            velvetBandMode
+              ? 'bg-[#1A1410]/72 text-[#FAF4E8]'
+              : 'fs-surface/95'
           }`}
           style={{
-            borderColor: 'color-mix(in srgb, var(--fs-gold) 55%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
           }}
         >
           {/* Top Gilded Crown Line */}
@@ -1365,18 +1311,12 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             }}
           />
 
-          {/* Royal Tree Seal Medallion */}
-          <div
-            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex items-center justify-center shadow-md"
-            style={{
-              background:
-                'linear-gradient(145deg, var(--fs-hero-bg) 0%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
-              borderColor: 'var(--fs-gold)',
-              color: 'var(--fs-gold)',
-            }}
-          >
-            <GitBranch className="w-6 h-6 sm:w-7 sm:h-7" />
-          </div>
+          {/* Living Family Faces Constellation (Circular Gold-Ringed Medallions) */}
+          <LivingFamilyConstellation
+            members={members}
+            compactPreview={compactPreview}
+            tone={velvetBandMode ? 'dark' : 'light'}
+          />
 
           <div className="space-y-2">
             <h3
@@ -1386,35 +1326,36 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             >
               دوحة نسب عائلة {familyName}
             </h3>
-            <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-md mx-auto">
+            <p
+              className={`text-xs sm:text-sm leading-relaxed max-w-lg mx-auto ${
+                velvetBandMode ? 'text-[#FAF4E8]/80' : 'fs-muted'
+              }`}
+            >
               توثّق هذه الدوحة تسلسل أجيال وفروع عائلة {familyName} المسجلة في
               الديوان العائلي ضمن لوحة تفاعلية كاملة قابلة للتكبير والبحث.
             </p>
           </div>
 
-          {/* Non-Zero Metadata Capsules */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold tabular-nums">
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl fs-surface-alt border fs-accent-text"
-              style={{
-                borderColor:
-                  'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
-              }}
-            >
-              <Users className="w-3.5 h-3.5 fs-gold-text" />
+          {/* Clean Unboxed Typographic Metadata Line */}
+          <div
+            className={`flex flex-wrap items-center justify-center gap-3 text-xs font-bold tabular-nums ${
+              velvetBandMode ? 'text-[#F3D299]' : 'fs-accent-text'
+            }`}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" />
               <span>{mappedMirrorMembers.length} فرد موثق</span>
             </span>
             {resolvedGenerationsCount > 0 && (
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl fs-surface-alt border fs-accent-text"
-                style={{
-                  borderColor:
-                    'color-mix(in srgb, var(--fs-gold) 42%, transparent)',
-                }}
-              >
-                <Sparkles className="w-3.5 h-3.5 fs-gold-text" />
-                <span>{resolvedGenerationsCount} أجيال متصلة</span>
-              </span>
+              <>
+                <span aria-hidden="true" className="opacity-45">
+                  ·
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{resolvedGenerationsCount} أجيال متصلة</span>
+                </span>
+              </>
             )}
           </div>
 
@@ -1424,21 +1365,36 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
               type="button"
               data-testid="open-tree-theater-btn"
               onClick={() => setIsTheaterOpen(true)}
-              className="px-5 sm:px-6 py-3 rounded-2xl fs-accent-bg text-xs sm:text-sm font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer shadow-md hover:opacity-95 transition-all border"
-              style={{
-                borderColor:
-                  'color-mix(in srgb, var(--fs-gold) 50%, transparent)',
-              }}
+              className="px-5 sm:px-6 py-3 rounded-2xl text-xs sm:text-sm font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-[1.015] transition-all border whitespace-nowrap"
+              style={
+                velvetBandMode
+                  ? {
+                      background:
+                        'linear-gradient(135deg, #E8C77B 0%, #C89B45 100%)',
+                      color: '#1E150E',
+                      borderColor: '#F5DFAA',
+                    }
+                  : {
+                      backgroundColor: 'var(--fs-accent)',
+                      color: '#FFFFFF',
+                      borderColor:
+                        'color-mix(in srgb, var(--fs-gold) 50%, transparent)',
+                    }
+              }
             >
               <Maximize2 className="w-4 h-4 shrink-0" />
-              <span>✦ فتح واستعراض دوحة العائلة التفاعلية</span>
+              <span>فتح واستعراض دوحة العائلة التفاعلية</span>
             </button>
 
             {onProposeEnrichment && !compactPreview && (
               <button
                 type="button"
                 onClick={onProposeEnrichment}
-                className="px-4 py-3 rounded-2xl fs-surface border text-xs sm:text-sm font-bold fs-accent-text inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity shadow-2xs"
+                className={`px-4 py-3 rounded-2xl border text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
+                  velvetBandMode
+                    ? 'bg-white/8 hover:bg-white/15 text-[#FAF4E8]'
+                    : 'fs-surface fs-accent-text hover:opacity-90 shadow-2xs'
+                }`}
                 style={{
                   borderColor:
                     'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
@@ -1582,26 +1538,34 @@ export const HeritagePavilionHeader: React.FC<{
   subtitle?: string;
   icon: React.ReactNode;
   action?: React.ReactNode;
-}> = ({ kicker, title, subtitle, icon, action }) => {
+  tone?: 'light' | 'dark';
+}> = ({ kicker, title, subtitle, icon, action, tone = 'light' }) => {
+  const isDark = tone === 'dark';
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div className="space-y-1.5">
           <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold fs-accent-text"
-            style={{
-              backgroundColor: 'var(--fs-gold-soft)',
-              borderColor: 'color-mix(in srgb, var(--fs-gold) 36%, transparent)',
-            }}
+            className={`inline-flex items-center gap-1.5 text-[11.5px] font-bold tracking-wide ${
+              isDark ? 'text-[#F3D299]' : 'fs-accent-text'
+            }`}
           >
             {icon}
             <span>{kicker}</span>
           </div>
-          <h2 className="text-xl sm:text-2xl lg:text-[26px] font-bold fs-display-font leading-snug">
+          <h2
+            className={`text-xl sm:text-2xl lg:text-[28px] font-bold fs-display-font leading-snug text-balance ${
+              isDark ? 'text-[#FFF9EE]' : ''
+            }`}
+          >
             {title}
           </h2>
           {subtitle && (
-            <p className="text-xs sm:text-sm fs-muted leading-relaxed max-w-2xl">
+            <p
+              className={`text-xs sm:text-sm leading-relaxed max-w-2xl ${
+                isDark ? 'text-[#FAF4E8]/80' : 'fs-muted'
+              }`}
+            >
               {subtitle}
             </p>
           )}
@@ -1613,15 +1577,16 @@ export const HeritagePavilionHeader: React.FC<{
       <div className="flex items-center gap-2.5" aria-hidden="true">
         <span
           className="text-[10px] leading-none"
-          style={{ color: 'var(--fs-gold)' }}
+          style={{ color: isDark ? '#F3D299' : 'var(--fs-gold)' }}
         >
           ✦
         </span>
         <div
           className="h-px flex-1"
           style={{
-            background:
-              'linear-gradient(270deg, var(--fs-gold) 0%, color-mix(in srgb, var(--fs-gold) 28%, transparent) 55%, transparent 100%)',
+            background: isDark
+              ? 'linear-gradient(270deg, rgba(243,210,153,0.75) 0%, rgba(243,210,153,0.22) 55%, transparent 100%)'
+              : 'linear-gradient(270deg, var(--fs-gold) 0%, color-mix(in srgb, var(--fs-gold) 28%, transparent) 55%, transparent 100%)',
           }}
         />
       </div>
