@@ -272,6 +272,11 @@ export const PublicFamilyMicrositePage: React.FC<
   const [circleVerifyFeedback, setCircleVerifyFeedback] = useState<
     string | null
   >(null);
+  const [accessCodeInput, setAccessCodeInput] = useState<string>('');
+  const [accessCodeUnlocked, setAccessCodeUnlocked] = useState<boolean>(false);
+  const [accessCodeFeedback, setAccessCodeFeedback] = useState<string | null>(
+    null
+  );
 
   // Private Whitelist Access Request Form
   const [accessReqName, setAccessReqName] = useState('');
@@ -504,6 +509,7 @@ export const PublicFamilyMicrositePage: React.FC<
 
   const isAuthorizedFamilyCircle = useMemo(() => {
     if (isOwnerPreview || Boolean(previewData)) return true;
+    if (accessCodeUnlocked) return true;
     if (activeInvitation?.status === 'OPTED_OUT') return false;
     if (
       justClaimedRelative &&
@@ -521,6 +527,7 @@ export const PublicFamilyMicrositePage: React.FC<
   }, [
     isOwnerPreview,
     previewData,
+    accessCodeUnlocked,
     siteData,
     activeCircleEmail,
     activeInvitation,
@@ -553,6 +560,20 @@ export const PublicFamilyMicrositePage: React.FC<
     } else {
       setCircleVerifyFeedback(
         'هذا البريد غير مدرج حالياً في دائرة العائلة المصرّح لها. يمكنك إرسال طلب استئذان لأمين السجل أدناه.'
+      );
+    }
+  };
+
+  const handleVerifyFamilyAccessCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const expected = (siteData?.privacyConfig?.familyAccessCode || '').trim();
+    if (!expected) return;
+    if (accessCodeInput.trim() === expected) {
+      setAccessCodeUnlocked(true);
+      setAccessCodeFeedback(null);
+    } else {
+      setAccessCodeFeedback(
+        'رمز الدخول غير مطابق. يرجى التأكد منه لدى أمين سجل العائلة.'
       );
     }
   };
@@ -805,6 +826,40 @@ export const PublicFamilyMicrositePage: React.FC<
               </p>
             </div>
 
+            {/* Optional Family Secret Access Code Unlock */}
+            {Boolean(siteData.privacyConfig?.familyAccessCode?.trim()) && (
+              <form
+                onSubmit={handleVerifyFamilyAccessCode}
+                className="rounded-2xl fs-muted-surface border fs-border p-4 space-y-3"
+              >
+                <label className="block text-xs font-bold">
+                  لديك رمز الدخول العائلي؟ أدخله لفتح البوابة فوراً:
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="password"
+                    dir="ltr"
+                    required
+                    value={accessCodeInput}
+                    onChange={(e) => setAccessCodeInput(e.target.value)}
+                    placeholder="••••••"
+                    className="flex-1 px-3.5 py-2 rounded-xl bg-white/90 text-[#252321] border fs-border text-xs font-mono focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer shrink-0"
+                  >
+                    فتح برمز الدخول
+                  </button>
+                </div>
+                {accessCodeFeedback && (
+                  <p className="text-xs text-red-700 font-semibold">
+                    {accessCodeFeedback}
+                  </p>
+                )}
+              </form>
+            )}
+
             {/* Verify Invited Email */}
             <form
               onSubmit={handleVerifyCircleEmail}
@@ -911,6 +966,8 @@ export const PublicFamilyMicrositePage: React.FC<
   const treeMembers = siteData.publishedTreeMembers || [];
   const vaultItems = siteData.publishedVaultItems || [];
   const guardians = siteData.guardiansOfMemory || [];
+  const canProposeEnrichment =
+    siteData.privacyConfig.allowVisitorEnrichment !== false;
 
   const sectionReadiness: Record<
     PortalSectionKey,
@@ -1374,11 +1431,15 @@ export const PublicFamilyMicrositePage: React.FC<
               treeDisplaySettings={siteData.treeDisplaySettings}
               isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
               compactPreview={compactPreview}
-              onProposeEnrichment={() => {
-                setEnrType('ADD_TREE_MEMBER');
-                setEnrSuccessMessage(null);
-                setShowEnrichmentModal(true);
-              }}
+              onProposeEnrichment={
+                canProposeEnrichment
+                  ? () => {
+                      setEnrType('ADD_TREE_MEMBER');
+                      setEnrSuccessMessage(null);
+                      setShowEnrichmentModal(true);
+                    }
+                  : undefined
+              }
             />
           </HeritageSectionPavilion>
         );
@@ -1397,7 +1458,7 @@ export const PublicFamilyMicrositePage: React.FC<
               title="معرض خزانة الصور والوثائق"
               icon={<Camera className="w-3.5 h-3.5" />}
               action={
-                !compactPreview ? (
+                !compactPreview && canProposeEnrichment ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -2908,17 +2969,19 @@ export const PublicFamilyMicrositePage: React.FC<
                   <QrCode className="w-3.5 h-3.5 fs-accent-text" />
                   <span className="hidden sm:inline">مشاركة وQR</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEnrSuccessMessage(null);
-                    setShowEnrichmentModal(true);
-                  }}
-                  className="h-9 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-xs transition-opacity"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">اقتراح إثراء</span>
-                </button>
+                {canProposeEnrichment && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEnrSuccessMessage(null);
+                      setShowEnrichmentModal(true);
+                    }}
+                    className="h-9 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-xs transition-opacity"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">اقتراح إثراء</span>
+                  </button>
+                )}
               </>
             )}
           </div>

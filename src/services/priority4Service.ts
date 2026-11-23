@@ -1251,6 +1251,8 @@ export interface PublicSitePrivacyConfig {
   selectedVaultItemIds: string[];
   enableDynamicWatermark?: boolean;
   enablePhotoFacePrompt?: boolean;
+  familyAccessCode?: string;
+  allowVisitorEnrichment?: boolean;
 }
 
 export interface PublicMicrositeData {
