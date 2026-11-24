@@ -156,9 +156,9 @@ const DASHBOARD_TABS: Array<{
     premium: false,
     icon: GitCommitVertical,
   },
-  { id: DashboardTab.MyTree, label: 'شجرتي', premium: false, icon: GitFork },
+  { id: DashboardTab.MyTree, label: 'شجرتي', premium: true, icon: GitFork },
   { id: DashboardTab.MyVault, label: 'خزانتي', premium: false, icon: Archive },
-  { id: DashboardTab.MySite, label: 'موقعي', premium: false, icon: Landmark },
+  { id: DashboardTab.MySite, label: 'موقعي', premium: true, icon: Landmark },
   { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false, icon: Users },
   { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false, icon: Compass },
 ];
@@ -686,12 +686,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           if (Array.isArray(profile.blockedUsersMeta)) {
             setBlockedUsersMeta(profile.blockedUsersMeta);
           }
+          const normalizedTier = String(
+            profile.subscriptionTier || 'free'
+          ).toLowerCase();
           const isPaidAnnual =
-            profile.subscriptionTier === 'premium_annual' ||
+            normalizedTier === 'premium_annual' ||
+            normalizedTier === 'annual_vip' ||
+            normalizedTier === 'premium_monthly' ||
+            normalizedTier === 'lifetime_patron' ||
             (typeof profile.paidRevenueUsd === 'number' &&
               profile.paidRevenueUsd >= 55);
           const isPaidBasicRoot =
-            profile.subscriptionTier === 'basic_verified' ||
+            normalizedTier === 'basic_verified' ||
+            normalizedTier === 'basic_5' ||
+            normalizedTier === 'basic_root' ||
             profile.isRootUnlocked === true ||
             (typeof profile.paidRevenueUsd === 'number' &&
               profile.paidRevenueUsd >= 5);
@@ -699,11 +707,23 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           if (isPaidAnnual && stateMode !== DashboardStateMode.AnnualVip) {
             onChangeStateMode(DashboardStateMode.AnnualVip);
           } else if (
+            !isPaidAnnual &&
             isPaidBasicRoot &&
-            stateMode !== DashboardStateMode.AnnualVip &&
             stateMode !== DashboardStateMode.State1Paid5Basic
           ) {
             onChangeStateMode(DashboardStateMode.State1Paid5Basic);
+          } else if (
+            !isPaidAnnual &&
+            !isPaidBasicRoot &&
+            (stateMode === DashboardStateMode.AnnualVip ||
+              stateMode === DashboardStateMode.State1Paid5Basic)
+          ) {
+            // Strict tier isolation: never retain stale AnnualVip/BasicRoot state on a free account
+            onChangeStateMode(
+              result.matched
+                ? DashboardStateMode.State2MatchedUnpaid
+                : DashboardStateMode.State3Unmatched
+            );
           }
           if (
             (profile.accountType === 'record_keeper' ||
@@ -1874,11 +1894,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   };
 
   const handleTabClick = (tab: (typeof DASHBOARD_TABS)[number]) => {
-    if (tab.premium && !caps.arePremiumTabsUnlocked) {
-      setLockedTabPromptName(tab.label);
-      return;
-    }
-
     setActiveUtilityDrawer(null);
     setActiveTab(tab.id);
   };

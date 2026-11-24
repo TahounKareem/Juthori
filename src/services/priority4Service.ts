@@ -57,6 +57,7 @@ import {
   StagingProposedTreeNode,
   mergeStagingTreeProposalIntoAuthoritativeTree,
 } from '../utils/enrichmentStagingUtils';
+import { hashFamilyPasscode } from '../utils/portalSecurityUtils';
 import { createKashafiItem } from './kashafiService';
 import {
   DashboardAccessCapabilities,
@@ -1343,9 +1344,16 @@ export interface PublicSitePrivacyConfig {
   enableDynamicWatermark?: boolean;
   enablePhotoFacePrompt?: boolean;
   familyAccessCode?: string;
+  familyPasscodeHash?: string;
   allowCircleMembersEnrichment?: boolean;
   allowVisitorEnrichment?: boolean;
 }
+
+export type AccessGateMode =
+  | 'PUBLIC_INDEXABLE'
+  | 'UNLISTED_LINK'
+  | 'FAMILY_PIN'
+  | 'PRIVATE_WHITELIST';
 
 export interface PublicMicrositeData {
   siteSlug: string;
@@ -1357,6 +1365,8 @@ export interface PublicMicrositeData {
   isPublished: boolean;
   siteAccessMode: SiteAccessMode;
   privacyMode?: SiteAccessMode;
+  accessGateMode?: AccessGateMode;
+  hasFamilyPasscode?: boolean;
   whitelistedEmails?: string[];
   whitelistedUids?: string[];
   whitelistedMemberMeta?: CircleMemberAccessMeta[];
@@ -2118,6 +2128,8 @@ interface PublicSiteDirectoryHeader {
   familyName: string;
   isPublished: boolean;
   siteAccessMode: SiteAccessMode;
+  accessGateMode?: AccessGateMode;
+  hasFamilyPasscode?: boolean;
   themeId: FamilySiteThemeId;
   updatedAt: string;
 }
@@ -2134,7 +2146,8 @@ export async function fetchPublishedMicrositeBySlug(
 
   // Zero-Trust Fallback: if `public_sites/{slug}` denied `get` because it is `PRIVATE_WHITELIST`
   // and the visitor is unauthenticated/unauthorized, load the safe zero-PII directory header
-  // so the Family Portal Gate & Access Request form render cleanly without leaking private content.
+  // so the Family Portal Gate, Passcode Unlock, Sign-In, & Access Request form render cleanly
+  // without leaking private content or plaintext passcodes.
   const header = await readDualDoc<PublicSiteDirectoryHeader>([
     'public_site_directory',
     slug,
@@ -2151,6 +2164,10 @@ export async function fetchPublishedMicrositeBySlug(
       isPublished: true,
       siteAccessMode: 'PRIVATE_WHITELIST',
       privacyMode: 'PRIVATE_WHITELIST',
+      accessGateMode:
+        header.accessGateMode ||
+        (header.hasFamilyPasscode ? 'FAMILY_PIN' : 'PRIVATE_WHITELIST'),
+      hasFamilyPasscode: Boolean(header.hasFamilyPasscode),
       whitelistedEmails: [],
       themeId: header.themeId || 'golden_parchment',
       familyName: header.familyName || 'العائلة',
@@ -2168,6 +2185,63 @@ export async function fetchPublishedMicrositeBySlug(
   }
 
   return null;
+}
+
+export async function restorePublishedMicrositeByPasscodeHash(
+  rawSlug: string,
+  passcodeHash: string
+): Promise<PublicMicrositeData | null> {
+  const slug = normalizePublicSiteSlug(rawSlug);
+  const cleanHash = (passcodeHash || '').trim().toLowerCase();
+  if (!slug || !/^[a-f0-9]{64}$/.test(cleanHash)) return null;
+  const mirrorDoc = await readDualDoc<PublicMicrositeData>([
+    'public_sites',
+    slug,
+    'passcode_mirrors',
+    cleanHash,
+  ]);
+  if (!mirrorDoc || !mirrorDoc.isPublished) return null;
+  return {
+    ...mirrorDoc,
+    hasFamilyPasscode: true,
+    accessGateMode: mirrorDoc.accessGateMode || 'FAMILY_PIN',
+  };
+}
+
+export async function unlockPublishedMicrositeByPasscode(
+  rawSlug: string,
+  rawPasscode: string
+): Promise<{
+  ok: boolean;
+  siteData?: PublicMicrositeData;
+  passcodeHash?: string;
+  errorAr?: string;
+}> {
+  const slug = normalizePublicSiteSlug(rawSlug);
+  const cleanCode = (rawPasscode || '').trim();
+  if (!slug || !cleanCode) {
+    return {
+      ok: false,
+      errorAr: 'يرجى إدخال رمز الدخول السري للعائلة أولاً.',
+    };
+  }
+  const passcodeHash = hashFamilyPasscode(slug, cleanCode);
+  const mirrorDoc = await restorePublishedMicrositeByPasscodeHash(
+    slug,
+    passcodeHash
+  );
+  if (mirrorDoc) {
+    return {
+      ok: true,
+      siteData: mirrorDoc,
+      passcodeHash,
+    };
+  }
+  return {
+    ok: false,
+    errorAr:
+      'رمز الدخول السري غير صحيح. يرجى التأكد من الرمز لدى أمين سجل العائلة أو تسجيل الدخول بحسابك المعتمد.',
+  };
 }
 
 export async function publishOrUpdatePublicMicrositeAtomically(params: {
@@ -2390,6 +2464,31 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     }
   }
 
+  const cleanPasscode =
+    params.siteAccessMode === 'PRIVATE_WHITELIST'
+      ? (params.privacyConfig.familyAccessCode || '').trim().slice(0, 64)
+      : '';
+  const hasFamilyPasscode = Boolean(
+    params.siteAccessMode === 'PRIVATE_WHITELIST' && cleanPasscode.length > 0
+  );
+  const nextPasscodeHash = hasFamilyPasscode
+    ? hashFamilyPasscode(normalizedSlug, cleanPasscode)
+    : undefined;
+  const resolvedAccessGateMode: AccessGateMode =
+    params.siteAccessMode === 'PUBLIC'
+      ? 'PUBLIC_INDEXABLE'
+      : params.siteAccessMode === 'UNLISTED'
+      ? 'UNLISTED_LINK'
+      : hasFamilyPasscode
+      ? 'FAMILY_PIN'
+      : 'PRIVATE_WHITELIST';
+
+  const normalizedPrivacyConfig: PublicSitePrivacyConfig = cleanUndefined({
+    ...params.privacyConfig,
+    familyAccessCode: cleanPasscode || undefined,
+    familyPasscodeHash: nextPasscodeHash,
+  });
+
   const docPayload: PublicMicrositeData = cleanUndefined({
     siteSlug: normalizedSlug,
     ownerId: safeUid,
@@ -2403,6 +2502,8 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     isPublished: params.isPublished,
     siteAccessMode: params.siteAccessMode,
     privacyMode: params.siteAccessMode,
+    accessGateMode: resolvedAccessGateMode,
+    hasFamilyPasscode,
     whitelistedEmails,
     whitelistedUids,
     whitelistedMemberMeta,
@@ -2415,7 +2516,7 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     membershipLabel: 'ديوان عائلي موثق — أمين سجل العائلة ✦',
     bioTitle: (params.bioTitle || '').slice(0, 190),
     bioDescription: (params.bioDescription || '').slice(0, 3800),
-    privacyConfig: params.privacyConfig,
+    privacyConfig: normalizedPrivacyConfig,
     publishedTreeMembers,
     treeDisplaySettings:
       resolvedTreeDisplaySettings || normalizeTreeDisplaySettings(undefined),
@@ -2434,16 +2535,33 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     updatedAt: nowIso,
   });
 
-  const directoryHeader: PublicSiteDirectoryHeader = {
+  const directoryHeader: PublicSiteDirectoryHeader = cleanUndefined({
     siteSlug: normalizedSlug,
     ownerId: safeUid,
     ownerUid: safeUid,
     familyName: docPayload.familyName,
     isPublished: params.isPublished,
     siteAccessMode: params.siteAccessMode,
+    accessGateMode: resolvedAccessGateMode,
+    hasFamilyPasscode,
     themeId: validThemeId,
     updatedAt: nowIso,
-  };
+  });
+
+  const previousPasscodeHash = existing?.privacyConfig?.familyPasscodeHash;
+  const sanitizedPasscodeMirrorPayload: PublicMicrositeData | null =
+    hasFamilyPasscode && nextPasscodeHash
+      ? cleanUndefined({
+          ...docPayload,
+          ownerEmail: undefined,
+          whitelistedEmails: undefined,
+          whitelistedUids: undefined,
+          privacyConfig: cleanUndefined({
+            ...normalizedPrivacyConfig,
+            familyAccessCode: undefined,
+          }),
+        })
+      : null;
 
   const primaryWriteResults: {
     siteOk: boolean;
@@ -2550,6 +2668,75 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
 
   const persistedToCloud =
     primaryWriteResults.siteOk || primaryWriteResults.mirrorSiteOk;
+
+  // Sync sanitized capability-keyed passcode mirror AFTER parent public_sites/{slug} exists
+  if (persistedToCloud) {
+    const mirrorSyncTasks: Array<Promise<unknown>> = [];
+    if (
+      previousPasscodeHash &&
+      previousPasscodeHash !== nextPasscodeHash &&
+      /^[a-f0-9]{64}$/.test(previousPasscodeHash)
+    ) {
+      mirrorSyncTasks.push(
+        deleteDualDoc([
+          'public_sites',
+          normalizedSlug,
+          'passcode_mirrors',
+          previousPasscodeHash,
+        ]).catch(() => {})
+      );
+    }
+    if (sanitizedPasscodeMirrorPayload && nextPasscodeHash) {
+      if (primaryHandle.allowed && primaryWriteResults.siteOk) {
+        mirrorSyncTasks.push(
+          fastTimeout(
+            setDoc(
+              doc(
+                primaryHandle.primaryDb,
+                'public_sites',
+                normalizedSlug,
+                'passcode_mirrors',
+                nextPasscodeHash
+              ),
+              sanitizedPasscodeMirrorPayload
+            ),
+            8000
+          ).catch((err) => {
+            console.warn('[Juthori MySite] Passcode mirror primary write warning:', err);
+          })
+        );
+      }
+      if (
+        mirrorUid &&
+        primaryWriteResults.mirrorSiteOk &&
+        canP4Write(mirrorAuth, ['public_sites', normalizedSlug])
+      ) {
+        const mirrorScopedPayload = cleanUndefined({
+          ...sanitizedPasscodeMirrorPayload,
+          ownerId: mirrorUid,
+          ownerUid: mirrorUid,
+        });
+        mirrorSyncTasks.push(
+          fastTimeout(
+            setDoc(
+              doc(
+                mirrorDb,
+                'public_sites',
+                normalizedSlug,
+                'passcode_mirrors',
+                nextPasscodeHash
+              ),
+              mirrorScopedPayload
+            ),
+            8000
+          ).catch(() => {})
+        );
+      }
+    }
+    if (mirrorSyncTasks.length > 0) {
+      await Promise.allSettled(mirrorSyncTasks);
+    }
+  }
 
   if (!persistedToCloud) {
     const combinedErr = `${primaryWriteResults.primaryError || ''} ${
@@ -2976,6 +3163,9 @@ export interface KinshipInvitationDoc {
   optedOutAt?: string;
   fatherName?: string;
   grandfatherName?: string;
+  tribeName?: string;
+  familyBranch?: string;
+  phone?: string;
   residenceCountry?: string;
   residenceCity?: string;
   profession?: string;
@@ -3785,8 +3975,15 @@ export async function fetchKinshipInvitationByToken(
 export async function claimKinshipInvitation(params: {
   inviteToken: string;
   claimedByUid: string;
+  relativeName?: string;
+  familyName?: string;
   fatherName?: string;
   grandfatherName?: string;
+  originCountry?: string;
+  originRegion?: string;
+  tribeName?: string;
+  familyBranch?: string;
+  phone?: string;
   residenceCountry?: string;
   residenceCity?: string;
   profession?: string;
@@ -3808,12 +4005,33 @@ export async function claimKinshipInvitation(params: {
     status: 'ACTIVE',
     claimedByUid: cleanUid,
     claimedAt: existing.claimedAt || nowIso,
+    relativeName: params.relativeName
+      ? params.relativeName.trim().slice(0, 140)
+      : existing.relativeName,
+    familyName: params.familyName
+      ? params.familyName.trim().slice(0, 100)
+      : existing.familyName,
     fatherName: params.fatherName
       ? params.fatherName.trim().slice(0, 80)
       : existing.fatherName,
     grandfatherName: params.grandfatherName
       ? params.grandfatherName.trim().slice(0, 80)
       : existing.grandfatherName,
+    originCountry: params.originCountry
+      ? params.originCountry.trim().slice(0, 80)
+      : existing.originCountry,
+    originRegion: params.originRegion
+      ? params.originRegion.trim().slice(0, 120)
+      : existing.originRegion,
+    tribeName: params.tribeName
+      ? params.tribeName.trim().slice(0, 100)
+      : existing.tribeName,
+    familyBranch: params.familyBranch
+      ? params.familyBranch.trim().slice(0, 100)
+      : existing.familyBranch,
+    phone: params.phone
+      ? params.phone.trim().slice(0, 40)
+      : existing.phone,
     residenceCountry: params.residenceCountry
       ? params.residenceCountry.trim().slice(0, 80)
       : existing.residenceCountry,
@@ -3907,76 +4125,167 @@ export async function processKinshipOptOutByToken(token: string): Promise<{
   };
 }
 
+export interface AuthorizedFamilyPortalSummary {
+  siteSlug: string;
+  ownerId: string;
+  familyName: string;
+  ownerDisplayName: string;
+  themeId: FamilySiteThemeId;
+  originCountry?: string;
+  originRegion?: string;
+  viewerRole: KinshipCircleMemberRole;
+  viewerRoleLabelAr: string;
+  kinshipRelation?: string;
+  canProposeEnrichment: boolean;
+  membersCount: number;
+  generationsCount: number;
+  eventsCount: number;
+  siteData: PublicMicrositeData;
+}
+
 export async function fetchAuthorizedFamilyPortalsForEmail(
-  email: string
-): Promise<
-  Array<{
-    siteSlug: string;
-    familyName: string;
-    ownerDisplayName: string;
-  }>
-> {
+  email: string,
+  uid?: string
+): Promise<AuthorizedFamilyPortalSummary[]> {
   const cleanEmail = (email || '').trim().toLowerCase();
-  if (!cleanEmail) return [];
+  const cleanUid = (uid || auth.currentUser?.uid || '').trim();
+  if (!cleanEmail && !cleanUid) return [];
 
   const allowPrimary = Boolean(
     auth.currentUser &&
-      ((auth.currentUser.email || '').trim().toLowerCase() === cleanEmail ||
+      ((cleanEmail && (auth.currentUser.email || '').trim().toLowerCase() === cleanEmail) ||
+        (cleanUid && auth.currentUser.uid === cleanUid) ||
         isRuntimeStaffSession(auth))
   );
   const allowMirror = Boolean(
     mirrorAuth.currentUser &&
-      ((mirrorAuth.currentUser.email || '').trim().toLowerCase() === cleanEmail ||
+      ((cleanEmail && (mirrorAuth.currentUser.email || '').trim().toLowerCase() === cleanEmail) ||
+        (cleanUid && mirrorAuth.currentUser.uid === cleanUid) ||
         isRuntimeStaffSession(mirrorAuth))
   );
   if (!allowPrimary && !allowMirror) return [];
 
-  const [primarySnap, mirrorSnap] = await Promise.allSettled([
-    allowPrimary
-      ? fastTimeout(
-          getDocs(
-            query(
-              collection(db, 'public_sites'),
-              where('isPublished', '==', true),
-              where('whitelistedEmails', 'array-contains', cleanEmail)
-            )
-          ),
-          3000
-        )
-      : Promise.reject(new Error('SKIP_PRIMARY')),
-    allowMirror
-      ? fastTimeout(
-          getDocs(
-            query(
-              collection(mirrorDb, 'public_sites'),
-              where('isPublished', '==', true),
-              where('whitelistedEmails', 'array-contains', cleanEmail)
-            )
-          ),
-          3000
-        )
-      : Promise.reject(new Error('SKIP_MIRROR')),
-  ]);
+  const queryTasks: Array<Promise<Awaited<ReturnType<typeof getDocs>>>> = [];
+  if (allowPrimary && cleanEmail) {
+    queryTasks.push(
+      fastTimeout(
+        getDocs(
+          query(
+            collection(db, 'public_sites'),
+            where('isPublished', '==', true),
+            where('whitelistedEmails', 'array-contains', cleanEmail)
+          )
+        ),
+        3500
+      )
+    );
+  }
+  if (allowPrimary && cleanUid) {
+    queryTasks.push(
+      fastTimeout(
+        getDocs(
+          query(
+            collection(db, 'public_sites'),
+            where('isPublished', '==', true),
+            where('whitelistedUids', 'array-contains', cleanUid)
+          )
+        ),
+        3500
+      )
+    );
+  }
+  if (allowMirror && cleanEmail) {
+    queryTasks.push(
+      fastTimeout(
+        getDocs(
+          query(
+            collection(mirrorDb, 'public_sites'),
+            where('isPublished', '==', true),
+            where('whitelistedEmails', 'array-contains', cleanEmail)
+          )
+        ),
+        3200
+      )
+    );
+  }
+  if (allowMirror && cleanUid) {
+    queryTasks.push(
+      fastTimeout(
+        getDocs(
+          query(
+            collection(mirrorDb, 'public_sites'),
+            where('isPublished', '==', true),
+            where('whitelistedUids', 'array-contains', cleanUid)
+          )
+        ),
+        3200
+      )
+    );
+  }
 
+  const settled = await Promise.allSettled(queryTasks);
   const map = new Map<string, PublicMicrositeData>();
-  if (mirrorSnap.status === 'fulfilled') {
-    mirrorSnap.value.docs.forEach((d) => {
-      const s = d.data() as PublicMicrositeData;
-      if (s && s.siteSlug && s.isPublished) map.set(s.siteSlug, s);
-    });
-  }
-  if (primarySnap.status === 'fulfilled') {
-    primarySnap.value.docs.forEach((d) => {
-      const s = d.data() as PublicMicrositeData;
-      if (s && s.siteSlug && s.isPublished) map.set(s.siteSlug, s);
-    });
+  for (const res of settled) {
+    if (res.status === 'fulfilled') {
+      res.value.docs.forEach((d) => {
+        const s = d.data() as PublicMicrositeData;
+        if (s && s.siteSlug && s.isPublished) {
+          map.set(s.siteSlug, s);
+        }
+      });
+    }
   }
 
-  return Array.from(map.values()).map((s) => ({
-    siteSlug: s.siteSlug,
-    familyName: s.familyName,
-    ownerDisplayName: s.ownerDisplayName || 'أمين سجل العائلة',
-  }));
+  return Array.from(map.values())
+    .filter((s) => {
+      if (cleanUid && (s.ownerId === cleanUid || s.ownerUid === cleanUid)) {
+        return false;
+      }
+      if (cleanEmail && s.ownerEmail && s.ownerEmail.trim().toLowerCase() === cleanEmail) {
+        return false;
+      }
+      return true;
+    })
+    .map((s) => {
+      const meta = (s.whitelistedMemberMeta || []).find(
+        (m) =>
+          (cleanEmail && m.email?.trim().toLowerCase() === cleanEmail) ||
+          (cleanUid && m.uid === cleanUid)
+      );
+      const viewerRole: KinshipCircleMemberRole =
+        meta?.role || 'memory_contributor';
+      const viewerRoleLabelAr =
+        viewerRole === 'assistant_registrar'
+          ? 'مساعد أمين السجل'
+          : viewerRole === 'memory_contributor'
+          ? 'راوي الذاكرة'
+          : 'عضو دائرة العائلة';
+      const allowCircleEnrichment =
+        s.privacyConfig?.allowCircleMembersEnrichment ?? true;
+      const canProposeEnrichment =
+        viewerRole === 'assistant_registrar' ||
+        (viewerRole === 'memory_contributor' && allowCircleEnrichment);
+      return {
+        siteSlug: s.siteSlug,
+        ownerId: s.ownerId,
+        familyName: s.familyName,
+        ownerDisplayName: s.ownerDisplayName || 'أمين سجل العائلة',
+        themeId: s.themeId || 'golden_parchment',
+        originCountry: s.originCountry,
+        originRegion: s.originRegion,
+        viewerRole,
+        viewerRoleLabelAr,
+        kinshipRelation: meta?.kinshipRelation,
+        canProposeEnrichment,
+        membersCount:
+          s.publishedTreeMembers?.length ||
+          s.treeMetrics?.totalContemporaryMembers ||
+          0,
+        generationsCount: s.treeMetrics?.generationsCount || 0,
+        eventsCount: s.cmsModules?.eventsModule?.items?.length || 0,
+        siteData: s,
+      };
+    });
 }
 
 export async function submitSiteAccessRequest(params: {

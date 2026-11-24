@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  AlertTriangle,
   Check,
   Copy,
   Eye,
@@ -278,13 +279,25 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
 
         {siteAccessMode === 'PRIVATE_WHITELIST' && (
           <div className="rounded-xl bg-[#FAF5EA] border border-[#DFC798] p-4 space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-display font-extrabold text-[#7B401F]">
-              <KeyRound className="w-4 h-4 text-[#9E5631]" />
-              <span>رمز الدخول السري للعائلة (اختياري)</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-display font-extrabold text-[#7B401F]">
+                <KeyRound className="w-4 h-4 text-[#9E5631]" />
+                <span>رمز الدخول السري للعائلة *</span>
+              </div>
+              {familyAccessCode.trim() ? (
+                <span className="text-[11px] font-bold text-emerald-800">
+                  ✓ رمز حماية مفعّل
+                </span>
+              ) : (
+                <span className="text-[11px] font-bold text-amber-800">
+                  مطلوب لهذا النطاق
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-[#6B5440] leading-relaxed">
-              عيّن رمزاً عائلياً خاصاً يمكن لأقاربك إدخاله لفتح البوابة فوراً دون
-              الحاجة لإنشاء حساب، بجانب دخول الأعضاء الموثقين في «مجتمعي».
+              عيّن رمزاً عائلياً سرياً يُطلب من الزوار في بوابة الحماية قبل فتح
+              ديوان العائلة، إلى جانب الدخول التلقائي لأعضاء دائرة العائلة
+              المعتمدين عبر حساباتهم في «جذوري».
             </p>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -294,7 +307,12 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                   onChange={(e) => onChangeFamilyAccessCode(e.target.value)}
                   placeholder="مثال: 1984 أو DIWAN-2026"
                   aria-label="رمز الدخول السري للعائلة"
-                  className="w-full h-10 rounded-xl bg-white border border-[#DFC798] px-3.5 pl-10 text-xs font-mono font-bold text-[#2C1E14] focus:outline-none focus:border-[#9E5631]"
+                  required
+                  className={`w-full h-10 rounded-xl bg-white border px-3.5 pl-10 text-xs font-mono font-bold text-[#2C1E14] focus:outline-none ${
+                    familyAccessCode.trim()
+                      ? 'border-[#DFC798] focus:border-[#9E5631]'
+                      : 'border-amber-500 focus:border-amber-600'
+                  }`}
                 />
                 <button
                   type="button"
@@ -319,6 +337,22 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                 </button>
               )}
             </div>
+            {!familyAccessCode.trim() ? (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 text-[11px] font-medium text-amber-950"
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <span>
+                  يرجى كتابة «رمز الدخول السري للعائلة» قبل الضغط على «حفظ مسودة»
+                  أو «تحديث ونشر الموقع» لتفعيل بوابة الحماية للزوار بشكل كامل.
+                </span>
+              </div>
+            ) : (
+              <p className="text-[11px] text-emerald-800 font-medium">
+                سيتم تشفير هذا الرمز وحفظه مع إعدادات الموقع فوراً عند الضغط على «حفظ مسودة» أو «تحديث ونشر الموقع».
+              </p>
+            )}
           </div>
         )}
       </section>

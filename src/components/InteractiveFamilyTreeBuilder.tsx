@@ -61,7 +61,9 @@ import {
   UpperAncestorNode,
 } from '../types/juthori';
 import { resolveSpineConnectorLabel } from '../utils/lineageEngine';
+import { buildCleanSingleSelfTreeNode } from '../utils/portalSecurityUtils';
 import { resolveClientPublicAppBaseUrl } from '../config/referralAndSiteConfig';
+import { RoyalPremiumFeatureGate } from './RoyalPremiumFeatureGate';
 import {
   HeritageNodeAvatar,
   getHistoricalEraBadgeLabel,
@@ -470,89 +472,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const isRecordKeeperCharterSigned =
     accountType === AccountLegalType.RecordKeeper;
 
-  // Build initial tree nodes from registration data strictly using ONLY what the user entered (Zero Fabrication)
+  // Build clean initial tree containing ONLY the newly upgraded user's own personal node (Zero Mock/Auto-Seeded Relatives)
   const buildInitialTree = (): InteractiveTreePerson[] => {
-    const { fatherFirst, grandfatherFirst } = parseInitialRegistrationAncestors(
-      result.fatherName,
-      result.grandfatherName
-    );
-
-    const nodes: InteractiveTreePerson[] = [];
-
-    const recordKeeperId = 'node-record-keeper';
-    const fatherId =
-      fatherFirst || grandfatherFirst ? 'node-auto-father' : undefined;
-    const grandfatherId = grandfatherFirst ? 'node-auto-grandfather' : undefined;
-
-    // 1. Record Keeper (أمين السجل — فقط الاسم المسجل دون افتراض كنية أو تاريخ أو لقب)
-    nodes.push({
-      id: recordKeeperId,
-      firstName: result.clientName || 'المستخدم',
-      familyName: '',
-      kunya: '',
-      honorificTitle: 'بدون',
-      gender: 'male',
-      generationLevel: 1,
-      isRecordKeeper: true,
-      isDirectSpineLineage: true,
-      relationToTargetLabel: 'أمين السجل',
-      fatherId,
-      spouseIds: [],
-      vitalStatus: 'unspecified',
-      birthPrecision: 'year_only',
-      birthCalendar: 'hijri',
-      birthDateValue: '',
-      birthPlace: '',
-      femalePrivacyMasked: false,
-      photoUrl: userAvatarUrl || undefined,
-    });
-
-    // 2. Father if provided during registration (or bridge if grandfather was provided)
-    if (fatherFirst || grandfatherFirst) {
-      nodes.push({
-        id: 'node-auto-father',
-        firstName: fatherFirst || 'الأب',
-        familyName: '',
-        kunya: '',
-        honorificTitle: 'بدون',
-        gender: 'male',
-        generationLevel: 2,
-        isDirectSpineLineage: true,
-        relationToTargetLabel: 'الأب',
-        fatherId: grandfatherId,
-        spouseIds: [],
-        vitalStatus: 'unspecified',
-        birthPrecision: 'year_only',
-        birthCalendar: 'hijri',
-        birthDateValue: '',
-        birthPlace: '',
-        femalePrivacyMasked: false,
-      });
-    }
-
-    // 3. 1st Grandfather (`الجد الأول`) if provided during registration
-    if (grandfatherFirst) {
-      nodes.push({
-        id: 'node-auto-grandfather',
-        firstName: grandfatherFirst,
-        familyName: '',
-        kunya: '',
-        honorificTitle: 'بدون',
-        gender: 'male',
-        generationLevel: 3,
-        isDirectSpineLineage: true,
-        relationToTargetLabel: 'الجد الأول',
-        spouseIds: [],
-        vitalStatus: 'unspecified',
-        birthPrecision: 'year_only',
-        birthCalendar: 'hijri',
-        birthDateValue: '',
-        birthPlace: '',
-        femalePrivacyMasked: false,
-      });
-    }
-
-    return nodes;
+    return buildCleanSingleSelfTreeNode(
+      result,
+      userAvatarUrl
+    ) as InteractiveTreePerson[];
   };
 
   /**
@@ -6655,6 +6580,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   ];
 
   const sideNoteElement = renderTreeUpperLayersSideNote();
+
+  if (!isPublicMirror && !caps.isVip) {
+    return (
+      <RoyalPremiumFeatureGate
+        feature="my_tree"
+        familyName={result.familyName}
+        onUpgradePremium={onUpgradeAnnualVip}
+      />
+    );
+  }
 
   return (
     <div

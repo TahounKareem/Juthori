@@ -73,6 +73,7 @@ import {
   buildDefaultVisualBranding,
   checkPublicSiteSlugAvailability,
   computeContemporaryTreeMetrics,
+  fetchOwnerMicrositeForCommunity,
   fetchPublishedMicrositeBySlug,
   normalizePublicSiteSlug,
   normalizeVisualBranding,
@@ -86,6 +87,7 @@ import {
 } from '../utils/mediaPipeline';
 import { PublicFamilyMicrositePage } from './PublicFamilyMicrositePage';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
+import { RoyalPremiumFeatureGate } from './RoyalPremiumFeatureGate';
 import {
   CREST_STYLE_OPTIONS,
   FamilyCrestEmblem,
@@ -457,8 +459,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       const localTree =
         readUserFamilyTreeFromLocal<RawTreePersonForPublicProjection>(
           userId || '',
-          result.familyName,
-          userEmail
+          userEmail,
+          result.familyName
         );
       if (mounted && Array.isArray(localTree)) {
         setRawTreeMembers(localTree);
@@ -482,10 +484,16 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         }
       }
 
-      const existingSite = await fetchPublishedMicrositeBySlug(defaultSlug);
-      if (mounted && existingSite && existingSite.ownerId === userId) {
+      const existingSite =
+        (userId
+          ? await fetchOwnerMicrositeForCommunity(userId, defaultSlug)
+          : null) || (await fetchPublishedMicrositeBySlug(defaultSlug));
+      if (mounted && existingSite && (!userId || existingSite.ownerId === userId)) {
         setIsPublished(Boolean(existingSite.isPublished));
-        setPreviousPublishedSlug(existingSite.siteSlug);
+        if (existingSite.siteSlug) {
+          setSiteSlug(existingSite.siteSlug);
+          setPreviousPublishedSlug(existingSite.siteSlug);
+        }
         setSiteAccessMode(existingSite.siteAccessMode || 'PUBLIC');
         if (existingSite.themeId) setThemeId(existingSite.themeId);
         if (existingSite.treeDisplaySettings) {
@@ -790,6 +798,15 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   );
 
   const handlePersistAndPublish = async (nextPublishState: boolean) => {
+    if (siteAccessMode === 'PRIVATE_WHITELIST' && !familyAccessCode.trim()) {
+      setStudioTab('link_privacy');
+      setFeedbackBanner({
+        tone: 'warning',
+        text: 'يرجى كتابة «رمز الدخول السري للعائلة» أولاً عند اختيار نطاق «محمي لدائرة العائلة برمز دخول»، ثم إعادة الضغط على الحفظ أو النشر.',
+      });
+      return;
+    }
+
     setSaving(true);
     setFeedbackBanner(null);
 
@@ -1019,6 +1036,16 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const toggleIdentitySection = (sectionId: IdentityInspectorSectionId) => {
     setActiveIdentitySection((prev) => (prev === sectionId ? null : sectionId));
   };
+
+  if (!caps.isVip) {
+    return (
+      <RoyalPremiumFeatureGate
+        feature="my_site"
+        familyName={result.familyName}
+        onUpgradePremium={onUpgradeAnnualVip}
+      />
+    );
+  }
 
   return (
     <div dir="rtl" className="w-full space-y-3.5 text-right">

@@ -53,7 +53,14 @@ import { SearchProgressScreen } from './components/SearchProgressScreen';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { LoginModal } from './components/LoginModal';
 import { AdminStaffPortal } from './components/AdminStaffPortal';
-import { PublicFamilyMicrositePage } from './components/PublicFamilyMicrositePage';
+import {
+  PortalLoginSuccessPayload,
+  PublicFamilyMicrositePage,
+} from './components/PublicFamilyMicrositePage';
+import {
+  clearAllPortalSessionUnlocks,
+  resolveCustomerTierStateMode,
+} from './utils/portalSecurityUtils';
 import {
   ClaimedKinshipSessionPayload,
   KinshipInviteClaimModal,
@@ -1988,23 +1995,10 @@ export function App() {
     }
   };
 
-  const handleLoginSuccess = async (payload: {
-    uid?: string;
-    email: string;
-    firstName: string;
-    fatherName: string;
-    grandfatherName: string;
-    familyName: string;
-    originCountry: string;
-    originRegion?: string;
-    tribeName: string;
-    branchName: string;
-    accountType: AccountLegalType;
-    subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
-    isRootUnlocked?: boolean;
-    isNewRegistration?: boolean;
-    profile?: UserProfileData | null;
-  }) => {
+  const handleLoginSuccess = async (
+    payload: PortalLoginSuccessPayload,
+    options?: { stayOnMicrosite?: boolean }
+  ) => {
     const resolvedUid =
       payload.uid ||
       auth.currentUser?.uid ||
@@ -2182,26 +2176,17 @@ export function App() {
       });
     setLineageResult(immediateResult);
 
-    const loginIsAnnual =
-      payload.subscriptionTier === 'premium_annual' ||
-      existingProfile?.subscriptionTier === 'premium_annual' ||
-      (typeof existingProfile?.paidRevenueUsd === 'number' &&
-        existingProfile.paidRevenueUsd >= 55);
-    const loginIsRootPaid =
-      payload.subscriptionTier === 'basic_verified' ||
-      payload.isRootUnlocked === true ||
-      existingProfile?.subscriptionTier === 'basic_verified' ||
-      existingProfile?.isRootUnlocked === true ||
-      (typeof existingProfile?.paidRevenueUsd === 'number' &&
-        existingProfile.paidRevenueUsd >= 5);
-
-    const targetMode = loginIsAnnual
-      ? DashboardStateMode.AnnualVip
-      : loginIsRootPaid
-      ? DashboardStateMode.State1Paid5Basic
-      : immediateResult.matched
-      ? DashboardStateMode.State2MatchedUnpaid
-      : immediateResult.recommendedInitialState;
+    const targetMode = resolveCustomerTierStateMode(
+      {
+        subscriptionTier:
+          payload.subscriptionTier || existingProfile?.subscriptionTier,
+        isRootUnlocked:
+          payload.isRootUnlocked === true ||
+          existingProfile?.isRootUnlocked === true,
+        paidRevenueUsd: existingProfile?.paidRevenueUsd,
+      },
+      immediateResult
+    );
 
     setDashboardStateMode(targetMode);
     setInitialDashboardTab(DashboardTab.Home);
@@ -2209,8 +2194,10 @@ export function App() {
     setSearchStep(3);
     setLoginModalOpen(false);
     setPreviousPlatformView('dashboard');
-    setActiveView('dashboard');
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    if (!options?.stayOnMicrosite) {
+      setActiveView('dashboard');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
 
     // Only run background engine query if this account did NOT have a saved `verifiedLineageSnapshot` yet
     if (!hydratedFromFirestore && payload.familyName) {
@@ -2320,21 +2307,46 @@ export function App() {
     }
   };
 
-  const handleLogoutCustomer = () => {
+  const resetAllCustomerSessionState = () => {
     setHasActiveSession(false);
     setUserId('');
     setUserAvatarUrl('');
     setUserPhone('');
+    setClaimedKinshipRelation('');
     setUserDefaultCountry('السعودية');
+    setDashboardStateMode(DashboardStateMode.State3Unmatched);
+    setForm(DEFAULT_FORM_STATE);
+    setLineageResult(
+      resolveDeterministicLineage({
+        firstName: '',
+        fatherName: '',
+        grandfatherName: '',
+        familyName: '',
+        originCountry: 'السعودية',
+        originRegion: '',
+        tribeName: '',
+        branchName: '',
+      })
+    );
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
     }
+    clearAllPortalSessionUnlocks();
     auth.signOut().catch(() => {});
-    setForm(DEFAULT_FORM_STATE);
+  };
+
+  const handleLogoutCustomer = () => {
+    resetAllCustomerSessionState();
     setSearchStep(1);
     setPreviousPlatformView('landing');
     setActiveView('landing');
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
+  const handlePortalSignOut = () => {
+    resetAllCustomerSessionState();
+    setSearchStep(1);
+    setPreviousPlatformView('landing');
   };
 
   // Live Researcher Studio Callback inside Staff Portal: Merge Alpha or P1 ticket nodes into Adam's Tree
@@ -2676,6 +2688,8 @@ export function App() {
   ) => {
     setUserId(payload.uid);
     setHasActiveSession(true);
+    setUserAvatarUrl(auth.currentUser?.photoURL || '');
+    setUserPhone(payload.phone || '');
     setClaimedKinshipRelation(payload.kinshipRelation || '');
     setUserDefaultCountry(
       payload.residenceCountry || payload.originCountry || 'السعودية'
@@ -2693,31 +2707,36 @@ export function App() {
       familyName: payload.familyName || 'العائلة',
       originCountry: payload.originCountry || 'السعودية',
       originRegion: payload.originRegion || '',
-      tribeName: '',
-      branchName: '',
+      tribeName: payload.tribeName || '',
+      branchName: payload.branchName || '',
       email: payload.email,
       agreedToTerms: true,
     };
     setForm(nextClaimedForm);
 
-    const matchedLineage = resolveDeterministicLineage({
-      firstName: nextClaimedForm.firstName,
-      fatherName: nextClaimedForm.fatherName,
-      grandfatherName: nextClaimedForm.grandfatherName,
-      familyName: nextClaimedForm.familyName,
-      originCountry: nextClaimedForm.originCountry,
-      originRegion: nextClaimedForm.originRegion,
-      tribeName: '',
-      branchName: '',
-    });
+    const matchedLineage =
+      payload.matchedLineage ||
+      resolveDeterministicLineage({
+        firstName: nextClaimedForm.firstName,
+        fatherName: nextClaimedForm.fatherName,
+        grandfatherName: nextClaimedForm.grandfatherName,
+        familyName: nextClaimedForm.familyName,
+        originCountry: nextClaimedForm.originCountry,
+        originRegion: nextClaimedForm.originRegion,
+        tribeName: nextClaimedForm.tribeName,
+        branchName: nextClaimedForm.branchName,
+      });
     setLineageResult(matchedLineage);
-    setDashboardStateMode((curr) =>
-      curr === DashboardStateMode.AnnualVip
-        ? curr
-        : matchedLineage.matched
-        ? DashboardStateMode.State2MatchedUnpaid
-        : matchedLineage.recommendedInitialState
+
+    // Strict Zero-Leak Tier Resolution: newly claimed invited accounts default strictly to free/unpaid (NEVER inherit inviter's AnnualVip)
+    const nextTierMode = resolveCustomerTierStateMode(
+      {
+        subscriptionTier: payload.subscriptionTier || 'free',
+        isRootUnlocked: payload.isRootUnlocked === true,
+      },
+      matchedLineage
     );
+    setDashboardStateMode(nextTierMode);
     setSearchStep(3);
     setPreviousPlatformView('dashboard');
 
@@ -2822,6 +2841,7 @@ export function App() {
           viewerName={[form.firstName, form.familyName]
             .filter((part) => part && part !== 'مستخدم')
             .join(' ')}
+          viewerAvatarUrl={userAvatarUrl}
           viewerKinshipRelation={claimedKinshipRelation}
           viewerIsAnnualVip={dashboardStateMode === DashboardStateMode.AnnualVip}
           onInvitationClaimed={(claimed) =>
@@ -2829,6 +2849,10 @@ export function App() {
               enterOwnDashboardIfNoSite: false,
             })
           }
+          onPortalLoginSuccess={(loginPayload) => {
+            void handleLoginSuccess(loginPayload, { stayOnMicrosite: true });
+          }}
+          onPortalSignOut={handlePortalSignOut}
           onUpgradeOwnMembershipToAnnualVip={(ctx) => {
             if (typeof window !== 'undefined') {
               window.history.pushState({}, '', '/');
@@ -2886,6 +2910,16 @@ export function App() {
               window.history.pushState({}, '', '/');
             }
             setPublicMicrositeSlug(null);
+            setInitialDashboardTab(DashboardTab.Home);
+            setActiveView('dashboard');
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
+          onGoToOwnSiteSettings={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+            setPublicMicrositeSlug(null);
+            setInitialDashboardTab(DashboardTab.MySite);
             setActiveView('dashboard');
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           }}

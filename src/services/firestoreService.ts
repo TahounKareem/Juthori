@@ -2858,18 +2858,14 @@ const CHUNKED_AVATAR_PREFIX = '__CHUNKED_TREE_AVATAR__:';
 function getFullFamilyTreeLocalKeys(
   userId?: string,
   userEmail?: string,
-  familyName?: string
+  _familyName?: string
 ): string[] {
   const keys: string[] = [];
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const safeFam = (familyName || '').trim().replace(/\s+/g, '_');
   if (safeUid) keys.push(`juthori_full_tree_v3_${safeUid}`);
   if (emailUid && !keys.includes(`juthori_full_tree_v3_${emailUid}`)) {
     keys.push(`juthori_full_tree_v3_${emailUid}`);
-  }
-  if (safeFam && !safeUid && !emailUid) {
-    keys.push(`juthori_full_tree_v3_fam_${safeFam}`);
   }
   return keys;
 }

@@ -862,6 +862,11 @@
           "type": "string",
           "enum": ["PUBLIC", "UNLISTED", "PRIVATE_WHITELIST"]
         },
+        "accessGateMode": {
+          "type": "string",
+          "enum": ["PUBLIC_INDEXABLE", "UNLISTED_LINK", "FAMILY_PIN", "PRIVATE_WHITELIST"]
+        },
+        "hasFamilyPasscode": { "type": "boolean" },
         "themeId": {
           "type": "string",
           "enum": ["golden_parchment", "diriyah_oasis", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
@@ -1378,6 +1383,10 @@
     "/public_sites/{siteSlug}": {
       "schema": { "$ref": "entities/PublicMicrosite" },
       "description": "Filtered Mirror family microsites strictly isolated from private lineage and reference sources."
+    },
+    "/public_sites/{siteSlug}/passcode_mirrors/{passcodeHash}": {
+      "schema": { "$ref": "entities/PublicMicrosite" },
+      "description": "Sanitized capability-keyed microsite mirror unlocked exclusively with the exact SHA-256 hash of the family passcode (list disabled, PII stripped)."
     },
     "/public_site_directory/{siteSlug}": {
       "schema": { "$ref": "entities/PublicSiteDirectoryHeader" },

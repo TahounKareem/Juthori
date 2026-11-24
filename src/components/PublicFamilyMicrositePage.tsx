@@ -8,6 +8,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Compass,
   Copy,
@@ -15,9 +16,13 @@ import {
   GitBranch,
   Globe,
   Heart,
+  KeyRound,
   Landmark,
+  LayoutDashboard,
   Loader2,
   Lock,
+  LogIn,
+  LogOut,
   MapPin,
   MessageSquare,
   Mic,
@@ -25,6 +30,7 @@ import {
   QrCode,
   Scroll,
   Send,
+  Settings,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -46,16 +52,28 @@ import {
   incrementElderMemorialPrayer,
   incrementMajlisTopicReaction,
   normalizeVisualBranding,
+  restorePublishedMicrositeByPasscodeHash,
   submitEventRsvpOnMicrosite,
   submitSiteAccessRequest,
   submitTreeEnrichmentRequest,
   submitVaultPhotoFaceIdentification,
+  unlockPublishedMicrositeByPasscode,
 } from '../services/priority4Service';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth, mirrorAuth } from '../services/firebase';
+import type { UserProfileData } from '../services/firestoreService';
+import type { AccountLegalType } from '../types/juthori';
 import { processMediaFileForUpload } from '../utils/mediaPipeline';
 import { resolvePublicSiteEnrichmentPermission } from '../utils/enrichmentStagingUtils';
+import {
+  SESSION_AUTHORIZED_EMAIL_KEY,
+  clearAllPortalSessionUnlocks,
+  evaluatePublicMicrositeAccessGate,
+  readStoredPasscodeHashForSlug,
+  saveStoredPasscodeHashForSlug,
+} from '../utils/portalSecurityUtils';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
+import { LoginModal } from './LoginModal';
 import { CANONICAL_BRAND_DISPLAY_HOST } from '../config/referralAndSiteConfig';
 import {
   ClaimedKinshipSessionPayload,
@@ -84,11 +102,30 @@ import {
 } from './FamilySiteEditorialPrimitives';
 import { JuthoriLogo } from './JuthoriLogo';
 
+export interface PortalLoginSuccessPayload {
+  uid?: string;
+  email: string;
+  firstName: string;
+  fatherName: string;
+  grandfatherName: string;
+  familyName: string;
+  originCountry: string;
+  originRegion?: string;
+  tribeName: string;
+  branchName: string;
+  accountType: AccountLegalType;
+  subscriptionTier?: 'free' | 'basic_verified' | 'premium_annual';
+  isRootUnlocked?: boolean;
+  isNewRegistration?: boolean;
+  profile?: UserProfileData | null;
+}
+
 interface PublicFamilyMicrositePageProps {
   siteSlug: string;
   previewData?: PublicMicrositeData | null;
   viewerEmail?: string;
   viewerName?: string;
+  viewerAvatarUrl?: string;
   viewerKinshipRelation?: string;
   viewerIsAnnualVip?: boolean;
   inviteToken?: string | null;
@@ -103,9 +140,10 @@ interface PublicFamilyMicrositePageProps {
     originRegion?: string;
   }) => void;
   onGoToOwnDashboard?: () => void;
+  onGoToOwnSiteSettings?: () => void;
+  onPortalLoginSuccess?: (payload: PortalLoginSuccessPayload) => void;
+  onPortalSignOut?: () => void;
 }
-
-const SESSION_AUTHORIZED_EMAIL_KEY = 'juthori_microsite_circle_email_v1';
 
 const SECTION_SHORT_NAV: Record<PortalSectionKey, string> = {
   patriarch_quote: 'كلمة العميد',
@@ -272,6 +310,7 @@ export const PublicFamilyMicrositePage: React.FC<
   previewData,
   viewerEmail,
   viewerName,
+  viewerAvatarUrl,
   viewerKinshipRelation,
   viewerIsAnnualVip = false,
   inviteToken,
@@ -282,12 +321,19 @@ export const PublicFamilyMicrositePage: React.FC<
   onInvitationClaimed,
   onUpgradeOwnMembershipToAnnualVip,
   onGoToOwnDashboard,
+  onGoToOwnSiteSettings,
+  onPortalLoginSuccess,
+  onPortalSignOut,
 }) => {
   const [siteData, setSiteData] = useState<PublicMicrositeData | null>(
     previewData || null
   );
   const [loading, setLoading] = useState<boolean>(!previewData);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showPortalLoginModal, setShowPortalLoginModal] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [accessCodeBusy, setAccessCodeBusy] = useState(false);
 
   // Kinship Capability-Token Invitation State (`?invite={inviteToken}`)
   const [activeInvitation, setActiveInvitation] =
@@ -446,6 +492,27 @@ export const PublicFamilyMicrositePage: React.FC<
   }, []);
 
   useEffect(() => {
+    if (!showProfileDropdown) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowProfileDropdown(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowProfileDropdown(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [showProfileDropdown]);
+
+  useEffect(() => {
     if (previewData) {
       setSiteData(previewData);
       setLoading(false);
@@ -454,7 +521,34 @@ export const PublicFamilyMicrositePage: React.FC<
     let mounted = true;
     setLoading(true);
     fetchPublishedMicrositeBySlug(siteSlug)
-      .then((res) => {
+      .then(async (res) => {
+        if (!mounted) return;
+        if (res && res.siteAccessMode === 'PRIVATE_WHITELIST') {
+          const decision = evaluatePublicMicrositeAccessGate({
+            isPreviewMode: Boolean(isOwnerPreview),
+            siteData: res,
+            viewerUid: auth.currentUser?.uid,
+            viewerEmail: auth.currentUser?.email || viewerEmail || '',
+            passcodeUnlocked: false,
+          });
+          if (decision.shouldShowRestrictedGate && decision.requiresPasscode) {
+            const storedHash = readStoredPasscodeHashForSlug(siteSlug);
+            if (storedHash) {
+              const unlockedMirror =
+                await restorePublishedMicrositeByPasscodeHash(
+                  siteSlug,
+                  storedHash
+                );
+              if (mounted && unlockedMirror) {
+                setSiteData(unlockedMirror);
+                setAccessCodeUnlocked(true);
+                setLoading(false);
+                return;
+              }
+              clearAllPortalSessionUnlocks(siteSlug);
+            }
+          }
+        }
         if (mounted) {
           setSiteData(res);
           setLoading(false);
@@ -466,7 +560,7 @@ export const PublicFamilyMicrositePage: React.FC<
     return () => {
       mounted = false;
     };
-  }, [siteSlug, previewData, authSyncKey]);
+  }, [siteSlug, previewData, authSyncKey, isOwnerPreview, viewerEmail]);
 
   useEffect(() => {
     if (viewerEmail) {
@@ -566,6 +660,34 @@ export const PublicFamilyMicrositePage: React.FC<
     }
   };
 
+  const signedInUser = auth.currentUser;
+  const effectiveAuthenticatedEmail = (
+    signedInUser?.email ||
+    (signedInUser ? viewerEmail : '') ||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  const accessGate = useMemo(
+    () =>
+      evaluatePublicMicrositeAccessGate({
+        isPreviewMode: Boolean(previewData) || isOwnerPreview,
+        siteData,
+        viewerUid: signedInUser?.uid,
+        viewerEmail: effectiveAuthenticatedEmail,
+        passcodeUnlocked: accessCodeUnlocked,
+      }),
+    [
+      previewData,
+      isOwnerPreview,
+      siteData,
+      signedInUser?.uid,
+      effectiveAuthenticatedEmail,
+      accessCodeUnlocked,
+    ]
+  );
+
   const enrichmentPermission = useMemo(
     () =>
       resolvePublicSiteEnrichmentPermission({
@@ -574,9 +696,8 @@ export const PublicFamilyMicrositePage: React.FC<
         whitelistedEmails: siteData?.whitelistedEmails,
         whitelistedUids: siteData?.whitelistedUids,
         whitelistedMemberMeta: siteData?.whitelistedMemberMeta,
-        viewerUid: auth.currentUser?.uid,
-        viewerEmail:
-          activeCircleEmail || viewerEmail || auth.currentUser?.email || '',
+        viewerUid: signedInUser?.uid,
+        viewerEmail: effectiveAuthenticatedEmail,
         isOwnerPreview: isOwnerPreview || Boolean(previewData),
         accessCodeUnlocked,
         activeInvitationStatus: activeInvitation?.status,
@@ -585,8 +706,8 @@ export const PublicFamilyMicrositePage: React.FC<
       }),
     [
       siteData,
-      activeCircleEmail,
-      viewerEmail,
+      signedInUser?.uid,
+      effectiveAuthenticatedEmail,
       authSyncKey,
       isOwnerPreview,
       previewData,
@@ -596,7 +717,35 @@ export const PublicFamilyMicrositePage: React.FC<
     ]
   );
 
-  const isAuthorizedFamilyCircle = enrichmentPermission.isCircleMember;
+  const isAuthorizedFamilyCircle =
+    accessGate.isOwner ||
+    accessGate.isAuthorizedMember ||
+    enrichmentPermission.isCircleMember ||
+    accessCodeUnlocked;
+
+  const portalViewerDisplayName = useMemo(() => {
+    const candidate = (
+      viewerName ||
+      signedInUser?.displayName ||
+      effectiveAuthenticatedEmail.split('@')[0] ||
+      'عضو جذوري'
+    ).trim();
+    return candidate || 'عضو جذوري';
+  }, [viewerName, signedInUser?.displayName, effectiveAuthenticatedEmail]);
+
+  const portalViewerRoleBadge = useMemo(() => {
+    if (accessGate.isOwner) return 'أمين السجل';
+    if (enrichmentPermission.viewerCircleRole === 'assistant_registrar')
+      return 'مساعد أمين السجل';
+    if (enrichmentPermission.viewerCircleRole === 'memory_contributor')
+      return 'راوي الذاكرة';
+    if (accessGate.isAuthorizedMember) return 'عضو الدائرة';
+    return 'عضو جذوري';
+  }, [
+    accessGate.isOwner,
+    accessGate.isAuthorizedMember,
+    enrichmentPermission.viewerCircleRole,
+  ]);
 
   const canRenderVisibility = (vis?: ModuleVisibility): boolean => {
     const effective = vis || 'PUBLIC';
@@ -605,40 +754,140 @@ export const PublicFamilyMicrositePage: React.FC<
     return true;
   };
 
-  const handleVerifyCircleEmail = (e: React.FormEvent) => {
+  const handleVerifyFamilyAccessCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!siteData) return;
-    const candidate = circleEmailInput.trim().toLowerCase();
-    if (!candidate) return;
-    const allowed = (siteData.whitelistedEmails || [])
-      .map((x) => x.trim().toLowerCase())
-      .includes(candidate);
-    if (allowed) {
-      setActiveCircleEmail(candidate);
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(SESSION_AUTHORIZED_EMAIL_KEY, candidate);
+    const candidate = accessCodeInput.trim();
+    if (!candidate) {
+      setAccessCodeFeedback('يرجى إدخال رمز الدخول السري للعائلة أولاً.');
+      return;
+    }
+
+    // Preview / local fallback when siteData already carries the code
+    const localExpected = (siteData.privacyConfig?.familyAccessCode || '').trim();
+    if (localExpected) {
+      if (candidate.toLowerCase() === localExpected.toLowerCase()) {
+        setAccessCodeUnlocked(true);
+        setAccessCodeFeedback(null);
+        setAccessCodeInput('');
+      } else {
+        setAccessCodeFeedback(
+          'رمز الدخول السري غير صحيح. يرجى التأكد منه لدى أمين سجل العائلة.'
+        );
       }
-      setCircleVerifyFeedback(
-        'مرحباً بك في دائرة العائلة! تم فتح كافة الأقسام العائلية الخاصة لك ✓'
+      return;
+    }
+
+    setAccessCodeBusy(true);
+    setAccessCodeFeedback(null);
+    try {
+      const outcome = await unlockPublishedMicrositeByPasscode(
+        siteData.siteSlug,
+        candidate
       );
-    } else {
-      setCircleVerifyFeedback(
-        'هذا البريد غير مدرج حالياً في دائرة العائلة المصرّح لها. يمكنك إرسال طلب استئذان لأمين السجل أدناه.'
-      );
+      if (outcome.ok && outcome.siteData && outcome.passcodeHash) {
+        saveStoredPasscodeHashForSlug(siteData.siteSlug, outcome.passcodeHash);
+        setSiteData(outcome.siteData);
+        setAccessCodeUnlocked(true);
+        setAccessCodeInput('');
+        setAccessCodeFeedback(null);
+      } else {
+        setAccessCodeFeedback(
+          outcome.errorAr ||
+            'رمز الدخول السري غير صحيح. يرجى التأكد منه لدى أمين سجل العائلة.'
+        );
+      }
+    } finally {
+      setAccessCodeBusy(false);
     }
   };
 
-  const handleVerifyFamilyAccessCode = (e: React.FormEvent) => {
-    e.preventDefault();
-    const expected = (siteData?.privacyConfig?.familyAccessCode || '').trim();
-    if (!expected) return;
-    if (accessCodeInput.trim() === expected) {
-      setAccessCodeUnlocked(true);
-      setAccessCodeFeedback(null);
-    } else {
-      setAccessCodeFeedback(
-        'رمز الدخول غير مطابق. يرجى التأكد منه لدى أمين سجل العائلة.'
+  const handleLockPasscodeSession = async () => {
+    clearAllPortalSessionUnlocks(siteData?.siteSlug || siteSlug);
+    setAccessCodeUnlocked(false);
+    setAccessCodeInput('');
+    setAccessCodeFeedback(null);
+    if (!previewData && siteData) {
+      setSiteData((prev) =>
+        prev
+          ? {
+              ...prev,
+              bioTitle: undefined,
+              bioDescription: undefined,
+              publishedTreeMembers: [],
+              publishedVaultItems: [],
+              cmsModules: undefined,
+              whitelistedEmails: [],
+              whitelistedUids: [],
+              ownerEmail: undefined,
+            }
+          : null
       );
+      const lockedStub = await fetchPublishedMicrositeBySlug(siteSlug);
+      if (lockedStub) setSiteData(lockedStub);
+    }
+  };
+
+  const handlePortalLogout = async () => {
+    setShowProfileDropdown(false);
+    clearAllPortalSessionUnlocks();
+    setAccessCodeUnlocked(false);
+    setAccessCodeInput('');
+    setAccessCodeFeedback(null);
+    setActiveCircleEmail('');
+    setCircleEmailInput('');
+    setCircleVerifyFeedback(null);
+    setJustClaimedRelative(null);
+
+    // Synchronously strip private payload on restricted sites for zero-flash instant lock
+    if (accessGate.isRestrictedSite && !previewData) {
+      setSiteData((prev) =>
+        prev
+          ? {
+              ...prev,
+              bioTitle: undefined,
+              bioDescription: undefined,
+              publishedTreeMembers: [],
+              publishedVaultItems: [],
+              cmsModules: undefined,
+              whitelistedEmails: [],
+              whitelistedUids: [],
+              ownerEmail: undefined,
+              privacyConfig: {
+                showBio: false,
+                showFamilyTree: false,
+                hideLivingNamesForGuests: true,
+                selectedVaultItemIds: [],
+              },
+            }
+          : null
+      );
+    }
+
+    await Promise.allSettled([signOut(auth), signOut(mirrorAuth)]);
+    setAuthSyncKey('guest');
+    onPortalSignOut?.();
+
+    if (!previewData) {
+      const refreshed = await fetchPublishedMicrositeBySlug(siteSlug);
+      setSiteData(refreshed);
+    }
+  };
+
+  const handlePortalLoginModalSuccess = async (
+    payload: PortalLoginSuccessPayload
+  ) => {
+    setShowPortalLoginModal(false);
+    onPortalLoginSuccess?.(payload);
+    setAuthSyncKey(auth.currentUser?.uid || payload.uid || 'signed_in');
+    if (payload.email) {
+      setActiveCircleEmail(payload.email.trim().toLowerCase());
+    }
+    if (!previewData) {
+      const refreshed = await fetchPublishedMicrositeBySlug(siteSlug);
+      if (refreshed) {
+        setSiteData(refreshed);
+      }
     }
   };
 
@@ -841,35 +1090,59 @@ export const PublicFamilyMicrositePage: React.FC<
       originRegion: siteData.originRegion || '',
     });
 
-  // PRIVATE_WHITELIST Gate for unauthorized visitors
-  if (
-    siteData.siteAccessMode === 'PRIVATE_WHITELIST' &&
-    !isAuthorizedFamilyCircle
-  ) {
+  // Royal Restricted Portal Gate for unauthorized visitors
+  if (accessGate.shouldShowRestrictedGate) {
     return (
       <div
         dir="rtl"
         data-family-site-theme={activeTheme}
         data-family-site-typography={branding.typographyId}
+        data-testid="royal-restricted-portal-gate"
         className="min-h-screen fs-canvas flex flex-col justify-between"
       >
-        <header className="border-b fs-border fs-surface px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <header className="border-b fs-border fs-surface px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 text-xs font-bold">
-            <Lock className="w-4 h-4 fs-accent-text" />
-            <span>بوابة عائلية خاصة · الدخول بالدعوة المعتمدة</span>
+            <Lock className="w-4 h-4 fs-accent-text shrink-0" />
+            <span>بوابة عائلية محمية · دائرة العائلة المعتمدة</span>
           </div>
-          <button
-            type="button"
-            onClick={onExitToMainApp}
-            className="text-xs font-semibold fs-accent-text hover:underline inline-flex items-center gap-1 cursor-pointer"
-          >
-            <span>منصة جذوري الرئيسية</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {signedInUser ? (
+              <button
+                type="button"
+                onClick={handlePortalLogout}
+                className="h-8 px-3 rounded-lg border fs-border text-xs font-bold text-red-700 hover:bg-red-50 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>تسجيل الخروج</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPortalLoginModal(true)}
+                className="h-8 px-3 rounded-lg fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>تسجيل الدخول</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onExitToMainApp}
+              className="text-xs font-semibold fs-accent-text hover:underline inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+            >
+              <span>منصة جذوري</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </header>
 
-        <main className="max-w-xl mx-auto w-full px-4 py-12 space-y-6">
-          <div className="rounded-3xl fs-surface border fs-border p-6 sm:p-8 space-y-5 shadow-md">
+        <main className="max-w-xl mx-auto w-full px-4 py-10 sm:py-14 space-y-6">
+          <div
+            className="rounded-3xl fs-surface border p-6 sm:p-8 space-y-5 shadow-[0_24px_60px_-28px_rgba(44,30,20,0.3)]"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+            }}
+          >
             <div className="flex flex-col items-center text-center space-y-3">
               <FamilyCrestEmblem
                 familyName={siteData.familyName}
@@ -878,26 +1151,43 @@ export const PublicFamilyMicrositePage: React.FC<
                 customCrestUrl={branding.customCrestUrl}
                 size="md"
               />
-              <div className="text-xs font-bold fs-accent-text">
-                {siteData.familyEmblemTag || `ديوان عائلة ${siteData.familyName}`}
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold fs-accent-text">
+                <ShieldCheck className="w-4 h-4" />
+                <span>
+                  {siteData.familyEmblemTag || `ديوان عائلة ${siteData.familyName}`}
+                </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold fs-display-font">
-                بوابة عائلة {siteData.familyName} الخاصة
+                بوابة عائلة {siteData.familyName} المحمية
               </h1>
               <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                خصّص أمين سجل العائلة هذه البوابة لأفراد دائرة العائلة والمدعوين فقط حفاظاً على الخصوصية العائلية.
+                خصّص أمين سجل العائلة هذا الديوان لأفراد دائرة العائلة والمدعوين
+                فقط حفاظاً على خصوصية الشجرة والذكريات العائلية.
               </p>
             </div>
 
-            {/* Optional Family Secret Access Code Unlock */}
-            {Boolean(siteData.privacyConfig?.familyAccessCode?.trim()) && (
+            {signedInUser && !accessGate.isAuthorizedMember && (
+              <div className="rounded-2xl bg-amber-50 border border-amber-300 px-4 py-3 text-xs text-amber-950 leading-relaxed">
+                أنت مسجّل الدخول حالياً بالبريد{' '}
+                <span dir="ltr" className="font-mono font-bold">
+                  {signedInUser.email}
+                </span>
+                ، وهذا الحساب غير مدرج بعد في دائرة عائلة {siteData.familyName}.
+                يمكنك إدخال رمز الدخول السري للعائلة أدناه أو إرسال طلب انضمام.
+              </div>
+            )}
+
+            {/* 1. Family Secret Passcode Unlock */}
+            {accessGate.requiresPasscode && (
               <form
                 onSubmit={handleVerifyFamilyAccessCode}
+                data-testid="portal-passcode-form"
                 className="rounded-2xl fs-muted-surface border fs-border p-4 space-y-3"
               >
-                <label className="block text-xs font-bold">
-                  لديك رمز الدخول العائلي؟ أدخله لفتح البوابة فوراً:
-                </label>
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <KeyRound className="w-4 h-4 fs-accent-text shrink-0" />
+                  <span>لديك رمز الدخول السري للعائلة؟ أدخله لفتح الديوان:</span>
+                </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="password"
@@ -905,14 +1195,25 @@ export const PublicFamilyMicrositePage: React.FC<
                     required
                     value={accessCodeInput}
                     onChange={(e) => setAccessCodeInput(e.target.value)}
-                    placeholder="••••••"
-                    className="flex-1 px-3.5 py-2 rounded-xl bg-white/90 text-[#252321] border fs-border text-xs font-mono focus:outline-none"
+                    placeholder="أدخل رمز العائلة السري..."
+                    aria-label="رمز الدخول السري للعائلة"
+                    data-testid="portal-passcode-input"
+                    className="flex-1 h-10 px-3.5 rounded-xl bg-white text-[#252321] border fs-border text-xs font-mono font-bold focus:outline-none"
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer shrink-0"
+                    disabled={accessCodeBusy}
+                    data-testid="portal-passcode-submit"
+                    className="h-10 px-5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer shrink-0 disabled:opacity-60 inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
                   >
-                    فتح برمز الدخول
+                    {accessCodeBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>جاري التحقق...</span>
+                      </>
+                    ) : (
+                      <span>فتح ديوان العائلة</span>
+                    )}
                   </button>
                 </div>
                 {accessCodeFeedback && (
@@ -923,45 +1224,35 @@ export const PublicFamilyMicrositePage: React.FC<
               </form>
             )}
 
-            {/* Verify Invited Email */}
-            <form
-              onSubmit={handleVerifyCircleEmail}
-              className="rounded-2xl fs-muted-surface border fs-border p-4 space-y-3"
-            >
-              <label className="block text-xs font-bold">
-                هل وصلتك دعوة من أمين السجل؟ أدخل بريدك الإلكتروني للدخول الفوري:
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="email"
-                  dir="ltr"
-                  required
-                  value={circleEmailInput}
-                  onChange={(e) => setCircleEmailInput(e.target.value)}
-                  placeholder="name@example.com"
-                  className="flex-1 px-3.5 py-2 rounded-xl bg-white/90 text-[#252321] border fs-border text-xs focus:outline-none"
-                />
+            {/* 2. Verified Account Sign-In CTA */}
+            {!signedInUser && (
+              <div className="rounded-2xl fs-muted-surface border fs-border p-4 space-y-3">
+                <div className="text-xs font-bold">
+                  هل أنت أمين السجل أو أحد أفراد دائرة العائلة المعتمدين؟
+                </div>
+                <p className="text-[11px] fs-muted leading-relaxed">
+                  سجّل دخولك بحسابك الموثّق في جذوري ليتم فتح ديوان العائلة
+                  والشجرة المشتركة لك تلقائياً بصلاحياتك الكاملة.
+                </p>
                 <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer shrink-0"
+                  type="button"
+                  onClick={() => setShowPortalLoginModal(true)}
+                  data-testid="portal-gate-login-btn"
+                  className="w-full h-10 px-4 rounded-xl bg-[#0D2E22] hover:bg-[#13402F] text-[#F5DFA0] text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors"
                 >
-                  تحقق ودخول البوابة
+                  <LogIn className="w-4 h-4" />
+                  <span>تسجيل الدخول لحسابك في جذوري</span>
                 </button>
               </div>
-              {circleVerifyFeedback && (
-                <p className="text-xs fs-accent-text font-semibold">
-                  {circleVerifyFeedback}
-                </p>
-              )}
-            </form>
+            )}
 
-            {/* Polite Access Request Form */}
+            {/* 3. Polite Access Request Form */}
             <div className="border-t fs-border pt-4">
               {accessReqSent ? (
                 <div className="rounded-2xl fs-muted-surface border fs-border p-4 text-center space-y-1.5">
                   <CheckCircle2 className="w-6 h-6 fs-accent-text mx-auto" />
                   <div className="text-sm font-bold fs-display-font">
-                    تم رفع طلب الاستئذان إلى أمين سجل عائلة {siteData.familyName}
+                    تم رفع طلب الانضمام إلى أمين سجل عائلة {siteData.familyName}
                   </div>
                   <p className="text-xs fs-muted">
                     ستصلك دعوة الدخول إلى بريدك فور مراجعة واعتماد أمين السجل.
@@ -973,7 +1264,7 @@ export const PublicFamilyMicrositePage: React.FC<
                   className="space-y-3"
                 >
                   <div className="text-xs font-bold">
-                    أو أرسل طلب استئذان مهذب لأمين السجل للانضمام لدائرة العائلة:
+                    أو أرسل طلب انضمام لدائرة العائلة إلى أمين السجل:
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
@@ -1007,8 +1298,8 @@ export const PublicFamilyMicrositePage: React.FC<
                     className="w-full py-2.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer disabled:opacity-60"
                   >
                     {accessReqBusy
-                      ? 'جاري إرسال طلب الاستئذان...'
-                      : 'إرسال طلب الانضمام لدائرة العائلة'}
+                      ? 'جاري إرسال طلب الانضمام...'
+                      : 'طلب انضمام لدائرة العائلة'}
                   </button>
                 </form>
               )}
@@ -1019,6 +1310,23 @@ export const PublicFamilyMicrositePage: React.FC<
         <footer className="py-5 text-center text-xs fs-muted border-t fs-border">
           موثق رقمياً عبر منصة جذوري للأنساب والإرث العائلي العربي · Juthori.com
         </footer>
+
+        {showPortalLoginModal && (
+          <LoginModal
+            isOpen={showPortalLoginModal}
+            onClose={() => setShowPortalLoginModal(false)}
+            onLoginSuccess={handlePortalLoginModalSuccess}
+          />
+        )}
+
+        {showInviteClaimModal && activeInvitation && (
+          <KinshipInviteClaimModal
+            isOpen={showInviteClaimModal}
+            invitation={activeInvitation}
+            onClose={() => setShowInviteClaimModal(false)}
+            onClaimCompleted={handleInviteClaimSuccess}
+          />
+        )}
       </div>
     );
   }
@@ -3790,24 +4098,161 @@ export const PublicFamilyMicrositePage: React.FC<
             </nav>
           )}
 
-          {/* Left: Pure Family Header Action (Share Diwan Only — Enrichment strictly in Tree Theater & Vault) */}
+          {/* Left: Share Diwan + Juthori Auth Profile Capsule / Login */}
           <div className="flex items-center gap-2 shrink-0">
             {!compactPreview && (
-              <button
-                type="button"
-                data-testid="public-header-share-btn"
-                onClick={() => setShowQrModal(true)}
-                className="h-9 px-3.5 rounded-xl fs-surface border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-2xs transition-opacity"
-                style={{
-                  borderColor:
-                    'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                }}
-              >
-                <QrCode className="w-3.5 h-3.5 fs-accent-text" />
-                <span className="hidden sm:inline">
-                  مشاركة موقع ديوان العائلة
-                </span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  data-testid="public-header-share-btn"
+                  onClick={() => setShowQrModal(true)}
+                  className="h-9 px-3.5 rounded-xl fs-surface border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shrink-0 shadow-2xs transition-opacity"
+                  style={{
+                    borderColor:
+                      'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                  }}
+                >
+                  <QrCode className="w-3.5 h-3.5 fs-accent-text" />
+                  <span className="hidden sm:inline">
+                    مشاركة موقع ديوان العائلة
+                  </span>
+                </button>
+
+                {signedInUser ? (
+                  <div ref={profileDropdownRef} className="relative shrink-0">
+                    <button
+                      type="button"
+                      data-testid="public-header-profile-capsule"
+                      onClick={() => setShowProfileDropdown((v) => !v)}
+                      aria-expanded={showProfileDropdown}
+                      className="h-9 pr-1.5 pl-2.5 rounded-xl fs-surface border inline-flex items-center gap-2 cursor-pointer hover:opacity-95 transition-opacity whitespace-nowrap shrink-0 shadow-2xs"
+                      style={{
+                        borderColor:
+                          'color-mix(in srgb, var(--fs-gold) 60%, transparent)',
+                      }}
+                    >
+                      <span
+                        className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 ring-1 ring-[#D4AF37]/70 bg-[#0D2E22] text-[#F5DFA0]"
+                      >
+                        {viewerAvatarUrl || signedInUser.photoURL ? (
+                          <img
+                            src={viewerAvatarUrl || signedInUser.photoURL || ''}
+                            alt={portalViewerDisplayName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          getArabicMonogram(portalViewerDisplayName)
+                        )}
+                      </span>
+                      <span className="hidden md:flex flex-col items-start leading-tight text-right">
+                        <span className="text-[11px] font-bold max-w-[120px] truncate">
+                          {portalViewerDisplayName}
+                        </span>
+                        <span className="text-[9.5px] fs-accent-text font-semibold">
+                          {portalViewerRoleBadge}
+                        </span>
+                      </span>
+                      <ChevronDown className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                    </button>
+
+                    {showProfileDropdown && (
+                      <div
+                        role="menu"
+                        data-testid="public-header-profile-menu"
+                        className="absolute left-0 mt-2 w-60 rounded-2xl fs-surface border shadow-xl p-1.5 z-50 text-right"
+                        style={{
+                          borderColor:
+                            'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                        }}
+                      >
+                        <div className="px-3 py-2 border-b fs-border mb-1">
+                          <div className="text-xs font-bold truncate">
+                            {portalViewerDisplayName}
+                          </div>
+                          <div className="text-[10.5px] fs-accent-text font-semibold">
+                            {portalViewerRoleBadge}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setShowProfileDropdown(false);
+                            if (onGoToOwnDashboard) {
+                              onGoToOwnDashboard();
+                            } else {
+                              onExitToMainApp();
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-xl text-xs font-bold hover:bg-black/5 flex items-center gap-2 cursor-pointer transition-colors"
+                        >
+                          <LayoutDashboard className="w-3.5 h-3.5 fs-accent-text shrink-0" />
+                          <span>الانتقال إلى لوحة تحكم جذوري</span>
+                        </button>
+
+                        {accessGate.isOwner && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setShowProfileDropdown(false);
+                              if (onGoToOwnSiteSettings) {
+                                onGoToOwnSiteSettings();
+                              } else if (onGoToOwnDashboard) {
+                                onGoToOwnDashboard();
+                              } else {
+                                onExitToMainApp();
+                              }
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-xs font-bold hover:bg-black/5 flex items-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <Settings className="w-3.5 h-3.5 fs-accent-text shrink-0" />
+                            <span>إعدادات موقعي</span>
+                          </button>
+                        )}
+
+                        <div className="my-1 border-t fs-border" />
+
+                        <button
+                          type="button"
+                          role="menuitem"
+                          data-testid="public-header-logout-btn"
+                          onClick={handlePortalLogout}
+                          className="w-full px-3 py-2 rounded-xl text-xs font-bold text-red-700 hover:bg-red-50 flex items-center gap-2 cursor-pointer transition-colors"
+                        >
+                          <LogOut className="w-3.5 h-3.5 shrink-0" />
+                          <span>تسجيل الخروج</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {accessCodeUnlocked && accessGate.isRestrictedSite && (
+                      <button
+                        type="button"
+                        data-testid="public-header-lock-session-btn"
+                        onClick={handleLockPasscodeSession}
+                        title="قفل جلسة رمز العائلة"
+                        className="h-9 px-3 rounded-xl fs-surface border fs-border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:bg-red-50 hover:text-red-800 whitespace-nowrap shrink-0 transition-colors"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">قفل الجلسة</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      data-testid="public-header-login-btn"
+                      onClick={() => setShowPortalLoginModal(true)}
+                      className="h-9 px-3.5 rounded-xl bg-[#0D2E22] hover:bg-[#13402F] text-[#F5DFA0] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs transition-colors"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>تسجيل الدخول</span>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -4561,6 +5006,14 @@ export const PublicFamilyMicrositePage: React.FC<
           familyName={siteData.familyName}
           formatArabicLongDate={formatArabicLongDate}
           onClose={() => setReadingStoryModal(null)}
+        />
+      )}
+
+      {showPortalLoginModal && !compactPreview && (
+        <LoginModal
+          isOpen={showPortalLoginModal}
+          onClose={() => setShowPortalLoginModal(false)}
+          onLoginSuccess={handlePortalLoginModalSuccess}
         />
       )}
     </div>

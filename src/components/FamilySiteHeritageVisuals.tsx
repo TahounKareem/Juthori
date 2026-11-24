@@ -931,6 +931,9 @@ interface PublicVisualTreeMirrorProps {
   viewerDefaultEmail?: string;
   viewerDefaultKinship?: string;
   viewerRoleLabel?: string;
+  externalTheaterOpen?: boolean;
+  onExternalTheaterClose?: () => void;
+  hideInlinePreview?: boolean;
 }
 
 export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
@@ -948,8 +951,15 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   viewerDefaultEmail = '',
   viewerDefaultKinship = '',
   viewerRoleLabel = 'عضو دائرة العائلة',
+  externalTheaterOpen,
+  onExternalTheaterClose,
+  hideInlinePreview = false,
 }) => {
   const [isTheaterOpen, setIsTheaterOpen] = useState(false);
+  const effectiveTheaterOpen =
+    typeof externalTheaterOpen === 'boolean'
+      ? externalTheaterOpen
+      : isTheaterOpen;
   const [isProposalSandboxActive, setIsProposalSandboxActive] = useState(false);
   const [sandboxResetNonce, setSandboxResetNonce] = useState(0);
   const [stagingDiff, setStagingDiff] = useState<{
@@ -1019,7 +1029,8 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
       parentLinkPatches: [],
     });
     setSandboxResetNonce((n) => n + 1);
-  }, []);
+    onExternalTheaterClose?.();
+  }, [onExternalTheaterClose]);
 
   const resolvedDisplaySettings = useMemo(
     () => normalizeTreeDisplaySettings(treeDisplaySettings),
@@ -1141,7 +1152,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
 
   // Lock page scroll and allow Escape key to close topmost dialog cleanly
   useEffect(() => {
-    if (!isTheaterOpen || typeof document === 'undefined') return;
+    if (!effectiveTheaterOpen || typeof document === 'undefined') return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1160,7 +1171,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isTheaterOpen, showSubmitProposalModal, handleCloseTheater]);
+  }, [effectiveTheaterOpen, showSubmitProposalModal, handleCloseTheater]);
 
   const handleSubmitStagingProposal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1235,6 +1246,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   };
 
   if (mappedMirrorMembers.length === 0) {
+    if (hideInlinePreview) return null;
     return (
       <div className="rounded-3xl fs-surface-alt border fs-border p-10 text-center space-y-2">
         <div className="text-sm font-bold fs-display-font">
@@ -1251,7 +1263,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   const proposedCount = stagingDiff.proposedNodes.length;
 
   const theaterModal =
-    isTheaterOpen && typeof document !== 'undefined'
+    effectiveTheaterOpen && typeof document !== 'undefined'
       ? createPortal(
           <div
             dir="rtl"
@@ -1599,6 +1611,10 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
           document.body
         )
       : null;
+
+  if (hideInlinePreview) {
+    return <>{theaterModal}</>;
+  }
 
   return (
     <>

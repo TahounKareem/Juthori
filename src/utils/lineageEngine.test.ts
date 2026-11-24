@@ -1651,6 +1651,187 @@ test('Granular enrichment permissions, staging tree diff extraction & collision-
   assert.ok(rulesText.includes("'allowVisitorEnrichment' in"));
 });
 
+test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero-Leak Tier Isolation & Clean Single-Self Tree', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const {
+    hashFamilyPasscode,
+    evaluatePublicMicrositeAccessGate,
+    resolveCustomerTierStateMode,
+    buildCleanSingleSelfTreeNode,
+  } = await import('./portalSecurityUtils');
+  const { DashboardStateMode } = await import('../types/juthori');
+
+  // 1. Deterministic SHA-256 passcode hash bound to siteSlug & normalized
+  const hashA = hashFamilyPasscode('aref', 'Aref-2026');
+  const hashB = hashFamilyPasscode('  AREF ', '  aref-2026  ');
+  const hashOtherSlug = hashFamilyPasscode('other', 'Aref-2026');
+  assert.equal(hashA, hashB);
+  assert.equal(hashA.length, 64);
+  assert.match(hashA, /^[a-f0-9]{64}$/);
+  assert.notEqual(hashA, hashOtherSlug);
+  assert.equal(hashFamilyPasscode('aref', '   '), '');
+
+  // 2. Access gate enforcement across guest, passcode unlock, owner, circle member, and post-logout lock
+  const publicOpen = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: {
+      isPublished: true,
+      siteAccessMode: 'PUBLIC',
+      accessGateMode: 'PUBLIC_INDEXABLE',
+      hasFamilyPasscode: false,
+      ownerId: 'uid_owner',
+      whitelistedEmails: [],
+      whitelistedUids: [],
+    },
+    viewerUid: null,
+    viewerEmail: '',
+    passcodeUnlocked: false,
+  });
+  assert.equal(publicOpen.shouldShowRestrictedGate, false);
+  assert.equal(publicOpen.reason, 'public_open');
+
+  const restrictedSiteBase = {
+    isPublished: true,
+    siteAccessMode: 'PRIVATE_WHITELIST' as const,
+    accessGateMode: 'FAMILY_PIN' as const,
+    hasFamilyPasscode: true,
+    ownerId: 'uid_owner',
+    whitelistedEmails: ['member@family.test'],
+    whitelistedUids: ['uid_member'],
+  };
+
+  const guestBlocked = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: restrictedSiteBase,
+    viewerUid: null,
+    viewerEmail: '',
+    passcodeUnlocked: false,
+  });
+  assert.equal(guestBlocked.shouldShowRestrictedGate, true);
+  assert.equal(guestBlocked.reason, 'blocked_private');
+
+  // Unauthenticated viewer passing a whitelisted email string MUST remain blocked (no email spoofing)
+  const spoofedEmailBlocked = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: restrictedSiteBase,
+    viewerUid: null,
+    viewerEmail: 'member@family.test',
+    passcodeUnlocked: false,
+  });
+  assert.equal(spoofedEmailBlocked.shouldShowRestrictedGate, true);
+
+  // Authenticated circle member is granted access
+  const authCircleAllowed = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: restrictedSiteBase,
+    viewerUid: 'uid_member',
+    viewerEmail: 'member@family.test',
+    passcodeUnlocked: false,
+  });
+  assert.equal(authCircleAllowed.shouldShowRestrictedGate, false);
+  assert.equal(authCircleAllowed.reason, 'circle_member');
+
+  // Guest unlocked via verified passcode hash is allowed, then immediately locked upon logout
+  const passcodeUnlockedRes = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: restrictedSiteBase,
+    viewerUid: null,
+    viewerEmail: '',
+    passcodeUnlocked: true,
+  });
+  assert.equal(passcodeUnlockedRes.shouldShowRestrictedGate, false);
+  assert.equal(passcodeUnlockedRes.reason, 'passcode_unlocked');
+
+  const afterLogoutLocked = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: restrictedSiteBase,
+    viewerUid: null,
+    viewerEmail: '',
+    passcodeUnlocked: false,
+  });
+  assert.equal(afterLogoutLocked.shouldShowRestrictedGate, true);
+
+  // Unpublished site blocks non-owner
+  const unpublishedNonOwner = evaluatePublicMicrositeAccessGate({
+    isPreviewMode: false,
+    siteData: {
+      isPublished: false,
+      siteAccessMode: 'PUBLIC',
+      accessGateMode: 'PUBLIC_INDEXABLE',
+      hasFamilyPasscode: false,
+      ownerId: 'uid_owner',
+      whitelistedEmails: [],
+      whitelistedUids: [],
+    },
+    viewerUid: 'uid_guest',
+    viewerEmail: 'guest@test.com',
+    passcodeUnlocked: false,
+  });
+  assert.equal(unpublishedNonOwner.shouldShowRestrictedGate, true);
+  assert.equal(unpublishedNonOwner.reason, 'blocked_unpublished');
+
+  // 3. Strict Zero-Leak Tier Resolution (free invited user with exact lineage match MUST stay unpaid)
+  const matchedLineage = resolveDeterministicLineage({
+    firstName: 'أحمد',
+    fatherName: 'محمد',
+    grandfatherName: 'خالد',
+    familyName: 'العتيبي',
+    originCountry: 'السعودية',
+    originRegion: 'الرياض',
+    tribeName: '',
+    branchName: '',
+  });
+  assert.equal(
+    resolveCustomerTierStateMode(
+      { subscriptionTier: 'free', isRootUnlocked: false },
+      matchedLineage
+    ),
+    matchedLineage.matched
+      ? DashboardStateMode.State2MatchedUnpaid
+      : DashboardStateMode.State3Unmatched
+  );
+  assert.notEqual(
+    resolveCustomerTierStateMode(
+      { subscriptionTier: 'free', isRootUnlocked: false },
+      matchedLineage
+    ),
+    DashboardStateMode.AnnualVip
+  );
+  assert.equal(
+    resolveCustomerTierStateMode(
+      { subscriptionTier: 'basic_verified', isRootUnlocked: true },
+      matchedLineage
+    ),
+    DashboardStateMode.State1Paid5Basic
+  );
+  assert.equal(
+    resolveCustomerTierStateMode(
+      { subscriptionTier: 'premium_annual', isRootUnlocked: true },
+      matchedLineage
+    ),
+    DashboardStateMode.AnnualVip
+  );
+
+  // 4. Clean Single-Self Initial Tree Node for newly upgraded Premium users (ZERO mock relatives)
+  const cleanTree = buildCleanSingleSelfTreeNode(matchedLineage);
+  assert.equal(cleanTree.length, 1);
+  assert.equal(cleanTree[0].firstName, 'أحمد');
+  assert.equal(cleanTree[0].familyName, 'العتيبي');
+  assert.equal(cleanTree[0].isRecordKeeper, true);
+  assert.deepEqual(cleanTree[0].spouseIds, []);
+
+  // 5. Verify firestore.rules contains zero-trust passcode_mirrors subcollection rules
+  const rulesText = fs.readFileSync(
+    path.resolve(process.cwd(), 'firestore.rules'),
+    'utf8'
+  );
+  assert.ok(rulesText.includes('match /passcode_mirrors/{passcodeHash}'));
+  assert.ok(rulesText.includes('function isValidPasscodeMirror'));
+  assert.ok(rulesText.includes("!('whitelistedEmails' in data)"));
+});
+
+
 
 
 

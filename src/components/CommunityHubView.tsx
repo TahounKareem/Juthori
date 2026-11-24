@@ -59,6 +59,7 @@ import {
   readUserFamilyTreeFromLocal,
 } from '../services/firestoreService';
 import {
+  AuthorizedFamilyPortalSummary,
   FamilyMemoryQuest,
   KinshipCircleDoc,
   KinshipCircleMember,
@@ -87,6 +88,7 @@ import {
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { CommunityAmbassadorPass } from './CommunityAmbassadorPass';
 import { CommunityKinshipEventsView } from './CommunityKinshipEventsView';
+import { PublicVisualTreeMirror } from './FamilySiteHeritageVisuals';
 import {
   ArabicHonorificTitle,
   InteractiveFamilyTreeBuilder,
@@ -253,10 +255,11 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
   const isRegistrar =
     caps.hasRegistrarBadge || accountType === AccountLegalType.RecordKeeper;
+  const isOwnRegistrarWorkspace = Boolean(caps.isVip && isRegistrar);
 
   // Navigation & UI state
   const [activeTab, setActiveTab] = useState<CommunityTabId>(
-    isRegistrar ? 'circle' : 'ambassador'
+    isOwnRegistrarWorkspace ? 'circle' : 'ambassador'
   );
   const [isLoading, setIsLoading] = useState(true);
   const [banner, setBanner] = useState<{
@@ -277,8 +280,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   const [enrichments, setEnrichments] = useState<TreeEnrichmentRequestDoc[]>([]);
   const [accessRequests, setAccessRequests] = useState<SiteAccessRequestDoc[]>([]);
   const [authorizedPortals, setAuthorizedPortals] = useState<
-    Array<{ siteSlug: string; familyName: string; ownerDisplayName: string }>
+    AuthorizedFamilyPortalSummary[]
   >([]);
+  const [activeSharedTreePortal, setActiveSharedTreePortal] =
+    useState<AuthorizedFamilyPortalSummary | null>(null);
   const [ownerMicrosite, setOwnerMicrosite] =
     useState<PublicMicrositeData | null>(null);
   const [rawTreeMembers, setRawTreeMembers] = useState<
@@ -472,7 +477,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           fetchKinshipCircleForOwner(effectiveUserId),
           fetchPendingSiteAccessRequestsForOwner(effectiveUserId),
           fetchUserReferralDashboard(effectiveUserId, ownerDisplayName),
-          fetchAuthorizedFamilyPortalsForEmail(effectiveEmail),
+          fetchAuthorizedFamilyPortalsForEmail(effectiveEmail, effectiveUserId),
           fetchUserFamilyTreeFromFirebase<RawTreePersonForPublicProjection>(
             effectiveUserId,
             effectiveEmail,
@@ -498,8 +503,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         const localTree =
           readUserFamilyTreeFromLocal<RawTreePersonForPublicProjection>(
             effectiveUserId,
-            result.familyName,
-            effectiveEmail
+            effectiveEmail,
+            result.familyName
           ) || [];
         const finalTree =
           Array.isArray(treeFromCloud) && treeFromCloud.length > 0
@@ -508,7 +513,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         setRawTreeMembers(finalTree);
 
         // Auto-open invite studio smoothly if registrar has 0 members yet
-        if (isRegistrar && (circleDoc.members || []).length === 0) {
+        if (isOwnRegistrarWorkspace && (circleDoc.members || []).length === 0) {
           setInviteStudioOpen(true);
         }
       } finally {
@@ -954,6 +959,212 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   }, [relName, relRole, result.familyName, cleanMajlisUrl]);
 
+  // Shared Flagship Card for Joined Family Circles & Shared Trees
+  const renderJoinedFamilyPortalsCard = () => (
+    <section
+      data-testid="joined-family-portals-card"
+      className="rounded-3xl border border-[#D4AF37]/45 bg-gradient-to-b from-[#0A251B] via-[#0E2F23] to-[#081D16] p-5 sm:p-7 text-[#FBF8F1] shadow-[0_18px_46px_-24px_rgba(8,29,22,0.55)] space-y-5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#E8C76A]">
+            <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+            <span>عضويات الدوائر العائلية الموثّقة</span>
+          </div>
+          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#FFF9EC]">
+            دوائر وشجرات العائلات المنضمّ إليها
+          </h2>
+          <p className="text-xs sm:text-sm text-[#E3DEC9]/85">
+            تصفح الشجرة العائلية المشتركة، اقترح إضافات للأقارب، وتابع المناسبات
+            والذكريات في العائلات التي دُعيت إليها مباشرة من هنا.
+          </p>
+        </div>
+        <div className="text-xs font-bold text-[#F3D77E] tabular-nums">
+          {authorizedPortals.length} دائرة عائلية نشطة
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-xs text-[#E3DEC9]/80">
+          جاري تحميل دوائر العائلات المنضمّ إليها...
+        </div>
+      ) : authorizedPortals.length === 0 ? (
+        <div className="rounded-2xl border border-[#D4AF37]/25 bg-white/[0.04] p-6 text-center space-y-2">
+          <TreePine className="w-8 h-8 text-[#D4AF37] mx-auto" />
+          <div className="text-sm font-bold text-[#FFF9EC]">
+            لم تنضم إلى دائرة عائلة منشورة بعد
+          </div>
+          <p className="text-xs text-[#E3DEC9]/80 max-w-lg mx-auto leading-relaxed">
+            فور قبولك دعوة من أمين سجل عائلتك أو إدراج بريدك الإلكتروني في دائرة
+            العائلة، ستظهر شجرة العائلة المشتركة وديوانها هنا مباشرة.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {authorizedPortals.map((portal) => {
+            const upcomingEvents = (
+              portal.siteData.cmsModules?.eventsModule?.items || []
+            ).slice(0, 2);
+            const hasTree =
+              (portal.siteData.publishedTreeMembers || []).length > 0;
+            return (
+              <div
+                key={portal.siteSlug}
+                data-testid={`joined-family-card-${portal.siteSlug}`}
+                className="rounded-2xl border border-[#D4AF37]/30 bg-white/[0.05] p-5 flex flex-col justify-between gap-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <div className="text-xs font-bold text-[#E8C76A]">
+                        {portal.viewerRoleLabelAr}
+                        {portal.kinshipRelation
+                          ? ` · ${portal.kinshipRelation}`
+                          : ''}
+                      </div>
+                      <h3 className="text-lg font-display font-extrabold text-[#FFF9EC] truncate">
+                        ديوان وعائلة {portal.familyName}
+                      </h3>
+                      <p className="text-xs text-[#E3DEC9]/80">
+                        أمين السجل: {portal.ownerDisplayName}
+                        {portal.originCountry ? ` · ${portal.originCountry}` : ''}
+                      </p>
+                    </div>
+                    <span className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center shrink-0 text-[#E8C76A]">
+                      <TreePine className="w-5 h-5" />
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#E6DEC8] tabular-nums">
+                    <span>
+                      <strong className="text-[#F5DFA0]">
+                        {portal.membersCount}
+                      </strong>{' '}
+                      فرد في الدوحة
+                    </span>
+                    {portal.generationsCount > 0 && (
+                      <span>
+                        <strong className="text-[#F5DFA0]">
+                          {portal.generationsCount}
+                        </strong>{' '}
+                        أجيال
+                      </span>
+                    )}
+                    {portal.canProposeEnrichment && (
+                      <span className="text-emerald-300 font-bold">
+                        ✦ يمكنك اقتراح إضافة أقارب في الشجرة
+                      </span>
+                    )}
+                  </div>
+
+                  {upcomingEvents.length > 0 && (
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-1.5">
+                      <div className="text-[11px] font-bold text-[#E8C76A] flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>أحدث مناسبات العائلة</span>
+                      </div>
+                      {upcomingEvents.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="text-xs text-[#F5EFE0] flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate font-semibold">
+                            {ev.title}
+                          </span>
+                          <span className="text-[11px] text-[#E3DEC9]/70 shrink-0">
+                            {ev.locationLabel}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={!hasTree}
+                    data-testid={`open-shared-tree-btn-${portal.siteSlug}`}
+                    onClick={() => setActiveSharedTreePortal(portal)}
+                    className="flex-1 h-10 px-4 rounded-xl bg-gradient-to-l from-[#C89F2D] via-[#DFBA4D] to-[#C89F2D] hover:brightness-105 disabled:opacity-50 text-[#0B2219] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-sm transition"
+                  >
+                    <TreePine className="w-4 h-4 shrink-0" />
+                    <span>🌳 فتح دوحة العائلة المشتركة</span>
+                  </button>
+
+                  <a
+                    href={`/${portal.siteSlug}`}
+                    data-testid={`visit-joined-portal-link-${portal.siteSlug}`}
+                    className="h-10 px-4 rounded-xl border border-[#D4AF37]/45 bg-white/5 hover:bg-white/12 text-[#FFF9EC] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-[#E8C76A] shrink-0" />
+                    <span>🏛️ زيارة موقع ديوان العائلة</span>
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+
+  // Non-owner / Invited Member Role-Aware Community View (Hides all owner-only registrar tools)
+  if (!isOwnRegistrarWorkspace) {
+    return (
+      <div className="w-full space-y-5 pb-8" data-testid="community-member-view">
+        <UnifiedWorkspaceHeader
+          testId="community-unified-header"
+          icon={<Users className="w-5 h-5" />}
+          title="مجتمعي ودوائر العائلة"
+          metaItems={[
+            'مساحة التواصل والمشاركة العائلية',
+            <span key="joined" className="tabular-nums">
+              <strong className="font-semibold text-[#2C1E14]">
+                {authorizedPortals.length}
+              </strong>{' '}
+              عائلة منضمّ إليها
+            </span>,
+          ]}
+        />
+
+        {renderJoinedFamilyPortalsCard()}
+
+        {/* Ambassador / Referral Pass available to all verified members */}
+        <CommunityAmbassadorPass
+          familyName={result.familyName}
+          referralStats={referralStats}
+          onLogActivity={(title, details) =>
+            showToast('success', `${title} — ${details}`)
+          }
+        />
+
+        {/* Shared Fullscreen Family Tree Theater with Role-Aware Interactive Sandbox */}
+        {activeSharedTreePortal && (
+          <PublicVisualTreeMirror
+            members={activeSharedTreePortal.siteData.publishedTreeMembers || []}
+            familyName={activeSharedTreePortal.familyName}
+            generationsCount={activeSharedTreePortal.generationsCount}
+            treeDisplaySettings={
+              activeSharedTreePortal.siteData.treeDisplaySettings
+            }
+            isAuthorizedFamilyViewer
+            canProposeEnrichment={activeSharedTreePortal.canProposeEnrichment}
+            siteSlug={activeSharedTreePortal.siteSlug}
+            ownerId={activeSharedTreePortal.ownerId}
+            viewerDefaultName={ownerDisplayName}
+            viewerDefaultEmail={effectiveEmail}
+            viewerDefaultKinship={activeSharedTreePortal.kinshipRelation || ''}
+            viewerRoleLabel={activeSharedTreePortal.viewerRoleLabelAr}
+            externalTheaterOpen={Boolean(activeSharedTreePortal)}
+            onExternalTheaterClose={() => setActiveSharedTreePortal(null)}
+            hideInlinePreview
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-3.5 pb-8">
       {/* =====================================================================
@@ -1011,6 +1222,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           </>
         }
       />
+
+      {authorizedPortals.length > 0 && renderJoinedFamilyPortalsCard()}
 
       {/* =====================================================================
           1B. SEPARATED 4-PILLAR NAVIGATION BAR (mt-3.5 below unified header)
@@ -2599,6 +2812,28 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           </div>,
           document.body
         )}
+
+      {activeSharedTreePortal && (
+        <PublicVisualTreeMirror
+          members={activeSharedTreePortal.siteData.publishedTreeMembers || []}
+          familyName={activeSharedTreePortal.familyName}
+          generationsCount={activeSharedTreePortal.generationsCount}
+          treeDisplaySettings={
+            activeSharedTreePortal.siteData.treeDisplaySettings
+          }
+          isAuthorizedFamilyViewer
+          canProposeEnrichment={activeSharedTreePortal.canProposeEnrichment}
+          siteSlug={activeSharedTreePortal.siteSlug}
+          ownerId={activeSharedTreePortal.ownerId}
+          viewerDefaultName={ownerDisplayName}
+          viewerDefaultEmail={effectiveEmail}
+          viewerDefaultKinship={activeSharedTreePortal.kinshipRelation || ''}
+          viewerRoleLabel={activeSharedTreePortal.viewerRoleLabelAr}
+          externalTheaterOpen={Boolean(activeSharedTreePortal)}
+          onExternalTheaterClose={() => setActiveSharedTreePortal(null)}
+          hideInlinePreview
+        />
+      )}
     </div>
   );
 };

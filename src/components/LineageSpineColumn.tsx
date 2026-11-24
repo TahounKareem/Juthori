@@ -628,6 +628,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
   const isVerificationPending =
     Boolean(effectiveResult.requiresBlindDisambiguation) &&
+    caps.isRootUnlocked &&
     !isResearcherDirectPreview &&
     localResolvedOption === null;
 
@@ -1505,7 +1506,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 className="text-[11px] font-display font-extrabold"
                 style={{ color: theme.accentTextHex }}
               >
-                الجذر الموثق للعائلة
+                🔒 جذر تاريخي مرصود — مخفي حتى التفعيل
               </div>
               <div
                 className="text-sm font-display font-extrabold blur-[5px] select-none"
@@ -3306,18 +3307,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 <span>تخصيص المظهر</span>
               </button>
 
-              {!isResearcherDirectPreview && !isUnmatchedCase && (
-                <button
-                  type="button"
-                  data-testid="open-lineage-official-export-btn"
-                  onClick={() => setShowOfficialExportModal(true)}
-                  title="تصدير أو طباعة صك عمود النسب الموثق بالثيم والخط والاتجاه المختار"
-                  className={WORKSPACE_PRIMARY_BTN_CLASS}
-                >
-                  <ScrollText className="w-4 h-4 shrink-0" />
-                  <span>تصدير صك النسب</span>
-                </button>
-              )}
+              {!isResearcherDirectPreview &&
+                !isUnmatchedCase &&
+                caps.isRootUnlocked && (
+                  <button
+                    type="button"
+                    data-testid="open-lineage-official-export-btn"
+                    onClick={() => setShowOfficialExportModal(true)}
+                    title="تصدير أو طباعة صك عمود النسب الموثق بالثيم والخط والاتجاه المختار"
+                    className={WORKSPACE_PRIMARY_BTN_CLASS}
+                  >
+                    <ScrollText className="w-4 h-4 shrink-0" />
+                    <span>تصدير صك النسب</span>
+                  </button>
+                )}
             </>
           }
         />

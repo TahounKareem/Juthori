@@ -12,6 +12,7 @@ import { InteractiveFamilyTreeBuilder } from './InteractiveFamilyTreeBuilder';
 import { FamilyMemoryVaultView } from './FamilyMemoryVaultView';
 import { MySiteStudioView } from './MySiteStudioView';
 import { CommunityHubView } from './CommunityHubView';
+import { RoyalPremiumFeatureGate } from './RoyalPremiumFeatureGate';
 import {
   CustomerCommunityPostData,
   CustomerSiteSettingsData,
@@ -145,6 +146,16 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   }
 
   if (activeTab === DashboardTab.MyTree) {
+    if (!caps.isVip) {
+      return (
+        <RoyalPremiumFeatureGate
+          feature="my_tree"
+          familyName={result.familyName}
+          onUpgradePremium={onUpgradeAnnualVip}
+          onExploreCommunity={() => onNavigateTab(DashboardTab.MyCommunity)}
+        />
+      );
+    }
     return (
       <InteractiveFamilyTreeBuilder
         result={result}
@@ -193,6 +204,16 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   }
 
   if (activeTab === DashboardTab.MySite) {
+    if (!caps.isVip) {
+      return (
+        <RoyalPremiumFeatureGate
+          feature="my_site"
+          familyName={result.familyName}
+          onUpgradePremium={onUpgradeAnnualVip}
+          onExploreCommunity={() => onNavigateTab(DashboardTab.MyCommunity)}
+        />
+      );
+    }
     return (
       <MySiteStudioView
         result={result}
