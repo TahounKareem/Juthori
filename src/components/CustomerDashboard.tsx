@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   AlertCircle,
-  Archive,
   Bell,
   Camera,
   CheckCircle2,
@@ -11,25 +10,25 @@ import {
   CreditCard,
   Crown,
   FileSignature,
-  GitCommitVertical,
-  GitFork,
+  FolderArchive,
   Globe,
   HelpCircle,
   Home,
   KeyRound,
-  Landmark,
   Loader2,
   Lock,
   LogOut,
   Mail,
   Phone,
   Scroll,
+  ScrollText,
   Send,
   Settings,
   ShieldAlert,
   ShieldCheck,
   ShoppingCart,
   Trash2,
+  TreePine,
   User,
   Users,
   X,
@@ -154,13 +153,13 @@ const DASHBOARD_TABS: Array<{
     id: DashboardTab.Lineage,
     label: 'عمود نسبي',
     premium: false,
-    icon: GitCommitVertical,
+    icon: ScrollText,
   },
-  { id: DashboardTab.MyTree, label: 'شجرتي', premium: true, icon: GitFork },
-  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false, icon: Archive },
-  { id: DashboardTab.MySite, label: 'موقعي', premium: true, icon: Landmark },
-  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false, icon: Users },
+  { id: DashboardTab.MyTree, label: 'شجرتي', premium: true, icon: TreePine },
+  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false, icon: FolderArchive },
   { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false, icon: Compass },
+  { id: DashboardTab.MySite, label: 'موقعي', premium: true, icon: Globe },
+  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false, icon: Users },
 ];
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
@@ -2341,111 +2340,63 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         const kashafiDynamicCount =
           kashafiUnreadItemsCount + (hasResearcherReplyWaiting ? 1 : 0);
 
-        let buttonClasses =
-          'group/tab relative px-3 py-1.5 rounded-xl text-[12.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[38px] xl:min-h-[36px] snap-center select-none ';
-
-        if (isSelected && isKashafiTab) {
-          buttonClasses +=
-            'bg-gradient-to-b from-[#2E2722] to-[#1D1916] text-[#F5D896] border border-[#D4AF37]/55 shadow-[0_6px_16px_-6px_rgba(29,25,22,0.58)]';
-        } else if (isSelected) {
-          buttonClasses +=
-            'bg-gradient-to-b from-[#C96C4E] to-[#A85136] text-white shadow-[0_6px_16px_-6px_rgba(168,81,54,0.55)] ring-1 ring-[#F4D698]/35';
-        } else if (isLocked) {
-          buttonClasses +=
-            'text-[#252321]/45 hover:bg-white/55 hover:text-[#252321]/70';
-        } else if (isKashafiTab) {
-          buttonClasses +=
-            'bg-gradient-to-b from-[#FFFDF7] to-[#F7ECDA] text-[#7A4B1B] border border-[#C59B27]/45 hover:border-[#B3861D]/70 hover:bg-[#FFFBF0] hover:shadow-[0_2px_10px_-3px_rgba(197,155,39,0.3)]';
-        } else {
-          buttonClasses +=
-            'text-[#483A2F] hover:bg-white/85 hover:text-[#7C4D2B] hover:shadow-[0_1px_5px_rgba(90,65,35,0.08)]';
-        }
+        const buttonClasses = [
+          'group/tab relative px-3 py-1.5 rounded-xl text-[12.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[38px] xl:min-h-[36px] snap-center select-none border',
+          isSelected
+            ? 'bg-white text-[#D97757] border-[#D97757]/25 shadow-[0_2px_10px_-3px_rgba(31,31,28,0.1)]'
+            : 'bg-transparent text-[#1F1F1C] border-transparent hover:bg-white/75 hover:text-[#1F1F1C]',
+        ].join(' ');
 
         return (
-          <React.Fragment key={tab.id}>
-            {/* Subtle gilded hairline separating كشّافي within the unified track */}
-            {isKashafiTab && (
+          <button
+            key={tab.id}
+            ref={
+              attachMobileRefs
+                ? (el) => {
+                    mobileTabRefs.current[tab.id] = el;
+                  }
+                : undefined
+            }
+            type="button"
+            onClick={() => handleTabClick(tab)}
+            aria-current={isSelected ? 'page' : undefined}
+            title={
+              isLocked
+                ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
+                : tab.label
+            }
+            className={buttonClasses}
+          >
+            <TabIcon
+              className="w-[15px] h-[15px] shrink-0 text-[#D97757] transition-transform duration-200 group-hover/tab:scale-105"
+              aria-hidden={true}
+            />
+
+            <span>{tab.label}</span>
+
+            {isKashafiTab && kashafiDynamicCount > 0 && (
               <span
-                aria-hidden="true"
-                className="w-px h-5 bg-[#C59B27]/30 mx-0.5 shrink-0"
+                data-testid="kashafi-tab-unread-badge"
+                className="px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none bg-[#D97757] text-white"
+              >
+                {kashafiDynamicCount}
+              </span>
+            )}
+
+            {isLocked && (
+              <Lock
+                className="w-3.5 h-3.5 text-[#D97757] shrink-0"
+                aria-label="ميزة بريميوم مقفلة"
               />
             )}
 
-            <button
-              ref={
-                attachMobileRefs
-                  ? (el) => {
-                      mobileTabRefs.current[tab.id] = el;
-                    }
-                  : undefined
-              }
-              type="button"
-              onClick={() => handleTabClick(tab)}
-              aria-current={isSelected ? 'page' : undefined}
-              title={
-                isLocked
-                  ? `تبويب «${tab.label}» متاح لمشتركي الباقة السنوية (بريميوم)`
-                  : tab.label
-              }
-              className={buttonClasses}
-            >
-              <TabIcon
-                className={`w-[14px] h-[14px] xl:w-[15px] xl:h-[15px] shrink-0 transition-transform duration-200 ${
-                  isSelected && isKashafiTab
-                    ? 'text-[#E8C468]'
-                    : isSelected
-                    ? 'text-[#FBE5B4]'
-                    : isKashafiTab
-                    ? 'text-[#B38422] group-hover/tab:rotate-12'
-                    : 'text-[#8C6A4E]/80 group-hover/tab:text-[#8C5327]'
-                }`}
-                aria-hidden={true}
+            {isSelected && (
+              <span
+                aria-hidden="true"
+                className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full bg-[#D97757]"
               />
-
-              <span>{tab.label}</span>
-
-              {isKashafiTab && (
-                <span
-                  aria-hidden="true"
-                  className={`text-[11px] leading-none ${
-                    isSelected ? 'text-[#E8C468]' : 'text-[#C59B27]'
-                  }`}
-                >
-                  ✦
-                </span>
-              )}
-
-              {isKashafiTab && kashafiDynamicCount > 0 && (
-                <span
-                  data-testid="kashafi-tab-unread-badge"
-                  className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none ${
-                    isSelected
-                      ? 'bg-[#D4AF37]/25 text-[#F9E3A6] border border-[#D4AF37]/40'
-                      : 'bg-[#8D4925] text-[#FAF4E4]'
-                  }`}
-                >
-                  {kashafiDynamicCount}
-                </span>
-              )}
-
-              {isLocked && (
-                <Lock
-                  className="w-3.5 h-3.5 text-[#DC2626]/80 shrink-0"
-                  aria-label="ميزة بريميوم مقفلة"
-                />
-              )}
-
-              {/* Refined Gilded Bottom Glow Indicator on Active Tab */}
-              {isSelected && (
-                <span
-                  aria-hidden="true"
-                  className={`absolute bottom-[3px] left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full ${
-                    isKashafiTab ? 'bg-[#E8C468]/90' : 'bg-[#FCE3AE]/90'
-                  }`}
-                />
-              )}
-            </button>
-          </React.Fragment>
+            )}
+          </button>
         );
       })}
     </div>
