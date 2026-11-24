@@ -2091,7 +2091,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           ? modalConfig.editPersonId
           : `pending_${Date.now()}`;
       const uploaded = await uploadTreeNodeAvatarWithFallback(
-        userId,
+        isProposalSandboxMode ? undefined : userId,
         targetPid,
         file
       );
@@ -7982,11 +7982,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* ==================================================================== */}
       {/* 3. ROYAL PERSON CARD STUDIO MODAL (استوديو بطاقة الفرد الملكي)       */}
       {/* ==================================================================== */}
-      {modalConfig && modalMeta && (() => {
+      {(!isPublicMirror || isProposalSandboxMode) &&
+        modalConfig &&
+        modalMeta &&
+        (() => {
         const editingPerson =
           modalConfig.mode === 'edit' && modalConfig.editPersonId
             ? findPerson(modalConfig.editPersonId)
@@ -8009,16 +8014,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         );
         const currentModalPersonId =
           modalConfig.mode === 'edit' ? modalConfig.editPersonId : null;
-        const linkedMediaForModalPerson = vaultItems.filter((vi) =>
-          currentModalPersonId
-            ? vi.linkedPersonIds.includes(currentModalPersonId)
-            : newPersonPendingVaultIds.includes(vi.id)
-        );
-        const unlinkedMediaInVault = vaultItems.filter((vi) =>
-          currentModalPersonId
-            ? !vi.linkedPersonIds.includes(currentModalPersonId)
-            : !newPersonPendingVaultIds.includes(vi.id)
-        );
+        const linkedMediaForModalPerson = isProposalSandboxMode
+          ? []
+          : vaultItems.filter((vi) =>
+              currentModalPersonId
+                ? vi.linkedPersonIds.includes(currentModalPersonId)
+                : newPersonPendingVaultIds.includes(vi.id)
+            );
+        const unlinkedMediaInVault = isProposalSandboxMode
+          ? []
+          : vaultItems.filter((vi) =>
+              currentModalPersonId
+                ? !vi.linkedPersonIds.includes(currentModalPersonId)
+                : !newPersonPendingVaultIds.includes(vi.id)
+            );
 
         return (
           <TreePersonStudioModal
@@ -8202,7 +8211,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {/* ==================================================================== */}
       {/* 4. CAMERA AVATAR PICKER MODAL (رفع صورة مضغوطة ذكياً أو البورتريه التراثي) */}
       {/* ==================================================================== */}
-      {photoPickerNodeId && (
+      {!isPublicMirror && photoPickerNodeId && (
         <div
           className="fixed inset-0 z-50 bg-[#252321]/60 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
@@ -8442,7 +8451,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {/* ==================================================================== */}
       {/* 5. GENTLE NODE DELETE CONFIRMATION & ORPHAN-LINK CLEANUP MODAL       */}
       {/* ==================================================================== */}
-      {pendingDeletePrompt && (
+      {(!isPublicMirror || isProposalSandboxMode) && pendingDeletePrompt && (
         <div
           data-testid="gentle-delete-node-modal"
           className="fixed inset-0 z-[90] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
@@ -8548,6 +8557,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         </div>
       )}
 
+      {!isPublicMirror && (
+        <>
       {/* ==================================================================== */}
       {/* 6. QUICK VAULT MEDIA PREVIEW MODAL ON TREE CARD (`معاينة سريعة`)     */}
       {/* ==================================================================== */}
