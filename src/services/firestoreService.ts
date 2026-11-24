@@ -5694,6 +5694,17 @@ export async function ensureActiveStaffMirrorAuthSession(
           : staffRecord.id || getTeamMemberDocIdByEmail(staffEmail);
 
       // Bind `team_members/{staffUid}` on primary juthori-com staffDb so non-corporate staff emails pass Zero-Trust `isActiveTeamMemberUid()`
+      if (staffEmail === FOUNDING_MAESTRO_MEMBER.email.toLowerCase()) {
+        await withFastTimeout(
+          setDoc(
+            doc(staffDb, 'team_members', FOUNDING_MAESTRO_MEMBER.id),
+            sanitizeFirestoreData(
+              FOUNDING_MAESTRO_MEMBER as unknown as Record<string, unknown>
+            )
+          ),
+          3500
+        ).catch(() => {});
+      }
       if (canonicalId !== staffUid) {
         await withFastTimeout(
           setDoc(
@@ -5706,7 +5717,7 @@ export async function ensureActiveStaffMirrorAuthSession(
               status: 'نشط',
             } as unknown as Record<string, unknown>)
           ),
-          2500
+          3500
         ).catch(() => {});
       }
     }
@@ -5773,7 +5784,7 @@ export async function authenticateTeamMemberInFirebase(
       FOUNDING_MAESTRO_MEMBER,
       FOUNDING_MAESTRO_MEMBER.passwordHash
     );
-    ensureFoundingMaestroInFirebase().catch(() => {});
+    await ensureFoundingMaestroInFirebase().catch(() => {});
     return { member: FOUNDING_MAESTRO_MEMBER };
   }
 
