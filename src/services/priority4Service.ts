@@ -50,6 +50,13 @@ import {
   TreeDisplaySettings,
   normalizeTreeDisplaySettings,
 } from '../utils/treeStudioConfig';
+import {
+  CircleMemberAccessMeta,
+  FAMILY_TREE_SYNC_EVENT,
+  StagingParentLinkPatch,
+  StagingProposedTreeNode,
+  mergeStagingTreeProposalIntoAuthoritativeTree,
+} from '../utils/enrichmentStagingUtils';
 import { createKashafiItem } from './kashafiService';
 import {
   DashboardAccessCapabilities,
@@ -1336,6 +1343,7 @@ export interface PublicSitePrivacyConfig {
   enableDynamicWatermark?: boolean;
   enablePhotoFacePrompt?: boolean;
   familyAccessCode?: string;
+  allowCircleMembersEnrichment?: boolean;
   allowVisitorEnrichment?: boolean;
 }
 
@@ -1350,6 +1358,8 @@ export interface PublicMicrositeData {
   siteAccessMode: SiteAccessMode;
   privacyMode?: SiteAccessMode;
   whitelistedEmails?: string[];
+  whitelistedUids?: string[];
+  whitelistedMemberMeta?: CircleMemberAccessMeta[];
   themeId: FamilySiteThemeId;
   familyName: string;
   familyEmblemTag?: string;
@@ -2283,6 +2293,40 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     )
   ).slice(0, 450);
 
+  const whitelistedUids = Array.from(
+    new Set(
+      [
+        ...(existing?.whitelistedUids || []),
+        ...circle.members
+          .map((m) => (m.claimedByUid || '').trim())
+          .filter(Boolean),
+        safeUid,
+      ].filter(Boolean)
+    )
+  ).slice(0, 450);
+
+  const memberMetaMap = new Map<string, CircleMemberAccessMeta>();
+  for (const prevMeta of existing?.whitelistedMemberMeta || []) {
+    const k = (prevMeta?.email || '').trim().toLowerCase();
+    if (k) memberMetaMap.set(k, prevMeta);
+  }
+  for (const m of circle.members) {
+    const lowerEmail = (m.email || '').trim().toLowerCase();
+    if (!lowerEmail) continue;
+    memberMetaMap.set(
+      lowerEmail,
+      cleanUndefined({
+        email: lowerEmail,
+        uid: m.claimedByUid?.trim() || undefined,
+        name: (m.name || '').trim().slice(0, 120) || undefined,
+        role: m.role || 'memory_contributor',
+        kinshipRelation:
+          (m.kinshipRelation || '').trim().slice(0, 80) || undefined,
+      })
+    );
+  }
+  const whitelistedMemberMeta = Array.from(memberMetaMap.values()).slice(0, 450);
+
   const guardiansOfMemory: GuardianOfMemoryHonorItem[] = [...circle.members]
     .filter((m) => (m.approvedEnrichmentsCount || 0) > 0)
     .sort(
@@ -2360,6 +2404,8 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     siteAccessMode: params.siteAccessMode,
     privacyMode: params.siteAccessMode,
     whitelistedEmails,
+    whitelistedUids,
+    whitelistedMemberMeta,
     themeId: validThemeId,
     familyName: (params.result.familyName || 'العائلة').slice(0, 90),
     familyEmblemTag: (params.familyEmblemTag || '').slice(0, 140),
@@ -2969,8 +3015,13 @@ export interface TreeEnrichmentRequestDoc {
   familyName: string;
   requesterName: string;
   requesterEmail?: string;
+  requesterRoleLabel?: string;
   kinshipRelation?: string;
   requestType: EnrichmentRequestType;
+  proposalMode?: 'STAGING_TREE' | 'LEGACY_FORM' | 'VAULT_GIFT';
+  baseSnapshotIds?: string[];
+  proposedNodes?: StagingProposedTreeNode[];
+  parentLinkPatches?: StagingParentLinkPatch[];
   targetPersonId?: string;
   targetPersonName?: string;
   proposedFirstName?: string;
@@ -4050,8 +4101,13 @@ export async function submitTreeEnrichmentRequest(params: {
   familyName: string;
   requesterName: string;
   requesterEmail?: string;
+  requesterRoleLabel?: string;
   kinshipRelation?: string;
   requestType: EnrichmentRequestType;
+  proposalMode?: 'STAGING_TREE' | 'LEGACY_FORM' | 'VAULT_GIFT';
+  baseSnapshotIds?: string[];
+  proposedNodes?: StagingProposedTreeNode[];
+  parentLinkPatches?: StagingParentLinkPatch[];
   targetPersonId?: string;
   targetPersonName?: string;
   proposedFirstName?: string;
@@ -4069,6 +4125,39 @@ export async function submitTreeEnrichmentRequest(params: {
   const nowIso = new Date().toISOString();
   const safeOwner = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
+  const safeProposedNodes = Array.isArray(params.proposedNodes)
+    ? params.proposedNodes.slice(0, 60).map((n) =>
+        cleanUndefined({
+          ...n,
+          firstName: String(n.firstName || '').trim().slice(0, 80),
+          relationToTargetLabel: String(
+            n.relationToTargetLabel || 'فرد مقترح'
+          ).slice(0, 120),
+          biography: n.biography ? String(n.biography).slice(0, 800) : undefined,
+          photoUrl:
+            n.photoUrl && n.photoUrl.length <= 140000 ? n.photoUrl : undefined,
+          photoThumbnailUrl:
+            n.photoThumbnailUrl && n.photoThumbnailUrl.length <= 140000
+              ? n.photoThumbnailUrl
+              : undefined,
+        })
+      )
+    : undefined;
+
+  const safeParentLinkPatches = Array.isArray(params.parentLinkPatches)
+    ? params.parentLinkPatches.slice(0, 60).map((patch) => cleanUndefined(patch))
+    : undefined;
+
+  const safeBaseSnapshotIds = Array.isArray(params.baseSnapshotIds)
+    ? params.baseSnapshotIds.slice(0, 600).map((x) => String(x).slice(0, 120))
+    : undefined;
+
+  const fallbackFirstName =
+    params.proposedFirstName?.trim() ||
+    (safeProposedNodes && safeProposedNodes.length > 0
+      ? safeProposedNodes.map((n) => n.firstName).filter(Boolean).slice(0, 3).join('، ')
+      : undefined);
+
   const reqDoc: TreeEnrichmentRequestDoc = cleanUndefined({
     id,
     siteSlug: slug,
@@ -4080,11 +4169,16 @@ export async function submitTreeEnrichmentRequest(params: {
     familyName: (params.familyName || 'العائلة').slice(0, 90),
     requesterName: params.requesterName.trim().slice(0, 120),
     requesterEmail: params.requesterEmail?.trim().toLowerCase().slice(0, 120),
+    requesterRoleLabel: params.requesterRoleLabel?.trim().slice(0, 80),
     kinshipRelation: params.kinshipRelation?.trim().slice(0, 80),
     requestType: params.requestType,
+    proposalMode: params.proposalMode,
+    baseSnapshotIds: safeBaseSnapshotIds,
+    proposedNodes: safeProposedNodes,
+    parentLinkPatches: safeParentLinkPatches,
     targetPersonId: params.targetPersonId?.slice(0, 100),
     targetPersonName: params.targetPersonName?.slice(0, 140),
-    proposedFirstName: params.proposedFirstName?.trim().slice(0, 80),
+    proposedFirstName: fallbackFirstName?.slice(0, 120),
     proposedGender: params.proposedGender,
     proposedBirthYear: params.proposedBirthYear?.trim().slice(0, 20),
     proposedBirthPlace: params.proposedBirthPlace?.trim().slice(0, 80),
@@ -4111,10 +4205,19 @@ export async function submitTreeEnrichmentRequest(params: {
     ),
   ]);
 
+  const countSuffix =
+    safeProposedNodes && safeProposedNodes.length > 0
+      ? ` (${safeProposedNodes.length} ${
+          safeProposedNodes.length === 1 ? 'فرد جديد' : 'أفراد جدد'
+        } على الشجرة)`
+      : '';
+
   sendCustomerNotification({
     userId: safeOwner,
     title: `مقترح إثراء جديد لبوابة عائلة ${params.familyName} ✦`,
-    body: `قدّم (${reqDoc.requesterName}) مقترح إثراء جديد عبر بوابة موقعي بانتظار اعتمادك في تبويب «مجتمعي».`,
+    body: `قدّم (${reqDoc.requesterName}${
+      reqDoc.requesterRoleLabel ? ` — ${reqDoc.requesterRoleLabel}` : ''
+    }) مقترح إثراء جديد${countSuffix} عبر بوابة موقعي بانتظار اعتمادك في تبويب «مجتمعي».`,
     category: 'system_notice',
     senderRole: 'system',
   }).catch(() => {});
@@ -4240,6 +4343,7 @@ export async function reviewAndMergeEnrichmentRequest(params: {
   ok: boolean;
   messageAr: string;
   updatedRequest: TreeEnrichmentRequestDoc;
+  mergedTree?: RawTreePersonForPublicProjection[];
 }> {
   const { request, approve, ownerId, ownerEmail, familyName } = params;
   const safeUid = ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -4263,7 +4367,7 @@ export async function reviewAndMergeEnrichmentRequest(params: {
     ]);
     return {
       ok: true,
-      messageAr: `تم رفض مقترح (${request.requesterName}) وحفظه في الأرشيف.`,
+      messageAr: `تم رفض مقترح (${request.requesterName}) وحفظه في الأرشيف دون تعديل شجرتك.`,
       updatedRequest: rejected,
     };
   }
@@ -4289,8 +4393,28 @@ export async function reviewAndMergeEnrichmentRequest(params: {
   );
   let nextVaultItems = [...(currentVault.items || [])];
   let newlyAddedVaultItemId: string | null = null;
+  let treeWasMutated = false;
 
-  if (request.requestType === 'ADD_TREE_MEMBER' && request.proposedFirstName) {
+  if (
+    request.requestType === 'ADD_TREE_MEMBER' &&
+    Array.isArray(request.proposedNodes) &&
+    request.proposedNodes.length > 0
+  ) {
+    const { mergedTree } = mergeStagingTreeProposalIntoAuthoritativeTree(
+      currentTree,
+      request.proposedNodes,
+      request.parentLinkPatches || [],
+      familyName
+    );
+    currentTree = mergedTree;
+    treeWasMutated = true;
+    await saveUserFamilyTreeToFirebase(
+      safeUid,
+      familyName,
+      currentTree,
+      ownerEmail
+    );
+  } else if (request.requestType === 'ADD_TREE_MEMBER' && request.proposedFirstName) {
     const parentNode = currentTree.find((n) => n.id === request.targetPersonId);
     const parentGen =
       typeof parentNode?.generationLevel === 'number'
@@ -4314,6 +4438,7 @@ export async function reviewAndMergeEnrichmentRequest(params: {
       isCertifiedReference: false,
     };
     currentTree = [...currentTree, newPerson];
+    treeWasMutated = true;
     await saveUserFamilyTreeToFirebase(
       safeUid,
       familyName,
@@ -4330,6 +4455,7 @@ export async function reviewAndMergeEnrichmentRequest(params: {
           : `إثراء عائلي (${request.requesterName}): ${request.proposedNotes}`;
         return { ...n, biography: appended.slice(0, 1200) };
       });
+      treeWasMutated = true;
       await saveUserFamilyTreeToFirebase(
         safeUid,
         familyName,
@@ -4504,10 +4630,37 @@ export async function reviewAndMergeEnrichmentRequest(params: {
     ),
   ]);
 
+  if (treeWasMutated && typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(
+        new CustomEvent(FAMILY_TREE_SYNC_EVENT, {
+          detail: {
+            ownerId: safeUid,
+            familyName,
+            mergedTree: currentTree,
+          },
+        })
+      );
+    } catch {
+      // Ignore event dispatch errors
+    }
+  }
+
+  const mergedCount =
+    Array.isArray(request.proposedNodes) && request.proposedNodes.length > 0
+      ? request.proposedNodes.length
+      : 0;
+
   return {
     ok: true,
-    messageAr: `تم اعتماد ودمج إثراء (${request.requesterName}) في سجلك الخاص وتحديث مرآة موقعك العائلي تلقائياً ✦`,
+    messageAr:
+      mergedCount > 0
+        ? `تم اعتماد ودمج ${mergedCount} ${
+            mergedCount === 1 ? 'فرد جديد' : 'أفراد جدد'
+          } من مقترح (${request.requesterName}) في «شجرتي» وتحديث «موقعي» فوراً ✦`
+        : `تم اعتماد ودمج إثراء (${request.requesterName}) في سجلك الخاص وتحديث مرآة موقعك العائلي تلقائياً ✦`,
     updatedRequest: approvedDoc,
+    mergedTree: treeWasMutated ? currentTree : undefined,
   };
 }
 

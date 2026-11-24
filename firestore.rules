@@ -435,6 +435,8 @@ service cloud.firestore {
         && (!('privacyMode' in data) || data.privacyMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
         && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'FAMILY_PIN', 'PRIVATE_WHITELIST'])
         && (!('whitelistedEmails' in data) || (data.whitelistedEmails is list && data.whitelistedEmails.size() <= 500))
+        && (!('whitelistedUids' in data) || (data.whitelistedUids is list && data.whitelistedUids.size() <= 500))
+        && (!('whitelistedMemberMeta' in data) || (data.whitelistedMemberMeta is list && data.whitelistedMemberMeta.size() <= 500))
         && (!('bioTitle' in data) || (data.bioTitle is string && data.bioTitle.size() <= 200))
         && (!('bioDescription' in data) || (data.bioDescription is string && data.bioDescription.size() <= 4000))
         && data.privacyConfig is map
@@ -463,17 +465,26 @@ service cloud.firestore {
 
     function isWhitelistedViewer(data) {
       return isSignedIn()
-        && request.auth.token.email != null
-        && 'whitelistedEmails' in data
-        && data.whitelistedEmails is list
-        && request.auth.token.email.lower() in data.whitelistedEmails
         && (
-          request.auth.token.email_verified == true
+          (
+            'whitelistedUids' in data
+            && data.whitelistedUids is list
+            && request.auth.uid in data.whitelistedUids
+          )
           || (
-            exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && 'emailVerified' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
-            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified == true
-            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower() == request.auth.token.email.lower()
+            request.auth.token.email != null
+            && 'whitelistedEmails' in data
+            && data.whitelistedEmails is list
+            && request.auth.token.email.lower() in data.whitelistedEmails
+            && (
+              request.auth.token.email_verified == true
+              || (
+                exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                && 'emailVerified' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+                && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified == true
+                && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower() == request.auth.token.email.lower()
+              )
+            )
           )
         );
     }
@@ -572,9 +583,14 @@ service cloud.firestore {
         && (!('requesterUid' in data) || (data.requesterUid is string && data.requesterUid.size() <= 128))
         && data.requesterName is string && data.requesterName.size() > 0 && data.requesterName.size() <= 140
         && (!('requesterEmail' in data) || (data.requesterEmail is string && data.requesterEmail.size() <= 120))
+        && (!('requesterRoleLabel' in data) || (data.requesterRoleLabel is string && data.requesterRoleLabel.size() <= 100))
         && data.requestType in ['ADD_TREE_MEMBER', 'CORRECTION_NOTE', 'VAULT_MEDIA']
+        && (!('proposalMode' in data) || data.proposalMode in ['STAGING_TREE', 'LEGACY_FORM', 'VAULT_GIFT'])
         && data.status in ['PENDING_REGISTRAR_APPROVAL', 'APPROVED_AND_MERGED', 'PENDING', 'APPROVED', 'REJECTED']
         && (!('proposedNotes' in data) || (data.proposedNotes is string && data.proposedNotes.size() <= 2000))
+        && (!('baseSnapshotIds' in data) || (data.baseSnapshotIds is list && data.baseSnapshotIds.size() <= 600))
+        && (!('proposedNodes' in data) || (data.proposedNodes is list && data.proposedNodes.size() <= 60))
+        && (!('parentLinkPatches' in data) || (data.parentLinkPatches is list && data.parentLinkPatches.size() <= 60))
         && (!('mediaDataOrUrl' in data) || (data.mediaDataOrUrl is string && data.mediaDataOrUrl.size() <= 450000))
         && data.createdAt is string && data.createdAt.size() <= 60
         && (!('reviewedAt' in data) || (data.reviewedAt is string && data.reviewedAt.size() <= 60));
@@ -601,13 +617,23 @@ service cloud.firestore {
         )
         || (
           !('requesterUid' in data)
-          && 'requesterEmail' in data
-          && data.requesterEmail is string && data.requesterEmail.size() > 0 && data.requesterEmail.size() <= 120
           && exists(/databases/$(database)/documents/public_sites/$(data.siteSlug))
           && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.isPublished == true
           && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.ownerId == data.ownerId
-          && 'whitelistedEmails' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data
-          && data.requesterEmail.lower() in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.whitelistedEmails
+          && (
+            (
+              'requesterEmail' in data
+              && data.requesterEmail is string && data.requesterEmail.size() > 0 && data.requesterEmail.size() <= 120
+              && 'whitelistedEmails' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data
+              && data.requesterEmail.lower() in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.whitelistedEmails
+            )
+            || (
+              'privacyConfig' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data
+              && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig is map
+              && 'allowVisitorEnrichment' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig
+              && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig.allowVisitorEnrichment == true
+            )
+          )
         );
     }
 

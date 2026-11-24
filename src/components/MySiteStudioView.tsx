@@ -52,6 +52,7 @@ import {
   normalizeTreeDisplaySettings,
   readSharedTreeDisplaySettingsFromLocal,
 } from '../utils/treeStudioConfig';
+import { FAMILY_TREE_SYNC_EVENT } from '../utils/enrichmentStagingUtils';
 import {
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
@@ -267,8 +268,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const [familyAccessCode, setFamilyAccessCode] = useState<string>(
     initialSiteSettings?.familyPinCode || ''
   );
-  const [allowVisitorEnrichment, setAllowVisitorEnrichment] =
+  const [allowCircleMembersEnrichment, setAllowCircleMembersEnrichment] =
     useState<boolean>(true);
+  const [allowVisitorEnrichment, setAllowVisitorEnrichment] =
+    useState<boolean>(false);
   const [themeId, setThemeId] = useState<FamilySiteThemeId>(
     initialSiteSettings?.themeId || 'golden_parchment'
   );
@@ -547,6 +550,14 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             setFamilyAccessCode(existingSite.privacyConfig.familyAccessCode);
           }
           if (
+            typeof existingSite.privacyConfig.allowCircleMembersEnrichment ===
+            'boolean'
+          ) {
+            setAllowCircleMembersEnrichment(
+              existingSite.privacyConfig.allowCircleMembersEnrichment
+            );
+          }
+          if (
             typeof existingSite.privacyConfig.allowVisitorEnrichment ===
             'boolean'
           ) {
@@ -562,7 +573,26 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     };
 
     loadSources();
+    const handleTreeMergedSync = (ev: Event) => {
+      const detail = (
+        ev as CustomEvent<{
+          ownerId?: string;
+          mergedTree?: RawTreePersonForPublicProjection[];
+        }>
+      ).detail;
+      if (
+        mounted &&
+        detail &&
+        Array.isArray(detail.mergedTree) &&
+        detail.mergedTree.length > 0 &&
+        (!detail.ownerId || !userId || detail.ownerId === userId)
+      ) {
+        setRawTreeMembers(detail.mergedTree);
+      }
+    };
+    window.addEventListener(FAMILY_TREE_SYNC_EVENT, handleTreeMergedSync);
     return () => {
+      window.removeEventListener(FAMILY_TREE_SYNC_EVENT, handleTreeMergedSync);
       mounted = false;
     };
   }, [userId, userEmail, result.familyName, defaultSlug]);
@@ -737,6 +767,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       enableDynamicWatermark,
       enablePhotoFacePrompt,
       familyAccessCode: familyAccessCode.trim() || undefined,
+      allowCircleMembersEnrichment,
       allowVisitorEnrichment,
     }),
     [
@@ -753,6 +784,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       enableDynamicWatermark,
       enablePhotoFacePrompt,
       familyAccessCode,
+      allowCircleMembersEnrichment,
       allowVisitorEnrichment,
     ]
   );
@@ -2199,6 +2231,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 onChangeHideLivingNamesForGuests={setHideLivingNamesForGuests}
                 hideLivingBirthDates={hideLivingBirthDates}
                 onChangeHideLivingBirthDates={setHideLivingBirthDates}
+                allowCircleMembersEnrichment={allowCircleMembersEnrichment}
+                onChangeAllowCircleMembersEnrichment={
+                  setAllowCircleMembersEnrichment
+                }
                 allowVisitorEnrichment={allowVisitorEnrichment}
                 onChangeAllowVisitorEnrichment={setAllowVisitorEnrichment}
                 majlisEnabled={cmsModules.majlisAndGuardiansModule.enabled}

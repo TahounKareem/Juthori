@@ -692,6 +692,8 @@
           "enum": ["PUBLIC", "UNLISTED", "PRIVATE_WHITELIST"]
         },
         "whitelistedEmails": { "type": "array" },
+        "whitelistedUids": { "type": "array" },
+        "whitelistedMemberMeta": { "type": "array" },
         "themeId": {
           "type": "string",
           "enum": ["golden_parchment", "diriyah_oasis", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
@@ -811,10 +813,15 @@
         "familyName": { "type": "string", "maxLength": 100 },
         "requesterName": { "type": "string", "maxLength": 140 },
         "requesterEmail": { "type": "string", "maxLength": 120 },
+        "requesterRoleLabel": { "type": "string", "maxLength": 100 },
         "kinshipRelation": { "type": "string", "maxLength": 120 },
         "requestType": {
           "type": "string",
           "enum": ["ADD_TREE_MEMBER", "CORRECTION_NOTE", "VAULT_MEDIA"]
+        },
+        "proposalMode": {
+          "type": "string",
+          "enum": ["STAGING_TREE", "LEGACY_FORM", "VAULT_GIFT"]
         },
         "targetPersonId": { "type": "string", "maxLength": 128 },
         "targetPersonName": { "type": "string", "maxLength": 160 },
@@ -824,6 +831,9 @@
         "proposedBirthYear": { "type": "string", "maxLength": 40 },
         "proposedBirthPlace": { "type": "string", "maxLength": 120 },
         "proposedNotes": { "type": "string", "maxLength": 2000 },
+        "baseSnapshotIds": { "type": "array" },
+        "proposedNodes": { "type": "array" },
+        "parentLinkPatches": { "type": "array" },
         "mediaTitle": { "type": "string", "maxLength": 200 },
         "mediaType": { "type": "string", "enum": ["photo", "document"] },
         "mediaDateOrOccasion": { "type": "string", "maxLength": 100 },

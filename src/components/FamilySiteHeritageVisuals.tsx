@@ -1,6 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { GitBranch, Maximize2, Plus, Sparkles, Users, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  GitBranch,
+  Maximize2,
+  Plus,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X,
+} from 'lucide-react';
 import { FamilySiteThemeDefinition } from '../config/referralAndSiteConfig';
 import {
   FamilyCrestStyle,
@@ -10,7 +21,12 @@ import {
   PortalSectionKey,
   PortalTypographyId,
   SanitizedPublicTreeMember,
+  submitTreeEnrichmentRequest,
 } from '../services/priority4Service';
+import {
+  StagingParentLinkPatch,
+  StagingProposedTreeNode,
+} from '../utils/enrichmentStagingUtils';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
@@ -908,7 +924,13 @@ interface PublicVisualTreeMirrorProps {
   isAuthorizedFamilyViewer?: boolean;
   compactPreview?: boolean;
   velvetBandMode?: boolean;
-  onProposeEnrichment?: () => void;
+  canProposeEnrichment?: boolean;
+  siteSlug?: string;
+  ownerId?: string;
+  viewerDefaultName?: string;
+  viewerDefaultEmail?: string;
+  viewerDefaultKinship?: string;
+  viewerRoleLabel?: string;
 }
 
 export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
@@ -919,9 +941,85 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   isAuthorizedFamilyViewer = false,
   compactPreview = false,
   velvetBandMode = false,
-  onProposeEnrichment,
+  canProposeEnrichment = false,
+  siteSlug = '',
+  ownerId = '',
+  viewerDefaultName = '',
+  viewerDefaultEmail = '',
+  viewerDefaultKinship = '',
+  viewerRoleLabel = 'عضو دائرة العائلة',
 }) => {
   const [isTheaterOpen, setIsTheaterOpen] = useState(false);
+  const [isProposalSandboxActive, setIsProposalSandboxActive] = useState(false);
+  const [sandboxResetNonce, setSandboxResetNonce] = useState(0);
+  const [stagingDiff, setStagingDiff] = useState<{
+    baseSnapshotIds: string[];
+    proposedNodes: StagingProposedTreeNode[];
+    parentLinkPatches: StagingParentLinkPatch[];
+  }>({
+    baseSnapshotIds: [],
+    proposedNodes: [],
+    parentLinkPatches: [],
+  });
+  const [showSubmitProposalModal, setShowSubmitProposalModal] = useState(false);
+  const [submitName, setSubmitName] = useState(viewerDefaultName);
+  const [submitEmail, setSubmitEmail] = useState(viewerDefaultEmail);
+  const [submitKinship, setSubmitKinship] = useState(viewerDefaultKinship);
+  const [submitNotes, setSubmitNotes] = useState('');
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [submitSuccessText, setSubmitSuccessText] = useState<string | null>(
+    null
+  );
+  const [submitErrorText, setSubmitErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (viewerDefaultName) {
+      setSubmitName((prev) => prev || viewerDefaultName);
+    }
+    if (viewerDefaultEmail) {
+      setSubmitEmail((prev) => prev || viewerDefaultEmail);
+    }
+    if (viewerDefaultKinship) {
+      setSubmitKinship((prev) => prev || viewerDefaultKinship);
+    }
+  }, [viewerDefaultName, viewerDefaultEmail, viewerDefaultKinship]);
+
+  const handleStagingDiffChange = useCallback(
+    (diff: {
+      baseSnapshotIds: string[];
+      proposedNodes: StagingProposedTreeNode[];
+      parentLinkPatches: StagingParentLinkPatch[];
+    }) => {
+      setStagingDiff(diff);
+    },
+    []
+  );
+
+  const handleExitSandboxMode = useCallback(() => {
+    setIsProposalSandboxActive(false);
+    setShowSubmitProposalModal(false);
+    setSubmitErrorText(null);
+    setStagingDiff({
+      baseSnapshotIds: [],
+      proposedNodes: [],
+      parentLinkPatches: [],
+    });
+    setSandboxResetNonce((n) => n + 1);
+  }, []);
+
+  const handleCloseTheater = useCallback(() => {
+    setIsTheaterOpen(false);
+    setIsProposalSandboxActive(false);
+    setShowSubmitProposalModal(false);
+    setSubmitSuccessText(null);
+    setSubmitErrorText(null);
+    setStagingDiff({
+      baseSnapshotIds: [],
+      proposedNodes: [],
+      parentLinkPatches: [],
+    });
+    setSandboxResetNonce((n) => n + 1);
+  }, []);
 
   const resolvedDisplaySettings = useMemo(
     () => normalizeTreeDisplaySettings(treeDisplaySettings),
@@ -1041,14 +1139,20 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
     [familyName]
   );
 
-  // Lock page scroll and allow Escape key to close the Fullscreen Tree Theater
+  // Lock page scroll and allow Escape key to close topmost dialog cleanly
   useEffect(() => {
     if (!isTheaterOpen || typeof document === 'undefined') return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsTheaterOpen(false);
+      if (e.key !== 'Escape') return;
+      if (showSubmitProposalModal) {
+        setShowSubmitProposalModal(false);
+        return;
+      }
+      const openDialogs = document.querySelectorAll('[role="dialog"]');
+      if (openDialogs.length <= 1) {
+        handleCloseTheater();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1056,7 +1160,79 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isTheaterOpen]);
+  }, [isTheaterOpen, showSubmitProposalModal, handleCloseTheater]);
+
+  const handleSubmitStagingProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submitName.trim() || stagingDiff.proposedNodes.length === 0) {
+      setSubmitErrorText('يرجى كتابة اسمك والتأكد من إضافة فرد واحد على الأقل.');
+      return;
+    }
+    if (!siteSlug || !ownerId) {
+      setSubmitErrorText(
+        'تعذر تحديد سجل البوابة العائلية لإرسال المقترح في وضع المعاينة.'
+      );
+      return;
+    }
+    setSubmittingProposal(true);
+    setSubmitErrorText(null);
+    try {
+      const firstProposed = stagingDiff.proposedNodes[0];
+      const anchorParentId =
+        firstProposed.fatherId ||
+        firstProposed.motherId ||
+        firstProposed.spouseIds[0] ||
+        firstProposed.siblingOfId;
+      const anchorNode = anchorParentId
+        ? mappedMirrorMembers.find((m) => m.id === anchorParentId)
+        : undefined;
+
+      await submitTreeEnrichmentRequest({
+        siteSlug,
+        ownerId,
+        familyName,
+        requesterName: submitName.trim(),
+        requesterEmail: submitEmail.trim() || undefined,
+        requesterRoleLabel: viewerRoleLabel,
+        kinshipRelation: submitKinship.trim() || undefined,
+        requestType: 'ADD_TREE_MEMBER',
+        proposalMode: 'STAGING_TREE',
+        targetPersonId: anchorNode?.id,
+        targetPersonName: anchorNode?.firstName,
+        proposedFirstName:
+          stagingDiff.proposedNodes.length === 1
+            ? firstProposed.firstName
+            : `${firstProposed.firstName} و${stagingDiff.proposedNodes.length - 1} آخرين`,
+        proposedGender: firstProposed.gender,
+        proposedBirthYear: firstProposed.birthDateValue || undefined,
+        proposedBirthPlace: firstProposed.birthPlace || undefined,
+        proposedNotes: submitNotes.trim() || undefined,
+        baseSnapshotIds: stagingDiff.baseSnapshotIds,
+        proposedNodes: stagingDiff.proposedNodes,
+        parentLinkPatches: stagingDiff.parentLinkPatches,
+      });
+
+      setSubmitSuccessText(
+        `تم إرسال مقترح إضافة (${stagingDiff.proposedNodes.length} ${
+          stagingDiff.proposedNodes.length === 1 ? 'فرد جديد' : 'أفراد جدد'
+        }) إلى صندوق اعتماد أمين سجل عائلة ${familyName} بنجاح ✦ ستُدمج إضافاتك في الشجرة فور المراجعة.`
+      );
+      setSubmitNotes('');
+      setIsProposalSandboxActive(false);
+      setStagingDiff({
+        baseSnapshotIds: [],
+        proposedNodes: [],
+        parentLinkPatches: [],
+      });
+      setSandboxResetNonce((n) => n + 1);
+    } catch {
+      setSubmitErrorText(
+        'تعذر إرسال المقترح حالياً. يرجى التأكد من اتصالك بالإنترنت أو صلاحية الإثراء ثم المحاولة مجدداً.'
+      );
+    } finally {
+      setSubmittingProposal(false);
+    }
+  };
 
   if (mappedMirrorMembers.length === 0) {
     return (
@@ -1072,6 +1248,8 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
     );
   }
 
+  const proposedCount = stagingDiff.proposedNodes.length;
+
   const theaterModal =
     isTheaterOpen && typeof document !== 'undefined'
       ? createPortal(
@@ -1085,49 +1263,100 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             {/* Theater Top Bar */}
             <header className="shrink-0 bg-[#221D19] text-[#FAF5EB] border-b border-[#C8A054]/35 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-[#C8A054]/15 border border-[#C8A054]/55 text-[#E3C17C] flex items-center justify-center shrink-0">
+                <div
+                  className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
+                    isProposalSandboxActive
+                      ? 'bg-emerald-600/20 border-emerald-400/60 text-emerald-300'
+                      : 'bg-[#C8A054]/15 border-[#C8A054]/55 text-[#E3C17C]'
+                  }`}
+                >
                   <GitBranch className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-[#E3C17C] tracking-wide">
-                    ✦ قاعة استعراض السجل الشجري الجامع
+                  <div
+                    className={`text-[11px] font-bold tracking-wide ${
+                      isProposalSandboxActive
+                        ? 'text-emerald-300'
+                        : 'text-[#E3C17C]'
+                    }`}
+                  >
+                    {isProposalSandboxActive
+                      ? '✦ وضع اقتراح إثراء الدوحة (مسودة تفاعلية آمنة)'
+                      : '✦ قاعة استعراض السجل الشجري الجامع'}
                   </div>
                   <h2 className="text-sm sm:text-lg font-display font-bold truncate">
                     دوحة نسب عائلة {familyName}
                   </h2>
                 </div>
-                <div className="hidden md:flex items-center gap-2 mr-2 text-[11px] text-[#FAF5EB]/80 tabular-nums">
-                  <span className="px-2.5 py-1 rounded-lg bg-white/8 border border-white/15">
-                    {mappedMirrorMembers.length} فرد موثق
-                  </span>
+                <div className="hidden lg:flex items-center gap-2 mr-2 text-[11px] text-[#FAF5EB]/80 tabular-nums">
+                  <span>{mappedMirrorMembers.length} فرد موثق</span>
                   {resolvedGenerationsCount > 0 && (
-                    <span className="px-2.5 py-1 rounded-lg bg-white/8 border border-white/15">
-                      {resolvedGenerationsCount} أجيال متصلة
-                    </span>
+                    <>
+                      <span aria-hidden="true" className="opacity-45">
+                        ·
+                      </span>
+                      <span>{resolvedGenerationsCount} أجيال متصلة</span>
+                    </>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {onProposeEnrichment && !compactPreview && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsTheaterOpen(false);
-                      onProposeEnrichment();
-                    }}
-                    className="h-9 px-3.5 rounded-xl bg-white/10 hover:bg-white/18 border border-[#C8A054]/45 text-[#FAF5EB] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#E3C17C]" />
-                    <span className="hidden sm:inline">
-                      اقترح إضافة فرع أو قريب
-                    </span>
-                  </button>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {!isProposalSandboxActive &&
+                  canProposeEnrichment &&
+                  !compactPreview && (
+                    <button
+                      type="button"
+                      data-testid="enter-tree-proposal-sandbox-btn"
+                      onClick={() => {
+                        setSubmitSuccessText(null);
+                        setSubmitErrorText(null);
+                        setIsProposalSandboxActive(true);
+                      }}
+                      className="h-9 px-3.5 rounded-xl bg-emerald-700/90 hover:bg-emerald-600 border border-emerald-400/50 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>اقترح إضافة فرع أو قريب</span>
+                    </button>
+                  )}
+
+                {isProposalSandboxActive && (
+                  <>
+                    {proposedCount > 0 && (
+                      <button
+                        type="button"
+                        data-testid="open-submit-staging-proposal-btn"
+                        onClick={() => {
+                          setSubmitErrorText(null);
+                          setSubmitSuccessText(null);
+                          setShowSubmitProposalModal(true);
+                        }}
+                        className="h-9 px-4 rounded-xl bg-gradient-to-l from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 border border-emerald-300/60 text-white text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-md whitespace-nowrap"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>
+                          ✦ إرسال الإضافات المقترحة لاعتماد أمين السجل (
+                          {proposedCount}{' '}
+                          {proposedCount === 1 ? 'فرد جديد' : 'أفراد جدد'})
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      data-testid="cancel-tree-proposal-sandbox-btn"
+                      onClick={handleExitSandboxMode}
+                      className="h-9 px-3 rounded-xl bg-white/10 hover:bg-white/18 border border-white/20 text-[#FAF5EB] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>إلغاء وضع الاقتراح</span>
+                    </button>
+                  </>
                 )}
+
                 <button
                   type="button"
                   data-testid="close-tree-theater-btn"
-                  onClick={() => setIsTheaterOpen(false)}
+                  onClick={handleCloseTheater}
                   className="h-9 px-4 rounded-xl bg-[#C8A054] hover:bg-[#b58d43] text-[#1D1610] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs whitespace-nowrap"
                 >
                   <span>إغلاق والعودة للديوان</span>
@@ -1135,6 +1364,47 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                 </button>
               </div>
             </header>
+
+            {/* Active Interactive Sandbox Guidance Banner */}
+            {isProposalSandboxActive && (
+              <div
+                data-testid="proposal-sandbox-guidance-banner"
+                className="shrink-0 bg-gradient-to-l from-emerald-950 via-[#1E3A2F] to-[#2C2418] text-[#FAF5EB] border-b border-emerald-500/40 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs"
+              >
+                <div className="flex items-center gap-2 leading-relaxed">
+                  <Sparkles className="w-4 h-4 text-[#E3C17C] shrink-0" />
+                  <span className="font-semibold">
+                    وضع اقتراح الإثراء نشط: اضغط على علامة (+) في أي بطاقة قريب
+                    لإضافة ابن أو ابنة أو زوجة أو شقيق كما في الشجرة الحقيقية،
+                    ثم أرسل مقترحك لاعتماد أمين السجل.
+                  </span>
+                </div>
+                <div className="text-[11px] font-bold text-emerald-200 tabular-nums shrink-0">
+                  {proposedCount > 0
+                    ? `تمت إضافة ${proposedCount} ${
+                        proposedCount === 1 ? 'فرد مقترح' : 'أفراد مقترحين'
+                      } · البطاقات الأصلية محمية`
+                    : 'البطاقات الأصلية محمية من التعديل أو الحذف'}
+                </div>
+              </div>
+            )}
+
+            {/* Post-Submission Success Toast Banner inside Theater */}
+            {submitSuccessText && !showSubmitProposalModal && (
+              <div className="shrink-0 bg-emerald-900 text-emerald-50 border-b border-emerald-400/40 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+                  <span>{submitSuccessText}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSubmitSuccessText(null)}
+                  className="text-emerald-200 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* Full-Height Exact «شجرتي» Interactive Tree Stage */}
             <div className="flex-1 min-h-0 flex flex-col p-2.5 sm:p-4 overflow-hidden">
@@ -1150,15 +1420,181 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                   displaySettings: resolvedDisplaySettings,
                   compactPreview: false,
                   theaterMode: true,
-                  onProposeEnrichment: !compactPreview
-                    ? () => {
-                        setIsTheaterOpen(false);
-                        onProposeEnrichment?.();
-                      }
-                    : undefined,
+                  proposalSandbox:
+                    canProposeEnrichment && !compactPreview
+                      ? {
+                          active: isProposalSandboxActive,
+                          baseSnapshotIds: mappedMirrorMembers.map((m) => m.id),
+                          resetNonce: sandboxResetNonce,
+                          onStagingChange: handleStagingDiffChange,
+                        }
+                      : undefined,
                 }}
               />
             </div>
+
+            {/* In-Theater Confirmation Dialog for Submitting Staged Tree Proposals */}
+            {showSubmitProposalModal && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                data-testid="submit-staging-proposal-modal"
+                className="fixed inset-0 z-[95] bg-[#16120E]/72 backdrop-blur-xs flex items-center justify-center p-4"
+              >
+                <div className="w-full max-w-lg rounded-3xl bg-[#FCF9F2] border-2 border-[#C8A054]/60 text-[#231E1A] p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-800 text-white flex items-center justify-center shrink-0">
+                        <Send className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-display font-extrabold text-[#231E1A]">
+                          إرسال الإضافات المقترحة لاعتماد أمين السجل
+                        </h3>
+                        <p className="text-[11px] text-[#231E1A]/65 flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>صفتك الموثّقة: {viewerRoleLabel}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSubmitProposalModal(false)}
+                      className="w-8 h-8 rounded-lg hover:bg-black/5 flex items-center justify-center cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {submitSuccessText ? (
+                    <div className="rounded-2xl bg-emerald-50 border border-emerald-300/80 p-5 text-center space-y-3">
+                      <CheckCircle2 className="w-9 h-9 text-emerald-700 mx-auto" />
+                      <p className="text-xs sm:text-sm font-bold text-emerald-950 leading-relaxed">
+                        {submitSuccessText}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowSubmitProposalModal(false)}
+                        className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer"
+                      >
+                        العودة لاستعراض الدوحة
+                      </button>
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={handleSubmitStagingProposal}
+                      className="space-y-4"
+                    >
+                      {/* Summary of Proposed Additions */}
+                      <div className="rounded-2xl bg-white border border-emerald-700/25 p-3.5 space-y-2">
+                        <div className="text-xs font-display font-bold text-emerald-900">
+                          ملخص الأفراد المقترح إضافتهم ({proposedCount}):
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-[#231E1A]/85">
+                          {stagingDiff.proposedNodes.map((pn) => {
+                            const parentName = pn.fatherId
+                              ? mappedMirrorMembers.find(
+                                  (m) => m.id === pn.fatherId
+                                )?.firstName ||
+                                stagingDiff.proposedNodes.find(
+                                  (x) => x.id === pn.fatherId
+                                )?.firstName
+                              : undefined;
+                            return (
+                              <li
+                                key={pn.id}
+                                className="flex items-center justify-between gap-2 border-b border-[#B98A78]/15 last:border-b-0 pb-1 last:pb-0"
+                              >
+                                <span className="font-bold text-[#231E1A]">
+                                  ✦ {pn.firstName}
+                                  {pn.birthDateValue
+                                    ? ` (${pn.birthDateValue})`
+                                    : ''}
+                                </span>
+                                <span className="text-[11px] text-[#8D4925] font-semibold">
+                                  {pn.relationToTargetLabel}
+                                  {parentName ? ` · يتبع ${parentName}` : ''}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#231E1A]/75 mb-1">
+                            اسمك الكامل *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={submitName}
+                            onChange={(e) => setSubmitName(e.target.value)}
+                            placeholder="الاسم الكامل"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#B98A78]/45 text-xs focus:outline-none focus:border-emerald-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#231E1A]/75 mb-1">
+                            صلة القرابة بالعائلة
+                          </label>
+                          <input
+                            type="text"
+                            value={submitKinship}
+                            onChange={(e) => setSubmitKinship(e.target.value)}
+                            placeholder="مثال: ابن عم، شقيق، ابن أخت..."
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#B98A78]/45 text-xs focus:outline-none focus:border-emerald-700"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#231E1A]/75 mb-1">
+                          ملاحظة إضافية لأمين السجل (اختياري)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={submitNotes}
+                          onChange={(e) => setSubmitNotes(e.target.value)}
+                          placeholder="أي تفاصيل أو توثيق إضافي يساعد أمين السجل عند المراجعة..."
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-[#B98A78]/45 text-xs focus:outline-none focus:border-emerald-700"
+                        />
+                      </div>
+
+                      {submitErrorText && (
+                        <div className="rounded-xl bg-rose-50 border border-rose-300 px-3 py-2 text-xs text-rose-900 font-semibold">
+                          {submitErrorText}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowSubmitProposalModal(false)}
+                          className="px-4 py-2.5 rounded-xl bg-[#F2EAE0] text-xs font-bold text-[#231E1A] cursor-pointer"
+                        >
+                          متابعة الإضافة على الشجرة
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingProposal}
+                          data-testid="confirm-send-staging-proposal-btn"
+                          className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-55 text-white text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>
+                            {submittingProposal
+                              ? 'جارٍ الإرسال...'
+                              : 'إرسال المقترح لاعتماد أمين السجل ✦'}
+                          </span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
           </div>,
           document.body
         )
@@ -1359,7 +1795,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             )}
           </div>
 
-          {/* Gatehouse Action Buttons */}
+          {/* Gatehouse Primary Action Button (Enrichment moved strictly inside Theater) */}
           <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1 w-full">
             <button
               type="button"
@@ -1383,27 +1819,8 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
               }
             >
               <Maximize2 className="w-4 h-4 shrink-0" />
-              <span>فتح واستعراض دوحة العائلة التفاعلية</span>
+              <span>✦ فتح واستعراض دوحة العائلة التفاعلية</span>
             </button>
-
-            {onProposeEnrichment && !compactPreview && (
-              <button
-                type="button"
-                onClick={onProposeEnrichment}
-                className={`px-4 py-3 rounded-2xl border text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
-                  velvetBandMode
-                    ? 'bg-white/8 hover:bg-white/15 text-[#FAF4E8]'
-                    : 'fs-surface fs-accent-text hover:opacity-90 shadow-2xs'
-                }`}
-                style={{
-                  borderColor:
-                    'color-mix(in srgb, var(--fs-gold) 48%, transparent)',
-                }}
-              >
-                <Plus className="w-4 h-4 shrink-0" />
-                <span>اقترح إضافة فرع أو قريب</span>
-              </button>
-            )}
           </div>
         </div>
       </div>

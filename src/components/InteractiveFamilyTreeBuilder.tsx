@@ -110,6 +110,12 @@ import {
   resolveNodeQuickActionPolicy,
 } from '../utils/familyTreeLayout';
 import {
+  FAMILY_TREE_SYNC_EVENT,
+  StagingParentLinkPatch,
+  StagingProposedTreeNode,
+  extractStagingDiffFromTree,
+} from '../utils/enrichmentStagingUtils';
+import {
   DEFAULT_TREE_DISPLAY_SETTINGS,
   JUTHORI_SHARED_VISUAL_SYNC_EVENT,
   SharedVisualSyncEventDetail,
@@ -241,6 +247,23 @@ export interface PublicTreeMirrorConfig {
   theaterMode?: boolean;
   /** Optional visitor CTA to suggest adding a branch or relative */
   onProposeEnrichment?: () => void;
+  /** Interactive Staging Sandbox Mode for proposing new branches/relatives without mutating owner's live tree */
+  proposalSandbox?: {
+    active: boolean;
+    baseSnapshotIds: string[];
+    resetNonce?: number;
+    onStagingChange?: (payload: {
+      baseSnapshotIds: string[];
+      proposedNodes: StagingProposedTreeNode[];
+      parentLinkPatches: StagingParentLinkPatch[];
+    }) => void;
+  };
+  /** Visual Diff Review Mode in «مجتمعي» (dims existing baseline nodes, highlights proposed nodes in emerald + auto-centers) */
+  visualDiff?: {
+    active: boolean;
+    highlightedNewIds: string[];
+    focusOnMount?: boolean;
+  };
 }
 
 interface InteractiveFamilyTreeBuilderProps {
@@ -380,6 +403,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   publicMirrorMode,
 }) => {
   const isPublicMirror = Boolean(publicMirrorMode);
+  const isProposalSandboxMode = Boolean(
+    publicMirrorMode?.proposalSandbox?.active
+  );
+  const isVisualDiffMode = Boolean(publicMirrorMode?.visualDiff?.active);
+  const canAddInCurrentMode = !isPublicMirror || isProposalSandboxMode;
   const effectiveMaxTreeMembers = (caps.maxTreeMembers || 250) + extraTreeCapacity;
   const formatSavedDateTime = (d: Date) =>
     d.toLocaleString('ar-SA', {
@@ -672,11 +700,85 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       : buildInitialTree();
   });
 
-  // In read-only public mirror mode, keep people synced strictly with incoming sanitized members
+  const baseSnapshotIdSet = useMemo(() => {
+    if (!publicMirrorMode?.proposalSandbox?.active) return new Set<string>();
+    const ids =
+      publicMirrorMode.proposalSandbox.baseSnapshotIds &&
+      publicMirrorMode.proposalSandbox.baseSnapshotIds.length > 0
+        ? publicMirrorMode.proposalSandbox.baseSnapshotIds
+        : publicMirrorMode.members.map((m) => m.id);
+    return new Set(ids);
+  }, [
+    publicMirrorMode?.proposalSandbox?.active,
+    publicMirrorMode?.proposalSandbox?.baseSnapshotIds,
+    publicMirrorMode?.members,
+  ]);
+
+  const visualDiffHighlightedSet = useMemo(() => {
+    if (!publicMirrorMode?.visualDiff?.active) return new Set<string>();
+    return new Set(publicMirrorMode.visualDiff.highlightedNewIds || []);
+  }, [
+    publicMirrorMode?.visualDiff?.active,
+    publicMirrorMode?.visualDiff?.highlightedNewIds,
+  ]);
+
+  const highlightedNewIdSet = useMemo(() => {
+    if (isVisualDiffMode) return visualDiffHighlightedSet;
+    if (isProposalSandboxMode) {
+      const next = new Set<string>();
+      for (const p of people) {
+        if (!baseSnapshotIdSet.has(p.id)) {
+          next.add(p.id);
+        }
+      }
+      return next;
+    }
+    return new Set<string>();
+  }, [
+    isVisualDiffMode,
+    visualDiffHighlightedSet,
+    isProposalSandboxMode,
+    people,
+    baseSnapshotIdSet,
+  ]);
+
+  const lastSandboxResetKeyRef = useRef<string>('');
+  const onStagingChangeRef = useRef(
+    publicMirrorMode?.proposalSandbox?.onStagingChange
+  );
+  onStagingChangeRef.current =
+    publicMirrorMode?.proposalSandbox?.onStagingChange;
+
+  // In public mirror / visual diff mode, keep people synced strictly with incoming members;
+  // in proposalSandbox mode, reset ONLY when toggling sandbox on/off or when resetNonce changes.
   useEffect(() => {
     if (!publicMirrorMode) return;
+    if (publicMirrorMode.proposalSandbox?.active) {
+      const resetKey = `sandbox:${publicMirrorMode.proposalSandbox.resetNonce ?? 0}:${publicMirrorMode.members.length}`;
+      if (lastSandboxResetKeyRef.current !== resetKey) {
+        lastSandboxResetKeyRef.current = resetKey;
+        setPeople(publicMirrorMode.members);
+      }
+      return;
+    }
+    lastSandboxResetKeyRef.current = '';
     setPeople(publicMirrorMode.members);
-  }, [publicMirrorMode]);
+  }, [
+    publicMirrorMode?.members,
+    publicMirrorMode?.proposalSandbox?.active,
+    publicMirrorMode?.proposalSandbox?.resetNonce,
+  ]);
+
+  // Report staging diff to Theater parent whenever contributor adds/edits/removes proposed nodes
+  useEffect(() => {
+    if (!publicMirrorMode?.proposalSandbox?.active) return;
+    const diff = extractStagingDiffFromTree(publicMirrorMode.members, people);
+    onStagingChangeRef.current?.(diff);
+  }, [
+    people,
+    publicMirrorMode?.members,
+    publicMirrorMode?.proposalSandbox?.active,
+  ]);
 
   const isTreeHydratedRef = useRef<boolean>(false);
   const skipNextAutoSaveRef = useRef<boolean>(false);
@@ -749,8 +851,30 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     };
 
     hydrateTree();
+    const handleLiveTreeMerged = (ev: Event) => {
+      const detail = (
+        ev as CustomEvent<{
+          ownerId?: string;
+          mergedTree?: InteractiveTreePerson[];
+        }>
+      ).detail;
+      if (
+        active &&
+        detail &&
+        Array.isArray(detail.mergedTree) &&
+        detail.mergedTree.length > 0 &&
+        (!detail.ownerId || !userId || detail.ownerId === userId)
+      ) {
+        skipNextAutoSaveRef.current = true;
+        setPeople(sanitizeHydratedTreeNodes(detail.mergedTree));
+        setTreeSaveState('saved');
+        setLastSavedLabel(formatSavedDateTime(new Date()));
+      }
+    };
+    window.addEventListener(FAMILY_TREE_SYNC_EVENT, handleLiveTreeMerged);
     return () => {
       active = false;
+      window.removeEventListener(FAMILY_TREE_SYNC_EVENT, handleLiveTreeMerged);
     };
   }, [isPublicMirror, userId, userEmail, result.familyName]);
 
@@ -1258,6 +1382,33 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       }
     }, 90);
   };
+
+  // Auto-center & spotlight the newly proposed branch when opening Visual Diff Review in «مجتمعي»
+  const lastFocusedDiffKeyRef = useRef<string>('');
+  useEffect(() => {
+    if (
+      !isVisualDiffMode ||
+      publicMirrorMode?.visualDiff?.focusOnMount === false
+    ) {
+      return;
+    }
+    const ids = publicMirrorMode?.visualDiff?.highlightedNewIds || [];
+    if (ids.length === 0) return;
+    const focusKey = ids.join('|');
+    if (lastFocusedDiffKeyRef.current === focusKey) return;
+    lastFocusedDiffKeyRef.current = focusKey;
+
+    const timer = window.setTimeout(() => {
+      setIsAutoFitMode(false);
+      setZoomPercent(100);
+      handleSpotlightPerson(ids[0]);
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [
+    isVisualDiffMode,
+    publicMirrorMode?.visualDiff?.focusOnMount,
+    publicMirrorMode?.visualDiff?.highlightedNewIds,
+  ]);
 
   const handleToggleVaultItemForModalPerson = (
     itemId: string,
@@ -1960,8 +2111,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setRadialTargetNodeId(null);
     setActiveUnionQuickAddKey(null);
 
-    // 1. Strict Charter Gate: Must sign Record Keeper Charter (`ميثاق أمين السجل`) before adding ANY node!
-    if (!isRecordKeeperCharterSigned) {
+    // 1. Strict Charter Gate: Must sign Record Keeper Charter (`ميثاق أمين السجل`) before adding ANY node (bypassed in Sandbox Proposal Mode)!
+    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
       onSignCharterAndEnableTree();
       return;
     }
@@ -2171,7 +2322,12 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setRadialTargetNodeId(null);
     setActiveUnionQuickAddKey(null);
 
-    if (!isRecordKeeperCharterSigned) {
+    // Strictly lock pre-existing baseline nodes in Proposal Sandbox Mode
+    if (isProposalSandboxMode && baseSnapshotIdSet.has(person.id)) {
+      return;
+    }
+
+    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
       onSignCharterAndEnableTree();
       return;
     }
@@ -2443,7 +2599,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const executeSavePersonModal = (keepOpenForNext: boolean) => {
     if (!modalConfig) return;
 
-    if (!isRecordKeeperCharterSigned) {
+    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
       setModalConfig(null);
       onSignCharterAndEnableTree();
       return;
@@ -2726,7 +2882,17 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     // Tier Quota Check BEFORE mutating `people` — preserves all entered form fields!
     const requiredSlots = wantsInlineNewMother ? 2 : 1;
-    if (people.length + requiredSlots > effectiveMaxTreeMembers) {
+    if (isProposalSandboxMode) {
+      const currentProposedCount = people.filter(
+        (p) => !baseSnapshotIdSet.has(p.id)
+      ).length;
+      if (currentProposedCount + requiredSlots > 50) {
+        setFormError(
+          'يمكن اقتراح حتى 50 فرداً في المقترح الواحد؛ يرجى إرسال الإضافات الحالية أولاً.'
+        );
+        return;
+      }
+    } else if (people.length + requiredSlots > effectiveMaxTreeMembers) {
       setQuotaUpgradePrompt({
         kind: 'tree_members',
         currentCount: people.length,
@@ -2936,7 +3102,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       : [newPerson];
 
     // Synchronously pre-register newly created nodes in Vault summary cache BEFORE `saveUserVaultArchive` fires `juthori:vault-updated`
-    if (typeof window !== 'undefined') {
+    if (!isProposalSandboxMode && typeof window !== 'undefined') {
       try {
         const syncKey = getTreeStorageKeyForVaultSync(userId, result.familyName);
         const preSyncedList = ensureDirectFamilyInVaultSummaries(
@@ -3138,7 +3304,10 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   // SAFE CASCADING SUBTREE DELETION WITH STRICT CONFIRMATION & VAULT CLEANUP
   // ============================================================================
   const handleDeleteNode = (person: InteractiveTreePerson) => {
-    if (!isRecordKeeperCharterSigned) {
+    if (isProposalSandboxMode && baseSnapshotIdSet.has(person.id)) {
+      return;
+    }
+    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
       onSignCharterAndEnableTree();
       return;
     }
@@ -3165,6 +3334,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setPendingDeletePrompt(null);
 
     if (person.isRecordKeeper) return;
+    if (isProposalSandboxMode && baseSnapshotIdSet.has(person.id)) return;
 
     const { allDeletedIds, descendantNodes, isProtectedSpineAncestor } =
       collectCascadeDeleteIds(people, person.id);
@@ -3225,41 +3395,43 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     setPeople(nextPeople);
 
-    // Atomically scrub ALL deleted IDs from all vault items (`linkedPersonIds`) so zero Orphaned IDs remain
-    const hadAnyVaultReferences = vaultItems.some((vi) =>
-      vi.linkedPersonIds.some((pid) => allDeletedIds.has(pid))
-    );
-    if (hadAnyVaultReferences) {
-      const cleanedVaultItems = vaultItems.map((vi) =>
+    if (!isProposalSandboxMode) {
+      // Atomically scrub ALL deleted IDs from all vault items (`linkedPersonIds`) so zero Orphaned IDs remain
+      const hadAnyVaultReferences = vaultItems.some((vi) =>
         vi.linkedPersonIds.some((pid) => allDeletedIds.has(pid))
-          ? {
-              ...vi,
-              linkedPersonIds: vi.linkedPersonIds.filter(
-                (pid) => !allDeletedIds.has(pid)
-              ),
-            }
-          : vi
       );
-      setVaultItems(cleanedVaultItems);
-      await saveUserVaultArchive(
-        userId,
-        result.familyName,
-        {
-          folders: vaultFolders,
-          items: cleanedVaultItems,
-        },
-        userEmail
-      );
-    }
+      if (hadAnyVaultReferences) {
+        const cleanedVaultItems = vaultItems.map((vi) =>
+          vi.linkedPersonIds.some((pid) => allDeletedIds.has(pid))
+            ? {
+                ...vi,
+                linkedPersonIds: vi.linkedPersonIds.filter(
+                  (pid) => !allDeletedIds.has(pid)
+                ),
+              }
+            : vi
+        );
+        setVaultItems(cleanedVaultItems);
+        await saveUserVaultArchive(
+          userId,
+          result.familyName,
+          {
+            folders: vaultFolders,
+            items: cleanedVaultItems,
+          },
+          userEmail
+        );
+      }
 
-    onLogActivity(
+      onLogActivity(
       'حذف عقدة وفروعها من شجرتي وتنظيف الروابط',
       descendantNodes.length > 0
         ? `تم حذف «${person.firstName}» و(${descendantNodes.length}) من الفروع والأبناء التابعين له بالكامل`
         : linkedDocsCount > 0
           ? `تمت إزالة «${person.firstName}» وفك ارتباطه من (${linkedDocsCount}) وثائق مع بقاء الملفات محفوظة في خزانتي`
           : `تمت إزالة «${person.firstName}» من المشجرة`
-    );
+      );
+    }
   };
 
   /**
@@ -4189,7 +4361,24 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       ? 'ring-2 ring-[#C5A059]/80 border-[#C5A059] shadow-[0_0_18px_rgba(197,160,89,0.38)]'
       : '';
 
-    const cardSurfaceClass = `${baseSemanticSurface} ${deceasedDignityClass} ${kinshipPathGlowClass} ${spotlightGlowClass} ${
+    const isProposedNewNode =
+      (isProposalSandboxMode && !baseSnapshotIdSet.has(person.id)) ||
+      (isVisualDiffMode && highlightedNewIdSet.has(person.id));
+    const isVisualDiffBaselineNode =
+      isVisualDiffMode && !highlightedNewIdSet.has(person.id);
+    const canEditThisCard =
+      !isPublicMirror ||
+      (isProposalSandboxMode && !baseSnapshotIdSet.has(person.id));
+
+    const proposedNodeGlowClass = isProposedNewNode
+      ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.34)]'
+      : '';
+
+    const visualDiffBaselineClass = isVisualDiffBaselineNode
+      ? 'opacity-40 grayscale-[50%] hover:opacity-75 transition-opacity'
+      : '';
+
+    const cardSurfaceClass = `${baseSemanticSurface} ${deceasedDignityClass} ${kinshipPathGlowClass} ${spotlightGlowClass} ${proposedNodeGlowClass} ${visualDiffBaselineClass} ${
       isVitalDimmed ? 'opacity-35 saturate-50' : ''
     }`;
 
@@ -4286,7 +4475,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const renderFloatingEditDeleteCapsule = (
       positionClass = 'absolute -top-2.5 -left-2 z-30'
     ) =>
-      isPublicMirror ? null : (
+      !canEditThisCard ? null : (
         <div
           onClick={(e) => e.stopPropagation()}
           className={`${positionClass} flex items-center gap-0.5 px-1 py-0.5 rounded-full backdrop-blur-md border shadow-xs transition-opacity duration-200 ${
@@ -4360,19 +4549,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     const renderPlusNodeButton = (
       wrapperClass = 'absolute -bottom-[11px] left-1/2 -translate-x-1/2 z-30'
     ) =>
-      !isPublicMirror && !isVerticalOnlyLink ? (
+      canAddInCurrentMode && !isVerticalOnlyLink ? (
         <div
           className={`${wrapperClass} transition-opacity duration-200 ${
-            showInteractiveControls
+            showInteractiveControls || isProposalSandboxMode
               ? 'opacity-100 pointer-events-auto'
               : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
           }`}
         >
           <button
             type="button"
+            data-testid={`tree-node-quick-add-${person.id}`}
             onClick={(e) => {
               e.stopPropagation();
-              if (!isRecordKeeperCharterSigned) {
+              if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
                 onSignCharterAndEnableTree();
                 return;
               }
@@ -4381,7 +4571,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               );
             }}
             title={
-              isRecordKeeperCharterSigned
+              isProposalSandboxMode
+                ? 'اقتراح إضافة قريب (+)'
+                : isRecordKeeperCharterSigned
                 ? 'إضافة قريب (+)'
                 : 'وقّع ميثاق أمين السجل لتفعيل الإضافة'
             }
@@ -4389,6 +4581,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-white transition-all cursor-pointer ${
               isRadialOpen
                 ? 'bg-[#252321] text-white scale-110 ring-2 ring-[#C59B43]/45'
+                : isProposalSandboxMode
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-110 ring-2 ring-emerald-400/40'
                 : `${activeTreeTheme.plusBtn} hover:scale-110`
             }`}
           >
@@ -4420,18 +4614,29 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     const needsCrownTopClearance =
       treeDisplaySettings.nodeShape === 'card' &&
-      (Boolean(topCrownLabel) || Boolean(options?.forceCrownTopClearance));
+      (Boolean(topCrownLabel) ||
+        isProposedNewNode ||
+        Boolean(options?.forceCrownTopClearance));
 
     return (
       <div
         key={person.id}
         data-testid={`tree-person-card-${person.id}`}
+        data-proposed-node={isProposedNewNode ? 'true' : undefined}
         className={`relative group overflow-visible transition-all flex flex-col items-center ${
-          needsCrownTopClearance ? 'pt-2.5' : ''
+          needsCrownTopClearance ? 'pt-3' : ''
         } ${!isVerticalOnlyLink ? 'pb-1.5' : ''} ${
-          isRadialOpen ? 'z-40' : 'z-10'
+          isRadialOpen ? 'z-40' : isProposedNewNode ? 'z-20' : 'z-10'
         }`}
       >
+        {isProposedNewNode && (
+          <div
+            data-testid={`proposed-node-badge-${person.id}`}
+            className="mb-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-display font-extrabold leading-none shadow-sm whitespace-nowrap"
+          >
+            <span>{isVisualDiffMode ? '✦ جديد' : '✦ إضافة مقترحة'}</span>
+          </div>
+        )}
         {treeDisplaySettings.nodeShape === 'circle' ? (
           /* ================================================================ */
           /* SHAPE 2: BALANCED CIRCULAR MEDALLION NODE (`دائرة`)               */
@@ -4869,7 +5074,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         {/* ================================================================== */}
         {/* RADIAL NODE QUICK-SELECTOR OVERLAY (من الجد الخامس نزولاً فقط)        */}
         {/* ================================================================== */}
-        {!isPublicMirror &&
+        {canAddInCurrentMode &&
           isRadialOpen &&
           !isVerticalOnlyLink &&
           (() => {
@@ -4932,19 +5137,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     </button>
                   </div>
 
-                  <div className="pt-2 border-t border-[#D4AF37]/18 flex items-center justify-between gap-2 text-[10.5px] text-[#6E5C4F]">
-                    <span className="leading-snug truncate">
-                      لتوثيق عائلتها ونسب المصاهرة
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => openEditPersonModal(person)}
-                      className="px-2.5 py-1 rounded-lg bg-[#F5EFE4] hover:bg-[#EFE2CE] text-[#8D4925] border border-[#D4AF37]/30 font-display font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      <span>تعديل</span>
-                    </button>
-                  </div>
+                  {canEditThisCard && (
+                    <div className="pt-2 border-t border-[#D4AF37]/18 flex items-center justify-between gap-2 text-[10.5px] text-[#6E5C4F]">
+                      <span className="leading-snug truncate">
+                        لتوثيق عائلتها ونسب المصاهرة
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openEditPersonModal(person)}
+                        className="px-2.5 py-1 rounded-lg bg-[#F5EFE4] hover:bg-[#EFE2CE] text-[#8D4925] border border-[#D4AF37]/30 font-display font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        <span>تعديل</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -5327,12 +5534,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           kinshipPathResult?.pathNodeIds.has(childId)
       );
 
+    const isProposedEdge = (childId: string) =>
+      highlightedNewIdSet.has(childId) || highlightedNewIdSet.has(person.id);
+
     // Interactive Golden Marital Ring Medallion (`💍`) with quick-add child strictly from THIS couple union
     const renderMaritalRingMedallion = (spouse: InteractiveTreePerson) => {
       const unionKey = `${person.id}::${spouse.id}`;
-      const isQuickOpen = !isPublicMirror && activeUnionQuickAddKey === unionKey;
+      const isQuickOpen =
+        canAddInCurrentMode && activeUnionQuickAddKey === unionKey;
       const canAddFromUnion =
-        !isPublicMirror && !isVerticalOnlyZone && person.gender === 'male';
+        canAddInCurrentMode && !isVerticalOnlyZone && person.gender === 'male';
       return (
         <div className="relative flex items-center justify-center z-30">
           <button
@@ -5583,17 +5794,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
       if (clusterChildren.length === 1) {
         const onlyChild = clusterChildren[0];
+        const edgeProposed = isProposedEdge(onlyChild.person.id);
         const edgeHighlighted =
           isKinshipEdge(onlyChild.person.id) ||
           (treeDisplaySettings.highlightDirectCompass &&
             directCompassIds.has(onlyChild.person.id));
-        const stemColorClass = edgeHighlighted
+        const stemColorClass = edgeProposed
+          ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.65)]'
+          : edgeHighlighted
           ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
           : isGoldUnionStem
-          ? 'bg-[#C5A059]'
+          ? `bg-[#C5A059] ${isVisualDiffMode ? 'opacity-40' : ''}`
           : onlyChild.isDirectSpineEdge
-          ? activeTreeTheme.connectorStrong
-          : activeTreeTheme.connectorSoft;
+          ? `${activeTreeTheme.connectorStrong} ${isVisualDiffMode ? 'opacity-40' : ''}`
+          : `${activeTreeTheme.connectorSoft} ${isVisualDiffMode ? 'opacity-40' : ''}`;
 
         return (
           <div
@@ -5675,6 +5889,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 const childKinshipWord =
                   childNode.person.gender === 'female' ? 'بنت' : 'بن';
                 const childOnKinship = isKinshipEdge(childNode.person.id);
+                const childOnProposed = isProposedEdge(childNode.person.id);
                 const extendStemToMatchCrownedSibling =
                   anySiblingHasCrown && !doesSiblingRowHaveCrown(childNode);
 
@@ -5691,11 +5906,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     >
                     <div
                       className={`absolute top-0 h-[2px] ${
-                        childOnKinship
+                        childOnProposed
+                          ? 'bg-emerald-500'
+                          : childOnKinship
                           ? 'bg-[#D4AF37]'
                           : isGoldUnionStem
-                          ? 'bg-[#C5A059]/90'
-                          : activeTreeTheme.connectorSoft
+                          ? `bg-[#C5A059]/90 ${isVisualDiffMode ? 'opacity-40' : ''}`
+                          : `${activeTreeTheme.connectorSoft} ${isVisualDiffMode ? 'opacity-40' : ''}`
                       } ${
                         isFirst
                           ? 'start-[calc(50%-1px)] end-0'
@@ -5706,13 +5923,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     />
                     <div
                       className={`w-[2px] flex-1 ${
-                        childOnKinship
+                        childOnProposed
+                          ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.65)]'
+                          : childOnKinship
                           ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.75)]'
                           : isGoldUnionStem
-                          ? 'bg-[#C5A059]'
+                          ? `bg-[#C5A059] ${isVisualDiffMode ? 'opacity-40' : ''}`
                           : childNode.isDirectSpineEdge
-                          ? activeTreeTheme.connectorStrong
-                          : activeTreeTheme.connectorSoft
+                          ? `${activeTreeTheme.connectorStrong} ${isVisualDiffMode ? 'opacity-40' : ''}`
+                          : `${activeTreeTheme.connectorSoft} ${isVisualDiffMode ? 'opacity-40' : ''}`
                       }`}
                     />
                     {treeDisplaySettings.showKinshipArrows && (
@@ -6667,7 +6886,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 isDarkSurface={activeTreeTheme.isDarkSurface}
               />
 
-              {publicMirrorMode?.onProposeEnrichment && (
+              {publicMirrorMode?.onProposeEnrichment &&
+                !isProposalSandboxMode &&
+                !isVisualDiffMode && (
                 <button
                   type="button"
                   data-testid="public-mirror-propose-branch-btn"
@@ -7284,7 +7505,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {/* ==================================================================== */}
       {depthLockPrompt && (
         <div
-          className="fixed inset-0 z-50 bg-[#252321]/60 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-[90] bg-[#252321]/60 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >
@@ -8224,7 +8445,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {pendingDeletePrompt && (
         <div
           data-testid="gentle-delete-node-modal"
-          className="fixed inset-0 z-[75] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-[90] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >

@@ -40,6 +40,8 @@ interface MySiteLinkPrivacyPanelProps {
   onChangeHideLivingNamesForGuests: (next: boolean) => void;
   hideLivingBirthDates: boolean;
   onChangeHideLivingBirthDates: (next: boolean) => void;
+  allowCircleMembersEnrichment: boolean;
+  onChangeAllowCircleMembersEnrichment: (next: boolean) => void;
   allowVisitorEnrichment: boolean;
   onChangeAllowVisitorEnrichment: (next: boolean) => void;
   majlisEnabled: boolean;
@@ -115,6 +117,8 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
   onChangeHideLivingNamesForGuests,
   hideLivingBirthDates,
   onChangeHideLivingBirthDates,
+  allowCircleMembersEnrichment,
+  onChangeAllowCircleMembersEnrichment,
   allowVisitorEnrichment,
   onChangeAllowVisitorEnrichment,
   majlisEnabled,
@@ -411,11 +415,26 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
           <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-xs font-display font-bold text-[#2C1E14]">
+                السماح لأفراد دائرة العائلة المعتمدين في مجتمعي باقتراح إثراء الشجرة والخزانة
+              </div>
+              <p className="text-[11px] text-[#7A5C43] mt-0.5">
+                يتيح لأعضاء دائرة العائلة ومساعد أمين السجل اقتراح إضافة فروع للشجرة أو إهداء صور للخزانة لمراجعتها
+              </p>
+            </div>
+            <ModernSwitch
+              checked={allowCircleMembersEnrichment}
+              onChange={onChangeAllowCircleMembersEnrichment}
+              ariaLabel="السماح لأفراد دائرة العائلة المعتمدين في مجتمعي باقتراح إثراء الشجرة والخزانة"
+            />
+          </div>
+
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs font-display font-bold text-[#2C1E14]">
                 السماح للزوار باقتراح إثراء الشجرة والخزانة
               </div>
               <p className="text-[11px] text-[#7A5C43] mt-0.5">
-                يتيح للأقارب إرسال مقترحات أسماء أو صور تراثية تصل إليك للمراجعة
-                قبل الاعتماد
+                يتيح لعموم الزوار اقتراح إضافة فروع للشجرة أو إهداء صور للخزانة تصل إليك للمراجعة قبل الاعتماد
               </p>
             </div>
             <ModernSwitch

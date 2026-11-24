@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Mic,
   Pin,
-  PlusCircle,
   QrCode,
   Scroll,
   Send,
@@ -34,7 +33,6 @@ import {
   X,
 } from 'lucide-react';
 import {
-  EnrichmentRequestType,
   KinshipInvitationDoc,
   MajlisReactionKey,
   ModuleVisibility,
@@ -56,6 +54,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { processMediaFileForUpload } from '../utils/mediaPipeline';
+import { resolvePublicSiteEnrichmentPermission } from '../utils/enrichmentStagingUtils';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { CANONICAL_BRAND_DISPLAY_HOST } from '../config/referralAndSiteConfig';
 import {
@@ -338,22 +337,13 @@ export const PublicFamilyMicrositePage: React.FC<
   const [accessReqSent, setAccessReqSent] = useState(false);
   const [accessReqBusy, setAccessReqBusy] = useState(false);
 
-  // Enrichment Proposal Modal State
+  // Dedicated Photo/Document Vault Gift Modal State
   const [showEnrichmentModal, setShowEnrichmentModal] = useState(false);
-  const [enrType, setEnrType] =
-    useState<EnrichmentRequestType>('ADD_TREE_MEMBER');
   const [enrRequesterName, setEnrRequesterName] = useState(viewerName || '');
   const [enrRequesterEmail, setEnrRequesterEmail] = useState(
     viewerEmail || activeCircleEmail || ''
   );
   const [enrKinship, setEnrKinship] = useState(viewerKinshipRelation || '');
-  const [enrTargetPersonId, setEnrTargetPersonId] = useState('');
-  const [enrProposedFirstName, setEnrProposedFirstName] = useState('');
-  const [enrProposedGender, setEnrProposedGender] = useState<'male' | 'female'>(
-    'male'
-  );
-  const [enrProposedBirthYear, setEnrProposedBirthYear] = useState('');
-  const [enrProposedBirthPlace, setEnrProposedBirthPlace] = useState('');
   const [enrNotes, setEnrNotes] = useState('');
   const [enrMediaTitle, setEnrMediaTitle] = useState('');
   const [enrMediaOccasion, setEnrMediaOccasion] = useState('');
@@ -576,32 +566,37 @@ export const PublicFamilyMicrositePage: React.FC<
     }
   };
 
-  const isAuthorizedFamilyCircle = useMemo(() => {
-    if (isOwnerPreview || Boolean(previewData)) return true;
-    if (accessCodeUnlocked) return true;
-    if (activeInvitation?.status === 'OPTED_OUT') return false;
-    if (
-      justClaimedRelative &&
-      activeCircleEmail &&
-      justClaimedRelative.email.toLowerCase() ===
-        activeCircleEmail.trim().toLowerCase()
-    ) {
-      return true;
-    }
-    if (!siteData || !activeCircleEmail) return false;
-    const list = (siteData.whitelistedEmails || []).map((e) =>
-      e.trim().toLowerCase()
-    );
-    return list.includes(activeCircleEmail.trim().toLowerCase());
-  }, [
-    isOwnerPreview,
-    previewData,
-    accessCodeUnlocked,
-    siteData,
-    activeCircleEmail,
-    activeInvitation,
-    justClaimedRelative,
-  ]);
+  const enrichmentPermission = useMemo(
+    () =>
+      resolvePublicSiteEnrichmentPermission({
+        privacyConfig: siteData?.privacyConfig,
+        siteOwnerId: siteData?.ownerId,
+        whitelistedEmails: siteData?.whitelistedEmails,
+        whitelistedUids: siteData?.whitelistedUids,
+        whitelistedMemberMeta: siteData?.whitelistedMemberMeta,
+        viewerUid: auth.currentUser?.uid,
+        viewerEmail:
+          activeCircleEmail || viewerEmail || auth.currentUser?.email || '',
+        isOwnerPreview: isOwnerPreview || Boolean(previewData),
+        accessCodeUnlocked,
+        activeInvitationStatus: activeInvitation?.status,
+        activeInvitationEmail: activeInvitation?.invitedEmail,
+        justClaimedEmail: justClaimedRelative?.email,
+      }),
+    [
+      siteData,
+      activeCircleEmail,
+      viewerEmail,
+      authSyncKey,
+      isOwnerPreview,
+      previewData,
+      accessCodeUnlocked,
+      activeInvitation,
+      justClaimedRelative,
+    ]
+  );
+
+  const isAuthorizedFamilyCircle = enrichmentPermission.isCircleMember;
 
   const canRenderVisibility = (vis?: ModuleVisibility): boolean => {
     const effective = vis || 'PUBLIC';
@@ -677,38 +672,35 @@ export const PublicFamilyMicrositePage: React.FC<
 
   const handleSubmitEnrichment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!siteData || !enrRequesterName.trim()) return;
+    if (!siteData || !enrRequesterName.trim() || !enrMediaTitle.trim()) return;
     setEnrSubmitting(true);
     try {
-      const targetNode = (siteData.publishedTreeMembers || []).find(
-        (m) => m.id === enrTargetPersonId
-      );
       await submitTreeEnrichmentRequest({
         siteSlug: siteData.siteSlug,
         ownerId: siteData.ownerId,
         familyName: siteData.familyName,
-        requesterName: enrRequesterName,
-        requesterEmail: enrRequesterEmail || activeCircleEmail,
-        kinshipRelation: enrKinship,
-        requestType: enrType,
-        targetPersonId: enrTargetPersonId || undefined,
-        targetPersonName: targetNode?.displayName,
-        proposedFirstName: enrProposedFirstName,
-        proposedGender: enrProposedGender,
-        proposedBirthYear: enrProposedBirthYear,
-        proposedBirthPlace: enrProposedBirthPlace,
-        proposedNotes: enrNotes,
-        mediaTitle: enrMediaTitle,
-        mediaDateOrOccasion: enrMediaOccasion,
+        requesterName: enrRequesterName.trim(),
+        requesterEmail:
+          enrRequesterEmail ||
+          activeCircleEmail ||
+          auth.currentUser?.email ||
+          undefined,
+        requesterRoleLabel: enrichmentPermission.viewerRoleLabel,
+        kinshipRelation: enrKinship.trim() || undefined,
+        requestType: 'VAULT_MEDIA',
+        proposalMode: 'VAULT_GIFT',
+        proposedNotes: enrNotes.trim() || undefined,
+        mediaTitle: enrMediaTitle.trim(),
+        mediaDateOrOccasion: enrMediaOccasion.trim() || undefined,
         mediaDataOrUrl: enrMediaDataUrl || undefined,
         mediaType: 'photo',
       });
       setEnrSuccessMessage(
-        'تم رفع مقترح الإثراء إلى صندوق أمين سجل العائلة بنجاح! سيظهر تلقائياً في البوابة فور اعتماده ✦'
+        'تم إرسال إهداء الصورة/الوثيقة إلى صندوق أمين سجل العائلة بنجاح! ستظهر في معرض الخزانة فور اعتمادها ✦'
       );
-      setEnrProposedFirstName('');
       setEnrNotes('');
       setEnrMediaTitle('');
+      setEnrMediaOccasion('');
       setEnrMediaDataUrl('');
     } finally {
       setEnrSubmitting(false);
@@ -1037,8 +1029,7 @@ export const PublicFamilyMicrositePage: React.FC<
   const treeMembers = siteData.publishedTreeMembers || [];
   const vaultItems = siteData.publishedVaultItems || [];
   const guardians = siteData.guardiansOfMemory || [];
-  const canProposeEnrichment =
-    siteData.privacyConfig.allowVisitorEnrichment !== false;
+  const canProposeEnrichment = enrichmentPermission.canProposeEnrichment;
 
   const sectionReadiness: Record<
     PortalSectionKey,
@@ -2600,15 +2591,28 @@ export const PublicFamilyMicrositePage: React.FC<
                   isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
                   compactPreview={compactPreview}
                   velvetBandMode
-                  onProposeEnrichment={
-                    canProposeEnrichment
-                      ? () => {
-                          setEnrType('ADD_TREE_MEMBER');
-                          setEnrSuccessMessage(null);
-                          setShowEnrichmentModal(true);
-                        }
-                      : undefined
+                  canProposeEnrichment={canProposeEnrichment}
+                  siteSlug={siteData.siteSlug}
+                  ownerId={siteData.ownerId}
+                  viewerDefaultName={
+                    viewerName ||
+                    enrichmentPermission.matchedCircleMember?.name ||
+                    activeInvitation?.relativeName ||
+                    ''
                   }
+                  viewerDefaultEmail={
+                    activeCircleEmail ||
+                    viewerEmail ||
+                    auth.currentUser?.email ||
+                    ''
+                  }
+                  viewerDefaultKinship={
+                    viewerKinshipRelation ||
+                    enrichmentPermission.matchedCircleMember?.kinshipRelation ||
+                    activeInvitation?.kinshipRelation ||
+                    ''
+                  }
+                  viewerRoleLabel={enrichmentPermission.viewerRoleLabel}
                 />
               </div>
             </FullBleedVelvetBand>
@@ -2631,8 +2635,8 @@ export const PublicFamilyMicrositePage: React.FC<
                 !compactPreview && canProposeEnrichment ? (
                   <button
                     type="button"
+                    data-testid="open-vault-gift-modal-btn"
                     onClick={() => {
-                      setEnrType('VAULT_MEDIA');
                       setEnrSuccessMessage(null);
                       setShowEnrichmentModal(true);
                     }}
@@ -3786,36 +3790,24 @@ export const PublicFamilyMicrositePage: React.FC<
             </nav>
           )}
 
-          {/* Left: Pure Family Header Actions (Share/QR + Propose Enrichment) */}
+          {/* Left: Pure Family Header Action (Share Diwan Only — Enrichment strictly in Tree Theater & Vault) */}
           <div className="flex items-center gap-2 shrink-0">
             {!compactPreview && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowQrModal(true)}
-                  className="h-9 px-3 rounded-xl fs-surface border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-2xs transition-opacity"
-                  style={{
-                    borderColor:
-                      'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                  }}
-                >
-                  <QrCode className="w-3.5 h-3.5 fs-accent-text" />
-                  <span className="hidden sm:inline">مشاركة وQR</span>
-                </button>
-                {canProposeEnrichment && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEnrSuccessMessage(null);
-                      setShowEnrichmentModal(true);
-                    }}
-                    className="h-9 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-xs transition-opacity"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">اقتراح إثراء</span>
-                  </button>
-                )}
-              </>
+              <button
+                type="button"
+                data-testid="public-header-share-btn"
+                onClick={() => setShowQrModal(true)}
+                className="h-9 px-3.5 rounded-xl fs-surface border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:opacity-95 whitespace-nowrap shadow-2xs transition-opacity"
+                style={{
+                  borderColor:
+                    'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                }}
+              >
+                <QrCode className="w-3.5 h-3.5 fs-accent-text" />
+                <span className="hidden sm:inline">
+                  مشاركة موقع ديوان العائلة
+                </span>
+              </button>
             )}
           </div>
         </div>
@@ -4420,19 +4412,27 @@ export const PublicFamilyMicrositePage: React.FC<
       {/* MODALS: ENRICHMENT PROPOSAL, QR CARD, INVITE CLAIM                */}
       {/* ================================================================= */}
 
-      {showEnrichmentModal && !compactPreview && (
+      {showEnrichmentModal && !compactPreview && canProposeEnrichment && (
         <div
+          data-testid="vault-gift-modal"
           className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >
           <div className="w-full max-w-lg rounded-3xl fs-surface border fs-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b fs-border pb-3">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 fs-accent-text" />
-                <h3 className="text-base font-bold fs-display-font">
-                  اقتراح إثراء لبوابة عائلة {siteData.familyName}
-                </h3>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl fs-surface-alt border fs-border flex items-center justify-center shrink-0">
+                  <Camera className="w-4 h-4 fs-accent-text" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold fs-display-font">
+                    إهداء صورة أو وثيقة لخزانة عائلة {siteData.familyName}
+                  </h3>
+                  <p className="text-[11px] fs-muted">
+                    صفتك: {enrichmentPermission.viewerRoleLabel}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -4459,31 +4459,6 @@ export const PublicFamilyMicrositePage: React.FC<
               </div>
             ) : (
               <form onSubmit={handleSubmitEnrichment} className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEnrType('ADD_TREE_MEMBER')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold cursor-pointer ${
-                      enrType === 'ADD_TREE_MEMBER'
-                        ? 'fs-accent-bg'
-                        : 'fs-surface-alt fs-border'
-                    }`}
-                  >
-                    إضافة فرد أو فرع
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEnrType('VAULT_MEDIA')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold cursor-pointer ${
-                      enrType === 'VAULT_MEDIA'
-                        ? 'fs-accent-bg'
-                        : 'fs-surface-alt fs-border'
-                    }`}
-                  >
-                    إهداء صورة للخزانة
-                  </button>
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="text"
@@ -4502,96 +4477,45 @@ export const PublicFamilyMicrositePage: React.FC<
                   />
                 </div>
 
-                {enrType === 'ADD_TREE_MEMBER' ? (
-                  <>
-                    <select
-                      value={enrTargetPersonId}
-                      onChange={(e) => setEnrTargetPersonId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
-                    >
-                      <option value="">يتبع لمن في الشجرة؟ (اختياري)</option>
-                      {treeMembers.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.displayName} ({m.relationLabel})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={enrProposedFirstName}
-                        onChange={(e) =>
-                          setEnrProposedFirstName(e.target.value)
-                        }
-                        placeholder="اسم الفرد المقترح *"
-                        className="px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
-                      />
-                      <select
-                        value={enrProposedGender}
-                        onChange={(e) =>
-                          setEnrProposedGender(
-                            e.target.value as 'male' | 'female'
-                          )
-                        }
-                        className="px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
-                      >
-                        <option value="male">ذكر</option>
-                        <option value="female">أنثى</option>
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={enrProposedBirthYear}
-                        onChange={(e) =>
-                          setEnrProposedBirthYear(e.target.value)
-                        }
-                        placeholder="سنة الميلاد (اختياري)"
-                        className="px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
-                      />
-                      <input
-                        type="text"
-                        value={enrProposedBirthPlace}
-                        onChange={(e) =>
-                          setEnrProposedBirthPlace(e.target.value)
-                        }
-                        placeholder="المدينة (اختياري)"
-                        className="px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      required
-                      value={enrMediaTitle}
-                      onChange={(e) => setEnrMediaTitle(e.target.value)}
-                      placeholder="عنوان الصورة أو الوثيقة *"
-                      className="w-full px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
+                <input
+                  type="text"
+                  required
+                  value={enrMediaTitle}
+                  onChange={(e) => setEnrMediaTitle(e.target.value)}
+                  placeholder="عنوان الصورة أو الوثيقة *"
+                  className="w-full px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
+                />
+                <input
+                  type="text"
+                  value={enrMediaOccasion}
+                  onChange={(e) => setEnrMediaOccasion(e.target.value)}
+                  placeholder="السنة أو المناسبة (اختياري)"
+                  className="w-full px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
+                />
+                <div className="rounded-xl fs-surface-alt border border-dashed fs-border p-3 space-y-2">
+                  <label className="block text-[11px] font-bold fs-muted">
+                    ارفق الصورة أو الوثيقة التاريخية
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEnrichmentMediaUpload}
+                    className="w-full text-xs"
+                  />
+                  {enrMediaDataUrl && (
+                    <img
+                      src={enrMediaDataUrl}
+                      alt={enrMediaTitle || 'معاينة الصورة المرفقة'}
+                      className="h-28 w-auto rounded-xl object-cover border fs-border"
                     />
-                    <input
-                      type="text"
-                      value={enrMediaOccasion}
-                      onChange={(e) => setEnrMediaOccasion(e.target.value)}
-                      placeholder="السنة أو المناسبة"
-                      className="w-full px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
-                    />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleEnrichmentMediaUpload}
-                      className="w-full text-xs"
-                    />
-                  </>
-                )}
+                  )}
+                </div>
 
                 <textarea
                   rows={2}
                   value={enrNotes}
                   onChange={(e) => setEnrNotes(e.target.value)}
-                  placeholder="ملاحظات إضافية لأمين السجل..."
+                  placeholder="نبذة عن الصورة أو ملاحظات لأمين السجل..."
                   className="w-full px-3 py-2 rounded-xl fs-surface-alt border fs-border text-xs"
                 />
 
@@ -4601,8 +4525,8 @@ export const PublicFamilyMicrositePage: React.FC<
                   className="w-full py-2.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer disabled:opacity-60"
                 >
                   {enrSubmitting
-                    ? 'جاري إرسال المقترح...'
-                    : 'رفع المقترح لاعتماد أمين السجل'}
+                    ? 'جاري إرسال الإهداء...'
+                    : 'إرسال الصورة لاعتماد أمين السجل ✦'}
                 </button>
               </form>
             )}

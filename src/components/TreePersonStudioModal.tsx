@@ -500,7 +500,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#2A221B]/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-[90] bg-[#2A221B]/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label={bindingHeadline}

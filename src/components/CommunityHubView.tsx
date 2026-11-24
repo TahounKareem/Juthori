@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Archive,
   ArrowUpLeft,
@@ -9,7 +10,9 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  Eye,
   FileImage,
+  GitBranch,
   Globe,
   Inbox,
   Link2,
@@ -40,6 +43,7 @@ import {
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
+  DashboardStateMode,
   DashboardTab,
   LineageSearchResult,
 } from '../types/juthori';
@@ -83,6 +87,38 @@ import {
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { CommunityAmbassadorPass } from './CommunityAmbassadorPass';
 import { CommunityKinshipEventsView } from './CommunityKinshipEventsView';
+import {
+  ArabicHonorificTitle,
+  InteractiveFamilyTreeBuilder,
+  InteractiveTreePerson,
+} from './InteractiveFamilyTreeBuilder';
+import { mergeStagingTreeProposalIntoAuthoritativeTree } from '../utils/enrichmentStagingUtils';
+import {
+  TreePrestigeBadgeId,
+  normalizeTreeDisplaySettings,
+} from '../utils/treeStudioConfig';
+
+const DIFF_NOOP_VOID = () => {};
+const DIFF_NOOP_LOG = (_action: string, _detail: string) => {};
+
+const DIFF_PREVIEW_CAPS: DashboardAccessCapabilities = {
+  isVip: true,
+  isMatched: false,
+  isRootUnlocked: false,
+  areUpperAncestorsUnlocked: false,
+  showFifthBridgeNode: false,
+  arePremiumTabsUnlocked: true,
+  canAccessTreeDirectly: true,
+  requiresCharterUpgradeForTree: false,
+  tierHeaderTitle: 'معاينة الفروقات البصرية للشجرة',
+  membershipTierKey: 'annual_vip',
+  maxTreeMembers: 5000,
+  maxVaultDocuments: null,
+  canPublishPublicSite: false,
+  canInviteFamilyContributors: false,
+  hasRegistrarBadge: true,
+  hasPriorityResearchObservatory: false,
+};
 
 interface CommunityHubViewProps {
   result: LineageSearchResult;
@@ -279,6 +315,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     useState<EnrichmentFilterId>('ALL');
   const [showReviewedHistory, setShowReviewedHistory] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [visualDiffReviewRequest, setVisualDiffReviewRequest] =
+    useState<TreeEnrichmentRequestDoc | null>(null);
   const [questComposerOpen, setQuestComposerOpen] = useState(false);
   const [questTitle, setQuestTitle] = useState('');
   const [questPrompt, setQuestPrompt] = useState('');
@@ -286,6 +324,129 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     useState<MemoryQuestCategory>('custom');
   const [savingQuest, setSavingQuest] = useState(false);
   const [copiedQuestId, setCopiedQuestId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visualDiffReviewRequest || typeof document === 'undefined') return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setVisualDiffReviewRequest(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [visualDiffReviewRequest]);
+
+  const visualDiffPreviewData = useMemo(() => {
+    if (!visualDiffReviewRequest) return null;
+
+    const existingNodes = rawTreeMembers;
+    let proposedNodes = visualDiffReviewRequest.proposedNodes || [];
+    const parentLinkPatches = visualDiffReviewRequest.parentLinkPatches || [];
+
+    if (
+      proposedNodes.length === 0 &&
+      visualDiffReviewRequest.proposedFirstName
+    ) {
+      const targetNode = existingNodes.find(
+        (n) => n.id === visualDiffReviewRequest.targetPersonId
+      );
+      proposedNodes = [
+        {
+          id: `diff_legacy_${visualDiffReviewRequest.id}`,
+          firstName: visualDiffReviewRequest.proposedFirstName,
+          familyName: result.familyName,
+          gender: visualDiffReviewRequest.proposedGender || 'male',
+          generationLevel: targetNode
+            ? Math.max(-10, (targetNode.generationLevel || 1) - 1)
+            : 0,
+          relationToTargetLabel:
+            visualDiffReviewRequest.kinshipRelation || 'فرد مقترح',
+          fatherId:
+            visualDiffReviewRequest.targetPersonId ||
+            existingNodes.find((n) => n.isRecordKeeper)?.id,
+          spouseIds: [],
+          vitalStatus: 'living',
+          birthDateValue: visualDiffReviewRequest.proposedBirthYear || '',
+          birthPlace: visualDiffReviewRequest.proposedBirthPlace || '',
+          biography: visualDiffReviewRequest.proposedNotes,
+        },
+      ];
+    }
+
+    const { mergedTree, insertedIds } =
+      mergeStagingTreeProposalIntoAuthoritativeTree(
+        existingNodes,
+        proposedNodes,
+        parentLinkPatches,
+        result.familyName
+      );
+
+    const asOptStr = (v: unknown): string | undefined =>
+      typeof v === 'string' && v.length > 0 ? v : undefined;
+
+    const mappedMembers: InteractiveTreePerson[] = mergedTree.map((m) => ({
+      id: m.id,
+      firstName: m.firstName || 'قريب',
+      familyName: m.familyName || result.familyName,
+      epithet: asOptStr(m.epithet),
+      kunya: typeof m.kunya === 'string' ? m.kunya : '',
+      honorificTitle: (m.honorificTitle as ArabicHonorificTitle) || 'بدون',
+      prestigeBadge: m.prestigeBadge as TreePrestigeBadgeId | undefined,
+      gender: m.gender === 'female' ? 'female' : 'male',
+      generationLevel:
+        typeof m.generationLevel === 'number' ? m.generationLevel : 0,
+      isRecordKeeper: Boolean(m.isRecordKeeper),
+      isDirectSpineLineage: Boolean(m.isDirectSpineLineage),
+      relationToTargetLabel: m.relationToTargetLabel || 'فرد من العائلة',
+      fatherId: asOptStr(m.fatherId),
+      motherId: asOptStr(m.motherId),
+      siblingOfId: asOptStr(m.siblingOfId),
+      spouseIds: Array.isArray(m.spouseIds)
+        ? m.spouseIds.filter((s): s is string => typeof s === 'string')
+        : [],
+      maidenFamilyLine: asOptStr(m.maidenFamilyLine),
+      marriageAllianceNote: asOptStr(m.marriageAllianceNote),
+      vitalStatus:
+        m.vitalStatus === 'deceased' || m.vitalStatus === 'unspecified'
+          ? m.vitalStatus
+          : 'living',
+      birthPrecision:
+        m.birthPrecision === 'full_date' ||
+        m.birthPrecision === 'approximate' ||
+        m.birthPrecision === 'era'
+          ? m.birthPrecision
+          : 'year_only',
+      birthCalendar: m.birthCalendar === 'gregorian' ? 'gregorian' : 'hijri',
+      birthDateValue:
+        typeof m.birthDateValue === 'string' ? m.birthDateValue : '',
+      birthPlace: typeof m.birthPlace === 'string' ? m.birthPlace : '',
+      deathDateValue: asOptStr(m.deathDateValue),
+      deathPlace: asOptStr(m.deathPlace),
+      femalePrivacyMasked: Boolean(m.femalePrivacyMasked),
+      biography: asOptStr(m.biography),
+      photoUrl: asOptStr(m.photoUrl),
+      photoThumbnailUrl: asOptStr(m.photoThumbnailUrl),
+    }));
+
+    return {
+      mergedMembers: mappedMembers,
+      highlightedNewIds: insertedIds,
+      proposedNames: proposedNodes.map((n) => n.firstName).filter(Boolean),
+    };
+  }, [visualDiffReviewRequest, rawTreeMembers, result.familyName]);
+
+  const diffPreviewLineageResult = useMemo<LineageSearchResult>(
+    () => ({
+      ...result,
+      recommendedInitialState: DashboardStateMode.AnnualVip,
+    }),
+    [result]
+  );
 
   const showToast = (type: 'success' | 'info' | 'error', text: string) => {
     setBanner({ type, text });
@@ -758,9 +919,21 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         familyName: result.familyName,
       });
       showToast(approve ? 'success' : 'info', res.messageAr);
+      if (approve && Array.isArray(res.mergedTree)) {
+        setRawTreeMembers(res.mergedTree);
+      }
+      if (visualDiffReviewRequest?.id === req.id) {
+        setVisualDiffReviewRequest(null);
+      }
       if (approve) {
-        const refreshed = await fetchKinshipCircleForOwner(effectiveUserId);
+        const [refreshed, refreshedSite] = await Promise.all([
+          fetchKinshipCircleForOwner(effectiveUserId),
+          fetchOwnerMicrositeForCommunity(effectiveUserId, activeSiteSlug),
+        ]);
         setCircle(refreshed);
+        if (refreshedSite) {
+          setOwnerMicrosite(refreshedSite);
+        }
         onLogActivity?.(
           'اعتماد ودمج إثراء عائلي',
           `تم اعتماد مقترح (${req.requesterName}) ودمجه في سجلات العائلة`
@@ -1966,41 +2139,70 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <div className="space-y-4">
                   {/* Pending Tree / Vault / Story Enrichment Cards */}
                   {filteredPendingEnrichments.map((req) => {
-                    const typeBadge =
-                      req.requestType === 'ADD_TREE_MEMBER'
-                        ? {
-                            label: 'اقتراح إضافة فرد للشجرة',
-                            icon: TreePine,
-                            color: 'bg-emerald-900/10 text-emerald-900',
-                          }
-                        : req.requestType === 'VAULT_MEDIA'
-                        ? {
-                            label: 'إهداء صورة / وثيقة للخزانة',
-                            icon: FileImage,
-                            color: 'bg-[#D8755B]/15 text-[#8D4925]',
-                          }
-                        : {
-                            label: 'قصة / تصحيح سيرة',
-                            icon: MessageSquareHeart,
-                            color: 'bg-amber-900/10 text-[#8D4925]',
-                          };
+                    const isTreeProposal =
+                      req.requestType === 'ADD_TREE_MEMBER';
+                    const proposedNodesList = Array.isArray(req.proposedNodes)
+                      ? req.proposedNodes
+                      : [];
+                    const proposedCount =
+                      proposedNodesList.length > 0
+                        ? proposedNodesList.length
+                        : req.proposedFirstName
+                        ? 1
+                        : 0;
+                    const proposedNamesPreview =
+                      proposedNodesList.length > 0
+                        ? proposedNodesList
+                            .map((n) => n.firstName)
+                            .filter(Boolean)
+                        : req.proposedFirstName
+                        ? [req.proposedFirstName]
+                        : [];
+
+                    const typeBadge = isTreeProposal
+                      ? {
+                          label:
+                            proposedCount > 1
+                              ? `اقتراح إضافة (${proposedCount}) أفراد للشجرة`
+                              : 'اقتراح إضافة فرع أو قريب للشجرة',
+                          icon: TreePine,
+                          color: 'bg-emerald-900/10 text-emerald-900',
+                        }
+                      : req.requestType === 'VAULT_MEDIA'
+                      ? {
+                          label: 'إهداء صورة / وثيقة للخزانة',
+                          icon: FileImage,
+                          color: 'bg-[#D8755B]/15 text-[#8D4925]',
+                        }
+                      : {
+                          label: 'قصة / تصحيح سيرة',
+                          icon: MessageSquareHeart,
+                          color: 'bg-amber-900/10 text-[#8D4925]',
+                        };
                     const TypeIcon = typeBadge.icon;
 
                     return (
                       <div
                         key={req.id}
+                        data-testid={`enrichment-review-card-${req.id}`}
                         className="rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/40 p-5 space-y-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
                               <span
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-display font-bold ${typeBadge.color}`}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-display font-bold ${typeBadge.color}`}
                               >
                                 <TypeIcon className="w-3.5 h-3.5" />
                                 {typeBadge.label}
                               </span>
-                              <span className="text-[11px] text-[#252321]/55 inline-flex items-center gap-1">
+                              <span className="text-[#8D4925] font-bold">
+                                {req.requesterRoleLabel || 'قريب مساهم'}
+                              </span>
+                              <span aria-hidden="true" className="text-[#252321]/30">
+                                ·
+                              </span>
+                              <span className="text-[#252321]/60 inline-flex items-center gap-1 tabular-nums">
                                 <Clock className="w-3 h-3" />
                                 {new Date(req.createdAt).toLocaleDateString(
                                   'ar-SA',
@@ -2035,23 +2237,26 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               />
                             </div>
                           )}
-                          <div className="space-y-1.5 text-xs text-[#252321]/85 flex-1 min-w-0">
-                            {req.proposedFirstName && (
-                              <div>
-                                <span className="text-[#252321]/60">الاسم المقترح: </span>
-                                <strong className="font-display text-[#252321]">
-                                  {req.proposedFirstName}
-                                </strong>
-                                {req.proposedBirthYear && (
-                                  <span className="mr-2 text-[#8D4925]">
-                                    (مواليد {req.proposedBirthYear})
-                                  </span>
-                                )}
+                          <div className="space-y-2 text-xs text-[#252321]/85 flex-1 min-w-0">
+                            {isTreeProposal && proposedNamesPreview.length > 0 && (
+                              <div className="space-y-1">
+                                <div className="text-[#252321]/65 font-semibold">
+                                  الإضافات المقترحة ({proposedCount}{' '}
+                                  {proposedCount === 1
+                                    ? 'فرد جديد'
+                                    : 'أفراد جدد'}
+                                  ):
+                                </div>
+                                <div className="font-display font-bold text-emerald-950 leading-relaxed">
+                                  {proposedNamesPreview.join(' · ')}
+                                </div>
                               </div>
                             )}
                             {req.targetPersonName && (
                               <div>
-                                <span className="text-[#252321]/60">مرتبط بالفرد: </span>
+                                <span className="text-[#252321]/60">
+                                  نقطة الارتباط في الشجرة:{' '}
+                                </span>
                                 <strong className="font-display text-[#8D4925]">
                                   {req.targetPersonName}
                                 </strong>
@@ -2059,7 +2264,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                             )}
                             {req.mediaTitle && (
                               <div>
-                                <span className="text-[#252321]/60">عنوان الوثيقة / الصورة: </span>
+                                <span className="text-[#252321]/60">
+                                  عنوان الوثيقة / الصورة:{' '}
+                                </span>
                                 <strong className="font-display text-[#252321]">
                                   {req.mediaTitle}
                                 </strong>
@@ -2080,29 +2287,57 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
                         {/* Decisive Registrar Moderation Actions */}
                         {isRegistrar && (
-                          <div className="flex flex-wrap items-center justify-end gap-2.5">
-                            <button
-                              type="button"
-                              disabled={reviewingId === req.id}
-                              onClick={() => handleReviewEnrichment(req, false)}
-                              className="px-4 py-2 rounded-xl bg-white hover:bg-rose-950/5 border border-[#B98A78]/40 text-xs font-semibold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-                            >
-                              <XCircle className="w-3.5 h-3.5 text-[#8D4925]" />
-                              <span>أرشفة / اعتذار</span>
-                            </button>
-                            <button
-                              type="button"
-                              disabled={reviewingId === req.id}
-                              onClick={() => handleReviewEnrichment(req, true)}
-                              className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>
-                                {reviewingId === req.id
-                                  ? 'جارٍ الاعتماد والدمج...'
-                                  : 'اعتماد ودمج فوري في سجلاتي ✓'}
-                              </span>
-                            </button>
+                          <div className="flex flex-wrap items-center justify-between gap-2.5">
+                            <div>
+                              {isTreeProposal && proposedCount > 0 && (
+                                <button
+                                  type="button"
+                                  data-testid="open-visual-diff-review-btn"
+                                  onClick={() =>
+                                    setVisualDiffReviewRequest(req)
+                                  }
+                                  className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3A342E] text-[#F5DFAA] border border-[#C8A054]/50 text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>🔍 معاينة الإضافات على الشجرة</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={reviewingId === req.id}
+                                onClick={() =>
+                                  handleReviewEnrichment(req, false)
+                                }
+                                className="px-4 py-2 rounded-xl bg-white hover:bg-rose-950/5 border border-[#B98A78]/40 text-xs font-semibold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                              >
+                                <XCircle className="w-3.5 h-3.5 text-[#8D4925]" />
+                                <span>
+                                  {isTreeProposal
+                                    ? '✕ رفض المقترح'
+                                    : 'أرشفة / اعتذار'}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={reviewingId === req.id}
+                                onClick={() =>
+                                  handleReviewEnrichment(req, true)
+                                }
+                                className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>
+                                  {reviewingId === req.id
+                                    ? 'جارٍ الاعتماد والدمج...'
+                                    : isTreeProposal
+                                    ? '✓ اعتماد ودمج الإضافات في شجرتي'
+                                    : 'اعتماد ودمج فوري في سجلاتي ✓'}
+                                </span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2242,6 +2477,128 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         registrarName={ownerDisplayName}
         referralCode={referralStats.referralCode}
       />
+
+      {/* Fullscreen Visual Diff Tree Review Modal (معاينة الفروقات البصرية قبل الدمج) */}
+      {visualDiffReviewRequest &&
+        visualDiffPreviewData &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            data-testid="visual-diff-tree-review-modal"
+            aria-label="معاينة الإضافات المقترحة على شجرة العائلة"
+            className="fixed inset-0 z-[80] flex flex-col bg-[#F7F1E4] text-[#231E1A]"
+          >
+            {/* Visual Diff Top Bar */}
+            <header className="shrink-0 bg-[#221D19] text-[#FAF5EB] border-b border-[#C8A054]/40 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-400/60 text-emerald-300 flex items-center justify-center shrink-0">
+                  <GitBranch className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-emerald-300 tracking-wide">
+                    ✦ معاينة الفروقات البصرية قبل الاعتماد والدمج
+                  </div>
+                  <h2 className="text-sm sm:text-base font-display font-bold truncate">
+                    مقترح من {visualDiffReviewRequest.requesterName} (
+                    {visualDiffReviewRequest.requesterRoleLabel || 'قريب مساهم'}
+                    ) · {visualDiffPreviewData.highlightedNewIds.length}{' '}
+                    {visualDiffPreviewData.highlightedNewIds.length === 1
+                      ? 'فرد جديد'
+                      : 'أفراد جدد'}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={reviewingId === visualDiffReviewRequest.id}
+                  onClick={() =>
+                    handleReviewEnrichment(visualDiffReviewRequest, false)
+                  }
+                  className="h-9 px-3.5 rounded-xl bg-white/10 hover:bg-rose-900/50 border border-white/20 text-[#FAF5EB] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>✕ رفض المقترح</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={reviewingId === visualDiffReviewRequest.id}
+                  data-testid="approve-and-merge-from-diff-modal-btn"
+                  onClick={() =>
+                    handleReviewEnrichment(visualDiffReviewRequest, true)
+                  }
+                  className="h-9 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 border border-emerald-400/50 text-white text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-sm"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>
+                    {reviewingId === visualDiffReviewRequest.id
+                      ? 'جارٍ الاعتماد والدمج...'
+                      : '✓ اعتماد ودمج الإضافات في شجرتي'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisualDiffReviewRequest(null)}
+                  className="h-9 px-3.5 rounded-xl bg-[#C8A054] hover:bg-[#b58d43] text-[#1D1610] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                >
+                  <span>إغلاق</span>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </header>
+
+            {/* Visual Diff Legend Strip */}
+            <div className="shrink-0 bg-[#1B2B23] text-[#FAF5EB] border-b border-emerald-500/35 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-semibold text-[#FAF5EB]/85">
+                  البطاقات الباهتة: شجرتك الحالية المعتمدة
+                </span>
+                <span aria-hidden="true" className="opacity-40">
+                  ·
+                </span>
+                <span className="font-bold text-emerald-300">
+                  البطاقات المضيئة بالأخضر (✦ جديد): الإضافات المقترحة التي
+                  ستُدمج عند الاعتماد
+                </span>
+              </div>
+              {visualDiffPreviewData.proposedNames.length > 0 && (
+                <div className="text-[11px] font-bold text-[#E3C17C] truncate max-w-md">
+                  الجديد: {visualDiffPreviewData.proposedNames.join(' · ')}
+                </div>
+              )}
+            </div>
+
+            {/* Live Visual Diff Tree Canvas */}
+            <div className="flex-1 min-h-0 flex flex-col p-2.5 sm:p-4 overflow-hidden">
+              <InteractiveFamilyTreeBuilder
+                result={diffPreviewLineageResult}
+                accountType={AccountLegalType.RecordKeeper}
+                caps={DIFF_PREVIEW_CAPS}
+                onUpgradeAnnualVip={DIFF_NOOP_VOID}
+                onSignCharterAndEnableTree={DIFF_NOOP_VOID}
+                onLogActivity={DIFF_NOOP_LOG}
+                publicMirrorMode={{
+                  members: visualDiffPreviewData.mergedMembers,
+                  displaySettings: normalizeTreeDisplaySettings(
+                    ownerMicrosite?.treeDisplaySettings
+                  ),
+                  compactPreview: false,
+                  theaterMode: true,
+                  visualDiff: {
+                    active: true,
+                    highlightedNewIds: visualDiffPreviewData.highlightedNewIds,
+                    focusOnMount: true,
+                  },
+                }}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

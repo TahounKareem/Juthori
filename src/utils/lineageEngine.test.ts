@@ -1429,6 +1429,228 @@ test('Smart Genealogical Relationship & Maternal/Spousal Binding Engine: Wife Qu
   assert.ok(mahasenGroup!.children.some((c) => c.person.id === 'karim'));
 });
 
+test('Granular enrichment permissions, staging tree diff extraction & collision-safe merge invariants', async () => {
+  const {
+    resolvePublicSiteEnrichmentPermission,
+    extractStagingDiffFromTree,
+    mergeStagingTreeProposalIntoAuthoritativeTree,
+  } = await import('./enrichmentStagingUtils');
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+
+  const circleMeta = [
+    {
+      email: 'deputy@family.test',
+      uid: 'uid_deputy_1',
+      name: 'سلطان العارف',
+      kinshipRelation: 'شقيق',
+      role: 'assistant_registrar' as const,
+    },
+    {
+      email: 'storyteller@family.test',
+      name: 'سارة العارف',
+      kinshipRelation: 'ابنة عم',
+      role: 'memory_contributor' as const,
+    },
+  ];
+
+  // 1. Default policy: Circle members ENABLED (default: true), general visitors DISABLED (default: false)
+  const deputyRes = resolvePublicSiteEnrichmentPermission({
+    privacyConfig: {
+      allowCircleMembersEnrichment: true,
+      allowVisitorEnrichment: false,
+    },
+    siteOwnerId: 'uid_owner_1',
+    whitelistedEmails: ['deputy@family.test', 'storyteller@family.test'],
+    whitelistedUids: ['uid_deputy_1'],
+    whitelistedMemberMeta: circleMeta,
+    viewerUid: 'uid_deputy_1',
+    viewerEmail: 'deputy@family.test',
+  });
+  assert.equal(deputyRes.isCircleMember, true);
+  assert.equal(deputyRes.canProposeEnrichment, true);
+  assert.equal(deputyRes.viewerRoleLabel, 'مساعد أمين السجل');
+
+  const storytellerRes = resolvePublicSiteEnrichmentPermission({
+    privacyConfig: {}, // allowCircleMembersEnrichment defaults to true; allowVisitorEnrichment defaults to false
+    siteOwnerId: 'uid_owner_1',
+    whitelistedEmails: ['storyteller@family.test'],
+    whitelistedMemberMeta: circleMeta,
+    viewerEmail: 'STORYTELLER@family.test',
+  });
+  assert.equal(storytellerRes.isCircleMember, true);
+  assert.equal(storytellerRes.canProposeEnrichment, true);
+  assert.equal(storytellerRes.viewerRoleLabel, 'راوي ومساهم في الذاكرة');
+
+  const strangerDefaultRes = resolvePublicSiteEnrichmentPermission({
+    privacyConfig: {
+      allowCircleMembersEnrichment: true,
+      allowVisitorEnrichment: false,
+    },
+    siteOwnerId: 'uid_owner_1',
+    whitelistedEmails: ['deputy@family.test'],
+    viewerEmail: 'guest@external.test',
+  });
+  assert.equal(strangerDefaultRes.isCircleMember, false);
+  assert.equal(strangerDefaultRes.canProposeEnrichment, false);
+  assert.equal(strangerDefaultRes.viewerRoleLabel, 'قريب زائر');
+
+  // 2. General visitor allowed ONLY when allowVisitorEnrichment === true
+  const strangerAllowedRes = resolvePublicSiteEnrichmentPermission({
+    privacyConfig: {
+      allowCircleMembersEnrichment: false,
+      allowVisitorEnrichment: true,
+    },
+    siteOwnerId: 'uid_owner_1',
+    whitelistedEmails: ['deputy@family.test'],
+    viewerEmail: 'guest@external.test',
+  });
+  assert.equal(strangerAllowedRes.isCircleMember, false);
+  assert.equal(strangerAllowedRes.canProposeEnrichment, true);
+
+  // 3. Opted-out invitee is denied circle recognition
+  const optedOutRes = resolvePublicSiteEnrichmentPermission({
+    privacyConfig: {
+      allowCircleMembersEnrichment: true,
+      allowVisitorEnrichment: false,
+    },
+    siteOwnerId: 'uid_owner_1',
+    whitelistedEmails: ['deputy@family.test'],
+    viewerEmail: 'deputy@family.test',
+    activeInvitationStatus: 'OPTED_OUT',
+  });
+  assert.equal(optedOutRes.isCircleMember, false);
+  assert.equal(optedOutRes.canProposeEnrichment, false);
+
+  // 4. Staging diff extraction isolates proposed subtree + reciprocal spouse patch on base node
+  type TestStageNode = {
+    id: string;
+    firstName: string;
+    familyName: string;
+    gender: 'male' | 'female';
+    generationLevel: number;
+    isRecordKeeper?: boolean;
+    relationToTargetLabel: string;
+    fatherId?: string;
+    motherId?: string;
+    spouseIds: string[];
+    vitalStatus?: 'living' | 'deceased' | 'unspecified';
+  };
+  const baseTree: TestStageNode[] = [
+    {
+      id: 'rk_1',
+      firstName: 'أحمد',
+      familyName: 'العارف',
+      gender: 'male',
+      generationLevel: 1,
+      isRecordKeeper: true,
+      relationToTargetLabel: 'أمين السجل',
+      spouseIds: [],
+    },
+  ];
+  const stagedTree: TestStageNode[] = [
+    {
+      ...baseTree[0],
+      spouseIds: ['prop_wife_1'],
+    },
+    {
+      id: 'prop_wife_1',
+      firstName: 'فاطمة',
+      familyName: 'العارف',
+      gender: 'female',
+      generationLevel: 1,
+      relationToTargetLabel: 'زوجة أحمد',
+      spouseIds: ['rk_1'],
+      vitalStatus: 'living',
+    },
+    {
+      id: 'prop_son_1',
+      firstName: 'خالد',
+      familyName: 'العارف',
+      gender: 'male',
+      generationLevel: 0,
+      relationToTargetLabel: 'ابن أحمد',
+      fatherId: 'rk_1',
+      motherId: 'prop_wife_1',
+      spouseIds: [],
+      vitalStatus: 'living',
+    },
+    {
+      id: 'prop_grandson_1',
+      firstName: 'يوسف',
+      familyName: 'العارف',
+      gender: 'male',
+      generationLevel: -1,
+      relationToTargetLabel: 'ابن خالد',
+      fatherId: 'prop_son_1',
+      spouseIds: [],
+      vitalStatus: 'living',
+    },
+  ];
+
+  const diff = extractStagingDiffFromTree(baseTree, stagedTree);
+  assert.equal(diff.proposedNodes.length, 3);
+  assert.equal(diff.parentLinkPatches.length, 1);
+  assert.equal(diff.parentLinkPatches[0].existingNodeId, 'rk_1');
+  assert.deepEqual(diff.parentLinkPatches[0].addSpouseIds, ['prop_wife_1']);
+
+  // 5. Collision-safe merge into authoritative tree (even if an ID collides!)
+  const authoritativeTree: TestStageNode[] = [
+    {
+      id: 'rk_1',
+      firstName: 'أحمد',
+      familyName: 'العارف',
+      gender: 'male',
+      generationLevel: 1,
+      isRecordKeeper: true,
+      relationToTargetLabel: 'أمين السجل',
+      spouseIds: [],
+    },
+    {
+      // Simulate pre-existing node with colliding ID 'prop_son_1'
+      id: 'prop_son_1',
+      firstName: 'طارق',
+      familyName: 'العارف',
+      gender: 'male',
+      generationLevel: 0,
+      relationToTargetLabel: 'ابن أحمد',
+      fatherId: 'rk_1',
+      spouseIds: [],
+    },
+  ];
+
+  const merged = mergeStagingTreeProposalIntoAuthoritativeTree(
+    authoritativeTree,
+    diff.proposedNodes,
+    diff.parentLinkPatches,
+    'العارف'
+  );
+  assert.equal(merged.insertedIds.length, 3);
+  assert.equal(merged.mergedTree.length, 5);
+  // Existing colliding node 'طارق' MUST remain untouched
+  const existingTariq = merged.mergedTree.find((n) => n.id === 'prop_son_1');
+  assert.equal(existingTariq?.firstName, 'طارق');
+  // Remapped خالد and his son يوسف must stay connected!
+  const remappedKhalid = merged.mergedTree.find((n) => n.firstName === 'خالد');
+  const remappedYusuf = merged.mergedTree.find((n) => n.firstName === 'يوسف');
+  const remappedFatima = merged.mergedTree.find((n) => n.firstName === 'فاطمة');
+  assert.ok(remappedKhalid && remappedKhalid.id !== 'prop_son_1');
+  assert.equal(remappedYusuf?.fatherId, remappedKhalid?.id);
+  assert.equal(remappedKhalid?.motherId, remappedFatima?.id);
+  // Reciprocal spouse link on rk_1 must include Fatima
+  const mergedRk = merged.mergedTree.find((n) => n.id === 'rk_1');
+  assert.ok(remappedFatima && mergedRk?.spouseIds?.includes(remappedFatima.id));
+
+  // 6. Firestore rules static checks for staging proposals & visitor enrichment governance
+  const rulesText = fs.readFileSync(
+    path.resolve(process.cwd(), 'firestore.rules'),
+    'utf8'
+  );
+  assert.ok(rulesText.includes("'whitelistedUids' in data"));
+  assert.ok(rulesText.includes("'proposedNodes' in data"));
+  assert.ok(rulesText.includes("'allowVisitorEnrichment' in"));
+});
+
 
 
 
