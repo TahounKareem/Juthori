@@ -1,5 +1,6 @@
 import React from 'react';
-import { Crown, Lock, Sparkles, TreePine, Globe, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Crown, Sparkles, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 
 interface RoyalPremiumFeatureGateProps {
   feature: 'my_tree' | 'my_site';
@@ -61,11 +62,11 @@ export const RoyalPremiumFeatureGate: React.FC<RoyalPremiumFeatureGateProps> = (
           <span>ميزة حصرية لعضوية جذوري بريميوم</span>
         </div>
 
-        <div className="mx-auto w-16 h-16 rounded-2xl border border-[#D4AF37]/50 bg-[#0A2219] flex items-center justify-center shadow-lg">
+        <div className="mx-auto w-16 h-16 rounded-2xl border border-[#D8C7B2]/45 bg-[#E8DED2] flex items-center justify-center shadow-lg">
           {isTree ? (
-            <TreePine className="w-8 h-8 text-[#E8C76A]" />
+            <JUTHORI_SERVICE_ICONS.tree className="w-8 h-8 text-[#D97757]" />
           ) : (
-            <Globe className="w-8 h-8 text-[#E8C76A]" />
+            <JUTHORI_SERVICE_ICONS.site className="w-8 h-8 text-[#D97757]" />
           )}
         </div>
 
@@ -116,7 +117,7 @@ export const RoyalPremiumFeatureGate: React.FC<RoyalPremiumFeatureGateProps> = (
               onClick={onExploreCommunity}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/40 bg-white/5 px-5 py-3.5 text-sm font-bold text-[#F5EAD0] hover:bg-white/10 transition cursor-pointer whitespace-nowrap"
             >
-              <Lock className="w-4 h-4 text-[#D4AF37]" />
+              <JUTHORI_SERVICE_ICONS.community className="w-4 h-4 text-[#D97757]" />
               <span>استعراض دوائر العائلات المنضمّ إليها</span>
             </button>
           )}

@@ -184,11 +184,7 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
       <div className="relative z-10 flex items-center gap-3 min-w-0 shrink">
         <div
           aria-hidden="true"
-          className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center border shadow-sm transition-all duration-300 ${
-            iconVariant === 'obsidian'
-              ? 'bg-gradient-to-br from-[#30271E] via-[#241D16] to-[#17120D] border-[#D4AF37]/50 text-[#E8C56E] ring-1 ring-[#D4AF37]/30 ring-offset-1 ring-offset-[#FDFBF7] group-hover:border-[#E5C16A]/75 group-hover:shadow-[0_2px_12px_rgba(197,155,39,0.22)]'
-              : 'bg-gradient-to-br from-[#FBF4E6] via-[#F5ECE0] to-[#ECDEC6] border-[#D4AF37]/35 text-[#8C5327] ring-1 ring-[#D4AF37]/25 ring-offset-1 ring-offset-[#FDFBF7] group-hover:border-[#C59B27]/50 group-hover:shadow-[0_2px_10px_rgba(197,155,39,0.14)]'
-          }`}
+          className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center border border-[#D8C7B2] bg-[#E8DED2] text-[#D97757] shadow-2xs transition-colors duration-300 group-hover:border-[#D97757]/45"
         >
           {icon}
         </div>

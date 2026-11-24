@@ -52,6 +52,7 @@ import {
   WORKSPACE_PRIMARY_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
 } from './UnifiedWorkspaceHeader';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
   AncestorCapsule,
@@ -6615,7 +6616,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           {/* ==================================================================== */}
           <UnifiedWorkspaceHeader
             testId="tree-unified-header"
-            icon={<TreePine className="w-5 h-5" />}
+            icon={<JUTHORI_SERVICE_ICONS.tree className="w-5 h-5" />}
             title={`شجرة عائلة ${result.familyName}`}
             centerSlot={
               <div className="inline-flex items-center gap-1.5">

@@ -20,6 +20,7 @@ import {
   WORKSPACE_PRIMARY_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
 } from './UnifiedWorkspaceHeader';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
@@ -363,8 +364,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
       {/* Unified Workspace Header (Obsidian Gilded Icon Variant + 1-Line Meta Strip) */}
       <UnifiedWorkspaceHeader
         testId="kashafi-unified-header"
-        icon={<Compass className="w-5 h-5" />}
-        iconVariant="obsidian"
+        icon={<JUTHORI_SERVICE_ICONS.kashafi className="w-5 h-5" />}
         title={`كشّافي — مرصد عائلة ${result.familyName}`}
         metaItems={[
           'متابعة البعثات البحثية والرادار العلمي',

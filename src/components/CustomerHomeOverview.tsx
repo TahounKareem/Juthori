@@ -6,17 +6,11 @@ import {
   Check,
   CheckCircle2,
   Clock,
-  Compass,
-  FolderArchive,
-  GitBranch,
-  Globe,
-  Scroll,
   ShieldCheck,
   Sparkles,
-  TreePine,
-  Users,
   Wallet,
 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
@@ -711,8 +705,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#252321] text-[#E5C17A] flex items-center justify-center shrink-0 shadow-xs">
-                  <GitBranch className="w-4.5 h-4.5" />
+                <div className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <JUTHORI_SERVICE_ICONS.lineage className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
@@ -768,8 +762,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#2E4234] text-[#E5C17A] flex items-center justify-center shrink-0 shadow-xs">
-                  <TreePine className="w-4.5 h-4.5" />
+                <div className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <JUTHORI_SERVICE_ICONS.tree className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
@@ -822,8 +816,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF3E6] border border-[#E0CEAE] text-[#8D4925] flex items-center justify-center shrink-0">
-                  <FolderArchive className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <JUTHORI_SERVICE_ICONS.vault className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-display font-bold text-[#252321]">
                   خزانتي
@@ -866,13 +860,71 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           </button>
         </article>
 
-        {/* 4. حزمة «موقعي» (Row 2 — 3 Columns on XL / 6 on LG, Live Mini Portal Mockup) */}
+        {/* 4. حزمة «كشّافي» (Row 2 — 3 Columns on XL / 6 on LG, Warm Parchment & Antique Gold Observatory Card) */}
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#FFFDF9] via-[#FBF5E8] to-[#F4E7CE] border border-[#D6B97E]/80 text-[#252321] p-5 flex flex-col justify-between gap-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#B68A3A]">
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <JUTHORI_SERVICE_ICONS.kashafi className="w-4 h-4" />
+                </div>
+                <h2 className="text-base font-display font-bold text-[#252321] tracking-wide">
+                  كشّافي
+                </h2>
+              </div>
+              {unreadKashafiItemsCount > 0 ? (
+                <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+                  {unreadKashafiItemsCount} جديد
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-[#8D4925]/85">
+                  رادار البحوث
+                </span>
+              )}
+            </div>
+
+            {/* Live Micro-Visual: Warm Parchment & Antique Gold Radar */}
+            <KashafiRadarVisual
+              hasActiveTicket={Boolean(activeTicket)}
+              discoveriesCount={kashafiItems.length}
+              matchingCampaignsCount={matchingCampaignsCount}
+            />
+
+            <div className="space-y-1 text-xs text-[#5C5346]">
+              <div className="truncate">
+                التحقيق:{' '}
+                <strong className="text-[#252321]">
+                  {activeTicket
+                    ? `بعثة جارية (#${activeTicket.ticketNumber})`
+                    : 'لا توجد بعثة مفتوحة'}
+                </strong>
+              </div>
+              <div className="tabular-nums truncate">
+                المرصد:{' '}
+                <strong className="text-[#8D4925]">
+                  {kashafiItems.length} اكتشاف · {matchingCampaignsCount} خدمة
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F7E8C8] hover:bg-[#8D4925] text-[#7A3F1D] hover:text-white border border-[#D6B97E] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
+          >
+            <span>استكشاف كشّافي</span>
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
+          </button>
+        </article>
+
+        {/* 5. حزمة «موقعي» (Row 2 — 3 Columns on XL / 6 on LG, Live Mini Portal Mockup) */}
         <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#DDD4C7] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#8D6E48]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#F5F2EC] border border-[#DDD4C7] text-[#252321] flex items-center justify-center shrink-0">
-                  <Globe className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <JUTHORI_SERVICE_ICONS.site className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-display font-bold text-[#252321]">
                   موقعي
@@ -929,13 +981,13 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           </button>
         </article>
 
-        {/* 5. حزمة «مجتمعي» (Row 2 — 3 Columns on XL / 6 on LG, Kinship Orbit & Avatars) */}
+        {/* 6. حزمة «مجتمعي» (Row 2 — 3 Columns on XL / 6 on LG, Kinship Orbit & Avatars) */}
         <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#E2CFC2] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D8755B]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FDF1EC] border border-[#EBCBC0] text-[#D8755B] flex items-center justify-center shrink-0">
-                  <Users className="w-4 h-4" />
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <JUTHORI_SERVICE_ICONS.community className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-display font-bold text-[#252321]">
                   مجتمعي
@@ -978,64 +1030,6 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
-
-        {/* 6. حزمة «كشّافي ✦» (Row 2 — 3 Columns on XL / 6 on LG, Warm Parchment & Antique Gold Observatory Card) */}
-        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#FFFDF9] via-[#FBF5E8] to-[#F4E7CE] border border-[#D6B97E]/80 text-[#252321] p-5 flex flex-col justify-between gap-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#B68A3A]">
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FBF0D9] border border-[#DEC085] text-[#8D4925] flex items-center justify-center shrink-0">
-                  <Compass className="w-4 h-4" />
-                </div>
-                <h2 className="text-base font-display font-bold text-[#252321] tracking-wide">
-                  كشّافي <span className="text-[#B88933]">✦</span>
-                </h2>
-              </div>
-              {unreadKashafiItemsCount > 0 ? (
-                <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
-                  {unreadKashafiItemsCount} جديد
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold text-[#8D4925]/85">
-                  رادار البحوث
-                </span>
-              )}
-            </div>
-
-            {/* Live Micro-Visual: Warm Parchment & Antique Gold Radar */}
-            <KashafiRadarVisual
-              hasActiveTicket={Boolean(activeTicket)}
-              discoveriesCount={kashafiItems.length}
-              matchingCampaignsCount={matchingCampaignsCount}
-            />
-
-            <div className="space-y-1 text-xs text-[#5C5346]">
-              <div className="truncate">
-                التحقيق:{' '}
-                <strong className="text-[#252321]">
-                  {activeTicket
-                    ? `بعثة جارية (#${activeTicket.ticketNumber})`
-                    : 'لا توجد بعثة مفتوحة'}
-                </strong>
-              </div>
-              <div className="tabular-nums truncate">
-                المرصد:{' '}
-                <strong className="text-[#8D4925]">
-                  {kashafiItems.length} اكتشاف · {matchingCampaignsCount} خدمة
-                </strong>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F7E8C8] hover:bg-[#8D4925] text-[#7A3F1D] hover:text-white border border-[#D6B97E] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
-          >
-            <span>استكشاف كشّافي</span>
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
-          </button>
-        </article>
       </section>
 
       {/* ===================================================================
@@ -1057,8 +1051,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE4D4]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#FAF2E4] border border-[#DFCCA8] text-[#8D4925] flex items-center justify-center shrink-0">
-                    <Scroll className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                    <JUTHORI_SERVICE_ICONS.kashafi className="w-4 h-4" />
                   </div>
                   <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
                     نبض كشّافي الجاري

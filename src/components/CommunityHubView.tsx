@@ -40,6 +40,7 @@ import {
   WORKSPACE_PRIMARY_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
 } from './UnifiedWorkspaceHeader';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
@@ -1115,7 +1116,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       <div className="w-full space-y-5 pb-8" data-testid="community-member-view">
         <UnifiedWorkspaceHeader
           testId="community-unified-header"
-          icon={<Users className="w-5 h-5" />}
+          icon={<JUTHORI_SERVICE_ICONS.community className="w-5 h-5" />}
           title="مجتمعي ودوائر العائلة"
           metaItems={[
             'مساحة التواصل والمشاركة العائلية',
@@ -1172,7 +1173,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       ====================================================================== */}
       <UnifiedWorkspaceHeader
         testId="community-unified-header"
-        icon={<Users className="w-5 h-5" />}
+        icon={<JUTHORI_SERVICE_ICONS.community className="w-5 h-5" />}
         title={`مجتمع عائلة ${result.familyName}`}
         metaItems={[
           'مساحة عائلية مغلقة',

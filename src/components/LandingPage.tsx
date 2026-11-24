@@ -3,18 +3,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
   ChevronUp,
-  Compass,
   Database,
-  Globe,
   Languages,
   Menu,
   ShieldCheck,
   Lock,
-  GitBranch,
-  Archive,
-  Layout,
-  Search,
-  Users,
   CheckCircle2,
   Send,
   X,
@@ -22,6 +15,7 @@ import {
   RefreshCw,
   FileText,
 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResilientImage } from './ResilientImage';
 import { KnowledgeCenterView } from './KnowledgeCenterView';
@@ -96,7 +90,7 @@ const HERO_VALUE_CARDS = [
   {
     title: 'بناء الشجرة',
     description: 'تكوين وتفرع شجرة العائلة',
-    icon: GitBranch,
+    icon: JUTHORI_SERVICE_ICONS.tree,
   },
   {
     title: 'استمرارية الأجيال',
@@ -115,7 +109,7 @@ const CORE_STRENGTHS = [
     number: '01',
     title: 'أدوات الاكتشاف',
     description: 'اكتشاف حقيقي — لا نعرض تخمينات أو نتائج غير مؤكدة، بل نربط اسم عائلتك بالعقد التاريخية المثبتة.',
-    icon: Compass,
+    icon: JUTHORI_SERVICE_ICONS.kashafi,
   },
   {
     number: '02',
@@ -144,7 +138,7 @@ const PLATFORM_SERVICES_6 = [
     subtitle: 'السلسلة التاريخية المحققة',
     description:
       'مسارات النسب، الروايات المختلفة، تعارض الروايات، البحث المباشر عن مصادر، المعلومات، والمنطقة الجغرافية التاريخية.',
-    icon: GitBranch,
+    icon: JUTHORI_SERVICE_ICONS.lineage,
   },
   {
     number: '02',
@@ -152,7 +146,7 @@ const PLATFORM_SERVICES_6 = [
     subtitle: 'حصري لأمين السجل',
     description:
       'بناء شجرة بسيطة وديناميكية غير معقدة لإضافة أفراد العائلة وربطهم، مع خيارات تصدير وطباعة وتصميم الشجرة.',
-    icon: Users,
+    icon: JUTHORI_SERVICE_ICONS.tree,
   },
   {
     number: '03',
@@ -160,7 +154,7 @@ const PLATFORM_SERVICES_6 = [
     subtitle: 'أرشفة وترميم الوثائق',
     description:
       'وثّق واحفظ صور ووثائق العائلة في خزانة إلكترونية آمنة، مع محررات لترميم جودة الصور والوثائق ومزايا المشاركة.',
-    icon: Archive,
+    icon: JUTHORI_SERVICE_ICONS.vault,
   },
   {
     number: '04',
@@ -168,7 +162,7 @@ const PLATFORM_SERVICES_6 = [
     subtitle: 'بوابة رقمية مستقلة للعائلة',
     description:
       'احصل على موقع أنيق لعائلتك لنشر شجرة العائلة وكل ما يخصها مع تحكم كامل بالنشر والخصوصية بدون خبرة تقنية.',
-    icon: Layout,
+    icon: JUTHORI_SERVICE_ICONS.site,
   },
   {
     number: '05',
@@ -176,7 +170,7 @@ const PLATFORM_SERVICES_6 = [
     subtitle: 'تحديثات أرشيفية دورية',
     description:
       'اكتشاف دوري للمزيد عن عائلتك وتاريخها وشخصياتها والوثائق والروايات النسبية كلما فُهرست مخطوطات جديدة.',
-    icon: Search,
+    icon: JUTHORI_SERVICE_ICONS.kashafi,
   },
   {
     number: '06',
@@ -184,7 +178,7 @@ const PLATFORM_SERVICES_6 = [
     subtitle: 'تواصل الأرحام والباحثين',
     description:
       'تعرّف على المزيد عن أفراد وشخصيات من العائلة أو الأقارب، مع مشاركة الأبحاث والذكريات العائلية في بيئة موثوقة.',
-    icon: Globe,
+    icon: JUTHORI_SERVICE_ICONS.community,
   },
 ];
 
@@ -1108,7 +1102,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                           isHighlighted
                             ? 'bg-white/15 text-white'
-                            : 'bg-[#F7F2E9] text-[#D8755B]'
+                            : 'bg-[#E8DED2] text-[#D97757]'
                         }`}
                       >
                         <Icon className="w-5 h-5" aria-hidden="true" />

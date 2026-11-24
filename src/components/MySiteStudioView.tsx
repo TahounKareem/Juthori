@@ -29,6 +29,7 @@ import {
   WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
 } from './UnifiedWorkspaceHeader';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
@@ -1077,7 +1078,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       {/* =================================================================== */}
       <UnifiedWorkspaceHeader
         testId="mysite-unified-header"
-        icon={<Globe className="w-5 h-5" />}
+        icon={<JUTHORI_SERVICE_ICONS.site className="w-5 h-5" />}
         title={`موقع عائلة ${result.familyName}`}
         metaItems={[
           <span

@@ -6,14 +6,11 @@ import {
   Camera,
   CheckCircle2,
   ChevronDown,
-  Compass,
   CreditCard,
   Crown,
   FileSignature,
-  FolderArchive,
   Globe,
   HelpCircle,
-  Home,
   KeyRound,
   Loader2,
   Lock,
@@ -21,19 +18,18 @@ import {
   Mail,
   Phone,
   Scroll,
-  ScrollText,
   Send,
   Settings,
   ShieldAlert,
   ShieldCheck,
   ShoppingCart,
   Trash2,
-  TreePine,
   User,
   Users,
   X,
   ArrowRight,
 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import { auth } from '../services/firebase';
 import {
   buildVerifiedLineageSnapshot,
@@ -148,18 +144,18 @@ const DASHBOARD_TABS: Array<{
   premium: boolean;
   icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 }> = [
-  { id: DashboardTab.Home, label: 'الرئيسية', premium: false, icon: Home },
+  { id: DashboardTab.Home, label: 'الرئيسية', premium: false, icon: JUTHORI_SERVICE_ICONS.home },
   {
     id: DashboardTab.Lineage,
     label: 'عمود نسبي',
     premium: false,
-    icon: ScrollText,
+    icon: JUTHORI_SERVICE_ICONS.lineage,
   },
-  { id: DashboardTab.MyTree, label: 'شجرتي', premium: true, icon: TreePine },
-  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false, icon: FolderArchive },
-  { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false, icon: Compass },
-  { id: DashboardTab.MySite, label: 'موقعي', premium: true, icon: Globe },
-  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false, icon: Users },
+  { id: DashboardTab.MyTree, label: 'شجرتي', premium: true, icon: JUTHORI_SERVICE_ICONS.tree },
+  { id: DashboardTab.MyVault, label: 'خزانتي', premium: false, icon: JUTHORI_SERVICE_ICONS.vault },
+  { id: DashboardTab.MyExplorer, label: 'كشّافي', premium: false, icon: JUTHORI_SERVICE_ICONS.kashafi },
+  { id: DashboardTab.MySite, label: 'موقعي', premium: true, icon: JUTHORI_SERVICE_ICONS.site },
+  { id: DashboardTab.MyCommunity, label: 'مجتمعي', premium: false, icon: JUTHORI_SERVICE_ICONS.community },
 ];
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
@@ -2331,7 +2327,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   });
 
   const renderPrimaryNavigationTabs = (attachMobileRefs: boolean) => (
-    <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 xl:p-1 rounded-2xl bg-[#EFE8DA]/82 backdrop-blur-sm border border-[#D4AF37]/25 shadow-[inset_0_1px_2px_rgba(90,65,35,0.07)] shrink-0">
+    <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 xl:p-1 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] shrink-0">
       {DASHBOARD_TABS.map((tab) => {
         const TabIcon = tab.icon;
         const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
@@ -2343,8 +2339,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         const buttonClasses = [
           'group/tab relative px-3 py-1.5 rounded-xl text-[12.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[38px] xl:min-h-[36px] snap-center select-none border',
           isSelected
-            ? 'bg-white text-[#D97757] border-[#D97757]/25 shadow-[0_2px_10px_-3px_rgba(31,31,28,0.1)]'
-            : 'bg-transparent text-[#1F1F1C] border-transparent hover:bg-white/75 hover:text-[#1F1F1C]',
+            ? 'bg-[#E8DED2] text-[#D97757] border-[#D8C7B2] shadow-[inset_0_1px_0_rgba(255,248,238,0.45)]'
+            : 'bg-transparent text-[#1F1F1C] border-transparent hover:border-[#D8C7B2]/65 hover:bg-[#D8C7B2]/25 hover:text-[#1F1F1C]',
         ].join(' ');
 
         return (
@@ -2377,17 +2373,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {isKashafiTab && kashafiDynamicCount > 0 && (
               <span
                 data-testid="kashafi-tab-unread-badge"
-                className="px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none bg-[#D97757] text-white"
+                className="px-1.5 py-0.5 rounded-full font-mono tabular-nums text-[10px] font-extrabold leading-none bg-[#D97757] text-[#E8DED2]"
               >
                 {kashafiDynamicCount}
               </span>
-            )}
-
-            {isLocked && (
-              <Lock
-                className="w-3.5 h-3.5 text-[#D97757] shrink-0"
-                aria-label="ميزة بريميوم مقفلة"
-              />
             )}
 
             {isSelected && (

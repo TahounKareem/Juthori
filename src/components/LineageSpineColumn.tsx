@@ -24,6 +24,7 @@ import {
   WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
 } from './UnifiedWorkspaceHeader';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
   AncestorCapsule,
@@ -3277,7 +3278,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       {!isFullscreen && (
         <UnifiedWorkspaceHeader
           testId="lineage-unified-header"
-          icon={<ScrollText className="w-5 h-5" />}
+          icon={<JUTHORI_SERVICE_ICONS.lineage className="w-5 h-5" />}
           title={`عمود نسب عائلة ${effectiveResult.familyName}`}
           centerSlot={
             <LineageCanvasFloatingControls

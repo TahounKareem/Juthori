@@ -2,13 +2,11 @@ import React from 'react';
 import {
   Camera,
   Check,
-  Compass,
-  FolderArchive,
-  Globe,
   Lock,
   Sparkles,
   UserPlus,
 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   FAMILY_SITE_THEMES,
@@ -272,7 +270,7 @@ export const VaultPolaroidFanVisual: React.FC<VaultPolaroidFanVisualProps> = ({
         <div className="relative flex items-center justify-center">
           <div className="w-24 h-16 rounded-lg bg-white/80 border border-[#C8A666]/55 shadow-xs -rotate-6 -translate-x-4 transition-transform duration-300 group-hover:-rotate-12 group-hover:-translate-x-6" />
           <div className="w-24 h-16 rounded-lg bg-white/95 border border-[#D4AF6A]/75 shadow-sm absolute flex flex-col items-center justify-center gap-1 transition-transform duration-300 group-hover:scale-105">
-            <FolderArchive className="w-4.5 h-4.5 text-[#8D4925]" />
+            <JUTHORI_SERVICE_ICONS.vault className="w-4.5 h-4.5 text-[#D97757]" />
             <span className="text-[9px] font-display font-bold text-[#6E5A4C]">
               ألبوم متحفي مذهّب
             </span>
@@ -477,7 +475,7 @@ export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
           style={{ backgroundColor: theme.swatchCanvas }}
         >
           <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-[#5C5346] truncate">
-            <Globe className="w-2.5 h-2.5 shrink-0" style={{ color: theme.swatchAccent }} />
+            <JUTHORI_SERVICE_ICONS.site className="w-2.5 h-2.5 shrink-0 text-[#D97757]" />
             <span className="truncate">{theme.nameAr}</span>
           </span>
           <span
@@ -585,9 +583,9 @@ export const KashafiRadarVisual: React.FC<KashafiRadarVisualProps> = ({
       <div className="absolute w-28 h-28 rounded-full border border-[#B68A3A]/35 transition-transform duration-500 group-hover:scale-105" />
       <div className="absolute w-16 h-16 rounded-full border border-[#8D4925]/35" />
 
-      {/* Center warm bronze & gold compass emblem */}
-      <div className="relative z-10 w-11 h-11 rounded-full bg-gradient-to-br from-[#D4AF6A] to-[#9E6B2B] text-white flex items-center justify-center shadow-[0_6px_18px_rgba(158,107,43,0.32)] border border-[#F5E0B3]/70 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
-        <Compass className="w-5 h-5" />
+      {/* Center warm terracotta emblem */}
+      <div className="relative z-10 w-11 h-11 rounded-full bg-[#E8DED2] text-[#D97757] flex items-center justify-center shadow-[0_6px_18px_rgba(217,119,87,0.2)] border border-[#D8C7B2] transition-transform duration-300 group-hover:scale-105">
+        <JUTHORI_SERVICE_ICONS.kashafi className="w-5 h-5" />
       </div>
 
       {/* Bottom unobtrusive real status caption */}

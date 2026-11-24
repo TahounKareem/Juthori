@@ -33,6 +33,7 @@ import {
   WORKSPACE_PRIMARY_BTN_CLASS,
   WORKSPACE_SECONDARY_BTN_CLASS,
 } from './UnifiedWorkspaceHeader';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   DashboardAccessCapabilities,
   DashboardTab,
@@ -883,7 +884,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* =================================================================== */}
       <UnifiedWorkspaceHeader
         testId="vault-unified-header"
-        icon={<FolderArchive className="w-5 h-5" />}
+        icon={<JUTHORI_SERVICE_ICONS.vault className="w-5 h-5" />}
         title={`خزانة عائلة ${result.familyName}`}
         centerSlot={
           <div className="inline-flex items-center gap-1.5">
