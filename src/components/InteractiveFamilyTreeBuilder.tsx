@@ -749,15 +749,19 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           skipNextAutoSaveRef.current = true;
           setPeople(initialSeed);
           isTreeHydratedRef.current = true;
-          const wrote = await saveUserFamilyTreeToFirebase(
-            userId || '',
-            result.familyName,
-            initialSeed,
-            userEmail
-          );
-          if (active) {
-            setTreeSaveState(wrote ? 'saved' : 'local_only');
-            setLastSavedLabel(formatSavedDateTime(new Date()));
+          if (caps.isVip || isRecordKeeperCharterSigned) {
+            const wrote = await saveUserFamilyTreeToFirebase(
+              userId || '',
+              result.familyName,
+              initialSeed,
+              userEmail
+            );
+            if (active) {
+              setTreeSaveState(wrote ? 'saved' : 'local_only');
+              setLastSavedLabel(formatSavedDateTime(new Date()));
+            }
+          } else if (active) {
+            setTreeSaveState('local_only');
           }
         }
       } catch {
@@ -847,6 +851,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
 
     if (!isTreeHydratedRef.current || people.length === 0) {
+      return;
+    }
+
+    if (!caps.isVip && !isRecordKeeperCharterSigned) {
+      if (skipNextAutoSaveRef.current) {
+        skipNextAutoSaveRef.current = false;
+      }
       return;
     }
 
@@ -1009,13 +1020,30 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     useState(false);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const canvasContentRef = useRef<HTMLDivElement | null>(null);
+  const [isCanvasDragging, setIsCanvasDragging] = useState(false);
+  const [canvasPanOffset, setCanvasPanOffset] = useState<{
+    x: number;
+    y: number;
+  }>({ x: 0, y: 0 });
+  const canvasPanOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  canvasPanOffsetRef.current = canvasPanOffset;
   const mirrorDragPanRef = useRef<{
     active: boolean;
     startX: number;
     startY: number;
     scrollLeft: number;
     scrollTop: number;
-  }>({ active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
+    panX: number;
+    panY: number;
+  }>({
+    active: false,
+    startX: 0,
+    startY: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+    panX: 0,
+    panY: 0,
+  });
   const spotlightTimerRef = useRef<number | null>(null);
   const hasHydratedCloudSettingsRef = useRef(false);
   const skipNextVisualBroadcastRef = useRef(false);
@@ -1704,24 +1732,112 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   );
 
   const handleFitAndCenterCanvas = useCallback(() => {
+    setCanvasPanOffset({ x: 0, y: 0 });
     setIsAutoFitMode(true);
     fitAndCenterCanvas({ smooth: true, resetScrollTop: true });
   }, [fitAndCenterCanvas]);
 
   const handleManualZoomIn = useCallback(() => {
     setIsAutoFitMode(false);
-    setZoomPercent((z) => Math.min(130, z + 10));
+    setZoomPercent((z) => Math.min(200, z + 10));
   }, []);
 
   const handleManualZoomOut = useCallback(() => {
     setIsAutoFitMode(false);
-    setZoomPercent((z) => Math.max(40, z - 10));
+    setZoomPercent((z) => Math.max(35, z - 10));
   }, []);
 
   const handleManualResetZoom = useCallback(() => {
     setIsAutoFitMode(false);
+    setCanvasPanOffset({ x: 0, y: 0 });
     setZoomPercent(100);
   }, []);
+
+  // Reset pan offset cleanly when switching layout orientation
+  useEffect(() => {
+    setCanvasPanOffset({ x: 0, y: 0 });
+  }, [treeDisplaySettings.layoutOrientation]);
+
+  // Smooth Mouse-Wheel Zoom directly inside the Tree Canvas viewport
+  useEffect(() => {
+    const vp = canvasViewportRef.current;
+    if (!vp) return;
+    const handleWheelZoom = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) < 0.5) return;
+      e.preventDefault();
+      setIsAutoFitMode(false);
+      const step = Math.abs(e.deltaY) < 35 ? 4 : 8;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      setZoomPercent((prev) =>
+        Math.max(35, Math.min(200, prev + direction * step))
+      );
+    };
+    vp.addEventListener('wheel', handleWheelZoom, { passive: false });
+    return () => {
+      vp.removeEventListener('wheel', handleWheelZoom);
+    };
+  }, []);
+
+  // Window-level mousemove/mouseup tracking for buttery-smooth drag-to-pan on empty canvas areas
+  useEffect(() => {
+    if (!isCanvasDragging) return;
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const drag = mirrorDragPanRef.current;
+      const vp = canvasViewportRef.current;
+      if (!drag.active || !vp) return;
+      e.preventDefault();
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      vp.scrollLeft = drag.scrollLeft - dx;
+      vp.scrollTop = drag.scrollTop - dy;
+      const actualDx = drag.scrollLeft - vp.scrollLeft;
+      const actualDy = drag.scrollTop - vp.scrollTop;
+      const remX = dx - actualDx;
+      const remY = dy - actualDy;
+      setCanvasPanOffset({
+        x: Math.max(-900, Math.min(900, drag.panX + remX)),
+        y: Math.max(-900, Math.min(900, drag.panY + remY)),
+      });
+    };
+    const handleWindowMouseUp = () => {
+      mirrorDragPanRef.current.active = false;
+      setIsCanvasDragging(false);
+    };
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [isCanvasDragging]);
+
+  const handleTreeCanvasMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(
+          'button, input, a, select, textarea, [role="button"], [data-no-canvas-pan="true"]'
+        )
+      ) {
+        return;
+      }
+      const vp = canvasViewportRef.current;
+      if (!vp) return;
+      e.preventDefault();
+      mirrorDragPanRef.current = {
+        active: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        scrollLeft: vp.scrollLeft,
+        scrollTop: vp.scrollTop,
+        panX: canvasPanOffsetRef.current.x,
+        panY: canvasPanOffsetRef.current.y,
+      };
+      setIsCanvasDragging(true);
+    },
+    []
+  );
 
   // Always keep "احتواء وتوسيط" applied automatically on mount and whenever tree/layout/viewport changes
   useEffect(() => {
@@ -6680,36 +6796,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             }
             actions={
               <>
-                {/* Compact Share / Invite Family Icon */}
-                <WorkspaceIconTooltip label="مشاركة ودعوة العائلة">
-                  <button
-                    type="button"
-                    data-testid="invite-family-icon-btn"
-                    onClick={() => {
-                      if (!caps.isVip || !isRecordKeeperCharterSigned) {
-                        if (onRequirePremiumAction) {
-                          onRequirePremiumAction({
-                            feature: 'tree_invite',
-                            onAuthorizedContinue: () => {
-                              setCopiedInviteLink(false);
-                              setShowInviteFamilyModal(true);
-                            },
-                          });
-                        } else {
-                          onUpgradeAnnualVip();
-                        }
-                        return;
-                      }
-                      setCopiedInviteLink(false);
-                      setShowInviteFamilyModal(true);
-                    }}
-                    aria-label="مشاركة ودعوة العائلة"
-                    className={WORKSPACE_ICON_BTN_CLASS}
-                  >
-                    <UserPlus className="w-4 h-4 shrink-0" />
-                  </button>
-                </WorkspaceIconTooltip>
-
                 {/* Secondary: Kinship Calculator */}
                 <WorkspaceIconTooltip label="حاسبة صلة القرابة">
                   <button
@@ -6822,7 +6908,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors shadow-2xs"
               >
                 <FileSignature className="w-3.5 h-3.5" />
-                <span>التوقيع على ميثاق أمين السجل وتفعيل الإضافة ←</span>
+                <span>التوقيع على ميثاق أمين السجل وتفعيل الإضافة</span>
               </button>
             </div>
           )}
@@ -7098,59 +7184,19 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               fontFamily: activeTreeFont.cssFamily,
             }}
           >
-            {/* Scrollable Pedigree Viewport (Vertical, Sideways RTL, 180° Fan, 360° Radial) */}
+            {/* Scrollable & Pannable Pedigree Viewport (Vertical, Sideways RTL, 180° Fan, 360° Radial) */}
             <div
               ref={canvasViewportRef}
               dir="rtl"
-              onMouseDown={
-                isPublicMirror
-                  ? (e) => {
-                      const target = e.target as HTMLElement | null;
-                      if (target?.closest('button, input, a, select, textarea')) {
-                        return;
-                      }
-                      const vp = canvasViewportRef.current;
-                      if (!vp) return;
-                      mirrorDragPanRef.current = {
-                        active: true,
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        scrollLeft: vp.scrollLeft,
-                        scrollTop: vp.scrollTop,
-                      };
-                    }
-                  : undefined
-              }
-              onMouseMove={
-                isPublicMirror
-                  ? (e) => {
-                      const drag = mirrorDragPanRef.current;
-                      const vp = canvasViewportRef.current;
-                      if (!drag.active || !vp) return;
-                      e.preventDefault();
-                      vp.scrollLeft = drag.scrollLeft - (e.clientX - drag.startX);
-                      vp.scrollTop = drag.scrollTop - (e.clientY - drag.startY);
-                    }
-                  : undefined
-              }
-              onMouseUp={
-                isPublicMirror
-                  ? () => {
-                      mirrorDragPanRef.current.active = false;
-                    }
-                  : undefined
-              }
-              onMouseLeave={
-                isPublicMirror
-                  ? () => {
-                      mirrorDragPanRef.current.active = false;
-                    }
-                  : undefined
-              }
+              onMouseDown={handleTreeCanvasMouseDown}
               className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y ${
+                isCanvasDragging
+                  ? 'cursor-grabbing select-none'
+                  : 'cursor-grab'
+              } ${
                 isPublicMirror
-                  ? 'no-scrollbar cursor-grab active:cursor-grabbing px-4 sm:px-8 pt-10 pb-12'
-                  : 'scroll-smooth px-2 sm:px-4 pt-4 pb-24'
+                  ? 'no-scrollbar px-4 sm:px-8 pt-10 pb-12'
+                  : 'px-2 sm:px-4 pt-4 pb-24'
               } ${
                 isCinemaMode || publicMirrorMode?.theaterMode
                   ? 'min-h-0'
@@ -7159,7 +7205,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   : 'min-h-[540px]'
               }`}
             >
-              <div ref={canvasContentRef} className="w-max min-w-full">
+              <div
+                ref={canvasContentRef}
+                className="w-max min-w-full"
+                style={{
+                  transform:
+                    canvasPanOffset.x !== 0 || canvasPanOffset.y !== 0
+                      ? `translate3d(${canvasPanOffset.x}px, ${canvasPanOffset.y}px, 0)`
+                      : undefined,
+                }}
+              >
           {treeDisplaySettings.layoutOrientation === 'fan_180' ||
           treeDisplaySettings.layoutOrientation === 'radial_360' ? (
             <RadialFamilyTreeCharts
@@ -7574,7 +7629,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   }}
                   className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-extrabold cursor-pointer"
                 >
-                  فتح نقطة الربط الآن ($5) ←
+                  فتح نقطة الربط الآن ($5)
                 </button>
               ) : (
                 <button
@@ -7585,7 +7640,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   }}
                   className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-extrabold cursor-pointer"
                 >
-                  ترقية للباقة السنوية ($60) ←
+                  ترقية للباقة السنوية ($60)
                 </button>
               )}
             </div>
@@ -7768,16 +7823,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 <span className="font-display font-extrabold text-[#8D4925]">
                   السعة الحالية: {people.length} / {effectiveMaxTreeMembers} فرداً
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/40 text-[#8D4925] font-display font-bold">
-                  <Wallet className="w-3.5 h-3.5 text-[#D8755B]" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] font-display font-bold">
+                  <Wallet className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>رصيد المحفظة: ${walletBalance}</span>
                 </span>
               </div>
-              <p className="text-[11px] text-[#252321]/75">
+              <p className="text-[11px] text-[#1F1F1C]/75">
                 الحد الأقصى الأساسي للشجرة هو <strong>250 فرداً</strong>، ولإضافة أكثر من ذلك يمكنك توسيع السعة فوراً عبر إحدى الباقات التالية بخصم مباشر من رصيد محفظتك.
               </p>
               {extraTreeCapacity > 0 && (
-                <div className="text-[11px] font-bold text-emerald-700">
+                <div className="text-[11px] font-bold text-[#D97757]">
                   سعة إضافية مفعّلة لديك حالياً: +{extraTreeCapacity} فرداً
                 </div>
               )}
@@ -7785,17 +7840,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
             {capacityPurchaseFeedback && (
               <div
-                className={`rounded-2xl p-3 text-xs font-medium flex flex-col gap-2 border ${
-                  capacityPurchaseFeedback.type === 'success'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-amber-50 border-amber-300 text-amber-900'
-                }`}
+                className="rounded-2xl p-3 text-xs font-medium flex flex-col gap-2 border bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]"
               >
                 <div className="flex items-start gap-2">
                   {capacityPurchaseFeedback.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                   ) : (
-                    <Wallet className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <Wallet className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                   )}
                   <span>{capacityPurchaseFeedback.message}</span>
                 </div>
@@ -8802,7 +8853,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         }}
                         className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-extrabold cursor-pointer transition-colors"
                       >
-                        عرض وفلترة في خزانتي ←
+                        عرض وفلترة في خزانتي
                       </button>
                     )}
                     <button

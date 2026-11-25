@@ -411,7 +411,7 @@ export const CommunityKinshipEventsView: React.FC<
                 onClick={() => onNavigateTab(DashboardTab.MyTree)}
                 className="text-[11px] font-display font-bold text-[#D97757] hover:underline cursor-pointer"
               >
-                فتح شجرتي ←
+                فتح شجرتي
               </button>
             )}
           </div>

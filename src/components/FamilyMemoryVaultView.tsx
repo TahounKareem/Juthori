@@ -29,8 +29,9 @@ import {
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
-  WORKSPACE_PRIMARY_BTN_CLASS,
-  WORKSPACE_SECONDARY_BTN_CLASS,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
@@ -1064,38 +1065,49 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         }
         actions={
           <>
-            <button
-              type="button"
-              data-testid="vault-new-folder-header-btn"
-              onClick={() =>
-                triggerVaultProtectedAction('vault_create_folder', () =>
-                  setShowNewFolderModal(true)
-                )
-              }
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
-            >
-              <FolderPlus className="w-4 h-4 shrink-0" />
-              <span>+ مجلد خاص</span>
-            </button>
+            <WorkspaceIconTooltip label="إضافة مجلد خاص">
+              <button
+                type="button"
+                aria-label="إضافة مجلد خاص"
+                data-testid="vault-new-folder-header-btn"
+                onClick={() =>
+                  triggerVaultProtectedAction('vault_create_folder', () =>
+                    setShowNewFolderModal(true)
+                  )
+                }
+                className={WORKSPACE_ICON_BTN_CLASS}
+              >
+                <FolderPlus className="w-4 h-4 shrink-0" />
+              </button>
+            </WorkspaceIconTooltip>
 
-            <button
-              type="button"
-              data-testid="vault-upload-primary-btn"
-              onClick={() =>
-                triggerVaultProtectedAction('vault_upload', () =>
-                  fileInputRef.current?.click()
-                )
-              }
-              disabled={isProcessingFiles}
-              className={WORKSPACE_PRIMARY_BTN_CLASS}
-            >
-              <Plus className="w-4 h-4 shrink-0" />
-              <span>
-                {isProcessingFiles
+            <WorkspaceIconTooltip
+              label={
+                isProcessingFiles
                   ? 'جاري تجهيز الملفات...'
-                  : 'رفع صور أو وثائق'}
-              </span>
-            </button>
+                  : 'رفع صور أو وثائق'
+              }
+              align="left"
+            >
+              <button
+                type="button"
+                aria-label={
+                  isProcessingFiles
+                    ? 'جاري تجهيز الملفات...'
+                    : 'رفع صور أو وثائق'
+                }
+                data-testid="vault-upload-primary-btn"
+                onClick={() =>
+                  triggerVaultProtectedAction('vault_upload', () =>
+                    fileInputRef.current?.click()
+                  )
+                }
+                disabled={isProcessingFiles}
+                className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
+              >
+                <Upload className="w-4 h-4 shrink-0" />
+              </button>
+            </WorkspaceIconTooltip>
           </>
         }
       />
@@ -1161,7 +1173,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     onClick={onUnlockRoot5Usd}
                     className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
-                    فتح الجذر ($5) ← رفع السعة إلى 20 وثيقة
+                    فتح الجذر ($5) — رفع السعة إلى 20 وثيقة
                   </button>
                 )}
                 {caps && !caps.isVip && onUpgradeAnnualVip && (
@@ -1170,7 +1182,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     onClick={onUpgradeAnnualVip}
                     className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
-                    الباقة السنوية بريميوم ← 100 وثيقة
+                    الباقة السنوية بريميوم — 100 وثيقة
                   </button>
                 )}
                 {caps && !caps.hasRegistrarBadge && onSignCharterAndEnableTree && (
@@ -1179,7 +1191,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     onClick={onSignCharterAndEnableTree}
                     className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
-                    تفعيل أمين سجل العائلة ✦ ← سعة غير محدودة
+                    تفعيل أمين سجل العائلة ✦ — سعة غير محدودة
                   </button>
                 )}
               </div>

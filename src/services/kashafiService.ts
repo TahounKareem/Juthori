@@ -271,7 +271,7 @@ export const KASHAFI_ADMIN_BLUEPRINTS: KashafiAdminBlueprint[] = [
     defaultSegment: 'active_trees',
     executionMode: 'instant_tech',
     defaultTargetTab: DashboardTab.MyTree,
-    defaultCtaLabel: 'فتح استوديو شجرتي ←',
+    defaultCtaLabel: 'فتح استوديو شجرتي',
     eligibilityHintAr: 'أصحاب المشجرات النشطة',
   },
   {
@@ -285,7 +285,7 @@ export const KASHAFI_ADMIN_BLUEPRINTS: KashafiAdminBlueprint[] = [
     defaultSegment: 'all',
     executionMode: 'instant_tech',
     defaultTargetTab: DashboardTab.MySite,
-    defaultCtaLabel: 'الانتقال إلى إعدادات موقعي ←',
+    defaultCtaLabel: 'الانتقال إلى إعدادات موقعي',
     eligibilityHintAr: 'جميع الأعضاء المؤهلين لتفعيل بوابة العائلة',
   },
   {
@@ -299,7 +299,7 @@ export const KASHAFI_ADMIN_BLUEPRINTS: KashafiAdminBlueprint[] = [
     defaultSegment: 'all',
     executionMode: 'instant_tech',
     defaultTargetTab: DashboardTab.Lineage,
-    defaultCtaLabel: 'استعراض التفاصيل ←',
+    defaultCtaLabel: 'استعراض التفاصيل',
     eligibilityHintAr: 'إعلان عام لجميع أعضاء المنصة',
   },
 ];

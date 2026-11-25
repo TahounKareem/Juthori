@@ -12,7 +12,6 @@ import {
   Sparkles,
   UserCheck,
   X,
-  ArrowLeft,
 } from 'lucide-react';
 import {
   RECORD_KEEPER_ARTICLES,
@@ -333,7 +332,6 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
                   className="w-full sm:flex-1 py-3.5 px-6 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-sm sm:text-base font-display font-extrabold inline-flex items-center justify-center gap-2.5 shadow-lg transition-colors cursor-pointer"
                 >
                   <span>الانتقال الآن إلى صفحة «شجرتي» التفاعلية</span>
-                  <ArrowLeft className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -748,7 +746,7 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
                     className="px-6 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold inline-flex items-center gap-2 shadow-md cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>العقد موقّع — الانتقال إلى شجرتي ←</span>
+                    <span>العقد موقّع — الانتقال إلى شجرتي</span>
                   </button>
                 ) : (
                   <button

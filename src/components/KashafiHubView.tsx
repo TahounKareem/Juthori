@@ -5,15 +5,12 @@ import {
   ExternalLink,
   Loader2,
   BookOpen,
-  Wallet,
   X,
-  ArrowLeft,
   Clock,
   Check,
   Sparkles,
   FileCheck2,
   AlertCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { UnifiedWorkspaceHeader } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
@@ -362,24 +359,6 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
         testId="kashafi-unified-header"
         icon={<JUTHORI_SERVICE_ICONS.kashafi className="w-5 h-5" />}
         title={`كشّافي — مرصد عائلة ${result.familyName}`}
-        metaItems={[
-          'متابعة البعثات البحثية والرادار العلمي',
-          <span key="missions" className="tabular-nums">
-            البعثات الجارية:{' '}
-            <strong className="font-semibold text-[#1F1F1C]">
-              {activeMissionsCount}
-            </strong>
-          </span>,
-          <span key="wallet" className="inline-flex items-center gap-1">
-            <span>رصيد المحفظة:</span>
-            <strong
-              dir="ltr"
-              className="font-mono font-semibold tabular-nums text-[#1F1F1C]"
-            >
-              ${walletBalance.toFixed(2)}
-            </strong>
-          </span>,
-        ]}
       />
 
       {orderSuccessToast && (
@@ -726,12 +705,15 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                         className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
                       >
                         <span>
-                          {cmp.ctaLabel ||
+                          {(
+                            cmp.ctaLabel ||
                             (cmp.executionMode === 'research_execution'
                               ? 'طلب الخدمة الآن'
-                              : 'الانتقال للتفعيل')}
+                              : 'الانتقال للتفعيل')
+                          )
+                            .replace(/\s*←\s*/g, '')
+                            .trim()}
                         </span>
-                        <ArrowLeft className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -826,7 +808,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                     }}
                     className="underline font-bold text-[#D97757] cursor-pointer"
                   >
-                    فتح المحفظة لشحن الرصيد ←
+                    فتح المحفظة لشحن الرصيد
                   </button>
                 </div>
               </div>

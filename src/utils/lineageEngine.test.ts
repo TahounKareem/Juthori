@@ -445,9 +445,9 @@ test('Luxury Micro-CMS, Commercial Paywall, 4 Female Policies, Clean Root URLs &
     FAMILY_SITE_THEMES,
   } = await import('../config/referralAndSiteConfig');
 
-  // 1) 5 Scoped Themes & $10 Referral Engine Constant
+  // 1) 10 Unified Museum Themes & $10 Referral Engine Constant
   assert.equal(REFERRAL_REWARD_USD, 10);
-  assert.equal(FAMILY_SITE_THEMES.length, 5);
+  assert.equal(FAMILY_SITE_THEMES.length, 10);
   assert.ok(COMMERCIAL_LINEAGE_PAYWALL_TEASER_AR.includes('منصة جذوري'));
 
   // 2) Clean Root URL resolution (`Juthori.com/{FamilySlug}`) & protected routes

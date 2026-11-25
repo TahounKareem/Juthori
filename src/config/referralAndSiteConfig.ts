@@ -6,17 +6,18 @@
  * 4. Capability-Token Kinship Invitation & $10 Referral Engine Constants
  */
 
+import {
+  TREE_CARD_THEMES,
+  type TreeCardThemeId,
+} from '../utils/treeStudioConfig';
+
 export const REFERRAL_REWARD_USD = 10;
 export const PENDING_REFERRAL_STORAGE_KEY = 'juthori_pending_referral_code_v1';
 export const PENDING_INVITE_TOKEN_STORAGE_KEY =
   'juthori_pending_invite_token_v1';
 
-export type FamilySiteThemeId =
-  | 'golden_parchment'
-  | 'diriyah_oasis'
-  | 'andalusian_emerald'
-  | 'sultanic_burgundy'
-  | 'classical_marble';
+/** Single Source of Truth: exact 10 museum color themes shared with «شجرتي» & «عمود نسبي» */
+export type FamilySiteThemeId = TreeCardThemeId;
 
 export interface FamilySiteThemeDefinition {
   id: FamilySiteThemeId;
@@ -27,48 +28,48 @@ export interface FamilySiteThemeDefinition {
   swatchCanvas: string;
 }
 
-export const FAMILY_SITE_THEMES: ReadonlyArray<FamilySiteThemeDefinition> = [
-  {
-    id: 'golden_parchment',
-    nameAr: 'رقّ المخطوط الذهبي',
-    subtitleAr: 'هيبة تراثية دافئة مستوحاة من خزائن المخطوطات والأنساب العربية',
-    swatchHero: '#252321',
-    swatchAccent: '#D8755B',
-    swatchCanvas: '#F7F2E9',
-  },
-  {
-    id: 'diriyah_oasis',
-    nameAr: 'واحة الدرعية النجدية',
-    subtitleAr: 'طابع طيني أصيل ممزوج بأخضر النخيل ودفء المجالس العامرة',
-    swatchHero: '#2F261E',
-    swatchAccent: '#B56B3B',
-    swatchCanvas: '#F4ECE1',
-  },
-  {
-    id: 'andalusian_emerald',
-    nameAr: 'الزمرد الأندلسي',
-    subtitleAr: 'فخامة معمارية زمردية وذهبية تليق بدواوين الأسر العريقة',
-    swatchHero: '#13332A',
-    swatchAccent: '#C59B47',
-    swatchCanvas: '#F3F6F3',
-  },
-  {
-    id: 'sultanic_burgundy',
-    nameAr: 'العنّابي السلطاني',
-    subtitleAr: 'وقار ملكي بلون العنّابي المعتّق وتفاصيل النحاس المذهّب',
-    swatchHero: '#3B161E',
-    swatchAccent: '#C98A4B',
-    swatchCanvas: '#F8F2F0',
-  },
-  {
-    id: 'classical_marble',
-    nameAr: 'المرمر الكلاسيكي',
-    subtitleAr: 'فخامة رخام الترافرتين الدافئ بلمسات النحاس والذهب المعتّق',
-    swatchHero: '#1E252D',
-    swatchAccent: '#6E5438',
-    swatchCanvas: '#F6F2EA',
-  },
+const MUSEUM_THEME_ORDER: ReadonlyArray<FamilySiteThemeId> = [
+  'heritage',
+  'emerald_gold',
+  'andalusian_navy',
+  'olive_sand',
+  'royal_burgundy',
+  'royal_kiswah',
+  'pearl_bronze',
+  'papyrus_lapis',
+  'diriyah_oasis',
+  'manuscript_ink',
 ];
+
+export const FAMILY_SITE_THEMES: ReadonlyArray<FamilySiteThemeDefinition> =
+  MUSEUM_THEME_ORDER.map((id) => {
+    const t = TREE_CARD_THEMES[id];
+    return {
+      id,
+      nameAr: t.label,
+      subtitleAr: t.subtitle,
+      swatchHero: t.primaryHex,
+      swatchAccent: t.goldAccentHex,
+      swatchCanvas: t.canvasBg,
+    };
+  });
+
+const LEGACY_SITE_THEME_MAP: Record<string, FamilySiteThemeId> = {
+  golden_parchment: 'heritage',
+  diriyah_oasis: 'diriyah_oasis',
+  andalusian_emerald: 'emerald_gold',
+  sultanic_burgundy: 'royal_burgundy',
+  classical_marble: 'pearl_bronze',
+};
+
+export function normalizeFamilySiteThemeId(
+  raw?: string | null
+): FamilySiteThemeId {
+  if (!raw) return 'heritage';
+  if (raw in TREE_CARD_THEMES) return raw as FamilySiteThemeId;
+  if (raw in LEGACY_SITE_THEME_MAP) return LEGACY_SITE_THEME_MAP[raw];
+  return 'heritage';
+}
 
 /**
  * Reserved root paths that can NEVER be claimed as a family microsite slug

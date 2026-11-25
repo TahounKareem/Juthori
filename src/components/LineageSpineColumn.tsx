@@ -362,11 +362,36 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   });
   const [isCustomizerOpen, setIsCustomizerOpen] = useState<boolean>(false);
   const [zoomScale, setZoomScale] = useState<number>(1);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  const panOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  panOffsetRef.current = panOffset;
+  const [isCanvasDragging, setIsCanvasDragging] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [foldUnlockedIntermediates, setFoldUnlockedIntermediates] =
     useState<boolean>(false);
   const panoramicScrollRef = useRef<HTMLDivElement | null>(null);
   const canvasTopRef = useRef<HTMLDivElement | null>(null);
+  const lineageCanvasViewportRef = useRef<HTMLDivElement | null>(null);
+  const lineageDragPanRef = useRef<{
+    active: boolean;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+    panX: number;
+    panY: number;
+  }>({
+    active: false,
+    startX: 0,
+    startY: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+    panX: 0,
+    panY: 0,
+  });
 
   // Sync preferences from unified cloud Single Source of Truth on mount/user change
   useEffect(() => {
@@ -1722,10 +1747,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               }}
             >
               {stage1Choice === 'not_sure_stage1'
-                ? 'المتابعة إلى التحقق الجغرافي الآلي ←'
+                ? 'المتابعة إلى التحقق الجغرافي الآلي'
                 : caps.isRootUnlocked
-                ? 'تأكيد الاختيار وكشف الجذر الموثق ←'
-                : 'تأكيد الاختيار وتحديد الجذر المطابق ←'}
+                ? 'تأكيد الاختيار وكشف الجذر الموثق'
+                : 'تأكيد الاختيار وتحديد الجذر المطابق'}
             </button>
           </div>
         ) : (
@@ -1838,10 +1863,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                 }}
               >
                 {stage2Choice === 'not_sure_escalate'
-                  ? 'المتابعة إلى البحث المعمق (الباقة السنوية) ←'
+                  ? 'المتابعة إلى البحث المعمق (الباقة السنوية)'
                   : caps.isRootUnlocked
-                  ? 'تأكيد الموضع وكشف الجذر الموثق ←'
-                  : 'تأكيد الموضع وتحديد الجذر المطابق ←'}
+                  ? 'تأكيد الموضع وكشف الجذر الموثق'
+                  : 'تأكيد الموضع وتحديد الجذر المطابق'}
               </button>
               <button
                 type="button"
@@ -1883,7 +1908,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             onClick={onUpgradeAnnualVip}
             className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] transition-colors cursor-pointer shadow-xs"
           >
-            اشترك في الباقة السنوية لتوثيق عمود نسب عائلتك ←
+            اشترك في الباقة السنوية لتوثيق عمود نسب عائلتك
           </button>
         </div>
       );
@@ -1913,7 +1938,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               onClick={onOpenResearchTicketsTab}
               className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] transition-colors cursor-pointer shadow-2xs"
             >
-              متابعة حالة طلب التحقيق والرد على مراسلات الباحثين ←
+              متابعة حالة طلب التحقيق والرد على مراسلات الباحثين
             </button>
           )}
           {onOpenMyTreeTab && (
@@ -1922,7 +1947,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
               onClick={onOpenMyTreeTab}
               className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#1F1F1C] border border-[#D8C7B2] transition-colors cursor-pointer"
             >
-              ابدأ ببناء شجرة عائلتك القريبة في «شجرتي» ←
+              ابدأ ببناء شجرة عائلتك القريبة في «شجرتي»
             </button>
           )}
         </div>
@@ -3131,16 +3156,22 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   // ============================================================================
-  // VERIFICATION FOLLOW-UP NOTE & CANVAS ZOOM CONTROLS
+  // VERIFICATION FOLLOW-UP NOTE & CANVAS PAN / ZOOM CONTROLS
   // ============================================================================
   const handleZoomIn = () =>
-    setZoomScale((z) => Math.min(1.35, Number((z + 0.1).toFixed(2))));
+    setZoomScale((z) => Math.min(1.8, Number((z + 0.1).toFixed(2))));
 
   const handleZoomOut = () =>
-    setZoomScale((z) => Math.max(0.7, Number((z - 0.1).toFixed(2))));
+    setZoomScale((z) => Math.max(0.45, Number((z - 0.1).toFixed(2))));
 
   const handleResetZoomCenter = () => {
     setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    lineageCanvasViewportRef.current?.scrollTo({
+      left: 0,
+      top: 0,
+      behavior: 'smooth',
+    });
     panoramicScrollRef.current?.scrollTo({
       left: 0,
       behavior: 'smooth',
@@ -3149,6 +3180,90 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       behavior: 'smooth',
       block: 'nearest',
     });
+  };
+
+  // Reset pan offset cleanly when switching display modes
+  useEffect(() => {
+    setPanOffset({ x: 0, y: 0 });
+  }, [studioPrefs.viewMode]);
+
+  // Mouse-wheel zoom directly on the Lineage Visualizer Canvas
+  useEffect(() => {
+    const vp = lineageCanvasViewportRef.current;
+    if (!vp) return;
+    const handleWheelZoom = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) < 0.5) return;
+      e.preventDefault();
+      const step = Math.abs(e.deltaY) < 35 ? 0.04 : 0.08;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      setZoomScale((prev) =>
+        Math.max(0.45, Math.min(1.8, Number((prev + direction * step).toFixed(2))))
+      );
+    };
+    vp.addEventListener('wheel', handleWheelZoom, { passive: false });
+    return () => {
+      vp.removeEventListener('wheel', handleWheelZoom);
+    };
+  }, []);
+
+  // Window-level mousemove/mouseup tracking for smooth drag-to-pan on empty canvas areas
+  useEffect(() => {
+    if (!isCanvasDragging) return;
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const drag = lineageDragPanRef.current;
+      const vp = lineageCanvasViewportRef.current;
+      if (!drag.active || !vp) return;
+      e.preventDefault();
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      vp.scrollLeft = drag.scrollLeft - dx;
+      vp.scrollTop = drag.scrollTop - dy;
+      const actualDx = drag.scrollLeft - vp.scrollLeft;
+      const actualDy = drag.scrollTop - vp.scrollTop;
+      const remX = dx - actualDx;
+      const remY = dy - actualDy;
+      setPanOffset({
+        x: Math.max(-700, Math.min(700, drag.panX + remX)),
+        y: Math.max(-700, Math.min(700, drag.panY + remY)),
+      });
+    };
+    const handleWindowMouseUp = () => {
+      lineageDragPanRef.current.active = false;
+      setIsCanvasDragging(false);
+    };
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [isCanvasDragging]);
+
+  const handleLineageCanvasMouseDown = (
+    e: React.MouseEvent<HTMLDivElement>
+  ) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target?.closest(
+        'button, input, a, select, textarea, [role="button"], [data-no-canvas-pan="true"]'
+      )
+    ) {
+      return;
+    }
+    const vp = lineageCanvasViewportRef.current;
+    if (!vp) return;
+    e.preventDefault();
+    lineageDragPanRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: vp.scrollLeft,
+      scrollTop: vp.scrollTop,
+      panX: panOffsetRef.current.x,
+      panY: panOffsetRef.current.y,
+    };
+    setIsCanvasDragging(true);
   };
 
   const handleToggleFullscreen = () => setIsFullscreen((prev) => !prev);
@@ -3367,13 +3482,26 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           />
 
           {/* ================================================================ */}
-          {/* 3. MULTI-MODE LINEAGE VISUALIZER CANVAS (Zoomable)               */}
+          {/* 3. MULTI-MODE LINEAGE VISUALIZER CANVAS (Pannable & Zoomable)    */}
           {/* ================================================================ */}
-          <div className="relative z-20 py-2 min-h-[360px] overflow-x-auto">
+          <div
+            ref={lineageCanvasViewportRef}
+            onMouseDown={handleLineageCanvasMouseDown}
+            className={`relative z-20 py-4 overflow-auto touch-pan-x touch-pan-y ${
+              isFullscreen ? 'flex-1 min-h-0' : 'min-h-[420px] max-h-[78vh]'
+            } ${
+              isCanvasDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
+            }`}
+          >
             <div
-              className="transition-transform duration-200 origin-top"
+              className={`${
+                isCanvasDragging ? '' : 'transition-transform duration-150'
+              } origin-top`}
               style={{
-                transform: zoomScale === 1 ? undefined : `scale(${zoomScale})`,
+                transform:
+                  panOffset.x !== 0 || panOffset.y !== 0 || zoomScale !== 1
+                    ? `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})`
+                    : undefined,
                 width:
                   zoomScale > 1 ? `${Math.round(100 / zoomScale)}%` : undefined,
                 marginInline: 'auto',
@@ -3701,7 +3829,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       }}
                       className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/50 text-xs font-display font-bold text-[#D97757] cursor-pointer"
                     >
-                      عرض في خزانتي ←
+                      عرض في خزانتي
                     </button>
                   ) : (
                     <span />

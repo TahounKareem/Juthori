@@ -384,7 +384,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                     className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>تحدث مع المرشد الذكي ←</span>
+                    <span>تحدث مع المرشد الذكي</span>
                   </button>
                 </div>
               </div>
@@ -563,7 +563,6 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                       className="w-full text-right p-3 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2]/70 border border-[#D97757]/35 text-xs sm:text-sm font-display font-semibold text-[#1F1F1C] transition-colors cursor-pointer flex items-center justify-between gap-2"
                     >
                       <span className="leading-snug">{q}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#D97757] rotate-180 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -646,7 +645,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                             }
                             className="text-xs font-display font-bold text-[#D97757] hover:underline cursor-pointer"
                           >
-                            فتح القسم في الدليل الإرشادي ←
+                            فتح القسم في الدليل الإرشادي
                           </button>
                         </div>
                       )}

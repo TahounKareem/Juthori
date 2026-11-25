@@ -73,6 +73,7 @@ import {
   REFERRAL_REWARD_USD,
   buildDeterministicReferralCode,
   buildPublicKinshipInviteLinks,
+  normalizeFamilySiteThemeId,
   resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 
@@ -2169,7 +2170,7 @@ export async function fetchPublishedMicrositeBySlug(
         (header.hasFamilyPasscode ? 'FAMILY_PIN' : 'PRIVATE_WHITELIST'),
       hasFamilyPasscode: Boolean(header.hasFamilyPasscode),
       whitelistedEmails: [],
-      themeId: header.themeId || 'golden_parchment',
+      themeId: normalizeFamilySiteThemeId(header.themeId),
       familyName: header.familyName || 'العائلة',
       privacyConfig: {
         showBio: false,
@@ -2350,11 +2351,9 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     normalizedSlug,
   ]);
 
-  const validThemeId: FamilySiteThemeId = FAMILY_SITE_THEMES.some(
-    (t) => t.id === params.themeId
-  )
-    ? params.themeId
-    : 'golden_parchment';
+  const validThemeId: FamilySiteThemeId = normalizeFamilySiteThemeId(
+    params.themeId
+  );
 
   const circle = await fetchKinshipCircleForOwner(safeUid);
   const whitelistedEmails = Array.from(
@@ -4270,7 +4269,7 @@ export async function fetchAuthorizedFamilyPortalsForEmail(
         ownerId: s.ownerId,
         familyName: s.familyName,
         ownerDisplayName: s.ownerDisplayName || 'أمين سجل العائلة',
-        themeId: s.themeId || 'golden_parchment',
+        themeId: normalizeFamilySiteThemeId(s.themeId),
         originCountry: s.originCountry,
         originRegion: s.originRegion,
         viewerRole,

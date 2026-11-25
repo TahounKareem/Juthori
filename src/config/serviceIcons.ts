@@ -4,8 +4,10 @@ import {
   GitBranch,
   Globe,
   Home,
+  Languages,
   Network,
   Users,
+  Wallet,
 } from 'lucide-react';
 
 export const JUTHORI_BRAND_COLORS = {
@@ -29,4 +31,6 @@ export const JUTHORI_SERVICE_ICONS = {
   kashafi: Compass, // 04 — كشّافي / الاكتشاف والإثراء
   site: Globe, // 05 — موقعي / موقع سجل العائلة على الإنترنت
   community: Users, // 06 — مجتمعي / المجتمعات
+  wallet: Wallet, // المحفظة ورصيد الحساب الموحدة في كافة صفحات المنصة
+  language: Languages, // تبديل اللغة الموحدة (مستقلة عن أيقونة موقعي)
 } as const;

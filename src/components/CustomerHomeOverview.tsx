@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  ArrowLeft,
   Bell,
   Check,
   CheckCircle2,
   Clock,
+  Crown,
   Route,
   ShieldCheck,
   Wallet,
@@ -51,6 +51,7 @@ import {
 import {
   ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   FamilySiteThemeId,
+  normalizeFamilySiteThemeId,
 } from '../config/referralAndSiteConfig';
 import { auth } from '../services/firebase';
 import {
@@ -63,7 +64,9 @@ import {
 } from './HomeBentoMicroVisuals';
 import {
   HeritagePlaqueOrnamentLayer,
-  WORKSPACE_PRIMARY_BTN_CLASS,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import {
   RoyalRoleFamilyBadge,
@@ -174,8 +177,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   const [treeMembersCount, setTreeMembersCount] = useState<number>(() => {
     const local = readUserFamilyTreeFromLocal(
       resolvedUid,
-      result.familyName,
-      userEmail
+      userEmail,
+      result.familyName
     );
     return Array.isArray(local) ? local.length : 0;
   });
@@ -273,8 +276,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
 
       if (cancelled) return;
 
-      if (treeRes.status === 'fulfilled' && Array.isArray(treeRes.value)) {
-        setTreeMembersCount(treeRes.value.length);
+      if (treeRes.status === 'fulfilled') {
+        setTreeMembersCount(Array.isArray(treeRes.value) ? treeRes.value.length : 0);
       }
 
       if (vaultRes.status === 'fulfilled' && vaultRes.value) {
@@ -360,9 +363,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     );
     const resolvedSlug = settingsSlug || micrositeSlug || '';
 
-    const resolvedThemeId = (siteSettings?.themeId ||
-      ownerMicrosite?.themeId ||
-      'golden_parchment') as FamilySiteThemeId;
+    const resolvedThemeId: FamilySiteThemeId = normalizeFamilySiteThemeId(
+      siteSettings?.themeId || ownerMicrosite?.themeId
+    );
 
     const resolvedBranding = normalizeVisualBranding(
       (parsedSettingsBranding ||
@@ -449,7 +452,11 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   const latestKashafiItem = kashafiItems[0] || null;
   const unreadKashafiItemsCount = kashafiItems.filter((i) => !i.isRead).length;
 
-  const totalTreeCapacity = (caps.maxTreeMembers || 250) + extraTreeCapacity;
+  const isTreePlanActivated = Boolean(caps.isVip || caps.hasRegistrarBadge);
+  const displayedTreeMembersCount = isTreePlanActivated ? treeMembersCount : 0;
+  const totalTreeCapacity = isTreePlanActivated
+    ? (caps.maxTreeMembers || 250) + extraTreeCapacity
+    : 250;
   const totalCapsules = result.capsules?.length || 0;
   const unlockedCapsulesCount = unlockedCapsules?.length || 0;
 
@@ -488,7 +495,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         id: 'tree',
         stepNum: 2,
         label: 'تأسيس المشجرة',
-        completed: treeMembersCount > 0,
+        completed: isTreePlanActivated && displayedTreeMembersCount > 0,
         tab: DashboardTab.MyTree,
       },
       {
@@ -508,7 +515,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       {
         id: 'community',
         stepNum: 5,
-        label: 'تفعيل دائرة الرحم',
+        label: 'دعوة أقارب لمجتمعك',
         completed: relativesCount > 0,
         tab: DashboardTab.MyCommunity,
       },
@@ -518,7 +525,8 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     caps.isRootUnlocked,
     caps.isVip,
     result.matched,
-    treeMembersCount,
+    isTreePlanActivated,
+    displayedTreeMembersCount,
     vaultState.itemsCount,
     siteInfo.isPublished,
     relativesCount,
@@ -573,27 +581,30 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <div className="h-10 px-4 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-[#D97757] shrink-0" />
-                <div className="text-[12.5px] flex items-center gap-1.5">
-                  <span className="text-[#D97757]">رصيد المحفظة:</span>
-                  <strong
-                    dir="ltr"
-                    className="inline-block font-mono tabular-nums text-[13px] font-bold text-[#1F1F1C]"
-                  >
-                    ${walletBalance.toFixed(2)}
-                  </strong>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={onOpenWalletDrawer}
-                className={WORKSPACE_PRIMARY_BTN_CLASS}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <WorkspaceIconTooltip
+                label={`رصيد المحفظة: $${walletBalance.toFixed(2)}`}
               >
-                الاشتراكات والمكافآت
-              </button>
+                <button
+                  type="button"
+                  aria-label={`رصيد المحفظة: $${walletBalance.toFixed(2)}`}
+                  onClick={onOpenWalletDrawer}
+                  className={WORKSPACE_ICON_BTN_CLASS}
+                >
+                  <Wallet className="w-4 h-4 shrink-0" />
+                </button>
+              </WorkspaceIconTooltip>
+
+              <WorkspaceIconTooltip label="الاشتراكات والمكافآت" align="left">
+                <button
+                  type="button"
+                  aria-label="الاشتراكات والمكافآت"
+                  onClick={onOpenWalletDrawer}
+                  className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
+                >
+                  <Crown className="w-4 h-4 shrink-0" />
+                </button>
+              </WorkspaceIconTooltip>
             </div>
           </div>
 
@@ -750,10 +761,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.Lineage)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer"
           >
             <span>استعراض عمود النسب الموثق</span>
-            <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
 
@@ -775,39 +785,68 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                 </div>
               </div>
               <span className="text-[11px] font-display font-bold text-[#1F1F1C] tabular-nums whitespace-nowrap">
-                {treeMembersCount} فرداً
+                {!isTreePlanActivated
+                  ? 'لم تبدأ بعد'
+                  : displayedTreeMembersCount === 0
+                  ? '0 أفراد'
+                  : displayedTreeMembersCount === 1
+                  ? 'فرد واحد'
+                  : displayedTreeMembersCount === 2
+                  ? 'فردان'
+                  : displayedTreeMembersCount <= 10
+                  ? `${displayedTreeMembersCount} أفراد`
+                  : `${displayedTreeMembersCount} فرداً`}
               </span>
             </div>
 
             {/* Live Micro-Visual: Mini Tree Branch SVG + Sleek Radial Gauge */}
             <TreeBranchGaugeVisual
-              treeMembersCount={treeMembersCount}
+              treeMembersCount={displayedTreeMembersCount}
               totalTreeCapacity={totalTreeCapacity}
+              isTreeUnlocked={isTreePlanActivated}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]/70 tabular-nums">
-              <span>
-                الأفراد المسجلون:{' '}
-                <strong className="font-display text-[#1F1F1C]">
-                  {treeMembersCount} أفراد من سعة {totalTreeCapacity}
-                </strong>
-              </span>
-              <span>
-                السعة المتاحة:{' '}
-                <strong className="font-display text-[#1F1F1C]">
-                  {Math.max(0, totalTreeCapacity - treeMembersCount)} مقعداً
-                </strong>
-              </span>
+              {!isTreePlanActivated ? (
+                <>
+                  <span>
+                    الأفراد المسجلون:{' '}
+                    <strong className="font-display text-[#1F1F1C]">
+                      0 (لم تُنشأ المشجرة بعد)
+                    </strong>
+                  </span>
+                  <span>
+                    السعة عند الترقية:{' '}
+                    <strong className="font-display text-[#1F1F1C]">
+                      {totalTreeCapacity} فرداً
+                    </strong>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    الأفراد المسجلون:{' '}
+                    <strong className="font-display text-[#1F1F1C]">
+                      {displayedTreeMembersCount} من سعة {totalTreeCapacity}
+                    </strong>
+                  </span>
+                  <span>
+                    السعة المتاحة:{' '}
+                    <strong className="font-display text-[#1F1F1C]">
+                      {Math.max(0, totalTreeCapacity - displayedTreeMembersCount)} مقعداً
+                    </strong>
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyTree)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer"
           >
             <span>فتح استوديو الشجرة</span>
-            <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
 
@@ -853,10 +892,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyVault)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer"
           >
             <span>إدارة الخزانة</span>
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
 
@@ -911,10 +949,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer shadow-xs"
           >
             <span>استكشاف كشّافي</span>
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
 
@@ -974,10 +1011,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MySite)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer"
           >
             <span>تخصيص موقعي</span>
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
 
@@ -1024,10 +1060,9 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyCommunity)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer"
           >
             <span>إدارة دائرة الأقارب</span>
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
           </button>
         </article>
       </section>
@@ -1138,7 +1173,6 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                 className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
               >
                 <span>متابعة التفاصيل والمحادثة في كشّافي</span>
-                <ArrowLeft className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -1225,7 +1259,6 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                 className="px-4 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] text-[#1F1F1C] hover:text-[#D97757] border border-[#D8C7B2] hover:border-[#D97757]/50 text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
               >
                 <span>عرض سجل البرقيات الكامل</span>
-                <ArrowLeft className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

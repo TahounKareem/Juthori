@@ -1153,30 +1153,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         testId="community-unified-header"
         icon={<JUTHORI_SERVICE_ICONS.community className="w-5 h-5" />}
         title={`مجتمع عائلة ${result.familyName}`}
-        metaItems={[
-          'مساحة عائلية مغلقة',
-          <span key="members" className="tabular-nums">
-            <strong className="font-semibold text-[#1F1F1C]">
-              {circle.members.length}
-            </strong>{' '}
-            أعضاء بالدائرة
-          </span>,
-          <span key="enrichments" className="tabular-nums">
-            <strong className="font-semibold text-[#D97757]">
-              {totalIncomingEnrichmentCount}
-            </strong>{' '}
-            طلبات إثراء واردة
-          </span>,
-          <span key="rewards" className="inline-flex items-center gap-1">
-            <span>رصيد المكافآت:</span>
-            <strong
-              dir="ltr"
-              className="font-mono font-semibold text-[#1F1F1C] tabular-nums"
-            >
-              ${referralStats.totalEarnedUsd.toFixed(2)}
-            </strong>
-          </span>,
-        ]}
         actions={
           <>
             <WorkspaceIconTooltip label="بطاقة الدعوة ورمز QR">

@@ -802,8 +802,8 @@ export const KinshipInviteClaimModal: React.FC<
                 )}
                 <span>
                   {authMode === 'claim_new'
-                    ? `تفعيل عضويتي ودخول بوابة عائلة ${invitation.familyName} ←`
-                    : `تسجيل الدخول وتفعيل صلاحية عائلة ${invitation.familyName} ←`}
+                    ? `تفعيل عضويتي ودخول بوابة عائلة ${invitation.familyName}`
+                    : `تسجيل الدخول وتفعيل صلاحية عائلة ${invitation.familyName}`}
                 </span>
               </button>
 

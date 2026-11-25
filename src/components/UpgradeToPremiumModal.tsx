@@ -389,7 +389,7 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
                   className="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Crown className="w-4 h-4 shrink-0" />
-                  <span>الترقية الآن إلى بريميوم ($60/سنة) ومتابعة التوقيع ←</span>
+                  <span>الترقية الآن إلى بريميوم ($60/سنة) ومتابعة التوقيع</span>
                 </button>
                 <button
                   type="button"

@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Send,
   X,
-  ArrowLeft,
   RefreshCw,
   FileText,
 } from 'lucide-react';
@@ -530,7 +529,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           }`}
                         >
                           <span>{item.label}</span>
-                          <ArrowLeft className="w-4 h-4 opacity-70" />
                         </button>
                       );
                     })}
@@ -571,7 +569,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-sm font-display font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
                   >
                     <span>تسجيل الدخول</span>
-                    <ArrowLeft className="w-4 h-4" />
                   </button>
                 </div>
               </motion.aside>
@@ -1001,7 +998,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           {isSearching ? (
                             <span>جاري البحث في السجلات التاريخية...</span>
                           ) : (
-                            <span>ابدأ خطوة البحث الأولى مجاناً ←</span>
+                            <span>ابدأ خطوة البحث الأولى مجاناً</span>
                           )}
                         </button>
                         <p className="text-center text-[11px] text-[#1F1F1C]/70 mt-1.5">
@@ -1259,7 +1256,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   onClick={() => navigatePublicPage('support-center')}
                   className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
-                  <span>فتح الدليل الإرشادي والمرشد الذكي الشامل ←</span>
+                  <span>فتح الدليل الإرشادي والمرشد الذكي الشامل</span>
                 </button>
               </div>
             </div>

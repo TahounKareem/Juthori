@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -9049,7 +9048,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           className="px-6 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
                         >
                           <CheckCircle2 className="w-4 h-4 shrink-0" />
-                          <span>✓ تم إنشاء التذكرة في مرصد البحوث — فتحها الآن ←</span>
+                          <span>✓ تم إنشاء التذكرة في مرصد البحوث — فتحها الآن</span>
                         </button>
                       )}
                     </div>
@@ -10314,7 +10313,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                   }}
                                   className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-extrabold cursor-pointer transition-colors"
                                 >
-                                  فتح كتذكرة بحث وتوثيق نشطة (P1) ←
+                                  فتح كتذكرة بحث وتوثيق نشطة (P1)
                                 </button>
                               </div>
                               <div className="rounded-xl bg-[#F5F1E8] p-4 border border-[#D8C7B2] space-y-1.5">
@@ -10534,7 +10533,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             </span>
                                           </div>
                                           <div className="text-[11px] text-[#1F1F1C] bg-[#F5F1E8] p-2.5 rounded-lg border border-[#D8C7B2]">
-                                            <strong className="text-[#1F1F1C]">الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong className="text-[#D97757]">المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2 ←)
+                                            <strong className="text-[#1F1F1C]">الخطوة التالية للعميل:</strong> ينتقل العميل مجاناً وفوراً إلى <strong className="text-[#D97757]">المرحلة 2 (سؤال الجغرافيا والمواضع)</strong> دون مطالبته بدفع $5. (اضغط هنا لمعاينة المرحلة 2)
                                           </div>
                                         </div>
                                       </div>

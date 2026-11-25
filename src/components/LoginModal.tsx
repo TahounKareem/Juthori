@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowLeft, Lock, Mail, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, Lock, Mail, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import {
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -926,7 +926,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             ) : (
               <>
                 <span>{isRegisterMode ? 'إتمام إنشاء الحساب' : 'الدخول إلى لوحة التحكم'}</span>
-                <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
               </>
             )}
           </button>

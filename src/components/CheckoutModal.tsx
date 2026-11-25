@@ -8,7 +8,6 @@ import {
   Sparkles,
   Wallet,
   X,
-  ArrowLeft,
   Plus,
   Copy,
   Check,
@@ -649,8 +648,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               onClick={handleFinishReceipt}
               className="w-full py-3.5 px-6 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-sm sm:text-base font-display font-extrabold flex items-center justify-center gap-2 transition-colors shadow-md cursor-pointer"
             >
-              <span>عرض العُقد المفتوحة في عمود نسبي الآن ←</span>
-              <ArrowLeft className="w-5 h-5" />
+              <span>عرض العُقد المفتوحة في عمود نسبي الآن</span>
             </button>
           </div>
         )}

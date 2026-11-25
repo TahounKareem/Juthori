@@ -90,9 +90,9 @@ export const RoyalRoleFamilyBadge: React.FC<RoyalRoleFamilyBadgeProps> = ({
         </>
       )}
 
-      {/* Compact Role Pill (No ✦) */}
+      {/* Compact Outlined Role Pill (Border-only Terracotta, No Fill) */}
       <span
-        className={`inline-flex items-center rounded-full bg-[#D97757] text-[#F5F1E8] font-display font-bold leading-none whitespace-nowrap shrink-0 ${
+        className={`inline-flex items-center rounded-full bg-transparent border border-[#D97757] text-[#D97757] font-display font-bold leading-none whitespace-nowrap shrink-0 ${
           isHeader
             ? 'px-2 py-[3px] text-[9.5px]'
             : 'px-2 py-1 text-[10.5px]'

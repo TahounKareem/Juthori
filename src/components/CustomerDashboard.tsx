@@ -6,12 +6,11 @@ import {
   Camera,
   CheckCircle2,
   ChevronDown,
-  CreditCard,
   Crown,
   FileSignature,
-  Globe,
   HelpCircle,
   KeyRound,
+  Languages,
   Loader2,
   Lock,
   LogOut,
@@ -26,6 +25,7 @@ import {
   User,
   UserRound,
   Users,
+  Wallet,
   X,
   ArrowRight,
 } from 'lucide-react';
@@ -2442,7 +2442,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           <div className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-x-2.5 xl:gap-x-3 h-14 md:h-auto xl:h-[76px]">
             {/* 1. RIGHT BRAND ANCHOR (RTL START): Flush with right edge of page content */}
             <div className="order-1 flex items-center shrink-0 md:py-2.5 xl:py-0">
-              <JuthoriLogo size="sm" onClick={onBackToLanding} />
+              <JuthoriLogo size="sm" onClick={onBackToLanding} confirmHomeNavigation />
             </div>
 
             {/* Golden Vertical Hairline between Brand & Primary 7-Tab Navigation (Desktop >= xl) */}
@@ -2592,34 +2592,30 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         title="عضوية بريميوم"
                         aria-label="عضوية بريميوم"
                         data-testid="header-profile-premium-crown"
-                        className="absolute -bottom-0.5 -left-0.5 w-[15px] h-[15px] rounded-full bg-[#D97757] text-[#F5F1E8] ring-[1.5px] ring-[#F5F1E8] shadow-2xs flex items-center justify-center"
+                        className="absolute -bottom-0.5 -left-0.5 w-[13px] h-[13px] rounded-full bg-[#F5F1E8] border border-[#D97757] text-[#D97757] shadow-2xs flex items-center justify-center"
                       >
-                        <Crown className="w-2.5 h-2.5 stroke-[2.3]" aria-hidden="true" />
+                        <Crown className="w-2 h-2 stroke-[2.2]" aria-hidden="true" />
                       </span>
                     )}
                   </span>
 
-                  {/* Middle: Compact Stacked Customer Name + Smaller Role Badge & Bonded Family Name */}
+                  {/* Middle: Compact Stacked Customer Name + Smaller Outlined Role Badge & Family Name */}
                   <div
                     data-testid="header-royal-role-family-badge"
-                    className="relative z-10 hidden sm:flex flex-col items-start justify-center gap-0.5 leading-none min-w-0"
+                    className="relative z-10 hidden sm:flex flex-col items-start justify-center gap-1 leading-none min-w-0 py-0.5"
                   >
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[12.5px] font-display font-extrabold text-[#1F1F1C] leading-none whitespace-nowrap">
+                      <span className="text-[11.5px] font-display font-bold text-[#1F1F1C] leading-none whitespace-nowrap">
                         {cleanClientFirstName}
                       </span>
-                      <span className="px-1.5 py-[2px] rounded-md bg-[#D97757] text-[#F5F1E8] text-[9px] font-display font-bold leading-none whitespace-nowrap">
+                      <span className="px-1.5 py-[2px] rounded-md bg-transparent border border-[#D97757] text-[#D97757] text-[8.5px] font-display font-bold leading-none whitespace-nowrap">
                         {headerRoleLabel}
                       </span>
                     </div>
 
                     {formatRoyalFamilyLabel(result.familyName) && (
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-display font-bold text-[#D97757] leading-none whitespace-nowrap">
-                        <span
-                          aria-hidden="true"
-                          className="w-2 h-[1.5px] rounded-full bg-[#D97757]/60 shrink-0"
-                        />
-                        <span>{formatRoyalFamilyLabel(result.familyName)}</span>
+                      <span className="text-[9.5px] font-display font-semibold text-[#1F1F1C] leading-none whitespace-nowrap">
+                        {formatRoyalFamilyLabel(result.familyName)}
                       </span>
                     )}
                   </div>
@@ -2660,8 +2656,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                         <div className="flex items-center gap-1.5 shrink-0">
                           {caps.isVip && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-l from-[#E8DED2] to-[#F5F1E8] border border-[#D8C7B2]/60 text-[#D97757] text-[10.5px] font-display font-extrabold leading-normal">
-                              <Crown className="w-3 h-3 text-[#D97757]" />
+                            <span className="inline-flex items-center gap-1 px-2 py-[1px] rounded-full bg-transparent border border-[#D97757] text-[#D97757] text-[9.5px] font-display font-bold leading-normal">
+                              <Crown className="w-2.5 h-2.5 text-[#D97757]" />
                               <span>بريميوم</span>
                             </span>
                           )}
@@ -2720,7 +2716,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
-                          <CreditCard className="w-4 h-4" strokeWidth={1.75} />
+                          <Wallet className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between">
@@ -2754,7 +2750,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             <span className="text-xs font-display font-bold text-[#1F1F1C]">
                               ميثاق أمين السجل
                             </span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F5F1E8] border border-[#D97757]/40 text-[#D97757]">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-transparent border border-[#D97757] text-[#D97757]">
                               {accountType === AccountLegalType.RecordKeeper
                                 ? 'مفعّل ✓'
                                 : 'حساب فرد'}
@@ -2878,7 +2874,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       >
                         <span className="flex items-center gap-3 min-w-0">
                           <span className="w-7 h-7 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
-                            <Globe className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            <Languages className="w-3.5 h-3.5" strokeWidth={1.75} />
                           </span>
                           <span className="text-xs font-display font-bold text-[#1F1F1C]">
                             تغيير اللغة
@@ -3099,7 +3095,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           onClick={() => setActiveUtilityDrawer('settings')}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-bold transition-colors cursor-pointer"
                         >
-                          <span>توثيق البريد في الأمان والإعدادات ←</span>
+                          <span>توثيق البريد في الأمان والإعدادات</span>
                         </button>
                       )}
                     </div>
@@ -3838,7 +3834,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           }}
                           className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer"
                         >
-                          متابعة والرد على الباحث ←
+                          متابعة والرد على الباحث
                         </button>
                       )}
                   </div>
@@ -4261,7 +4257,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       <footer className="border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 mt-12">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center space-y-3.5">
           <div className="mb-1">
-            <JuthoriLogo size="sm" onClick={onBackToLanding} />
+            <JuthoriLogo
+              size="sm"
+              onClick={onBackToLanding}
+              confirmHomeNavigation
+              confirmAlign="center"
+            />
           </div>
           <p className="text-base font-display font-medium text-[#1F1F1C]/85 max-w-xl">
             ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.

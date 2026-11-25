@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowRight,
   ArrowUp,
   Award,
@@ -652,7 +651,6 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                     className="h-8 px-3 rounded-xl bg-[#F5F1E8] group-hover:bg-[#D97757] border border-[#D8C7B2] group-hover:border-[#D97757] text-[11.5px] font-display font-bold text-[#D97757] group-hover:text-[#F5F1E8] inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <span>تحرير وإثراء</span>
-                    <ArrowLeft className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -708,7 +706,6 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               className="h-8 px-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-display font-bold text-[#D97757] disabled:opacity-35 inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
             >
               <span>القسم التالي</span>
-              <ArrowLeft className="w-3 h-3" />
             </button>
           </div>
         </div>

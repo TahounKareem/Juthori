@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft,
   Award,
   BookOpen,
   Briefcase,
@@ -60,6 +59,7 @@ import {
   unlockPublishedMicrositeByPasscode,
 } from '../services/priority4Service';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { normalizeFamilySiteThemeId } from '../config/referralAndSiteConfig';
 import { auth, mirrorAuth } from '../services/firebase';
 import type { UserProfileData } from '../services/firestoreService';
 import type { AccountLegalType } from '../types/juthori';
@@ -1070,14 +1070,13 @@ export const PublicFamilyMicrositePage: React.FC<
             className="w-full py-2.5 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <span>افحص نسب عائلتك وأنشئ بوابتك عبر جذوري</span>
-            <ArrowLeft className="w-4 h-4" />
           </button>
         </div>
       </div>
     );
   }
 
-  const activeTheme = siteData.themeId || 'golden_parchment';
+  const activeTheme = normalizeFamilySiteThemeId(siteData.themeId);
   const branding = normalizeVisualBranding(
     siteData.visualBranding,
     siteData.familyName
@@ -1131,7 +1130,6 @@ export const PublicFamilyMicrositePage: React.FC<
               className="text-xs font-semibold fs-accent-text hover:underline inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
             >
               <span>منصة جذوري</span>
-              <ArrowLeft className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
@@ -4731,7 +4729,6 @@ export const PublicFamilyMicrositePage: React.FC<
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl fs-accent-bg text-xs sm:text-sm font-bold shadow-sm hover:opacity-95 transition-opacity cursor-pointer whitespace-nowrap"
                 >
                   <span>أسّس ديوان عائلتك في جذوري</span>
-                  <ArrowLeft className="w-4 h-4 shrink-0" />
                 </button>
                 <button
                   type="button"

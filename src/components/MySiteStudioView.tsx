@@ -15,7 +15,6 @@ import {
   Monitor,
   Palette,
   QrCode,
-  Rocket,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -23,6 +22,7 @@ import {
   Sparkles,
   Type,
   Upload,
+  UploadCloud,
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
@@ -59,6 +59,7 @@ import { FAMILY_TREE_SYNC_EVENT } from '../utils/enrichmentStagingUtils';
 import {
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
+  normalizeFamilySiteThemeId,
   resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 import {
@@ -280,7 +281,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const [allowVisitorEnrichment, setAllowVisitorEnrichment] =
     useState<boolean>(false);
   const [themeId, setThemeId] = useState<FamilySiteThemeId>(
-    initialSiteSettings?.themeId || 'golden_parchment'
+    normalizeFamilySiteThemeId(initialSiteSettings?.themeId)
   );
   const [emblemTag, setEmblemTag] = useState<string>(
     initialSiteSettings?.emblemTag ||
@@ -500,7 +501,9 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           setPreviousPublishedSlug(existingSite.siteSlug);
         }
         setSiteAccessMode(existingSite.siteAccessMode || 'PUBLIC');
-        if (existingSite.themeId) setThemeId(existingSite.themeId);
+        if (existingSite.themeId) {
+          setThemeId(normalizeFamilySiteThemeId(existingSite.themeId));
+        }
         if (existingSite.treeDisplaySettings) {
           setLiveTreeDisplaySettings((prev) =>
             normalizeTreeDisplaySettings({
@@ -1212,7 +1215,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                 ) : (
-                  <Rocket className="w-4 h-4 shrink-0" />
+                  <UploadCloud className="w-4 h-4 shrink-0" />
                 )}
               </button>
             </WorkspaceIconTooltip>
@@ -1534,14 +1537,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             <div
                               className="h-10 w-full relative"
                               style={{ background: preset.previewGradient }}
+                            />
+                            <div
+                              className={`px-1.5 py-1 bg-[#F5F1E8] text-[10px] font-display font-bold truncate text-center ${
+                                selected ? 'text-[#D97757]' : 'text-[#1F1F1C]'
+                              }`}
                             >
-                              {selected && (
-                                <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#F5F1E8] text-[#D97757] flex items-center justify-center shadow-xs">
-                                  <Check className="w-2.5 h-2.5" />
-                                </span>
-                              )}
-                            </div>
-                            <div className="px-1.5 py-1 bg-[#F5F1E8] text-[10px] font-display font-bold text-[#1F1F1C] truncate text-center">
                               {preset.label.split(' ').slice(0, 2).join(' ')}
                             </div>
                           </button>
@@ -1570,18 +1571,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             }
                             className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/30'
-                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] ring-1 ring-[#D97757]/30 shadow-2xs'
+                                : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/85 hover:bg-[#F5F1E8] hover:border-[#D97757]/50'
                             }`}
                           >
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span className="text-xs font-display font-extrabold text-[#1F1F1C]">
-                                {layout.label}
-                              </span>
-                              {active && (
-                                <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
-                              )}
-                            </div>
+                            <span className="text-xs font-display font-extrabold block truncate">
+                              {layout.label}
+                            </span>
                           </button>
                         );
                       })}
@@ -1825,60 +1821,47 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                     </>
                   }
                 >
-                  {/* 5 Color Themes in Compact 2-Column Grid (No Fatiguing Subtitles) */}
-                  <div className="space-y-2">
+                  {/* 10 Unified Museum Color Themes (Exact Parity with «شجرتي» & Border-Only Selection) */}
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11.5px] font-display font-extrabold text-[#D97757]">
-                        القالب اللوني للموقع
+                        ثيمات الألوان المتحفية ({FAMILY_SITE_THEMES.length} ثيمات)
                       </span>
                       <span className="text-[10.5px] text-[#D97757]">
                         ينعكس فوراً في المعاينة الحية
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-2 gap-2">
                       {FAMILY_SITE_THEMES.map((theme) => {
                         const active = themeId === theme.id;
                         return (
                           <button
                             key={theme.id}
                             type="button"
+                            data-testid={`site-theme-${theme.id}`}
                             onClick={() => setThemeId(theme.id)}
-                            className={`rounded-xl px-3.5 py-2.5 border flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                            title={theme.subtitleAr}
+                            className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex items-center gap-2.5 ${
                               active
-                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
-                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] ring-1 ring-[#D97757]/30 shadow-2xs'
+                                : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/85 hover:bg-[#F5F1E8] hover:border-[#D97757]/50'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span
-                                className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 ${
-                                  active
-                                    ? 'bg-[#D97757] border-[#D97757] text-[#F5F1E8]'
-                                    : 'border-[#D8C7B2] bg-[#F5F1E8]'
-                                }`}
-                              >
-                                {active && <Check className="w-3 h-3" />}
-                              </span>
-                              <span className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
-                                {theme.nameAr}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center -space-x-1 space-x-reverse shrink-0">
-                              <span
-                                className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
-                                style={{ backgroundColor: theme.swatchCanvas }}
-                              />
-                              <span
-                                className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
-                                style={{ backgroundColor: theme.swatchAccent }}
-                              />
+                            {/* Dual Overlapping Museum Color Swatches (Unified with «شجرتي») */}
+                            <span className="inline-flex items-center shrink-0">
                               <span
                                 className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
                                 style={{ backgroundColor: theme.swatchHero }}
                               />
-                            </div>
+                              <span
+                                className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs -mr-1.5"
+                                style={{ backgroundColor: theme.swatchAccent }}
+                              />
+                            </span>
+                            <span className="text-[11.5px] font-display font-bold truncate">
+                              {theme.nameAr}
+                            </span>
                           </button>
                         );
                       })}
@@ -1906,21 +1889,16 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             }
                             className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
-                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] ring-1 ring-[#D97757]/30 shadow-2xs'
+                                : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/85 hover:bg-[#F5F1E8] hover:border-[#D97757]/50'
                             }`}
                           >
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span
-                                className="text-sm font-bold text-[#1F1F1C] truncate"
-                                style={{ fontFamily: tp.fontCss }}
-                              >
-                                {tp.label}
-                              </span>
-                              {active && (
-                                <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
-                              )}
-                            </div>
+                            <span
+                              className="text-sm font-bold block truncate"
+                              style={{ fontFamily: tp.fontCss }}
+                            >
+                              {tp.label}
+                            </span>
                           </button>
                         );
                       })}
@@ -2002,19 +1980,14 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                   }
                                   className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
                                     active
-                                      ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
-                                      : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
+                                      ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] ring-1 ring-[#D97757]/30 shadow-2xs'
+                                      : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/85 hover:bg-[#F5F1E8] hover:border-[#D97757]/50'
                                   }`}
                                 >
-                                  <div className="flex items-center justify-between gap-1.5">
-                                    <span className="text-xs font-display font-extrabold text-[#1F1F1C]">
-                                      {pos.label}
-                                    </span>
-                                    {active && (
-                                      <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
-                                    )}
-                                  </div>
-                                  <p className="text-[10.5px] text-[#D97757] mt-0.5 leading-snug">
+                                  <span className="text-xs font-display font-extrabold block">
+                                    {pos.label}
+                                  </span>
+                                  <p className="text-[10.5px] text-[#1F1F1C]/65 mt-0.5 leading-snug">
                                     {pos.description}
                                   </p>
                                 </button>

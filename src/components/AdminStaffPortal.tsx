@@ -1962,7 +1962,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         {/* Top Bar */}
         <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between px-6 pt-6 py-2">
           <div className="flex items-center gap-3">
-            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+            <JuthoriLogo size="sm" onClick={onBackToPlatform} confirmHomeNavigation />
             <span className="px-3 py-1 rounded-full bg-[#E8DED2] border border-[#D97757]/45 text-[#D97757] text-[11px] font-bold">
               بوابة الإدارة الرئيسية
             </span>
@@ -2050,7 +2050,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         <footer className="relative z-10 border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 w-full">
           <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center text-center space-y-3.5">
-              <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+              <JuthoriLogo
+                size="sm"
+                onClick={onBackToPlatform}
+                confirmHomeNavigation
+                confirmAlign="center"
+              />
 
               <p className="text-sm sm:text-base font-display font-bold text-[#1F1F1C] pt-1">
                 ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
@@ -2083,7 +2088,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       <header className="sticky top-0 z-40 bg-[#F5F1E8]/95 backdrop-blur-md text-[#1F1F1C] border-b border-[#D8C7B2] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+            <JuthoriLogo size="sm" onClick={onBackToPlatform} confirmHomeNavigation />
             <span className="hidden md:inline-block h-6 w-px bg-[#E8DED2]" />
             <button
               type="button"
@@ -4047,7 +4052,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       <footer className="border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 mt-auto">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center text-center space-y-3.5">
-            <JuthoriLogo size="sm" onClick={onBackToPlatform} />
+            <JuthoriLogo
+              size="sm"
+              onClick={onBackToPlatform}
+              confirmHomeNavigation
+              confirmAlign="center"
+            />
 
             <p className="text-sm sm:text-base font-display font-bold text-[#1F1F1C] pt-1">
               ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
@@ -4352,7 +4362,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         }}
                         className="w-full py-2 px-3 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold cursor-pointer transition-colors"
                       >
-                        فتح التذكرة والرد على العميل في مرصد البحوث ←
+                        فتح التذكرة والرد على العميل في مرصد البحوث
                       </button>
                     )}
                   </div>

@@ -12,6 +12,7 @@ import {
   ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   FAMILY_SITE_THEMES,
   FamilySiteThemeId,
+  normalizeFamilySiteThemeId,
 } from '../config/referralAndSiteConfig';
 import {
   FamilyPortalVisualBranding,
@@ -122,18 +123,29 @@ export const LineageGlowPathVisual: React.FC<LineageGlowPathVisualProps> = ({
 interface TreeBranchGaugeVisualProps {
   treeMembersCount: number;
   totalTreeCapacity: number;
+  isTreeUnlocked?: boolean;
+}
+
+function formatArabicTreeMembersCount(count: number): string {
+  if (count <= 0) return '0 أفراد';
+  if (count === 1) return 'فرد واحد';
+  if (count === 2) return 'فردان';
+  if (count <= 10) return `${count} أفراد`;
+  return `${count} فرداً`;
 }
 
 export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
   treeMembersCount,
   totalTreeCapacity,
+  isTreeUnlocked = true,
 }) => {
+  const effectiveCount = isTreeUnlocked ? Math.max(0, treeMembersCount) : 0;
   const safeCap = Math.max(1, totalTreeCapacity);
-  const ratio = Math.min(1, Math.max(0, treeMembersCount / safeCap));
+  const ratio = Math.min(1, Math.max(0, effectiveCount / safeCap));
   const percent = Math.round(ratio * 100);
   const radius = 26;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - Math.max(ratio, treeMembersCount > 0 ? 0.04 : 0));
+  const strokeDashoffset = circumference * (1 - Math.max(ratio, effectiveCount > 0 ? 0.04 : 0));
 
   return (
     <div
@@ -182,7 +194,7 @@ export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
             cx="34"
             cy="46"
             r="5.5"
-            fill={treeMembersCount >= 1 ? '#D97757' : '#E8DED2'}
+            fill={effectiveCount >= 1 ? '#D97757' : '#E8DED2'}
             stroke="#D8C7B2"
             strokeWidth="1.2"
           />
@@ -190,7 +202,7 @@ export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
             cx="66"
             cy="46"
             r="5.5"
-            fill={treeMembersCount >= 2 ? '#D8C7B2' : '#E8DED2'}
+            fill={effectiveCount >= 2 ? '#D8C7B2' : '#E8DED2'}
             stroke="#D97757"
             strokeWidth="1.2"
           />
@@ -198,7 +210,7 @@ export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
             cx="98"
             cy="46"
             r="5.5"
-            fill={treeMembersCount >= 3 ? '#D97757' : '#E8DED2'}
+            fill={effectiveCount >= 3 ? '#D97757' : '#E8DED2'}
             stroke="#D8C7B2"
             strokeWidth="1.2"
           />
@@ -209,7 +221,7 @@ export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
               cx={cx}
               cy="63"
               r="4"
-              fill={treeMembersCount >= idx + 4 ? '#D97757' : '#E8DED2'}
+              fill={effectiveCount >= idx + 4 ? '#D97757' : '#E8DED2'}
               stroke="#D8C7B2"
               strokeWidth="1.1"
             />
@@ -217,12 +229,25 @@ export const TreeBranchGaugeVisual: React.FC<TreeBranchGaugeVisualProps> = ({
         </svg>
 
         <div className="space-y-0.5 min-w-0">
-          <div className="text-xs font-display font-bold text-[#1F1F1C] tabular-nums">
-            {treeMembersCount} أفراد من سعة {totalTreeCapacity}
-          </div>
-          <div className="text-[11px] text-[#1F1F1C]/70 tabular-nums">
-            المتبقي: {Math.max(0, totalTreeCapacity - treeMembersCount)} مقعداً
-          </div>
+          {!isTreeUnlocked ? (
+            <>
+              <div className="text-xs font-display font-bold text-[#1F1F1C]">
+                لم يبدأ تأسيس المشجرة بعد
+              </div>
+              <div className="text-[11px] text-[#1F1F1C]/70 tabular-nums">
+                تُفتح سعة {totalTreeCapacity} فرداً عند الترقية للباقة السنوية
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs font-display font-bold text-[#1F1F1C] tabular-nums">
+                {formatArabicTreeMembersCount(effectiveCount)} من سعة {totalTreeCapacity}
+              </div>
+              <div className="text-[11px] text-[#1F1F1C]/70 tabular-nums">
+                المتبقي: {Math.max(0, totalTreeCapacity - effectiveCount)} مقعداً
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -357,8 +382,10 @@ export const SiteMiniBrowserVisual: React.FC<SiteMiniBrowserVisualProps> = ({
   emblemTag,
   visualBranding,
 }) => {
+  const normalizedThemeId = normalizeFamilySiteThemeId(themeId);
   const theme =
-    FAMILY_SITE_THEMES.find((t) => t.id === themeId) || FAMILY_SITE_THEMES[0];
+    FAMILY_SITE_THEMES.find((t) => t.id === normalizedThemeId) ||
+    FAMILY_SITE_THEMES[0];
   const branding = visualBranding || buildDefaultVisualBranding(familyName);
   const typography =
     TYPOGRAPHY_PAIR_OPTIONS.find((t) => t.id === branding.typographyId) ||

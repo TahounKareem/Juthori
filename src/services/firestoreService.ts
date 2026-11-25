@@ -2915,6 +2915,31 @@ export function saveUserFamilyTreeToLocal(
   }
 }
 
+function normalizeTreeFamilyToken(raw?: string): string {
+  return (raw || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:عائلة|عائله|أسرة|اسرة|بيت|آل|ال)\s+/u, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .toLowerCase()
+    .trim();
+}
+
+function doesStoredTreeFamilyMatch(
+  storedFamilyName?: string,
+  requestedFamilyName?: string
+): boolean {
+  const stored = normalizeTreeFamilyToken(storedFamilyName);
+  const requested = normalizeTreeFamilyToken(requestedFamilyName);
+  if (!stored || !requested) return true;
+  if (stored === 'العائله' || stored === 'عائله' || requested === 'العائله' || requested === 'عائله') {
+    return true;
+  }
+  return stored === requested;
+}
+
 export function readUserFamilyTreeFromLocal<T = unknown>(
   userId?: string,
   userEmail?: string,
@@ -2926,6 +2951,13 @@ export function readUserFamilyTreeFromLocal<T = unknown>(
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw) as { familyName?: string; people?: T[] } | T[];
+      if (
+        !Array.isArray(parsed) &&
+        parsed?.familyName &&
+        !doesStoredTreeFamilyMatch(parsed.familyName, familyName)
+      ) {
+        continue;
+      }
       const list = Array.isArray(parsed)
         ? parsed
         : Array.isArray(parsed?.people)
@@ -3031,6 +3063,12 @@ export async function fetchUserFamilyTreeFromFirebase<T = unknown>(
         updatedAt?: string;
       }>(['users', uid, 'family_tree', 'main']);
       if (data?.peopleJson) {
+        if (
+          data.familyName &&
+          !doesStoredTreeFamilyMatch(data.familyName, familyName)
+        ) {
+          continue;
+        }
         const parsed = JSON.parse(data.peopleJson) as Array<Record<string, unknown>>;
         if (Array.isArray(parsed) && parsed.length > 0) {
           const rehydrated = await Promise.all(

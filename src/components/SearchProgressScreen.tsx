@@ -6,7 +6,6 @@ import {
   Sparkles,
   Lock,
   Mail,
-  ArrowLeft,
   Search,
   Loader2,
   CheckCircle2,
@@ -512,7 +511,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                 onClick={handleConfirmDisambiguationSelection}
                 className="w-full py-3.5 px-6 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] font-display font-bold text-base flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
               >
-                <span>متابعة ←</span>
+                <span>متابعة</span>
               </button>
 
               {/* Quiet Secondary Button: لست متأكداً */}
@@ -725,7 +724,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                         >
                           {isSendingOtp
                             ? 'جاري الإرسال عبر Resend...'
-                            : 'إرسال رمز OTP إلى بريدي ←'}
+                            : 'إرسال رمز OTP إلى بريدي'}
                         </button>
                       </div>
                       <div className="relative">
@@ -825,7 +824,6 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                     <>
                       <CheckCircle2 className="w-5 h-5" />
                       <span>تأكيد وحفظ الاكتشاف والانتقال إلى لوحة التحكم</span>
-                      <ArrowLeft className="w-5 h-5" aria-hidden="true" />
                     </>
                   )}
                 </button>
