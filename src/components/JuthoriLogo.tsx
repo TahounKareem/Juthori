@@ -25,9 +25,9 @@ export const JuthoriLogo: React.FC<JuthoriLogoProps> = ({
 
   const content = (
     <span className="inline-flex items-center gap-3 whitespace-nowrap shrink-0 select-none">
-      {/* Official Juthori Logo Mark: Coral rounded square with Arabic calligraphy and Latin tracking */}
+      {/* Official Juthori Logo Mark: Terracotta rounded square with Warm Ivory Arabic calligraphy and Latin tracking */}
       <span
-        className={`${dimensions} bg-[#D8755B] text-white flex flex-col items-center justify-center shadow-sm transition-transform duration-150 group-hover:scale-[1.02]`}
+        className={`${dimensions} bg-[#D97757] text-[#F5F1E8] flex flex-col items-center justify-center shadow-sm transition-transform duration-150 group-hover:scale-[1.02]`}
       >
         <span className={`${arSize} font-display font-bold leading-none tracking-tight`}>
           جذوري
@@ -41,7 +41,7 @@ export const JuthoriLogo: React.FC<JuthoriLogoProps> = ({
       </span>
 
       {showText && (
-        <span className="font-display font-bold text-xl text-[#252321] tracking-tight">
+        <span className="font-display font-bold text-xl text-[#1F1F1C] tracking-tight">
           جذوري
         </span>
       )}
@@ -54,7 +54,7 @@ export const JuthoriLogo: React.FC<JuthoriLogoProps> = ({
         type="button"
         onClick={onClick}
         aria-label="شعار منصة جذوري"
-        className="group inline-flex items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D8755B] rounded-xl cursor-pointer"
+        className="group inline-flex items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D97757] rounded-xl cursor-pointer"
       >
         {content}
       </button>

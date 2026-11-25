@@ -25,16 +25,63 @@ export interface UnifiedWorkspaceHeaderProps {
 
 /** Shared button class tokens for strict 40px height & unified color hierarchy across all tabs */
 export const WORKSPACE_PRIMARY_BTN_CLASS =
-  'h-10 px-4 rounded-xl text-[13px] font-display font-semibold inline-flex items-center justify-center gap-2 bg-[#9E5631] hover:bg-[#874726] text-white shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+  'h-10 px-4 rounded-xl text-[13px] font-display font-semibold inline-flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
 
 export const WORKSPACE_SECONDARY_BTN_CLASS =
-  'h-10 px-4 rounded-xl text-[13px] font-display font-semibold inline-flex items-center justify-center gap-2 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+  'h-10 px-4 rounded-xl text-[13px] font-display font-semibold inline-flex items-center justify-center gap-2 bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2] transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
 
 export const WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS =
-  'h-10 px-4 rounded-xl text-[13px] font-display font-semibold inline-flex items-center justify-center gap-2 bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/55 shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+  'h-10 px-4 rounded-xl text-[13px] font-display font-semibold inline-flex items-center justify-center gap-2 bg-[#E8DED2] hover:bg-[#D8C7B2]/50 text-[#D97757] border border-[#D8C7B2] shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
 
 export const WORKSPACE_ICON_BTN_CLASS =
-  'h-10 w-10 rounded-xl inline-flex items-center justify-center bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] transition-all cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+  'h-10 w-10 rounded-xl inline-flex items-center justify-center bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D8C7B2] transition-all cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+
+export const WORKSPACE_ICON_ACTIVE_BTN_CLASS =
+  'h-10 w-10 rounded-xl inline-flex items-center justify-center bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#D97757] border border-[#D97757] shadow-2xs transition-all cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+
+export const WORKSPACE_PRIMARY_ICON_BTN_CLASS =
+  'h-10 w-10 rounded-xl inline-flex items-center justify-center bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] shadow-sm transition-all cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed';
+
+export const WorkspaceIconTooltip: React.FC<{
+  label: string;
+  placement?: 'bottom' | 'top';
+  align?: 'center' | 'left' | 'right';
+  children: React.ReactNode;
+}> = ({ label, placement = 'bottom', align = 'center', children }) => {
+  const posVertical =
+    placement === 'top'
+      ? 'bottom-full mb-2 translate-y-1 group-hover/tip:translate-y-0 group-focus-within/tip:translate-y-0'
+      : 'top-full mt-2 -translate-y-1 group-hover/tip:translate-y-0 group-focus-within/tip:translate-y-0';
+  const posHorizontal =
+    align === 'left'
+      ? 'left-0'
+      : align === 'right'
+      ? 'right-0'
+      : 'left-1/2 -translate-x-1/2';
+  const arrowHorizontal =
+    align === 'left'
+      ? 'left-3.5'
+      : align === 'right'
+      ? 'right-3.5'
+      : 'left-1/2 -translate-x-1/2';
+  const arrowVertical = placement === 'top' ? '-bottom-1' : '-top-1';
+
+  return (
+    <span className="relative inline-flex items-center justify-center group/tip">
+      {children}
+      <span
+        role="tooltip"
+        className={`pointer-events-none select-none absolute ${posVertical} ${posHorizontal} z-[95] px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] border border-[#D8C7B2]/35 shadow-lg text-[11px] font-display font-semibold whitespace-nowrap opacity-0 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 transition-all duration-150`}
+      >
+        <span
+          aria-hidden="true"
+          className={`absolute ${arrowVertical} ${arrowHorizontal} w-2 h-2 rotate-45 bg-[#1F1F1C]`}
+        />
+        <span className="relative z-10">{label}</span>
+      </span>
+    </span>
+  );
+};
 
 /**
  * Reusable Quiet Heritage Luxury ornament backdrop shared across
@@ -52,18 +99,18 @@ export const HeritagePlaqueOrnamentLayer: React.FC<{
       aria-hidden="true"
       className="pointer-events-none select-none absolute inset-0 rounded-2xl overflow-hidden"
     >
-      {/* 1. Top Edge Specular Gold Crest Hairline */}
-      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent" />
+      {/* 1. Top Edge Specular Crest Hairline */}
+      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#D8C7B2] to-transparent" />
 
-      {/* 2. Subtle Warm Amber/Gold Ambient Halo behind the Right Corner (Icon & Title zone) */}
+      {/* 2. Subtle Warm Sand Ambient Halo behind the Right Corner (Icon & Title zone) */}
       <div
-        className={`absolute -top-10 -right-8 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.06)_0%,rgba(212,175,55,0)_72%)] blur-2xl ${
+        className={`absolute -top-10 -right-8 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(216,199,178,0.22)_0%,rgba(216,199,178,0)_72%)] blur-2xl ${
           isHero ? 'w-72 h-44' : 'w-56 h-36'
         }`}
       />
 
       {/* 3. Masked Heritage Filigree SVG Watermark (Andalusian 8-Pointed Shamsa + Fine Lineage Vine Lines) */}
-      <div className="absolute inset-0 opacity-[0.048] group-hover:opacity-[0.07] transition-opacity duration-500 [mask-image:linear-gradient(to_left,rgba(0,0,0,1)_0%,rgba(0,0,0,0.72)_18%,rgba(0,0,0,0)_42%,rgba(0,0,0,0)_62%,rgba(0,0,0,0.48)_84%,rgba(0,0,0,0.85)_100%)] [-webkit-mask-image:linear-gradient(to_left,rgba(0,0,0,1)_0%,rgba(0,0,0,0.72)_18%,rgba(0,0,0,0)_42%,rgba(0,0,0,0)_62%,rgba(0,0,0,0.48)_84%,rgba(0,0,0,0.85)_100%)]">
+      <div className="absolute inset-0 opacity-[0.06] group-hover:opacity-[0.085] transition-opacity duration-500 [mask-image:linear-gradient(to_left,rgba(0,0,0,1)_0%,rgba(0,0,0,0.72)_18%,rgba(0,0,0,0)_42%,rgba(0,0,0,0)_62%,rgba(0,0,0,0.48)_84%,rgba(0,0,0,0.85)_100%)] [-webkit-mask-image:linear-gradient(to_left,rgba(0,0,0,1)_0%,rgba(0,0,0,0.72)_18%,rgba(0,0,0,0)_42%,rgba(0,0,0,0)_62%,rgba(0,0,0,0.48)_84%,rgba(0,0,0,0.85)_100%)]">
         {/* Primary Right-Corner Shamsa Rosette (~220px diameter) + Delicate Lineage Filigree Arcs */}
         <svg
           viewBox="0 0 240 240"
@@ -73,7 +120,7 @@ export const HeritagePlaqueOrnamentLayer: React.FC<{
             isHero ? 'w-[248px] h-[248px]' : 'w-[220px] h-[220px]'
           }`}
         >
-          <g stroke="#B88928" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round">
+          <g stroke="#1F1F1C" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round">
             {/* Outer manuscript halo rings */}
             <circle cx="120" cy="120" r="108" strokeDasharray="3 5" />
             <circle cx="120" cy="120" r="98" />
@@ -129,7 +176,7 @@ export const HeritagePlaqueOrnamentLayer: React.FC<{
             isHero ? 'w-[176px] h-[176px]' : 'w-[152px] h-[152px]'
           }`}
         >
-          <g stroke="#B88928" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round">
+          <g stroke="#1F1F1C" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="90" cy="90" r="78" strokeDasharray="2.5 5" />
             <circle cx="90" cy="90" r="64" />
             <circle cx="90" cy="90" r="36" />
@@ -147,10 +194,10 @@ export const HeritagePlaqueOrnamentLayer: React.FC<{
       </div>
 
       {/* 4. Micro-Manuscript Corner Filigrees (Inset 6px on sm+ viewports) */}
-      <span className="hidden sm:block absolute top-[6px] right-[6px] w-3 h-3 border-t border-r border-[#C59B27]/25 group-hover:border-[#C59B27]/40 rounded-tr-[4px] transition-colors duration-500" />
-      <span className="hidden sm:block absolute top-[6px] left-[6px] w-3 h-3 border-t border-l border-[#C59B27]/25 group-hover:border-[#C59B27]/40 rounded-tl-[4px] transition-colors duration-500" />
-      <span className="hidden sm:block absolute bottom-[6px] right-[6px] w-3 h-3 border-b border-r border-[#C59B27]/25 group-hover:border-[#C59B27]/40 rounded-br-[4px] transition-colors duration-500" />
-      <span className="hidden sm:block absolute bottom-[6px] left-[6px] w-3 h-3 border-b border-l border-[#C59B27]/25 group-hover:border-[#C59B27]/40 rounded-bl-[4px] transition-colors duration-500" />
+      <span className="hidden sm:block absolute top-[6px] right-[6px] w-3 h-3 border-t border-r border-[#D8C7B2] group-hover:border-[#D97757]/60 rounded-tr-[4px] transition-colors duration-500" />
+      <span className="hidden sm:block absolute top-[6px] left-[6px] w-3 h-3 border-t border-l border-[#D8C7B2] group-hover:border-[#D97757]/60 rounded-tl-[4px] transition-colors duration-500" />
+      <span className="hidden sm:block absolute bottom-[6px] right-[6px] w-3 h-3 border-b border-r border-[#D8C7B2] group-hover:border-[#D97757]/60 rounded-br-[4px] transition-colors duration-500" />
+      <span className="hidden sm:block absolute bottom-[6px] left-[6px] w-3 h-3 border-b border-l border-[#D8C7B2] group-hover:border-[#D97757]/60 rounded-bl-[4px] transition-colors duration-500" />
     </div>
   );
 };
@@ -175,7 +222,7 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
     <header
       dir="rtl"
       data-testid={testId}
-      className={`group relative w-full bg-gradient-to-l from-[#FCF8F0] via-[#FDFBF7] to-[#FAF5EA] border border-[#E6DAC3] rounded-2xl px-5 sm:px-6 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_18px_-6px_rgba(44,30,20,0.05)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between min-[1200px]:flex-nowrap gap-3 xl:gap-4 text-right ${className}`}
+      className={`group relative w-full bg-[#F5F1E8] border border-[#D8C7B2] rounded-2xl px-5 sm:px-6 py-4 shadow-[0_4px_18px_-6px_rgba(31,31,28,0.06)] min-h-[86px] flex flex-col lg:flex-row lg:items-center lg:justify-between min-[1200px]:flex-nowrap gap-3 xl:gap-4 text-right ${className}`}
     >
       {/* Decorative Masked Heritage Plaque Layer (Non-interactive, cleanly clipped to rounded-2xl) */}
       <HeritagePlaqueOrnamentLayer scale="header" />
@@ -184,28 +231,28 @@ export const UnifiedWorkspaceHeader: React.FC<UnifiedWorkspaceHeaderProps> = ({
       <div className="relative z-10 flex items-center gap-3 min-w-0 shrink">
         <div
           aria-hidden="true"
-          className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center border border-[#D8C7B2] bg-[#E8DED2] text-[#D97757] shadow-2xs transition-colors duration-300 group-hover:border-[#D97757]/45"
+          className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center border border-[#D8C7B2] bg-[#E8DED2] text-[#D97757] shadow-2xs transition-colors duration-300 group-hover:border-[#D97757]/60"
         >
           {icon}
         </div>
 
         <div className="min-w-0 flex-1 space-y-1">
-          <h1 className="text-[19px] sm:text-[21px] font-display font-bold text-[#2C1E14] leading-snug truncate">
+          <h1 className="text-[19px] sm:text-[21px] font-display font-bold text-[#1F1F1C] leading-snug truncate">
             {title}
           </h1>
 
           {meta ? (
-            <div className="text-[12.5px] text-[#7A6855] flex flex-wrap items-center gap-x-2 gap-y-1 leading-normal">
+            <div className="text-[12.5px] text-[#1F1F1C]/65 flex flex-wrap items-center gap-x-2 gap-y-1 leading-normal">
               {meta}
             </div>
           ) : validMetaItems.length > 0 ? (
-            <div className="text-[12.5px] text-[#7A6855] flex flex-wrap items-center gap-x-2 gap-y-1 leading-normal">
+            <div className="text-[12.5px] text-[#1F1F1C]/65 flex flex-wrap items-center gap-x-2 gap-y-1 leading-normal">
               {validMetaItems.map((item, idx) => (
                 <React.Fragment key={idx}>
                   {idx > 0 && (
                     <span
                       aria-hidden="true"
-                      className="text-[#C8A666] font-bold select-none"
+                      className="text-[#D97757] font-bold select-none"
                     >
                       ·
                     </span>

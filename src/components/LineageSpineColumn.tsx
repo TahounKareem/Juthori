@@ -20,9 +20,10 @@ import {
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
-  WORKSPACE_PRIMARY_BTN_CLASS,
-  WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
-  WORKSPACE_SECONDARY_BTN_CLASS,
+  WORKSPACE_ICON_ACTIVE_BTN_CLASS,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
@@ -1654,7 +1655,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                         name="post5_stage1_origin"
                         checked={isSelected}
                         onChange={() => setStage1Choice(opt.id)}
-                        className="w-4 h-4 accent-[#8D4925] cursor-pointer shrink-0"
+                        className="w-4 h-4 accent-[#D97757] cursor-pointer shrink-0"
                       />
                       <span
                         className="text-sm sm:text-base font-display font-extrabold"
@@ -1699,7 +1700,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     name="post5_stage1_origin"
                     checked={stage1Choice === 'not_sure_stage1'}
                     onChange={() => setStage1Choice('not_sure_stage1')}
-                    className="w-4 h-4 accent-[#8D4925] cursor-pointer shrink-0"
+                    className="w-4 h-4 accent-[#D97757] cursor-pointer shrink-0"
                   />
                   <span
                     className="text-sm font-display font-bold"
@@ -1768,7 +1769,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                         name="post5_stage2_geo"
                         checked={isSelected}
                         onChange={() => setStage2Choice(opt.id)}
-                        className="w-4 h-4 accent-[#8D4925] cursor-pointer shrink-0"
+                        className="w-4 h-4 accent-[#D97757] cursor-pointer shrink-0"
                       />
                       <span
                         className="text-sm font-display font-extrabold"
@@ -1811,7 +1812,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     name="post5_stage2_geo"
                     checked={stage2Choice === 'not_sure_escalate'}
                     onChange={() => setStage2Choice('not_sure_escalate')}
-                    className="w-4 h-4 accent-[#8D4925] cursor-pointer shrink-0"
+                    className="w-4 h-4 accent-[#D97757] cursor-pointer shrink-0"
                   />
                   <span
                     className="text-sm font-display font-bold"
@@ -1820,7 +1821,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     لا أعرف / موضع آخر
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shrink-0">
+                <span className="text-[10px] font-bold text-[#1F1F1C] bg-[#E8DED2] px-2 py-0.5 rounded border border-[#D8C7B2] shrink-0">
                   إحالة لتذكرة بحث متخصصة
                 </span>
               </label>
@@ -1866,23 +1867,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       return (
         <div
           data-testid="unmatched-special-research-paywall-card"
-          className="max-w-[440px] w-full mx-auto rounded-2xl p-5 shadow-md relative z-20 text-right space-y-4"
-          style={{
-            backgroundColor: theme.surfaceBg,
-            border: `2px solid ${theme.goldBorderHex}`,
-          }}
+          className="max-w-[440px] w-full mx-auto rounded-2xl p-5 bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_6px_22px_-10px_rgba(31,31,28,0.12)] relative z-20 text-right space-y-4"
         >
           <div className="space-y-1.5">
-            <h3
-              className="text-sm sm:text-base font-display font-extrabold leading-snug"
-              style={{ color: theme.textPrimaryHex }}
-            >
+            <h3 className="text-sm sm:text-base font-display font-extrabold leading-snug text-[#1F1F1C]">
               لم يظهر تطابق آلي مباشر لعائلة ({result.familyName}) في الفهرس الفوري
             </h3>
-            <p
-              className="text-xs font-medium leading-relaxed"
-              style={{ color: theme.textSecondaryHex }}
-            >
+            <p className="text-xs font-medium leading-relaxed text-[#1F1F1C]/75">
               اشترك في الباقة السنوية ليقوم فريق الباحثين المتخصصين بالبحث المعمّق في أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلتك وربطه حتى آدم عليه السلام.
             </p>
           </div>
@@ -1890,11 +1881,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           <button
             type="button"
             onClick={onUpgradeAnnualVip}
-            className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold transition-colors cursor-pointer shadow-xs"
-            style={{
-              backgroundColor: theme.buttonPrimaryBg,
-              color: theme.buttonPrimaryText,
-            }}
+            className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] transition-colors cursor-pointer shadow-xs"
           >
             اشترك في الباقة السنوية لتوثيق عمود نسب عائلتك ←
           </button>
@@ -1905,29 +1892,16 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     return (
       <div
         data-testid="unmatched-active-p1-ticket-card"
-        className="max-w-[440px] w-full mx-auto rounded-2xl p-5 shadow-md relative z-20 text-right space-y-3.5"
-        style={{
-          backgroundColor: theme.surfaceBg,
-          border: `2px solid ${theme.goldBorderHex}`,
-        }}
+        className="max-w-[440px] w-full mx-auto rounded-2xl p-5 bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_6px_22px_-10px_rgba(31,31,28,0.12)] relative z-20 text-right space-y-3.5"
       >
         <div className="space-y-1.5">
-          <div
-            className="text-[11px] font-display font-extrabold"
-            style={{ color: theme.statusText }}
-          >
+          <div className="text-[11px] font-display font-extrabold text-[#D97757]">
             تذكرة أولوية قصوى P1 · مفعّلة ✓
           </div>
-          <h3
-            className="text-sm sm:text-base font-display font-extrabold leading-snug"
-            style={{ color: theme.textPrimaryHex }}
-          >
+          <h3 className="text-sm sm:text-base font-display font-extrabold leading-snug text-[#1F1F1C]">
             تذكرة بحث وتوثيق نشطة لدى فريق الباحثين — جاري استخراج وتوثيق عمود نسب العائلة
           </h3>
-          <p
-            className="text-xs leading-relaxed"
-            style={{ color: theme.textSecondaryHex }}
-          >
+          <p className="text-xs leading-relaxed text-[#1F1F1C]/75">
             يعمل فريق النسابين والمحققين حالياً على مراجعة أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلة ({result.familyName}). يمكنك الآن البدء ببناء شجرة عائلتك القريبة في تبويب «شجرتي» ريثما يعتمد الباحثون عمودك الكامل.
           </p>
         </div>
@@ -1937,11 +1911,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <button
               type="button"
               onClick={onOpenResearchTicketsTab}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer shadow-2xs"
-              style={{
-                backgroundColor: theme.buttonPrimaryBg,
-                color: theme.buttonPrimaryText,
-              }}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] transition-colors cursor-pointer shadow-2xs"
             >
               متابعة حالة طلب التحقيق والرد على مراسلات الباحثين ←
             </button>
@@ -1950,12 +1920,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <button
               type="button"
               onClick={onOpenMyTreeTab}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer"
-              style={{
-                backgroundColor: theme.goldSoftBg,
-                color: theme.accentTextHex,
-                border: `1px solid ${theme.goldBorderHex}`,
-              }}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#1F1F1C] border border-[#D8C7B2] transition-colors cursor-pointer"
             >
               ابدأ ببناء شجرة عائلتك القريبة في «شجرتي» ←
             </button>
@@ -2009,7 +1974,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     }
 
     return (
-      <div className="flex justify-center relative z-20 my-1.5">
+      <div className="w-full flex justify-center relative z-20 py-2">
         <div
           className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-display font-bold shadow-2xs"
           style={{
@@ -2452,20 +2417,12 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           )}
 
           <div className="relative">
-            {/* Central Sculpted Golden Axis (Desktop md+) / Right Rail (Mobile) */}
+            {/* Single Precision-Centered Vertical Axis (Desktop md+) / Right Rail (Mobile) */}
             <div
               aria-hidden="true"
-              className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-2 justify-between pointer-events-none"
-            >
-              <span
-                className="w-[1.5px] h-full rounded-full"
-                style={{ background: theme.railGradient }}
-              />
-              <span
-                className="w-[1.5px] h-full rounded-full"
-                style={{ background: theme.railGradient }}
-              />
-            </div>
+              className="hidden md:block absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-[2px] rounded-full pointer-events-none"
+              style={{ background: theme.railGradient }}
+            />
             <div
               aria-hidden="true"
               className="md:hidden absolute right-4 top-4 bottom-4 w-[2px] rounded-full pointer-events-none"
@@ -2655,8 +2612,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                     backgroundColor: theme.surfaceAltBg,
                     border: `1.5px solid ${theme.goldBorderHex}65`,
                     boxShadow: theme.isDark
-                      ? '0 8px 24px rgba(0,0,0,0.28)'
-                      : '0 4px 16px rgba(141,73,37,0.05)',
+                      ? '0 8px 24px rgba(31,31,28,0.28)'
+                      : '0 4px 16px rgba(217,119,87,0.05)',
                   }}
                 >
                   {/* Top Medallion Index & Directional Link */}
@@ -2777,8 +2734,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                           backgroundColor: theme.surfaceBg,
                           border: `1.5px solid ${theme.goldBorderHex}80`,
                           boxShadow: theme.isDark
-                            ? '0 10px 26px rgba(0,0,0,0.32)'
-                            : '0 6px 20px rgba(141,73,37,0.06)',
+                            ? '0 10px 26px rgba(31,31,28,0.32)'
+                            : '0 6px 20px rgba(217,119,87,0.06)',
                         }}
                       >
                         {/* Delicate Islamic Pointed Mihrab Arch Crown Filigree */}
@@ -2935,8 +2892,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             backgroundColor: theme.surfaceBg,
             border: `2px solid ${theme.goldBorderHex}`,
             boxShadow: theme.isDark
-              ? `inset 0 0 0 8px ${theme.canvasBg}, inset 0 0 0 9.5px ${theme.goldBorderHex}66, 0 18px 40px rgba(0,0,0,0.4)`
-              : `inset 0 0 0 8px ${theme.surfaceBg}, inset 0 0 0 9.5px ${theme.goldBorderHex}80, 0 14px 36px rgba(141,73,37,0.1)`,
+              ? `inset 0 0 0 8px ${theme.canvasBg}, inset 0 0 0 9.5px ${theme.goldBorderHex}66, 0 18px 40px rgba(31,31,28,0.4)`
+              : `inset 0 0 0 8px ${theme.surfaceBg}, inset 0 0 0 9.5px ${theme.goldBorderHex}80, 0 14px 36px rgba(217,119,87,0.1)`,
           }}
         >
           {/* 4 Islamic Geometric Corner Ornaments */}
@@ -2996,23 +2953,15 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           <div className="relative max-w-[440px] mx-auto">
             <div
               aria-hidden="true"
-              className="absolute left-1/2 -translate-x-1/2 top-4 bottom-4 w-1.5 flex justify-between pointer-events-none"
-            >
-              <span
-                className="w-[1.5px] h-full rounded-full"
-                style={{ background: theme.railGradient }}
-              />
-              <span
-                className="w-[1.5px] h-full rounded-full"
-                style={{ background: theme.railGradient }}
-              />
-            </div>
+              className="absolute left-1/2 -translate-x-1/2 top-6 bottom-6 w-[2px] rounded-full pointer-events-none"
+              style={{ background: theme.railGradient }}
+            />
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col items-center relative z-10">
               {!isBottomUp && specialUpper && (
                 <>
                   {specialUpper}
-                  <div className="flex justify-center relative z-20 my-1.5">
+                  <div className="w-full flex justify-center relative z-20 py-2">
                     <span
                       className="px-3 py-0.5 rounded-full text-[11px] font-display font-bold"
                       style={{
@@ -3047,7 +2996,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
               {isBottomUp && specialUpper && (
                 <>
-                  <div className="flex justify-center relative z-20 my-1.5">
+                  <div className="w-full flex justify-center relative z-20 py-2">
                     <span
                       className="px-3 py-0.5 rounded-full text-[11px] font-display font-bold"
                       style={{
@@ -3115,26 +3064,18 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         data-testid="lineage-view-royal_pillar"
         className="relative w-full max-w-[460px] mx-auto py-2"
       >
-        {/* Golden Double-Rail Spine with Diamond Stoppers */}
+        {/* Single Precision-Centered Vertical Spine Stem */}
         <div
           aria-hidden="true"
-          className="absolute left-1/2 -translate-x-1/2 top-3 bottom-3 w-2 flex justify-between pointer-events-none"
-        >
-          <span
-            className="w-[1.5px] h-full rounded-full"
-            style={{ background: theme.railGradient }}
-          />
-          <span
-            className="w-[1.5px] h-full rounded-full"
-            style={{ background: theme.railGradient }}
-          />
-        </div>
+          className="absolute left-1/2 -translate-x-1/2 top-6 bottom-6 w-[2px] rounded-full pointer-events-none"
+          style={{ background: theme.railGradient }}
+        />
 
-        <div className="space-y-1.5 relative z-10">
+        <div className="flex flex-col items-center relative z-10">
           {!isBottomUp && specialUpper && (
             <>
               {specialUpper}
-              <div className="flex justify-center relative z-20 my-1.5">
+              <div className="w-full flex justify-center relative z-20 py-2">
                 <span
                   className="px-3 py-0.5 rounded-full text-[11px] font-display font-bold"
                   style={{
@@ -3169,7 +3110,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
           {isBottomUp && specialUpper && (
             <>
-              <div className="flex justify-center relative z-20 my-1.5">
+              <div className="w-full flex justify-center relative z-20 py-2">
                 <span
                   className="px-3 py-0.5 rounded-full text-[11px] font-display font-bold"
                   style={{
@@ -3294,33 +3235,49 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           }
           actions={
             <>
-              <button
-                type="button"
-                data-testid="toggle-lineage-customizer-btn"
-                onClick={() => setIsCustomizerOpen((prev) => !prev)}
-                className={
-                  isCustomizerOpen
-                    ? WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS
-                    : WORKSPACE_SECONDARY_BTN_CLASS
+              <WorkspaceIconTooltip
+                label="تخصيص المظهر"
+                align={
+                  !isResearcherDirectPreview &&
+                  !isUnmatchedCase &&
+                  caps.isRootUnlocked
+                    ? 'center'
+                    : 'left'
                 }
               >
-                <SlidersHorizontal className="w-4 h-4 shrink-0" />
-                <span>تخصيص المظهر</span>
-              </button>
+                <button
+                  type="button"
+                  data-testid="toggle-lineage-customizer-btn"
+                  aria-label="تخصيص المظهر"
+                  aria-pressed={isCustomizerOpen}
+                  onClick={() => setIsCustomizerOpen((prev) => !prev)}
+                  className={
+                    isCustomizerOpen
+                      ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                      : WORKSPACE_ICON_BTN_CLASS
+                  }
+                >
+                  <SlidersHorizontal className="w-4 h-4 shrink-0" />
+                </button>
+              </WorkspaceIconTooltip>
 
               {!isResearcherDirectPreview &&
                 !isUnmatchedCase &&
                 caps.isRootUnlocked && (
-                  <button
-                    type="button"
-                    data-testid="open-lineage-official-export-btn"
-                    onClick={() => setShowOfficialExportModal(true)}
-                    title="تصدير أو طباعة صك عمود النسب الموثق بالثيم والخط والاتجاه المختار"
-                    className={WORKSPACE_PRIMARY_BTN_CLASS}
+                  <WorkspaceIconTooltip
+                    label="تصدير صك النسب"
+                    align="left"
                   >
-                    <ScrollText className="w-4 h-4 shrink-0" />
-                    <span>تصدير صك النسب</span>
-                  </button>
+                    <button
+                      type="button"
+                      data-testid="open-lineage-official-export-btn"
+                      aria-label="تصدير صك النسب"
+                      onClick={() => setShowOfficialExportModal(true)}
+                      className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
+                    >
+                      <ScrollText className="w-4 h-4 shrink-0" />
+                    </button>
+                  </WorkspaceIconTooltip>
                 )}
             </>
           }
@@ -3336,8 +3293,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           boxShadow: isFullscreen
             ? undefined
             : theme.isDark
-            ? '0 16px 40px rgba(0,0,0,0.35)'
-            : '0 8px 30px rgba(141,73,37,0.06)',
+            ? '0 16px 40px rgba(31,31,28,0.35)'
+            : '0 8px 30px rgba(217,119,87,0.06)',
         }}
       >
         <div
@@ -3378,20 +3335,21 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsFullscreen(false)}
-                  aria-label="إغلاق العرض الكامل"
-                  className="px-3 py-1.5 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-                  style={{
-                    backgroundColor: theme.surfaceBg,
-                    border: `1px solid ${theme.surfaceBorder}`,
-                    color: theme.textPrimaryHex,
-                  }}
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>إغلاق</span>
-                </button>
+                <WorkspaceIconTooltip label="إغلاق العرض الكامل" align="left">
+                  <button
+                    type="button"
+                    onClick={() => setIsFullscreen(false)}
+                    aria-label="إغلاق العرض الكامل"
+                    className="w-9 h-9 rounded-xl inline-flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+                    style={{
+                      backgroundColor: theme.surfaceBg,
+                      border: `1px solid ${theme.surfaceBorder}`,
+                      color: theme.textPrimaryHex,
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </WorkspaceIconTooltip>
               </div>
             </div>
           )}
@@ -3567,42 +3525,42 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           return (
             <div
               data-testid="direct-family-vault-modal"
-              className="fixed inset-0 z-[75] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+              className="fixed inset-0 z-[75] bg-[#1F1F1C]/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
               role="dialog"
               aria-modal="true"
               aria-label={`وثائق وصور العائلة المباشرة (${cleanFam})`}
             >
               <div
                 dir="rtl"
-                className="bg-[#FFFDF9] border-2 border-[#D4AF37] rounded-3xl max-w-2xl w-full p-5 sm:p-6 space-y-4 text-right shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
+                className="bg-[#F5F1E8] border-2 border-[#D8C7B2] rounded-3xl max-w-2xl w-full p-5 sm:p-6 space-y-4 text-right shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
               >
-                <div className="flex items-start justify-between gap-3 border-b border-[#B98A78]/30 pb-3">
+                <div className="flex items-start justify-between gap-3 border-b border-[#D97757]/30 pb-3">
                   <div>
-                    <div className="inline-flex items-center gap-1.5 text-xs font-display font-bold text-[#8D4925] mb-0.5">
-                      <Paperclip className="w-3.5 h-3.5 text-[#C59A38]" />
+                    <div className="inline-flex items-center gap-1.5 text-xs font-display font-bold text-[#D97757] mb-0.5">
+                      <Paperclip className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>العائلة المباشرة — بيت النسب ({cleanFam})</span>
                     </div>
-                    <h4 className="text-base sm:text-lg font-display font-extrabold text-[#252321]">
+                    <h4 className="text-base sm:text-lg font-display font-extrabold text-[#1F1F1C]">
                       وثائق وصور هذا الفرد في خزانتي ({linkedFamilyMedia.length})
                     </h4>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowDirectFamilyVaultModal(false)}
-                    className="w-8 h-8 rounded-xl bg-[#F7F2E9] hover:bg-[#EDE6DA] flex items-center justify-center text-[#252321] cursor-pointer shrink-0"
+                    className="w-8 h-8 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] flex items-center justify-center text-[#1F1F1C] cursor-pointer shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
                 {familyVaultFeedback && (
-                  <div className="rounded-xl bg-amber-50 border border-amber-300 px-3.5 py-2.5 text-xs font-bold text-amber-950">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 text-xs font-bold text-[#1F1F1C]">
                     {familyVaultFeedback}
                   </div>
                 )}
 
                 {linkedFamilyMedia.length === 0 ? (
-                  <div className="rounded-xl bg-white border border-[#B98A78]/35 p-3.5 text-xs text-[#252321]/75">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 p-3.5 text-xs text-[#1F1F1C]/75">
                     لا توجد صور أو وثائق مربوطة بالعائلة المباشرة ({cleanFam}) حالياً. يمكنك رفع صورة أو وثيقة جديدة أدناه أو ربط ملف موجود من «خزانتي».
                   </div>
                 ) : (
@@ -3616,10 +3574,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                       return (
                         <div
                           key={media.id}
-                          className="rounded-xl bg-white border border-[#D4AF37]/60 p-2.5 flex items-center justify-between gap-2.5 shadow-2xs"
+                          className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/60 p-2.5 flex items-center justify-between gap-2.5 shadow-2xs"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-11 h-11 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
+                            <div className="w-11 h-11 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden shrink-0 flex items-center justify-center">
                               {showImg ? (
                                 <img
                                   src={thumbSrc}
@@ -3627,14 +3585,14 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <FileText className="w-5 h-5 text-[#8D4925]" />
+                                <FileText className="w-5 h-5 text-[#D97757]" />
                               )}
                             </div>
                             <div className="min-w-0">
-                              <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                              <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                                 {media.title}
                               </div>
-                              <div className="text-[10px] text-[#8D4925] font-semibold">
+                              <div className="text-[10px] text-[#D97757] font-semibold">
                                 {media.mediaType === 'photo'
                                   ? 'صورة'
                                   : 'وثيقة'}{' '}
@@ -3647,7 +3605,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                             onClick={() =>
                               handleToggleVaultItemForDirectFamily(media.id)
                             }
-                            className="px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold shrink-0 cursor-pointer"
+                            className="px-2 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] text-[10px] font-bold shrink-0 cursor-pointer"
                           >
                             فك الربط
                           </button>
@@ -3657,8 +3615,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   </div>
                 )}
 
-                <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-3.5 space-y-2.5">
-                  <div className="text-xs font-display font-bold text-[#8D4925]">
+                <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 p-3.5 space-y-2.5">
+                  <div className="text-xs font-display font-bold text-[#D97757]">
                     + رفع صورة أو وثيقة جديدة للعائلة المباشرة (تُحفظ وتُربط تلقائياً في خزانتي):
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -3669,14 +3627,14 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                         setFamilyVaultUploadTitle(e.target.value)
                       }
                       placeholder="عنوان الصورة أو الوثيقة..."
-                      className="px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-xs text-[#252321]"
+                      className="px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 text-xs text-[#1F1F1C]"
                     />
                     <select
                       value={familyVaultUploadFolderId}
                       onChange={(e) =>
                         setFamilyVaultUploadFolderId(e.target.value)
                       }
-                      className="px-2.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 text-xs font-bold text-[#252321]"
+                      className="px-2.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 text-xs font-bold text-[#1F1F1C]"
                     >
                       {vaultFolders.map((vf) => (
                         <option key={vf.id} value={vf.id}>
@@ -3684,7 +3642,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                         </option>
                       ))}
                     </select>
-                    <label className="px-3 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733A1C] text-[#FFFBF2] text-xs font-display font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                    <label className="px-3 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
                       {isUploadingFamilyVault ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3712,8 +3670,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
 
                 {unlinkedVaultMedia.length > 0 && (
                   <div className="space-y-1.5 pt-1">
-                    <div className="text-[11px] font-display font-bold text-[#252321] flex items-center gap-1.5">
-                      <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <div className="text-[11px] font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>أو اربط ملفاً موجوداً مسبقاً في «خزانتي»:</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
@@ -3724,7 +3682,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                           onClick={() =>
                             handleToggleVaultItemForDirectFamily(uv.id)
                           }
-                          className="px-2.5 py-1 rounded-full bg-white hover:bg-[#8D4925] text-[#252321] hover:text-[#FFFBF2] border border-[#B98A78]/45 text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-full bg-[#F5F1E8] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D97757]/45 text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
                         >
                           <span>+ {uv.title}</span>
                         </button>
@@ -3733,7 +3691,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-[#B98A78]/30 flex flex-wrap items-center justify-between gap-2">
+                <div className="pt-3 border-t border-[#D97757]/30 flex flex-wrap items-center justify-between gap-2">
                   {onOpenVaultForPerson ? (
                     <button
                       type="button"
@@ -3741,7 +3699,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                         setShowDirectFamilyVaultModal(false);
                         onOpenVaultForPerson(DIRECT_FAMILY_VAULT_NODE_ID);
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-xs font-display font-bold text-[#8D4925] cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/50 text-xs font-display font-bold text-[#D97757] cursor-pointer"
                     >
                       عرض في خزانتي ←
                     </button>
@@ -3752,7 +3710,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowDirectFamilyVaultModal(false)}
-                    className="px-5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733A1C] text-white text-xs font-display font-extrabold cursor-pointer shadow-2xs"
+                    className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer shadow-2xs"
                   >
                     تم وإغلاق ✓
                   </button>

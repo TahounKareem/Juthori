@@ -64,11 +64,11 @@ const LuxurySwitchRow: React.FC<{
 }> = ({ label, description, checked, onToggle, testId, accentEmerald }) => (
   <div className="flex items-center justify-between gap-3 py-1.5">
     <div className="min-w-0">
-      <div className="text-[11.5px] font-display font-bold text-[#252321] leading-snug">
+      <div className="text-[11.5px] font-display font-bold text-[#1F1F1C] leading-snug">
         {label}
       </div>
       {description && (
-        <div className="text-[10px] text-[#252321]/60 leading-snug mt-0.5">
+        <div className="text-[10px] text-[#1F1F1C]/60 leading-snug mt-0.5">
           {description}
         </div>
       )}
@@ -79,16 +79,16 @@ const LuxurySwitchRow: React.FC<{
       aria-checked={checked}
       data-testid={testId}
       onClick={onToggle}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8755B]/60 ${
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]/60 ${
         checked
           ? accentEmerald
-            ? 'bg-emerald-600 border-emerald-700'
-            : 'bg-[#D8755B] border-[#B85A42]'
-          : 'bg-[#E5DDD0] border-[#B98A78]/45'
+            ? 'bg-[#D97757] border-[#D97757]'
+            : 'bg-[#D97757] border-[#D97757]'
+          : 'bg-[#E8DED2] border-[#D97757]/45'
       }`}
     >
       <span
-        className={`pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-xs transition-transform duration-200 ${
+        className={`pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-[#F5F1E8] shadow-xs transition-transform duration-200 ${
           checked ? '-translate-x-4' : '-translate-x-0.5'
         }`}
       />
@@ -100,16 +100,16 @@ const ViewModeMiniGlyph: React.FC<{
   mode: 'vertical' | 'sideways' | 'fan_180' | 'radial_360';
   active: boolean;
 }> = ({ mode, active }) => {
-  const stroke = active ? '#8D4925' : '#8C7B6B';
-  const fill = active ? '#D8755B' : '#C7B8A8';
+  const stroke = active ? '#D97757' : '#D97757';
+  const fill = active ? '#D97757' : '#D8C7B2';
 
   if (mode === 'vertical') {
     return (
       <svg width="34" height="24" viewBox="0 0 34 24" fill="none" aria-hidden="true">
         <rect x="12" y="1.5" width="10" height="5" rx="1.5" fill={fill} />
         <path d="M17 6.5V12M8 12H26M8 12V16M26 12V16" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-        <rect x="3" y="16" width="10" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#FFF" />
-        <rect x="21" y="16" width="10" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#FFF" />
+        <rect x="3" y="16" width="10" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#F5F1E8" />
+        <rect x="21" y="16" width="10" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#F5F1E8" />
       </svg>
     );
   }
@@ -118,8 +118,8 @@ const ViewModeMiniGlyph: React.FC<{
       <svg width="34" height="24" viewBox="0 0 34 24" fill="none" aria-hidden="true">
         <rect x="23" y="9" width="9" height="6" rx="1.5" fill={fill} />
         <path d="M23 12H16M16 5V19M16 5H11M16 19H11" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
-        <rect x="2" y="2.5" width="9" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#FFF" />
-        <rect x="2" y="16.5" width="9" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#FFF" />
+        <rect x="2" y="2.5" width="9" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#F5F1E8" />
+        <rect x="2" y="16.5" width="9" height="5" rx="1.5" stroke={stroke} strokeWidth="1.3" fill="#F5F1E8" />
       </svg>
     );
   }
@@ -168,7 +168,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
       <div
         onClick={onClose}
         aria-hidden="true"
-        className="fixed inset-0 z-40 bg-[#252321]/35 backdrop-blur-[1px] lg:hidden"
+        className="fixed inset-0 z-40 bg-[#1F1F1C]/35 backdrop-blur-[1px] lg:hidden"
       />
 
       {/* Desktop: Sleek 370px Side Inspector Panel | Mobile: Smooth Bottom Sheet */}
@@ -176,21 +176,21 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
         dir="rtl"
         data-testid="tree-settings-drawer"
         aria-label="إعدادات شجرتي"
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[82vh] rounded-t-3xl border-t-2 border-[#C5A059]/60 bg-[#FAF6F0] text-[#252321] shadow-2xl flex flex-col lg:static lg:z-20 lg:w-[370px] lg:shrink-0 lg:max-h-none lg:rounded-none lg:rounded-s-3xl lg:border-t-0 lg:border-e lg:border-[#B98A78]/35 lg:shadow-none overflow-hidden"
+        className="fixed inset-x-0 bottom-0 z-50 max-h-[82vh] rounded-t-3xl border-t-2 border-[#D97757]/60 bg-[#F5F1E8] text-[#1F1F1C] shadow-2xl flex flex-col lg:static lg:z-20 lg:w-[370px] lg:shrink-0 lg:max-h-none lg:rounded-none lg:rounded-s-3xl lg:border-t-0 lg:border-e lg:border-[#D97757]/35 lg:shadow-none overflow-hidden"
       >
         {/* Mobile Sheet Handle */}
         <div className="flex justify-center pt-2 pb-1 lg:hidden">
-          <div className="w-10 h-1 rounded-full bg-[#B98A78]/45" />
+          <div className="w-10 h-1 rounded-full bg-[#D97757]/45" />
         </div>
 
         {/* ================================================================ */}
         {/* 4 SEGMENTED ICON TABS + CLOSE BUTTON (DIRECT TOP BAR)            */}
         {/* ================================================================ */}
-        <div className="px-2.5 py-2 bg-white border-b border-[#E5DDD0] shrink-0 flex items-stretch gap-1.5">
+        <div className="px-2.5 py-2 bg-[#F5F1E8] border-b border-[#D8C7B2] shrink-0 flex items-stretch gap-1.5">
           <div
             role="tablist"
             aria-label="تبويبات إعدادات شجرتي"
-            className="flex-1 grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#EFE8DC] border border-[#DFD4C2]"
+            className="flex-1 grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2]"
           >
             {(
               [
@@ -228,8 +228,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   onClick={() => onTabChange(tab.id)}
                   className={`py-1.5 px-1 rounded-lg text-[10.5px] font-display font-extrabold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                     active
-                      ? 'bg-white text-[#8D4925] shadow-xs border border-[#D8755B]/45'
-                      : 'text-[#252321]/70 hover:text-[#8D4925] border border-transparent'
+                      ? 'bg-[#F5F1E8] text-[#D97757] shadow-xs border border-[#D97757]/45'
+                      : 'text-[#1F1F1C]/70 hover:text-[#D97757] border border-transparent'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -243,7 +243,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
             onClick={onClose}
             title="إغلاق إعدادات شجرتي"
             aria-label="إغلاق إعدادات شجرتي"
-            className="w-8 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#DFD4C2] flex items-center justify-center text-[#252321]/75 hover:text-[#8D4925] transition-colors cursor-pointer shrink-0"
+            className="w-8 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center text-[#1F1F1C]/75 hover:text-[#D97757] transition-colors cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -257,8 +257,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
           {activeTab === 'layout' && (
             <>
               {/* Group 1: View Modes (2x2 Grid with Mini Expressive Diagrams) */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   طريقة عرض الشجرة
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -300,8 +300,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 text-center transition-all cursor-pointer ${
                           active
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925] shadow-2xs'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/80 hover:border-[#D8755B]/55 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] shadow-2xs'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:border-[#D97757]/55 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         <ViewModeMiniGlyph mode={opt.id} active={active} />
@@ -315,8 +315,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 2: Card Shape */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   شكل العُقد في المشجرة
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -357,8 +357,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-2 px-2 rounded-xl border text-[11px] font-display font-bold flex flex-col items-center gap-1 transition-colors cursor-pointer ${
                           active
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -370,8 +370,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 3: Card Density */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   كثافة عرض البطاقات
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -393,8 +393,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       }
                       className={`py-2 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                         settings.cardDensity === den.id
-                          ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                          : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                          ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                          : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                       }`}
                     >
                       {den.label}
@@ -404,8 +404,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 4: Connector Lines */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   نمط خطوط الربط النسبي
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -427,8 +427,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       }
                       className={`py-2 px-1.5 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                         settings.connectorStyle === cs.id
-                          ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                          : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                          ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                          : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                       }`}
                     >
                       {cs.label}
@@ -438,8 +438,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 5: Canvas Surface */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-3">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   خلفية مساحة الرسم
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -461,8 +461,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       }
                       className={`py-2 px-1.5 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                         settings.canvasBackground === bg.id
-                          ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                          : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                          ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                          : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                       }`}
                     >
                       {bg.label}
@@ -477,8 +477,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
           {activeTab === 'filters' && (
             <>
               {/* Group 1: Spine Depth */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   مدى عمود النسب المعروض
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -494,13 +494,13 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         title={`${opt.label} (${opt.detail})`}
                         className={`px-2.5 py-1.5 rounded-xl text-[11px] font-display font-bold transition-colors cursor-pointer inline-flex items-center gap-1 border ${
                           isSelected
-                            ? 'bg-[#FDF6F1] text-[#8D4925] border-[#D8755B]'
-                            : 'bg-[#FAF6F0]/70 text-[#252321]/80 border-[#E5DDD0] hover:bg-white'
+                            ? 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]'
+                            : 'bg-[#F5F1E8]/70 text-[#1F1F1C]/80 border-[#D8C7B2] hover:bg-[#F5F1E8]'
                         }`}
                       >
                         <span>{opt.label}</span>
                         {opt.locked && (
-                          <Lock className="w-2.5 h-2.5 text-[#D8755B] shrink-0" />
+                          <Lock className="w-2.5 h-2.5 text-[#D97757] shrink-0" />
                         )}
                       </button>
                     );
@@ -509,8 +509,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 2: Display Switches */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 divide-y divide-[#F0EAE0]">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925] pb-2">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 divide-y divide-[#D8C7B2]">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757] pb-2">
                   عناصر البطاقة والروابط
                 </div>
                 <LuxurySwitchRow
@@ -588,9 +588,9 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 3: Sibling Order & Compass */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-3">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
                 <div className="space-y-2">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     ترتيب عرض الأبناء والإخوة
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -615,8 +615,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-2 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                           settings.siblingSortOrder === ord.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {ord.label}
@@ -625,7 +625,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#F0EAE0] divide-y divide-[#F0EAE0]">
+                <div className="pt-2 border-t border-[#D8C7B2] divide-y divide-[#D8C7B2]">
                   <LuxurySwitchRow
                     label="بوصلة مساري الشخصي"
                     description="إبراز المسار الذهبي المباشر من أمين السجل صعوداً"
@@ -654,9 +654,9 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 4: Privacy, Vital Filter, Spouses, Calendar */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-3">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
                 <div className="space-y-1.5">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     خصوصية عرض الإناث
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -683,8 +683,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-1.5 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                           settings.femalePrivacyMode === fm.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {fm.label}
@@ -693,8 +693,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   </div>
                 </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-[#F0EAE0]">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                <div className="space-y-1.5 pt-2 border-t border-[#D8C7B2]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     فلتر الحالة الحيوية
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -716,8 +716,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-1.5 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                           settings.vitalStatusFilter === vf.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {vf.label}
@@ -726,8 +726,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   </div>
                 </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-[#F0EAE0]">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                <div className="space-y-1.5 pt-2 border-t border-[#D8C7B2]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     عرض الزوجات والأزواج
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -749,8 +749,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-1.5 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                           settings.spouseDisplayMode === sp.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {sp.label}
@@ -759,8 +759,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   </div>
                 </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-[#F0EAE0]">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                <div className="space-y-1.5 pt-2 border-t border-[#D8C7B2]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     نظام عرض التواريخ
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -782,8 +782,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-1.5 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
                           settings.calendarDisplayMode === cal.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {cal.label}
@@ -799,9 +799,9 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
           {activeTab === 'identity' && (
             <>
               {/* Group 1: Arabic Typography Selector */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="flex items-center gap-1.5 text-[11px] font-display font-extrabold text-[#8D4925]">
-                  <Type className="w-3.5 h-3.5 text-[#D8755B]" />
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-display font-extrabold text-[#D97757]">
+                  <Type className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>الخط العربي التراثي للشجرة والبوستر</span>
                 </div>
                 <div className="space-y-2">
@@ -820,20 +820,20 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`w-full text-right p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
                           active
-                            ? 'bg-[#FDF6F1] border-[#D8755B] shadow-2xs'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] shadow-2xs'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] hover:bg-[#F5F1E8]'
                         }`}
                       >
                         <div className="min-w-0">
-                          <div className="text-[11px] font-display font-extrabold text-[#252321] truncate">
+                          <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] truncate">
                             {fontOpt.label}
                           </div>
-                          <div className="text-[9.5px] text-[#252321]/60 truncate">
+                          <div className="text-[9.5px] text-[#1F1F1C]/60 truncate">
                             {fontOpt.subtitle}
                           </div>
                         </div>
                         <span
-                          className="text-sm font-bold text-[#8D4925] shrink-0 px-2 py-0.5 rounded-lg bg-white border border-[#E5DDD0]"
+                          className="text-sm font-bold text-[#D97757] shrink-0 px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]"
                           style={{ fontFamily: fontOpt.cssFamily }}
                         >
                           {fontOpt.sampleText}
@@ -845,8 +845,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 2: 10 Museum Color Themes with Dual Color Swatches */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   ثيمات الألوان المتحفية (10 ثيمات)
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -869,18 +869,18 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         title={t.subtitle}
                         className={`p-2 rounded-xl border text-right transition-all cursor-pointer flex items-center gap-2 ${
                           active
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925] shadow-2xs'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/80 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] shadow-2xs'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {/* Dual Overlapping Color Swatches */}
                         <span className="inline-flex items-center shrink-0">
                           <span
-                            className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                            className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
                             style={{ backgroundColor: t.primaryHex }}
                           />
                           <span
-                            className="w-4 h-4 rounded-full border border-white shadow-2xs -mr-1.5"
+                            className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs -mr-1.5"
                             style={{ backgroundColor: t.goldAccentHex }}
                           />
                         </span>
@@ -894,8 +894,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 3: 8 Cultural / Calligraphy Avatars */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-3">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   أنماط الصور الرمزية (8 أنماط)
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -915,8 +915,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         title={av.subtitle}
                         className={`py-2 px-2.5 rounded-xl border text-[10.5px] font-display font-bold text-right transition-colors cursor-pointer truncate ${
                           active
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/80 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {av.label}
@@ -925,7 +925,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   })}
                 </div>
 
-                <div className="pt-2 border-t border-[#F0EAE0]">
+                <div className="pt-2 border-t border-[#D8C7B2]">
                   <LuxurySwitchRow
                     label="أولوية الصورة الشخصية الحقيقية"
                     description="إبراز الصورة المرفوعة داخل إطار الثيم عند توفرها"
@@ -946,8 +946,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
           {activeTab === 'poster' && (
             <>
               {/* Group 1: Paper Size */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-2.5">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                   مقاس الورق والبوستر
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -970,8 +970,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       }
                       className={`py-2 px-2 rounded-xl border text-[10.5px] font-display font-bold cursor-pointer transition-colors ${
                         settings.poster.paperSize === ps.id
-                          ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                          : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/80 hover:bg-white'
+                          ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                          : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:bg-[#F5F1E8]'
                       }`}
                     >
                       {ps.label}
@@ -981,9 +981,9 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               </div>
 
               {/* Group 2: Frame & Header Calligraphy */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 space-y-3">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
                 <div className="space-y-1.5">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     الإطار التراثي للبوستر
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -1005,8 +1005,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-1.5 px-1.5 rounded-xl border text-[10.5px] font-display font-bold cursor-pointer ${
                           settings.poster.borderStyle === br.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {br.label}
@@ -1015,8 +1015,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   </div>
                 </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-[#F0EAE0]">
-                  <div className="text-[11px] font-display font-extrabold text-[#8D4925]">
+                <div className="space-y-1.5 pt-2 border-t border-[#D8C7B2]">
+                  <div className="text-[11px] font-display font-extrabold text-[#D97757]">
                     الترويسة والبسملة
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -1038,8 +1038,8 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         }
                         className={`py-1.5 px-1.5 rounded-xl border text-[10.5px] font-display font-bold cursor-pointer ${
                           settings.poster.headerStyle === hd.id
-                            ? 'bg-[#FDF6F1] border-[#D8755B] text-[#8D4925]'
-                            : 'bg-[#FAF6F0]/60 border-[#E5DDD0] text-[#252321]/75 hover:bg-white'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
                         }`}
                       >
                         {hd.label}
@@ -1048,10 +1048,10 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                   </div>
                 </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-[#F0EAE0]">
+                <div className="space-y-1.5 pt-2 border-t border-[#D8C7B2]">
                   <label
                     htmlFor="studio-poster-custom-title"
-                    className="text-[11px] font-display font-extrabold text-[#8D4925] block"
+                    className="text-[11px] font-display font-extrabold text-[#D97757] block"
                   >
                     عنوان البوستر المخصص
                   </label>
@@ -1066,14 +1066,14 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                       }))
                     }
                     placeholder={`مشجرة عائلة ${familyName} الموثقة`}
-                    className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#DFD4C2] focus:border-[#D8755B] focus:bg-white outline-none text-xs text-[#252321]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] focus:bg-[#F5F1E8] outline-none text-xs text-[#1F1F1C]"
                   />
                 </div>
               </div>
 
               {/* Group 3: Poster Elements Switches */}
-              <div className="rounded-2xl bg-white border border-[#E5DDD0] p-3.5 divide-y divide-[#F0EAE0]">
-                <div className="text-[11px] font-display font-extrabold text-[#8D4925] pb-2">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 divide-y divide-[#D8C7B2]">
+                <div className="text-[11px] font-display font-extrabold text-[#D97757] pb-2">
                   عناصر الوثيقة والتوثيق
                 </div>
                 <LuxurySwitchRow
@@ -1136,7 +1136,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                 type="button"
                 data-testid="poster-tab-open-export-btn"
                 onClick={onOpenExportModal}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#8D4925] hover:bg-[#D8755B] text-white text-xs font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
               >
                 <Printer className="w-4 h-4" />
                 <span>معاينة وتصدير البوستر (PDF / PNG)</span>
@@ -1145,13 +1145,13 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               {(onExportJsonBackup || onImportJsonBackup) && (
                 <div
                   data-testid="inspector-json-backup-section"
-                  className="rounded-2xl bg-white border border-[#E5DDD0] p-3 space-y-2.5"
+                  className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 space-y-2.5"
                 >
-                  <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#252321]">
-                    <FileJson className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                  <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#1F1F1C]">
+                    <FileJson className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                     <span>النسخة الاحتياطية للبيانات (JSON)</span>
                   </div>
-                  <p className="text-[10.5px] text-[#252321]/60 leading-relaxed">
+                  <p className="text-[10.5px] text-[#1F1F1C]/60 leading-relaxed">
                     احتفظ بنسخة احتياطية كاملة لبيانات أفراد المشجرة أو استعد ملفاً محفوظاً.
                   </p>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1160,9 +1160,9 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         type="button"
                         data-testid="inspector-export-json-btn"
                         onClick={onExportJsonBackup}
-                        className="h-9 px-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F3E8D8] border border-[#DFD4C2] text-[#252321] text-[11px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                        className="h-9 px-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
                       >
-                        <Download className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                        <Download className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                         <span>تصدير JSON</span>
                       </button>
                     )}
@@ -1171,9 +1171,9 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                         type="button"
                         data-testid="inspector-import-json-btn"
                         onClick={onImportJsonBackup}
-                        className="h-9 px-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F3E8D8] border border-[#DFD4C2] text-[#252321] text-[11px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                        className="h-9 px-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
                       >
-                        <Upload className="w-3.5 h-3.5 text-[#8D4925] shrink-0" />
+                        <Upload className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                         <span>استيراد JSON</span>
                       </button>
                     )}
@@ -1185,13 +1185,13 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
 
           {/* Record Keeper Mirror Default Action (At bottom of all Studio details) */}
           {(canApplyMirrorDefault || mirrorPresetFeedback) && (
-            <div className="pt-3 border-t border-[#E5DDD0] space-y-2">
+            <div className="pt-3 border-t border-[#D8C7B2] space-y-2">
               {canApplyMirrorDefault && (
                 <button
                   type="button"
                   data-testid="apply-mirror-default-btn"
                   onClick={onApplyMirrorDefault}
-                  className="w-full py-2 px-3 rounded-xl bg-[#F5E6DC]/90 hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#D8755B]/55 text-[11px] font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  className="w-full py-2 px-3 rounded-xl bg-[#E8DED2]/90 hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D97757]/55 text-[11px] font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                 >
                   <Globe className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">اعتماد كمظهر افتراضي لمرآة موقعي</span>
@@ -1199,7 +1199,7 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
               )}
 
               {mirrorPresetFeedback && (
-                <div className="rounded-xl px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-[10.5px] font-display font-bold text-emerald-800 flex items-center gap-1.5">
+                <div className="rounded-xl px-2.5 py-1.5 bg-[#F5F1E8] border border-[#D8C7B2] text-[10.5px] font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                   <span>{mirrorPresetFeedback}</span>
                 </div>

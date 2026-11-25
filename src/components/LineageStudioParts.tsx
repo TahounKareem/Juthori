@@ -7,11 +7,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Compass,
   Copy,
   Eye,
   EyeOff,
   LayoutGrid,
+  LocateFixed,
   Lock,
   MapPin,
   Maximize2,
@@ -26,6 +26,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { WorkspaceIconTooltip } from './UnifiedWorkspaceHeader';
 import {
   UpperAncestorNode,
   VerifiedAddonSourceItem,
@@ -95,8 +96,8 @@ export const ClassicalNasabNarrationBar: React.FC<
         backgroundColor: theme.surfaceBg,
         border: `1px solid ${theme.goldBorderHex}66`,
         boxShadow: theme.isDark
-          ? '0 4px 18px rgba(0,0,0,0.25)'
-          : '0 2px 10px rgba(141,73,37,0.05)',
+          ? '0 4px 18px rgba(31,31,28,0.25)'
+          : '0 2px 10px rgba(217,119,87,0.05)',
       }}
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -131,9 +132,9 @@ export const ClassicalNasabNarrationBar: React.FC<
             onClick={handleCopy}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-display font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0"
             style={{
-              backgroundColor: copied ? '#ECFDF5' : theme.goldSoftBg,
-              color: copied ? '#065F46' : theme.accentTextHex,
-              border: `1px solid ${copied ? '#6EE7B7' : `${theme.goldBorderHex}75`}`,
+              backgroundColor: copied ? '#F5F1E8' : theme.goldSoftBg,
+              color: copied ? '#1F1F1C' : theme.accentTextHex,
+              border: `1px solid ${copied ? '#D8C7B2' : `${theme.goldBorderHex}75`}`,
             }}
           >
             {copied ? (
@@ -226,8 +227,8 @@ export const LineageCustomizationPanel: React.FC<
         backgroundColor: theme.surfaceBg,
         border: `1px solid ${theme.goldBorderHex}65`,
         boxShadow: theme.isDark
-          ? '0 12px 30px rgba(0,0,0,0.34)'
-          : '0 6px 22px rgba(44,30,20,0.06)',
+          ? '0 12px 30px rgba(31,31,28,0.34)'
+          : '0 6px 22px rgba(31,31,28,0.06)',
       }}
     >
       {/* Row 1: Display Style (6 Concise Pills) + Reset / Close */}
@@ -414,11 +415,11 @@ export const LineageCustomizationPanel: React.FC<
                     background: `linear-gradient(135deg, ${t.swatchPrimary} 0% 34%, ${t.swatchSecondary} 34% 70%, ${t.swatchGold} 70% 100%)`,
                     boxShadow: active
                       ? `0 0 0 2px ${theme.surfaceBg}, 0 0 0 4px ${theme.goldHex}`
-                      : 'inset 0 0 0 1px rgba(0,0,0,0.18)',
+                      : 'inset 0 0 0 1px rgba(31,31,28,0.18)',
                   }}
                 >
                   {active && (
-                    <span className="w-3.5 h-3.5 rounded-full bg-white/95 text-[#2C1E14] flex items-center justify-center shadow-2xs">
+                    <span className="w-3.5 h-3.5 rounded-full bg-[#F5F1E8]/95 text-[#1F1F1C] flex items-center justify-center shadow-2xs">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </span>
                   )}
@@ -536,6 +537,8 @@ export const LineageCanvasFloatingControls: React.FC<
   const isHeader = variant === 'header';
   const isInline = variant === 'inline' || isHeader;
 
+  const tooltipPlacement = isInline ? 'bottom' : 'top';
+
   const toolbarContent = (
     <div
       data-testid={
@@ -543,10 +546,10 @@ export const LineageCanvasFloatingControls: React.FC<
       }
       className={`pointer-events-auto inline-flex items-center transition-colors ${
         isHeader
-          ? 'h-10 gap-0.5 px-1.5 rounded-xl bg-white border border-[#E2D5BE] shadow-2xs'
+          ? 'h-10 gap-0.5 px-1.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] shadow-2xs'
           : isInline
           ? 'gap-0.5 px-1.5 py-1 rounded-xl'
-          : 'gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-2xl backdrop-blur-md'
+          : 'gap-1 px-2 py-1.5 rounded-2xl backdrop-blur-md'
       }`}
       style={
         isHeader
@@ -555,121 +558,127 @@ export const LineageCanvasFloatingControls: React.FC<
               backgroundColor: isInline
                 ? theme.surfaceBg
                 : theme.isDark
-                ? 'rgba(18, 31, 51, 0.92)'
-                : 'rgba(255, 253, 248, 0.94)',
+                ? 'rgba(31,31,28,0.92)'
+                : 'rgba(245,241,232,0.94)',
               border: `1px solid ${theme.goldBorderHex}${isInline ? '55' : '70'}`,
               boxShadow: isInline
-                ? '0 1px 2px rgba(35,29,23,0.04)'
+                ? '0 1px 2px rgba(31,31,28,0.04)'
                 : theme.isDark
-                ? '0 8px 26px rgba(0,0,0,0.45)'
-                : '0 8px 24px rgba(35,29,23,0.1)',
+                ? '0 8px 26px rgba(31,31,28,0.45)'
+                : '0 8px 24px rgba(31,31,28,0.1)',
             }
       }
     >
-      <button
-        type="button"
-        onClick={onZoomOut}
-        disabled={zoom <= 0.7}
-        title="تصغير العرض"
-        aria-label="تصغير العرض"
-        className={`${
-          isInline ? 'w-7 h-7 rounded-lg hover:bg-[#FAF5EC]' : 'w-8 h-8 rounded-xl'
-        } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
-        style={{ color: isHeader ? '#3D2B1F' : theme.textPrimaryHex }}
-      >
-        <ZoomOut className={isInline ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-      </button>
+      <WorkspaceIconTooltip label="تصغير العرض" placement={tooltipPlacement}>
+        <button
+          type="button"
+          onClick={onZoomOut}
+          disabled={zoom <= 0.7}
+          aria-label="تصغير العرض"
+          className={`${
+            isInline
+              ? 'w-8 h-8 rounded-lg hover:bg-[#E8DED2]'
+              : 'w-8 h-8 rounded-xl'
+          } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+          style={{ color: isHeader ? '#1F1F1C' : theme.textPrimaryHex }}
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+      </WorkspaceIconTooltip>
 
       <span
         className={`${
           isInline
             ? 'text-[11.5px] px-1 min-w-[38px]'
             : 'text-xs px-1.5 min-w-[44px]'
-        } font-mono font-bold tabular-nums text-center`}
-        style={{ color: isHeader ? '#5C4938' : theme.textSecondaryHex }}
+        } font-mono font-bold tabular-nums text-center select-none`}
+        style={{ color: isHeader ? '#D97757' : theme.textSecondaryHex }}
         dir="ltr"
       >
         {Math.round(zoom * 100)}%
       </span>
 
-      <button
-        type="button"
-        onClick={onZoomIn}
-        disabled={zoom >= 1.35}
-        title="تكبير العرض"
-        aria-label="تكبير العرض"
-        className={`${
-          isInline ? 'w-7 h-7 rounded-lg hover:bg-[#FAF5EC]' : 'w-8 h-8 rounded-xl'
-        } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
-        style={{ color: isHeader ? '#3D2B1F' : theme.textPrimaryHex }}
-      >
-        <ZoomIn className={isInline ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-      </button>
+      <WorkspaceIconTooltip label="تكبير العرض" placement={tooltipPlacement}>
+        <button
+          type="button"
+          onClick={onZoomIn}
+          disabled={zoom >= 1.35}
+          aria-label="تكبير العرض"
+          className={`${
+            isInline
+              ? 'w-8 h-8 rounded-lg hover:bg-[#E8DED2]'
+              : 'w-8 h-8 rounded-xl'
+          } inline-flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+          style={{ color: isHeader ? '#1F1F1C' : theme.textPrimaryHex }}
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+      </WorkspaceIconTooltip>
 
       <span
         className={`w-px ${isInline ? 'h-4 mx-1' : 'h-5 mx-0.5'}`}
-        style={{ backgroundColor: isHeader ? '#E6DAC3' : theme.surfaceBorder }}
+        style={{ backgroundColor: isHeader ? '#D8C7B2' : theme.surfaceBorder }}
         aria-hidden="true"
       />
 
-      <button
-        type="button"
-        onClick={onResetZoomCenter}
-        title="توسيط وإعادة الضبط"
-        className={`inline-flex items-center gap-1.5 ${
-          isHeader
-            ? 'px-2 py-1 rounded-lg text-[12px] text-[#3D2B1F] hover:bg-[#FAF5EC]'
-            : isInline
-            ? 'px-2 py-1 rounded-lg text-[11.5px]'
-            : 'px-2.5 py-1.5 rounded-xl text-xs'
-        } font-display font-bold transition-colors cursor-pointer whitespace-nowrap`}
-        style={isHeader ? undefined : { color: theme.textSecondaryHex }}
+      <WorkspaceIconTooltip
+        label="توسيط وإعادة الضبط"
+        placement={tooltipPlacement}
       >
-        <Compass
-          className="w-3.5 h-3.5 shrink-0"
-          style={{ color: isHeader ? '#B8893A' : theme.goldHex }}
-        />
-        <span className={isInline ? 'inline' : 'hidden sm:inline'}>توسيط</span>
-      </button>
+        <button
+          type="button"
+          onClick={onResetZoomCenter}
+          aria-label="توسيط وإعادة الضبط"
+          className={`${
+            isHeader
+              ? 'w-8 h-8 rounded-lg text-[#D97757] hover:bg-[#E8DED2]'
+              : isInline
+              ? 'w-8 h-8 rounded-lg'
+              : 'w-8 h-8 rounded-xl'
+          } inline-flex items-center justify-center transition-colors cursor-pointer`}
+          style={isHeader ? undefined : { color: theme.goldHex }}
+        >
+          <LocateFixed className="w-4 h-4 shrink-0" />
+        </button>
+      </WorkspaceIconTooltip>
 
-      <button
-        type="button"
-        data-testid="lineage-fullscreen-toggle-btn"
-        onClick={onToggleFullscreen}
-        title={
-          isFullscreen
-            ? 'إغلاق وضع العرض الكامل'
-            : 'وضع العرض الكامل للمجالس'
-        }
-        className={`inline-flex items-center gap-1.5 ${
-          isHeader
-            ? 'px-2.5 py-1 rounded-lg text-[12px] bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/45'
-            : isInline
-            ? 'px-2.5 py-1 rounded-lg text-[11.5px]'
-            : 'px-3 py-1.5 rounded-xl text-xs'
-        } font-display font-bold transition-colors cursor-pointer whitespace-nowrap`}
-        style={
-          isHeader
-            ? undefined
-            : {
-                backgroundColor: theme.goldSoftBg,
-                color: theme.accentTextHex,
-                border: `1px solid ${theme.goldBorderHex}80`,
-              }
-        }
+      <WorkspaceIconTooltip
+        label={isFullscreen ? 'إنهاء عرض المجالس' : 'عرض المجالس (شاشة كاملة)'}
+        placement={tooltipPlacement}
       >
-        {isFullscreen ? (
-          <>
-            <Minimize2 className="w-3.5 h-3.5 shrink-0" />
-            <span>إنهاء العرض</span>
-          </>
-        ) : (
-          <>
-            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
-            <span>عرض المجالس</span>
-          </>
-        )}
-      </button>
+        <button
+          type="button"
+          data-testid="lineage-fullscreen-toggle-btn"
+          onClick={onToggleFullscreen}
+          aria-label={
+            isFullscreen ? 'إنهاء عرض المجالس' : 'عرض المجالس (شاشة كاملة)'
+          }
+          className={`${
+            isHeader
+              ? isFullscreen
+                ? 'w-8 h-8 rounded-lg bg-[#D97757] text-[#F5F1E8] shadow-2xs'
+                : 'w-8 h-8 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#D97757] border border-[#D8C7B2]/55'
+              : isInline
+              ? 'w-8 h-8 rounded-lg'
+              : 'w-8 h-8 rounded-xl'
+          } inline-flex items-center justify-center transition-colors cursor-pointer`}
+          style={
+            isHeader
+              ? undefined
+              : {
+                  backgroundColor: theme.goldSoftBg,
+                  color: theme.accentTextHex,
+                  border: `1px solid ${theme.goldBorderHex}80`,
+                }
+          }
+        >
+          {isFullscreen ? (
+            <Minimize2 className="w-4 h-4 shrink-0" />
+          ) : (
+            <Maximize2 className="w-4 h-4 shrink-0" />
+          )}
+        </button>
+      </WorkspaceIconTooltip>
     </div>
   );
 
@@ -743,8 +752,8 @@ export const LuxuryReferenceLibrary: React.FC<LuxuryReferenceLibraryProps> = ({
             backgroundColor: theme.surfaceBg,
             border: `1.5px solid ${theme.goldBorderHex}90`,
             boxShadow: theme.isDark
-              ? '0 10px 30px rgba(0,0,0,0.3)'
-              : '0 8px 26px rgba(141,73,37,0.06)',
+              ? '0 10px 30px rgba(31,31,28,0.3)'
+              : '0 8px 26px rgba(217,119,87,0.06)',
           }}
         >
           <div className="flex items-start sm:items-center justify-between gap-4">
@@ -877,8 +886,8 @@ export const LuxuryReferenceLibrary: React.FC<LuxuryReferenceLibraryProps> = ({
           backgroundColor: theme.surfaceBg,
           border: `1.5px solid ${theme.goldBorderHex}75`,
           boxShadow: theme.isDark
-            ? '0 10px 30px rgba(0,0,0,0.28)'
-            : '0 6px 22px rgba(141,73,37,0.05)',
+            ? '0 10px 30px rgba(31,31,28,0.28)'
+            : '0 6px 22px rgba(217,119,87,0.05)',
         }}
       >
         {/* Archival Wing Header */}
@@ -967,8 +976,8 @@ export const LuxuryReferenceLibrary: React.FC<LuxuryReferenceLibraryProps> = ({
                       className="w-11 shrink-0 flex flex-col items-center justify-between py-3 px-1 relative"
                       style={{
                         background: theme.isDark
-                          ? 'linear-gradient(180deg, rgba(228,191,105,0.22) 0%, rgba(228,191,105,0.08) 100%)'
-                          : 'linear-gradient(180deg, rgba(197,154,56,0.26) 0%, rgba(141,73,37,0.12) 100%)',
+                          ? 'linear-gradient(180deg, rgba(216,199,178,0.22) 0%, rgba(216,199,178,0.08) 100%)'
+                          : 'linear-gradient(180deg, rgba(217,119,87,0.26) 0%, rgba(217,119,87,0.12) 100%)',
                         borderLeft: `1.5px solid ${theme.goldBorderHex}75`,
                       }}
                     >
@@ -1085,7 +1094,7 @@ export const LuxuryReferenceLibrary: React.FC<LuxuryReferenceLibraryProps> = ({
                 </div>
 
                 {addonWalletWarning && (
-                  <div className="rounded-xl bg-amber-100 border border-amber-400 px-3 py-2 text-xs font-bold text-amber-950">
+                  <div className="rounded-xl bg-[#E8DED2] border border-[#D8C7B2] px-3 py-2 text-xs font-bold text-[#1F1F1C]">
                     {addonWalletWarning}
                   </div>
                 )}

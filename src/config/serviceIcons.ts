@@ -1,14 +1,15 @@
 import {
-  Archive,
+  BookImage,
+  Compass,
   GitBranch,
   Globe,
   Home,
-  Layout,
-  Search,
+  Network,
   Users,
 } from 'lucide-react';
 
 export const JUTHORI_BRAND_COLORS = {
+  warmIvory: '#F5F1E8',
   softBeige: '#E8DED2',
   mutedSand: '#D8C7B2',
   terracotta: '#D97757',
@@ -17,15 +18,15 @@ export const JUTHORI_BRAND_COLORS = {
 
 /**
  * Single Source of Truth for Juthori's 6 Core Platform Services + Home.
- * Mirrors the Homepage ("ستة أعمدة رقمية") icons 1:1 across every page,
- * top navigation bar, UnifiedWorkspaceHeader, Bento overview cards, and gates.
+ * Propagated 1:1 across the Homepage, Customer Dashboard top bar & Bento overview,
+ * every UnifiedWorkspaceHeader, Admin & Researcher dashboards, and feature gates.
  */
 export const JUTHORI_SERVICE_ICONS = {
   home: Home,
   lineage: GitBranch, // 01 — عمود نسبي / عمود النسب
-  tree: Users, // 02 — شجرتي / بناء الشجرة
-  vault: Archive, // 03 — خزانتي / خزانة الذاكرة
-  kashafi: Search, // 04 — كشّافي / الاكتشاف والإثراء
-  site: Layout, // 05 — موقعي / موقع سجل العائلة على الإنترنت
-  community: Globe, // 06 — مجتمعي / المجتمعات
+  tree: Network, // 02 — شجرتي / بناء شجرة العائلة (تفرّع الأجيال الهرمي)
+  vault: BookImage, // 03 — خزانتي / خزانة الذاكرة (ألبوم ومخطوطات العائلة)
+  kashafi: Compass, // 04 — كشّافي / الاكتشاف والإثراء
+  site: Globe, // 05 — موقعي / موقع سجل العائلة على الإنترنت
+  community: Users, // 06 — مجتمعي / المجتمعات
 } as const;

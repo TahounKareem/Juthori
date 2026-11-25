@@ -328,9 +328,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col justify-between overflow-x-hidden">
+    <div dir="rtl" className="min-h-screen bg-[#F5F1E8] text-[#1F1F1C] flex flex-col justify-between overflow-x-hidden">
       {/* A. Top Navigation Bar (Mobile-First + Desktop 3-Zone Contract) */}
-      <header className="sticky top-0 z-40 bg-[#F7F2E9]/95 backdrop-blur-xs border-b border-[#B98A78]/30">
+      <header className="sticky top-0 z-40 bg-[#F5F1E8]/95 backdrop-blur-xs border-b border-[#D97757]/30">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3 sm:gap-6">
           {/* Right Zone: Juthori Logo */}
           <JuthoriLogo
@@ -352,8 +352,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   onClick={() => navigatePublicPage(item.id)}
                   className={`px-4 py-2 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
-                      ? 'bg-[#D8755B] text-white shadow-xs'
-                      : 'text-[#252321]/85 hover:bg-[#EDE6DA] hover:text-[#252321]'
+                      ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+                      : 'text-[#1F1F1C]/85 hover:bg-[#E8DED2] hover:text-[#1F1F1C]'
                   }`}
                 >
                   {item.label}
@@ -377,7 +377,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   onSelectPortalCountry(nextCountry);
                   handleFieldChange('originCountry', nextCountry);
                 }}
-                className="appearance-none rounded-xl bg-[#EDE6DA] border border-[#B98A78]/50 pr-2.5 sm:pr-3.5 pl-7 sm:pl-8 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#252321] max-w-[135px] sm:max-w-[210px] truncate focus:outline-none focus:border-[#D8755B] cursor-pointer"
+                className="appearance-none rounded-xl bg-[#E8DED2] border border-[#D97757]/50 pr-2.5 sm:pr-3.5 pl-7 sm:pl-8 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#1F1F1C] max-w-[135px] sm:max-w-[210px] truncate focus:outline-none focus:border-[#D97757] cursor-pointer"
               >
                 {PORTAL_COUNTRY_SWITCHER_OPTIONS.map((country) => (
                   <option key={country.code} value={country.name}>
@@ -386,7 +386,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 ))}
               </select>
               <ChevronDown
-                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#252321]/70 pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1F1F1C]/70 pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
                 aria-hidden="true"
               />
             </div>
@@ -398,15 +398,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 onClick={() => setLanguageMenuOpen((v) => !v)}
                 aria-label="اختيار لغة الموقع"
                 aria-expanded={languageMenuOpen}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e3dacb] border border-[#B98A78]/50 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-display font-bold text-[#252321] transition-colors cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/60 border border-[#D97757]/50 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-display font-bold text-[#1F1F1C] transition-colors cursor-pointer shadow-2xs"
               >
                 <Languages
-                  className="w-4 h-4 text-[#D8755B] shrink-0"
+                  className="w-4 h-4 text-[#D97757] shrink-0"
                   aria-hidden="true"
                 />
                 <span className="hidden sm:inline">العربية</span>
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-[#252321]/70 transition-transform ${
+                  className={`w-3.5 h-3.5 text-[#1F1F1C]/70 transition-transform ${
                     languageMenuOpen ? 'rotate-180' : ''
                   }`}
                   aria-hidden="true"
@@ -420,11 +420,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.98 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute left-0 mt-2 w-48 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/55 shadow-2xl py-2 z-50"
+                    className="absolute left-0 mt-2 w-48 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/55 shadow-2xl py-2 z-50"
                     role="menu"
                     aria-label="قائمة لغات الموقع"
                   >
-                    <div className="px-3.5 py-1.5 border-b border-[#B98A78]/25 text-[11px] font-display font-bold text-[#8D4925]">
+                    <div className="px-3.5 py-1.5 border-b border-[#D97757]/25 text-[11px] font-display font-bold text-[#D97757]">
                       لغة الموقع
                     </div>
                     <div className="py-1">
@@ -440,15 +440,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           }}
                           className={`w-full px-3.5 py-2 text-right text-xs font-display flex items-center justify-between transition-colors ${
                             lang.enabled
-                              ? 'bg-[#D8755B]/15 text-[#252321] font-extrabold cursor-pointer'
-                              : 'text-[#252321]/40 cursor-not-allowed'
+                              ? 'bg-[#D97757]/15 text-[#1F1F1C] font-extrabold cursor-pointer'
+                              : 'text-[#1F1F1C]/40 cursor-not-allowed'
                           }`}
                         >
                           <span>{lang.label}</span>
                           {lang.enabled ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#D97757]" />
                           ) : (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EDE6DA] text-[#252321]/45 font-normal">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E8DED2] text-[#1F1F1C]/45 font-normal">
                               قريباً
                             </span>
                           )}
@@ -463,7 +463,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="hidden lg:inline-flex px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F7F2E9] text-xs sm:text-sm font-display font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="hidden lg:inline-flex px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs sm:text-sm font-display font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               تسجيل الدخول
             </button>
@@ -473,7 +473,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={mobileMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
               aria-expanded={mobileMenuOpen}
-              className="lg:hidden w-10 h-10 rounded-xl bg-[#EDE6DA] border border-[#B98A78]/40 flex items-center justify-center text-[#252321] cursor-pointer shrink-0"
+              className="lg:hidden w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D97757]/40 flex items-center justify-center text-[#1F1F1C] cursor-pointer shrink-0"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -490,7 +490,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 onClick={() => setMobileMenuOpen(false)}
-                className="fixed inset-0 top-16 sm:top-20 z-40 bg-[#181512]/50 backdrop-blur-xs lg:hidden"
+                className="fixed inset-0 top-16 sm:top-20 z-40 bg-[#1F1F1C]/50 backdrop-blur-xs lg:hidden"
               />
               <motion.aside
                 initial={{ x: '-100%' }}
@@ -498,17 +498,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 26, stiffness: 260 }}
                 aria-label="القائمة الجانبية للجوال"
-                className="fixed top-16 sm:top-20 left-0 bottom-0 z-50 w-[82vw] max-w-[320px] bg-[#F7F2E9] border-r border-[#B98A78]/40 shadow-2xl p-5 flex flex-col justify-between lg:hidden overflow-y-auto"
+                className="fixed top-16 sm:top-20 left-0 bottom-0 z-50 w-[82vw] max-w-[320px] bg-[#F5F1E8] border-r border-[#D97757]/40 shadow-2xl p-5 flex flex-col justify-between lg:hidden overflow-y-auto"
               >
                 <div className="space-y-4">
-                  <div className="pb-3 border-b border-[#B98A78]/25 flex items-center justify-between">
-                    <span className="text-xs font-display font-bold text-[#8D4925]">
+                  <div className="pb-3 border-b border-[#D97757]/25 flex items-center justify-between">
+                    <span className="text-xs font-display font-bold text-[#D97757]">
                       تصفح بوابة جذوري
                     </span>
                     <button
                       type="button"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="p-1.5 rounded-lg hover:bg-[#EDE6DA] text-[#252321] cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-[#E8DED2] text-[#1F1F1C] cursor-pointer"
                       aria-label="إغلاق القائمة"
                     >
                       <X className="w-4 h-4" />
@@ -525,8 +525,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           onClick={() => navigatePublicPage(item.id)}
                           className={`py-3 px-4 rounded-xl text-right transition-colors cursor-pointer flex items-center justify-between ${
                             isActive
-                              ? 'bg-[#D8755B] text-white shadow-xs'
-                              : 'text-[#252321] hover:bg-[#EDE6DA]'
+                              ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+                              : 'text-[#1F1F1C] hover:bg-[#E8DED2]'
                           }`}
                         >
                           <span>{item.label}</span>
@@ -536,10 +536,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     })}
                   </nav>
 
-                  <div className="pt-3 border-t border-[#B98A78]/25 space-y-1.5">
+                  <div className="pt-3 border-t border-[#D97757]/25 space-y-1.5">
                     <label
                       htmlFor="mobile-country-switcher"
-                      className="block text-xs font-bold text-[#252321]/80"
+                      className="block text-xs font-bold text-[#1F1F1C]/80"
                     >
                       تخصيص الدولة والشعار المحلي:
                     </label>
@@ -550,7 +550,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         onSelectPortalCountry(e.target.value);
                         handleFieldChange('originCountry', e.target.value);
                       }}
-                      className="w-full rounded-xl bg-[#EDE6DA] border border-[#B98A78]/50 px-3 py-2.5 text-sm font-semibold text-[#252321]"
+                      className="w-full rounded-xl bg-[#E8DED2] border border-[#D97757]/50 px-3 py-2.5 text-sm font-semibold text-[#1F1F1C]"
                     >
                       {PORTAL_COUNTRY_SWITCHER_OPTIONS.map((c) => (
                         <option key={c.code} value={c.name}>
@@ -561,14 +561,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[#B98A78]/30">
+                <div className="pt-4 border-t border-[#D97757]/30">
                   <button
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
                       onOpenLogin();
                     }}
-                    className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F7F2E9] text-sm font-display font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+                    className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-sm font-display font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
                   >
                     <span>تسجيل الدخول</span>
                     <ArrowLeft className="w-4 h-4" />
@@ -616,25 +616,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="w-full h-full object-cover object-center transition-all duration-700"
               />
               {/* Balanced Transparent Gradient Scrim showcasing background photography */}
-              <div className="absolute inset-0 bg-gradient-to-l from-[#181512]/75 via-[#181512]/50 to-[#181512]/25" />
+              <div className="absolute inset-0 bg-gradient-to-l from-[#1F1F1C]/75 via-[#1F1F1C]/50 to-[#1F1F1C]/25" />
             </div>
 
             {/* Hero Foreground Content */}
             <div className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
               <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-6 sm:gap-8 lg:gap-10">
                 {/* 1. RIGHT COLUMN (First in RTL, Top on Mobile): Headline, Bullet Points, Local Slogan & 3 Value Cards */}
-                <div className="lg:col-span-7 flex flex-col justify-center text-white space-y-5">
+                <div className="lg:col-span-7 flex flex-col justify-center text-[#F5F1E8] space-y-5">
                   {/* 1) Top Fixed Badge */}
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs sm:text-sm font-display font-bold text-[#F7F2E9] w-fit shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-[#D8755B]" />
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F5F1E8]/15 backdrop-blur-md border border-[#F5F1E8]/25 text-xs sm:text-sm font-display font-bold text-[#F5F1E8] w-fit shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-[#D97757]" />
                     <span>بوابة الأنساب العربية الموثقة</span>
                   </div>
 
                   {/* 2) Major Display Headline + 3 Golden Diamond Bullet Points */}
                   <div className="space-y-3.5">
-                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-extrabold text-white leading-[1.22] tracking-tight drop-shadow-sm">
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-extrabold text-[#F5F1E8] leading-[1.22] tracking-tight drop-shadow-sm">
                       هل تعرف جذورك؟{' '}
-                      <span className="text-[#F3D299] sm:block mt-1">
+                      <span className="text-[#D97757] sm:block mt-1">
                         قصتك لم تبدأ بك.
                       </span>
                     </h1>
@@ -643,10 +643,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       {HERO_BULLET_POINTS.map((point) => (
                         <li
                           key={point}
-                          className="flex items-center gap-2.5 text-sm sm:text-base lg:text-lg font-display font-bold text-[#F7F2E9] drop-shadow-xs"
+                          className="flex items-center gap-2.5 text-sm sm:text-base lg:text-lg font-display font-bold text-[#F5F1E8] drop-shadow-xs"
                         >
                           <span
-                            className="text-[#F3D299] text-sm sm:text-base shrink-0"
+                            className="text-[#D97757] text-sm sm:text-base shrink-0"
                             aria-hidden="true"
                           >
                             ✦
@@ -658,13 +658,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
 
                   {/* 3) Country Local Dialect Slogan Card (Without any "شعار المنصة في..." header) */}
-                  <div className="rounded-2xl bg-[#181512]/55 backdrop-blur-md border border-white/20 p-4 sm:p-5 text-white shadow-xl relative overflow-hidden max-w-2xl">
-                    <div className="absolute top-0 right-0 w-2 h-full bg-[#D8755B]" />
+                  <div className="rounded-2xl bg-[#1F1F1C]/55 backdrop-blur-md border border-[#F5F1E8]/20 p-4 sm:p-5 text-[#F5F1E8] shadow-xl relative overflow-hidden max-w-2xl">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-[#D97757]" />
                     <div className="pr-3 space-y-1.5">
-                      <p className="text-base sm:text-xl font-display font-extrabold text-[#F3D299] leading-snug">
+                      <p className="text-base sm:text-xl font-display font-extrabold text-[#D97757] leading-snug">
                         «{countryInfo.slogan}»
                       </p>
-                      <p className="text-xs sm:text-sm text-[#F7F2E9]/90 leading-relaxed font-sans">
+                      <p className="text-xs sm:text-sm text-[#F5F1E8]/90 leading-relaxed font-sans">
                         {countryInfo.heritageNote}
                       </p>
                     </div>
@@ -677,16 +677,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       return (
                         <div
                           key={card.title}
-                          className="rounded-xl backdrop-blur-md bg-white/10 border border-white/15 p-3 sm:p-3.5 flex items-start gap-2.5 shadow-sm"
+                          className="rounded-xl backdrop-blur-md bg-[#F5F1E8]/10 border border-[#F5F1E8]/15 p-3 sm:p-3.5 flex items-start gap-2.5 shadow-sm"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-[#D8755B]/30 border border-[#F3D299]/30 flex items-center justify-center text-[#F3D299] shrink-0 mt-0.5">
+                          <div className="w-8 h-8 rounded-lg bg-[#D97757]/30 border border-[#D8C7B2]/30 flex items-center justify-center text-[#D97757] shrink-0 mt-0.5">
                             <Icon className="w-4 h-4" aria-hidden="true" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs sm:text-sm font-display font-bold text-white leading-tight">
+                            <p className="text-xs sm:text-sm font-display font-bold text-[#F5F1E8] leading-tight">
                               {card.title}
                             </p>
-                            <p className="text-[11px] text-[#F7F2E9]/80 mt-0.5 leading-snug">
+                            <p className="text-[11px] text-[#F5F1E8]/80 mt-0.5 leading-snug">
                               {card.description}
                             </p>
                           </div>
@@ -698,60 +698,60 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
                 {/* 2. LEFT COLUMN (Second in RTL, Directly Below on Mobile): Ultra-Compact Search Form Card */}
                 <div className="lg:col-span-5 flex justify-center lg:justify-end w-full">
-                  <div className="w-full max-w-full md:max-w-[380px] rounded-2xl bg-[#F7F2E9]/96 backdrop-blur-md border border-[#B98A78]/55 p-4 sm:p-5 shadow-2xl text-[#252321]">
+                  <div className="w-full max-w-full md:max-w-[380px] rounded-2xl bg-[#F5F1E8]/96 backdrop-blur-md border border-[#D97757]/55 p-4 sm:p-5 shadow-2xl text-[#1F1F1C]">
                     {/* Compact Step Progress Indicator */}
                     <ol
                       aria-label="مراحل البحث عن الجذور"
-                      className="flex items-center justify-between gap-1.5 pb-2.5 mb-3 border-b border-[#B98A78]/25 text-[11px] font-display font-bold"
+                      className="flex items-center justify-between gap-1.5 pb-2.5 mb-3 border-b border-[#D97757]/25 text-[11px] font-display font-bold"
                     >
                       <li
                         className={`flex items-center gap-1.5 whitespace-nowrap ${
-                          searchStep >= 1 ? 'text-[#D8755B]' : 'text-[#252321]/50'
+                          searchStep >= 1 ? 'text-[#D97757]' : 'text-[#1F1F1C]/50'
                         }`}
                       >
                         <span
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] tabular-nums ${
                             searchStep >= 1
-                              ? 'bg-[#D8755B] text-white'
-                              : 'bg-[#EDE6DA] text-[#252321]/70'
+                              ? 'bg-[#D97757] text-[#F5F1E8]'
+                              : 'bg-[#E8DED2] text-[#1F1F1C]/70'
                           }`}
                         >
                           1
                         </span>
                         <span>البيانات</span>
                       </li>
-                      <span className="text-[#B98A78] text-[10px]" aria-hidden="true">
+                      <span className="text-[#D97757] text-[10px]" aria-hidden="true">
                         ←
                       </span>
                       <li
                         className={`flex items-center gap-1.5 whitespace-nowrap ${
-                          searchStep >= 2 ? 'text-[#D8755B]' : 'text-[#252321]/55'
+                          searchStep >= 2 ? 'text-[#D97757]' : 'text-[#1F1F1C]/55'
                         }`}
                       >
                         <span
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] tabular-nums ${
                             searchStep >= 2
-                              ? 'bg-[#D8755B] text-white'
-                              : 'bg-[#EDE6DA] text-[#252321]/70'
+                              ? 'bg-[#D97757] text-[#F5F1E8]'
+                              : 'bg-[#E8DED2] text-[#1F1F1C]/70'
                           }`}
                         >
                           2
                         </span>
                         <span>التحقق</span>
                       </li>
-                      <span className="text-[#B98A78] text-[10px]" aria-hidden="true">
+                      <span className="text-[#D97757] text-[10px]" aria-hidden="true">
                         ←
                       </span>
                       <li
                         className={`flex items-center gap-1.5 whitespace-nowrap ${
-                          searchStep >= 3 ? 'text-[#D8755B]' : 'text-[#252321]/55'
+                          searchStep >= 3 ? 'text-[#D97757]' : 'text-[#1F1F1C]/55'
                         }`}
                       >
                         <span
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] tabular-nums ${
                             searchStep >= 3
-                              ? 'bg-[#D8755B] text-white'
-                              : 'bg-[#EDE6DA] text-[#252321]/70'
+                              ? 'bg-[#D97757] text-[#F5F1E8]'
+                              : 'bg-[#E8DED2] text-[#1F1F1C]/70'
                           }`}
                         >
                           3
@@ -761,10 +761,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     </ol>
 
                     <div className="mb-3">
-                      <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#252321] leading-tight">
+                      <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#1F1F1C] leading-tight">
                         لنبدأ من حيث تعرف
                       </h2>
-                      <p className="text-xs text-[#252321]/75 mt-0.5 leading-snug">
+                      <p className="text-xs text-[#1F1F1C]/75 mt-0.5 leading-snug">
                         أدخل بياناتك الأساسية للبحث في السجلات التاريخية الموثقة
                       </p>
                     </div>
@@ -776,7 +776,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           <div>
                             <label
                               htmlFor="input-first-name"
-                              className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                              className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                             >
                               الاسم الأول *
                             </label>
@@ -788,14 +788,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                 handleFieldChange('firstName', e.target.value)
                               }
                               placeholder="حسن"
-                              className="w-full h-9 rounded-xl bg-white/85 border border-[#B98A78]/55 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:bg-white focus:border-[#D8755B]"
+                              className="w-full h-9 rounded-xl bg-[#F5F1E8]/85 border border-[#D97757]/55 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:bg-[#F5F1E8] focus:border-[#D97757]"
                             />
                           </div>
 
                           <div>
                             <label
                               htmlFor="input-father-name"
-                              className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                              className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                             >
                               اسم الأب
                             </label>
@@ -807,14 +807,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                 handleFieldChange('fatherName', e.target.value)
                               }
                               placeholder="زهير"
-                              className="w-full h-9 rounded-xl bg-white/85 border border-[#B98A78]/55 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:bg-white focus:border-[#D8755B]"
+                              className="w-full h-9 rounded-xl bg-[#F5F1E8]/85 border border-[#D97757]/55 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:bg-[#F5F1E8] focus:border-[#D97757]"
                             />
                           </div>
 
                           <div>
                             <label
                               htmlFor="input-grandfather-name"
-                              className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                              className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                             >
                               اسم الجد
                             </label>
@@ -826,12 +826,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                 handleFieldChange('grandfatherName', e.target.value)
                               }
                               placeholder="حسن"
-                              className="w-full h-9 rounded-xl bg-white/85 border border-[#B98A78]/55 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:bg-white focus:border-[#D8755B]"
+                              className="w-full h-9 rounded-xl bg-[#F5F1E8]/85 border border-[#D97757]/55 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:bg-[#F5F1E8] focus:border-[#D97757]"
                             />
                           </div>
                         </div>
                         {validationErrors.firstName && (
-                          <p className="mt-1 text-[11px] text-red-700 font-medium">
+                          <p className="mt-1 text-[11px] text-[#D97757] font-medium">
                             {validationErrors.firstName}
                           </p>
                         )}
@@ -843,7 +843,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           <div>
                             <label
                               htmlFor="input-family-name"
-                              className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                              className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                             >
                               اسم العائلة *
                             </label>
@@ -855,14 +855,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                 handleFieldChange('familyName', e.target.value)
                               }
                               placeholder="مثال: آل مقيت"
-                              className="w-full h-9 rounded-xl bg-white/85 border border-[#B98A78]/55 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:bg-white focus:border-[#D8755B]"
+                              className="w-full h-9 rounded-xl bg-[#F5F1E8]/85 border border-[#D97757]/55 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:bg-[#F5F1E8] focus:border-[#D97757]"
                             />
                           </div>
 
                           <div>
                             <label
                               htmlFor="input-origin-country"
-                              className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                              className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                             >
                               الدولة
                             </label>
@@ -876,7 +876,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                     onSelectPortalCountry(e.target.value);
                                   }
                                 }}
-                                className="w-full h-9 appearance-none rounded-xl bg-white/85 border border-[#B98A78]/55 pr-2.5 pl-7 text-xs sm:text-sm text-[#252321] focus:outline-none focus:bg-white focus:border-[#D8755B] cursor-pointer"
+                                className="w-full h-9 appearance-none rounded-xl bg-[#F5F1E8]/85 border border-[#D97757]/55 pr-2.5 pl-7 text-xs sm:text-sm text-[#1F1F1C] focus:outline-none focus:bg-[#F5F1E8] focus:border-[#D97757] cursor-pointer"
                               >
                                 <option value="">اختر الدولة</option>
                                 {ORIGIN_COUNTRY_OPTIONS.map((country) => (
@@ -886,14 +886,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                 ))}
                               </select>
                               <ChevronDown
-                                className="w-3.5 h-3.5 text-[#252321]/65 pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
+                                className="w-3.5 h-3.5 text-[#1F1F1C]/65 pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
                                 aria-hidden="true"
                               />
                             </div>
                           </div>
                         </div>
                         {validationErrors.familyName && (
-                          <p className="mt-1 text-[11px] text-red-700 font-medium">
+                          <p className="mt-1 text-[11px] text-[#D97757] font-medium">
                             {validationErrors.familyName}
                           </p>
                         )}
@@ -903,7 +903,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <div>
                         <label
                           htmlFor="input-origin-region"
-                          className="block text-[11px] font-bold text-[#252321] mb-1"
+                          className="block text-[11px] font-bold text-[#1F1F1C] mb-1"
                         >
                           الموطن الأصلي
                         </label>
@@ -915,28 +915,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                             handleFieldChange('originRegion', e.target.value)
                           }
                           placeholder="مثال: نجد، الحجاز، دير الزور..."
-                          className="w-full h-9 rounded-xl bg-white/85 border border-[#B98A78]/55 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:bg-white focus:border-[#D8755B]"
+                          className="w-full h-9 rounded-xl bg-[#F5F1E8]/85 border border-[#D97757]/55 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:bg-[#F5F1E8] focus:border-[#D97757]"
                         />
                         {(validationErrors.originRegion || validationErrors.originCountry) && (
-                          <p className="mt-1.5 rounded-lg bg-[#FAF3EA] border border-[#D8755B]/45 px-2.5 py-1.5 text-[11px] text-[#8D4925] font-bold leading-snug">
+                          <p className="mt-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/45 px-2.5 py-1.5 text-[11px] text-[#D97757] font-bold leading-snug">
                             {validationErrors.originRegion || validationErrors.originCountry}
                           </p>
                         )}
                       </div>
 
                       {/* Row 4: Compact Expandable Toggle "+ بيانات إضافية" */}
-                      <div className="rounded-xl border border-[#B98A78]/40 bg-[#EDE6DA]/50 overflow-hidden">
+                      <div className="rounded-xl border border-[#D97757]/40 bg-[#E8DED2]/50 overflow-hidden">
                         <button
                           type="button"
                           aria-expanded={showOptionalTribe}
                           onClick={() => setShowOptionalTribe((prev) => !prev)}
-                          className="w-full px-3 py-2 flex items-center justify-between text-right text-xs font-display font-bold text-[#252321] hover:bg-[#EDE6DA]/90 transition-colors cursor-pointer"
+                          className="w-full px-3 py-2 flex items-center justify-between text-right text-xs font-display font-bold text-[#1F1F1C] hover:bg-[#E8DED2]/90 transition-colors cursor-pointer"
                         >
                           <span>+ بيانات إضافية</span>
                           {showOptionalTribe ? (
-                            <ChevronUp className="w-3.5 h-3.5 text-[#D8755B]" aria-hidden="true" />
+                            <ChevronUp className="w-3.5 h-3.5 text-[#D97757]" aria-hidden="true" />
                           ) : (
-                            <ChevronDown className="w-3.5 h-3.5 text-[#D8755B]" aria-hidden="true" />
+                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757]" aria-hidden="true" />
                           )}
                         </button>
 
@@ -947,12 +947,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -4 }}
                               transition={{ duration: 0.15 }}
-                              className="px-3 pb-3 pt-2 border-t border-[#B98A78]/25 grid grid-cols-2 gap-2"
+                              className="px-3 pb-3 pt-2 border-t border-[#D97757]/25 grid grid-cols-2 gap-2"
                             >
                               <div>
                                 <label
                                   htmlFor="input-tribe-name"
-                                  className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                                  className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                                 >
                                   القبيلة
                                 </label>
@@ -964,14 +964,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                     handleFieldChange('tribeName', e.target.value)
                                   }
                                   placeholder="مثال: بني بشر"
-                                  className="w-full h-9 rounded-lg bg-white border border-[#B98A78]/50 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:border-[#D8755B]"
+                                  className="w-full h-9 rounded-lg bg-[#F5F1E8] border border-[#D97757]/50 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757]"
                                 />
                               </div>
 
                               <div>
                                 <label
                                   htmlFor="input-branch-name"
-                                  className="block text-[11px] font-bold text-[#252321] mb-1 truncate"
+                                  className="block text-[11px] font-bold text-[#1F1F1C] mb-1 truncate"
                                 >
                                   الفرع / الفخذ
                                 </label>
@@ -983,7 +983,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                     handleFieldChange('branchName', e.target.value)
                                   }
                                   placeholder="مثال: آل برمان"
-                                  className="w-full h-9 rounded-lg bg-white border border-[#B98A78]/50 px-2.5 text-sm text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:border-[#D8755B]"
+                                  className="w-full h-9 rounded-lg bg-[#F5F1E8] border border-[#D97757]/50 px-2.5 text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757]"
                                 />
                               </div>
                             </motion.div>
@@ -996,7 +996,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         <button
                           type="submit"
                           disabled={isSearching}
-                          className="w-full min-h-[42px] py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] disabled:opacity-70 text-white font-display font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+                          className="w-full min-h-[42px] py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 disabled:opacity-70 text-[#F5F1E8] font-display font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
                         >
                           {isSearching ? (
                             <span>جاري البحث في السجلات التاريخية...</span>
@@ -1004,7 +1004,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                             <span>ابدأ خطوة البحث الأولى مجاناً ←</span>
                           )}
                         </button>
-                        <p className="text-center text-[11px] text-[#252321]/70 mt-1.5">
+                        <p className="text-center text-[11px] text-[#1F1F1C]/70 mt-1.5">
                           البحث الأولي مجاني. تدفع فقط إذا وجدنا لك نتيجة.
                         </p>
                       </div>
@@ -1018,15 +1018,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* C. Section 2: Core Strengths (ما هو جذوري · نقاط القوة - 4 Cards) */}
         <section
           id="what-is-juthori"
-          className="scroll-mt-20 border-t border-[#B98A78]/25 bg-[#EDE6DA]/55 py-16 lg:py-20"
+          className="scroll-mt-20 border-t border-[#D97757]/25 bg-[#E8DED2]/55 py-16 lg:py-20"
         >
           <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
               <div className="max-w-2xl">
-                <p className="text-xs font-semibold text-[#D8755B] mb-2">
+                <p className="text-xs font-semibold text-[#D97757] mb-2">
                   ما هو جذوري · ركائز المنصة
                 </p>
-                <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
+                <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#1F1F1C] text-balance">
                   أربع ركائز تفصل بين التوثيق النسبي المحقق والتخمين غير المسند
                 </h2>
               </div>
@@ -1038,21 +1038,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 return (
                   <article
                     key={item.number}
-                    className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-6 flex flex-col justify-between"
+                    className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-6 flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-5">
-                        <span className="text-sm font-mono font-semibold text-[#B98A78] tabular-nums">
+                        <span className="text-sm font-mono font-semibold text-[#D97757] tabular-nums">
                           {item.number}
                         </span>
-                        <div className="w-10 h-10 rounded-xl bg-[#EDE6DA] flex items-center justify-center text-[#D8755B]">
+                        <div className="w-10 h-10 rounded-xl bg-[#E8DED2] flex items-center justify-center text-[#D97757]">
                           <Icon className="w-5 h-5" aria-hidden="true" />
                         </div>
                       </div>
-                      <h3 className="text-lg font-display font-bold text-[#252321] mb-2.5">
+                      <h3 className="text-lg font-display font-bold text-[#1F1F1C] mb-2.5">
                         {item.title}
                       </h3>
-                      <p className="text-sm text-[#252321]/80 leading-relaxed">
+                      <p className="text-sm text-[#1F1F1C]/80 leading-relaxed">
                         {item.description}
                       </p>
                     </div>
@@ -1067,10 +1067,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <section className="py-16 lg:py-24 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold text-[#D8755B] mb-2">
+              <p className="text-xs font-semibold text-[#D97757] mb-2">
                 منظومة خدمات جذوري المتكاملة
               </p>
-              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#1F1F1C] text-balance">
                 ستة أعمدة رقمية لحفظ النسب وبناء الشجرة وصون ذاكرة العائلة
               </h2>
             </div>
@@ -1085,15 +1085,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   key={service.number}
                   className={`rounded-2xl p-6 flex flex-col justify-between border transition-transform duration-150 hover:-translate-y-0.5 ${
                     isHighlighted
-                      ? 'bg-[#D8755B] text-white border-[#D8755B]'
-                      : 'bg-[#EDE6DA] text-[#252321] border-[#B98A78]/45'
+                      ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                      : 'bg-[#E8DED2] text-[#1F1F1C] border-[#D8C7B2]'
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between mb-6">
                       <span
                         className={`text-xs font-mono font-semibold tabular-nums ${
-                          isHighlighted ? 'text-white/80' : 'text-[#B98A78]'
+                          isHighlighted ? 'text-[#F5F1E8]/80' : 'text-[#1F1F1C]/60'
                         }`}
                       >
                         {service.number}
@@ -1101,8 +1101,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <div
                         className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                           isHighlighted
-                            ? 'bg-white/15 text-white'
-                            : 'bg-[#E8DED2] text-[#D97757]'
+                            ? 'bg-[#F5F1E8]/15 text-[#F5F1E8]'
+                            : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757]'
                         }`}
                       >
                         <Icon className="w-5 h-5" aria-hidden="true" />
@@ -1114,14 +1114,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     </h3>
                     <p
                       className={`text-xs font-medium mb-4 ${
-                        isHighlighted ? 'text-white/85' : 'text-[#D8755B]'
+                        isHighlighted ? 'text-[#F5F1E8]/85' : 'text-[#D97757]'
                       }`}
                     >
                       {service.subtitle}
                     </p>
                     <p
                       className={`text-sm leading-relaxed ${
-                        isHighlighted ? 'text-white/95' : 'text-[#252321]/80'
+                        isHighlighted ? 'text-[#F5F1E8]/95' : 'text-[#1F1F1C]/80'
                       }`}
                     >
                       {service.description}
@@ -1131,8 +1131,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div
                     className={`mt-6 pt-4 border-t text-xs font-medium ${
                       isHighlighted
-                        ? 'border-white/20 text-white/90'
-                        : 'border-[#B98A78]/30 text-[#252321]/70'
+                        ? 'border-[#F5F1E8]/20 text-[#F5F1E8]/90'
+                        : 'border-[#D8C7B2] text-[#1F1F1C]/70'
                     }`}
                   >
                     {index === 1 ? 'يتطلب صفة أمين السجل' : 'متاح ضمن منظومة جذوري'}
@@ -1146,41 +1146,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* E. Section 4: About Us */}
         <section
           id="about-us"
-          className="scroll-mt-20 border-t border-[#B98A78]/25 bg-[#EDE6DA]/45 py-16 lg:py-20"
+          className="scroll-mt-20 border-t border-[#D97757]/25 bg-[#E8DED2]/45 py-16 lg:py-20"
         >
           <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-6 space-y-4">
-              <p className="text-xs font-semibold text-[#D8755B]">
+              <p className="text-xs font-semibold text-[#D97757]">
                 من نحن · منهجية الفهرسة والتحقيق
               </p>
-              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#252321] text-balance">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#1F1F1C] text-balance">
                 مشروع عربي يجمع تحقيق المخطوطات التراثية وهندسة قواعد البيانات العلائقية
               </h2>
-              <p className="text-sm sm:text-base text-[#252321]/80 leading-relaxed">
+              <p className="text-sm sm:text-base text-[#1F1F1C]/80 leading-relaxed">
                 تأسست منصة «جذوري» لسد الفجوة بين أمهات كتب الأنساب العربية والمشجرات العائلية الموثقة وبين الأجيال المعاصرة في 22 دولة عربية والمهجر، وفق ضوابط شرعية وقانونية تحفظ خصوصية الأسر وتمنح أمين السجل صلاحية التوثيق المعتمد.
               </p>
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#B98A78]/30">
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#D97757]/30">
                 <div>
-                  <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
+                  <div className="text-2xl font-display font-bold text-[#1F1F1C] tabular-nums">
                     +2.27M
                   </div>
-                  <div className="text-xs text-[#252321]/70 mt-0.5">
+                  <div className="text-xs text-[#1F1F1C]/70 mt-0.5">
                     عقدة نسب مهيكلة
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
+                  <div className="text-2xl font-display font-bold text-[#1F1F1C] tabular-nums">
                     22
                   </div>
-                  <div className="text-xs text-[#252321]/70 mt-0.5">
+                  <div className="text-xs text-[#1F1F1C]/70 mt-0.5">
                     دولة عربية + المهجر
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-display font-bold text-[#252321] tabular-nums">
+                  <div className="text-2xl font-display font-bold text-[#1F1F1C] tabular-nums">
                     $0
                   </div>
-                  <div className="text-xs text-[#252321]/70 mt-0.5">
+                  <div className="text-xs text-[#1F1F1C]/70 mt-0.5">
                     رسوم الفحص الأولي
                   </div>
                 </div>
@@ -1188,7 +1188,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 overflow-hidden flex flex-col">
                 <div className="aspect-[16/10] overflow-hidden">
                   <ResilientImage
                     src={JUTHORI_MEDIA.manuscriptScroll}
@@ -1197,19 +1197,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   />
                 </div>
                 <div className="p-5">
-                  <p className="text-xs text-[#D8755B] font-semibold mb-1">
+                  <p className="text-xs text-[#D97757] font-semibold mb-1">
                     منهجية الفهرسة · تحقيق المصادر
                   </p>
-                  <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
+                  <h3 className="text-base font-display font-bold text-[#1F1F1C] mb-1.5">
                     مراتب الطبقات والربط الثلاثي بالجذر
                   </h3>
-                  <p className="text-xs text-[#252321]/75 leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/75 leading-relaxed">
                     كيف نطابق العقدة العائلية (FE0) بالفرع القبلي الموثق (الجذر - B2) والقبيلة الأم الموثقة (B0) صعوداً إلى الجذوم الكبرى في جمهرة أنساب العرب والإكليل.
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 overflow-hidden flex flex-col">
+              <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 overflow-hidden flex flex-col">
                 <div className="aspect-[16/10] overflow-hidden">
                   <ResilientImage
                     src={JUTHORI_MEDIA.memoryVault}
@@ -1218,13 +1218,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   />
                 </div>
                 <div className="p-5">
-                  <p className="text-xs text-[#D8755B] font-semibold mb-1">
+                  <p className="text-xs text-[#D97757] font-semibold mb-1">
                     الضوابط والتوثيق · ميثاق أمين السجل
                   </p>
-                  <h3 className="text-base font-display font-bold text-[#252321] mb-1.5">
+                  <h3 className="text-base font-display font-bold text-[#1F1F1C] mb-1.5">
                     الفرق بين حساب الفرد وأمين السجل
                   </h3>
-                  <p className="text-xs text-[#252321]/75 leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/75 leading-relaxed">
                     ضماناً لعدم تعدد الروايات غير الموثقة، يُسند بناء شجرة العائلة إلى رب الأسرة الموقع على ميثاق دقة البيانات العائلية.
                   </p>
                 </div>
@@ -1238,18 +1238,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           id="support-center"
           className="scroll-mt-20 py-16 lg:py-20 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8"
         >
-          <div className="rounded-2xl bg-[#EDE6DA] border border-[#B98A78]/45 p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="rounded-2xl bg-[#E8DED2] border border-[#D97757]/45 p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-5 space-y-3">
-              <p className="text-xs font-semibold text-[#D8755B]">
+              <p className="text-xs font-semibold text-[#D97757]">
                 مركز التواصل والدعم
               </p>
-              <h2 className="text-2xl font-display font-bold text-[#252321]">
+              <h2 className="text-2xl font-display font-bold text-[#1F1F1C]">
                 هل لديك مشجرة عائلية محققة أو استفسار نسبي؟
               </h2>
-              <p className="text-sm text-[#252321]/80 leading-relaxed">
+              <p className="text-sm text-[#1F1F1C]/80 leading-relaxed">
                 يستقبل فريق التحقيق والأرشفة في منصة جذوري طلبات توثيق المشجرات الأسرية واستفسارات أمناء السجل في جميع الدول العربية.
               </p>
-              <div className="pt-2 text-xs text-[#252321]/75 space-y-1">
+              <div className="pt-2 text-xs text-[#1F1F1C]/75 space-y-1">
                 <p>البريد الرسمي: info@Juthori.com</p>
                 <p>ساعات عمل لجنة التحقيق: الأحد – الخميس (9:00 ص – 6:00 م بتوقيت مكة المكرمة)</p>
               </div>
@@ -1257,7 +1257,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <button
                   type="button"
                   onClick={() => navigatePublicPage('support-center')}
-                  className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <span>فتح الدليل الإرشادي والمرشد الذكي الشامل ←</span>
                 </button>
@@ -1266,17 +1266,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <div className="lg:col-span-7">
               {supportSent ? (
-                <div className="rounded-xl bg-[#F7F2E9] border border-[#D8755B]/45 p-6 text-right">
-                  <h3 className="text-base font-display font-bold text-[#D8755B] mb-1">
+                <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 p-6 text-right">
+                  <h3 className="text-base font-display font-bold text-[#D97757] mb-1">
                     تم استلام رسالتك بنجاح في مركز التواصل والدعم
                   </h3>
-                  <p className="text-sm text-[#252321]/80 mb-4">
+                  <p className="text-sm text-[#1F1F1C]/80 mb-4">
                     سيتواصل معك فريق التحقيق وخدمة العملاء عبر بريدك الإلكتروني خلال 24 ساعة عمل.
                   </p>
                   <button
                     type="button"
                     onClick={() => setSupportSent(false)}
-                    className="px-4 py-2 rounded-xl bg-[#252321] text-white text-xs font-semibold cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] text-xs font-semibold cursor-pointer"
                   >
                     إرسال رسالة أخرى
                   </button>
@@ -1286,7 +1286,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div>
                     <label
                       htmlFor="support-name"
-                      className="block text-xs font-medium text-[#252321] mb-1"
+                      className="block text-xs font-medium text-[#1F1F1C] mb-1"
                     >
                       الاسم الكامل
                     </label>
@@ -1296,13 +1296,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       value={supportName}
                       onChange={(e) => setSupportName(e.target.value)}
                       placeholder="الاسم الثلاثي"
-                      className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-sm text-[#1F1F1C]"
                     />
                   </div>
                   <div>
                     <label
                       htmlFor="support-email"
-                      className="block text-xs font-medium text-[#252321] mb-1"
+                      className="block text-xs font-medium text-[#1F1F1C] mb-1"
                     >
                       البريد الإلكتروني
                     </label>
@@ -1313,13 +1313,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       value={supportEmail}
                       onChange={(e) => setSupportEmail(e.target.value)}
                       placeholder="you@domain.com"
-                      className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-right text-sm text-[#252321]"
+                      className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-right text-sm text-[#1F1F1C]"
                     />
                   </div>
                   <div className="sm:col-span-2">
                     <label
                       htmlFor="support-message"
-                      className="block text-xs font-medium text-[#252321] mb-1"
+                      className="block text-xs font-medium text-[#1F1F1C] mb-1"
                     >
                       موضوع الطلب أو اسم المشجرة
                     </label>
@@ -1329,18 +1329,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       value={supportMessage}
                       onChange={(e) => setSupportMessage(e.target.value)}
                       placeholder="اكتب استفسارك أو نبذة عن الوثائق المتوفرة لدى عائلتك..."
-                      className="w-full rounded-xl bg-[#F7F2E9] border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                      className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-sm text-[#1F1F1C]"
                     />
                   </div>
                   {supportError && (
-                    <p className="sm:col-span-2 text-xs text-red-700 font-medium">
+                    <p className="sm:col-span-2 text-xs text-[#D97757] font-medium">
                       {supportError}
                     </p>
                   )}
                   <div className="sm:col-span-2 flex justify-end">
                     <button
                       type="submit"
-                      className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-sm font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                     >
                       <Send className="w-4 h-4" aria-hidden="true" />
                       <span>إرسال إلى مركز الدعم</span>
@@ -1356,7 +1356,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </main>
 
       {/* Quiet Editorial Footer */}
-      <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12">
+      <footer className="border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center text-center space-y-3.5">
             <JuthoriLogo
@@ -1364,19 +1364,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               onClick={() => navigatePublicPage('home')}
             />
 
-            <p className="text-sm sm:text-base font-display font-bold text-[#252321] pt-1">
+            <p className="text-sm sm:text-base font-display font-bold text-[#1F1F1C] pt-1">
               ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
             </p>
 
-            <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed font-sans">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed font-sans">
               تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
             </p>
 
-            <p className="text-xs sm:text-sm text-[#252321]/75 font-sans" dir="rtl">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/75 font-sans" dir="rtl">
               منصة الأنساب والإرث العائلي العربي — juthori.com
             </p>
 
-            <p className="text-xs text-[#252321]/70 font-sans" dir="rtl">
+            <p className="text-xs text-[#1F1F1C]/70 font-sans" dir="rtl">
               جميع الحقوق محفوظة. جذوري © 2026
             </p>
           </div>

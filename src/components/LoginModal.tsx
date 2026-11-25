@@ -732,21 +732,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/60 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F1F1C]/60 backdrop-blur-xs p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-modal-title"
     >
-      <div className="w-full max-w-md rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-6 sm:p-8 shadow-xl">
+      <div className="w-full max-w-md rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-6 sm:p-8 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2
               id="login-modal-title"
-              className="text-xl font-display font-bold text-[#252321]"
+              className="text-xl font-display font-bold text-[#1F1F1C]"
             >
               {isRegisterMode ? 'إنشاء حساب جديد في جذوري' : 'تسجيل الدخول إلى جذوري'}
             </h2>
-            <p className="text-xs text-[#252321]/70 mt-1">
+            <p className="text-xs text-[#1F1F1C]/70 mt-1">
               {isRegisterMode
                 ? 'أنشئ حسابك لحفظ شجرة عائلتك وتتبع تذاكر البحث الأرشيفي'
                 : 'ادخل إلى لوحة تحكم عمود نسبك وسجل عائلتك الموثق'}
@@ -756,31 +756,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="إغلاق نافذة تسجيل الدخول"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-[#252321]/70 hover:bg-[#EDE6DA] hover:text-[#252321] transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-[#1F1F1C]/70 hover:bg-[#E8DED2] hover:text-[#1F1F1C] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {(pendingTicket || pendingHandoff) && (
-          <div className="mb-4 rounded-xl bg-[#252321] text-white border border-[#D8755B]/60 p-3.5 text-right flex items-start gap-2.5">
-            <Sparkles className="w-4 h-4 text-[#F3D299] shrink-0 mt-0.5" />
+          <div className="mb-4 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] border border-[#D97757]/60 p-3.5 text-right flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
             <div className="space-y-0.5 text-[11px] leading-relaxed">
               {pendingTicket ? (
                 <>
-                  <div className="font-display font-bold text-[#F3D299]">
+                  <div className="font-display font-bold text-[#D97757]">
                     تذكرتك البحثية لعائلة ({pendingTicket.familyName}) جاهزة للفتح باسمك
                   </div>
-                  <p className="text-white/80">
+                  <p className="text-[#F5F1E8]/80">
                     بمجرد تسجيل الدخول أو إنشاء الحساب، ستُفتح لك نافذة التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بياناتك.
                   </p>
                 </>
               ) : pendingHandoff ? (
                 <>
-                  <div className="font-display font-bold text-[#F3D299]">
+                  <div className="font-display font-bold text-[#D97757]">
                     سيتم ترحيل نتيجة فحص عائلة ({pendingHandoff.familyName}) تلقائياً لحسابك
                   </div>
-                  <p className="text-white/80">
+                  <p className="text-[#F5F1E8]/80">
                     ادخل أو أنشئ حسابك لتنتقل مباشرةً إلى تبويب «عمود نسبي» دون الحاجة لإعادة البحث.
                   </p>
                 </>
@@ -794,23 +794,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           type="button"
           onClick={handleGoogleSignIn}
           disabled={isLoading}
-          className="w-full py-2.5 px-4 mb-4 rounded-xl bg-white border border-[#B98A78]/40 hover:bg-[#FAF6EE] text-[#252321] font-semibold text-xs flex items-center justify-center gap-3 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+          className="w-full py-2.5 px-4 mb-4 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 hover:bg-[#F5F1E8] text-[#1F1F1C] font-semibold text-xs flex items-center justify-center gap-3 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
-              fill="#4285F4"
+              fill="#D97757"
               d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
             />
             <path
-              fill="#34A853"
+              fill="#D97757"
               d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
             />
             <path
-              fill="#FBBC05"
+              fill="#D8C7B2"
               d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
             />
             <path
-              fill="#EA4335"
+              fill="#D97757"
               d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
             />
           </svg>
@@ -818,15 +818,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </button>
 
         <div className="flex items-center gap-3 my-3">
-          <div className="flex-1 h-px bg-[#B98A78]/30"></div>
-          <span className="text-[11px] text-[#252321]/50 font-medium">أو بالبريد الإلكتروني</span>
-          <div className="flex-1 h-px bg-[#B98A78]/30"></div>
+          <div className="flex-1 h-px bg-[#D97757]/30"></div>
+          <span className="text-[11px] text-[#1F1F1C]/50 font-medium">أو بالبريد الإلكتروني</span>
+          <div className="flex-1 h-px bg-[#D97757]/30"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>
           {isRegisterMode && (
             <div>
-              <label htmlFor="reg-name" className="block text-xs font-medium text-[#252321] mb-1">
+              <label htmlFor="reg-name" className="block text-xs font-medium text-[#1F1F1C] mb-1">
                 الاسم الكامل رباعي
               </label>
               <input
@@ -834,7 +834,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2 text-right text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                 placeholder="الاسم الأول، الأب، الجد، اسم العائلة"
               />
             </div>
@@ -843,7 +843,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div>
             <label
               htmlFor="login-email"
-              className="block text-xs font-medium text-[#252321] mb-1"
+              className="block text-xs font-medium text-[#1F1F1C] mb-1"
             >
               البريد الإلكتروني
             </label>
@@ -854,11 +854,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 dir="ltr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 pl-9 text-right text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2 pl-9 text-right text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                 placeholder="name@example.com"
               />
               <Mail
-                className="w-3.5 h-3.5 text-[#B98A78] absolute left-3 top-1/2 -translate-y-1/2"
+                className="w-3.5 h-3.5 text-[#D97757] absolute left-3 top-1/2 -translate-y-1/2"
                 aria-hidden="true"
               />
             </div>
@@ -868,7 +868,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <div className="flex items-center justify-between mb-1">
               <label
                 htmlFor="login-password"
-                className="block text-xs font-medium text-[#252321]"
+                className="block text-xs font-medium text-[#1F1F1C]"
               >
                 كلمة المرور
               </label>
@@ -877,7 +877,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   type="button"
                   disabled={isSendingReset}
                   onClick={handleForgotPassword}
-                  className="text-[11px] font-semibold text-[#D8755B] hover:underline cursor-pointer disabled:opacity-50"
+                  className="text-[11px] font-semibold text-[#D97757] hover:underline cursor-pointer disabled:opacity-50"
                 >
                   {isSendingReset ? 'جاري إرسال الرابط...' : 'نسيت كلمة المرور؟'}
                 </button>
@@ -890,11 +890,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 dir="ltr"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 pl-9 text-right text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2 pl-9 text-right text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                 placeholder="••••••••"
               />
               <Lock
-                className="w-3.5 h-3.5 text-[#B98A78] absolute left-3 top-1/2 -translate-y-1/2"
+                className="w-3.5 h-3.5 text-[#D97757] absolute left-3 top-1/2 -translate-y-1/2"
                 aria-hidden="true"
               />
             </div>
@@ -903,15 +903,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           {resetNotice && (
             <p
               role="status"
-              className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-start gap-2"
+              className="text-xs font-medium text-[#1F1F1C] bg-[#F5F1E8] border border-[#D8C7B2] rounded-lg px-3 py-2 flex items-start gap-2"
             >
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
               <span>{resetNotice}</span>
             </p>
           )}
 
           {error && (
-            <p role="alert" className="text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p role="alert" className="text-xs font-medium text-[#D97757] bg-[#F5F1E8] border border-[#D8C7B2] rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -919,7 +919,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-display font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] font-display font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -932,7 +932,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </button>
         </form>
 
-        <div className="mt-4 pt-3 border-t border-[#B98A78]/20 text-center">
+        <div className="mt-4 pt-3 border-t border-[#D97757]/20 text-center">
           <button
             type="button"
             onClick={() => {
@@ -940,7 +940,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               setError('');
               setResetNotice('');
             }}
-            className="text-xs text-[#D8755B] hover:underline font-semibold cursor-pointer"
+            className="text-xs text-[#D97757] hover:underline font-semibold cursor-pointer"
           >
             {isRegisterMode
               ? 'لديك حساب بالفعل؟ تسجيل الدخول'

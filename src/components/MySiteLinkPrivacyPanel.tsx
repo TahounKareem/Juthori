@@ -132,17 +132,17 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
       {/* ================================================================= */}
       {/* 1. DIRECT PORTAL URL & QR INVITATION                              */}
       {/* ================================================================= */}
-      <section className="rounded-2xl bg-[#FFFDF9] border border-[#E6DAC3] p-5 space-y-4">
+      <section className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] text-[#9E5631] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
               <Globe className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-[13.5px] font-display font-extrabold text-[#2C1E14]">
+              <h3 className="text-[13.5px] font-display font-extrabold text-[#1F1F1C]">
                 الرابط المباشر لبوابة العائلة
               </h3>
-              <p className="text-[11px] text-[#7A5C43]">
+              <p className="text-[11px] text-[#D97757]">
                 اختر اسماً نظيفاً وسهل المشاركة في مجموعات العائلة وبطاقات الدعوة
               </p>
             </div>
@@ -151,9 +151,9 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
           <button
             type="button"
             onClick={onOpenQrModal}
-            className="h-9 px-3.5 rounded-xl bg-[#FAF6EE] hover:bg-[#F1E7D7] border border-[#DFD1BA] text-[#5C4028] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+            className="h-9 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
           >
-            <QrCode className="w-3.5 h-3.5 text-[#9E5631]" />
+            <QrCode className="w-3.5 h-3.5 text-[#D97757]" />
             <span>بطاقة الدعوة وQR</span>
           </button>
         </div>
@@ -162,9 +162,9 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
           <div className="flex flex-col sm:flex-row gap-2">
             <div
               dir="ltr"
-              className="flex-1 flex items-center rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3 h-10 focus-within:border-[#C5A059] focus-within:bg-white transition-colors"
+              className="flex-1 flex items-center rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 h-10 focus-within:border-[#D97757] focus-within:bg-[#F5F1E8] transition-colors"
             >
-              <span className="text-xs font-mono font-semibold text-[#8C5327] select-none shrink-0">
+              <span className="text-xs font-mono font-semibold text-[#D97757] select-none shrink-0">
                 {officialBrandHost}/
               </span>
               <input
@@ -173,7 +173,7 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                 onChange={(e) => onChangeSiteSlug(e.target.value)}
                 placeholder="al-family"
                 aria-label="معرف رابط بوابة العائلة"
-                className="flex-1 bg-transparent px-1.5 text-xs font-mono font-bold text-[#2C1E14] focus:outline-none min-w-0"
+                className="flex-1 bg-transparent px-1.5 text-xs font-mono font-bold text-[#1F1F1C] focus:outline-none min-w-0"
               />
             </div>
 
@@ -182,23 +182,23 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                 type="button"
                 onClick={onCheckSlug}
                 disabled={slugStatus.checking}
-                className="h-10 px-3.5 rounded-xl bg-[#2C1E14] hover:bg-[#3F2C1E] text-[#F3D299] text-xs font-display font-bold cursor-pointer disabled:opacity-60 transition-colors whitespace-nowrap"
+                className="h-10 px-3.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold cursor-pointer disabled:opacity-60 transition-colors whitespace-nowrap"
               >
                 {slugStatus.checking ? 'جاري الفحص...' : 'فحص التوفر'}
               </button>
               <button
                 type="button"
                 onClick={onCopyPortalUrl}
-                className="h-10 px-3.5 rounded-xl bg-white hover:bg-[#FAF6EE] border border-[#E2D5BE] text-[#3D2B1F] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                className="h-10 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
               >
                 {copiedUrl ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-700" />
-                    <span className="text-emerald-800">تم النسخ</span>
+                    <Check className="w-3.5 h-3.5 text-[#D97757]" />
+                    <span className="text-[#1F1F1C]">تم النسخ</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5 text-[#8C5327]" />
+                    <Copy className="w-3.5 h-3.5 text-[#D97757]" />
                     <span>نسخ الرابط</span>
                   </>
                 )}
@@ -207,13 +207,13 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-            <span dir="ltr" className="font-mono text-[#7A5C43]">
+            <span dir="ltr" className="font-mono text-[#D97757]">
               https://{officialBrandHost}/{cleanSlugDisplay}
             </span>
             {slugStatus.message && (
               <span
                 className={`font-bold ${
-                  slugStatus.available ? 'text-emerald-700' : 'text-red-700'
+                  slugStatus.available ? 'text-[#D97757]' : 'text-[#D97757]'
                 }`}
               >
                 {slugStatus.message}
@@ -226,16 +226,16 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
       {/* ================================================================= */}
       {/* 2. ACCESS SCOPE + FAMILY SECRET ACCESS CODE                       */}
       {/* ================================================================= */}
-      <section className="rounded-2xl bg-[#FFFDF9] border border-[#E6DAC3] p-5 space-y-4">
+      <section className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] text-[#9E5631] flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
             <Lock className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-[13.5px] font-display font-extrabold text-[#2C1E14]">
+            <h3 className="text-[13.5px] font-display font-extrabold text-[#1F1F1C]">
               نطاق الوصول لبوابة العائلة
             </h3>
-            <p className="text-[11px] text-[#7A5C43]">
+            <p className="text-[11px] text-[#D97757]">
               حدّد من يمكنه فتح الموقع واستعراض محتوى ديوان العائلة
             </p>
           </div>
@@ -251,25 +251,25 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                 onClick={() => onChangeSiteAccessMode(opt.id)}
                 className={`rounded-xl p-3.5 border text-right transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                   active
-                    ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/35'
-                    : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                    ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
+                    : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-display font-extrabold text-[#2C1E14]">
+                  <span className="text-xs font-display font-extrabold text-[#1F1F1C]">
                     {opt.title}
                   </span>
                   <span
                     className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
                       active
-                        ? 'border-[#9E5631] bg-[#9E5631] text-white'
-                        : 'border-[#D5C6AE] bg-white'
+                        ? 'border-[#D97757] bg-[#D97757] text-[#F5F1E8]'
+                        : 'border-[#D8C7B2] bg-[#F5F1E8]'
                     }`}
                   >
                     {active && <Check className="w-2.5 h-2.5" />}
                   </span>
                 </div>
-                <p className="text-[11px] leading-relaxed text-[#6B5440]">
+                <p className="text-[11px] leading-relaxed text-[#D97757]">
                   {opt.desc}
                 </p>
               </button>
@@ -278,23 +278,23 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
         </div>
 
         {siteAccessMode === 'PRIVATE_WHITELIST' && (
-          <div className="rounded-xl bg-[#FAF5EA] border border-[#DFC798] p-4 space-y-2.5">
+          <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-display font-extrabold text-[#7B401F]">
-                <KeyRound className="w-4 h-4 text-[#9E5631]" />
+              <div className="flex items-center gap-2 text-xs font-display font-extrabold text-[#D97757]">
+                <KeyRound className="w-4 h-4 text-[#D97757]" />
                 <span>رمز الدخول السري للعائلة *</span>
               </div>
               {familyAccessCode.trim() ? (
-                <span className="text-[11px] font-bold text-emerald-800">
+                <span className="text-[11px] font-bold text-[#1F1F1C]">
                   ✓ رمز حماية مفعّل
                 </span>
               ) : (
-                <span className="text-[11px] font-bold text-amber-800">
+                <span className="text-[11px] font-bold text-[#1F1F1C]">
                   مطلوب لهذا النطاق
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[#6B5440] leading-relaxed">
+            <p className="text-[11px] text-[#D97757] leading-relaxed">
               عيّن رمزاً عائلياً سرياً يُطلب من الزوار في بوابة الحماية قبل فتح
               ديوان العائلة، إلى جانب الدخول التلقائي لأعضاء دائرة العائلة
               المعتمدين عبر حساباتهم في «جذوري».
@@ -308,17 +308,17 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                   placeholder="مثال: 1984 أو DIWAN-2026"
                   aria-label="رمز الدخول السري للعائلة"
                   required
-                  className={`w-full h-10 rounded-xl bg-white border px-3.5 pl-10 text-xs font-mono font-bold text-[#2C1E14] focus:outline-none ${
+                  className={`w-full h-10 rounded-xl bg-[#F5F1E8] border px-3.5 pl-10 text-xs font-mono font-bold text-[#1F1F1C] focus:outline-none ${
                     familyAccessCode.trim()
-                      ? 'border-[#DFC798] focus:border-[#9E5631]'
-                      : 'border-amber-500 focus:border-amber-600'
+                      ? 'border-[#D8C7B2] focus:border-[#D97757]'
+                      : 'border-[#D97757] focus:border-[#D97757]'
                   }`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowCodePlain((v) => !v)}
                   title={showCodePlain ? 'إخفاء الرمز' : 'إظهار الرمز'}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8C5327] hover:text-[#2C1E14] cursor-pointer"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#D97757] hover:text-[#1F1F1C] cursor-pointer"
                 >
                   {showCodePlain ? (
                     <EyeOff className="w-4 h-4" />
@@ -331,7 +331,7 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => onChangeFamilyAccessCode('')}
-                  className="h-10 px-3 rounded-xl bg-white hover:bg-red-50 border border-[#E6DAC3] text-[11px] font-bold text-red-700 cursor-pointer whitespace-nowrap"
+                  className="h-10 px-3 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-bold text-[#D97757] cursor-pointer whitespace-nowrap"
                 >
                   مسح الرمز
                 </button>
@@ -340,16 +340,16 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
             {!familyAccessCode.trim() ? (
               <div
                 role="alert"
-                className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 text-[11px] font-medium text-amber-950"
+                className="flex items-start gap-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-[11px] font-medium text-[#1F1F1C]"
               >
-                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                 <span>
                   يرجى كتابة «رمز الدخول السري للعائلة» قبل الضغط على «حفظ مسودة»
                   أو «تحديث ونشر الموقع» لتفعيل بوابة الحماية للزوار بشكل كامل.
                 </span>
               </div>
             ) : (
-              <p className="text-[11px] text-emerald-800 font-medium">
+              <p className="text-[11px] text-[#1F1F1C] font-medium">
                 سيتم تشفير هذا الرمز وحفظه مع إعدادات الموقع فوراً عند الضغط على «حفظ مسودة» أو «تحديث ونشر الموقع».
               </p>
             )}
@@ -360,16 +360,16 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
       {/* ================================================================= */}
       {/* 3. PRIVACY & FAMILY PARTICIPATION CONTROLS                        */}
       {/* ================================================================= */}
-      <section className="rounded-2xl bg-[#FFFDF9] border border-[#E6DAC3] p-5 space-y-4">
+      <section className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] text-[#9E5631] flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-[13.5px] font-display font-extrabold text-[#2C1E14]">
+            <h3 className="text-[13.5px] font-display font-extrabold text-[#1F1F1C]">
               ضوابط الخصوصية والمشاركة العائلية
             </h3>
-            <p className="text-[11px] text-[#7A5C43]">
+            <p className="text-[11px] text-[#D97757]">
               تحكم دقيق في عرض بيانات الأحياء والنساء وتفاعل الزوار مع الديوان
             </p>
           </div>
@@ -377,7 +377,7 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
 
         {/* Female display policy */}
         <div className="space-y-2">
-          <label className="text-xs font-display font-extrabold text-[#3D2B1F]">
+          <label className="text-xs font-display font-extrabold text-[#1F1F1C]">
             سياسة عرض أسماء الإناث في الشجرة المنشورة
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -390,19 +390,19 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                   onClick={() => onChangeFemaleDisplayPolicy(opt.id)}
                   className={`rounded-xl px-3.5 py-2.5 border text-right transition-all cursor-pointer ${
                     active
-                      ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/30'
-                      : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                      ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/30'
+                      : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-display font-bold text-[#2C1E14]">
+                    <span className="text-xs font-display font-bold text-[#1F1F1C]">
                       {opt.title}
                     </span>
                     {active && (
-                      <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                     )}
                   </div>
-                  <p className="text-[10.5px] text-[#6B5440] mt-0.5 leading-relaxed">
+                  <p className="text-[10.5px] text-[#D97757] mt-0.5 leading-relaxed">
                     {opt.desc}
                   </p>
                 </button>
@@ -412,13 +412,13 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
         </div>
 
         {/* Toggle switches list */}
-        <div className="divide-y divide-[#F0E8DA] rounded-xl border border-[#EAE0CF] bg-[#FCF9F3]/70">
+        <div className="divide-y divide-[#D8C7B2] rounded-xl border border-[#D8C7B2] bg-[#F5F1E8]/70">
           <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-display font-bold text-[#2C1E14]">
+              <div className="text-xs font-display font-bold text-[#1F1F1C]">
                 حجب أسماء الأحياء عن الزوار
               </div>
-              <p className="text-[11px] text-[#7A5C43] mt-0.5">
+              <p className="text-[11px] text-[#D97757] mt-0.5">
                 يُستبدل اسم الفرد الحي بوصف خصوصي للضيوف خارج دائرة العائلة
               </p>
             </div>
@@ -431,10 +431,10 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
 
           <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-display font-bold text-[#2C1E14]">
+              <div className="text-xs font-display font-bold text-[#1F1F1C]">
                 إخفاء سنوات ميلاد الأحياء
               </div>
-              <p className="text-[11px] text-[#7A5C43] mt-0.5">
+              <p className="text-[11px] text-[#D97757] mt-0.5">
                 حماية تواريخ ميلاد أفراد العائلة الأحياء من الظهور في البوابة
                 العامة
               </p>
@@ -448,10 +448,10 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
 
           <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-display font-bold text-[#2C1E14]">
+              <div className="text-xs font-display font-bold text-[#1F1F1C]">
                 السماح لأفراد دائرة العائلة المعتمدين في مجتمعي باقتراح إثراء الشجرة والخزانة
               </div>
-              <p className="text-[11px] text-[#7A5C43] mt-0.5">
+              <p className="text-[11px] text-[#D97757] mt-0.5">
                 يتيح لأعضاء دائرة العائلة ومساعد أمين السجل اقتراح إضافة فروع للشجرة أو إهداء صور للخزانة لمراجعتها
               </p>
             </div>
@@ -464,10 +464,10 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
 
           <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-display font-bold text-[#2C1E14]">
+              <div className="text-xs font-display font-bold text-[#1F1F1C]">
                 السماح للزوار باقتراح إثراء الشجرة والخزانة
               </div>
-              <p className="text-[11px] text-[#7A5C43] mt-0.5">
+              <p className="text-[11px] text-[#D97757] mt-0.5">
                 يتيح لعموم الزوار اقتراح إضافة فروع للشجرة أو إهداء صور للخزانة تصل إليك للمراجعة قبل الاعتماد
               </p>
             </div>
@@ -480,10 +480,10 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
 
           <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-display font-bold text-[#2C1E14]">
+              <div className="text-xs font-display font-bold text-[#1F1F1C]">
                 تفعيل مشاركات وحوارات مجلس العائلة
               </div>
-              <p className="text-[11px] text-[#7A5C43] mt-0.5">
+              <p className="text-[11px] text-[#D97757] mt-0.5">
                 إتاحة قسم «مجلس العائلة ولوحة حراس الذاكرة» للنقاشات الأسبوعية
                 وصلة الرحم
               </p>
@@ -497,8 +497,8 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
         </div>
 
         {/* Subtle heritage privacy guarantee */}
-        <div className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] px-3.5 py-2.5 flex items-center gap-2.5 text-[11px] text-[#5C4938]">
-          <ShieldCheck className="w-4 h-4 text-[#9E5631] shrink-0" />
+        <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center gap-2.5 text-[11px] text-[#D97757]">
+          <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
           <span>
             تُحفظ سلسلة <strong>عمود نسبي</strong> التاريخية الموثقة بمعزل تام
             داخل لوحتك الخاصة ولا تُنشر للعامة؛ يقتصر «موقعي» على دوحة الأسرة

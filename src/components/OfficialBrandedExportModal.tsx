@@ -150,26 +150,26 @@ export const OfficialBrandedExportModal: React.FC<
 
   return (
     <div
-      className="fixed inset-0 z-[80] bg-[#252321]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-[80] bg-[#1F1F1C]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label="تصدير الوثيقة الرسمية الموثقة"
     >
       <div
         dir="rtl"
-        className="w-full max-w-3xl rounded-3xl bg-[#FFFDF9] border-2 border-[#D4AF37] shadow-2xl overflow-hidden my-6 max-h-[92vh] flex flex-col text-right"
+        className="w-full max-w-3xl rounded-3xl bg-[#F5F1E8] border-2 border-[#D8C7B2] shadow-2xl overflow-hidden my-6 max-h-[92vh] flex flex-col text-right"
       >
         {/* Modal Top Bar */}
-        <div className="px-5 sm:px-7 py-4 bg-[#252321] text-[#FAF6F0] flex items-center justify-between gap-3 border-b border-[#D4AF37]/40 shrink-0">
+        <div className="px-5 sm:px-7 py-4 bg-[#1F1F1C] text-[#F5F1E8] flex items-center justify-between gap-3 border-b border-[#D8C7B2]/40 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-[#D8755B] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shrink-0 shadow-xs">
               <FileCheck2 className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-[11px] font-display font-bold text-[#F3D299]">
+              <div className="text-[11px] font-display font-bold text-[#D97757]">
                 نظام الإصدار والتوثيق المرجعي · منصة جذوري
               </div>
-              <h3 className="text-sm sm:text-lg font-display font-extrabold text-white truncate">
+              <h3 className="text-sm sm:text-lg font-display font-extrabold text-[#F5F1E8] truncate">
                 {exportKind === 'lineage_spine'
                   ? `تصدير بطاقة عمود نسب عائلة ${result.familyName} الموثق`
                   : `تصدير لوحة مشجرة عائلة ${result.familyName} الموثقة`}
@@ -180,14 +180,14 @@ export const OfficialBrandedExportModal: React.FC<
             type="button"
             onClick={onClose}
             aria-label="إغلاق"
-            className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 text-[#F5F1E8] flex items-center justify-center cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Scrollable Official Certificate Preview */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 bg-[#FAF6F0]/70 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 bg-[#F5F1E8]/70 flex-1">
           {/* Certificate Sheet Frame */}
           <div
             className="rounded-2xl p-4 sm:p-6 shadow-xs relative overflow-hidden space-y-4"
@@ -195,9 +195,9 @@ export const OfficialBrandedExportModal: React.FC<
               fontFamily:
                 charter?.fontCssFamily ||
                 getTreeArabicFontDefinition(posterOptions?.fontFamily).cssFamily,
-              backgroundColor: charter?.sheetBg || '#FFFDF9',
-              border: `2px double ${charter?.goldHex || '#8D4925'}`,
-              color: charter?.textPrimaryHex || '#252321',
+              backgroundColor: charter?.sheetBg || '#F5F1E8',
+              border: `2px double ${charter?.goldHex || '#D97757'}`,
+              color: charter?.textPrimaryHex || '#1F1F1C',
             }}
           >
             {isFreeRestricted && (
@@ -205,7 +205,7 @@ export const OfficialBrandedExportModal: React.FC<
                 aria-hidden="true"
                 className="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06] -rotate-12"
               >
-                <span className="text-4xl sm:text-6xl font-display font-extrabold text-[#252321] tracking-widest">
+                <span className="text-4xl sm:text-6xl font-display font-extrabold text-[#1F1F1C] tracking-widest">
                   معاينة · JUTHORI PREVIEW
                 </span>
               </div>
@@ -215,16 +215,16 @@ export const OfficialBrandedExportModal: React.FC<
             <div
               className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4"
               style={{
-                borderBottom: `1px solid ${charter?.cardStrokeHex || '#EDE6DA'}`,
+                borderBottom: `1px solid ${charter?.cardStrokeHex || '#E8DED2'}`,
               }}
             >
               <div className="flex items-center gap-3">
                 <div
                   className="w-12 h-12 rounded-2xl border-2 flex items-center justify-center font-display font-extrabold text-sm shrink-0"
                   style={{
-                    backgroundColor: charter?.isDarkSurface ? '#0E192B' : '#252321',
-                    color: '#F3D299',
-                    borderColor: charter?.goldHex || '#D8755B',
+                    backgroundColor: charter?.isDarkSurface ? '#1F1F1C' : '#1F1F1C',
+                    color: '#E8DED2',
+                    borderColor: charter?.goldHex || '#D97757',
                   }}
                 >
                   جذوري
@@ -232,13 +232,13 @@ export const OfficialBrandedExportModal: React.FC<
                 <div>
                   <div
                     className="text-[11px] font-bold"
-                    style={{ color: charter?.primaryHex || '#8D4925' }}
+                    style={{ color: charter?.primaryHex || '#D97757' }}
                   >
                     منصة جذوري للأنساب العربية الموثقة · Juthori
                   </div>
                   <div
                     className="text-base sm:text-lg font-display font-extrabold"
-                    style={{ color: charter?.textPrimaryHex || '#252321' }}
+                    style={{ color: charter?.textPrimaryHex || '#1F1F1C' }}
                   >
                     {resolvedDocTitle}
                   </div>
@@ -260,7 +260,7 @@ export const OfficialBrandedExportModal: React.FC<
                     </div>
                   )}
                   {!charter && poster && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[#8D4925]">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[#D97757]">
                       <span>
                         المقاس:{' '}
                         {poster.paperSize === 'A2_A1'
@@ -289,7 +289,7 @@ export const OfficialBrandedExportModal: React.FC<
                       {poster.inkSaverMode && (
                         <>
                           <span>·</span>
-                          <span className="text-emerald-700">توفير الحبر للمطابع ✓</span>
+                          <span className="text-[#D97757]">توفير الحبر للمطابع ✓</span>
                         </>
                       )}
                     </div>
@@ -301,28 +301,28 @@ export const OfficialBrandedExportModal: React.FC<
               <div
                 className={`px-3.5 py-2 rounded-xl border text-xs font-display font-extrabold inline-flex items-center gap-1.5 shrink-0 ${
                   meta.isRegistrar
-                    ? 'bg-[#252321] text-[#F3D299] border-[#D4AF37] shadow-xs'
+                    ? 'bg-[#1F1F1C] text-[#D97757] border-[#D8C7B2] shadow-xs'
                     : meta.isEligibleForCertifiedExport
-                    ? 'bg-[#FAF6F0] text-[#8D4925] border-[#8D4925]/45'
-                    : 'bg-stone-100 text-stone-600 border-stone-300'
+                    ? 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/45'
+                    : 'bg-[#E8DED2] text-[#1F1F1C]/70 border-[#D8C7B2]'
                 }`}
               >
                 {meta.isRegistrar ? (
-                  <ShieldCheck className="w-4 h-4 text-[#F3D299] shrink-0" />
+                  <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
                 ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-[#D8755B] shrink-0" />
+                  <Sparkles className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                 )}
                 <span>{meta.membershipBadgeLabel}</span>
               </div>
             </div>
 
             {poster && poster.headerStyle !== 'none' && (
-              <div className="rounded-xl bg-[#FAF6F0]/80 border border-[#D4AF37]/40 px-3 py-2 text-center space-y-0.5">
-                <div className="text-sm font-serif font-extrabold text-[#8D4925]">
+              <div className="rounded-xl bg-[#F5F1E8]/80 border border-[#D8C7B2]/40 px-3 py-2 text-center space-y-0.5">
+                <div className="text-sm font-serif font-extrabold text-[#D97757]">
                   بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                 </div>
                 {poster.headerStyle === 'basmala_verse' && (
-                  <div className="text-[11px] font-serif text-[#252321]/80">
+                  <div className="text-[11px] font-serif text-[#1F1F1C]/80">
                     ﴿ يَا أَيُّهَا النَّاسُ إِنَّا خَلَقْنَاكُم مِّن ذَكَرٍ وَأُنثَىٰ وَجَعَلْنَاكُمْ شُعُوبًا وَقَبَائِلَ لِتَعَارَفُوا ﴾
                   </div>
                 )}
@@ -330,8 +330,8 @@ export const OfficialBrandedExportModal: React.FC<
             )}
 
             {exportKind === 'family_tree' && femalePrivacyHidden && (
-              <div className="rounded-xl bg-[#FFF8F0] border border-[#D8755B]/45 px-3.5 py-2 flex items-center gap-2 text-xs font-display font-bold text-[#8D4925]">
-                <ShieldCheck className="w-4 h-4 text-[#D8755B] shrink-0" />
+              <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 px-3.5 py-2 flex items-center gap-2 text-xs font-display font-bold text-[#D97757]">
+                <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
                 <span>
                   خيار الخصوصية العائلية «إخفاء» مفعّل — تم إخفاء أسماء الإناث من هذه النسخة عند الطباعة والتصدير.
                 </span>
@@ -339,30 +339,30 @@ export const OfficialBrandedExportModal: React.FC<
             )}
 
             {/* Owner & Issue Metadata Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-xl bg-[#FAF6F0] border border-[#E5DCCB] p-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 text-xs">
               <div>
-                <div className="text-[10px] font-bold text-[#8D4925]">
+                <div className="text-[10px] font-bold text-[#D97757]">
                   صاحب السجل المعتمد
                 </div>
-                <div className="font-display font-extrabold text-[#252321] mt-0.5">
+                <div className="font-display font-extrabold text-[#1F1F1C] mt-0.5">
                   {meta.ownerFullName}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-bold text-[#8D4925]">
+                <div className="text-[10px] font-bold text-[#D97757]">
                   تاريخ الإصدار الرسمي
                 </div>
-                <div className="font-display font-bold text-[#252321] mt-0.5">
+                <div className="font-display font-bold text-[#1F1F1C] mt-0.5">
                   {meta.hijriDate} · {meta.gregorianDate}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-bold text-[#8D4925]">
+                <div className="text-[10px] font-bold text-[#D97757]">
                   معرّف التوثيق المرجعي
                 </div>
                 <div
                   dir="ltr"
-                  className="font-mono font-extrabold text-[#252321] mt-0.5 text-right sm:text-left"
+                  className="font-mono font-extrabold text-[#1F1F1C] mt-0.5 text-right sm:text-left"
                 >
                   {meta.verificationId}
                 </div>
@@ -397,7 +397,7 @@ export const OfficialBrandedExportModal: React.FC<
 
                 <div
                   className="text-[11px] font-display font-bold text-center"
-                  style={{ color: charter?.primaryHex || '#8D4925' }}
+                  style={{ color: charter?.primaryHex || '#D97757' }}
                 >
                   معاينة المحطات المفتوحة في الصك ({orderedPreviewLineageRows.length} محطة)
                 </div>
@@ -409,19 +409,19 @@ export const OfficialBrandedExportModal: React.FC<
                       style={{
                         backgroundColor: row.isSummit
                           ? charter?.isDarkSurface
-                            ? '#1E3252'
-                            : '#252321'
+                            ? '#1F1F1C'
+                            : '#1F1F1C'
                           : row.isRoot
-                          ? charter?.canvasBg || '#FFF8EB'
+                          ? charter?.canvasBg || '#F5F1E8'
                           : charter?.isDarkSurface
-                          ? '#182944'
-                          : '#FFFFFF',
+                          ? '#1F1F1C'
+                          : '#F5F1E8',
                         color: row.isSummit
-                          ? '#FFFFFF'
-                          : charter?.textPrimaryHex || '#252321',
+                          ? '#F5F1E8'
+                          : charter?.textPrimaryHex || '#1F1F1C',
                         borderColor: row.isSummit || row.isRoot
-                          ? charter?.goldHex || '#D97706'
-                          : charter?.cardStrokeHex || 'rgba(185,138,120,0.5)',
+                          ? charter?.goldHex || '#D97757'
+                          : charter?.cardStrokeHex || 'rgba(217,119,87,0.5)',
                       }}
                     >
                       <span className="text-xs sm:text-sm font-display font-extrabold truncate">
@@ -431,8 +431,8 @@ export const OfficialBrandedExportModal: React.FC<
                         className="text-[10px] font-bold shrink-0"
                         style={{
                           color: row.isSummit
-                            ? '#F3D299'
-                            : charter?.primaryHex || '#8D4925',
+                            ? '#E8DED2'
+                            : charter?.primaryHex || '#D97757',
                         }}
                       >
                         {row.subtitle}
@@ -471,7 +471,7 @@ export const OfficialBrandedExportModal: React.FC<
               </div>
             ) : (
               <div className="space-y-2 py-1 max-h-64 overflow-y-auto pr-1">
-                <div className="text-[11px] font-display font-bold text-[#8D4925] text-center">
+                <div className="text-[11px] font-display font-bold text-[#D97757] text-center">
                   معاينة أفراد وعُقد المشجرة في المستخرج ({treeMembers.length} عقدة)
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -483,44 +483,44 @@ export const OfficialBrandedExportModal: React.FC<
                         key={member.id}
                         className={`rounded-xl border overflow-hidden ${
                           member.isCertifiedReference
-                            ? 'bg-[#FFFBEB] border-[#D4AF37]'
+                            ? 'bg-[#F5F1E8] border-[#D8C7B2]'
                             : member.isRecordKeeper
-                            ? 'bg-[#FFFDF8] border-[#C59B43]'
-                            : 'bg-white border-[#B98A78]/45'
+                            ? 'bg-[#F5F1E8] border-[#D97757]'
+                            : 'bg-[#F5F1E8] border-[#D97757]/45'
                         }`}
                       >
                         <div className="px-3 py-2 flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                            <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                               {member.displayName}
                             </div>
                             {(member.epithet || member.kunya) && (
-                              <div className="text-[10.5px] text-[#6B543E] truncate">
+                              <div className="text-[10.5px] text-[#D97757] truncate">
                                 {member.epithet && (
-                                  <span className="font-semibold text-[#9A6B25]">
+                                  <span className="font-semibold text-[#D97757]">
                                     {member.epithet}
                                   </span>
                                 )}
                                 {member.epithet && member.kunya && (
-                                  <span className="mx-1 text-[#C59B27]/80 font-bold">
+                                  <span className="mx-1 text-[#D97757]/80 font-bold">
                                     ·
                                   </span>
                                 )}
                                 {member.kunya && <span>{member.kunya}</span>}
                               </div>
                             )}
-                            <div className="text-[10px] text-[#8D4925] font-semibold truncate">
+                            <div className="text-[10px] text-[#D97757] font-semibold truncate">
                               {member.relationLabel}
                             </div>
                           </div>
                           {member.isCertifiedReference && (
-                            <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D4AF37] text-[10px] font-bold text-[#92400E] shrink-0">
+                            <span className="px-2 py-0.5 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[10px] font-bold text-[#D97757] shrink-0">
                               مرجع موثق ✦
                             </span>
                           )}
                         </div>
                         {member.metaLine && (
-                          <div className="px-3 py-1 bg-[#F7F1E3]/70 border-t border-[#D4AF37]/20 text-[10px] font-medium text-[#6B543E] truncate">
+                          <div className="px-3 py-1 bg-[#E8DED2]/70 border-t border-[#D8C7B2]/20 text-[10px] font-medium text-[#D97757] truncate">
                             {member.metaLine}
                           </div>
                         )}
@@ -528,7 +528,7 @@ export const OfficialBrandedExportModal: React.FC<
                     ))}
                 </div>
                 {treeMembers.length > 14 && (
-                  <div className="text-[11px] text-center text-[#8D4925] font-bold pt-1">
+                  <div className="text-[11px] text-center text-[#D97757] font-bold pt-1">
                     + {treeMembers.length - 14} فرداً إضافياً يظهرون بالكامل في ملف التصدير الرسمي
                   </div>
                 )}
@@ -536,14 +536,14 @@ export const OfficialBrandedExportModal: React.FC<
             )}
 
             {/* Official Footer */}
-            <div className="pt-3 border-t border-[#EDE6DA] flex flex-wrap items-center justify-between gap-3 text-[11px] text-[#252321]/75">
+            <div className="pt-3 border-t border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3 text-[11px] text-[#1F1F1C]/75">
               <span>
                 {!poster || poster.showStampAndDates
                   ? 'منصة جذوري (Juthori) — ترويسة وتذييل رسميان معتمدان للحفظ والطباعة'
                   : `مشجرة عائلة ${meta.familyName}`}
               </span>
               <div className="flex items-center gap-2.5">
-                <span className="font-mono font-bold text-[#8D4925]" dir="ltr">
+                <span className="font-mono font-bold text-[#D97757]" dir="ltr">
                   {meta.verificationId}
                 </span>
                 {previewQrMatrix && (
@@ -551,7 +551,7 @@ export const OfficialBrandedExportModal: React.FC<
                     width="40"
                     height="40"
                     viewBox="0 0 21 21"
-                    className="rounded-md bg-white p-0.5 border border-[#D4AF37]/60 shrink-0"
+                    className="rounded-md bg-[#F5F1E8] p-0.5 border border-[#D8C7B2]/60 shrink-0"
                     aria-label="باركود التحقق الرسمي"
                   >
                     {previewQrMatrix.map((row, rIdx) =>
@@ -563,7 +563,7 @@ export const OfficialBrandedExportModal: React.FC<
                             y={rIdx}
                             width={1.05}
                             height={1.05}
-                            fill={posterOptions?.theme?.primaryHex || '#8D4925'}
+                            fill={posterOptions?.theme?.primaryHex || '#D97757'}
                           />
                         ) : null
                       )
@@ -578,17 +578,17 @@ export const OfficialBrandedExportModal: React.FC<
           {isFreeRestricted && (
             <div
               data-testid="export-free-tier-governance-box"
-              className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FEF3C7]/55 to-[#FFF8EB] border-2 border-[#D4AF37] p-4 sm:p-5 space-y-3"
+              className="rounded-2xl bg-gradient-to-l from-[#F5F1E8] via-[#E8DED2]/55 to-[#F5F1E8] border-2 border-[#D8C7B2] p-4 sm:p-5 space-y-3"
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
                   <Crown className="w-4 h-4" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                  <h4 className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
                     التصدير الرسمي عالي الدقة بختم التوثيق المرجعي متاح للباقات الموثقة
                   </h4>
-                  <p className="text-xs text-[#252321]/80 leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/80 leading-relaxed">
                     لتحميل اللوحة فائقة الدقة (PNG HD) أو طباعة ملف PDF الرسمي الخالي من العلامة المائية والممهور بمعرّف التحقق وختم العضوية، يمكنك فتح الجذر الموثق ($5) أو الترقية للباقة السنوية أو عضوية أمين السجل.
                   </p>
                 </div>
@@ -602,7 +602,7 @@ export const OfficialBrandedExportModal: React.FC<
                       onClose();
                       onUnlockRoot5Usd();
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-extrabold cursor-pointer transition-colors"
+                    className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer transition-colors"
                   >
                     فتح الجذر الموثق وتفعيل التصدير ($5)
                   </button>
@@ -614,7 +614,7 @@ export const OfficialBrandedExportModal: React.FC<
                       onClose();
                       onUpgradeAnnualVip();
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-extrabold cursor-pointer transition-colors"
+                    className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-extrabold cursor-pointer transition-colors"
                   >
                     الترقية للباقة السنوية VIP ($60)
                   </button>
@@ -626,7 +626,7 @@ export const OfficialBrandedExportModal: React.FC<
                       onClose();
                       onSignCharterAndEnableTree();
                     }}
-                    className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#8D4925] text-[#8D4925] text-xs font-display font-bold cursor-pointer transition-colors"
+                    className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757] text-[#D97757] text-xs font-display font-bold cursor-pointer transition-colors"
                   >
                     ختم أمين سجل العائلة ✦
                   </button>
@@ -636,19 +636,19 @@ export const OfficialBrandedExportModal: React.FC<
           )}
 
           {downloadSuccessLabel && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-900 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-4 py-2.5 text-xs font-bold text-[#1F1F1C] flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
               <span>{downloadSuccessLabel}</span>
             </div>
           )}
         </div>
 
         {/* Modal Action Footer */}
-        <div className="px-5 sm:px-7 py-4 bg-white border-t border-[#EDE6DA] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="px-5 sm:px-7 py-4 bg-[#F5F1E8] border-t border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl bg-[#F7F2E9] hover:bg-[#EDE6DA] text-xs font-display font-bold text-[#252321] cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-xs font-display font-bold text-[#1F1F1C] cursor-pointer"
           >
             إغلاق
           </button>
@@ -659,12 +659,12 @@ export const OfficialBrandedExportModal: React.FC<
               disabled={isFreeRestricted}
               onClick={handleDownloadPng}
               data-testid="official-export-download-png-btn"
-              className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] disabled:opacity-50 disabled:cursor-not-allowed border border-[#8D4925]/50 text-[#252321] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] disabled:opacity-50 disabled:cursor-not-allowed border border-[#D97757]/50 text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               {isFreeRestricted ? (
-                <Lock className="w-3.5 h-3.5 text-[#D8755B]" />
+                <Lock className="w-3.5 h-3.5 text-[#D97757]" />
               ) : (
-                <ImageIcon className="w-4 h-4 text-[#8D4925]" />
+                <ImageIcon className="w-4 h-4 text-[#D97757]" />
               )}
               <span>تنزيل لوحة عالية الدقة (PNG HD)</span>
             </button>
@@ -674,12 +674,12 @@ export const OfficialBrandedExportModal: React.FC<
               disabled={isFreeRestricted}
               onClick={handlePrintPdf}
               data-testid="official-export-print-pdf-btn"
-              className="px-5 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] disabled:opacity-50 disabled:cursor-not-allowed text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+              className="px-5 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
             >
               {isFreeRestricted ? (
-                <Lock className="w-3.5 h-3.5 text-[#F3D299]" />
+                <Lock className="w-3.5 h-3.5 text-[#D97757]" />
               ) : (
-                <Printer className="w-4 h-4 text-[#F3D299]" />
+                <Printer className="w-4 h-4 text-[#D97757]" />
               )}
               <span>طباعة / حفظ ملف PDF رسمي موثق</span>
               {!isFreeRestricted && <Download className="w-3.5 h-3.5" />}

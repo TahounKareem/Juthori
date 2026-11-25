@@ -691,7 +691,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       const processed = await processAndUploadKnowledgeImage(file, 'inline');
       if (processed?.url) {
         insertHtmlAtCursor(
-          `<figure style="margin: 20px auto; text-align: center; max-width: 100%;"><img src="${processed.url}" alt="صورة مرفقة" style="width: 100%; max-height: 480px; object-fit: contain; background: #FAF6F0; border-radius: 16px; border: 1px solid rgba(185,138,120,0.45); margin: 0 auto; display: block;" /></figure><p><br/></p>`
+          `<figure style="margin: 20px auto; text-align: center; max-width: 100%;"><img src="${processed.url}" alt="صورة مرفقة" style="width: 100%; max-height: 480px; object-fit: contain; background: #F5F1E8; border-radius: 16px; border: 1px solid rgba(217,119,87,0.45); margin: 0 auto; display: block;" /></figure><p><br/></p>`
         );
         triggerToast('تم تحسين أبعاد الصورة وإدراجها داخل المقال بنجاح ✓');
       }
@@ -706,7 +706,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     templateType: 'manuscript' | 'family_study' | 'dna_science' | 'event_news'
   ) => {
     const templates: Record<typeof templateType, string> = {
-      manuscript: `<h3><strong>أولاً: التعريف بالمخطوطة ومصدرها التاريخي</strong></h3><p>اذكر اسم المخطوطة أو الوثيقة ومؤلفها وتاريخ نسخها ومكان حفظها...</p><blockquote style="border-right: 4px solid #D8755B; background: #F7F2E9; padding: 12px 16px; margin: 14px 0; border-radius: 8px; font-style: italic;">«نص الاقتباس الموثق من المخطوطة مع الإشارة إلى رقم الجزء والصفحة»</blockquote><h3><strong>ثانياً: دلالات السلاسل النسبية الواردة</strong></h3><ul><li>العقد النسبية المحققة في الوثيقة:</li><li>المواطن التاريخية المذكورة:</li><li>تقاطع الرواية مع أمهات كتب الأنساب:</li></ul>`,
+      manuscript: `<h3><strong>أولاً: التعريف بالمخطوطة ومصدرها التاريخي</strong></h3><p>اذكر اسم المخطوطة أو الوثيقة ومؤلفها وتاريخ نسخها ومكان حفظها...</p><blockquote style="border-right: 4px solid #D97757; background: #F5F1E8; padding: 12px 16px; margin: 14px 0; border-radius: 8px; font-style: italic;">«نص الاقتباس الموثق من المخطوطة مع الإشارة إلى رقم الجزء والصفحة»</blockquote><h3><strong>ثانياً: دلالات السلاسل النسبية الواردة</strong></h3><ul><li>العقد النسبية المحققة في الوثيقة:</li><li>المواطن التاريخية المذكورة:</li><li>تقاطع الرواية مع أمهات كتب الأنساب:</li></ul>`,
       family_study: `<h3><strong>أولاً: الجذور التاريخية والموطن الأصلي</strong></h3><p>نبذة موثقة عن أصول الأسرة أو القبيلة ومنازلها التاريخية...</p><h3><strong>ثانياً: عمود النسب والفرع الجامع</strong></h3><p>بيان اتصال الفرع بالجذر القبلي الأعلى وفق المصادر المحققة...</p><h3><strong>ثالثاً: أبرز الأعلام والمراجع المعتمدة</strong></h3><ul><li>المصدر الأول: اسم الكتاب — المؤلف (ج/ص)</li><li>المصدر الثاني: الوثائق والمشجرات المحفوظة</li></ul>`,
       dna_science: `<h3><strong>مقدمة علمية</strong></h3><p>استعراض منهجي لأدوات التوثيق الرقمي وتكاملها مع المشجرات التاريخية...</p><h3><strong>النتائج والضوابط المنهجية</strong></h3><ul><li>أهمية الوثيقة المكتوبة كأصل في إثبات النسب</li><li>دور قواعد البيانات العلائقية في فهرسة البطون والفروع</li></ul>`,
       event_news: `<h3><strong>تفاصيل الحدث / المبادرة الثقافية</strong></h3><p>ملخص الخبر أو الندوة العلمية وتاريخ ومكان انعقادها...</p><h3><strong>أبرز التوصيات والمخرجات</strong></h3><ul><li>التوصية الأولى:</li><li>التوصية الثانية:</li></ul>`,
@@ -1442,7 +1442,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: `منجز اليوم (${totalDoneToday}): عملاء ${p1Done} · شجرة آدم ${p2Done} · استباقي ${p3Done}`,
           progressPercent: completionRate,
           badgeText: 'مؤشر الإنجاز 📊',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'نقاط الإنجاز والمكافآت ومتوسط زمن المعالجة',
@@ -1452,7 +1452,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           )} دقيقة`,
           progressPercent: 97,
           badgeText: 'نقاط المكافآت 🏆',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'عُقد ألفا الموصولة ومراجع آدم برايم الموثقة',
@@ -1466,7 +1466,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             )
           ),
           badgeText: 'توثيق وإثراء 🌳',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'حالة انضباط الجلسات ونشاط المديرين والباحثين',
@@ -1476,7 +1476,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             (activeStaffCount / Math.max(1, staffList.length)) * 100
           ),
           badgeText: 'جلسات الفريق 👥',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
       ];
     }
@@ -1492,7 +1492,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: `عملاء: ${p1Done} · إثراء آدم: ${p2Done} · استباقية: ${p3Done}`,
           progressPercent: pct,
           badgeText: 'المنجز اليوم ✅',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'متوسط زمن معالجة البحث الواحد',
@@ -1502,7 +1502,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: 'المعيار القياسي المستهدف: 02:00 دقيقة / بحث',
           progressPercent: 88,
           badgeText: 'سرعة الإنجاز ⏱️',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'عُقد ألفا الموصولة ومراجع آدم برايم',
@@ -1510,7 +1510,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: 'توثيق مباشر في شجرة آدم الكبرى وسجل آدم برايم',
           progressPercent: 92,
           badgeText: 'توثيق معتمد 🌳',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'نقاط الإنجاز والمكافآت وجودة التدقيق',
@@ -1518,7 +1518,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: 'معدل دقة خياطة الأعمدة ومطابقة المراجع: 99.2%',
           progressPercent: 99,
           badgeText: 'نقاط الإنجاز 🏆',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
       ];
     }
@@ -1534,7 +1534,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: `معدل الإغلاق اليومي: ${pct}%`,
           progressPercent: pct,
           badgeText: 'متابعة حية 🎧',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'متوسط زمن الاستجابة الأول للعميل',
@@ -1542,7 +1542,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: 'الحد الأقصى المسموح في SLA: 10:00 دقائق',
           progressPercent: 95,
           badgeText: 'ضمن وقت SLA ⚡',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'معدل رضا العملاء وحسم الاستفسارات من المرة الأولى',
@@ -1550,7 +1550,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           subLabel: 'حسم من المرة الأولى (FCR): 94.5%',
           progressPercent: 98,
           badgeText: 'جودة ممتازة ⭐',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
         {
           title: 'تنبيهات الطلبات العاجلة أو المتأخرة عن الوقت المعياري',
@@ -1562,7 +1562,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           progressPercent: metrics.openSupportCount === 0 ? 100 : 75,
           badgeText:
             metrics.openSupportCount === 0 ? 'لا يوجد تأخير ✓' : 'يتطلب متابعة 🔔',
-          badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/60',
+          badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
         },
       ];
     }
@@ -1626,19 +1626,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         monthlyPublishedCount >= expectedProratedTarget)
         ? {
             badge: 'متقدم على الجدول ✓',
-            badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-300',
-            arc: '#2E7D5B',
+            badgeColor: 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]',
+            arc: '#D97757',
           }
         : monthlyPublishedCount >= Math.max(1, expectedProratedTarget * 0.55)
           ? {
               badge: 'ضمن المسار',
-              badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]',
-              arc: '#C5A059',
+              badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]',
+              arc: '#D97757',
             }
           : {
               badge: 'يحتاج تعزيز النشر',
-              badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#D8755B]/60',
-              arc: '#D8755B',
+              badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60',
+              arc: '#D97757',
             };
 
     // 2) مؤشر الانضباط والانتظام الزمني (أيام منذ آخر نشاط + أسابيع النشاط)
@@ -1675,22 +1675,22 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     const cadenceTone =
       daysSinceLastActivity !== null && daysSinceLastActivity <= 5
         ? {
-            arc: '#2E7D5B',
+            arc: '#D97757',
             badge: 'انضباط نشط ✓',
-            badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+            badgeColor: 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]',
             pct: Math.max(75, 100 - daysSinceLastActivity * 4),
           }
         : daysSinceLastActivity !== null && daysSinceLastActivity <= 10
           ? {
-              arc: '#C5A059',
+              arc: '#D97757',
               badge: 'وتيرة متوسطة ⏳',
-              badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]',
+              badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]',
               pct: Math.max(40, 72 - (daysSinceLastActivity - 5) * 6),
             }
           : {
-              arc: '#B91C1C',
+              arc: '#D97757',
               badge: 'يحتاج تنشيط ⚠️',
-              badgeColor: 'bg-red-50 text-red-800 border-red-300',
+              badgeColor: 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]',
               pct: daysSinceLastActivity === null ? 8 : 22,
             };
 
@@ -1708,10 +1708,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       totalArticles > 0 ? Math.round(rigorScoreSum / totalArticles) : 0;
     const rigorArc =
       avgRigorPct >= 85
-        ? '#2E7D5B'
+        ? '#D97757'
         : avgRigorPct >= 65
-          ? '#C5A059'
-          : '#D8755B';
+          ? '#D97757'
+          : '#D97757';
 
     // 4) توازن الأقسام والقوالب العلمية (4 أقسام رئيسية + القسم الأقل تغطية + الدراسات المعمقة)
     const sectionKeys = Object.keys(KNOWLEDGE_BASE_SECTIONS);
@@ -1876,8 +1876,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         badgeText: avgRigorPct >= 85 ? 'رصانة محكّمة 🏆' : 'تدقيق الجودة 📜',
         badgeColor:
           avgRigorPct >= 85
-            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-            : 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70',
+            ? 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]'
+            : 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/70',
         arcStrokeColor: rigorArc,
         actionTooltip: 'انقر لتصفية المسودات والمواد التي تقل رصانتها عن 85%',
         onClick: () => {
@@ -1892,8 +1892,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         progressPercent: coveragePct,
         badgeText:
           coveragePct === 100 ? 'توازن شامل 🌟' : 'إثراء القسم الأقل ✍️',
-        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70',
-        arcStrokeColor: coveragePct === 100 ? '#2E7D5B' : '#C5A059',
+        badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/70',
+        arcStrokeColor: coveragePct === 100 ? '#D97757' : '#D97757',
         actionTooltip: `انقر لفتح محرر موضوع جديد في قسم «${leastCoveredSection}» مباشرة`,
         onClick: () => {
           setActiveTab('knowledge_cms');
@@ -1906,8 +1906,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         subLabel: `${myEditorialCount} مادة · ${myReadingMinutes} د قراءة`,
         progressPercent: editorialRank.pct,
         badgeText: editorialRank.label,
-        badgeColor: 'bg-amber-50 text-[#8D4925] border-[#C5A059]',
-        arcStrokeColor: '#8D4925',
+        badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]',
+        arcStrokeColor: '#D97757',
         actionTooltip: 'انقر لاستعراض المواد الموثّقة باسمك فقط',
         onClick: () => {
           setCmsFilterMode('mine');
@@ -1921,8 +1921,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         progressPercent: echoProgressPct,
         badgeText:
           engagementStats.endorsedCount > 0 ? 'إشادة متميزة ⭐' : 'رادار الأثر ✦',
-        badgeColor: 'bg-[#FAF6F0] text-[#8D4925] border-[#C5A059]/70',
-        arcStrokeColor: '#C5A059',
+        badgeColor: 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/70',
+        arcStrokeColor: '#D97757',
         actionTooltip: 'انقر لفتح المركز المعرفي ومعاينة تفاعل القراء',
         onClick: () => {
           setCmsFilterMode('all');
@@ -1955,15 +1955,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     return (
       <div
         dir="rtl"
-        className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col justify-between relative overflow-hidden"
+        className="min-h-screen bg-[#F5F1E8] text-[#1F1F1C] flex flex-col justify-between relative overflow-hidden"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(216,117,91,0.12),transparent_65%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(217,119,87,0.12),transparent_65%)]" />
 
         {/* Top Bar */}
         <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between px-6 pt-6 py-2">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" onClick={onBackToPlatform} />
-            <span className="px-3 py-1 rounded-full bg-[#EDE6DA] border border-[#B98A78]/45 text-[#8D4925] text-[11px] font-bold">
+            <span className="px-3 py-1 rounded-full bg-[#E8DED2] border border-[#D97757]/45 text-[#D97757] text-[11px] font-bold">
               بوابة الإدارة الرئيسية
             </span>
           </div>
@@ -1971,40 +1971,40 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           <button
             type="button"
             onClick={onBackToPlatform}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#B98A78]/45 text-xs font-bold text-[#252321] shadow-2xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/45 text-xs font-bold text-[#1F1F1C] shadow-2xs transition cursor-pointer"
           >
-            <ArrowRight className="w-3.5 h-3.5 text-[#D8755B]" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#D97757]" />
             <span>العودة لواجهة المنصة</span>
           </button>
         </header>
 
         {/* Center Login Card */}
         <main className="relative z-10 max-w-md w-full mx-auto my-auto px-6 py-8">
-          <div className="rounded-3xl bg-white border border-[#B98A78]/40 p-7 sm:p-8 shadow-xl">
-            <div className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 flex items-center justify-center text-[#D8755B] mb-5">
+          <div className="rounded-3xl bg-[#F5F1E8] border border-[#D97757]/40 p-7 sm:p-8 shadow-xl">
+            <div className="w-12 h-12 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 flex items-center justify-center text-[#D97757] mb-5">
               <Lock className="w-6 h-6" />
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-bold font-display text-[#252321]">
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-[#1F1F1C]">
               تسجيل دخول فريق العمل
             </h1>
-            <p className="text-xs text-[#6E6456] mt-1.5 leading-relaxed">
+            <p className="text-xs text-[#1F1F1C]/70 mt-1.5 leading-relaxed">
               بوابة الإدارة والبحوث والتحرير
             </p>
 
             {loginError && (
-              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
+              <div className="mt-4 p-3 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757] text-xs font-bold">
                 {loginError}
               </div>
             )}
 
             <form onSubmit={handleTeamLogin} className="mt-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                   البريد الإلكتروني الإداري
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-[#D97757] absolute right-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     dir="ltr"
@@ -2012,17 +2012,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="name@adamresearchcenter.net"
-                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-sm text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                   كلمة المرور
                 </label>
                 <div className="relative">
-                  <KeyRound className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <KeyRound className="w-4 h-4 text-[#D97757] absolute right-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="password"
                     dir="ltr"
@@ -2030,7 +2030,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-sm text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                    className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-sm text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                   />
                 </div>
               </div>
@@ -2038,7 +2038,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white font-bold text-sm shadow-md transition cursor-pointer disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] font-bold text-sm shadow-md transition cursor-pointer disabled:opacity-50"
               >
                 {isLoggingIn ? 'جاري التحقق من الصلاحيات...' : 'دخول بوابة الفريق (/Team)'}
               </button>
@@ -2047,24 +2047,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         </main>
 
         {/* Quiet Editorial Footer (Matches Platform Homepage Footer) */}
-        <footer className="relative z-10 border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 w-full">
+        <footer className="relative z-10 border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 w-full">
           <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center text-center space-y-3.5">
               <JuthoriLogo size="sm" onClick={onBackToPlatform} />
 
-              <p className="text-sm sm:text-base font-display font-bold text-[#252321] pt-1">
+              <p className="text-sm sm:text-base font-display font-bold text-[#1F1F1C] pt-1">
                 ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
               </p>
 
-              <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed font-sans">
+              <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed font-sans">
                 تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
               </p>
 
-              <p className="text-xs sm:text-sm text-[#252321]/75 font-sans" dir="rtl">
+              <p className="text-xs sm:text-sm text-[#1F1F1C]/75 font-sans" dir="rtl">
                 منصة الأنساب والإرث العائلي العربي — juthori.com
               </p>
 
-              <p className="text-xs text-[#252321]/70 font-sans" dir="rtl">
+              <p className="text-xs text-[#1F1F1C]/70 font-sans" dir="rtl">
                 جميع الحقوق محفوظة. جذوري © 2026
               </p>
             </div>
@@ -2075,24 +2075,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] flex flex-col">
+    <div dir="rtl" className="min-h-screen bg-[#F5F1E8] text-[#1F1F1C] flex flex-col">
       {/* =====================================================================
           REQUIREMENT 1: TOP HEADER BAR (No Horizontal Section Tabs Bar)
           Unified Warm Heritage Ivory & Terracotta Visual Identity (Zero Black Backgrounds)
          ===================================================================== */}
-      <header className="sticky top-0 z-40 bg-[#FAF6F0]/95 backdrop-blur-md text-[#252321] border-b border-[#E2DACB] shadow-2xs">
+      <header className="sticky top-0 z-40 bg-[#F5F1E8]/95 backdrop-blur-md text-[#1F1F1C] border-b border-[#D8C7B2] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" onClick={onBackToPlatform} />
-            <span className="hidden md:inline-block h-6 w-px bg-[#E2DACB]" />
+            <span className="hidden md:inline-block h-6 w-px bg-[#E8DED2]" />
             <button
               type="button"
               data-testid="back-to-command-hub-btn"
               onClick={() => setActiveTab('command_hub')}
               className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer ${
                 activeTab !== 'command_hub'
-                  ? 'bg-[#D8755B] hover:bg-[#c5644b] text-white'
-                  : 'bg-white hover:bg-[#EDE6DA] text-[#8D4925] border border-[#B98A78]/50'
+                  ? 'bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8]'
+                  : 'bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D97757]/50'
               }`}
             >
               <span>بوابة الإدارة الرئيسية</span>
@@ -2103,9 +2103,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             <button
               type="button"
               onClick={handleTeamLogout}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#D8755B]/15 text-xs font-bold text-[#8D4925] border border-[#D8755B]/50 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#D97757]/15 text-xs font-bold text-[#D97757] border border-[#D97757]/50 transition cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5 text-[#D8755B]" />
+              <LogOut className="w-3.5 h-3.5 text-[#D97757]" />
               <span>خروج</span>
             </button>
           </div>
@@ -2114,8 +2114,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
       {/* Toast Banner */}
       {toastBanner && (
-        <div className="bg-[#FAF6F0] text-[#252321] border-b border-[#B98A78]/45 px-4 py-2.5 text-center text-xs font-bold flex items-center justify-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-[#D8755B] shrink-0" />
+        <div className="bg-[#F5F1E8] text-[#1F1F1C] border-b border-[#D97757]/45 px-4 py-2.5 text-center text-xs font-bold flex items-center justify-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
           <span>{toastBanner}</span>
         </div>
       )}
@@ -2143,29 +2143,29 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                ----------------------------------------------------------------- */}
             <div
               data-testid="command-hub-welcome-banner"
-              className="rounded-2xl bg-gradient-to-l from-[#FAF6F0] via-white to-[#EDE6DA]/70 border border-[#E2DACB] px-3.5 py-2 sm:px-4 sm:py-2.5 text-[#252321] shadow-2xs relative overflow-hidden"
+              className="rounded-2xl bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2]/70 border border-[#D8C7B2] px-3.5 py-2 sm:px-4 sm:py-2.5 text-[#1F1F1C] shadow-2xs relative overflow-hidden"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  <h1 className="text-base sm:text-lg font-extrabold font-display text-[#252321] whitespace-nowrap">
+                  <h1 className="text-base sm:text-lg font-extrabold font-display text-[#1F1F1C] whitespace-nowrap">
                     مرحباً بك، {loggedInMember.name}
                   </h1>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-[#C5A059] text-[#8D4925] text-[10.5px] font-extrabold whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F5F1E8] border border-[#D97757] text-[#D97757] text-[10.5px] font-extrabold whitespace-nowrap">
                     <span>{roleDisplayBadgeLabel}</span>
-                    <Crown className="w-3 h-3 text-[#D8755B]" />
+                    <Crown className="w-3 h-3 text-[#D97757]" />
                   </span>
                   <span
                     title={`آخر تسجيل دخول: ${lastLoginTimestamp}`}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-[#E2DACB] text-[10px] font-bold text-[#5C5346] whitespace-nowrap"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[10px] font-bold text-[#1F1F1C]/70 whitespace-nowrap"
                   >
                     <span>🕒 آخر دخول: {lastLoginTimestamp}</span>
                   </span>
                 </div>
 
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#C5A059]/60 shadow-2xs max-w-full">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D97757]/60 shadow-2xs max-w-full">
                   <p
                     data-testid="role-motivational-audit-quote"
-                    className="text-[11px] font-extrabold text-[#8D4925] leading-snug"
+                    className="text-[11px] font-extrabold text-[#D97757] leading-snug"
                   >
                     &ldquo;{activeWisdomQuote.quote}&rdquo;
                   </p>
@@ -2177,9 +2177,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     }}
                     title="تحديث الحكمة"
                     aria-label="تحديث الحكمة"
-                    className="shrink-0 inline-flex items-center justify-center p-1 rounded-md bg-white hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#8D4925] transition cursor-pointer"
+                    className="shrink-0 inline-flex items-center justify-center p-1 rounded-md bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] transition cursor-pointer"
                   >
-                    <RefreshCw className="w-3 h-3 text-[#D8755B]" />
+                    <RefreshCw className="w-3 h-3 text-[#D97757]" />
                   </button>
                 </div>
               </div>
@@ -2199,32 +2199,32 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               {/* Tree Crown Header (تاج الشجرة القيادي — مضغوط للبطاقة الواحدة لضمان الظهور Above the Fold) */}
               {visibleWorkspaceWindows.length === 1 ? (
                 <div className="flex flex-col items-center justify-center text-center relative z-10 mb-2">
-                  <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] border border-[#C5A059] shadow-2xs">
+                  <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#F5F1E8] via-[#F5F1E8] to-[#F5F1E8] border border-[#D97757] shadow-2xs">
                     <span className="text-base">🌳</span>
-                    <h2 className="text-sm sm:text-base font-extrabold font-display text-[#252321]">
+                    <h2 className="text-sm sm:text-base font-extrabold font-display text-[#1F1F1C]">
                       لوحة التحكم المخصصة لصلاحيتكم
                     </h2>
-                    <span className="px-2 py-0.5 rounded-full bg-[#8D4925] text-white text-[10px] font-extrabold font-mono">
+                    <span className="px-2 py-0.5 rounded-full bg-[#D97757] text-[#F5F1E8] text-[10px] font-extrabold font-mono">
                       1
                     </span>
                   </div>
-                  <div className="w-1 h-3 bg-gradient-to-b from-[#C5A059] to-[#8D4925] rounded-full mt-0.5" />
+                  <div className="w-1 h-3 bg-gradient-to-b from-[#D97757] to-[#D97757] rounded-full mt-0.5" />
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center text-center relative z-10 mb-8">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FAF6F0] via-white to-[#EDE6DA] border-2 border-[#C5A059] shadow-md flex items-center justify-center text-2xl mb-3 relative">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2] border-2 border-[#D97757] shadow-md flex items-center justify-center text-2xl mb-3 relative">
                     <span>🌳</span>
-                    <span className="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-[#8D4925] text-white text-[10px] font-extrabold font-mono shadow-2xs">
+                    <span className="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-[#D97757] text-[#F5F1E8] text-[10px] font-extrabold font-mono shadow-2xs">
                       {visibleWorkspaceWindows.length}
                     </span>
                   </div>
-                  <div className="inline-block px-7 py-3 rounded-full bg-gradient-to-r from-[#FAF6F0] via-white to-[#FAF6F0] border-2 border-[#C5A059] shadow-sm">
-                    <h2 className="text-lg sm:text-xl font-extrabold font-display text-[#252321]">
+                  <div className="inline-block px-7 py-3 rounded-full bg-gradient-to-r from-[#F5F1E8] via-[#F5F1E8] to-[#F5F1E8] border-2 border-[#D97757] shadow-sm">
+                    <h2 className="text-lg sm:text-xl font-extrabold font-display text-[#1F1F1C]">
                       لوحات التحكم المخصصة لصلاحيتكم
                     </h2>
                   </div>
                   {/* Upper Trunk Stem */}
-                  <div className="w-1.5 h-8 bg-gradient-to-b from-[#C5A059] to-[#8D4925] rounded-full mt-1" />
+                  <div className="w-1.5 h-8 bg-gradient-to-b from-[#D97757] to-[#D97757] rounded-full mt-1" />
                 </div>
               )}
 
@@ -2242,17 +2242,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         <div
                           data-testid={`launchpad-window-card-${win.id}`}
                           onClick={() => setActiveTab(win.id)}
-                          className="group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F5EFE4] border-2 border-[#C5A059]/85 hover:border-[#D8755B] p-6 sm:px-[34px] sm:py-[28px] shadow-md hover:shadow-lg transition-all cursor-pointer flex flex-col gap-5 overflow-hidden rounded-tr-[2.25rem] rounded-bl-[2.25rem] rounded-tl-2xl rounded-br-2xl"
+                          className="group relative bg-gradient-to-br from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2] border-2 border-[#D97757]/85 hover:border-[#D97757] p-6 sm:px-[34px] sm:py-[28px] shadow-md hover:shadow-lg transition-all cursor-pointer flex flex-col gap-5 overflow-hidden rounded-tr-[2.25rem] rounded-bl-[2.25rem] rounded-tl-2xl rounded-br-2xl"
                         >
                           <div
                             aria-hidden="true"
-                            className="pointer-events-none absolute -top-8 -left-8 w-28 h-28 rounded-full bg-[#C5A059]/12 border border-[#C5A059]/25"
+                            className="pointer-events-none absolute -top-8 -left-8 w-28 h-28 rounded-full bg-[#D97757]/12 border border-[#D97757]/25"
                           />
 
                           <div className="flex flex-wrap sm:flex-nowrap items-start justify-between gap-4 relative z-10">
                             <div className="flex items-start gap-4 min-w-0">
                               {win.customLogoUrl ? (
-                                <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1.5 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                                <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757] p-1.5 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
                                   <img
                                     src={win.customLogoUrl}
                                     alt={win.title}
@@ -2260,45 +2260,45 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                   />
                                 </div>
                               ) : (
-                                <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#FFFDF9] via-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/85 flex items-center justify-center text-3xl sm:text-[34px] shrink-0 shadow-sm">
+                                <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2] border-2 border-[#D97757]/85 flex items-center justify-center text-3xl sm:text-[34px] shrink-0 shadow-sm">
                                   {win.emoji}
                                 </div>
                               )}
 
                               <div className="min-w-0 pt-0.5">
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  <h3 className="text-[22px] sm:text-[24px] font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors leading-snug">
+                                  <h3 className="text-[22px] sm:text-[24px] font-extrabold font-display text-[#1F1F1C] group-hover:text-[#D97757] transition-colors leading-snug">
                                     {win.title}
                                   </h3>
-                                  <span className="px-3 py-1 rounded-full bg-white/95 border border-[#C5A059]/70 text-[#8D4925] text-[11px] font-extrabold shadow-2xs">
+                                  <span className="px-3 py-1 rounded-full bg-[#F5F1E8]/95 border border-[#D97757]/70 text-[#D97757] text-[11px] font-extrabold shadow-2xs">
                                     🌿 {win.accentBadge}
                                   </span>
                                 </div>
-                                <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed mt-1.5">
+                                <p className="text-xs sm:text-sm text-[#1F1F1C]/70 leading-relaxed mt-1.5">
                                   {win.description}
                                 </p>
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#E2DACB] relative z-10">
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#D8C7B2] relative z-10">
                             <div className="flex flex-wrap items-center gap-2">
-                              <div className="inline-flex items-center gap-2 bg-white/95 px-3.5 py-2 rounded-xl border border-[#E2DACB] shadow-2xs">
-                                <span className="text-xs font-bold text-[#5C5346]">
+                              <div className="inline-flex items-center gap-2 bg-[#F5F1E8]/95 px-3.5 py-2 rounded-xl border border-[#D8C7B2] shadow-2xs">
+                                <span className="text-xs font-bold text-[#1F1F1C]/70">
                                   {win.liveCounterLabel}:
                                 </span>
-                                <span className="text-sm font-extrabold text-[#8D4925] font-mono">
+                                <span className="text-sm font-extrabold text-[#D97757] font-mono">
                                   {win.liveCounterValue}
                                 </span>
                               </div>
 
                               {isKnowledgeHero && (
-                                <div className="inline-flex items-center gap-1.5 bg-emerald-50/90 px-3 py-2 rounded-xl border border-emerald-200 shadow-2xs">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D5B]" />
-                                  <span className="text-xs font-bold text-emerald-900">
+                                <div className="inline-flex items-center gap-1.5 bg-[#F5F1E8]/90 px-3 py-2 rounded-xl border border-[#D8C7B2] shadow-2xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#D97757]" />
+                                  <span className="text-xs font-bold text-[#1F1F1C]">
                                     المنشور:
                                   </span>
-                                  <span className="text-sm font-extrabold text-[#2E7D5B] font-mono">
+                                  <span className="text-sm font-extrabold text-[#D97757] font-mono">
                                     {livePublishedCount}
                                   </span>
                                 </div>
@@ -2314,7 +2314,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                     e.stopPropagation();
                                     openNewArticleModal();
                                   }}
-                                  className="flex-1 sm:flex-initial py-2.5 sm:py-3 px-4 sm:px-5 rounded-xl bg-white hover:bg-[#FAF6F0] text-[#8D4925] border-2 border-[#C5A059]/80 hover:border-[#D8755B] text-xs sm:text-sm font-extrabold shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                                  className="flex-1 sm:flex-initial py-2.5 sm:py-3 px-4 sm:px-5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border-2 border-[#D97757]/80 hover:border-[#D97757] text-xs sm:text-sm font-extrabold shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer"
                                 >
                                   <span>+ إضافة مادة جديدة</span>
                                 </button>
@@ -2326,7 +2326,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                   e.stopPropagation();
                                   setActiveTab(win.id);
                                 }}
-                                className="flex-1 sm:flex-initial sm:min-w-[215px] py-2.5 sm:py-3 px-6 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-sm font-extrabold shadow-sm hover:shadow-md transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+                                className="flex-1 sm:flex-initial sm:min-w-[215px] py-2.5 sm:py-3 px-6 rounded-xl bg-[#D97757] group-hover:bg-[#D97757] text-[#F5F1E8] text-sm font-extrabold shadow-sm hover:shadow-md transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
                               >
                                 <span>🚀 فتح لوحة التحكم</span>
                               </button>
@@ -2337,19 +2337,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     );
                   })}
                   {/* Compact Lower Trunk Stem into Root Medallion */}
-                  <div className="w-1 h-4 bg-gradient-to-b from-[#8D4925] to-[#C5A059] rounded-full mt-1.5" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#8D4925] border border-[#C5A059] shadow-xs mt-0.5" />
+                  <div className="w-1 h-4 bg-gradient-to-b from-[#D97757] to-[#D97757] rounded-full mt-1.5" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#D97757] border border-[#D97757] shadow-xs mt-0.5" />
                 </div>
               ) : (
               <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
                 {/* Central Vertical Tree Trunk (Desktop Center / Mobile Right-Aligned) */}
                 <div
                   aria-hidden="true"
-                  className="hidden lg:block absolute top-0 bottom-6 left-1/2 -translate-x-1/2 w-2 rounded-full bg-gradient-to-b from-[#C5A059] via-[#D8755B] to-[#8D4925] shadow-[0_0_15px_rgba(197,160,89,0.35)]"
+                  className="hidden lg:block absolute top-0 bottom-6 left-1/2 -translate-x-1/2 w-2 rounded-full bg-gradient-to-b from-[#D97757] via-[#D97757] to-[#D97757] shadow-[0_0_15px_rgba(217,119,87,0.35)]"
                 />
                 <div
                   aria-hidden="true"
-                  className="lg:hidden absolute top-0 bottom-6 right-5 w-1.5 rounded-full bg-gradient-to-b from-[#C5A059] via-[#D8755B] to-[#8D4925]"
+                  className="lg:hidden absolute top-0 bottom-6 right-5 w-1.5 rounded-full bg-gradient-to-b from-[#D97757] via-[#D97757] to-[#D97757]"
                 />
 
                 <div className="space-y-6 lg:space-y-0">
@@ -2377,8 +2377,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           <div
                             className={`absolute top-1/2 -translate-y-1/2 h-3 w-20 flex items-center ${
                               isRightBranch
-                                ? 'left-1/2 rounded-r-full bg-gradient-to-r from-[#8D4925] via-[#C5A059] to-[#E2DACB]'
-                                : 'right-1/2 rounded-l-full bg-gradient-to-l from-[#8D4925] via-[#C5A059] to-[#E2DACB]'
+                                ? 'left-1/2 rounded-r-full bg-gradient-to-r from-[#D97757] via-[#D97757] to-[#E8DED2]'
+                                : 'right-1/2 rounded-l-full bg-gradient-to-l from-[#D97757] via-[#D97757] to-[#E8DED2]'
                             }`}
                           >
                             {/* Sprouting Golden Leaf on the Branch */}
@@ -2392,7 +2392,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           </div>
 
                           {/* Trunk Junction Ring */}
-                          <div className="w-10 h-10 rounded-full bg-[#FAF6F0] border-2 border-[#C5A059] shadow-sm flex items-center justify-center text-xs font-extrabold text-[#8D4925] font-mono z-10">
+                          <div className="w-10 h-10 rounded-full bg-[#F5F1E8] border-2 border-[#D97757] shadow-sm flex items-center justify-center text-xs font-extrabold text-[#D97757] font-mono z-10">
                             {idx + 1}
                           </div>
                         </div>
@@ -2402,10 +2402,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           aria-hidden="true"
                           className="lg:hidden absolute right-2 top-8 z-20 flex items-center"
                         >
-                          <div className="w-7 h-7 rounded-full bg-[#FAF6F0] border-2 border-[#C5A059] shadow-2xs flex items-center justify-center text-[11px] font-extrabold text-[#8D4925] font-mono">
+                          <div className="w-7 h-7 rounded-full bg-[#F5F1E8] border-2 border-[#D97757] shadow-2xs flex items-center justify-center text-[11px] font-extrabold text-[#D97757] font-mono">
                             {idx + 1}
                           </div>
-                          <div className="w-5 h-1 bg-gradient-to-l from-[#C5A059] to-[#E2DACB]" />
+                          <div className="w-5 h-1 bg-gradient-to-l from-[#D97757] to-[#E8DED2]" />
                         </div>
 
                         {/* Branch Leaf Card */}
@@ -2417,7 +2417,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           <div
                             data-testid={`launchpad-window-card-${win.id}`}
                             onClick={() => setActiveTab(win.id)}
-                            className={`group relative bg-gradient-to-br from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 hover:border-[#D8755B] p-5 sm:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 overflow-hidden ${
+                            className={`group relative bg-gradient-to-br from-[#F5F1E8] via-[#F5F1E8] to-[#F5F1E8] border-2 border-[#D97757]/70 hover:border-[#D97757] p-5 sm:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 overflow-hidden ${
                               isRightBranch
                                 ? 'rounded-tr-[2.5rem] rounded-bl-[2.5rem] rounded-tl-2xl rounded-br-2xl'
                                 : 'rounded-tl-[2.5rem] rounded-br-[2.5rem] rounded-tr-2xl rounded-bl-2xl'
@@ -2426,13 +2426,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             {/* Subtle Botanical Corner Accent */}
                             <div
                               aria-hidden="true"
-                              className="pointer-events-none absolute -top-6 -left-6 w-24 h-24 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20"
+                              className="pointer-events-none absolute -top-6 -left-6 w-24 h-24 rounded-full bg-[#D97757]/10 border border-[#D97757]/20"
                             />
 
                             <div className="space-y-3 relative z-10">
                               <div className="flex items-start justify-between gap-3">
                                 {win.customLogoUrl ? (
-                                  <div className="w-14 h-14 rounded-2xl bg-[#FAF6F0] border-2 border-[#C5A059] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                                  <div className="w-14 h-14 rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757] p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
                                     <img
                                       src={win.customLogoUrl}
                                       alt={win.title}
@@ -2440,32 +2440,32 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                     />
                                   </div>
                                 ) : (
-                                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAF6F0] to-[#EDE6DA] border-2 border-[#C5A059]/70 flex items-center justify-center text-2xl shrink-0 shadow-xs">
+                                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F5F1E8] to-[#E8DED2] border-2 border-[#D97757]/70 flex items-center justify-center text-2xl shrink-0 shadow-xs">
                                     {win.emoji}
                                   </div>
                                 )}
 
-                                <span className="px-3 py-1 rounded-full bg-white/90 border border-[#C5A059]/60 text-[#8D4925] text-[11px] font-extrabold shadow-2xs">
+                                <span className="px-3 py-1 rounded-full bg-[#F5F1E8]/90 border border-[#D97757]/60 text-[#D97757] text-[11px] font-extrabold shadow-2xs">
                                   🌿 {win.accentBadge}
                                 </span>
                               </div>
 
                               <div>
-                                <h3 className="text-lg font-extrabold font-display text-[#252321] group-hover:text-[#8D4925] transition-colors">
+                                <h3 className="text-lg font-extrabold font-display text-[#1F1F1C] group-hover:text-[#D97757] transition-colors">
                                   {win.title}
                                 </h3>
-                                <p className="text-xs text-[#5C5346] leading-relaxed mt-1">
+                                <p className="text-xs text-[#1F1F1C]/70 leading-relaxed mt-1">
                                   {win.description}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="space-y-3 pt-3 border-t border-[#E2DACB]/80 relative z-10">
-                              <div className="flex items-center justify-between gap-2 bg-white/90 px-3.5 py-2 rounded-xl border border-[#E2DACB]">
-                                <span className="text-[11px] font-bold text-[#5C5346]">
+                            <div className="space-y-3 pt-3 border-t border-[#D8C7B2]/80 relative z-10">
+                              <div className="flex items-center justify-between gap-2 bg-[#F5F1E8]/90 px-3.5 py-2 rounded-xl border border-[#D8C7B2]">
+                                <span className="text-[11px] font-bold text-[#1F1F1C]/70">
                                   {win.liveCounterLabel}:
                                 </span>
-                                <span className="text-xs font-extrabold text-[#8D4925] font-mono">
+                                <span className="text-xs font-extrabold text-[#D97757] font-mono">
                                   {win.liveCounterValue}
                                 </span>
                               </div>
@@ -2476,7 +2476,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                   e.stopPropagation();
                                   setActiveTab(win.id);
                                 }}
-                                className="w-full py-2.5 px-4 rounded-xl bg-[#D8755B] group-hover:bg-[#c5644b] text-white text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] group-hover:bg-[#D97757] text-[#F5F1E8] text-xs sm:text-sm font-extrabold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                               >
                                 <span>🚀 فتح لوحة التحكم</span>
                               </button>
@@ -2490,7 +2490,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                 {/* Tree Root Base Medallion (جذر الشجرة المتصل بدوائر المؤشرات) */}
                 <div className="hidden lg:flex flex-col items-center justify-center mt-4 relative z-10">
-                  <div className="w-4 h-4 rounded-full bg-[#8D4925] border-2 border-[#C5A059] shadow-xs" />
+                  <div className="w-4 h-4 rounded-full bg-[#D97757] border-2 border-[#D97757] shadow-xs" />
                 </div>
               </div>
               )}
@@ -2509,8 +2509,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             >
               {effectiveHubRole === 'مدير تحرير المركز المعرفي' && (
                 <div className="flex items-center justify-center mb-3">
-                  <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#FAF6F0] border border-[#E2DACB] text-[11px] font-bold text-[#6E6456] shadow-2xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D5B]" />
+                  <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C]/70 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D97757]" />
                     <span>مؤشرات الأداء التحريري الحية</span>
                   </div>
                 </div>
@@ -2534,7 +2534,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   const circumference = 2 * Math.PI * radius;
                   const strokeDashoffset =
                     circumference - (clampedPct / 100) * circumference;
-                  const strokeColor = card.arcStrokeColor || '#D8755B';
+                  const strokeColor = card.arcStrokeColor || '#D97757';
                   const isInteractive = Boolean(card.onClick);
 
                   return (
@@ -2554,11 +2554,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           card.onClick?.();
                         }
                       }}
-                      className={`relative rounded-full bg-gradient-to-b from-white via-[#FAF6F0] to-[#F7F2E9] border-2 border-[#C5A059]/70 shadow-sm hover:shadow-md hover:border-[#D8755B] transition-all flex flex-col items-center justify-center text-center group ${
+                      className={`relative rounded-full bg-gradient-to-b from-[#F5F1E8] via-[#F5F1E8] to-[#F5F1E8] border-2 border-[#D97757]/70 shadow-sm hover:shadow-md hover:border-[#D97757] transition-all flex flex-col items-center justify-center text-center group ${
                         isCompactEditorial
                           ? 'w-[136px] h-[136px] sm:w-[140px] sm:h-[140px] p-2.5'
                           : 'w-64 h-64 sm:w-68 sm:h-68 p-7'
-                      } ${isInteractive ? 'cursor-pointer hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#D8755B]/50' : ''}`}
+                      } ${isInteractive ? 'cursor-pointer hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#D97757]/50' : ''}`}
                     >
                       {/* Circular Progress Ring SVG */}
                       <svg
@@ -2573,7 +2573,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           cy="60"
                           r={radius}
                           fill="none"
-                          stroke="#E2DACB"
+                          stroke="#E8DED2"
                           strokeWidth={isCompactEditorial ? '5.5' : '3.5'}
                         />
                         <circle
@@ -2607,7 +2607,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </span>
 
                         <h3
-                          className={`font-extrabold font-display text-[#252321] leading-tight line-clamp-2 ${
+                          className={`font-extrabold font-display text-[#1F1F1C] leading-tight line-clamp-2 ${
                             isCompactEditorial ? 'text-[9.5px]' : 'text-xs'
                           }`}
                         >
@@ -2616,7 +2616,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                         <div
                           dir="rtl"
-                          className={`font-extrabold text-[#8D4925] font-mono bg-white/95 rounded-full border border-[#E2DACB] shadow-2xs whitespace-nowrap ${
+                          className={`font-extrabold text-[#D97757] font-mono bg-[#F5F1E8]/95 rounded-full border border-[#D8C7B2] shadow-2xs whitespace-nowrap ${
                             isCompactEditorial
                               ? 'text-[11px] px-2 py-0.5'
                               : 'text-base sm:text-lg px-3 py-1'
@@ -2626,7 +2626,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         </div>
 
                         <p
-                          className={`font-bold text-[#5C5346] leading-tight line-clamp-2 ${
+                          className={`font-bold text-[#1F1F1C]/70 leading-tight line-clamp-2 ${
                             isCompactEditorial ? 'text-[7.5px]' : 'text-[10px]'
                           }`}
                         >
@@ -2646,10 +2646,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
            ===================================================================== */}
         {activeTab === 'users_rbac' && allowedTabs.includes('users_rbac') && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-[#E2DACB] p-6 shadow-sm">
+            <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-[#252321]">
+                  <h2 className="text-lg font-bold text-[#1F1F1C]">
                     إدارة المستخدمين وصلاحيات الفريق
                   </h2>
                 </div>
@@ -2657,7 +2657,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddStaffModal(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer transition shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold cursor-pointer transition shadow-sm"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>إضافة عضو فريق جديد</span>
@@ -2667,7 +2667,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-right border-collapse">
                   <thead>
-                    <tr className="bg-[#FAF6F0] border-b border-[#E2DACB] text-[11px] font-bold text-[#6E6456]">
+                    <tr className="bg-[#F5F1E8] border-b border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C]/70">
                       <th className="py-3 px-4">اسم العضو</th>
                       <th className="py-3 px-4">البريد الإلكتروني</th>
                       <th className="py-3 px-4">الصلاحية</th>
@@ -2675,27 +2675,27 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <th className="py-3 px-4">إجراءات</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EFEAE0] text-xs">
+                  <tbody className="divide-y divide-[#D8C7B2] text-xs">
                     {staffList.map((st) => (
-                      <tr key={st.id} className="hover:bg-[#FCFBF8]">
-                        <td className="py-3.5 px-4 font-bold text-[#252321]">
+                      <tr key={st.id} className="hover:bg-[#F5F1E8]">
+                        <td className="py-3.5 px-4 font-bold text-[#1F1F1C]">
                           <div className="flex items-center gap-2">
                             <span>{st.name}</span>
                             {st.role === 'المايسترو' && (
-                              <span className="px-2 py-0.5 rounded bg-[#D8755B]/15 text-[#8D4925] text-[10px] font-bold">
+                              <span className="px-2 py-0.5 rounded bg-[#D97757]/15 text-[#D97757] text-[10px] font-bold">
                                 المؤسس
                               </span>
                             )}
                           </div>
                         </td>
                         <td
-                          className="py-3.5 px-4 font-mono text-[11px] text-[#5C5346]"
+                          className="py-3.5 px-4 font-mono text-[11px] text-[#1F1F1C]/70"
                           dir="ltr"
                         >
                           {st.email}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-full bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/50 font-bold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-full bg-[#F5F1E8] text-[#D97757] border border-[#D97757]/50 font-bold text-[11px]">
                             {st.role}
                           </span>
                         </td>
@@ -2703,8 +2703,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           <span
                             className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                               st.status === 'نشط'
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
+                                ? 'bg-[#F5F1E8] text-[#1F1F1C] border border-[#D8C7B2]'
+                                : 'bg-[#F5F1E8] text-[#D97757] border border-[#D8C7B2]'
                             }`}
                           >
                             {st.status}
@@ -2716,21 +2716,21 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleToggleStaffStatus(st)}
-                                className="px-2.5 py-1 rounded-lg border border-[#D8D0C0] hover:bg-[#F7F2E9] text-[11px] font-bold text-[#252321] cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#D8C7B2] hover:bg-[#F5F1E8] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                               >
                                 {st.status === 'نشط' ? 'إيقاف مؤقت' : 'إعادة تفعيل'}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteStaffMember(st)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-[11px] font-bold text-red-700 cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#D8C7B2] bg-[#F5F1E8] hover:bg-[#E8DED2] text-[11px] font-bold text-[#D97757] cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 <span>حذف</span>
                               </button>
                             </div>
                           ) : (
-                            <span className="text-[11px] text-[#8C8272] font-bold">
+                            <span className="text-[11px] text-[#1F1F1C]/70 font-bold">
                               حساب سيادي دائم
                             </span>
                           )}
@@ -2751,7 +2751,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           activeTab === 'adam_tree_management' ||
           activeTab === 'direct_search_inspection') &&
           allowedTabs.includes(activeTab) && (
-            <div className="bg-white rounded-3xl border border-[#E2DACB] p-4 sm:p-6 shadow-sm">
+            <div className="bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2] p-4 sm:p-6 shadow-sm">
               <ResearcherStudio
                 activePortalSection={activeTab}
                 onSelectPortalSection={(sec) => {
@@ -2813,20 +2813,20 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         {activeTab === 'orders_support' && allowedTabs.includes('orders_support') && (
           <div className="space-y-6">
             {/* Search & Filters */}
-            <div className="bg-white rounded-2xl border border-[#E2DACB] p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
               <div className="relative flex-1 min-w-[260px]">
-                <Search className="w-4 h-4 text-[#8C8272] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-[#1F1F1C]/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={orderSearchQuery}
                   onChange={(e) => setOrderSearchQuery(e.target.value)}
                   placeholder="ابحث برقم الطلب، اسم العميل، اللقب، الدولة، أو البريد..."
-                  className="w-full pr-10 pl-4 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                  className="w-full pr-10 pl-4 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <Filter className="w-3.5 h-3.5 text-[#8C8272]" />
+                <Filter className="w-3.5 h-3.5 text-[#1F1F1C]/70" />
                 {[
                   { id: 'ALL', label: 'كل الطلبات' },
                   { id: 'auto_adam_full', label: 'تطابق شجرة آدم' },
@@ -2839,8 +2839,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     onClick={() => setOrderFilterMatch(f.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       orderFilterMatch === f.id
-                        ? 'bg-[#D8755B] text-white'
-                        : 'bg-[#FAF6F0] text-[#5C5346] hover:bg-[#EDE6DA]'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
+                        : 'bg-[#F5F1E8] text-[#1F1F1C]/70 hover:bg-[#E8DED2]'
                     }`}
                   >
                     {f.label}
@@ -2850,19 +2850,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </div>
 
             {/* Customer Orders Table */}
-            <div className="bg-white rounded-2xl border border-[#E2DACB] overflow-hidden shadow-sm">
-              <div className="px-5 py-4 border-b border-[#E2DACB] flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[#252321]">
+            <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-[#D8C7B2] flex items-center justify-between">
+                <h3 className="text-sm font-bold text-[#1F1F1C]">
                   سجل طلبات العملاء
                 </h3>
               </div>
 
               {filteredOrders.length === 0 ? (
                 <div className="p-12 text-center">
-                  <p className="text-sm font-bold text-[#6E6456]">
+                  <p className="text-sm font-bold text-[#1F1F1C]/70">
                     لا توجد سجلات حالياً
                   </p>
-                  <p className="text-xs text-[#8C8272] mt-1">
+                  <p className="text-xs text-[#1F1F1C]/70 mt-1">
                     ستظهر هنا طلبات العملاء الحقيقية فور تسجيلهم أو ترقية باقاتهم في المنصة.
                   </p>
                 </div>
@@ -2870,7 +2870,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <div className="overflow-x-auto">
                   <table className="w-full text-right border-collapse">
                     <thead>
-                      <tr className="bg-[#EDE6DA] text-[#252321] border-b border-[#B98A78]/35 text-[11px] font-bold">
+                      <tr className="bg-[#E8DED2] text-[#1F1F1C] border-b border-[#D97757]/35 text-[11px] font-bold">
                         <th className="py-3.5 px-4">رقم الطلب</th>
                         <th className="py-3.5 px-4">العميل واللقب</th>
                         <th className="py-3.5 px-4">الدولة / المنطقة</th>
@@ -2879,48 +2879,48 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         <th className="py-3.5 px-4">إجراءات</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#EFEAE0] text-xs">
+                    <tbody className="divide-y divide-[#D8C7B2] text-xs">
                       {filteredOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-[#FCFBF8] transition">
-                          <td className="py-3.5 px-4 font-mono font-bold text-[#252321]">
+                        <tr key={order.id} className="hover:bg-[#F5F1E8] transition">
+                          <td className="py-3.5 px-4 font-mono font-bold text-[#1F1F1C]">
                             {order.id}
                           </td>
                           <td className="py-3.5 px-4">
-                            <div className="font-bold text-[#252321]">
+                            <div className="font-bold text-[#1F1F1C]">
                               {order.fullName}
                             </div>
-                            <div className="text-[11px] text-[#6E6456]">
+                            <div className="text-[11px] text-[#1F1F1C]/70">
                               اللقب: <span className="font-bold">{order.familyName}</span> ·{' '}
                               {order.email}
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="font-bold text-[#252321]">
+                            <span className="font-bold text-[#1F1F1C]">
                               {order.originCountry}
                             </span>
                             {order.originRegion && (
-                              <div className="text-[11px] text-[#6E6456]">
+                              <div className="text-[11px] text-[#1F1F1C]/70">
                                 {order.originRegion}
                               </div>
                             )}
                           </td>
                           <td className="py-3.5 px-4">
                             {order.accountStatus === 'annual_vip' ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px]">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2] font-bold text-[11px]">
                                 اشتراك سنوي ($60)
                               </span>
                             ) : order.accountStatus === 'paid_5_root' ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-bold text-[11px]">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#F5F1E8] text-[#1F1F1C] border border-[#D8C7B2] font-bold text-[11px]">
                                 فتح الجذر ($5)
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 border border-stone-300 font-bold text-[11px]">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2] text-[#1F1F1C]/70 border border-[#D8C7B2] font-bold text-[11px]">
                                 مجاني ($0)
                               </span>
                             )}
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="text-[11px] font-bold text-[#5C5346]">
+                            <span className="text-[11px] font-bold text-[#1F1F1C]/70">
                               {order.nodesCountLabel}
                             </span>
                           </td>
@@ -2929,7 +2929,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setSelectedOrderForModal(order)}
-                                className="px-2.5 py-1.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-[#252321] font-bold text-[11px] cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] font-bold text-[11px] cursor-pointer"
                               >
                                 إدارة الحساب
                               </button>
@@ -2960,7 +2960,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                     email: order.email,
                                   });
                                 }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#8D4925] hover:bg-[#753b1d] text-white font-bold text-[11px] cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] font-bold text-[11px] cursor-pointer"
                               >
                                 <Eye className="w-3 h-3" />
                                 <span>معاينة</span>
@@ -2978,18 +2978,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             {/* Record Keeper Charter Requests & Support Tickets Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Record Keeper Charter Requests */}
-              <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
+              <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <FileSignature className="w-5 h-5 text-[#8D4925]" />
-                    <h3 className="text-sm font-bold text-[#252321]">
+                    <FileSignature className="w-5 h-5 text-[#D97757]" />
+                    <h3 className="text-sm font-bold text-[#1F1F1C]">
                       طلبات توثيق &quot;ميثاق أمين السجل&quot; ({charterRequests.length})
                     </h3>
                   </div>
                 </div>
 
                 {charterRequests.length === 0 ? (
-                  <div className="p-8 rounded-xl bg-[#FAF6F0] border border-[#EFEAE0] text-center text-xs font-bold text-[#6E6456]">
+                  <div className="p-8 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-center text-xs font-bold text-[#1F1F1C]/70">
                     لا توجد سجلات حالياً
                   </div>
                 ) : (
@@ -2997,15 +2997,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     {charterRequests.map((req) => (
                       <div
                         key={req.id}
-                        className="p-3.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-between gap-3"
+                        className="p-3.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="text-xs font-bold text-[#252321]">
+                          <div className="text-xs font-bold text-[#1F1F1C]">
                             {req.clientName} — عائلة ({req.familyName})
                           </div>
-                          <div className="text-[11px] text-[#6E6456] mt-0.5">
+                          <div className="text-[11px] text-[#1F1F1C]/70 mt-0.5">
                             {req.country} · رمز الشهادة:{' '}
-                            <span className="font-mono font-bold text-[#252321]">
+                            <span className="font-mono font-bold text-[#1F1F1C]">
                               {req.charterCode}
                             </span>
                             {req.contractVersion
@@ -3035,12 +3035,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                 `تم اعتماد ميثاق أمين السجل للعميل "${req.clientName}" ✓`
                               );
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-bold cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
                           >
                             اعتماد الميثاق
                           </button>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 text-[11px] font-bold">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#E8DED2] text-[#1F1F1C] text-[11px] font-bold">
                             {req.status}
                           </span>
                         )}
@@ -3051,18 +3051,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
               </div>
 
               {/* Support Tickets */}
-              <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
+              <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-[#8D4925]" />
-                    <h3 className="text-sm font-bold text-[#252321]">
+                    <MessageSquare className="w-5 h-5 text-[#D97757]" />
+                    <h3 className="text-sm font-bold text-[#1F1F1C]">
                       تذاكر الدعم الفني والاستفسارات ({supportTickets.length})
                     </h3>
                   </div>
                 </div>
 
                 {supportTickets.length === 0 ? (
-                  <div className="p-8 rounded-xl bg-[#FAF6F0] border border-[#EFEAE0] text-center text-xs font-bold text-[#6E6456]">
+                  <div className="p-8 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-center text-xs font-bold text-[#1F1F1C]/70">
                     لا توجد سجلات حالياً
                   </div>
                 ) : (
@@ -3070,13 +3070,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     {supportTickets.map((t) => (
                       <div
                         key={t.id}
-                        className="p-3.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-between gap-3"
+                        className="p-3.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="text-xs font-bold text-[#252321]">
+                          <div className="text-xs font-bold text-[#1F1F1C]">
                             {t.clientName} ({t.email})
                           </div>
-                          <div className="text-[11px] text-[#5C5346] mt-0.5">
+                          <div className="text-[11px] text-[#1F1F1C]/70 mt-0.5">
                             {t.subject}
                           </div>
                         </div>
@@ -3095,12 +3095,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               );
                               triggerToast(`تم إغلاق تذكرة الدعم (${t.id}) ✓`);
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-[#8D4925] hover:bg-[#753b1d] text-white text-[11px] font-bold cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
                           >
                             تحديد كـ &quot;تم الحل&quot;
                           </button>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#E8DED2] text-[#1F1F1C] text-[11px] font-bold">
                             تم الحل ✓
                           </span>
                         )}
@@ -3317,12 +3317,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           <div className="space-y-6">
             <div
               ref={cmsCardTopRef}
-              className="bg-white rounded-2xl shadow-sm border border-[#E2DACB] overflow-hidden"
+              className="bg-[#F5F1E8] rounded-2xl shadow-sm border border-[#D8C7B2] overflow-hidden"
             >
-              <div className="p-5 sm:p-6 border-b border-[#E2DACB] space-y-4">
+              <div className="p-5 sm:p-6 border-b border-[#D8C7B2] space-y-4">
                 <div className="flex flex-wrap justify-between items-center gap-3">
                   <div>
-                    <h3 className="text-lg font-bold text-[#252321]">
+                    <h3 className="text-lg font-bold text-[#1F1F1C]">
                       إدارة المقالات والمركز المعرفي
                     </h3>
                   </div>
@@ -3330,9 +3330,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     <button
                       type="button"
                       onClick={() => setPreviewKnowledgeCenter((v) => !v)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] border border-[#B98A78]/50 text-xs font-bold transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] border border-[#D97757]/50 text-xs font-bold transition-colors cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5 text-[#8D4925]" />
+                      <Eye className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>
                         {previewKnowledgeCenter
                           ? 'إخفاء معاينة المركز المعرفي'
@@ -3342,7 +3342,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     <button
                       type="button"
                       onClick={() => openNewArticleModal()}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#D8755B] hover:bg-[#c5644b] text-white rounded-xl transition-colors text-xs sm:text-sm font-bold cursor-pointer shadow-xs"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] rounded-xl transition-colors text-xs sm:text-sm font-bold cursor-pointer shadow-xs"
                     >
                       <Plus className="w-4 h-4" />
                       <span>إضافة موضوع</span>
@@ -3351,24 +3351,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 </div>
 
                 {/* شريط البحث السريع + عداد النتائج + الفلاتر الشاملة */}
-                <div className="rounded-xl bg-[#FAF6F0]/80 border border-[#E2DACB] p-3.5 space-y-3">
+                <div className="rounded-xl bg-[#F5F1E8]/80 border border-[#D8C7B2] p-3.5 space-y-3">
                   {/* الصف الأول: البحث اللحظي بالعنوان وبجانبه عداد النتائج وزر مسح الفلاتر */}
                   <div className="flex flex-col lg:flex-row lg:items-center gap-2.5">
                     <div className="flex-1 relative">
-                      <Search className="w-4 h-4 text-[#8D4925] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Search className="w-4 h-4 text-[#D97757] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
                         value={cmsSearchQuery}
                         onChange={(e) => setCmsSearchQuery(e.target.value)}
                         placeholder="ابحث سريعاً بكتابة الحروف الأولى من عنوان المقال..."
                         aria-label="البحث السريع في عناوين المقالات"
-                        className="w-full pr-10 pl-9 py-2.5 rounded-xl bg-white border border-[#D8CFC0] focus:border-[#8D4925] focus:ring-2 focus:ring-[#C5A059]/25 outline-none text-xs sm:text-sm font-medium text-[#252321] placeholder:text-[#8C8272] transition"
+                        className="w-full pr-10 pl-9 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] focus:ring-2 focus:ring-[#D97757]/25 outline-none text-xs sm:text-sm font-medium text-[#1F1F1C] placeholder:text-[#1F1F1C]/70 transition"
                       />
                       {cmsSearchQuery && (
                         <button
                           type="button"
                           onClick={() => setCmsSearchQuery('')}
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-[#6E6456] hover:text-[#252321] hover:bg-[#FAF6F0] transition cursor-pointer"
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-[#1F1F1C]/70 hover:text-[#1F1F1C] hover:bg-[#F5F1E8] transition cursor-pointer"
                           title="مسح نص البحث"
                           aria-label="مسح نص البحث"
                         >
@@ -3379,20 +3379,20 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {/* عداد النتائج المطابقة + زر مسح الفلاتر بجانب شريط البحث */}
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#D8CFC0] text-xs font-bold text-[#252321]">
-                        <Filter className="w-3.5 h-3.5 text-[#8D4925]" />
+                      <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C]">
+                        <Filter className="w-3.5 h-3.5 text-[#D97757]" />
                         <span>
                           النتائج المطابقة:{' '}
-                          <span className="text-[#8D4925] font-extrabold">
+                          <span className="text-[#D97757] font-extrabold">
                             {totalFilteredCount}
                           </span>
-                          <span className="text-[#6E6456] font-semibold">
+                          <span className="text-[#1F1F1C]/70 font-semibold">
                             {' '}
                             من أصل {knowledgeArticles.length} مقال
                           </span>
                         </span>
                         {activeFiltersCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded bg-[#D8755B]/15 text-[#8D4925] text-[10px] font-extrabold">
+                          <span className="px-1.5 py-0.5 rounded bg-[#D97757]/15 text-[#D97757] text-[10px] font-extrabold">
                             {activeFiltersCount} فلتر
                           </span>
                         )}
@@ -3402,7 +3402,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         <button
                           type="button"
                           onClick={resetAllCmsFilters}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-[#EDE6DA]/60 text-[#8D4925] border border-[#D8755B]/55 text-xs font-bold transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2]/60 text-[#D97757] border border-[#D97757]/55 text-xs font-bold transition cursor-pointer"
                           title="مسح جميع الفلاتر والعودة لعرض كل المقالات"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
@@ -3416,7 +3416,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
                     {/* نوع الموضوع */}
                     <label className="block space-y-1">
-                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                      <span className="block text-[11px] font-bold text-[#1F1F1C]/70">
                         نوع الموضوع
                       </span>
                       <select
@@ -3426,7 +3426,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             e.target.value as 'ALL' | KnowledgeContentType
                           )
                         }
-                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                       >
                         <option value="ALL">الكل</option>
                         <option value="مقال">مقال</option>
@@ -3436,7 +3436,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {/* القسم الرئيسي */}
                     <label className="block space-y-1">
-                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                      <span className="block text-[11px] font-bold text-[#1F1F1C]/70">
                         القسم الرئيسي
                       </span>
                       <select
@@ -3444,7 +3444,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         onChange={(e) =>
                           handleSectionFilterChange(e.target.value)
                         }
-                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                       >
                         <option value="ALL">كل الأقسام</option>
                         {sectionOptions.map((sec) => (
@@ -3457,13 +3457,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {/* القسم الفرعي (مع فصل بصري واضح بين الدول وباقي الأقسام الفرعية) */}
                     <label className="block space-y-1">
-                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                      <span className="block text-[11px] font-bold text-[#1F1F1C]/70">
                         القسم الفرعي
                       </span>
                       <select
                         value={cmsSubFilter}
                         onChange={(e) => setCmsSubFilter(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                       >
                         <option value="ALL">الكل</option>
                         {otherSubFilterOptions.length > 0 && (
@@ -3489,7 +3489,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {/* حالة النشر */}
                     <label className="block space-y-1">
-                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                      <span className="block text-[11px] font-bold text-[#1F1F1C]/70">
                         حالة النشر
                       </span>
                       <select
@@ -3499,7 +3499,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             e.target.value as 'ALL' | 'published' | 'draft'
                           )
                         }
-                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                       >
                         <option value="ALL">الكل</option>
                         <option value="published">منشور للجمهور</option>
@@ -3509,16 +3509,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {/* تاريخ إدخال / نشر المقال */}
                     <div className="space-y-1">
-                      <span className="flex items-center justify-between text-[11px] font-bold text-[#6E6456]">
+                      <span className="flex items-center justify-between text-[11px] font-bold text-[#1F1F1C]/70">
                         <span className="inline-flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-[#8D4925]" />
+                          <Calendar className="w-3 h-3 text-[#D97757]" />
                           <span>تاريخ المقال</span>
                         </span>
                         {cmsDateFilter && (
                           <button
                             type="button"
                             onClick={() => setCmsDateFilter('')}
-                            className="text-[10px] text-[#8D4925] hover:underline cursor-pointer"
+                            className="text-[10px] text-[#D97757] hover:underline cursor-pointer"
                           >
                             مسح
                           </button>
@@ -3530,19 +3530,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         value={cmsDateFilter}
                         onChange={(e) => setCmsDateFilter(e.target.value)}
                         aria-label="تصفية حسب تاريخ إدخال أو نشر المقال"
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-mono text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-mono text-[#1F1F1C] cursor-pointer"
                       />
                     </div>
 
                     {/* الكاتب / المنتج */}
                     <label className="block space-y-1">
-                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                      <span className="block text-[11px] font-bold text-[#1F1F1C]/70">
                         الكاتب / المنتج
                       </span>
                       <select
                         value={cmsAuthorFilter}
                         onChange={(e) => setCmsAuthorFilter(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                       >
                         <option value="ALL">الكل</option>
                         {authorOptions.map((authorName) => (
@@ -3555,13 +3555,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                     {/* تحرير */}
                     <label className="block space-y-1">
-                      <span className="block text-[11px] font-bold text-[#6E6456]">
+                      <span className="block text-[11px] font-bold text-[#1F1F1C]/70">
                         تحرير
                       </span>
                       <select
                         value={cmsEditorFilter}
                         onChange={(e) => setCmsEditorFilter(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#D8CFC0] focus:border-[#8D4925] outline-none text-xs font-semibold text-[#252321] cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                       >
                         <option value="ALL">الكل</option>
                         {editorOptions.map((editorName) => (
@@ -3577,7 +3577,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
               <div className="overflow-x-auto">
                 <table className="w-full text-right border-collapse">
-                  <thead className="bg-[#FAF6F0] border-b border-[#E2DACB] text-[#6E6456] text-xs font-bold">
+                  <thead className="bg-[#F5F1E8] border-b border-[#D8C7B2] text-[#1F1F1C]/70 text-xs font-bold">
                     <tr>
                       <th className="p-4">العنوان</th>
                       <th className="p-4">النوع</th>
@@ -3600,10 +3600,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               ? 'تاريخ النشر (الأحدث أولاً) — اضغط لعكس الترتيب'
                               : 'تاريخ النشر (الأقدم أولاً) — اضغط لعكس الترتيب'
                           }
-                          className="inline-flex items-center gap-1.5 text-[#252321] hover:text-[#8D4925] transition-colors cursor-pointer group"
+                          className="inline-flex items-center gap-1.5 text-[#1F1F1C] hover:text-[#D97757] transition-colors cursor-pointer group"
                         >
                           <span>تاريخ النشر</span>
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-white border border-[#D8CFC0] group-hover:border-[#8D4925] text-[#8D4925] transition-colors">
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[#F5F1E8] border border-[#D8C7B2] group-hover:border-[#D97757] text-[#D97757] transition-colors">
                             {cmsSortOrder === 'newest' ? (
                               <ArrowDown className="w-3.5 h-3.5" />
                             ) : (
@@ -3615,7 +3615,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <th className="p-4">إجراءات</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EFEAE0] text-xs sm:text-sm">
+                  <tbody className="divide-y divide-[#D8C7B2] text-xs sm:text-sm">
                     {paginatedCmsArticles.map(({ article, rigor }) => {
                       const artType = article.type || 'مقال';
                       const artSection = article.section || 'الروايات والذاكرة';
@@ -3623,11 +3623,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       return (
                         <tr
                           key={article.id}
-                          className="hover:bg-[#FCFBF8] transition-colors"
+                          className="hover:bg-[#F5F1E8] transition-colors"
                         >
-                          <td className="p-4 font-bold text-[#252321]">
+                          <td className="p-4 font-bold text-[#1F1F1C]">
                             <div className="flex items-center gap-3">
-                              <div className="w-20 aspect-video rounded-lg overflow-hidden bg-[#EDE6DA] border border-[#B98A78]/40 shrink-0">
+                              <div className="w-20 aspect-video rounded-lg overflow-hidden bg-[#E8DED2] border border-[#D97757]/40 shrink-0">
                                 <ResilientImage
                                   src={article.coverImageUrl || ''}
                                   alt={article.title}
@@ -3638,7 +3638,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span>{article.title}</span>
                                   {article.status === 'draft' && (
-                                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                    <span className="px-2 py-0.5 rounded bg-[#E8DED2] text-[#1F1F1C] text-[10px] font-bold">
                                       مسودة
                                     </span>
                                   )}
@@ -3646,17 +3646,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                                     title={rigor.hint}
                                     className={`px-2 py-0.5 rounded text-[10px] font-extrabold font-mono border ${
                                       rigor.score >= 85
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                        ? 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]'
                                         : rigor.score >= 65
-                                          ? 'bg-amber-50 text-[#8D4925] border-[#C5A059]/60'
-                                          : 'bg-[#FAF6F0] text-[#8D4925] border-[#D8755B]/50'
+                                          ? 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/60'
+                                          : 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/50'
                                     }`}
                                   >
                                     رصانة {rigor.score}%
                                   </span>
                                 </div>
                                 {(article.author || article.authorName) && (
-                                  <div className="text-[11px] font-normal text-[#6E6456] mt-0.5">
+                                  <div className="text-[11px] font-normal text-[#1F1F1C]/70 mt-0.5">
                                     {article.author || article.authorName}
                                     {article.editor
                                       ? ` · تحرير: ${article.editor}`
@@ -3670,8 +3670,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             <span
                               className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 whitespace-nowrap ${
                                 artType === 'مقال'
-                                  ? 'bg-[#FAF6F0] text-[#8D4925] border border-[#B98A78]/50'
-                                  : 'bg-[#D8755B]/15 text-[#D8755B] border border-[#D8755B]/30'
+                                  ? 'bg-[#F5F1E8] text-[#D97757] border border-[#D97757]/50'
+                                  : 'bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/30'
                               }`}
                             >
                               {artType === 'فيديو' ? (
@@ -3682,15 +3682,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <span>{artType}</span>
                             </span>
                           </td>
-                          <td className="p-4 text-[#5C5346]">
-                            <div className="font-bold text-[#252321]">
+                          <td className="p-4 text-[#1F1F1C]/70">
+                            <div className="font-bold text-[#1F1F1C]">
                               {artSection}
                             </div>
-                            <div className="text-xs text-[#8C8272]">{artFilter}</div>
+                            <div className="text-xs text-[#1F1F1C]/70">{artFilter}</div>
                           </td>
                           <td
                             dir="ltr"
-                            className="p-4 text-[#5C5346] font-mono text-xs whitespace-nowrap text-right"
+                            className="p-4 text-[#1F1F1C]/70 font-mono text-xs whitespace-nowrap text-right"
                           >
                             {article.publishDate || 'غير محدد'}
                           </td>
@@ -3699,7 +3699,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => openEditArticleModal(article)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[#8D4925] hover:bg-[#FAF6F0] border border-[#B98A78]/40 rounded-lg transition-colors text-xs font-bold cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[#D97757] hover:bg-[#F5F1E8] border border-[#D97757]/40 rounded-lg transition-colors text-xs font-bold cursor-pointer"
                                 title="تعديل"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -3708,7 +3708,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setPendingDeleteArticle(article)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors text-xs font-bold cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[#D97757] hover:bg-[#F5F1E8] border border-[#D8C7B2] rounded-lg transition-colors text-xs font-bold cursor-pointer"
                                 title="حذف"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -3723,9 +3723,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <tr>
                         <td
                           colSpan={5}
-                          className="p-10 text-center text-[#6E6456] space-y-2.5"
+                          className="p-10 text-center text-[#1F1F1C]/70 space-y-2.5"
                         >
-                          <div className="font-bold text-sm text-[#252321]">
+                          <div className="font-bold text-sm text-[#1F1F1C]">
                             {knowledgeArticles.length === 0
                               ? 'لا توجد مقالات مضافة بعد'
                               : 'لا توجد مقالات مطابقة لمعايير البحث والتصفية الحالية'}
@@ -3734,7 +3734,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             <button
                               type="button"
                               onClick={resetAllCmsFilters}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#8D4925] border border-[#C5A059] text-xs font-bold transition cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D97757] text-xs font-bold transition cursor-pointer"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
                               <span>عرض كل المقالات ({knowledgeArticles.length})</span>
@@ -3749,24 +3749,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
               {/* تذييل الجدول: عداد العرض + أزرار التنقل بين الصفحات (10 مقالات في الصفحة) */}
               {totalFilteredCount > 0 && (
-                <div className="px-5 py-3.5 bg-[#FAF6F0] border-t border-[#E2DACB] flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-xs font-bold text-[#5C5346]">
+                <div className="px-5 py-3.5 bg-[#F5F1E8] border-t border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs font-bold text-[#1F1F1C]/70">
                     عرض{' '}
-                    <span className="text-[#252321] font-extrabold font-mono">
+                    <span className="text-[#1F1F1C] font-extrabold font-mono">
                       {showingFrom}–{showingTo}
                     </span>{' '}
                     من أصل{' '}
-                    <span className="text-[#8D4925] font-extrabold font-mono">
+                    <span className="text-[#D97757] font-extrabold font-mono">
                       {totalFilteredCount}
                     </span>{' '}
                     مقال
                     {totalFilteredCount !== knowledgeArticles.length && (
-                      <span className="text-[#8C8272] font-semibold">
+                      <span className="text-[#1F1F1C]/70 font-semibold">
                         {' '}
                         (إجمالي المركز: {knowledgeArticles.length})
                       </span>
                     )}
-                    <span className="text-[#8C8272] font-semibold mr-2">
+                    <span className="text-[#1F1F1C]/70 font-semibold mr-2">
                       · صفحة {safeCurrentPage} من {totalPages}
                     </span>
                   </div>
@@ -3780,7 +3780,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         type="button"
                         disabled={safeCurrentPage <= 1}
                         onClick={() => goToCmsPage(safeCurrentPage - 1)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-[#D8CFC0] text-xs font-bold text-[#252321] hover:bg-[#EDE6DA]/60 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C] hover:bg-[#E8DED2]/60 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                       >
                         <ChevronRight className="w-3.5 h-3.5" />
                         <span>السابق</span>
@@ -3790,7 +3790,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         entry === 'ellipsis' ? (
                           <span
                             key={`ellipsis-${idx}`}
-                            className="px-2 text-xs font-bold text-[#8C8272] select-none"
+                            className="px-2 text-xs font-bold text-[#1F1F1C]/70 select-none"
                           >
                             …
                           </span>
@@ -3804,8 +3804,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             }
                             className={`min-w-8 h-8 px-2 rounded-lg text-xs font-extrabold font-mono border transition cursor-pointer ${
                               entry === safeCurrentPage
-                                ? 'bg-[#8D4925] text-white border-[#8D4925] shadow-xs'
-                                : 'bg-white text-[#252321] border-[#D8CFC0] hover:bg-[#EDE6DA]/70'
+                                ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs'
+                                : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2] hover:bg-[#E8DED2]/70'
                             }`}
                           >
                             {entry}
@@ -3817,7 +3817,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         type="button"
                         disabled={safeCurrentPage >= totalPages}
                         onClick={() => goToCmsPage(safeCurrentPage + 1)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-[#D8CFC0] text-xs font-bold text-[#252321] hover:bg-[#EDE6DA]/60 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C] hover:bg-[#E8DED2]/60 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                       >
                         <span>التالي</span>
                         <ChevronLeft className="w-3.5 h-3.5" />
@@ -3829,7 +3829,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </div>
 
             {previewKnowledgeCenter && (
-              <div className="bg-[#F7F2E9] rounded-3xl border border-[#B98A78]/45 p-5 sm:p-8 shadow-sm">
+              <div className="bg-[#F5F1E8] rounded-3xl border border-[#D97757]/45 p-5 sm:p-8 shadow-sm">
                 <KnowledgeCenterView articles={knowledgeArticles} />
               </div>
             )}
@@ -3857,51 +3857,51 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           allowedTabs.includes('executive_reports') && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
-                  <div className="text-xs font-bold text-[#8C8272]">
+                <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-5 shadow-sm">
+                  <div className="text-xs font-bold text-[#1F1F1C]/70">
                     إجمالي الإيرادات الفعلية
                   </div>
-                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
+                  <div className="text-2xl font-extrabold text-[#1F1F1C] mt-1">
                     ${metrics.totalRevenue}
                   </div>
-                  <div className="text-[11px] text-[#6E6456] mt-1">
+                  <div className="text-[11px] text-[#1F1F1C]/70 mt-1">
                     {metrics.annualSubscribers} اشتراك سنوي · {metrics.paidRootUnlocks}{' '}
                     فتح جذر
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
-                  <div className="text-xs font-bold text-[#8C8272]">
+                <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-5 shadow-sm">
+                  <div className="text-xs font-bold text-[#1F1F1C]/70">
                     إجمالي طلبات العملاء المسجلة
                   </div>
-                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
+                  <div className="text-2xl font-extrabold text-[#1F1F1C] mt-1">
                     {metrics.totalOrders}
                   </div>
-                  <div className="text-[11px] text-[#6E6456] mt-1">
+                  <div className="text-[11px] text-[#1F1F1C]/70 mt-1">
                     مخزنة في Firebase (`customer_orders`)
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
-                  <div className="text-xs font-bold text-[#8C8272]">
+                <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-5 shadow-sm">
+                  <div className="text-xs font-bold text-[#1F1F1C]/70">
                     تذاكر البحث والتحقيق النَّسبي
                   </div>
-                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
+                  <div className="text-2xl font-extrabold text-[#1F1F1C] mt-1">
                     {researchTicketsCount}
                   </div>
-                  <div className="text-[11px] text-[#6E6456] mt-1">
+                  <div className="text-[11px] text-[#1F1F1C]/70 mt-1">
                     مخزنة في Firebase (`research_tickets`)
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-[#E2DACB] p-5 shadow-sm">
-                  <div className="text-xs font-bold text-[#8C8272]">
+                <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] p-5 shadow-sm">
+                  <div className="text-xs font-bold text-[#1F1F1C]/70">
                     أعضاء الفريق ومقالات المركز المعرفي
                   </div>
-                  <div className="text-2xl font-extrabold text-[#252321] mt-1">
+                  <div className="text-2xl font-extrabold text-[#1F1F1C] mt-1">
                     {staffList.length} أعضاء · {metrics.totalArticles} مقال
                   </div>
-                  <div className="text-[11px] text-[#6E6456] mt-1">
+                  <div className="text-[11px] text-[#1F1F1C]/70 mt-1">
                     {metrics.openSupportCount} تذاكر دعم مفتوحة
                   </div>
                 </div>
@@ -3919,115 +3919,115 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 return (
                   <div
                     data-testid="executive-researcher-kpi-panel"
-                    className="bg-white rounded-3xl border-2 border-[#B98A78]/50 p-6 shadow-sm space-y-5"
+                    className="bg-[#F5F1E8] rounded-3xl border-2 border-[#D97757]/50 p-6 shadow-sm space-y-5"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8C7B2] pb-4">
                       <div>
-                        <span className="px-3 py-1 rounded-full bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925] text-xs font-extrabold">
+                        <span className="px-3 py-1 rounded-full bg-[#F5F1E8] border border-[#D97757]/45 text-[#D97757] text-xs font-extrabold">
                           📊 منظومة تقييم إنتاجية الباحثين والمكافآت الشهرية (KPI & Incentives)
                         </span>
-                        <h3 className="text-base sm:text-lg font-extrabold text-[#252321] mt-2">
+                        <h3 className="text-base sm:text-lg font-extrabold text-[#1F1F1C] mt-2">
                           مؤشرات الأداء الحي لفريق التحقيق وربط شجرة آدم وسجل آدم برايم
                         </h3>
                       </div>
-                      <div className="px-4 py-2 rounded-2xl bg-[#D8755B]/15 border border-[#D8755B]/35 text-[#8D4925] font-mono text-sm font-extrabold">
+                      <div className="px-4 py-2 rounded-2xl bg-[#D97757]/15 border border-[#D97757]/35 text-[#D97757] font-mono text-sm font-extrabold">
                         🏆 الرصيد التراكمي للمكافآت: {liveKpi.totalXpScore} XP
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
-                        <div className="text-xs font-bold text-[#6E6456]">
+                      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#1F1F1C]/70">
                           متوسط زمن إنجاز التذكرة (Avg Handling Time)
                         </div>
-                        <div className="text-2xl font-mono font-extrabold text-[#252321]">
+                        <div className="text-2xl font-mono font-extrabold text-[#1F1F1C]">
                           {formatDurationMmSs(liveKpi.avgHandlingTimeSeconds)}
                         </div>
-                        <div className="text-[11px] text-emerald-800 font-bold">
+                        <div className="text-[11px] text-[#1F1F1C] font-bold">
                           ضمن المعيار القياسي للاستوديو التفاعلي (&lt; 02:00)
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
-                        <div className="text-xs font-bold text-[#6E6456]">
+                      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#1F1F1C]/70">
                           التذاكر المنجزة اليوم حسب الأولوية ({totalToday})
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 pt-1 font-mono text-xs font-extrabold">
-                          <span className="px-2.5 py-1 rounded-lg bg-red-100 text-red-900 border border-red-300">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2]">
                             P1: {liveKpi.completedTodayP1}
                           </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 border border-amber-300">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2]">
                             P2: {liveKpi.completedTodayP2}
                           </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 border border-emerald-300">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2]">
                             P3: {liveKpi.completedTodayP3}
                           </span>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
-                        <div className="text-xs font-bold text-[#6E6456]">
+                      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#1F1F1C]/70">
                           عُقد ألفا الموصولة بشجرة آدم
                         </div>
-                        <div className="text-2xl font-mono font-extrabold text-emerald-900">
+                        <div className="text-2xl font-mono font-extrabold text-[#1F1F1C]">
                           {liveKpi.totalAlphaNodesBridged} عقدة
                         </div>
-                        <div className="text-[11px] text-[#6E6456]">
+                        <div className="text-[11px] text-[#1F1F1C]/70">
                           موثقة ومعلّمة في Neo4j لمنع التكرار
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 space-y-1">
-                        <div className="text-xs font-bold text-[#6E6456]">
+                      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 space-y-1">
+                        <div className="text-xs font-bold text-[#1F1F1C]/70">
                           المصادر الإضافية الموثقة في آدم برايم
                         </div>
-                        <div className="text-2xl font-mono font-extrabold text-[#8D4925]">
+                        <div className="text-2xl font-mono font-extrabold text-[#D97757]">
                           {liveKpi.totalAdamPrimeSourcesVerified} مرجع
                         </div>
-                        <div className="text-[11px] text-[#6E6456]">
+                        <div className="text-[11px] text-[#1F1F1C]/70">
                           مربوطة بمعرفات APR-SRC في محفظة العميل
                         </div>
                       </div>
                     </div>
 
                     {liveKpi.recentCompletedLog.length > 0 && (
-                      <div className="rounded-2xl border border-[#E2DACB] overflow-hidden">
-                        <div className="bg-[#FAF6F0] px-4 py-2.5 border-b border-[#E2DACB] text-xs font-extrabold text-[#252321]">
+                      <div className="rounded-2xl border border-[#D8C7B2] overflow-hidden">
+                        <div className="bg-[#F5F1E8] px-4 py-2.5 border-b border-[#D8C7B2] text-xs font-extrabold text-[#1F1F1C]">
                           سجل آخر التذاكر المنجزة وتقييم النقاط التحفيزية للباحثين
                         </div>
-                        <div className="divide-y divide-[#E2DACB] text-xs">
+                        <div className="divide-y divide-[#D8C7B2] text-xs">
                           {liveKpi.recentCompletedLog.slice(0, 6).map((log, idx) => (
                             <div
                               key={`${log.ticketId}-${idx}`}
-                              className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 bg-white"
+                              className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 bg-[#F5F1E8]"
                             >
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/45 text-[#8D4925]">
+                                <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#F5F1E8] border border-[#D97757]/45 text-[#D97757]">
                                   {log.ticketId}
                                 </span>
                                 <span
                                   className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] ${
                                     log.priority === 'P1'
-                                      ? 'bg-red-100 text-red-900'
+                                      ? 'bg-[#E8DED2] text-[#1F1F1C]'
                                       : log.priority === 'P3'
-                                      ? 'bg-emerald-100 text-emerald-900'
-                                      : 'bg-amber-100 text-amber-900'
+                                      ? 'bg-[#E8DED2] text-[#1F1F1C]'
+                                      : 'bg-[#E8DED2] text-[#1F1F1C]'
                                   }`}
                                 >
                                   {log.priority}
                                 </span>
-                                <span className="font-extrabold text-[#252321]">
+                                <span className="font-extrabold text-[#1F1F1C]">
                                   {log.familyName}
                                 </span>
-                                <span className="text-[#6E6456]">
+                                <span className="text-[#1F1F1C]/70">
                                   ({log.researcherName})
                                 </span>
                               </div>
                               <div className="flex items-center gap-3 font-mono">
-                                <span className="text-[#6E6456]">
+                                <span className="text-[#1F1F1C]/70">
                                   ⏱️ {formatDurationMmSs(log.durationSec)}
                                 </span>
-                                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-950 font-extrabold">
+                                <span className="px-2.5 py-0.5 rounded-lg bg-[#E8DED2] text-[#1F1F1C] font-extrabold">
                                   +{log.xpEarned} XP
                                 </span>
                               </div>
@@ -4044,24 +4044,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
       </main>
 
       {/* Quiet Editorial Footer (Matches Platform Homepage Footer) */}
-      <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 mt-auto">
+      <footer className="border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 mt-auto">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center text-center space-y-3.5">
             <JuthoriLogo size="sm" onClick={onBackToPlatform} />
 
-            <p className="text-sm sm:text-base font-display font-bold text-[#252321] pt-1">
+            <p className="text-sm sm:text-base font-display font-bold text-[#1F1F1C] pt-1">
               ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
             </p>
 
-            <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed font-sans">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed font-sans">
               تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
             </p>
 
-            <p className="text-xs sm:text-sm text-[#252321]/75 font-sans" dir="rtl">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/75 font-sans" dir="rtl">
               منصة الأنساب والإرث العائلي العربي — juthori.com
             </p>
 
-            <p className="text-xs text-[#252321]/70 font-sans" dir="rtl">
+            <p className="text-xs text-[#1F1F1C]/70 font-sans" dir="rtl">
               جميع الحقوق محفوظة. جذوري © 2026
             </p>
           </div>
@@ -4072,18 +4072,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           MODAL 1: Add & Invite New Staff Member (/Team)
          ======================================================================= */}
       {showAddStaffModal && (
-        <div className="fixed inset-0 z-50 bg-[#252321]/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-[#B98A78]/50 max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-[#252321] mb-1">
+        <div className="fixed inset-0 z-50 bg-[#1F1F1C]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#F5F1E8] rounded-3xl border border-[#D97757]/50 max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-[#1F1F1C] mb-1">
               إضافة عضو جديد في فريق العمل (/Team)
             </h3>
-            <p className="text-xs text-[#6E6456] mb-4">
+            <p className="text-xs text-[#1F1F1C]/70 mb-4">
               سيتم تسجيل الحساب مباشرة في{' '}
-              <span className="font-bold text-[#252321]">
+              <span className="font-bold text-[#1F1F1C]">
                 Firebase Authentication
               </span>{' '}
               وقاعدة بيانات{' '}
-              <span className="font-bold text-[#252321]">Firestore</span>، وإرسال دعوة
+              <span className="font-bold text-[#1F1F1C]">Firestore</span>، وإرسال دعوة
               رسمية من{' '}
               <span dir="ltr" className="font-mono font-bold">
                 info@Juthori.com
@@ -4092,14 +4092,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </p>
 
             {addStaffError && (
-              <div className="mb-3.5 p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 leading-relaxed">
+              <div className="mb-3.5 p-3 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#D97757] leading-relaxed">
                 {addStaffError}
               </div>
             )}
 
             <form onSubmit={handleAddStaffMember} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-[#5C5346] mb-1">
+                <label className="block text-xs font-bold text-[#1F1F1C]/70 mb-1">
                   الاسم الكامل
                 </label>
                 <input
@@ -4111,12 +4111,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     if (addStaffError) setAddStaffError(null);
                   }}
                   placeholder="مثال: الباحث كريم"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#252321]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#5C5346] mb-1">
+                <label className="block text-xs font-bold text-[#1F1F1C]/70 mb-1">
                   البريد الإلكتروني الرسمي (غير قابل للتكرار)
                 </label>
                 <input
@@ -4129,12 +4129,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     if (addStaffError) setAddStaffError(null);
                   }}
                   placeholder="member@juthori.com"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs text-[#252321]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#5C5346] mb-1">
+                <label className="block text-xs font-bold text-[#1F1F1C]/70 mb-1">
                   كلمة المرور المبدئية (6 خانات على الأقل للتسجيل في Firebase Auth)
                 </label>
                 <input
@@ -4148,18 +4148,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     if (addStaffError) setAddStaffError(null);
                   }}
                   placeholder="Juthori@2026"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-mono text-[#252321]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-mono text-[#1F1F1C]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#5C5346] mb-1">
+                <label className="block text-xs font-bold text-[#1F1F1C]/70 mb-1">
                   الدور الوظيفي (يحدد اللوحات المسموح بفتحها حصراً)
                 </label>
                 <select
                   value={newStaffRole}
                   onChange={(e) => setNewStaffRole(e.target.value as TeamRoleType)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] text-xs font-bold text-[#252321]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C]"
                 >
                   {ALL_TEAM_ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -4176,14 +4176,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     setAddStaffError(null);
                     setShowAddStaffModal(false);
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#EDE6DA] text-xs font-bold text-[#252321] cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#E8DED2] text-xs font-bold text-[#1F1F1C] cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingStaff}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold cursor-pointer disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>
@@ -4200,28 +4200,28 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           MODAL 2: Manage Customer Order & Subscription Override
          ======================================================================= */}
       {selectedOrderForModal && (
-        <div className="fixed inset-0 z-50 bg-[#252321]/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-[#B98A78]/50 max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#EFEAE0] pb-3">
+        <div className="fixed inset-0 z-50 bg-[#1F1F1C]/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#F5F1E8] rounded-3xl border border-[#D97757]/50 max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D8C7B2] pb-3">
               <div>
-                <h3 className="text-base font-bold text-[#252321]">
+                <h3 className="text-base font-bold text-[#1F1F1C]">
                   إدارة حساب وطلب العميل: {selectedOrderForModal.fullName}
                 </h3>
-                <p className="text-xs text-[#6E6456]">
+                <p className="text-xs text-[#1F1F1C]/70">
                   رقم الطلب: {selectedOrderForModal.id} · {selectedOrderForModal.email}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrderForModal(null)}
-                className="px-3 py-1 rounded-lg bg-[#EDE6DA] text-xs font-bold text-[#252321]"
+                className="px-3 py-1 rounded-lg bg-[#E8DED2] text-xs font-bold text-[#1F1F1C]"
               >
                 إغلاق
               </button>
             </div>
 
             <div className="space-y-2">
-              <div className="text-xs font-bold text-[#5C5346]">
+              <div className="text-xs font-bold text-[#1F1F1C]/70">
                 ترقية أو تعديل حالة الباقة للعميل في Firebase:
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -4269,8 +4269,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     }}
                     className={`p-2.5 rounded-xl border text-xs font-bold cursor-pointer ${
                       selectedOrderForModal.accountStatus === tier.id
-                        ? 'bg-[#D8755B] text-white border-[#D8755B]'
-                        : 'bg-[#FAF6F0] text-[#252321] border-[#E2DACB]'
+                        ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                        : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]'
                     }`}
                   >
                     {tier.label}
@@ -4280,9 +4280,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </div>
 
             {/* Linked Research Ticket & Customer Correspondence Summary */}
-            <div className="pt-3 border-t border-[#EFEAE0] space-y-2.5">
+            <div className="pt-3 border-t border-[#D8C7B2] space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#252321]">
+                <span className="text-xs font-bold text-[#1F1F1C]">
                   تذكرة التحقيق النَّسبي ومراسلات مرصد البحوث:
                 </span>
               </div>
@@ -4302,7 +4302,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                 if (!linkedTicket) {
                   return (
-                    <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-[11px] text-[#6E6456]">
+                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 text-[11px] text-[#1F1F1C]/70">
                       لا توجد تذكرة تحقيق نسبي مفتوحة حالياً لهذا العميل في مرصد البحوث.
                     </div>
                   );
@@ -4314,24 +4314,24 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 const attCount = linkedTicket.attachments?.length || 0;
 
                 return (
-                  <div className="rounded-xl bg-[#FAF6F0] border border-[#D4AF37]/60 p-3.5 text-xs space-y-2.5">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/60 p-3.5 text-xs space-y-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#252321] text-[#F3D299] text-[11px]">
+                      <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#1F1F1C] text-[#D97757] text-[11px]">
                         #{linkedTicket.ticketNumber}
                       </span>
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] font-bold text-[#8D4925]">
+                        <span className="px-2 py-0.5 rounded bg-[#F5F1E8] border border-[#D8C7B2] font-bold text-[#D97757]">
                           المرحلة: {stage}
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-white border border-[#E2DACB] font-bold text-[#252321]">
+                        <span className="px-2 py-0.5 rounded bg-[#F5F1E8] border border-[#D8C7B2] font-bold text-[#1F1F1C]">
                           💬 {msgs.length} مراسلات · 📎 {attCount} مرفقات
                         </span>
                       </div>
                     </div>
 
                     {lastMsg && (
-                      <div className="rounded-lg bg-white border border-[#E2DACB] p-2.5 text-[11px] text-[#252321]">
-                        <strong className="text-[#8D4925]">
+                      <div className="rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] p-2.5 text-[11px] text-[#1F1F1C]">
+                        <strong className="text-[#D97757]">
                           {lastMsg.senderRole === 'customer'
                             ? `آخر رد من العميل (${lastMsg.senderName}): `
                             : `آخر رد من الباحث (${lastMsg.senderName}): `}
@@ -4350,7 +4350,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           setFocusedResearchTicketId(focusKey);
                           setActiveTab('research_studio');
                         }}
-                        className="w-full py-2 px-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold cursor-pointer transition-colors"
+                        className="w-full py-2 px-3 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold cursor-pointer transition-colors"
                       >
                         فتح التذكرة والرد على العميل في مرصد البحوث ←
                       </button>
@@ -4361,12 +4361,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
             </div>
 
             {/* Customer Legal Audit Trail Section inside Manage Customer Modal */}
-            <div className="pt-3 border-t border-[#EFEAE0] space-y-2.5">
+            <div className="pt-3 border-t border-[#D8C7B2] space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#252321]">
+                <span className="text-xs font-bold text-[#1F1F1C]">
                   سجل التدقيق القانوني والموافقات الإلكترونية (Audit Trail):
                 </span>
-                <span className="text-[11px] font-bold text-[#8D4925]">
+                <span className="text-[11px] font-bold text-[#D97757]">
                   {selectedOrderForModal.legalRole === 'record_keeper'
                     ? 'رب أسرة / أمين السجل ✓'
                     : 'حساب فرد'}
@@ -4384,7 +4384,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 );
                 if (customerAudits.length === 0) {
                   return (
-                    <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-[11px] text-[#6E6456]">
+                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 text-[11px] text-[#1F1F1C]/70">
                       موافقة شروط الاستخدام وسياسة الخصوصية مفعّلة عند إنشاء الحساب. لم يتم تسجيل شهادات إضافية بعد.
                     </div>
                   );
@@ -4394,22 +4394,22 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     {customerAudits.map((aud) => (
                       <div
                         key={aud.id}
-                        className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3 text-[11px] space-y-1"
+                        className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 text-[11px] space-y-1"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-[#252321]">
+                          <span className="font-bold text-[#1F1F1C]">
                             {aud.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
                               ? 'توقيع عقد أمين السجل (29 مادة)'
                               : 'موافقة شروط الاستخدام وسياسة الخصوصية'}
                           </span>
                           <span
                             dir="ltr"
-                            className="font-mono font-bold px-2 py-0.5 rounded bg-[#252321] text-[#F3D299]"
+                            className="font-mono font-bold px-2 py-0.5 rounded bg-[#1F1F1C] text-[#D97757]"
                           >
                             {aud.certificateCode}
                           </span>
                         </div>
-                        <div className="text-[#6E6456] flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-[#1F1F1C]/70 flex flex-wrap items-center justify-between gap-2">
                           <span>الإصدار: {aud.documentVersion}</span>
                           <span dir="ltr">
                             IP: {aud.ipAddress} ({aud.ipCountry})
@@ -4430,12 +4430,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           MODAL 3: Add / Edit Knowledge Center Topic (مقال / فيديو)
          ======================================================================= */}
       {isArticleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-[#B98A78]/50 max-w-4xl w-full p-6 sm:p-8 shadow-2xl my-8 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-[#1F1F1C]/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#F5F1E8] rounded-3xl border border-[#D97757]/50 max-w-4xl w-full p-6 sm:p-8 shadow-2xl my-8 max-h-[92vh] overflow-y-auto">
             {/* Modal Top Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2DACB] pb-4 mb-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8C7B2] pb-4 mb-5">
               <div>
-                <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+                <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#1F1F1C]">
                   {editingArticleId
                     ? 'تعديل موضوع (مقال/فيديو)'
                     : 'إضافة موضوع جديد (مقال/فيديو)'}
@@ -4444,14 +4444,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
               <div className="flex items-center gap-2">
                 {/* Switch between Editor and Live Visitor Preview */}
-                <div className="inline-flex rounded-xl bg-[#FAF6F0] p-1 border border-[#E2DACB]">
+                <div className="inline-flex rounded-xl bg-[#F5F1E8] p-1 border border-[#D8C7B2]">
                   <button
                     type="button"
                     onClick={() => setArticleModalTab('edit')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       articleModalTab === 'edit'
-                        ? 'bg-[#252321] text-white'
-                        : 'text-[#5C5346] hover:text-[#252321]'
+                        ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                        : 'text-[#1F1F1C]/70 hover:text-[#1F1F1C]'
                     }`}
                   >
                     تحرير الموضوع
@@ -4464,8 +4464,8 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       articleModalTab === 'preview'
-                        ? 'bg-[#D8755B] text-white'
-                        : 'text-[#5C5346] hover:text-[#252321]'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
+                        : 'text-[#1F1F1C]/70 hover:text-[#1F1F1C]'
                     }`}
                   >
                     معاينة العرض
@@ -4475,7 +4475,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsArticleModalOpen(false)}
-                  className="p-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] text-[#252321] cursor-pointer border border-[#E2DACB]"
+                  className="p-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] cursor-pointer border border-[#D8C7B2]"
                   aria-label="إغلاق"
                 >
                   <X className="w-4 h-4" />
@@ -4485,30 +4485,30 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
             {articleModalTab === 'preview' ? (
               <div className="space-y-6">
-                <div className="p-5 rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 space-y-4">
+                <div className="p-5 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#8D4925]">
+                    <span className="text-xs font-bold text-[#D97757]">
                       معاينة حية لشكل الموضوع في المركز المعرفي:
                     </span>
                     <button
                       type="button"
                       onClick={() => setArticleModalTab('edit')}
-                      className="text-xs font-bold text-[#D8755B] underline cursor-pointer"
+                      className="text-xs font-bold text-[#D97757] underline cursor-pointer"
                     >
                       العودة للتحرير
                     </button>
                   </div>
 
                   {articleCoverImageUrl && (
-                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#252321] border border-[#B98A78]/40 shadow-sm">
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#1F1F1C] border border-[#D97757]/40 shadow-sm">
                       <ResilientImage
                         src={articleCoverImageUrl}
                         alt={articleTitle || 'معاينة صورة الغلاف'}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/75 via-transparent to-transparent pointer-events-none" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1F1F1C]/75 via-transparent to-transparent pointer-events-none" />
                       {articleCoverTextOverlay && (
-                        <div className="absolute bottom-4 right-4 left-4 text-white font-display font-bold text-base sm:text-lg drop-shadow-md">
+                        <div className="absolute bottom-4 right-4 left-4 text-[#F5F1E8] font-display font-bold text-base sm:text-lg drop-shadow-md">
                           {articleCoverTextOverlay}
                         </div>
                       )}
@@ -4516,7 +4516,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   )}
 
                   {(articleImageCaption || articleImageCopyright) && (
-                    <div className="flex justify-between text-[11px] text-[#5C5346] bg-[#EDE6DA]/70 px-3.5 py-2 rounded-xl">
+                    <div className="flex justify-between text-[11px] text-[#1F1F1C]/70 bg-[#E8DED2]/70 px-3.5 py-2 rounded-xl">
                       <span>{articleImageCaption}</span>
                       {articleImageCopyright && (
                         <span>© {articleImageCopyright}</span>
@@ -4524,7 +4524,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#D8755B]">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#D97757]">
                     <span>
                       {articleType} / {articleSection} -{' '}
                       {articleFilter === '__custom__'
@@ -4532,28 +4532,28 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         : articleFilter}
                     </span>
                     {articlePublishDate && (
-                      <span className="text-[#8C8272]">
+                      <span className="text-[#1F1F1C]/70">
                         · {articlePublishDate}
                       </span>
                     )}
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#252321]">
+                  <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#1F1F1C]">
                     {articleTitle || 'عنوان الموضوع التجريبي'}
                   </h2>
 
                   {articleDescription && (
-                    <div className="p-4 rounded-xl bg-white border-r-4 border-[#D8755B] text-sm font-bold text-[#252321]">
+                    <div className="p-4 rounded-xl bg-[#F5F1E8] border-r-4 border-[#D97757] text-sm font-bold text-[#1F1F1C]">
                       {articleDescription}
                     </div>
                   )}
 
                   <div
-                    className="prose max-w-none text-sm text-[#252321]/90 leading-loose bg-white p-5 rounded-2xl border border-[#E2DACB]"
+                    className="prose max-w-none text-sm text-[#1F1F1C]/90 leading-loose bg-[#F5F1E8] p-5 rounded-2xl border border-[#D8C7B2]"
                     dangerouslySetInnerHTML={{
                       __html:
                         articleContent ||
-                        '<p class="text-stone-400">لم يتم إدخال نص المقال بعد...</p>',
+                        '<p class="text-[#1F1F1C]/55">لم يتم إدخال نص المقال بعد...</p>',
                     }}
                   />
                 </div>
@@ -4562,7 +4562,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <button
                     type="button"
                     onClick={() => setArticleModalTab('edit')}
-                    className="px-5 py-2.5 rounded-xl bg-[#EDE6DA] text-xs font-bold text-[#252321] cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-[#E8DED2] text-xs font-bold text-[#1F1F1C] cursor-pointer"
                   >
                     متابعة التحرير
                   </button>
@@ -4573,7 +4573,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {/* Row 1: Title & Content Type */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       عنوان الموضوع *
                     </label>
                     <input
@@ -4582,12 +4582,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       value={articleTitle}
                       onChange={(e) => setArticleTitle(e.target.value)}
                       placeholder="أدخل عنوان المقال أو الفيديو..."
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] focus:bg-white focus:border-[#8D4925] focus:outline-none text-xs sm:text-sm font-bold text-[#252321]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:bg-[#F5F1E8] focus:border-[#D97757] focus:outline-none text-xs sm:text-sm font-bold text-[#1F1F1C]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       نوع الموضوع *
                     </label>
                     <select
@@ -4595,7 +4595,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       onChange={(e) =>
                         setArticleType(e.target.value as KnowledgeContentType)
                       }
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] focus:bg-white focus:border-[#8D4925] focus:outline-none text-xs sm:text-sm font-bold text-[#252321]"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:bg-[#F5F1E8] focus:border-[#D97757] focus:outline-none text-xs sm:text-sm font-bold text-[#1F1F1C]"
                     >
                       <option value="مقال">مقال</option>
                       <option value="فيديو">فيديو</option>
@@ -4606,7 +4606,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {/* Row 2: Section, Sub-Filter & Status */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       القسم الرئيسي *
                     </label>
                     <select
@@ -4619,7 +4619,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           'عام';
                         setArticleFilter(defaultFlt);
                       }}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-bold text-[#252321]"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C]"
                     >
                       {Object.keys(KNOWLEDGE_BASE_SECTIONS).map((sec) => (
                         <option key={sec} value={sec}>
@@ -4630,13 +4630,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       القسم الفرعي *
                     </label>
                     <select
                       value={articleFilter}
                       onChange={(e) => setArticleFilter(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-bold text-[#252321]"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C]"
                     >
                       {(
                         KNOWLEDGE_BASE_SECTIONS[articleSection]?.baseFilters || [
@@ -4652,7 +4652,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       حالة النشر
                     </label>
                     <select
@@ -4660,7 +4660,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       onChange={(e) =>
                         setArticleStatus(e.target.value as 'published' | 'draft')
                       }
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-bold text-[#252321]"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C]"
                     >
                       <option value="published">منشور للجمهور</option>
                       <option value="draft">مسودة تحريرية</option>
@@ -4670,7 +4670,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                 {articleFilter === '__custom__' && (
                   <div>
-                    <label className="block text-xs font-bold text-[#8D4925] mb-1">
+                    <label className="block text-xs font-bold text-[#D97757] mb-1">
                       اسم الفلتر الفرعي الجديد *
                     </label>
                     <input
@@ -4679,7 +4679,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       value={customArticleFilter}
                       onChange={(e) => setCustomArticleFilter(e.target.value)}
                       placeholder="اكتب اسم التصنيف الفرعي ليظهر كزر تصفية مستقل في هذا القسم..."
-                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#D8755B] text-xs font-bold text-[#252321]"
+                      className="w-full px-3.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757] text-xs font-bold text-[#1F1F1C]"
                     />
                   </div>
                 )}
@@ -4687,7 +4687,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {/* Row 3: Author, Editor & Publish Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       الكاتب / المنتج (اختياري)
                     </label>
                     <input
@@ -4695,12 +4695,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       value={articleAuthor}
                       onChange={(e) => setArticleAuthor(e.target.value)}
                       placeholder="مثال: هيئة التحقيق والأنساب"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs text-[#252321]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       تحرير (اختياري)
                     </label>
                     <input
@@ -4708,12 +4708,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       value={articleEditor}
                       onChange={(e) => setArticleEditor(e.target.value)}
                       placeholder="اسم المحرر..."
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs text-[#252321]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       تاريخ النشر (اختياري)
                     </label>
                     <input
@@ -4721,7 +4721,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       dir="ltr"
                       value={articlePublishDate}
                       onChange={(e) => setArticlePublishDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-mono text-[#252321]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-mono text-[#1F1F1C]"
                     />
                   </div>
                 </div>
@@ -4729,7 +4729,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {/* Short Card Summary with 1-Click Auto-Extract */}
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                    <label className="block text-xs font-bold text-[#252321]">
+                    <label className="block text-xs font-bold text-[#1F1F1C]">
                       الوصف المختصر للبطاقة (اختياري — يُستخرج تلقائياً من النص إن تُرك فارغاً)
                     </label>
                     <button
@@ -4742,7 +4742,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           setArticleDescription(plain.slice(0, 170));
                         }
                       }}
-                      className="text-[11px] font-bold text-[#8D4925] hover:text-[#D8755B] cursor-pointer"
+                      className="text-[11px] font-bold text-[#D97757] hover:text-[#D97757] cursor-pointer"
                     >
                       ✨ استخراج الملخص تلقائياً من نص المقال
                     </button>
@@ -4752,7 +4752,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     value={articleDescription}
                     onChange={(e) => setArticleDescription(e.target.value)}
                     placeholder="نبذة موجزة تظهر تحت عنوان الموضوع في بطاقة المركز المعرفي..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] text-xs text-[#252321]"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C]"
                   />
                 </div>
 
@@ -4761,36 +4761,36 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                    ============================================================= */}
                 <div className="space-y-2">
                   {/* Quick Starter Templates Bar */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 bg-[#FAF6F0] px-3 py-2 rounded-xl border border-[#E2DACB]">
-                    <span className="text-[11px] font-bold text-[#6E6456]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-[#F5F1E8] px-3 py-2 rounded-xl border border-[#D8C7B2]">
+                    <span className="text-[11px] font-bold text-[#1F1F1C]/70">
                       إدراج هيكل جاهز بنقرة واحدة:
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => applyQuickArticleTemplate('manuscript')}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                       >
                         📜 تحقيق مخطوطة
                       </button>
                       <button
                         type="button"
                         onClick={() => applyQuickArticleTemplate('family_study')}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                       >
                         🌳 دراسة نسبية
                       </button>
                       <button
                         type="button"
                         onClick={() => applyQuickArticleTemplate('dna_science')}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                       >
                         🧬 مقال علمي
                       </button>
                       <button
                         type="button"
                         onClick={() => applyQuickArticleTemplate('event_news')}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                       >
                         📅 تغطية فعالية/خبر
                       </button>
@@ -4799,16 +4799,16 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                   {/* Toolbar + Label Row (Matches User Screenshot) */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="text-xs font-bold text-[#252321]">
+                    <label className="text-xs font-bold text-[#1F1F1C]">
                       نص المقال/وصف الفيديو (اختياري - محرر نصي يدعم جميع المزايا)
                     </label>
 
                     {/* Formatting Toolbar */}
-                    <div className="flex flex-wrap items-center gap-1 bg-[#FAF6F0] border border-[#D8D0C0] rounded-xl px-2 py-1.5 shadow-2xs">
+                    <div className="flex flex-wrap items-center gap-1 bg-[#F5F1E8] border border-[#D8C7B2] rounded-xl px-2 py-1.5 shadow-2xs">
                       <button
                         type="button"
                         onClick={() => execEditorCommand('bold')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-xs font-extrabold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-xs font-extrabold text-[#1F1F1C] cursor-pointer"
                         title="نص عريض (Bold)"
                       >
                         B
@@ -4816,7 +4816,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('italic')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-xs italic font-serif text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-xs italic font-serif text-[#1F1F1C] cursor-pointer"
                         title="نص مائل (Italic)"
                       >
                         I
@@ -4824,18 +4824,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('underline')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-xs underline text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-xs underline text-[#1F1F1C] cursor-pointer"
                         title="تسطير (Underline)"
                       >
                         U
                       </button>
 
-                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+                      <span className="h-4 w-px bg-[#D8C7B2] mx-0.5" />
 
                       <button
                         type="button"
                         onClick={() => execEditorCommand('fontSize', '5')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="تكبير حجم النص"
                       >
                         تكبير
@@ -4843,7 +4843,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('fontSize', '3')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="تصغير حجم النص"
                       >
                         تصغير
@@ -4851,18 +4851,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('formatBlock', 'H3')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#8D4925] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#D97757] cursor-pointer"
                         title="عنوان فرعي"
                       >
                         عنوان
                       </button>
 
-                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+                      <span className="h-4 w-px bg-[#D8C7B2] mx-0.5" />
 
                       <button
                         type="button"
                         onClick={() => execEditorCommand('insertUnorderedList')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="قائمة نقطية"
                       >
                         • نقاط
@@ -4870,18 +4870,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('insertOrderedList')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="قائمة رقمية"
                       >
                         1. ترقيم
                       </button>
 
-                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+                      <span className="h-4 w-px bg-[#D8C7B2] mx-0.5" />
 
                       <button
                         type="button"
                         onClick={() => execEditorCommand('justifyRight')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="محاذاة لليمين"
                       >
                         يمين
@@ -4889,7 +4889,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('justifyCenter')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="توسيط"
                       >
                         وسط
@@ -4897,22 +4897,22 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('justifyLeft')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="محاذاة لليسار"
                       >
                         يسار
                       </button>
 
-                      <span className="h-4 w-px bg-[#D8D0C0] mx-0.5" />
+                      <span className="h-4 w-px bg-[#D8C7B2] mx-0.5" />
 
                       <button
                         type="button"
                         onClick={() =>
                           insertHtmlAtCursor(
-                            `<blockquote style="border-right: 4px solid #D8755B; background: #FAF6F0; padding: 12px 16px; margin: 12px 0; border-radius: 8px; font-weight: bold;">«اكتب نص الاقتباس أو المصدر هنا...»</blockquote><p><br/></p>`
+                            `<blockquote style="border-right: 4px solid #D97757; background: #F5F1E8; padding: 12px 16px; margin: 12px 0; border-radius: 8px; font-weight: bold;">«اكتب نص الاقتباس أو المصدر هنا...»</blockquote><p><br/></p>`
                           )
                         }
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#8D4925] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#D97757] cursor-pointer"
                         title="إدراج صندوق اقتباس تراثي"
                       >
                         ❝ اقتباس
@@ -4921,9 +4921,9 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() =>
-                          execEditorCommand('hiliteColor', '#F3D299')
+                          execEditorCommand('hiliteColor', '#E8DED2')
                         }
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="تمييز النص بلون ذهبي"
                       >
                         تمييز
@@ -4934,7 +4934,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         onClick={() =>
                           setShowInlineLinkInput((prev) => !prev)
                         }
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] font-bold text-[#252321] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] font-bold text-[#1F1F1C] cursor-pointer"
                         title="إدراج رابط"
                       >
                         🔗 رابط
@@ -4943,7 +4943,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => execEditorCommand('removeFormat')}
-                        className="px-2 py-1 rounded hover:bg-[#EDE6DA] text-[11px] text-[#6E6456] cursor-pointer"
+                        className="px-2 py-1 rounded hover:bg-[#E8DED2] text-[11px] text-[#1F1F1C]/70 cursor-pointer"
                         title="مسح التنسيق"
                       >
                         مسح التنسيق
@@ -4954,7 +4954,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         type="button"
                         disabled={isUploadingInlineImage}
                         onClick={() => inlineImageInputRef.current?.click()}
-                        className="px-2.5 py-1 rounded-lg border border-[#8D4925]/40 bg-white hover:bg-[#FAF6F0] text-[11px] font-bold text-[#8D4925] cursor-pointer disabled:opacity-50"
+                        className="px-2.5 py-1 rounded-lg border border-[#D97757]/40 bg-[#F5F1E8] hover:bg-[#E8DED2] text-[11px] font-bold text-[#D97757] cursor-pointer disabled:opacity-50"
                         title="رفع وإدراج صورة من جهازك داخل نص المقال بأبعاد قياسية"
                       >
                         {isUploadingInlineImage
@@ -4966,7 +4966,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         onClick={() =>
                           setShowInlineImageUrlInput((prev) => !prev)
                         }
-                        className="px-2 py-1 rounded-lg bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-[10px] font-bold text-[#5C5346] cursor-pointer"
+                        className="px-2 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[10px] font-bold text-[#1F1F1C]/70 cursor-pointer"
                         title="إدراج صورة عبر رابط مباشر"
                       >
                         رابط صورة
@@ -4983,13 +4983,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                   {/* Optional Inline Link Popover */}
                   {showInlineLinkInput && (
-                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/50">
+                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50">
                       <input
                         type="text"
                         value={inlineLinkText}
                         onChange={(e) => setInlineLinkText(e.target.value)}
                         placeholder="عنوان الرابط المعروض..."
-                        className="px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-xs"
+                        className="px-3 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs"
                       />
                       <input
                         type="url"
@@ -4997,7 +4997,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         value={inlineLinkUrl}
                         onChange={(e) => setInlineLinkUrl(e.target.value)}
                         placeholder="https://example.com"
-                        className="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-xs"
+                        className="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs"
                       />
                       <button
                         type="button"
@@ -5006,14 +5006,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             const label =
                               inlineLinkText.trim() || inlineLinkUrl.trim();
                             insertHtmlAtCursor(
-                              `<a href="${inlineLinkUrl.trim()}" target="_blank" rel="noopener noreferrer" style="color: #8D4925; text-decoration: underline; font-weight: bold;">${label}</a>&nbsp;`
+                              `<a href="${inlineLinkUrl.trim()}" target="_blank" rel="noopener noreferrer" style="color: #D97757; text-decoration: underline; font-weight: bold;">${label}</a>&nbsp;`
                             );
                             setInlineLinkUrl('');
                             setInlineLinkText('');
                             setShowInlineLinkInput(false);
                           }
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-[#8D4925] text-white text-xs font-bold cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[#D97757] text-[#F5F1E8] text-xs font-bold cursor-pointer"
                       >
                         إدراج الرابط
                       </button>
@@ -5022,14 +5022,14 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
                   {/* Optional Inline Image URL Popover */}
                   {showInlineImageUrlInput && (
-                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#FAF6F0] border border-[#B98A78]/50">
+                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50">
                       <input
                         type="url"
                         dir="ltr"
                         value={inlineImageUrl}
                         onChange={(e) => setInlineImageUrl(e.target.value)}
                         placeholder="https://example.com/photo.jpg"
-                        className="flex-1 min-w-[220px] px-3 py-1.5 rounded-lg bg-white border border-[#D8D0C0] text-xs"
+                        className="flex-1 min-w-[220px] px-3 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs"
                       />
                       <button
                         type="button"
@@ -5039,13 +5039,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                               inlineImageUrl.trim()
                             );
                             insertHtmlAtCursor(
-                              `<figure style="margin: 20px auto; text-align: center; max-width: 100%;"><img src="${normalizedUrl}" alt="صورة داخل المقال" style="width: 100%; max-height: 480px; object-fit: contain; background: #FAF6F0; border-radius: 16px; border: 1px solid rgba(185,138,120,0.45); margin: 0 auto; display: block;" /></figure><p><br/></p>`
+                              `<figure style="margin: 20px auto; text-align: center; max-width: 100%;"><img src="${normalizedUrl}" alt="صورة داخل المقال" style="width: 100%; max-height: 480px; object-fit: contain; background: #F5F1E8; border-radius: 16px; border: 1px solid rgba(217,119,87,0.45); margin: 0 auto; display: block;" /></figure><p><br/></p>`
                             );
                             setInlineImageUrl('');
                             setShowInlineImageUrlInput(false);
                           }
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-[#8D4925] text-white text-xs font-bold cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[#D97757] text-[#F5F1E8] text-xs font-bold cursor-pointer"
                       >
                         إدراج الصورة
                       </button>
@@ -5060,10 +5060,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     onInput={syncEditorContentToState}
                     onBlur={syncEditorContentToState}
                     data-placeholder="اكتب نص المقال أو الصق المحتوى المنسق هنا..."
-                    className="min-h-[210px] max-h-[380px] overflow-y-auto w-full p-4 rounded-xl bg-white border-2 border-[#8D4925] focus:border-[#D8755B] focus:outline-none text-sm text-[#252321] leading-relaxed prose max-w-none"
+                    className="min-h-[210px] max-h-[380px] overflow-y-auto w-full p-4 rounded-xl bg-[#F5F1E8] border-2 border-[#D97757] focus:border-[#D97757] focus:outline-none text-sm text-[#1F1F1C] leading-relaxed prose max-w-none"
                   />
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6E6456] px-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#1F1F1C]/70 px-1">
                     <span>
                       يمكنك تنسيق النصوص، وإدراج الصور والاقتباسات والروابط مباشرة داخل المحرر.
                     </span>
@@ -5076,35 +5076,35 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   {/* مقياس الرصانة وجودة التوثيق الحي داخل المحرر */}
                   <div
                     data-testid="live-editor-rigor-meter"
-                    className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] px-3.5 py-2.5 space-y-1.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 space-y-1.5"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <span className="font-extrabold text-[#252321]">
+                      <span className="font-extrabold text-[#1F1F1C]">
                         درجة رصانة المادة الحالية:{' '}
                         <span
                           className={`font-mono ${
                             liveEditorRigor.score >= 90
-                              ? 'text-emerald-700'
+                              ? 'text-[#D97757]'
                               : liveEditorRigor.score >= 65
-                                ? 'text-[#8D4925]'
-                                : 'text-[#D8755B]'
+                                ? 'text-[#D97757]'
+                                : 'text-[#D97757]'
                           }`}
                         >
                           {liveEditorRigor.score}%
                         </span>
                       </span>
-                      <span className="text-[11px] font-bold text-[#8D4925]">
+                      <span className="text-[11px] font-bold text-[#D97757]">
                         {liveEditorRigor.hint}
                       </span>
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-[#EDE6DA] overflow-hidden">
+                    <div className="w-full h-1.5 rounded-full bg-[#E8DED2] overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${
                           liveEditorRigor.score >= 90
-                            ? 'bg-emerald-600'
+                            ? 'bg-[#D97757]'
                             : liveEditorRigor.score >= 65
-                              ? 'bg-[#C5A059]'
-                              : 'bg-[#D8755B]'
+                              ? 'bg-[#D97757]'
+                              : 'bg-[#D97757]'
                         }`}
                         style={{ width: `${liveEditorRigor.score}%` }}
                       />
@@ -5115,17 +5115,17 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {/* =============================================================
                     SECTION: الروابط والصور (Matches Screenshot Layout)
                    ============================================================= */}
-                <div className="pt-4 border-t border-[#EFEAE0] space-y-3.5">
-                  <h4 className="text-sm font-display font-extrabold text-[#252321] border-r-4 border-[#8D4925] pr-2.5">
+                <div className="pt-4 border-t border-[#D8C7B2] space-y-3.5">
+                  <h4 className="text-sm font-display font-extrabold text-[#1F1F1C] border-r-4 border-[#D97757] pr-2.5">
                     الروابط والصور
                   </h4>
 
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                      <label className="block text-xs font-bold text-[#252321]">
+                      <label className="block text-xs font-bold text-[#1F1F1C]">
                         رابط صورة الغلاف (اختياري)
                       </label>
-                      <span className="text-[11px] font-bold text-[#8D4925] bg-[#FAF6F0] px-2.5 py-0.5 rounded-full border border-[#E2DACB]">
+                      <span className="text-[11px] font-bold text-[#D97757] bg-[#F5F1E8] px-2.5 py-0.5 rounded-full border border-[#D8C7B2]">
                         الأبعاد القياسية المعتمدة: 16:9 (1200×675 بكسل) — تتم المعايرة تلقائياً عند الإرفاق
                       </span>
                     </div>
@@ -5140,10 +5140,10 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           )
                         }
                         placeholder="https://example.com/image.jpg"
-                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] focus:outline-none text-xs text-[#1F1F1C]"
                       />
                       <label
-                        className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-[#252321] text-xs font-bold cursor-pointer shrink-0 border border-[#D8D0C0] transition-colors ${
+                        className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#1F1F1C] text-xs font-bold cursor-pointer shrink-0 border border-[#D8C7B2] transition-colors ${
                           isUploadingCoverImage ? 'opacity-60 pointer-events-none' : ''
                         }`}
                       >
@@ -5161,33 +5161,33 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         />
                       </label>
                     </div>
-                    <p className="text-[11px] text-[#8D4925] font-semibold mt-1">
+                    <p className="text-[11px] text-[#D97757] font-semibold mt-1">
                       أضف رابط مباشر للصور أو قم بتحميل ملف صورة (يتم ضبط الأبعاد القياسية 16:9 تلقائياً).
                     </p>
 
                     {articleCoverImageUrl && (
-                      <div className="mt-3 p-3 rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] space-y-2">
+                      <div className="mt-3 p-3 rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-[#252321]">
+                          <span className="text-[11px] font-bold text-[#1F1F1C]">
                             معاينة صورة الغلاف بالأبعاد القياسية (16:9) ✓
                           </span>
                           <button
                             type="button"
                             onClick={() => setArticleCoverImageUrl('')}
-                            className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer px-2"
+                            className="text-[11px] font-bold text-[#D97757] hover:underline cursor-pointer px-2"
                           >
                             إزالة الصورة
                           </button>
                         </div>
-                        <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-[#252321] border border-[#B98A78]/45 shadow-xs">
+                        <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-[#1F1F1C] border border-[#D97757]/45 shadow-xs">
                           <ResilientImage
                             src={articleCoverImageUrl}
                             alt="معاينة الغلاف القياسية"
                             className="w-full h-full object-cover"
                           />
                           {articleCoverTextOverlay && (
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#252321]/80 via-transparent to-transparent flex items-end p-3">
-                              <span className="text-white font-display font-bold text-xs sm:text-sm drop-shadow">
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#1F1F1C]/80 via-transparent to-transparent flex items-end p-3">
+                              <span className="text-[#F5F1E8] font-display font-bold text-xs sm:text-sm drop-shadow">
                                 {articleCoverTextOverlay}
                               </span>
                             </div>
@@ -5200,7 +5200,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   {articleType === 'فيديو' && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                       <div className="sm:col-span-2">
-                        <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                           رابط الفيديو (YouTube أو رابط مباشر)
                         </label>
                         <input
@@ -5209,11 +5209,11 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           value={articleVideoUrl}
                           onChange={(e) => setArticleVideoUrl(e.target.value)}
                           placeholder="https://www.youtube.com/watch?v=..."
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] text-xs text-[#252321]"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                        <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                           مدة الفيديو (بالدقائق - اختياري)
                         </label>
                         <input
@@ -5221,7 +5221,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           value={articleDuration}
                           onChange={(e) => setArticleDuration(e.target.value)}
                           placeholder="مثال: 12"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] text-xs text-[#252321]"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C]"
                         />
                       </div>
                     </div>
@@ -5231,13 +5231,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {/* =============================================================
                     SECTION: النصوص المصاحبة للصورة/الفيديو (Matches Screenshot Layout)
                    ============================================================= */}
-                <div className="pt-4 border-t border-[#EFEAE0] space-y-3.5">
-                  <h4 className="text-sm font-display font-extrabold text-[#252321] border-r-4 border-[#8D4925] pr-2.5">
+                <div className="pt-4 border-t border-[#D8C7B2] space-y-3.5">
+                  <h4 className="text-sm font-display font-extrabold text-[#1F1F1C] border-r-4 border-[#D97757] pr-2.5">
                     النصوص المصاحبة للصورة/الفيديو
                   </h4>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                       إلصق عنوان (الصورة/الفيديو) وهو نص يعرض فوق الصورة (اختياري)
                     </label>
                     <input
@@ -5245,13 +5245,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                       value={articleCoverTextOverlay}
                       onChange={(e) => setArticleCoverTextOverlay(e.target.value)}
                       placeholder="مثال: رحلة البحث في التراث..."
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] focus:outline-none text-xs text-[#1F1F1C]"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         وصف الصورة/الفيديو المصغر (أسفل الصورة) (اختياري)
                       </label>
                       <input
@@ -5259,12 +5259,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         value={articleImageCaption}
                         onChange={(e) => setArticleImageCaption(e.target.value)}
                         placeholder="توضيح للصورة أو الوثيقة المعروضة..."
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] focus:outline-none text-xs text-[#1F1F1C]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         الملكية الفكرية (اختياري)
                       </label>
                       <input
@@ -5272,15 +5272,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                         value={articleImageCopyright}
                         onChange={(e) => setArticleImageCopyright(e.target.value)}
                         placeholder="مثال: أرشيف مركز آدم للبحوث"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D8D0C0] focus:border-[#8D4925] focus:outline-none text-xs text-[#252321]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] focus:outline-none text-xs text-[#1F1F1C]"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Optional Fields Aesthetic Notice Banner (Matches Screenshot) */}
-                <div className="p-3.5 rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center gap-2.5 text-xs font-bold text-[#8D4925]">
-                  <span className="w-5 h-5 rounded-full border border-[#8D4925] flex items-center justify-center text-[11px] shrink-0">
+                <div className="p-3.5 rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center gap-2.5 text-xs font-bold text-[#D97757]">
+                  <span className="w-5 h-5 rounded-full border border-[#D97757] flex items-center justify-center text-[11px] shrink-0">
                     !
                   </span>
                   <span>
@@ -5289,18 +5289,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 </div>
 
                 {/* Submit / Cancel Footer */}
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2DACB]">
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D8C7B2]">
                   <button
                     type="button"
                     onClick={() => setIsArticleModalOpen(false)}
-                    className="px-5 py-2.5 rounded-xl bg-[#EDE6DA] hover:bg-[#e2d8c7] text-xs font-bold text-[#252321] cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-xs font-bold text-[#1F1F1C] cursor-pointer"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
                     disabled={isSavingArticle}
-                    className="px-6 py-2.5 rounded-xl bg-[#8D4925] hover:bg-[#753b1d] text-white text-xs sm:text-sm font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                    className="px-6 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs sm:text-sm font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
                   >
                     {isSavingArticle
                       ? 'جاري الحفظ...'
@@ -5326,25 +5326,25 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           onClick={() => {
             if (!isDeletingArticle) setPendingDeleteArticle(null);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F1F1C]/50 backdrop-blur-[2px] p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-2xl border border-[#E2DACB] shadow-2xl overflow-hidden text-right"
+            className="w-full max-w-md bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] shadow-2xl overflow-hidden text-right"
           >
             <div className="p-5 sm:p-6 space-y-4">
               <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                <div className="w-11 h-11 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-[#D97757]" />
                 </div>
                 <div className="space-y-1 flex-1">
                   <h3
                     id="cms-delete-confirm-title"
-                    className="text-base font-extrabold text-[#252321]"
+                    className="text-base font-extrabold text-[#1F1F1C]"
                   >
                     تأكيد حذف المقال
                   </h3>
-                  <p className="text-xs text-[#6E6456] leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
                     هل أنت متأكد من رغبتك في حذف هذا الموضوع نهائياً من المركز المعرفي؟ لا يمكن التراجع عن هذا الإجراء بعد التنفيذ.
                   </p>
                 </div>
@@ -5352,18 +5352,18 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   type="button"
                   disabled={isDeletingArticle}
                   onClick={() => setPendingDeleteArticle(null)}
-                  className="p-1.5 rounded-lg text-[#6E6456] hover:bg-[#FAF6F0] hover:text-[#252321] transition cursor-pointer disabled:opacity-40"
+                  className="p-1.5 rounded-lg text-[#1F1F1C]/70 hover:bg-[#F5F1E8] hover:text-[#1F1F1C] transition cursor-pointer disabled:opacity-40"
                   aria-label="إغلاق نافذة التأكيد"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] space-y-1">
-                <div className="text-sm font-bold text-[#252321] line-clamp-2">
+              <div className="p-3.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] space-y-1">
+                <div className="text-sm font-bold text-[#1F1F1C] line-clamp-2">
                   {pendingDeleteArticle.title}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-[#6E6456]">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-[#1F1F1C]/70">
                   <span>
                     {pendingDeleteArticle.section || 'الروايات والذاكرة'}
                   </span>
@@ -5380,12 +5380,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EFEAE0]">
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#D8C7B2]">
                 <button
                   type="button"
                   disabled={isDeletingArticle}
                   onClick={() => setPendingDeleteArticle(null)}
-                  className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D8CFC0] text-xs font-bold text-[#252321] transition cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C] transition cursor-pointer disabled:opacity-50"
                 >
                   إلغاء
                 </button>
@@ -5395,7 +5395,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   onClick={() =>
                     handleDeleteKnowledgeArticle(pendingDeleteArticle.id)
                   }
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold transition cursor-pointer disabled:opacity-50 shadow-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>

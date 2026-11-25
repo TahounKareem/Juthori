@@ -27,10 +27,10 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
       <div
         role="img"
         aria-label={alt}
-        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#EDE6DA] via-[#E5DBCA] to-[#D8755B]/25 text-[#252321] p-6 text-center ${className}`}
+        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#E8DED2] via-[#E8DED2] to-[#D97757]/25 text-[#1F1F1C] p-6 text-center ${className}`}
       >
-        <BookOpen className="w-8 h-8 text-[#D8755B] mb-2" aria-hidden="true" />
-        <span className="text-sm font-medium text-[#252321]/80 line-clamp-2">
+        <BookOpen className="w-8 h-8 text-[#D97757] mb-2" aria-hidden="true" />
+        <span className="text-sm font-medium text-[#1F1F1C]/80 line-clamp-2">
           {fallbackLabel || alt}
         </span>
       </div>

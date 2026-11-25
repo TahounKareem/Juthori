@@ -6,8 +6,8 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Route,
   ShieldCheck,
-  Sparkles,
   Wallet,
 } from 'lucide-react';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
@@ -549,12 +549,12 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   return (
     <div
       data-testid="customer-home-executive-hub"
-      className="w-full space-y-6 text-[#252321]"
+      className="w-full space-y-6 text-[#1F1F1C]"
     >
       {/* ===================================================================
           TIER 1 — Royal Hero & Gamified Legacy Journey Compass
          =================================================================== */}
-      <section className="group relative rounded-2xl bg-gradient-to-l from-[#FCF8F0] via-[#FDFBF7] to-[#FAF5EA] border border-[#E6DAC3] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_18px_-6px_rgba(44,30,20,0.05)]">
+      <section className="group relative rounded-2xl bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8] to-[#F5F1E8] border border-[#D8C7B2] shadow-[inset_0_1px_0_rgba(245,241,232,0.9),0_4px_18px_-6px_rgba(31,31,28,0.05)]">
         {/* Shared Masked Heritage Filigree Watermark, Specular Gold Crest & Micro Corner Filigrees */}
         <HeritagePlaqueOrnamentLayer scale="hero" />
 
@@ -562,7 +562,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           {/* Top Row: Pure Greeting + Royal Role/Family Badge | Wallet & Subscriptions */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="inline-flex items-center flex-wrap gap-3 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321] leading-normal">
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1F1F1C] leading-normal">
                 {greetingHeading}
               </h1>
               <RoyalRoleFamilyBadge
@@ -574,13 +574,13 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <div className="h-10 px-4 rounded-xl bg-white border border-[#E2D5BE] flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-[#8C5327] shrink-0" />
+              <div className="h-10 px-4 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-[#D97757] shrink-0" />
                 <div className="text-[12.5px] flex items-center gap-1.5">
-                  <span className="text-[#7A6855]">رصيد المحفظة:</span>
+                  <span className="text-[#D97757]">رصيد المحفظة:</span>
                   <strong
                     dir="ltr"
-                    className="inline-block font-mono tabular-nums text-[13px] font-bold text-[#2C1E14]"
+                    className="inline-block font-mono tabular-nums text-[13px] font-bold text-[#1F1F1C]"
                   >
                     ${walletBalance.toFixed(2)}
                   </strong>
@@ -598,22 +598,22 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           </div>
 
           {/* Interactive Family Legacy Milestones Compass */}
-          <div className="pt-4 border-t border-[#D8C4A0]/60 space-y-3.5">
+          <div className="pt-4 border-t border-[#D8C7B2]/60 space-y-3.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#9E6B2B]" />
-                <span className="font-display font-bold text-[#252321]">
+                <Route className="w-3.5 h-3.5 text-[#D97757]" />
+                <span className="font-display font-bold text-[#1F1F1C]">
                   مسار اكتمال صرح العائلة
                 </span>
-                <span className="text-[#6E6456] hidden sm:inline">
+                <span className="text-[#1F1F1C]/70 hidden sm:inline">
                   — انقر على أي محطة للانتقال المباشر وإنجازها
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs tabular-nums">
-                <span className="text-[#6E6456]">
+                <span className="text-[#1F1F1C]/70">
                   {completedMilestonesCount} من {legacyMilestones.length} محطات
                 </span>
-                <span className="font-mono font-bold text-[#8D4925]">
+                <span className="font-mono font-bold text-[#D97757]">
                   {legacyCompletionPercent}%
                 </span>
               </div>
@@ -624,10 +624,10 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               {/* Connecting golden horizontal line (visible on md+) */}
               <div
                 aria-hidden="true"
-                className="hidden md:block absolute top-4.5 inset-x-10 h-[2px] bg-[#DFCFAF]"
+                className="hidden md:block absolute top-4.5 inset-x-10 h-[2px] bg-[#D8C7B2]"
               >
                 <div
-                  className="h-full bg-gradient-to-l from-[#D4AF6A] to-[#8D4925] transition-all duration-500"
+                  className="h-full bg-gradient-to-l from-[#D97757] to-[#D97757] transition-all duration-500"
                   style={{ width: `${legacyCompletionPercent}%` }}
                 />
               </div>
@@ -642,19 +642,19 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                       onClick={() => onNavigateTab(m.tab)}
                       className={`group relative z-10 rounded-xl px-3 py-2.5 flex md:flex-col items-center gap-2 text-right md:text-center transition-all duration-300 cursor-pointer border ${
                         m.completed
-                          ? 'bg-white/85 border-[#D4AF6A]/65 hover:border-[#8D4925]'
+                          ? 'bg-[#F5F1E8]/85 border-[#D8C7B2]/65 hover:border-[#D97757]'
                           : isNext
-                          ? 'bg-white border-[#D4AF6A] shadow-xs ring-2 ring-[#D4AF6A]/30 hover:-translate-y-0.5'
-                          : 'bg-white/55 border-[#DFD2BC]/75 hover:bg-white/85 hover:border-[#C8A666]'
+                          ? 'bg-[#F5F1E8] border-[#D8C7B2] shadow-xs ring-2 ring-[#D8C7B2]/30 hover:-translate-y-0.5'
+                          : 'bg-[#F5F1E8]/55 border-[#D8C7B2]/75 hover:bg-[#F5F1E8]/85 hover:border-[#D8C7B2]'
                       }`}
                     >
                       <div
                         className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold shrink-0 transition-transform duration-300 group-hover:scale-105 ${
                           m.completed
-                            ? 'bg-gradient-to-br from-[#D4AF6A] to-[#9E6B2B] text-white shadow-xs'
+                            ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
                             : isNext
-                            ? 'bg-[#252321] text-[#F3D299] ring-4 ring-[#D4AF6A]/25'
-                            : 'bg-[#EFE6D6] text-[#6E6456]'
+                            ? 'bg-[#E8DED2] text-[#D97757] border-2 border-[#D97757] ring-4 ring-[#D8C7B2]/35'
+                            : 'bg-[#E8DED2] text-[#1F1F1C]/70'
                         }`}
                       >
                         {m.completed ? (
@@ -668,15 +668,15 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                         <div
                           className={`text-[11px] font-display font-bold truncate ${
                             m.completed
-                              ? 'text-[#252321]'
+                              ? 'text-[#1F1F1C]'
                               : isNext
-                              ? 'text-[#8D4925]'
-                              : 'text-[#5C5346]'
+                              ? 'text-[#D97757]'
+                              : 'text-[#1F1F1C]/70'
                           }`}
                         >
                           {m.label}
                         </div>
-                        <div className="text-[10px] text-[#7A6F5F] hidden sm:block">
+                        <div className="text-[10px] text-[#1F1F1C]/70 hidden sm:block">
                           {m.completed
                             ? 'مكتمل ✓'
                             : isNext
@@ -701,7 +701,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-stretch"
       >
         {/* 1. جناح «عمود نسبي» (Row 1 — 6 Columns, Warm Antique Manuscript Parchment) */}
-        <article className="group lg:col-span-6 h-full rounded-2xl bg-gradient-to-bl from-[#FCF8F0] via-[#F9F2E4] to-[#F3E8D3] border border-[#D4BC91]/70 p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#C59B47]">
+        <article className="group lg:col-span-6 h-full rounded-2xl bg-gradient-to-bl from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2] border border-[#D8C7B2]/70 p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D97757]">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -709,15 +709,15 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                   <JUTHORI_SERVICE_ICONS.lineage className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                  <h2 className="text-base sm:text-lg font-display font-bold text-[#1F1F1C]">
                     عمود نسبي
                   </h2>
-                  <p className="text-[11px] text-[#6E6456]">
+                  <p className="text-[11px] text-[#1F1F1C]/70">
                     سلسلة النسب التاريخية الموثقة والمصادر المرجعية
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-display font-bold text-[#8D4925] whitespace-nowrap">
+              <span className="text-[11px] font-display font-bold text-[#D97757] whitespace-nowrap">
                 {result.matched ? 'ربط مرجعي موثق' : 'قيد التحقيق'}
               </span>
             </div>
@@ -731,16 +731,16 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               unlockedCapsulesCount={unlockedCapsulesCount}
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#5C5346]">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]/70">
               <div>
                 الجذر الموثق:{' '}
-                <strong className="font-display text-[#252321]">
+                <strong className="font-display text-[#1F1F1C]">
                   {verifiedRootDisplay}
                 </strong>
               </div>
               <div className="tabular-nums">
                 الحلقات الوسطية:{' '}
-                <strong className="font-display text-[#8D4925]">
+                <strong className="font-display text-[#D97757]">
                   {unlockedCapsulesCount} مفتوحة من {totalCapsules}
                 </strong>
               </div>
@@ -750,7 +750,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.Lineage)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#8D4925] hover:bg-[#733a1d] text-[#FAF4E4] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>استعراض عمود النسب الموثق</span>
             <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -758,7 +758,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         </article>
 
         {/* 2. جناح «شجرتي» (Row 1 — 6 Columns, Calm Botanical Ivory & Tree Gauge) */}
-        <article className="group lg:col-span-6 h-full rounded-2xl bg-gradient-to-bl from-[#FBFBF7] via-[#F4F6EE] to-[#EAEFE2] border border-[#C1CCB5]/75 p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#8AA07C]">
+        <article className="group lg:col-span-6 h-full rounded-2xl bg-gradient-to-bl from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2] border border-[#D8C7B2]/75 p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D8C7B2]">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -766,15 +766,15 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                   <JUTHORI_SERVICE_ICONS.tree className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                  <h2 className="text-base sm:text-lg font-display font-bold text-[#1F1F1C]">
                     شجرتي
                   </h2>
-                  <p className="text-[11px] text-[#556150]">
+                  <p className="text-[11px] text-[#1F1F1C]/70">
                     استوديو المشجرة المعاصرة وتفريعات الأجيال
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-display font-bold text-[#2E4234] tabular-nums whitespace-nowrap">
+              <span className="text-[11px] font-display font-bold text-[#1F1F1C] tabular-nums whitespace-nowrap">
                 {treeMembersCount} فرداً
               </span>
             </div>
@@ -785,16 +785,16 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               totalTreeCapacity={totalTreeCapacity}
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#4C5847] tabular-nums">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]/70 tabular-nums">
               <span>
                 الأفراد المسجلون:{' '}
-                <strong className="font-display text-[#252321]">
+                <strong className="font-display text-[#1F1F1C]">
                   {treeMembersCount} أفراد من سعة {totalTreeCapacity}
                 </strong>
               </span>
               <span>
                 السعة المتاحة:{' '}
-                <strong className="font-display text-[#2E4234]">
+                <strong className="font-display text-[#1F1F1C]">
                   {Math.max(0, totalTreeCapacity - treeMembersCount)} مقعداً
                 </strong>
               </span>
@@ -804,7 +804,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyTree)}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#2E4234] hover:bg-[#233428] text-[#F5F2E9] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>فتح استوديو الشجرة</span>
             <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -812,18 +812,18 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         </article>
 
         {/* 3. حزمة «خزانتي» (Row 2 — 3 Columns on XL / 6 on LG, Stacked Polaroid Fan) */}
-        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#DFD1BA] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#C59B47]">
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D97757]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <JUTHORI_SERVICE_ICONS.vault className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321]">
+                <h2 className="text-base font-display font-bold text-[#1F1F1C]">
                   خزانتي
                 </h2>
               </div>
-              <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+              <span className="text-[11px] font-display font-bold text-[#D97757] tabular-nums">
                 {vaultState.itemsCount} مقتنى
               </span>
             </div>
@@ -834,16 +834,16 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               itemsCount={vaultState.itemsCount}
             />
 
-            <div className="space-y-1 text-xs text-[#5C5346] tabular-nums">
+            <div className="space-y-1 text-xs text-[#1F1F1C]/70 tabular-nums">
               <div>
                 الصور والوثائق:{' '}
-                <strong className="text-[#252321]">
+                <strong className="text-[#1F1F1C]">
                   {vaultState.itemsCount} ملفاً
                 </strong>
               </div>
               <div>
                 مجلدات الأرشيف:{' '}
-                <strong className="text-[#252321]">
+                <strong className="text-[#1F1F1C]">
                   {vaultState.foldersCount} مجلدات
                 </strong>
               </div>
@@ -853,7 +853,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyVault)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F7EFE0] hover:bg-[#8D4925] text-[#8D4925] hover:text-white border border-[#DEC9A4] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>إدارة الخزانة</span>
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -861,23 +861,23 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         </article>
 
         {/* 4. حزمة «كشّافي» (Row 2 — 3 Columns on XL / 6 on LG, Warm Parchment & Antique Gold Observatory Card) */}
-        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#FFFDF9] via-[#FBF5E8] to-[#F4E7CE] border border-[#D6B97E]/80 text-[#252321] p-5 flex flex-col justify-between gap-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#B68A3A]">
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-gradient-to-bl from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2] border border-[#D8C7B2]/80 text-[#1F1F1C] p-5 flex flex-col justify-between gap-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D97757]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <JUTHORI_SERVICE_ICONS.kashafi className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321] tracking-wide">
+                <h2 className="text-base font-display font-bold text-[#1F1F1C] tracking-wide">
                   كشّافي
                 </h2>
               </div>
               {unreadKashafiItemsCount > 0 ? (
-                <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+                <span className="text-[11px] font-display font-bold text-[#D97757] tabular-nums">
                   {unreadKashafiItemsCount} جديد
                 </span>
               ) : (
-                <span className="text-[10px] font-bold text-[#8D4925]/85">
+                <span className="text-[10px] font-bold text-[#D97757]/85">
                   رادار البحوث
                 </span>
               )}
@@ -890,10 +890,10 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               matchingCampaignsCount={matchingCampaignsCount}
             />
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
+            <div className="space-y-1 text-xs text-[#1F1F1C]/70">
               <div className="truncate">
                 التحقيق:{' '}
-                <strong className="text-[#252321]">
+                <strong className="text-[#1F1F1C]">
                   {activeTicket
                     ? `بعثة جارية (#${activeTicket.ticketNumber})`
                     : 'لا توجد بعثة مفتوحة'}
@@ -901,7 +901,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               </div>
               <div className="tabular-nums truncate">
                 المرصد:{' '}
-                <strong className="text-[#8D4925]">
+                <strong className="text-[#D97757]">
                   {kashafiItems.length} اكتشاف · {matchingCampaignsCount} خدمة
                 </strong>
               </div>
@@ -911,7 +911,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F7E8C8] hover:bg-[#8D4925] text-[#7A3F1D] hover:text-white border border-[#D6B97E] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer shadow-xs"
           >
             <span>استكشاف كشّافي</span>
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -919,20 +919,20 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         </article>
 
         {/* 5. حزمة «موقعي» (Row 2 — 3 Columns on XL / 6 on LG, Live Mini Portal Mockup) */}
-        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#DDD4C7] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#8D6E48]">
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D97757]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <JUTHORI_SERVICE_ICONS.site className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321]">
+                <h2 className="text-base font-display font-bold text-[#1F1F1C]">
                   موقعي
                 </h2>
               </div>
               <span
                 className={`text-[11px] font-display font-bold ${
-                  siteInfo.isPublished ? 'text-emerald-800' : 'text-[#7A6F5F]'
+                  siteInfo.isPublished ? 'text-[#1F1F1C]' : 'text-[#1F1F1C]/70'
                 }`}
               >
                 {siteInfo.isPublished ? 'منشور ✓' : 'مسودة'}
@@ -950,12 +950,12 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               visualBranding={siteInfo.visualBranding}
             />
 
-            <div className="space-y-1 text-xs text-[#5C5346]">
+            <div className="space-y-1 text-xs text-[#1F1F1C]/70">
               <div className="truncate">
                 الرابط:{' '}
                 <strong
                   dir="ltr"
-                  className="inline-block font-mono text-[11px] text-[#252321]"
+                  className="inline-block font-mono text-[11px] text-[#1F1F1C]"
                 >
                   {siteInfo.slug
                     ? `${ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/${siteInfo.slug}`
@@ -964,7 +964,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               </div>
               <div className="truncate">
                 الحالة:{' '}
-                <strong className="text-[#252321]">
+                <strong className="text-[#1F1F1C]">
                   {siteInfo.isPublished ? 'بوابة عائلية نشطة' : 'جاهز للتخصيص'}
                 </strong>
               </div>
@@ -974,7 +974,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MySite)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F4F0E8] hover:bg-[#8D4925] text-[#252321] hover:text-white border border-[#D8CEBF] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>تخصيص موقعي</span>
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -982,18 +982,18 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         </article>
 
         {/* 6. حزمة «مجتمعي» (Row 2 — 3 Columns on XL / 6 on LG, Kinship Orbit & Avatars) */}
-        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#FFFDF9] border border-[#E2CFC2] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D8755B]">
+        <article className="group lg:col-span-6 xl:col-span-3 h-full rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-[#D97757]">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <JUTHORI_SERVICE_ICONS.community className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-display font-bold text-[#252321]">
+                <h2 className="text-base font-display font-bold text-[#1F1F1C]">
                   مجتمعي
                 </h2>
               </div>
-              <span className="text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+              <span className="text-[11px] font-display font-bold text-[#D97757] tabular-nums">
                 {relativesCount} قريب
               </span>
             </div>
@@ -1005,16 +1005,16 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               pendingEnrichments={pendingEnrichments}
             />
 
-            <div className="space-y-1 text-xs text-[#5C5346] tabular-nums">
+            <div className="space-y-1 text-xs text-[#1F1F1C]/70 tabular-nums">
               <div>
                 أفراد الدائرة:{' '}
-                <strong className="text-[#252321]">
+                <strong className="text-[#1F1F1C]">
                   {relativesCount} عضواً
                 </strong>
               </div>
               <div>
                 مقترحات الإثراء:{' '}
-                <strong className="text-[#252321]">
+                <strong className="text-[#1F1F1C]">
                   {pendingEnrichments} بانتظار المراجعة
                 </strong>
               </div>
@@ -1024,7 +1024,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab(DashboardTab.MyCommunity)}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-[#FCF0EA] hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#E8C8B9] hover:border-[#D8755B] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
+            className="w-full py-2.5 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center justify-between transition-all duration-300 cursor-pointer"
           >
             <span>إدارة دائرة الأقارب</span>
             <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -1039,29 +1039,29 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         {/* Right Column: نبض كشّافي الجاري */}
         <div
           data-testid="home-kashafi-pulse-card"
-          className="relative overflow-hidden h-full rounded-2xl bg-[#FFFDF9]/85 backdrop-blur-md border border-[#DAC8AA]/70 shadow-xs flex flex-col justify-between transition-all duration-300 hover:border-[#C59B47]/80"
+          className="relative overflow-hidden h-full rounded-2xl bg-[#F5F1E8]/85 backdrop-blur-md border border-[#D8C7B2]/70 shadow-xs flex flex-col justify-between transition-all duration-300 hover:border-[#D97757]/80"
         >
           {/* Fine gilded top hairline */}
           <div
-            className="h-[2px] w-full bg-gradient-to-l from-[#D4AF6A] via-[#D8755B]/70 to-transparent"
+            className="h-[2px] w-full bg-gradient-to-l from-[#D97757] via-[#D97757]/70 to-transparent"
             aria-hidden="true"
           />
 
           <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE4D4]">
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#D8C7B2]">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                     <JUTHORI_SERVICE_ICONS.kashafi className="w-4 h-4" />
                   </div>
-                  <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                  <h2 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]">
                     نبض كشّافي الجاري
                   </h2>
                 </div>
                 {activeTicket && (
                   <span
                     dir="ltr"
-                    className="font-mono tabular-nums text-xs font-bold text-[#8D4925]"
+                    className="font-mono tabular-nums text-xs font-bold text-[#D97757]"
                   >
                     #{activeTicket.ticketNumber}
                   </span>
@@ -1071,71 +1071,71 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               {activeTicket && activeTicketProgress ? (
                 <div className="space-y-3.5">
                   <div className="space-y-1.5">
-                    <div className="text-sm font-display font-bold text-[#252321]">
+                    <div className="text-sm font-display font-bold text-[#1F1F1C]">
                       {activeTicket.targetAncestor ||
                         `بعثة تحقيق نسب عائلة ${result.familyName}`}
                     </div>
-                    <div className="flex items-center justify-between text-xs text-[#6E6456]">
+                    <div className="flex items-center justify-between text-xs text-[#1F1F1C]/70">
                       <span className="inline-flex items-center gap-1.5">
                         {resolveTicketLifecycleStage(activeTicket) ===
                         'NEEDS_INFO' ? (
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+                          <AlertCircle className="w-3.5 h-3.5 text-[#D97757]" />
                         ) : (
-                          <Clock className="w-3.5 h-3.5 text-[#D8755B]" />
+                          <Clock className="w-3.5 h-3.5 text-[#D97757]" />
                         )}
                         <span>المرحلة الحالية: {activeTicketProgress.label}</span>
                       </span>
-                      <span className="font-mono tabular-nums font-bold text-[#8D4925]">
+                      <span className="font-mono tabular-nums font-bold text-[#D97757]">
                         {activeTicketProgress.percent}%
                       </span>
                     </div>
                   </div>
 
                   {/* Gilded Progress Track */}
-                  <div className="h-2 rounded-full bg-[#EFE6D6] overflow-hidden">
+                  <div className="h-2 rounded-full bg-[#E8DED2] overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-l from-[#D4AF6A] to-[#D8755B] transition-all duration-500"
+                      className="h-full rounded-full bg-gradient-to-l from-[#D97757] to-[#D97757] transition-all duration-500"
                       style={{ width: `${activeTicketProgress.percent}%` }}
                     />
                   </div>
                 </div>
               ) : activeKashafiOrder ? (
-                <div className="rounded-xl bg-[#FAF6EE]/80 border border-[#E6D9C3] p-4 space-y-1.5 text-xs">
-                  <div className="text-sm font-display font-bold text-[#252321]">
+                <div className="rounded-xl bg-[#F5F1E8]/80 border border-[#D8C7B2] p-4 space-y-1.5 text-xs">
+                  <div className="text-sm font-display font-bold text-[#1F1F1C]">
                     {activeKashafiOrder.campaignTitle}
                   </div>
-                  <p className="text-[#6E6456]">
+                  <p className="text-[#1F1F1C]/70">
                     الطلب{' '}
-                    <span dir="ltr" className="font-mono font-bold text-[#252321]">
+                    <span dir="ltr" className="font-mono font-bold text-[#1F1F1C]">
                       #{activeKashafiOrder.orderNumber}
                     </span>{' '}
                     — قيد المتابعة لدى{' '}
-                    <strong className="text-[#8D4925]">
+                    <strong className="text-[#D97757]">
                       {activeKashafiOrder.assignedResearcherName || 'مدير البحوث'}
                     </strong>
                   </p>
                 </div>
               ) : latestKashafiItem ? (
-                <div className="rounded-xl bg-[#FAF6EE]/80 border border-[#E6D9C3] p-4 space-y-1.5 text-xs">
-                  <div className="text-sm font-display font-bold text-[#252321]">
+                <div className="rounded-xl bg-[#F5F1E8]/80 border border-[#D8C7B2] p-4 space-y-1.5 text-xs">
+                  <div className="text-sm font-display font-bold text-[#1F1F1C]">
                     {latestKashafiItem.title}
                   </div>
-                  <p className="text-[#6E6456] line-clamp-2 leading-relaxed">
+                  <p className="text-[#1F1F1C]/70 line-clamp-2 leading-relaxed">
                     {latestKashafiItem.summary}
                   </p>
                 </div>
               ) : (
-                <p className="text-xs text-[#6E6456] leading-relaxed py-2">
+                <p className="text-xs text-[#1F1F1C]/70 leading-relaxed py-2">
                   لا توجد بعثة تحقيق مفتوحة حالياً — يتابع مرصد البحوث سجلات عائلتكم ويعرض أي مستجدات أو بشارات مرجعية هنا تلقائياً.
                 </p>
               )}
             </div>
 
-            <div className="pt-3 border-t border-[#EDE4D4] flex justify-end">
+            <div className="pt-3 border-t border-[#D8C7B2] flex justify-end">
               <button
                 type="button"
                 onClick={() => onNavigateTab(DashboardTab.MyExplorer)}
-                className="px-4 py-2 rounded-xl bg-[#FAF4E8] hover:bg-[#8D4925] text-[#8D4925] hover:text-white border border-[#DEC9A4] hover:border-[#8D4925] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
+                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#D97757] text-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
               >
                 <span>متابعة التفاصيل والمحادثة في كشّافي</span>
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -1147,34 +1147,34 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         {/* Left Column: برقيات وتنبيهات المنصة (Authenticated Telegram Cards) */}
         <div
           data-testid="home-latest-alerts-card"
-          className="relative overflow-hidden h-full rounded-2xl bg-[#FFFDF9]/85 backdrop-blur-md border border-[#DAC8AA]/70 shadow-xs flex flex-col justify-between transition-all duration-300 hover:border-[#C59B47]/80"
+          className="relative overflow-hidden h-full rounded-2xl bg-[#F5F1E8]/85 backdrop-blur-md border border-[#D8C7B2]/70 shadow-xs flex flex-col justify-between transition-all duration-300 hover:border-[#D97757]/80"
         >
           {/* Fine gilded top hairline */}
           <div
-            className="h-[2px] w-full bg-gradient-to-l from-[#C8A666] via-[#8D4925]/60 to-transparent"
+            className="h-[2px] w-full bg-gradient-to-l from-[#D97757] via-[#D97757]/60 to-transparent"
             aria-hidden="true"
           />
 
           <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
             <div className="space-y-3.5">
-              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#EDE4D4]">
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#D8C7B2]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#FAF2E4] border border-[#DFCCA8] text-[#8D4925] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                     <Bell className="w-4 h-4" />
                   </div>
-                  <h2 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                  <h2 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]">
                     برقيات وتنبيهات المنصة
                   </h2>
                 </div>
                 {dashboardNotifications.length > 0 && (
-                  <span className="text-[11px] font-mono tabular-nums text-[#7A6F5F]">
+                  <span className="text-[11px] font-mono tabular-nums text-[#1F1F1C]/70">
                     {dashboardNotifications.length} برقية
                   </span>
                 )}
               </div>
 
               {latestThreeAlerts.length === 0 ? (
-                <p className="text-xs text-[#6E6456] leading-relaxed py-2">
+                <p className="text-xs text-[#1F1F1C]/70 leading-relaxed py-2">
                   لا توجد برقيات أو تنبيهات واردة في السجل حالياً.
                 </p>
               ) : (
@@ -1183,14 +1183,14 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                     <li
                       key={alert.id}
                       onClick={onOpenNotificationsDrawer}
-                      className="group/item rounded-xl px-3 py-2.5 bg-[#FAF6EE]/65 hover:bg-[#F5ECDC] border border-transparent hover:border-[#DECBA9] flex items-start justify-between gap-3 transition-all duration-300 cursor-pointer"
+                      className="group/item rounded-xl px-3 py-2.5 bg-[#F5F1E8]/65 hover:bg-[#E8DED2] border border-transparent hover:border-[#D8C7B2] flex items-start justify-between gap-3 transition-all duration-300 cursor-pointer"
                     >
                       <div className="flex items-start gap-2.5 min-w-0">
                         <div
                           className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                             alert.unread
-                              ? 'bg-[#D8755B]/15 text-[#8D4925] border border-[#D8755B]/35'
-                              : 'bg-white text-[#8C8272] border border-[#E2D6C3]'
+                              ? 'bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/35'
+                              : 'bg-[#F5F1E8] text-[#1F1F1C]/70 border border-[#D8C7B2]'
                           }`}
                         >
                           {alert.unread ? (
@@ -1200,16 +1200,16 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                           )}
                         </div>
                         <div className="min-w-0 space-y-0.5">
-                          <div className="text-xs font-display font-bold text-[#252321] truncate group-hover/item:text-[#8D4925] transition-colors">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C] truncate group-hover/item:text-[#D97757] transition-colors">
                             {alert.title}
                           </div>
-                          <p className="text-[11px] text-[#6E6456] line-clamp-1">
+                          <p className="text-[11px] text-[#1F1F1C]/70 line-clamp-1">
                             {alert.body}
                           </p>
                         </div>
                       </div>
 
-                      <span className="text-[10px] text-[#8C8272] whitespace-nowrap shrink-0 tabular-nums mt-0.5">
+                      <span className="text-[10px] text-[#1F1F1C]/70 whitespace-nowrap shrink-0 tabular-nums mt-0.5">
                         {alert.timestamp}
                       </span>
                     </li>
@@ -1218,11 +1218,11 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               )}
             </div>
 
-            <div className="pt-3 border-t border-[#EDE4D4] flex justify-end">
+            <div className="pt-3 border-t border-[#D8C7B2] flex justify-end">
               <button
                 type="button"
                 onClick={onOpenNotificationsDrawer}
-                className="px-4 py-2 rounded-xl bg-[#FAF4E8] hover:bg-[#252321] text-[#252321] hover:text-[#F3D299] border border-[#DEC9A4] hover:border-[#252321] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
+                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#1F1F1C] text-[#1F1F1C] hover:text-[#D97757] border border-[#D8C7B2] hover:border-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
               >
                 <span>عرض سجل البرقيات الكامل</span>
                 <ArrowLeft className="w-3.5 h-3.5" />

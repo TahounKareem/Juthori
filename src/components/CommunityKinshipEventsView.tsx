@@ -8,10 +8,10 @@ import {
   HeartHandshake,
   MapPin,
   Share2,
-  Trees,
   Users,
   XCircle,
 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   KinshipCircleDoc,
   PublicMicrositeData,
@@ -103,17 +103,17 @@ export const CommunityKinshipEventsView: React.FC<
   return (
     <div className="space-y-6">
       {/* Section 1: Real Family Events & RSVP Tracker (Wired to «موقعي») */}
-      <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-3">
+      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#F7F2E9] text-[#8D4925] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] text-[#D97757] flex items-center justify-center shrink-0">
               <Calendar className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h3 className="text-sm font-display font-bold text-[#252321]">
+              <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                 متابعة مناسبات العائلة وتأكيد الحضور (RSVP)
               </h3>
-              <p className="text-[11px] text-[#252321]/60">
+              <p className="text-[11px] text-[#1F1F1C]/60">
                 مرتبطة لحظياً بالمناسبات المسجّلة في بوابة عائلة {familyName} «موقعي»
               </p>
             </div>
@@ -122,7 +122,7 @@ export const CommunityKinshipEventsView: React.FC<
           <button
             type="button"
             onClick={() => onNavigateTab?.(DashboardTab.MySite)}
-            className="px-3.5 py-2 rounded-xl bg-[#FAF6EE] hover:bg-[#EFE7DA] border border-[#B98A78]/35 text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/35 text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>إدارة المناسبات في «موقعي»</span>
             <ArrowUpLeft className="w-3.5 h-3.5" />
@@ -131,15 +131,15 @@ export const CommunityKinshipEventsView: React.FC<
 
         <div className="p-6">
           {realEvents.length === 0 ? (
-            <div className="rounded-2xl bg-[#FAF6EE] border border-dashed border-[#B98A78]/50 p-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-white border border-[#B98A78]/30 mx-auto flex items-center justify-center text-[#8D4925]">
+            <div className="rounded-2xl bg-[#F5F1E8] border border-dashed border-[#D97757]/50 p-8 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 mx-auto flex items-center justify-center text-[#D97757]">
                 <Calendar className="w-6 h-6" />
               </div>
               <div className="space-y-1 max-w-md mx-auto">
-                <h4 className="text-sm font-display font-bold text-[#252321]">
+                <h4 className="text-sm font-display font-bold text-[#1F1F1C]">
                   لا توجد مناسبات عائلية مجدولة حالياً
                 </h4>
-                <p className="text-xs text-[#252321]/65 leading-relaxed">
+                <p className="text-xs text-[#1F1F1C]/65 leading-relaxed">
                   أضف ملتقى العائلة السنوي، أو مأدبة عيد، أو اجتماع صلة الرحم عبر قسم المناسبات في «موقعي» ليتمكن أقاربك من تأكيد حضورهم ومتابعة الأعداد هنا تلقائياً.
                 </p>
               </div>
@@ -147,7 +147,7 @@ export const CommunityKinshipEventsView: React.FC<
                 <button
                   type="button"
                   onClick={() => onNavigateTab(DashboardTab.MySite)}
-                  className="mt-1 px-5 py-2.5 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-[#F7F2E9] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                  className="mt-1 px-5 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <span>إضافة أول مناسبة في «موقعي»</span>
                   <ArrowUpLeft className="w-3.5 h-3.5" />
@@ -183,22 +183,22 @@ export const CommunityKinshipEventsView: React.FC<
                 return (
                   <div
                     key={ev.id}
-                    className="rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/35 p-5 flex flex-col justify-between gap-4"
+                    className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col justify-between gap-4"
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0">
-                          <h4 className="text-base font-display font-bold text-[#252321] leading-snug">
+                          <h4 className="text-base font-display font-bold text-[#1F1F1C] leading-snug">
                             {ev.title}
                           </h4>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#252321]/70">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#1F1F1C]/70">
                             <span className="inline-flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-[#8D4925]" />
+                              <Calendar className="w-3.5 h-3.5 text-[#D97757]" />
                               {dateFormatted}
                             </span>
                             {ev.locationLabel && (
                               <span className="inline-flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5 text-[#8D4925]" />
+                                <MapPin className="w-3.5 h-3.5 text-[#D97757]" />
                                 {ev.locationLabel}
                               </span>
                             )}
@@ -208,8 +208,8 @@ export const CommunityKinshipEventsView: React.FC<
                         <span
                           className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-display font-bold tabular-nums ${
                             countdown.isPast
-                              ? 'bg-[#252321]/10 text-[#252321]/65'
-                              : 'bg-[#D8755B]/15 text-[#8D4925]'
+                              ? 'bg-[#1F1F1C]/10 text-[#1F1F1C]/65'
+                              : 'bg-[#D97757]/15 text-[#D97757]'
                           }`}
                         >
                           {countdown.label}
@@ -217,34 +217,34 @@ export const CommunityKinshipEventsView: React.FC<
                       </div>
 
                       {ev.hostNote && (
-                        <p className="text-xs text-[#252321]/70 bg-white/80 rounded-xl px-3.5 py-2.5 border border-[#B98A78]/20">
+                        <p className="text-xs text-[#1F1F1C]/70 bg-[#F5F1E8]/80 rounded-xl px-3.5 py-2.5 border border-[#D97757]/20">
                           {ev.hostNote}
                         </p>
                       )}
 
                       {/* Real RSVP Breakdown */}
                       <div className="grid grid-cols-3 gap-2 pt-1">
-                        <div className="rounded-xl bg-white border border-[#B98A78]/25 px-3 py-2.5 text-center">
-                          <div className="text-[10px] text-[#252321]/60">
+                        <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 px-3 py-2.5 text-center">
+                          <div className="text-[10px] text-[#1F1F1C]/60">
                             مؤكدون للحضور
                           </div>
-                          <div className="text-lg font-display font-bold text-emerald-800 tabular-nums mt-0.5">
+                          <div className="text-lg font-display font-bold text-[#1F1F1C] tabular-nums mt-0.5">
                             {attending.length}
                           </div>
                         </div>
-                        <div className="rounded-xl bg-white border border-[#B98A78]/25 px-3 py-2.5 text-center">
-                          <div className="text-[10px] text-[#252321]/60">
+                        <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 px-3 py-2.5 text-center">
+                          <div className="text-[10px] text-[#1F1F1C]/60">
                             إجمالي الضيوف
                           </div>
-                          <div className="text-lg font-display font-bold text-[#252321] tabular-nums mt-0.5">
+                          <div className="text-lg font-display font-bold text-[#1F1F1C] tabular-nums mt-0.5">
                             {totalGuests}
                           </div>
                         </div>
-                        <div className="rounded-xl bg-white border border-[#B98A78]/25 px-3 py-2.5 text-center">
-                          <div className="text-[10px] text-[#252321]/60">
+                        <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 px-3 py-2.5 text-center">
+                          <div className="text-[10px] text-[#1F1F1C]/60">
                             معتذرون
                           </div>
-                          <div className="text-lg font-display font-bold text-[#8D4925] tabular-nums mt-0.5">
+                          <div className="text-lg font-display font-bold text-[#D97757] tabular-nums mt-0.5">
                             {apologizing.length}
                           </div>
                         </div>
@@ -253,7 +253,7 @@ export const CommunityKinshipEventsView: React.FC<
                       {/* Real Attendee Names List */}
                       {rsvps.length > 0 ? (
                         <div className="space-y-1.5 pt-1">
-                          <div className="text-[11px] font-semibold text-[#252321]/65">
+                          <div className="text-[11px] font-semibold text-[#1F1F1C]/65">
                             أحدث ردود الحضور المسجّلة:
                           </div>
                           <div className="flex flex-wrap gap-1.5">
@@ -262,14 +262,14 @@ export const CommunityKinshipEventsView: React.FC<
                                 key={r.id}
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border ${
                                   r.status === 'attending'
-                                    ? 'bg-emerald-900/5 border-emerald-900/15 text-emerald-950'
-                                    : 'bg-amber-900/5 border-amber-900/15 text-[#8D4925]'
+                                    ? 'bg-[#1F1F1C]/5 border-[#1F1F1C]/15 text-[#1F1F1C]'
+                                    : 'bg-[#1F1F1C]/5 border-[#1F1F1C]/15 text-[#D97757]'
                                 }`}
                               >
                                 {r.status === 'attending' ? (
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                                  <CheckCircle2 className="w-3 h-3 text-[#D97757]" />
                                 ) : (
-                                  <XCircle className="w-3 h-3 text-[#8D4925]" />
+                                  <XCircle className="w-3 h-3 text-[#D97757]" />
                                 )}
                                 <span>{r.attendeeName}</span>
                                 {r.status === 'attending' &&
@@ -283,20 +283,20 @@ export const CommunityKinshipEventsView: React.FC<
                           </div>
                         </div>
                       ) : (
-                        <div className="text-[11px] text-[#252321]/55 italic">
+                        <div className="text-[11px] text-[#1F1F1C]/55 italic">
                           لم تُسجّل تأكيدات حضور لهذه المناسبة بعد. شارك التذكير عبر واتساب لتحفيز الأقارب.
                         </div>
                       )}
                     </div>
 
-                    <div className="pt-2 border-t border-[#B98A78]/20 flex items-center justify-between gap-2">
+                    <div className="pt-2 border-t border-[#D97757]/20 flex items-center justify-between gap-2">
                       <a
                         href={`https://wa.me/?text=${encodeURIComponent(
                           whatsappEventText
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#1F6E43] hover:bg-[#195a36] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors"
                       >
                         <Share2 className="w-3.5 h-3.5" />
                         <span>مشاركة تذكير المناسبة عبر واتساب</span>
@@ -313,15 +313,15 @@ export const CommunityKinshipEventsView: React.FC<
       {/* Section 2: Memory Guardians Honor Roll & Live Tree Kinship Pulse */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Memory Guardians Honor Roll */}
-        <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-[#B98A78]/25 flex items-center justify-between gap-2">
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-[#D97757]/25 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Award className="w-4.5 h-4.5 text-[#D8755B]" />
-              <h3 className="text-sm font-display font-bold text-[#252321]">
+              <Award className="w-4.5 h-4.5 text-[#D97757]" />
+              <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                 لوحة شرف «حماة الذاكرة»
               </h3>
             </div>
-            <span className="text-[11px] text-[#252321]/60 tabular-nums">
+            <span className="text-[11px] text-[#1F1F1C]/60 tabular-nums">
               {realGuardians.length} مساهم معتمد
             </span>
           </div>
@@ -329,13 +329,13 @@ export const CommunityKinshipEventsView: React.FC<
           <div className="p-6 flex-1">
             {realGuardians.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center py-6 space-y-2.5">
-                <div className="w-11 h-11 rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/30 flex items-center justify-center text-[#8D4925]">
+                <div className="w-11 h-11 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 flex items-center justify-center text-[#D97757]">
                   <HeartHandshake className="w-5 h-5" />
                 </div>
-                <div className="text-xs font-display font-bold text-[#252321]">
+                <div className="text-xs font-display font-bold text-[#1F1F1C]">
                   بانتظار أول مساهمة معتمدة من العائلة
                 </div>
-                <p className="text-[11px] text-[#252321]/60 max-w-sm leading-relaxed">
+                <p className="text-[11px] text-[#1F1F1C]/60 max-w-sm leading-relaxed">
                   عند اعتمادك لأي مقترح إضافة فرد أو صورة تاريخية من قريبك في «مركز الإثراء»، يتصدّر اسمه تلقائياً لوحة شرف حماة الذاكرة هنا وفي موقع العائلة.
                 </p>
               </div>
@@ -344,16 +344,16 @@ export const CommunityKinshipEventsView: React.FC<
                 {realGuardians.slice(0, 8).map((member, idx) => {
                   const rankColors =
                     idx === 0
-                      ? 'bg-[#D4AF6A]/20 text-[#8D4925] border-[#D4AF6A]/50'
+                      ? 'bg-[#D97757]/20 text-[#D97757] border-[#D8C7B2]/50'
                       : idx === 1
-                      ? 'bg-stone-200/70 text-stone-700 border-stone-300'
+                      ? 'bg-[#E8DED2]/70 text-[#1F1F1C]/70 border-[#D8C7B2]'
                       : idx === 2
-                      ? 'bg-amber-900/10 text-[#8D4925] border-amber-900/20'
-                      : 'bg-[#F7F2E9] text-[#252321]/70 border-[#B98A78]/30';
+                      ? 'bg-[#1F1F1C]/10 text-[#D97757] border-[#1F1F1C]/20'
+                      : 'bg-[#F5F1E8] text-[#1F1F1C]/70 border-[#D97757]/30';
                   return (
                     <div
                       key={member.id}
-                      className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/25 px-4 py-3 flex items-center justify-between gap-3"
+                      className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 px-4 py-3 flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
@@ -362,15 +362,15 @@ export const CommunityKinshipEventsView: React.FC<
                           #{idx + 1}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-display font-bold text-[#252321] truncate">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C] truncate">
                             {member.name}
                           </div>
-                          <div className="text-[11px] text-[#252321]/60 truncate">
+                          <div className="text-[11px] text-[#1F1F1C]/60 truncate">
                             {member.kinshipRelation}
                           </div>
                         </div>
                       </div>
-                      <span className="shrink-0 px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/30 text-[11px] font-display font-bold text-[#8D4925] tabular-nums">
+                      <span className="shrink-0 px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D97757]/30 text-[11px] font-display font-bold text-[#D97757] tabular-nums">
                         {member.approvedEnrichmentsCount} إثراء معتمد
                       </span>
                     </div>
@@ -382,11 +382,11 @@ export const CommunityKinshipEventsView: React.FC<
         </div>
 
         {/* Real Family Tree Kinship Pulse */}
-        <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-[#B98A78]/25 flex items-center justify-between gap-2">
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-[#D97757]/25 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Trees className="w-4.5 h-4.5 text-[#8D4925]" />
-              <h3 className="text-sm font-display font-bold text-[#252321]">
+              <JUTHORI_SERVICE_ICONS.tree className="w-4.5 h-4.5 text-[#D97757]" />
+              <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                 نبض الأجيال والفروع الفعلي في «شجرتي»
               </h3>
             </div>
@@ -394,7 +394,7 @@ export const CommunityKinshipEventsView: React.FC<
               <button
                 type="button"
                 onClick={() => onNavigateTab(DashboardTab.MyTree)}
-                className="text-[11px] font-display font-bold text-[#8D4925] hover:underline cursor-pointer"
+                className="text-[11px] font-display font-bold text-[#D97757] hover:underline cursor-pointer"
               >
                 فتح شجرتي ←
               </button>
@@ -404,43 +404,43 @@ export const CommunityKinshipEventsView: React.FC<
           <div className="p-6 flex-1 space-y-5">
             {treePulse.totalContemporaryMembers === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center py-6 space-y-2.5">
-                <div className="w-11 h-11 rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/30 flex items-center justify-center text-[#8D4925]">
+                <div className="w-11 h-11 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 flex items-center justify-center text-[#D97757]">
                   <GitBranch className="w-5 h-5" />
                 </div>
-                <div className="text-xs font-display font-bold text-[#252321]">
+                <div className="text-xs font-display font-bold text-[#1F1F1C]">
                   شجرة العائلة المعاصرة بانتظار التدوين
                 </div>
-                <p className="text-[11px] text-[#252321]/60 max-w-sm leading-relaxed">
+                <p className="text-[11px] text-[#1F1F1C]/60 max-w-sm leading-relaxed">
                   بمجرد إضافة أفراد عائلتك المعاصرين في «شجرتي»، تظهر هنا إحصائيات الأجيال والفروع والأسماء الأكثر تداولاً تلقائياً.
                 </p>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/25 p-3.5 text-center">
-                    <div className="text-[11px] text-[#252321]/60">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 p-3.5 text-center">
+                    <div className="text-[11px] text-[#1F1F1C]/60">
                       أفراد العائلة
                     </div>
-                    <div className="text-2xl font-display font-bold text-[#252321] tabular-nums mt-0.5">
+                    <div className="text-2xl font-display font-bold text-[#1F1F1C] tabular-nums mt-0.5">
                       {treePulse.totalContemporaryMembers}
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/25 p-3.5 text-center">
-                    <div className="text-[11px] text-[#252321]/60">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 p-3.5 text-center">
+                    <div className="text-[11px] text-[#1F1F1C]/60">
                       طبقات الأجيال
                     </div>
-                    <div className="text-2xl font-display font-bold text-[#8D4925] tabular-nums mt-0.5">
+                    <div className="text-2xl font-display font-bold text-[#D97757] tabular-nums mt-0.5">
                       {treePulse.generationsCount}
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/25 p-3.5 text-center">
-                    <div className="text-[11px] text-[#252321]/60">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 p-3.5 text-center">
+                    <div className="text-[11px] text-[#1F1F1C]/60">
                       الأحياء · الراحلون
                     </div>
-                    <div className="text-lg font-display font-bold text-[#252321] tabular-nums mt-1">
+                    <div className="text-lg font-display font-bold text-[#1F1F1C] tabular-nums mt-1">
                       {treePulse.livingCount}{' '}
-                      <span className="text-[#252321]/30">·</span>{' '}
-                      <span className="text-[#8D4925]">
+                      <span className="text-[#1F1F1C]/30">·</span>{' '}
+                      <span className="text-[#D97757]">
                         {treePulse.deceasedCount}
                       </span>
                     </div>
@@ -449,8 +449,8 @@ export const CommunityKinshipEventsView: React.FC<
 
                 {treePulse.largestBranches.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-xs font-display font-bold text-[#252321] flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-[#8D4925]" />
+                    <div className="text-xs font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>أبرز فروع العائلة المدوّنة</span>
                     </div>
                     <div className="space-y-1.5">
@@ -469,16 +469,16 @@ export const CommunityKinshipEventsView: React.FC<
                         return (
                           <div key={branch.branchLabel} className="space-y-1">
                             <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-semibold text-[#252321]">
+                              <span className="font-semibold text-[#1F1F1C]">
                                 {branch.branchLabel}
                               </span>
-                              <span className="text-[#8D4925] font-bold tabular-nums">
+                              <span className="text-[#D97757] font-bold tabular-nums">
                                 {branch.count} فرد
                               </span>
                             </div>
-                            <div className="h-1.5 rounded-full bg-[#F7F2E9] overflow-hidden">
+                            <div className="h-1.5 rounded-full bg-[#F5F1E8] overflow-hidden">
                               <div
-                                className="h-full rounded-full bg-[#D8755B]"
+                                className="h-full rounded-full bg-[#D97757]"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -490,14 +490,14 @@ export const CommunityKinshipEventsView: React.FC<
                 )}
 
                 {treePulse.topCommonNames.length > 0 && (
-                  <div className="pt-1 border-t border-[#B98A78]/20 flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="font-semibold text-[#252321]/65">
+                  <div className="pt-1 border-t border-[#D97757]/20 flex flex-wrap items-center gap-2 text-[11px]">
+                    <span className="font-semibold text-[#1F1F1C]/65">
                       الأسماء المتكررة في العائلة:
                     </span>
                     {treePulse.topCommonNames.slice(0, 5).map((item) => (
                       <span
                         key={item.name}
-                        className="px-2.5 py-0.5 rounded-lg bg-[#FAF6EE] border border-[#B98A78]/30 text-[#252321] font-medium tabular-nums"
+                        className="px-2.5 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/30 text-[#1F1F1C] font-medium tabular-nums"
                       >
                         {item.name} ({item.count})
                       </span>

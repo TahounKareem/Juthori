@@ -38,7 +38,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
-  TreePine,
   Upload,
   User,
   UserPlus,
@@ -48,9 +47,10 @@ import {
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
+  WORKSPACE_ICON_ACTIVE_BTN_CLASS,
   WORKSPACE_ICON_BTN_CLASS,
-  WORKSPACE_PRIMARY_BTN_CLASS,
-  WORKSPACE_SECONDARY_BTN_CLASS,
+  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
@@ -6645,77 +6645,86 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             actions={
               <>
                 {/* Compact Share / Invite Family Icon */}
-                <button
-                  type="button"
-                  data-testid="invite-family-icon-btn"
-                  onClick={() => {
-                    setCopiedInviteLink(false);
-                    setShowInviteFamilyModal(true);
-                  }}
-                  title="مشاركة ودعوة العائلة"
-                  aria-label="مشاركة ودعوة العائلة"
-                  className={WORKSPACE_ICON_BTN_CLASS}
-                >
-                  <UserPlus className="w-4 h-4 shrink-0" />
-                </button>
+                <WorkspaceIconTooltip label="مشاركة ودعوة العائلة">
+                  <button
+                    type="button"
+                    data-testid="invite-family-icon-btn"
+                    onClick={() => {
+                      setCopiedInviteLink(false);
+                      setShowInviteFamilyModal(true);
+                    }}
+                    aria-label="مشاركة ودعوة العائلة"
+                    className={WORKSPACE_ICON_BTN_CLASS}
+                  >
+                    <UserPlus className="w-4 h-4 shrink-0" />
+                  </button>
+                </WorkspaceIconTooltip>
 
                 {/* Secondary: Kinship Calculator */}
-                <button
-                  type="button"
-                  data-testid="open-kinship-calculator-btn"
-                  onClick={() => {
-                    if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
-                      const keeper =
-                        visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
-                        visiblePeopleForTree[0];
-                      setKinshipPersonAId(keeper.id);
+                <WorkspaceIconTooltip label="حاسبة صلة القرابة">
+                  <button
+                    type="button"
+                    data-testid="open-kinship-calculator-btn"
+                    aria-label="حاسبة صلة القرابة"
+                    aria-pressed={isKinshipHighlightedOnCanvas}
+                    onClick={() => {
+                      if (!kinshipPersonAId && visiblePeopleForTree.length > 0) {
+                        const keeper =
+                          visiblePeopleForTree.find((p) => p.isRecordKeeper) ||
+                          visiblePeopleForTree[0];
+                        setKinshipPersonAId(keeper.id);
+                      }
+                      if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
+                        const other =
+                          visiblePeopleForTree.find(
+                            (p) =>
+                              p.id !==
+                              (kinshipPersonAId || visiblePeopleForTree[0]?.id)
+                          ) || visiblePeopleForTree[1];
+                        if (other) setKinshipPersonBId(other.id);
+                      }
+                      setShowKinshipModal(true);
+                    }}
+                    className={
+                      isKinshipHighlightedOnCanvas
+                        ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                        : WORKSPACE_ICON_BTN_CLASS
                     }
-                    if (!kinshipPersonBId && visiblePeopleForTree.length > 1) {
-                      const other =
-                        visiblePeopleForTree.find(
-                          (p) =>
-                            p.id !==
-                            (kinshipPersonAId || visiblePeopleForTree[0]?.id)
-                        ) || visiblePeopleForTree[1];
-                      if (other) setKinshipPersonBId(other.id);
-                    }
-                    setShowKinshipModal(true);
-                  }}
-                  className={`h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                    isKinshipHighlightedOnCanvas
-                      ? 'bg-[#FEF3C7] text-[#92400E] border-[#C5A059] shadow-2xs'
-                      : 'bg-white/90 hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
-                  }`}
-                >
-                  <GitFork className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
-                  <span>صلة القرابة ✦</span>
-                </button>
+                  >
+                    <GitFork className="w-4 h-4 shrink-0" />
+                  </button>
+                </WorkspaceIconTooltip>
 
                 {/* Secondary: Studio Settings (Matches تخصيص المظهر position in Lineage) */}
-                <button
-                  type="button"
-                  data-testid="toggle-tree-settings-btn"
-                  onClick={() => setIsTreeSettingsOpen((open) => !open)}
-                  className={
-                    isTreeSettingsOpen
-                      ? 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-[#F5ECE0] hover:bg-[#EFE2D0] text-[#8C5327] border border-[#D4AF37]/55 shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0'
-                      : 'h-10 px-3 rounded-xl text-[12.5px] font-display font-semibold inline-flex items-center justify-center gap-1.5 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] transition-all cursor-pointer whitespace-nowrap shrink-0'
-                  }
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
-                  <span>إعدادات شجرتي</span>
-                </button>
+                <WorkspaceIconTooltip label="إعدادات شجرتي">
+                  <button
+                    type="button"
+                    data-testid="toggle-tree-settings-btn"
+                    aria-label="إعدادات شجرتي"
+                    aria-pressed={isTreeSettingsOpen}
+                    onClick={() => setIsTreeSettingsOpen((open) => !open)}
+                    className={
+                      isTreeSettingsOpen
+                        ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                        : WORKSPACE_ICON_BTN_CLASS
+                    }
+                  >
+                    <SlidersHorizontal className="w-4 h-4 shrink-0" />
+                  </button>
+                </WorkspaceIconTooltip>
 
                 {/* Primary CTA: Official Branded Tree Export & Print */}
-                <button
-                  type="button"
-                  data-testid="open-tree-official-export-btn"
-                  onClick={() => setShowOfficialExportModal(true)}
-                  className={WORKSPACE_PRIMARY_BTN_CLASS}
-                >
-                  <Download className="w-4 h-4 shrink-0" />
-                  <span>تصدير الشجرة</span>
-                </button>
+                <WorkspaceIconTooltip label="تصدير وطباعة الشجرة" align="left">
+                  <button
+                    type="button"
+                    data-testid="open-tree-official-export-btn"
+                    aria-label="تصدير وطباعة الشجرة"
+                    onClick={() => setShowOfficialExportModal(true)}
+                    className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
+                  >
+                    <Download className="w-4 h-4 shrink-0" />
+                  </button>
+                </WorkspaceIconTooltip>
               </>
             }
           />
@@ -6845,7 +6854,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           /* Responsive Sub-Header Bar (Visible ONLY on Tablet/Mobile <1200px or inside Fullscreen Cinema Mode) */
           <div
             data-testid="tree-settings-collapsible-bar"
-            className={`px-3.5 py-2.5 bg-white/95 backdrop-blur-xs border-b border-[#B98A78]/25 flex-wrap items-center justify-between gap-2.5 text-[#252321] shrink-0 z-20 ${
+            className={`px-3.5 py-2.5 bg-[#F5F1E8]/95 backdrop-blur-xs border-b border-[#D8C7B2] flex-wrap items-center justify-between gap-2.5 text-[#1F1F1C] shrink-0 z-20 ${
               isCinemaMode ? 'flex' : 'flex min-[1200px]:hidden'
             }`}
           >
@@ -6853,22 +6862,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             {isCinemaMode && (
               <>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsTreeSettingsOpen((open) => !open)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all border shrink-0 ${
-                      isTreeSettingsOpen
-                        ? 'bg-gradient-to-l from-[#8D4925] to-[#A65A33] text-white border-[#8D4925] shadow-xs'
-                        : 'bg-[#FAF6F0] hover:bg-[#F5E6DC] text-[#8D4925] border-[#D8755B]/55 shadow-2xs'
-                    }`}
-                  >
-                    <SlidersHorizontal
-                      className={`w-3.5 h-3.5 ${
-                        isTreeSettingsOpen ? 'text-[#F6DCA2]' : 'text-[#D8755B]'
-                      }`}
-                    />
-                    <span>إعدادات شجرتي</span>
-                  </button>
+                  <WorkspaceIconTooltip label="إعدادات شجرتي" align="right">
+                    <button
+                      type="button"
+                      aria-label="إعدادات شجرتي"
+                      aria-pressed={isTreeSettingsOpen}
+                      onClick={() => setIsTreeSettingsOpen((open) => !open)}
+                      className={
+                        isTreeSettingsOpen
+                          ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                          : WORKSPACE_ICON_BTN_CLASS
+                      }
+                    >
+                      <SlidersHorizontal className="w-4 h-4 shrink-0" />
+                    </button>
+                  </WorkspaceIconTooltip>
                 </div>
 
                 <div className="hidden min-[1200px]:flex items-center justify-center flex-1 min-w-0">

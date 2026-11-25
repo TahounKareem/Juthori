@@ -41,9 +41,9 @@ interface RoyalRoleFamilyBadgeProps {
 }
 
 /**
- * Royal Segmented Role & Family Badge (`✦ أمين سجل | عائلة [الاسم]`)
- * Shared across the Home welcome greeting, Header profile capsule, and profile dropdown
- * with generous Arabic line-height (`leading-normal`) and unconstrained width so no letters clip.
+ * Segmented Role & Family Badge (`عائلة [الاسم] | عضو / أمين سجل`)
+ * Places the family name immediately beside the customer's name in RTL to
+ * reinforce the personal-family bond, paired with a compact role pill (no ✦).
  */
 export const RoyalRoleFamilyBadge: React.FC<RoyalRoleFamilyBadgeProps> = ({
   roleLabel,
@@ -58,46 +58,48 @@ export const RoyalRoleFamilyBadge: React.FC<RoyalRoleFamilyBadgeProps> = ({
   return (
     <span
       data-testid={testId}
-      className={`inline-flex items-center w-auto shrink-0 rounded-full border border-[#D4AF37]/45 bg-gradient-to-l from-[#FAF3E3] via-[#FDF9F0] to-white ${
+      className={`inline-flex items-center w-auto shrink-0 rounded-full border border-[#D8C7B2] bg-[#E8DED2]/90 ${
         isHeader
-          ? 'p-[3px] shadow-[0_1px_5px_rgba(141,73,37,0.10)]'
-          : 'p-1 shadow-[0_2px_10px_-4px_rgba(141,73,37,0.18)]'
+          ? 'px-1.5 py-[2px] gap-1.5 shadow-[0_1px_4px_rgba(31,31,28,0.06)]'
+          : 'px-2 py-1 gap-2 shadow-[0_2px_10px_-4px_rgba(31,31,28,0.1)]'
       } ${className}`}
     >
-      {/* Right Segment (RTL Start): Warm Bronze/Gold Role Capsule */}
-      <span
-        className={`inline-flex items-center gap-1 rounded-full bg-gradient-to-l from-[#965627] to-[#B67537] text-[#FFFDF8] font-display font-bold leading-normal whitespace-nowrap shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] ${
-          isHeader
-            ? 'px-2.5 py-0.5 text-[11px]'
-            : 'px-2.5 py-1 text-xs'
-        }`}
-      >
-        <span aria-hidden="true" className="text-[#F8DC99]">
-          ✦
-        </span>
-        <span>{roleLabel}</span>
-      </span>
-
-      {/* Graceful Golden Vertical Divider + Dynamic Family Name */}
+      {/* Right Segment (RTL Start): Family Name directly tied to Customer Name */}
       {familyLabel && (
         <>
           <span
-            aria-hidden="true"
-            className={`w-px bg-[#D4AF37]/40 shrink-0 ${
-              isHeader ? 'h-3.5 mx-1.5' : 'h-4 mx-2'
-            }`}
-          />
-          <span
-            className={`font-display font-extrabold text-[#3B2618] leading-normal whitespace-nowrap shrink-0 ${
+            className={`inline-flex items-center gap-1.5 font-display font-extrabold text-[#1F1F1C] leading-normal whitespace-nowrap shrink-0 ${
               isHeader
-                ? 'px-2.5 py-0.5 text-[11.5px]'
-                : 'px-3 py-1 text-[12.5px] sm:text-[13px]'
+                ? 'pr-1 text-[11px]'
+                : 'pr-1.5 text-[12px] sm:text-[12.5px]'
             }`}
           >
-            {familyLabel}
+            <span
+              aria-hidden="true"
+              className="w-1.5 h-1.5 rounded-full bg-[#D97757] shrink-0"
+            />
+            <span>{familyLabel}</span>
           </span>
+
+          <span
+            aria-hidden="true"
+            className={`w-px bg-[#D8C7B2] shrink-0 ${
+              isHeader ? 'h-3' : 'h-3.5'
+            }`}
+          />
         </>
       )}
+
+      {/* Compact Role Pill (No ✦) */}
+      <span
+        className={`inline-flex items-center rounded-full bg-[#D97757] text-[#F5F1E8] font-display font-bold leading-none whitespace-nowrap shrink-0 ${
+          isHeader
+            ? 'px-2 py-[3px] text-[9.5px]'
+            : 'px-2 py-1 text-[10.5px]'
+        }`}
+      >
+        {roleLabel}
+      </span>
     </span>
   );
 };

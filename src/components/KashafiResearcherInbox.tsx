@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Compass,
   Send,
   CheckCircle2,
   Clock,
@@ -12,6 +11,7 @@ import {
   Play,
   ExternalLink,
 } from 'lucide-react';
+import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   CustomerOrderRecord,
   fetchAllCustomerOrdersFromFirebase,
@@ -181,19 +181,19 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
   return (
     <div
       data-testid="kashafi-researcher-inbox"
-      className="space-y-5 text-[#252321]"
+      className="space-y-5 text-[#1F1F1C]"
     >
       {/* Action Header Bar */}
-      <div className="rounded-2xl bg-[#FAF6F0] border border-[#E2DACB] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#8D4925] text-[#F3D299] flex items-center justify-center shrink-0">
-            <Compass className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+            <JUTHORI_SERVICE_ICONS.kashafi className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-display font-bold text-[#252321]">
+            <h3 className="text-base font-display font-bold text-[#1F1F1C]">
               طلبات وبعثات كشّافي المسندة لمدير البحوث
             </h3>
-            <p className="text-xs text-[#5C5346] mt-0.5">
+            <p className="text-xs text-[#1F1F1C]/70 mt-0.5">
               استلام الطلبات البحثية الواردة تلقائياً من كشّافي العملاء، وإعداد التقارير الموثقة وتسليمها مباشرة في رادار العائلة.
             </p>
           </div>
@@ -204,7 +204,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
             type="button"
             onClick={loadInboxData}
             disabled={isLoading}
-            className="px-3 py-2 rounded-xl bg-white hover:bg-[#EDE6DA] border border-[#D8D0C0] text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            className="px-3 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`}
@@ -215,7 +215,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
           <button
             type="button"
             onClick={() => setShowPrivateDiscoveryModal(true)}
-            className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>إرسال كشّاف علمي خاص لعائلة</span>
@@ -239,8 +239,8 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
             onClick={() => setStatusFilter(tab.key)}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
               statusFilter === tab.key
-                ? 'bg-[#252321] text-[#F3D299]'
-                : 'bg-white border border-[#E2DACB] text-[#5C5346] hover:bg-[#FAF6F0]'
+                ? 'bg-[#1F1F1C] text-[#D97757]'
+                : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 hover:bg-[#F5F1E8]'
             }`}
           >
             {tab.label}
@@ -250,16 +250,16 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
 
       {/* Orders List */}
       {isLoading ? (
-        <div className="rounded-2xl bg-white border border-[#E2DACB] p-10 text-center">
-          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#D8755B]" />
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-10 text-center">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#D97757]" />
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="rounded-2xl bg-white border border-[#E2DACB] p-8 text-center space-y-2">
-          <FileCheck2 className="w-8 h-8 text-[#C5A059] mx-auto" />
-          <div className="text-sm font-display font-bold text-[#252321]">
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-8 text-center space-y-2">
+          <FileCheck2 className="w-8 h-8 text-[#D97757] mx-auto" />
+          <div className="text-sm font-display font-bold text-[#1F1F1C]">
             لا توجد طلبات كشّافي ضمن هذه الفئة حالياً
           </div>
-          <p className="text-xs text-[#6E6456] max-w-md mx-auto">
+          <p className="text-xs text-[#1F1F1C]/70 max-w-md mx-auto">
             ستظهر هنا تلقائياً جميع الطلبات البحثية التي يطلبها العملاء من تبويب «كشّافي»، كما يمكنك إرسال كشّاف علمي خاص لأي عائلة مباشرة.
           </p>
         </div>
@@ -268,18 +268,18 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
           {filteredOrders.map((ord) => (
             <div
               key={ord.id}
-              className="rounded-2xl bg-white border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors"
+              className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 hover:border-[#D97757] transition-colors"
             >
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-mono tabular-nums font-bold text-[#8D4925]">
+                  <span className="font-mono tabular-nums font-bold text-[#D97757]">
                     #{ord.orderNumber}
                   </span>
                   <span
                     className={`font-display font-bold inline-flex items-center gap-1 ${
                       ord.status === 'COMPLETED'
-                        ? 'text-emerald-700'
-                        : 'text-[#D8755B]'
+                        ? 'text-[#D97757]'
+                        : 'text-[#D97757]'
                     }`}
                   >
                     {ord.status === 'COMPLETED' ? (
@@ -291,21 +291,21 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   </span>
                 </div>
 
-                <h4 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                <h4 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]">
                   {ord.campaignTitle}
                 </h4>
 
-                <div className="text-xs text-[#5C5346] flex flex-wrap items-center gap-2">
+                <div className="text-xs text-[#1F1F1C]/70 flex flex-wrap items-center gap-2">
                   <span>
-                    العميل: <strong className="text-[#252321]">{ord.userFullName}</strong>
+                    العميل: <strong className="text-[#1F1F1C]">{ord.userFullName}</strong>
                   </span>
-                  <span className="text-[#D8D0C0]">·</span>
+                  <span className="text-[#D8C7B2]">·</span>
                   <span>
-                    أسرة <strong className="text-[#8D4925]">{ord.familyName}</strong>
+                    أسرة <strong className="text-[#D97757]">{ord.familyName}</strong>
                   </span>
                   {ord.originCountry && (
                     <>
-                      <span className="text-[#D8D0C0]">·</span>
+                      <span className="text-[#D8C7B2]">·</span>
                       <span>
                         {ord.originCountry}
                         {ord.originRegion ? ` — ${ord.originRegion}` : ''}
@@ -315,8 +315,8 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                 </div>
 
                 {ord.customerNotes && (
-                  <div className="rounded-xl bg-[#FAF6F0] border border-[#EDE6DA] p-3 text-xs text-[#5C5346]">
-                    <strong className="text-[#252321] block mb-0.5">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 text-xs text-[#1F1F1C]/70">
+                    <strong className="text-[#1F1F1C] block mb-0.5">
                       ملاحظات العميل:
                     </strong>
                     {ord.customerNotes}
@@ -324,7 +324,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                 )}
 
                 {ord.status === 'COMPLETED' && ord.researcherReport && (
-                  <div className="rounded-xl bg-emerald-50/70 border border-emerald-200 p-3 text-xs text-emerald-950 space-y-1">
+                  <div className="rounded-xl bg-[#F5F1E8]/70 border border-[#D8C7B2] p-3 text-xs text-[#1F1F1C] space-y-1">
                     <strong className="block font-display">
                       التقرير المسلّم في كشّافي العميل:
                     </strong>
@@ -334,7 +334,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                         href={ord.deliverableUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[#8D4925] underline font-bold"
+                        className="inline-flex items-center gap-1 text-[#D97757] underline font-bold"
                       >
                         <ExternalLink className="w-3 h-3" />
                         <span>رابط المخرج المرفق</span>
@@ -344,8 +344,8 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                 )}
               </div>
 
-              <div className="pt-3 border-t border-[#EDE6DA] flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] text-[#8C8272] tabular-nums">
+              <div className="pt-3 border-t border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-[#1F1F1C]/70 tabular-nums">
                   {new Date(ord.createdAt).toLocaleDateString('ar-SA')}
                 </span>
 
@@ -355,7 +355,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                       type="button"
                       disabled={isUpdatingOrder}
                       onClick={() => handleStartOrder(ord)}
-                      className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D8D0C0] text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5" />
                       <span>بدء التنفيذ</span>
@@ -366,7 +366,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                     <button
                       type="button"
                       onClick={() => openOrderEditor(ord)}
-                      className="px-3.5 py-1.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>إعداد وتسليم النتيجة</span>
@@ -382,24 +382,24 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
       {/* Modal 1: Complete & Deliver Service Order into Customer Kashafi */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#252321]/65 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#1F1F1C]/65 backdrop-blur-xs p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-xl rounded-2xl bg-[#FFFDF9] border border-[#C5A059] p-6 shadow-2xl space-y-4 text-right">
-            <div className="flex items-start justify-between gap-3 border-b border-[#EDE6DA] pb-3">
+          <div className="w-full max-w-xl rounded-2xl bg-[#F5F1E8] border border-[#D97757] p-6 shadow-2xl space-y-4 text-right">
+            <div className="flex items-start justify-between gap-3 border-b border-[#D8C7B2] pb-3">
               <div>
-                <div className="text-xs font-mono font-bold text-[#8D4925]">
+                <div className="text-xs font-mono font-bold text-[#D97757]">
                   #{selectedOrder.orderNumber} · أسرة {selectedOrder.familyName}
                 </div>
-                <h3 className="text-base font-display font-bold text-[#252321] mt-0.5">
+                <h3 className="text-base font-display font-bold text-[#1F1F1C] mt-0.5">
                   اعتماد وتسليم نتيجة: {selectedOrder.campaignTitle}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 rounded-lg hover:bg-[#FAF6F0] flex items-center justify-center text-[#252321] cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-[#F5F1E8] flex items-center justify-center text-[#1F1F1C] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -407,7 +407,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
 
             <form onSubmit={handleCompleteAndDeliverOrder} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   التقرير العلمي والنتيجة المعتمدة للعميل
                 </label>
                 <textarea
@@ -416,12 +416,12 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   value={reportDraft}
                   onChange={(e) => setReportDraft(e.target.value)}
                   placeholder="اكتب خلاصة التحقيق المرجعي والنتائج الموثقة التي ستظهر مباشرة في رادار كشّافي للعميل..."
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2.5 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   المصادر والمراجع التاريخية المعتمدة (اختياري)
                 </label>
                 <input
@@ -429,12 +429,12 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   value={citationDraft}
                   onChange={(e) => setCitationDraft(e.target.value)}
                   placeholder="مثال: جمهرة أنساب العرب، ص 214 · سجل المحكمة الشرعية"
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   رابط ملف PDF أو مخرج رقمي مرفق (اختياري)
                 </label>
                 <input
@@ -443,22 +443,22 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   value={deliverableUrlDraft}
                   onChange={(e) => setDeliverableUrlDraft(e.target.value)}
                   placeholder="https://..."
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EDE6DA]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8C7B2]">
                 <button
                   type="button"
                   onClick={() => setSelectedOrder(null)}
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#5C5346] cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]/70 cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdatingOrder}
-                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#1F1F1C] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   {isUpdatingOrder ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -476,24 +476,24 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
       {/* Modal 2: Push Private Custom Scientific Discovery to a Family */}
       {showPrivateDiscoveryModal && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#252321]/65 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#1F1F1C]/65 backdrop-blur-xs p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-xl rounded-2xl bg-[#FFFDF9] border border-[#C5A059] p-6 shadow-2xl space-y-4 text-right">
-            <div className="flex items-start justify-between gap-3 border-b border-[#EDE6DA] pb-3">
+          <div className="w-full max-w-xl rounded-2xl bg-[#F5F1E8] border border-[#D97757] p-6 shadow-2xl space-y-4 text-right">
+            <div className="flex items-start justify-between gap-3 border-b border-[#D8C7B2] pb-3">
               <div>
-                <h3 className="text-base font-display font-bold text-[#252321]">
+                <h3 className="text-base font-display font-bold text-[#1F1F1C]">
                   إرسال كشّاف وبشارة علمية خاصة لعائلة
                 </h3>
-                <p className="text-xs text-[#6E6456] mt-0.5">
+                <p className="text-xs text-[#1F1F1C]/70 mt-0.5">
                   تظهر فوراً في «رادار الاكتشافات والبشارات العلمية» داخل تبويب كشّافي للعميل المختار.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPrivateDiscoveryModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-[#FAF6F0] flex items-center justify-center text-[#252321] cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-[#F5F1E8] flex items-center justify-center text-[#1F1F1C] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -501,14 +501,14 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
 
             <form onSubmit={handleSendPrivateDiscovery} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   اختر العميل / العائلة المستهدفة
                 </label>
                 <select
                   required
                   value={selectedCustomerOrderId}
                   onChange={(e) => setSelectedCustomerOrderId(e.target.value)}
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2.5 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 >
                   <option value="">— اختر حساب العميل المسجل —</option>
                   {customers.map((c) => (
@@ -520,7 +520,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   عنوان الكشّاف أو البشارة العلمية
                 </label>
                 <input
@@ -529,12 +529,12 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
                   placeholder="مثال: رصد حلقة جد وسيط موثقة في مخطوطات القرن الثاني عشر الهجري"
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   ملخص البشارة العلمية
                 </label>
                 <textarea
@@ -543,12 +543,12 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   value={customSummary}
                   onChange={(e) => setCustomSummary(e.target.value)}
                   placeholder="ملخص واضح وموجز يظهر مباشرة على البطاقة في رادار العميل..."
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                   التفاصيل العلمية الكاملة (اختياري)
                 </label>
                 <textarea
@@ -556,13 +556,13 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                   value={customDetails}
                   onChange={(e) => setCustomDetails(e.target.value)}
                   placeholder="التحليل التفصيلي أو سلسلة الأجداد المرصودة..."
-                  className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                  className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                  <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                     المصدر المرجعي (اختياري)
                   </label>
                   <input
@@ -570,11 +570,11 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                     value={customCitation}
                     onChange={(e) => setCustomCitation(e.target.value)}
                     placeholder="اسم الكتاب أو الوثيقة والصفحة"
-                    className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                    className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+                  <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                     رابط وثيقة مرفقة (اختياري)
                   </label>
                   <input
@@ -583,23 +583,23 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                     value={customDeliverableUrl}
                     onChange={(e) => setCustomDeliverableUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                    className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EDE6DA]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8C7B2]">
                 <button
                   type="button"
                   onClick={() => setShowPrivateDiscoveryModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#5C5346] cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]/70 cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={isSendingPrivate}
-                  className="px-5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1d] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   {isSendingPrivate ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

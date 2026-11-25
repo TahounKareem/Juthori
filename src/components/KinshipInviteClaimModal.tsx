@@ -501,22 +501,22 @@ export const KinshipInviteClaimModal: React.FC<
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-50 bg-[#252321]/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-[#1F1F1C]/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
     >
-      <div className="w-full max-w-2xl rounded-2xl bg-[#F7F2E9] text-[#252321] border border-[#B98A78]/65 shadow-2xl overflow-hidden my-6">
+      <div className="w-full max-w-2xl rounded-2xl bg-[#F5F1E8] text-[#1F1F1C] border border-[#D97757]/65 shadow-2xl overflow-hidden my-6">
         {/* Royal Heritage Header */}
-        <div className="bg-[#0D2E22] text-[#F7F2E9] px-6 py-5 border-b-2 border-[#D4AF37] relative">
+        <div className="bg-[#1F1F1C] text-[#F5F1E8] px-6 py-5 border-b-2 border-[#D8C7B2] relative">
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 left-4 p-1.5 rounded-lg text-[#F7F2E9]/70 hover:text-white hover:bg-white/10 cursor-pointer"
+            className="absolute top-4 left-4 p-1.5 rounded-lg text-[#F5F1E8]/70 hover:text-[#F5F1E8] hover:bg-[#F5F1E8]/10 cursor-pointer"
             aria-label="إغلاق"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 text-xs font-bold text-[#E8C76A] mb-2">
-            <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+          <div className="flex items-center gap-2 text-xs font-bold text-[#D97757] mb-2">
+            <Sparkles className="w-4 h-4 text-[#D97757]" />
             <span>دعوة صلة رحم موثّقة · الدائرة العائلية الخاصة</span>
           </div>
 
@@ -524,7 +524,7 @@ export const KinshipInviteClaimModal: React.FC<
             مرحباً بك يا {invitation.relativeName} ({invitation.kinshipRelation}) في ديوان وبوابة عائلة {invitation.familyName} — بدعوة كريمة من أمين السجل {invitation.inviterName} ✦
           </h2>
 
-          <p className="text-xs text-[#F7F2E9]/85 mt-2 leading-relaxed">
+          <p className="text-xs text-[#F5F1E8]/85 mt-2 leading-relaxed">
             أكمل بياناتك النسبية وحسابك في جذوري لفتح الديوان والشجرة المشتركة لعائلة {invitation.familyName} مجاناً، مع تأسيس ملفك الشخصي الخاص والمستقل في المنصة.
           </p>
         </div>
@@ -532,13 +532,13 @@ export const KinshipInviteClaimModal: React.FC<
         {/* Body */}
         <div className="p-6 space-y-5">
           {errorMsg && (
-            <div className="rounded-xl bg-red-950/10 border border-red-800/35 px-4 py-3 text-xs font-semibold text-red-900">
+            <div className="rounded-xl bg-[#1F1F1C]/10 border border-[#1F1F1C]/35 px-4 py-3 text-xs font-semibold text-[#1F1F1C]">
               {errorMsg}
             </div>
           )}
 
           {/* Mode Switcher */}
-          <div className="flex items-center justify-between gap-2 bg-[#EDE6DA] p-1 rounded-xl border border-[#B98A78]/35">
+          <div className="flex items-center justify-between gap-2 bg-[#E8DED2] p-1 rounded-xl border border-[#D97757]/35">
             <button
               type="button"
               onClick={() => {
@@ -547,8 +547,8 @@ export const KinshipInviteClaimModal: React.FC<
               }}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                 authMode === 'claim_new'
-                  ? 'bg-[#0D2E22] text-[#F7F2E9]'
-                  : 'text-[#252321]/75 hover:text-[#252321]'
+                  ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                  : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
               }`}
             >
               إنشاء حسابي وتفعيل الدعوة
@@ -561,8 +561,8 @@ export const KinshipInviteClaimModal: React.FC<
               }}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                 authMode === 'sign_in_existing'
-                  ? 'bg-[#0D2E22] text-[#F7F2E9]'
-                  : 'text-[#252321]/75 hover:text-[#252321]'
+                  ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                  : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
               }`}
             >
               لدي حساب سابق في جذوري
@@ -572,16 +572,16 @@ export const KinshipInviteClaimModal: React.FC<
           <form onSubmit={handlePasswordClaimSubmit} className="space-y-4">
             {/* Standard Juthori Registration & Lineage Fields */}
             {authMode === 'claim_new' && (
-              <div className="space-y-3.5 rounded-2xl bg-white/85 border border-[#B98A78]/40 p-4">
-                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#7B401F]">
-                  <Users className="w-4 h-4 text-[#9E5631]" />
+              <div className="space-y-3.5 rounded-2xl bg-[#F5F1E8]/85 border border-[#D97757]/40 p-4">
+                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#D97757]">
+                  <Users className="w-4 h-4 text-[#D97757]" />
                   <span>البيانات الشخصية والنسبية (موحدة مع سجل جذوري)</span>
                 </div>
 
                 {/* Row 1: First Name | Father Name | Grandfather Name */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                       الاسم الأول *
                     </label>
                     <input
@@ -590,12 +590,12 @@ export const KinshipInviteClaimModal: React.FC<
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="مثال: أحمد"
-                      className="w-full px-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-semibold text-[#252321] focus:outline-none focus:border-[#9E5631]"
+                      className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                       اسم الأب *
                     </label>
                     <input
@@ -604,12 +604,12 @@ export const KinshipInviteClaimModal: React.FC<
                       value={fatherName}
                       onChange={(e) => setFatherName(e.target.value)}
                       placeholder="مثال: محمد"
-                      className="w-full px-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-semibold text-[#252321] focus:outline-none focus:border-[#9E5631]"
+                      className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                       اسم الجد
                     </label>
                     <input
@@ -617,7 +617,7 @@ export const KinshipInviteClaimModal: React.FC<
                       value={grandfatherName}
                       onChange={(e) => setGrandfatherName(e.target.value)}
                       placeholder="مثال: عبدالله"
-                      className="w-full px-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-semibold text-[#252321] focus:outline-none focus:border-[#9E5631]"
+                      className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                     />
                   </div>
                 </div>
@@ -625,7 +625,7 @@ export const KinshipInviteClaimModal: React.FC<
                 {/* Row 2: Family Name | Country */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                       اسم العائلة *
                     </label>
                     <input
@@ -634,21 +634,21 @@ export const KinshipInviteClaimModal: React.FC<
                       value={familyName}
                       onChange={(e) => setFamilyName(e.target.value)}
                       placeholder="اسم العائلة أو اللقب"
-                      className="w-full px-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-semibold text-[#252321] focus:outline-none focus:border-[#9E5631]"
+                      className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#252321] mb-1">
+                    <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                       الدولة *
                     </label>
                     <div className="relative">
-                      <Globe className="w-3.5 h-3.5 text-[#8D4925] absolute right-3 top-2.5 pointer-events-none" />
+                      <Globe className="w-3.5 h-3.5 text-[#D97757] absolute right-3 top-2.5 pointer-events-none" />
                       <select
                         required
                         value={originCountry}
                         onChange={(e) => setOriginCountry(e.target.value)}
-                        className="w-full pr-8 pl-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-semibold text-[#252321] focus:outline-none focus:border-[#9E5631]"
+                        className="w-full pr-8 pl-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       >
                         {ORIGIN_COUNTRY_OPTIONS.map((c) => (
                           <option key={c} value={c}>
@@ -662,17 +662,17 @@ export const KinshipInviteClaimModal: React.FC<
 
                 {/* Row 3: Original Homeland / City */}
                 <div>
-                  <label className="block text-xs font-bold text-[#252321] mb-1">
+                  <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                     الموطن الأصلي
                   </label>
                   <div className="relative">
-                    <MapPin className="w-3.5 h-3.5 text-[#8D4925] absolute right-3 top-2.5 pointer-events-none" />
+                    <MapPin className="w-3.5 h-3.5 text-[#D97757] absolute right-3 top-2.5 pointer-events-none" />
                     <input
                       type="text"
                       value={originRegion}
                       onChange={(e) => setOriginRegion(e.target.value)}
                       placeholder="المدينة أو المحافظة أو الإقليم الأصلي للعائلة"
-                      className="w-full pr-8 pl-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-semibold text-[#252321] focus:outline-none focus:border-[#9E5631]"
+                      className="w-full pr-8 pl-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                     />
                   </div>
                 </div>
@@ -682,7 +682,7 @@ export const KinshipInviteClaimModal: React.FC<
                   <button
                     type="button"
                     onClick={() => setShowExtraLineage((v) => !v)}
-                    className="inline-flex items-center gap-1.5 text-xs font-display font-bold text-[#8D4925] hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-display font-bold text-[#D97757] hover:underline cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>بيانات نسبية إضافية (القبيلة والفرع)</span>
@@ -696,7 +696,7 @@ export const KinshipInviteClaimModal: React.FC<
                   {showExtraLineage && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#252321]/85 mb-1">
+                        <label className="block text-[11px] font-bold text-[#1F1F1C]/85 mb-1">
                           القبيلة
                         </label>
                         <input
@@ -704,11 +704,11 @@ export const KinshipInviteClaimModal: React.FC<
                           value={tribeName}
                           onChange={(e) => setTribeName(e.target.value)}
                           placeholder="اسم القبيلة (إن عُرفت)"
-                          className="w-full px-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/45 text-xs"
+                          className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 text-xs"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-[#252321]/85 mb-1">
+                        <label className="block text-[11px] font-bold text-[#1F1F1C]/85 mb-1">
                           الفرع / الفخذ
                         </label>
                         <input
@@ -716,7 +716,7 @@ export const KinshipInviteClaimModal: React.FC<
                           value={branchName}
                           onChange={(e) => setBranchName(e.target.value)}
                           placeholder="اسم الفرع أو الفخذ (اختياري)"
-                          className="w-full px-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/45 text-xs"
+                          className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 text-xs"
                         />
                       </div>
                     </div>
@@ -726,54 +726,54 @@ export const KinshipInviteClaimModal: React.FC<
             )}
 
             {/* Account Section: Verified Email + Phone + Password */}
-            <div className="space-y-3.5 rounded-2xl bg-white/85 border border-[#B98A78]/40 p-4">
+            <div className="space-y-3.5 rounded-2xl bg-[#F5F1E8]/85 border border-[#D97757]/40 p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="flex items-center justify-between text-xs font-bold text-[#252321] mb-1">
+                  <label className="flex items-center justify-between text-xs font-bold text-[#1F1F1C] mb-1">
                     <span>البريد الإلكتروني المدعو</span>
-                    <span className="text-[10px] text-emerald-800 font-bold inline-flex items-center gap-1">
+                    <span className="text-[10px] text-[#1F1F1C] font-bold inline-flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
                       موثّق تلقائياً
                     </span>
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-[#8D4925] absolute right-3 top-2.5 pointer-events-none" />
+                    <Mail className="w-4 h-4 text-[#D97757] absolute right-3 top-2.5 pointer-events-none" />
                     <input
                       type="email"
                       dir="ltr"
                       readOnly
                       value={email}
-                      className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#EDE6DA]/70 border border-[#B98A78]/45 text-xs font-mono text-[#252321]/85 text-right cursor-not-allowed"
+                      className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#E8DED2]/70 border border-[#D97757]/45 text-xs font-mono text-[#1F1F1C]/85 text-right cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#252321] mb-1">
+                  <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                     رقم الجوال
                   </label>
                   <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-[#8D4925] absolute right-3 top-2.5 pointer-events-none" />
+                    <Phone className="w-3.5 h-3.5 text-[#D97757] absolute right-3 top-2.5 pointer-events-none" />
                     <input
                       type="tel"
                       dir="ltr"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+966 5X XXX XXXX"
-                      className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs font-mono text-right focus:outline-none focus:border-[#9E5631]"
+                      className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs font-mono text-right focus:outline-none focus:border-[#D97757]"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#252321] mb-1">
+                <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                   {authMode === 'claim_new'
                     ? 'كلمة المرور لحسابك في جذوري (6 أحرف فأكثر) *'
                     : 'كلمة مرور حسابك الحالي في جذوري *'}
                 </label>
                 <div className="relative">
-                  <KeyRound className="w-4 h-4 text-[#8D4925] absolute right-3 top-2.5 pointer-events-none" />
+                  <KeyRound className="w-4 h-4 text-[#D97757] absolute right-3 top-2.5 pointer-events-none" />
                   <input
                     type="password"
                     dir="ltr"
@@ -782,7 +782,7 @@ export const KinshipInviteClaimModal: React.FC<
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pr-9 pl-3 py-2.5 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/50 text-xs text-right focus:outline-none focus:border-[#9E5631]"
+                    className="w-full pr-9 pl-3 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-xs text-right focus:outline-none focus:border-[#D97757]"
                   />
                 </div>
               </div>
@@ -793,7 +793,7 @@ export const KinshipInviteClaimModal: React.FC<
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 rounded-xl bg-[#0D2E22] hover:bg-[#13402F] text-[#F5DFA0] text-sm font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 shadow-sm transition-colors"
+                className="w-full py-3 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-sm font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 shadow-sm transition-colors"
               >
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -811,16 +811,16 @@ export const KinshipInviteClaimModal: React.FC<
                 type="button"
                 disabled={submitting}
                 onClick={handleGoogleClaim}
-                className="w-full py-2.5 rounded-xl bg-white hover:bg-[#EDE6DA]/60 border border-[#B98A78]/55 text-[#252321] text-xs font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55"
+                className="w-full py-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2]/60 border border-[#D97757]/55 text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55"
               >
-                <ShieldCheck className="w-4 h-4 text-[#8D4925]" />
+                <ShieldCheck className="w-4 h-4 text-[#D97757]" />
                 <span>المتابعة السريعة عبر حساب Google وتفعيل العضوية</span>
               </button>
             </div>
           </form>
 
           {/* Privacy Footer & Pure Arabic Decline Action */}
-          <div className="pt-3 border-t border-[#B98A78]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-[#252321]/75">
+          <div className="pt-3 border-t border-[#D97757]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-[#1F1F1C]/75">
             <span>
               تمنحك هذه العضوية تصفح ديوان العائلة ومشجرتها المشتركة مجاناً مع عزل وحماية كاملة لحسابك.
             </span>
@@ -828,7 +828,7 @@ export const KinshipInviteClaimModal: React.FC<
               type="button"
               disabled={optingOut}
               onClick={handleInstantOptOut}
-              className="text-[#8D4925] hover:underline font-bold shrink-0 cursor-pointer"
+              className="text-[#D97757] hover:underline font-bold shrink-0 cursor-pointer"
             >
               {optingOut
                 ? 'جاري إلغاء الإدراج...'

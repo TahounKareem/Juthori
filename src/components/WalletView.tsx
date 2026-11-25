@@ -313,12 +313,12 @@ export const WalletView: React.FC<WalletViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 text-[#252321]">
+    <div className="space-y-6 text-[#1F1F1C]">
       {/* Thin, Calm, Dismissible Email Verification Reminder Banner (Allowed ONLY in Profile & Wallet) */}
       {showEmailReminderBanner && !emailVerified && (
-        <div className="rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321]">
+        <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]">
           <div className="flex items-center gap-2">
-            <Mail className="w-4 h-4 text-[#D8755B] shrink-0" />
+            <Mail className="w-4 h-4 text-[#D97757] shrink-0" />
             <span>
               تذكير هادئ: بريدك الإلكتروني (<strong className="font-mono">{userEmail}</strong>) غير موثّق بعد — وثّقه لحماية سجلك المالي وإتاحة النشر العام.
             </span>
@@ -328,7 +328,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenEmailVerification}
-                className="px-3 py-1 rounded-lg bg-[#252321] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold transition-colors cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-[11px] font-display font-bold transition-colors cursor-pointer"
               >
                 توثيق البريد الآن
               </button>
@@ -338,7 +338,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 type="button"
                 onClick={onDismissEmailReminderBanner}
                 aria-label="إغلاق التذكير"
-                className="p-1 rounded-lg hover:bg-[#EDE6DA] text-[#252321]/65 cursor-pointer"
+                className="p-1 rounded-lg hover:bg-[#E8DED2] text-[#1F1F1C]/65 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -352,20 +352,20 @@ export const WalletView: React.FC<WalletViewProps> = ({
         <div
           role="region"
           aria-label="شحن الرصيد المتبقي لإتمام العملية"
-          className="rounded-2xl bg-[#FAF6F0] border-2 border-[#D8755B] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+          className="rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
         >
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#D8755B]/15 text-[#D8755B] flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-xl bg-[#D97757]/15 text-[#D97757] flex items-center justify-center shrink-0 mt-0.5">
               <AlertCircle className="w-5 h-5" />
             </div>
             <div className="space-y-1">
-              <div className="text-sm font-display font-extrabold text-[#252321]">
+              <div className="text-sm font-display font-extrabold text-[#1F1F1C]">
                 شحن المحفظة لاستكمال العملية — المبلغ المتبقي بدقة:{' '}
-                <span className="font-mono text-[#D8755B]">
+                <span className="font-mono text-[#D97757]">
                   ${activeShortfallUsd.toFixed(2)}
                 </span>
               </div>
-              <p className="text-xs text-[#252321]/75 leading-relaxed">
+              <p className="text-xs text-[#1F1F1C]/75 leading-relaxed">
                 رصيدك الفعلي الحالي <strong>${balance.toFixed(2)}</strong>. يمكنك شحن المبلغ المتبقي بالضبط أو اختيار باقة شحن فوري لإتمام الشراء بأمان دون أي خصم مزدوج.
               </p>
             </div>
@@ -375,7 +375,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
               type="button"
               disabled={isProcessing}
               onClick={() => handleTopUpWallet(activeShortfallUsd)}
-              className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isProcessing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -390,7 +390,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 setLocalShortfallUsd(null);
                 onClearShortfall?.();
               }}
-              className="px-3 py-2 rounded-xl bg-[#EDE6DA] hover:bg-[#e3dacb] text-[#252321] text-xs font-bold cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#1F1F1C] text-xs font-bold cursor-pointer"
             >
               إغلاق
             </button>
@@ -400,15 +400,15 @@ export const WalletView: React.FC<WalletViewProps> = ({
 
       {/* Success Notification Alert */}
       {actionSuccessMessage && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-300 p-4 text-emerald-900 text-xs sm:text-sm font-semibold flex items-center gap-2">
-          <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+        <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 text-[#1F1F1C] text-xs sm:text-sm font-semibold flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-[#D97757] shrink-0" />
           <span>{actionSuccessMessage}</span>
         </div>
       )}
       {actionErrorMessage && (
         <div
           role="alert"
-          className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-800 text-xs sm:text-sm font-semibold flex items-center gap-2"
+          className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 text-[#1F1F1C] text-xs sm:text-sm font-semibold flex items-center gap-2"
         >
           <span>{actionErrorMessage}</span>
         </div>
@@ -416,32 +416,32 @@ export const WalletView: React.FC<WalletViewProps> = ({
 
       {/* 1. Wallet Balance Hero Card */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-1 rounded-2xl bg-[#252321] text-white p-6 shadow-md flex flex-col justify-between">
+        <div className="lg:col-span-1 rounded-2xl bg-[#1F1F1C] text-[#F5F1E8] p-6 shadow-md flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs text-white/70 font-semibold flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-[#D8755B]" />
+              <span className="text-xs text-[#F5F1E8]/70 font-semibold flex items-center gap-1.5">
+                <Wallet className="w-4 h-4 text-[#D97757]" />
                 <span>محفظة جذوري الرقمية</span>
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] text-white/80">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#F5F1E8]/10 text-[11px] text-[#F5F1E8]/80">
                 USD
               </span>
             </div>
 
-            <div className="text-3xl sm:text-4xl font-display font-extrabold text-[#F7F2E9] mb-1 tabular-nums">
+            <div className="text-3xl sm:text-4xl font-display font-extrabold text-[#F5F1E8] mb-1 tabular-nums">
               ${balance.toFixed(2)}
             </div>
-            <p className="text-xs text-white/60">
+            <p className="text-xs text-[#F5F1E8]/60">
               الرصيد الفعلي الموثق عبر معاملات سحابية ذرية لشراء الوثائق والسلاسل والفحوصات.
             </p>
           </div>
 
-          <div className="pt-6 border-t border-white/15 mt-6 flex items-center gap-2">
+          <div className="pt-6 border-t border-[#F5F1E8]/15 mt-6 flex items-center gap-2">
             <button
               type="button"
               disabled={isProcessing}
               onClick={() => handleTopUpWallet(20)}
-              className="flex-1 py-2 px-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              className="flex-1 py-2 px-3 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
               {isProcessing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -454,7 +454,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
               type="button"
               disabled={isProcessing}
               onClick={() => handleTopUpWallet(50)}
-              className="flex-1 py-2 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              className="flex-1 py-2 px-3 rounded-xl bg-[#F5F1E8]/15 hover:bg-[#F5F1E8]/25 text-[#F5F1E8] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
               {isProcessing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -467,33 +467,33 @@ export const WalletView: React.FC<WalletViewProps> = ({
         </div>
 
         {/* Annual Subscription Commercial Model Banner */}
-        <div className="lg:col-span-2 rounded-2xl bg-white border border-[#B98A78]/35 p-6 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-2 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-6 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-[#D8755B] mb-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#D97757] mb-2">
               <Crown className="w-4 h-4" />
               <span>النموذج التجاري لمنصة جذوري — الاشتراك السنوي + رصيد المحفظة</span>
             </div>
-            <h3 className="text-lg font-display font-bold text-[#252321]">
+            <h3 className="text-lg font-display font-bold text-[#1F1F1C]">
               الاشتراك السنوي الشامل بريميوم ($60 / سنة)
             </h3>
-            <p className="text-xs sm:text-sm text-[#252321]/75 mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/75 mt-1 leading-relaxed">
               يشمل فتح عمود النسب الكامل حتى آدم عليه السلام، استعراض المخطوطات، ورفع سعة شجرتي إلى 250 فرداً وخزانتي إلى 100 وثيقة مع نشر موقعي الشخصي،{' '}
-              <strong className="text-[#D8755B]">
+              <strong className="text-[#D97757]">
                 بالإضافة إلى إيداع رصيد فوري بقيمة $25 في محفظتك الرقمية
               </strong>{' '}
               لاستخدامه في الخدمات الفاخرة!
             </p>
           </div>
 
-          <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#B98A78]/20 mt-4">
+          <div className="pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#D97757]/20 mt-4">
             <div className="text-xs">
-              <span className="text-[#252321]/60 block">قيمة الاشتراك:</span>
-              <span className="font-bold text-[#252321] text-base">$60 / سنوياً</span>
+              <span className="text-[#1F1F1C]/60 block">قيمة الاشتراك:</span>
+              <span className="font-bold text-[#1F1F1C] text-base">$60 / سنوياً</span>
             </div>
 
             {isVip ? (
-              <span className="px-4 py-2 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <span className="px-4 py-2 rounded-xl bg-[#E8DED2] text-[#1F1F1C] text-xs font-bold inline-flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 text-[#D97757]" />
                 <span>اشتراكك السنوي نشط حالياً</span>
               </span>
             ) : (
@@ -501,7 +501,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 type="button"
                 disabled={isProcessing}
                 onClick={handleAnnualUpgradeWithBonus}
-                className="py-2.5 px-5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-bold flex items-center gap-2 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                className="py-2.5 px-5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs sm:text-sm font-display font-bold flex items-center gap-2 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
               >
                 {isProcessing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -518,17 +518,17 @@ export const WalletView: React.FC<WalletViewProps> = ({
       </div>
 
       {/* 2. Micro-services Marketplace (Purchasable via Wallet Balance) */}
-      <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-6 shadow-xs space-y-4">
+      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-display font-bold text-[#252321]">
+            <h3 className="text-base font-display font-bold text-[#1F1F1C]">
               مزايا وخدمات يمكن شراؤها برصيد المحفظة
             </h3>
-            <p className="text-xs text-[#252321]/70 mt-0.5">
+            <p className="text-xs text-[#1F1F1C]/70 mt-0.5">
               استثمر رصيد محفظتك الرقمية في توثيق إرث عائلتك عبر معاملات سحابية ذرية آمنة
             </p>
           </div>
-          <span className="text-xs font-bold text-[#D8755B]">خصم ذري مباشر من المحفظة</span>
+          <span className="text-xs font-bold text-[#D97757]">خصم ذري مباشر من المحفظة</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
@@ -587,23 +587,23 @@ export const WalletView: React.FC<WalletViewProps> = ({
             return (
               <div
                 key={srv.id}
-                className="rounded-xl border border-[#B98A78]/30 bg-[#F7F2E9] p-4 flex flex-col justify-between hover:border-[#D8755B] transition-colors"
+                className="rounded-xl border border-[#D97757]/30 bg-[#F5F1E8] p-4 flex flex-col justify-between hover:border-[#D97757] transition-colors"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="w-8 h-8 rounded-lg bg-white text-[#D8755B] flex items-center justify-center shadow-2xs">
+                    <div className="w-8 h-8 rounded-lg bg-[#F5F1E8] text-[#D97757] flex items-center justify-center shadow-2xs">
                       <srv.icon className="w-4 h-4" />
                     </div>
-                    <span className="px-2 py-0.5 rounded-md bg-[#EDE6DA] text-[10px] font-bold text-[#252321]/80">
+                    <span className="px-2 py-0.5 rounded-md bg-[#E8DED2] text-[10px] font-bold text-[#1F1F1C]/80">
                       {srv.badge}
                     </span>
                   </div>
-                  <h4 className="text-sm font-display font-bold text-[#252321]">{srv.title}</h4>
-                  <p className="text-xs text-[#252321]/70 mt-1 leading-relaxed">{srv.desc}</p>
+                  <h4 className="text-sm font-display font-bold text-[#1F1F1C]">{srv.title}</h4>
+                  <p className="text-xs text-[#1F1F1C]/70 mt-1 leading-relaxed">{srv.desc}</p>
                 </div>
 
-                <div className="pt-4 border-t border-[#B98A78]/20 mt-3 flex items-center justify-between gap-2">
-                  <span className="text-sm font-extrabold text-[#D8755B] tabular-nums">
+                <div className="pt-4 border-t border-[#D97757]/20 mt-3 flex items-center justify-between gap-2">
+                  <span className="text-sm font-extrabold text-[#D97757] tabular-nums">
                     ${srv.cost}
                   </span>
                   <button
@@ -612,8 +612,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
                     onClick={() => handlePurchaseService(srv.title, srv.cost)}
                     className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
                       hasEnough
-                        ? 'bg-[#252321] text-white hover:bg-[#D8755B]'
-                        : 'bg-[#EDE6DA] text-[#8D4925] hover:bg-[#D8755B] hover:text-white'
+                        ? 'bg-[#1F1F1C] text-[#F5F1E8] hover:bg-[#D97757]'
+                        : 'bg-[#E8DED2] text-[#D97757] hover:bg-[#D97757] hover:text-[#F5F1E8]'
                     }`}
                   >
                     {hasEnough
@@ -628,27 +628,27 @@ export const WalletView: React.FC<WalletViewProps> = ({
       </div>
 
       {/* 3. Structured Financial Transaction Ledger (`wallet_transactions`) */}
-      <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-6 shadow-xs space-y-4">
+      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 p-6 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-base font-display font-bold text-[#252321]">
+            <h3 className="text-base font-display font-bold text-[#1F1F1C]">
               سجل الحركات والمعاملات المالية الموثّق
             </h3>
-            <p className="text-[11px] text-[#252321]/65 mt-0.5">
+            <p className="text-[11px] text-[#1F1F1C]/65 mt-0.5">
               كل عملية موثقة برقم مرجعي فريد قابل للنسخ الفوري لمراجعته مع الدعم الفني عند الحاجة
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-lg bg-[#FAF6F0] border border-[#B98A78]/35 text-[11px] font-semibold text-[#8D4925]">
+          <span className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-[11px] font-semibold text-[#D97757]">
             مدقق ذرياً في السحابة
           </span>
         </div>
 
         {transactions.length === 0 ? (
-          <p className="text-xs text-[#252321]/60 text-center py-6">
+          <p className="text-xs text-[#1F1F1C]/60 text-center py-6">
             لا توجد حركات مالية مسجلة في محفظتك حتى الآن.
           </p>
         ) : (
-          <div className="divide-y divide-[#B98A78]/20">
+          <div className="divide-y divide-[#D97757]/20">
             {transactions.map((tx) => {
               const isCredit = tx.direction
                 ? tx.direction === 'credit'
@@ -671,8 +671,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                         isCredit
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-rose-100 text-rose-700'
+                          ? 'bg-[#E8DED2] text-[#D97757]'
+                          : 'bg-[#E8DED2] text-[#D97757]'
                       }`}
                     >
                       {isCredit ? (
@@ -683,29 +683,29 @@ export const WalletView: React.FC<WalletViewProps> = ({
                     </div>
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-[#252321]">
+                        <span className="font-bold text-[#1F1F1C]">
                           {tx.descriptionAr || tx.reason}
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/35 text-[10px] font-semibold text-[#8D4925]">
+                        <span className="px-2 py-0.5 rounded bg-[#F5F1E8] border border-[#D97757]/35 text-[10px] font-semibold text-[#D97757]">
                           {getStructuredTypeBadgeLabel(tx)}
                         </span>
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             tx.status === 'FAILED'
-                              ? 'bg-red-50 text-red-700'
+                              ? 'bg-[#F5F1E8] text-[#D97757]'
                               : tx.status === 'PENDING'
-                              ? 'bg-amber-50 text-amber-800'
-                              : 'bg-emerald-50 text-emerald-800'
+                              ? 'bg-[#F5F1E8] text-[#1F1F1C]'
+                              : 'bg-[#F5F1E8] text-[#1F1F1C]'
                           }`}
                         >
                           {statusLabel}
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#252321]/65">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#1F1F1C]/65">
                         <span
                           dir="ltr"
-                          className="font-mono font-bold text-[#252321] bg-[#F7F2E9] px-2 py-0.5 rounded border border-[#B98A78]/30"
+                          className="font-mono font-bold text-[#1F1F1C] bg-[#F5F1E8] px-2 py-0.5 rounded border border-[#D97757]/30"
                         >
                           {txRef}
                         </span>
@@ -713,7 +713,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                           type="button"
                           onClick={() => handleCopyTransactionId(txRef)}
                           title="نسخ الرقم المرجعي للعملية"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#EDE6DA] hover:bg-[#D8755B] hover:text-white text-[#252321] text-[10px] font-bold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#E8DED2] hover:bg-[#D97757] hover:text-[#F5F1E8] text-[#1F1F1C] text-[10px] font-bold transition-colors cursor-pointer"
                         >
                           {isCopied ? (
                             <>
@@ -742,7 +742,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                   <div
                     dir="ltr"
                     className={`font-mono font-bold text-sm tabular-nums self-end sm:self-center shrink-0 ${
-                      isCredit ? 'text-emerald-700' : 'text-rose-700'
+                      isCredit ? 'text-[#D97757]' : 'text-[#D97757]'
                     }`}
                   >
                     {isCredit

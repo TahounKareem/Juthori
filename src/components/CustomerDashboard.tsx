@@ -22,9 +22,9 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
-  ShoppingCart,
   Trash2,
   User,
+  UserRound,
   Users,
   X,
   ArrowRight,
@@ -90,6 +90,7 @@ import { WalletView } from './WalletView';
 import { JuthoriLogo } from './JuthoriLogo';
 import {
   RoyalRoleFamilyBadge,
+  formatRoyalFamilyLabel,
   resolveRoyalRoleLabel,
 } from './RoyalRoleFamilyBadge';
 import { DashboardHeaderWatermark } from './DashboardHeaderWatermark';
@@ -2021,7 +2022,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
       appendActivity(
         `التوقيع الإلكتروني الموثق على عقد أمين السجل (${auditEntry.certificateCode})`,
-        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «أمين سجل العائلة ✦» بسعة تصل إلى 250 فرداً`
+        `اعتماد العقد الكامل (${RECORD_KEEPER_CONTRACT_VERSION}) وترقية الصفة القانونية إلى «أمين سجل العائلة» بسعة تصل إلى 250 فرداً`
       );
 
       return auditEntry;
@@ -2327,7 +2328,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   });
 
   const renderPrimaryNavigationTabs = (attachMobileRefs: boolean) => (
-    <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 xl:p-1 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] shrink-0">
+    <div className="inline-flex items-center gap-0.5 xl:gap-1 p-1 sm:p-1.5 xl:p-1 rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] shrink-0">
       {DASHBOARD_TABS.map((tab) => {
         const TabIcon = tab.icon;
         const isLocked = tab.premium && !caps.arePremiumTabsUnlocked;
@@ -2339,8 +2340,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         const buttonClasses = [
           'group/tab relative px-3 py-1.5 rounded-xl text-[12.5px] font-display font-bold inline-flex items-center justify-center gap-1.5 transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer min-h-[38px] xl:min-h-[36px] snap-center select-none border',
           isSelected
-            ? 'bg-[#E8DED2] text-[#D97757] border-[#D8C7B2] shadow-[inset_0_1px_0_rgba(255,248,238,0.45)]'
-            : 'bg-transparent text-[#1F1F1C] border-transparent hover:border-[#D8C7B2]/65 hover:bg-[#D8C7B2]/25 hover:text-[#1F1F1C]',
+            ? 'bg-[#E8DED2]/60 text-[#D97757] border-[#D8C7B2]'
+            : 'bg-transparent text-[#1F1F1C] border-transparent hover:border-[#D8C7B2]/65 hover:bg-[#E8DED2]/55 hover:text-[#1F1F1C]',
         ].join(' ');
 
         return (
@@ -2392,9 +2393,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   );
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F7F2E9] text-[#252321] overflow-x-clip">
+    <div dir="rtl" className="min-h-screen bg-[#F5F1E8] text-[#1F1F1C] overflow-x-clip">
       {/* A. PRECISION GRID-ALIGNED RTL LUXURY HEADER SHELL (Exact max-w-7xl parity with page content) */}
-      <header className="relative md:sticky md:top-0 z-40 bg-gradient-to-b from-[#FDFBF7]/96 via-[#FAF6EE]/94 to-[#F7F2E8]/92 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_8px_30px_-18px_rgba(88,63,36,0.18)]">
+      <header className="relative md:sticky md:top-0 z-40 bg-[#F5F1E8] border-b border-[#D8C7B2] shadow-[0_8px_28px_-18px_rgba(31,31,28,0.14)]">
         {/* Subtle Architectural Islamic Arabesque & Lineage Vine SVG Watermark */}
         <DashboardHeaderWatermark />
 
@@ -2414,11 +2415,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {/* Golden Vertical Hairline between Brand & Primary 7-Tab Navigation (Desktop >= xl) */}
             <span
               aria-hidden="true"
-              className="hidden xl:block xl:order-2 h-7 w-px bg-[#D4AF37]/25 shrink-0"
+              className="hidden xl:block xl:order-2 h-7 w-px bg-[#D97757]/25 shrink-0"
             />
 
             {/* 2. SINGLE PRIMARY 7-TAB NAVIGATION (Desktop >= xl: Right next to Logo + fills center gap | Tablet md..xl: Centered Row 2) */}
-            <div className="hidden md:flex order-4 xl:order-3 w-full xl:w-auto xl:flex-1 border-t border-[#D4AF37]/15 xl:border-t-0 py-2.5 xl:py-0 items-center justify-center xl:justify-start min-w-0">
+            <div className="hidden md:flex order-4 xl:order-3 w-full xl:w-auto xl:flex-1 border-t border-[#D8C7B2]/15 xl:border-t-0 py-2.5 xl:py-0 items-center justify-center xl:justify-start min-w-0">
               <nav
                 aria-label="تبويبات لوحة تحكم العميل"
                 className="flex items-center justify-center xl:justify-start min-w-0 max-w-full overflow-x-auto no-scrollbar"
@@ -2440,25 +2441,35 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 aria-label="الاشتراكات والسلة"
                 className={`group/util relative w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer shrink-0 ${
                   activeUtilityDrawer === 'cart'
-                    ? 'bg-[#C86B4E]/15 text-[#A85136] border-[#C86B4E]/35 shadow-2xs'
+                    ? 'bg-[#D97757]/15 text-[#D97757] border-[#D97757]/35 shadow-2xs'
                     : availableCartItems.length > 0
-                    ? 'bg-[#FBF4E4]/90 text-[#8C5327] border-[#C59B27]/50 hover:bg-[#F7EAD0] hover:border-[#B88924]/70 shadow-[0_2px_8px_-4px_rgba(197,155,39,0.45)]'
-                    : 'bg-transparent border-transparent text-[#8C7B6B]/70 hover:bg-[#C59B27]/10 hover:text-[#7A4B21]'
+                    ? 'bg-[#F5F1E8]/90 text-[#D97757] border-[#D97757]/50 hover:bg-[#E8DED2] hover:border-[#D97757]/70 shadow-[0_2px_8px_-4px_rgba(217,119,87,0.45)]'
+                    : 'bg-transparent border-transparent text-[#D97757]/70 hover:bg-[#D97757]/10 hover:text-[#D97757]'
                 }`}
               >
-                <ShoppingCart
-                  className="w-[17px] h-[17px] transition-transform duration-200 group-hover/util:scale-105"
-                  strokeWidth={1.55}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.85"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
                   aria-hidden="true"
-                />
+                >
+                  <path d="M2.5 4h2.6l2.1 10.2a1.6 1.6 0 0 0 1.56 1.3h9.6a1.6 1.6 0 0 0 1.55-1.22L21.5 7.5H6.2" />
+                  <path d="M8.5 11.2h11.3" strokeWidth="1.35" opacity="0.65" />
+                  <circle cx="9.5" cy="19.5" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="17.5" cy="19.5" r="1.5" fill="currentColor" stroke="none" />
+                </svg>
                 {availableCartItems.length > 0 && (
-                  <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#8D4925] text-[#FAF4E4] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#FDFBF7] shadow-2xs">
+                  <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#D97757] text-[#F5F1E8] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#F5F1E8] shadow-2xs">
                     {availableCartItems.length}
                   </span>
                 )}
                 <span
                   role="tooltip"
-                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                 >
                   السلة والاشتراكات
                 </span>
@@ -2480,10 +2491,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 aria-label="الإشعارات والتنبيهات"
                 className={`group/util relative w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer shrink-0 ${
                   activeUtilityDrawer === 'notifications'
-                    ? 'bg-[#C86B4E]/15 text-[#A85136] border-[#C86B4E]/35 shadow-2xs'
+                    ? 'bg-[#D97757]/15 text-[#D97757] border-[#D97757]/35 shadow-2xs'
                     : unreadCount > 0
-                    ? 'bg-[#FFFDF8]/85 text-[#7A4B21] border-[#D4AF37]/30 hover:bg-[#C59B27]/12 hover:border-[#C59B27]/50 hover:text-[#8C5327]'
-                    : 'bg-transparent border-transparent text-[#8C7B6B]/75 hover:bg-[#C59B27]/10 hover:text-[#7A4B21]'
+                    ? 'bg-[#F5F1E8]/85 text-[#D97757] border-[#D8C7B2]/30 hover:bg-[#D97757]/12 hover:border-[#D97757]/50 hover:text-[#D97757]'
+                    : 'bg-transparent border-transparent text-[#D97757]/75 hover:bg-[#D97757]/10 hover:text-[#D97757]'
                 }`}
               >
                 <Bell
@@ -2492,13 +2503,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   aria-hidden="true"
                 />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#C8372D] text-white text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#FDFBF7] shadow-2xs">
+                  <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#D97757] text-[#F5F1E8] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#F5F1E8] shadow-2xs">
                     {unreadCount}
                   </span>
                 )}
                 <span
                   role="tooltip"
-                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#252321] text-[#FDFBF7] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                 >
                   الإشعارات
                 </span>
@@ -2507,10 +2518,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               {/* 3c. Delicate Vertical Hairline Separating Utility Icons & Profile Capsule */}
               <span
                 aria-hidden="true"
-                className="hidden sm:block h-6 w-px bg-[#D4AF37]/20 shrink-0"
+                className="hidden sm:block h-6 w-px bg-[#D97757]/20 shrink-0"
               />
 
-              {/* 3d. BESPOKE SCULPTED LUXURY PROFILE IDENTITY CAPSULE (Flush Far-Left Anchor) */}
+              {/* 3d. COMPACT PROFILE IDENTITY CAPSULE (Flush Far-Left Anchor) */}
               <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
@@ -2518,38 +2529,29 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   aria-expanded={userDropdownOpen}
                   aria-haspopup="menu"
                   aria-label="قائمة الحساب الشخصي والأدوات"
-                  className={`group relative overflow-hidden w-auto shrink-0 flex items-center gap-2 md:gap-2.5 rounded-full px-2 md:px-2.5 py-1 md:py-1.5 border transition-all duration-300 ease-out cursor-pointer text-right will-change-transform ${
+                  className={`group relative overflow-hidden w-auto shrink-0 flex items-center gap-2 rounded-2xl px-2 py-1 border transition-all duration-200 ease-out cursor-pointer text-right ${
                     userDropdownOpen
-                      ? 'bg-gradient-to-l from-[#FFFDF8] via-[#FAF3E4] to-[#F3E7D2] border-[#C59B27]/65 shadow-[0_8px_22px_-10px_rgba(140,98,57,0.34)] -translate-y-0.5'
-                      : 'bg-gradient-to-l from-[#FFFDF9]/95 via-[#FBF6EC]/90 to-[#F4ECDD]/85 border-[#D4AF37]/30 shadow-[0_2px_12px_-5px_rgba(110,80,40,0.16)] hover:-translate-y-0.5 hover:shadow-[0_8px_22px_-10px_rgba(140,98,57,0.28)] hover:border-[#C59B27]/55 active:scale-[0.985]'
+                      ? 'bg-[#E8DED2]/70 border-[#D97757]/60 shadow-[0_6px_18px_-10px_rgba(217,119,87,0.3)]'
+                      : 'bg-[#F5F1E8] border-[#D8C7B2] shadow-[0_1px_6px_-3px_rgba(31,31,28,0.08)] hover:bg-[#E8DED2]/50 hover:border-[#D97757]/55'
                   }`}
                 >
-                  {/* Subtle GPU-accelerated Specular Sheen Sweep on Hover */}
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/60 to-transparent -skew-x-12"
-                  />
-
-                  {/* Rightmost (RTL Start): Double Gilded Ring Portrait + Royal Premium Crown Medallion */}
+                  {/* Rightmost (RTL Start): Clean Warm Default Avatar Icon (No Black Background) */}
                   <span className="relative shrink-0">
-                    <span className="block p-[1.5px] md:p-[2px] rounded-full bg-gradient-to-tr from-[#B6863E]/80 via-[#F2D598] to-[#C59B27]/85 transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(197,155,39,0.45)]">
-                      <span className="block p-[1px] md:p-[1.5px] rounded-full bg-[#FFFDF9]">
-                        <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden">
-                          {avatarUrl ? (
-                            <img
-                              src={avatarUrl}
-                              alt={`${cleanClientFirstName} ${rawClientFamilyName}`}
-                              referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <User
-                              className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#F3D299]"
-                              aria-hidden="true"
-                            />
-                          )}
-                        </span>
-                      </span>
+                    <span className="w-8 h-8 rounded-full bg-[#E8DED2] text-[#D97757] border border-[#D8C7B2] flex items-center justify-center overflow-hidden shadow-2xs">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={`${cleanClientFirstName} ${rawClientFamilyName}`}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <UserRound
+                          className="w-4 h-4 text-[#D97757]"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      )}
                     </span>
 
                     {caps.isVip && (
@@ -2557,56 +2559,56 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         title="عضوية بريميوم"
                         aria-label="عضوية بريميوم"
                         data-testid="header-profile-premium-crown"
-                        className="absolute -bottom-0.5 -left-0.5 w-[17px] h-[17px] rounded-full bg-gradient-to-br from-[#F7DE98] via-[#D4AF37] to-[#9E6B24] text-[#23180E] ring-[1.5px] ring-[#FFFDF9] shadow-xs flex items-center justify-center"
+                        className="absolute -bottom-0.5 -left-0.5 w-[15px] h-[15px] rounded-full bg-[#D97757] text-[#F5F1E8] ring-[1.5px] ring-[#F5F1E8] shadow-2xs flex items-center justify-center"
                       >
-                        <Crown className="w-2.5 h-2.5 stroke-[2.4]" aria-hidden="true" />
+                        <Crown className="w-2.5 h-2.5 stroke-[2.3]" aria-hidden="true" />
                       </span>
                     )}
                   </span>
 
-                  {/* Middle: Unconstrained First Name + Connected Segmented Role & Family Badge */}
-                  <div className="relative z-10 flex items-center gap-2 shrink-0">
-                    <span className="text-[13px] md:text-[14px] font-display font-extrabold text-[#252321] leading-normal whitespace-nowrap shrink-0">
-                      {cleanClientFirstName}
-                    </span>
+                  {/* Middle: Compact Stacked Customer Name + Smaller Role Badge & Bonded Family Name */}
+                  <div
+                    data-testid="header-royal-role-family-badge"
+                    className="relative z-10 hidden sm:flex flex-col items-start justify-center gap-0.5 leading-none min-w-0"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[12.5px] font-display font-extrabold text-[#1F1F1C] leading-none whitespace-nowrap">
+                        {cleanClientFirstName}
+                      </span>
+                      <span className="px-1.5 py-[2px] rounded-md bg-[#D97757] text-[#F5F1E8] text-[9px] font-display font-bold leading-none whitespace-nowrap">
+                        {headerRoleLabel}
+                      </span>
+                    </div>
 
-                    <RoyalRoleFamilyBadge
-                      testId="header-royal-role-family-badge"
-                      roleLabel={headerRoleLabel}
-                      familyName={result.familyName}
-                      variant="header"
-                      className="hidden md:inline-flex"
-                    />
+                    {formatRoyalFamilyLabel(result.familyName) && (
+                      <span className="inline-flex items-center gap-1 text-[10.5px] font-display font-bold text-[#D97757] leading-none whitespace-nowrap">
+                        <span
+                          aria-hidden="true"
+                          className="w-2 h-[1.5px] rounded-full bg-[#D97757]/60 shrink-0"
+                        />
+                        <span>{formatRoyalFamilyLabel(result.familyName)}</span>
+                      </span>
+                    )}
                   </div>
 
-                  {/* Trailing Left Edge: Animated Sculpted Chevron (▾) */}
-                  <span
-                    className={`relative z-10 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200 ${
-                      userDropdownOpen
-                        ? 'bg-[#C59B27]/20 text-[#8C5327]'
-                        : 'bg-[#EDE4D3]/75 text-[#6E5643] group-hover:bg-[#E7D8BE]/90 group-hover:text-[#7A4B21]'
+                  {/* Trailing Left Edge: Compact Chevron */}
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-[#D97757]/80 shrink-0 transition-transform duration-200 ${
+                      userDropdownOpen ? 'rotate-180' : ''
                     }`}
-                  >
-                    <ChevronDown
-                      className={`w-3 h-3 md:w-3.5 md:h-3.5 transition-transform duration-300 ease-out ${
-                        userDropdownOpen
-                          ? 'rotate-180'
-                          : 'group-hover:translate-y-0.5'
-                      }`}
-                      aria-hidden="true"
-                    />
-                  </span>
+                    aria-hidden="true"
+                  />
                 </button>
 
                 {/* UNIFIED PROFILE & TOOLS DROPDOWN MENU (Left-anchored for far-left RTL trigger) */}
                 {userDropdownOpen && (
                   <div
                     role="menu"
-                    className="absolute left-0 mt-2.5 w-[336px] sm:w-[356px] max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-md border border-[#D4AF37]/35 shadow-[0_24px_56px_-16px_rgba(37,35,33,0.24)] py-2 z-50 text-right overflow-hidden"
+                    className="absolute left-0 mt-2.5 w-[336px] sm:w-[356px] max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[#F5F1E8]/98 backdrop-blur-md border border-[#D8C7B2]/35 shadow-[0_24px_56px_-16px_rgba(31,31,28,0.24)] py-2 z-50 text-right overflow-hidden"
                   >
                     {/* Dropdown Identity Header: Dedicated Full Name Row + Shared Royal Badge + Status Chips + Email */}
-                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#FAF5EA] to-[#F5ECDC]/80 border-b border-[#D4AF37]/20 space-y-2.5">
-                      <div className="font-display font-extrabold text-[15px] text-[#252321] leading-relaxed break-words">
+                    <div className="px-4 py-3.5 bg-gradient-to-l from-[#F5F1E8] to-[#E8DED2]/80 border-b border-[#D8C7B2]/20 space-y-2.5">
+                      <div className="font-display font-extrabold text-[15px] text-[#1F1F1C] leading-relaxed break-words">
                         {result.clientName}
                         {result.fatherName && result.fatherName !== '—'
                           ? ` بن ${result.fatherName}`
@@ -2625,25 +2627,25 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                         <div className="flex items-center gap-1.5 shrink-0">
                           {caps.isVip && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-l from-[#F7E5B7] to-[#FDF5DF] border border-[#D4AF37]/60 text-[#7A4B1B] text-[10.5px] font-display font-extrabold leading-normal">
-                              <Crown className="w-3 h-3 text-[#B67A1E]" />
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-l from-[#E8DED2] to-[#F5F1E8] border border-[#D8C7B2]/60 text-[#D97757] text-[10.5px] font-display font-extrabold leading-normal">
+                              <Crown className="w-3 h-3 text-[#D97757]" />
                               <span>بريميوم</span>
                             </span>
                           )}
                           {isEmailVerified ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10.5px] font-bold leading-normal">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] text-[10.5px] font-bold leading-normal">
+                              <CheckCircle2 className="w-3 h-3 text-[#D97757]" />
                               <span>موثّق ✓</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10.5px] font-bold leading-normal">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] text-[10.5px] font-bold leading-normal">
                               <span>غير موثّق</span>
                             </span>
                           )}
                         </div>
 
                         <div
-                          className="text-[11.5px] font-mono text-[#252321]/70 truncate max-w-full"
+                          className="text-[11.5px] font-mono text-[#1F1F1C]/70 truncate max-w-full"
                           dir="ltr"
                         >
                           {userEmail}
@@ -2660,16 +2662,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setUserDropdownOpen(false);
                           setActiveUtilityDrawer('profile');
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <User className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-display font-bold text-[#252321]">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C]">
                             الملف الشخصي
                           </div>
-                          <div className="text-[11px] text-[#252321]/65 truncate">
+                          <div className="text-[11px] text-[#1F1F1C]/65 truncate">
                             تعديل البيانات، الصورة، الجوال، والدولة
                           </div>
                         </div>
@@ -2682,21 +2684,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setUserDropdownOpen(false);
                           setActiveUtilityDrawer('cart');
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <CreditCard className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-display font-bold text-[#252321]">
+                            <span className="text-xs font-display font-bold text-[#1F1F1C]">
                               الاشتراكات والمحفظة
                             </span>
-                            <span className="text-[11px] font-mono tabular-nums font-bold text-[#D8755B]">
+                            <span className="text-[11px] font-mono tabular-nums font-bold text-[#D97757]">
                               ${walletBalance}
                             </span>
                           </div>
-                          <div className="text-[11px] text-[#252321]/65 truncate">
+                          <div className="text-[11px] text-[#1F1F1C]/65 truncate">
                             عرض الرصيد الحالي، شحن المحفظة، وترقية الباقة
                           </div>
                         </div>
@@ -2709,23 +2711,23 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setUserDropdownOpen(false);
                           setShowCharterModal(true);
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#8D4925] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <FileSignature className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-display font-bold text-[#252321]">
+                            <span className="text-xs font-display font-bold text-[#1F1F1C]">
                               ميثاق أمين السجل
                             </span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/40 text-[#8D4925]">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F5F1E8] border border-[#D97757]/40 text-[#D97757]">
                               {accountType === AccountLegalType.RecordKeeper
                                 ? 'مفعّل ✓'
                                 : 'حساب فرد'}
                             </span>
                           </div>
-                          <div className="text-[11px] text-[#252321]/65 truncate">
+                          <div className="text-[11px] text-[#1F1F1C]/65 truncate">
                             حالة الصفة القانونية لبناء الشجرة
                           </div>
                         </div>
@@ -2739,27 +2741,27 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setActiveUtilityDrawer(null);
                           setActiveTab(DashboardTab.ResearchTickets);
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-[#EDE6DA] text-[#D8755B] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <Scroll className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-display font-bold text-[#252321]">
+                            <span className="text-xs font-display font-bold text-[#1F1F1C]">
                               مرصد البحوث ومراسلات النسب
                             </span>
                             {hasResearcherReplyWaiting ? (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-950">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C]">
                                 رد جديد
                               </span>
                             ) : hasCustomerResearchTicket ? (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF6F0] border border-[#B98A78]/40 text-[#8D4925]">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F5F1E8] border border-[#D97757]/40 text-[#D97757]">
                                 قيد المتابعة
                               </span>
                             ) : null}
                           </div>
-                          <div className="text-[11px] text-[#252321]/65 truncate">
+                          <div className="text-[11px] text-[#1F1F1C]/65 truncate">
                             متابعة حالة تحقيق النسب والرد على الباحثين
                           </div>
                         </div>
@@ -2767,8 +2769,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </div>
 
                     {/* Integrated Secondary Tools Section (Settings, Activity Log, Help, Language) */}
-                    <div className="py-1.5 px-2 border-t border-[#D4AF37]/20 space-y-0.5">
-                      <div className="px-3 pt-1 pb-0.5 text-[10px] font-display font-bold text-[#8C6E52] tracking-wide">
+                    <div className="py-1.5 px-2 border-t border-[#D8C7B2]/20 space-y-0.5">
+                      <div className="px-3 pt-1 pb-0.5 text-[10px] font-display font-bold text-[#D97757] tracking-wide">
                         الأدوات والتفضيلات
                       </div>
 
@@ -2779,13 +2781,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           setUserDropdownOpen(false);
                           setActiveUtilityDrawer('settings');
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <Settings className="w-3.5 h-3.5" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-display font-bold text-[#252321]">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C]">
                             الإعدادات العامة والأمان
                           </div>
                         </div>
@@ -2800,13 +2802,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             cur === 'activity' ? null : 'activity'
                           );
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <Activity className="w-3.5 h-3.5" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-display font-bold text-[#252321]">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C]">
                             سجل النشاط
                           </div>
                         </div>
@@ -2821,13 +2823,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             cur === 'help' ? null : 'help'
                           );
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center gap-3 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                           <HelpCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-display font-bold text-[#252321]">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C]">
                             المساعدة والإرشاد
                           </div>
                         </div>
@@ -2839,17 +2841,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         onClick={() => {
                           setBilingualLabels((v) => !v);
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F7F2E9] flex items-center justify-between gap-2 text-right transition-colors cursor-pointer"
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center justify-between gap-2 text-right transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-3 min-w-0">
-                          <span className="w-7 h-7 rounded-lg bg-[#F4ECE0] text-[#8C5327] flex items-center justify-center shrink-0">
+                          <span className="w-7 h-7 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
                             <Globe className="w-3.5 h-3.5" strokeWidth={1.75} />
                           </span>
-                          <span className="text-xs font-display font-bold text-[#252321]">
+                          <span className="text-xs font-display font-bold text-[#1F1F1C]">
                             تغيير اللغة
                           </span>
                         </span>
-                        <span className="px-2 py-0.5 rounded-full bg-[#FAF3E4] border border-[#C59B27]/40 text-[10px] font-mono font-bold text-[#8C5327] shrink-0">
+                        <span className="px-2 py-0.5 rounded-full bg-[#F5F1E8] border border-[#D97757]/40 text-[10px] font-mono font-bold text-[#D97757] shrink-0">
                           {bilingualLabels ? 'AR / EN' : 'العربية'}
                         </span>
                       </button>
@@ -2857,7 +2859,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                     {/* Logout Action at Bottom of Dropdown */}
                     {onLogout && (
-                      <div className="pt-1.5 mt-0.5 border-t border-[#D4AF37]/20 px-2 pb-1">
+                      <div className="pt-1.5 mt-0.5 border-t border-[#D8C7B2]/20 px-2 pb-1">
                         <button
                           type="button"
                           role="menuitem"
@@ -2865,9 +2867,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             setUserDropdownOpen(false);
                             onLogout();
                           }}
-                          className="w-full px-3 py-2 rounded-xl hover:bg-red-50 text-red-700 flex items-center gap-3 text-right transition-colors cursor-pointer"
+                          className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] text-[#D97757] flex items-center gap-3 text-right transition-colors cursor-pointer"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-red-100/80 text-red-700 flex items-center justify-center shrink-0">
+                          <div className="w-7 h-7 rounded-lg bg-[#E8DED2]/80 text-[#D97757] flex items-center justify-center shrink-0">
                             <LogOut className="w-3.5 h-3.5" />
                           </div>
                           <div className="text-xs font-display font-bold">
@@ -2887,17 +2889,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* MOBILE STICKY GLASS TOUCH NAVIGATION BAR (< 768px): Effortless One-Handed Access & Auto-Centered Active Tab */}
       <div
         data-testid="mobile-sticky-touch-nav"
-        className="md:hidden sticky top-0 z-30 bg-[#FDFBF7]/92 backdrop-blur-lg border-b border-[#D4AF37]/22 shadow-[0_8px_22px_-12px_rgba(88,63,36,0.2)]"
+        className="md:hidden sticky top-0 z-30 bg-[#F5F1E8] border-b border-[#D8C7B2] shadow-[0_8px_22px_-12px_rgba(31,31,28,0.14)]"
       >
         <div className="relative px-2 py-2">
           {/* Soft Side Gradient Fades Indicating Horizontal Continuation */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-gradient-to-r from-[#FDFBF7] via-[#FDFBF7]/80 to-transparent z-10"
+            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-gradient-to-r from-[#F5F1E8] via-[#F5F1E8]/80 to-transparent z-10"
           />
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-[#FDFBF7] via-[#FDFBF7]/80 to-transparent z-10"
+            className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8]/80 to-transparent z-10"
           />
 
           <nav
@@ -2912,10 +2914,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* MAIN DASHBOARD WORKSPACE (100% Exact Horizontal & Vertical Edge Parity with Header) */}
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {activeUtilityDrawer !== null ? (
-          <div className="rounded-2xl bg-white border border-[#B98A78]/45 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#B98A78]/25">
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#D97757]/25">
               <div>
-                <p className="text-xs font-semibold text-[#D8755B] mb-1">
+                <p className="text-xs font-semibold text-[#D97757] mb-1">
                   {activeUtilityDrawer === 'profile' &&
                     'الملف الشخصي والبيانات العائلية والجغرافية'}
                   {activeUtilityDrawer === 'settings' &&
@@ -2926,7 +2928,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   {activeUtilityDrawer === 'activity' && 'الأرشيف الزمني للعمليات'}
                   {activeUtilityDrawer === 'help' && 'الدعم والإرشاد المعرفي'}
                 </p>
-                <h1 className="text-xl sm:text-2xl font-display font-bold text-[#252321]">
+                <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1F1F1C]">
                   {activeUtilityDrawer === 'profile' &&
                     'الملف الشخصي والبيانات الجغرافية وصورة الحساب'}
                   {activeUtilityDrawer === 'settings' &&
@@ -2944,14 +2946,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                 {(activeUtilityDrawer === 'profile' ||
                   activeUtilityDrawer === 'settings') && (
-                  <div className="inline-flex rounded-xl bg-[#F7F2E9] p-1 border border-[#B98A78]/35">
+                  <div className="inline-flex rounded-xl bg-[#F5F1E8] p-1 border border-[#D97757]/35">
                     <button
                       type="button"
                       onClick={() => setActiveUtilityDrawer('profile')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                         activeUtilityDrawer === 'profile'
-                          ? 'bg-[#252321] text-white'
-                          : 'text-[#252321]/75 hover:text-[#252321]'
+                          ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                          : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
                       }`}
                     >
                       👤 الملف الشخصي
@@ -2961,8 +2963,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       onClick={() => setActiveUtilityDrawer('settings')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                         activeUtilityDrawer === 'settings'
-                          ? 'bg-[#D8755B] text-white'
-                          : 'text-[#252321]/75 hover:text-[#252321]'
+                          ? 'bg-[#D97757] text-[#F5F1E8]'
+                          : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
                       }`}
                     >
                       ⚙️ الأمان والإعدادات
@@ -2973,7 +2975,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveUtilityDrawer(null)}
-                  className="px-4 py-2 rounded-xl bg-[#EDE6DA] hover:bg-[#D8755B] hover:text-white text-[#252321] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] hover:text-[#F5F1E8] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   <span>
@@ -2991,9 +2993,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {activeUtilityDrawer === 'profile' && (
               <div className="space-y-8">
                 {/* 1. Avatar Upload Card */}
-                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div className="flex items-center gap-4">
-                    <div className="relative w-20 h-20 rounded-full bg-[#252321] text-white flex items-center justify-center overflow-hidden border-2 border-[#D8755B] shadow-md shrink-0">
+                    <div className="relative w-20 h-20 rounded-full bg-[#E8DED2] text-[#D97757] flex items-center justify-center overflow-hidden border-2 border-[#D8C7B2] shadow-sm shrink-0">
                       {avatarUrl ? (
                         <img
                           src={avatarUrl}
@@ -3001,21 +3003,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <User className="w-9 h-9 text-[#F3D299]" />
+                        <UserRound className="w-9 h-9 text-[#D97757]" strokeWidth={1.85} />
                       )}
                     </div>
                     <div className="space-y-1">
-                      <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                      <h2 className="text-base sm:text-lg font-display font-bold text-[#1F1F1C]">
                         1. تغيير وإرفاق صورة الحساب الشخصية
                       </h2>
-                      <p className="text-xs text-[#252321]/75 leading-relaxed max-w-xl">
+                      <p className="text-xs text-[#1F1F1C]/75 leading-relaxed max-w-xl">
                         تُحفظ صورتك في Firebase وتظهر تلقائياً في كبسولة الهيدر العلوية، وفي عقدة «أمين السجل» داخل عمود نسبي، وفي عقدة «أمين السجل» داخل شجرتي.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0">
-                    <label className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shadow-xs">
+                    <label className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shadow-xs">
                       <Camera className="w-4 h-4" />
                       <span>
                         {isUploadingAvatar
@@ -3035,34 +3037,34 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 {/* 2. Personal & Geographic Data Form */}
                 <form
                   onSubmit={handleSaveProfileData}
-                  className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 space-y-5"
+                  className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 sm:p-6 space-y-5"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#B98A78]/25 pb-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D97757]/25 pb-3.5">
                     <div>
-                      <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+                      <h2 className="text-base sm:text-lg font-display font-bold text-[#1F1F1C]">
                         2. تعديل البيانات الشخصية والجغرافية
                       </h2>
-                      <p className="text-xs text-[#252321]/70">
+                      <p className="text-xs text-[#1F1F1C]/70">
                         تحديث الاسم الثلاثي، رقم الجوال، ودولة الإقامة في حسابك (بيانات اسم العائلة والموطن الأصلي مثبتة لارتباطها بالجذر الموثق)
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         dir="ltr"
-                        className="px-2.5 py-1 rounded-lg bg-white border border-[#B98A78]/35 text-[11px] font-mono text-[#8D4925]"
+                        className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-[11px] font-mono text-[#D97757]"
                       >
                         {userEmail}
                       </span>
                       {isEmailVerified ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-extrabold">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-extrabold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#D97757]" />
                           <span>بريد موثّق ✓</span>
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => setActiveUtilityDrawer('settings')}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-bold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-bold transition-colors cursor-pointer"
                         >
                           <span>توثيق البريد في الأمان والإعدادات ←</span>
                         </button>
@@ -3072,7 +3074,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         الاسم الأول *
                       </label>
                       <input
@@ -3080,12 +3082,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         required
                         value={editFirstName}
                         onChange={(e) => setEditFirstName(e.target.value)}
-                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-sm text-[#1F1F1C]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         اسم الأب
                       </label>
                       <input
@@ -3093,12 +3095,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         value={editFatherName}
                         onChange={(e) => setEditFatherName(e.target.value)}
                         placeholder="اختياري"
-                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-sm text-[#1F1F1C]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         اسم الجد
                       </label>
                       <input
@@ -3106,14 +3108,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         value={editGrandfatherName}
                         onChange={(e) => setEditGrandfatherName(e.target.value)}
                         placeholder="اختياري"
-                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-sm text-[#1F1F1C]"
                       />
                     </div>
 
                     <div>
-                      <label className="flex items-center justify-between gap-1 text-xs font-bold text-[#252321]/80 mb-1.5">
+                      <label className="flex items-center justify-between gap-1 text-xs font-bold text-[#1F1F1C]/80 mb-1.5">
                         <span>اسم العائلة / الشهرة *</span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8D4925]">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#D97757]">
                           <Lock className="w-3 h-3" />
                           <span>مرتبط بالجذر</span>
                         </span>
@@ -3128,14 +3130,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           editFamilyName
                         }
                         title="غير قابل للتعديل لأنه معتمد في عملية الربط بالجذر والمطابقة"
-                        className="w-full rounded-xl bg-[#EDE6DA]/75 border border-[#B98A78]/40 px-3.5 py-2.5 text-sm font-semibold text-[#252321]/70 cursor-not-allowed select-none"
+                        className="w-full rounded-xl bg-[#E8DED2]/75 border border-[#D97757]/40 px-3.5 py-2.5 text-sm font-semibold text-[#1F1F1C]/70 cursor-not-allowed select-none"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         رقم الجوال (للتواصل والإشعارات)
                       </label>
                       <div className="relative">
@@ -3145,20 +3147,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           value={editPhone}
                           onChange={(e) => setEditPhone(e.target.value)}
                           placeholder="+966 5X XXX XXXX"
-                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 pl-9 text-right text-sm text-[#252321]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 pl-9 text-right text-sm text-[#1F1F1C]"
                         />
-                        <Phone className="w-4 h-4 text-[#B98A78] absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Phone className="w-4 h-4 text-[#D97757] absolute left-3 top-1/2 -translate-y-1/2" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#252321] mb-1.5">
+                      <label className="block text-xs font-bold text-[#1F1F1C] mb-1.5">
                         دولة الإقامة
                       </label>
                       <select
                         value={editDefaultCountry}
                         onChange={(e) => setEditDefaultCountry(e.target.value)}
-                        className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2.5 text-sm text-[#252321]"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2.5 text-sm text-[#1F1F1C]"
                       >
                         {ORIGIN_COUNTRY_OPTIONS.map((c) => (
                           <option key={c} value={c}>
@@ -3169,9 +3171,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     </div>
 
                     <div>
-                      <label className="flex items-center justify-between gap-1 text-xs font-bold text-[#252321]/80 mb-1.5">
+                      <label className="flex items-center justify-between gap-1 text-xs font-bold text-[#1F1F1C]/80 mb-1.5">
                         <span>الموطن الأصلي للعائلة (الدولة والإقليم)</span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8D4925]">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#D97757]">
                           <Lock className="w-3 h-3" />
                           <span>مرتبط بالجذر</span>
                         </span>
@@ -3187,7 +3189,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             editOriginCountry
                           }
                           title="غير قابل للتعديل لأنه معتمد في عملية الربط بالجذر والمطابقة"
-                          className="w-full rounded-xl bg-[#EDE6DA]/75 border border-[#B98A78]/40 px-2.5 py-2.5 text-xs font-semibold text-[#252321]/70 cursor-not-allowed select-none"
+                          className="w-full rounded-xl bg-[#E8DED2]/75 border border-[#D97757]/40 px-2.5 py-2.5 text-xs font-semibold text-[#1F1F1C]/70 cursor-not-allowed select-none"
                         />
                         <input
                           type="text"
@@ -3201,7 +3203,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             '—'
                           }
                           title="غير قابل للتعديل لأنه معتمد في عملية الربط بالجذر والمطابقة"
-                          className="w-full rounded-xl bg-[#EDE6DA]/75 border border-[#B98A78]/40 px-2.5 py-2.5 text-xs font-semibold text-[#252321]/70 cursor-not-allowed select-none"
+                          className="w-full rounded-xl bg-[#E8DED2]/75 border border-[#D97757]/40 px-2.5 py-2.5 text-xs font-semibold text-[#1F1F1C]/70 cursor-not-allowed select-none"
                         />
                       </div>
                     </div>
@@ -3211,14 +3213,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <div
                       className={`rounded-xl px-4 py-2.5 text-xs font-bold flex items-center gap-2 ${
                         profileSaveFeedback.startsWith('تعذر')
-                          ? 'bg-red-50 border border-red-200 text-red-800'
-                          : 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+                          ? 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]'
+                          : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]'
                       }`}
                     >
                       {profileSaveFeedback.startsWith('تعذر') ? (
-                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        <AlertCircle className="w-4 h-4 text-[#D97757] shrink-0" />
                       ) : (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
                       )}
                       <span>{profileSaveFeedback}</span>
                     </div>
@@ -3228,7 +3230,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <button
                       type="submit"
                       disabled={isSavingProfile}
-                      className="px-6 py-2.5 rounded-xl bg-[#252321] hover:bg-[#D8755B] text-white text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer disabled:opacity-60"
+                      className="px-6 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer disabled:opacity-60"
                     >
                       {isSavingProfile
                         ? 'جاري الحفظ في Firebase...'
@@ -3246,9 +3248,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               <div className="space-y-8">
                 {/* Thin, Calm, Dismissible Email Verification Reminder Banner */}
                 {!isEmailVerified && !dismissedEmailBannerInProfile && (
-                  <div className="rounded-xl bg-[#FAF6F0] border border-[#B98A78]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#252321]">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/45 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]">
                     <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-[#D8755B] shrink-0" />
+                      <Mail className="w-4 h-4 text-[#D97757] shrink-0" />
                       <span>
                         تذكير هادئ: يمكنك توثيق بريدك الإلكتروني (<strong className="font-mono">{userEmail}</strong>) أدناه لتعزيز أمان حسابك وتفعيل النشر العام في «موقعي».
                       </span>
@@ -3261,7 +3263,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           verificationResendCooldown > 0
                         }
                         onClick={handleSendEmailVerificationCode}
-                        className="px-3 py-1 rounded-lg bg-[#252321] hover:bg-[#D8755B] text-white text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1 rounded-lg bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
                       >
                         {isSendingVerificationOtp
                           ? 'جاري الإرسال...'
@@ -3273,7 +3275,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         type="button"
                         onClick={() => setDismissedEmailBannerInProfile(true)}
                         aria-label="إغلاق التذكير"
-                        className="p-1 rounded-lg hover:bg-[#EDE6DA] text-[#252321]/65 cursor-pointer"
+                        className="p-1 rounded-lg hover:bg-[#E8DED2] text-[#1F1F1C]/65 cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -3282,32 +3284,32 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 )}
 
                 {/* 1. Non-Blocking Server-Side Email Verification Card (Resend OTP) */}
-                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/45 p-5 sm:p-6 space-y-4">
+                <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 p-5 sm:p-6 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Mail className="w-4 h-4 text-[#D8755B]" />
-                        <h2 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                        <Mail className="w-4 h-4 text-[#D97757]" />
+                        <h2 className="text-sm sm:text-base font-display font-extrabold text-[#1F1F1C]">
                           1. حالة وتوثيق البريد الإلكتروني المرتبط بالحساب
                         </h2>
                         <span
                           dir="ltr"
-                          className="px-2.5 py-0.5 rounded-lg bg-white border border-[#B98A78]/35 text-xs font-mono text-[#8D4925]"
+                          className="px-2.5 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-xs font-mono text-[#D97757]"
                         >
                           {userEmail}
                         </span>
                         {isEmailVerified ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[11px] font-extrabold">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-extrabold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#D97757]" />
                             <span>موثّق ✓</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-bold">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-bold">
                             <span>غير موثّق</span>
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#252321]/70">
+                      <p className="text-xs text-[#1F1F1C]/70">
                         {isEmailVerified
                           ? `البريد الإلكتروني موثّق ومعتمد رسمياً${
                               emailVerifiedAt
@@ -3326,7 +3328,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           verificationResendCooldown > 0
                         }
                         onClick={handleSendEmailVerificationCode}
-                        className="px-4 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 disabled:opacity-55"
+                        className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 disabled:opacity-55"
                       >
                         {isSendingVerificationOtp ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -3347,7 +3349,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   {!isEmailVerified && verificationOtpSent && (
                     <form
                       onSubmit={handleVerifyEmailOtpCode}
-                      className="pt-3 border-t border-[#B98A78]/25 flex flex-col sm:flex-row sm:items-center gap-2.5"
+                      className="pt-3 border-t border-[#D97757]/25 flex flex-col sm:flex-row sm:items-center gap-2.5"
                     >
                       <input
                         type="text"
@@ -3361,12 +3363,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           )
                         }
                         placeholder="أدخل الرمز المكون من 6 أرقام"
-                        className="sm:w-64 rounded-xl bg-white border border-[#B98A78]/55 px-4 py-2 text-center font-mono text-sm tracking-widest text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                        className="sm:w-64 rounded-xl bg-[#F5F1E8] border border-[#D97757]/55 px-4 py-2 text-center font-mono text-sm tracking-widest text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       />
                       <button
                         type="submit"
                         disabled={isVerifyingOtpCode}
-                        className="px-5 py-2 rounded-xl bg-[#252321] hover:bg-[#D8755B] text-white text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                        className="px-5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
                       >
                         {isVerifyingOtpCode ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3383,16 +3385,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       role="status"
                       className={`rounded-xl px-4 py-3 text-xs font-semibold flex items-start gap-2.5 leading-relaxed ${
                         verificationFeedback.type === 'success'
-                          ? 'bg-emerald-50 border border-emerald-300 text-emerald-950'
+                          ? 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]'
                           : verificationFeedback.type === 'diagnostic'
-                          ? 'bg-amber-50 border border-amber-300 text-amber-950'
-                          : 'bg-red-50 border border-red-200 text-red-800'
+                          ? 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]'
+                          : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]'
                       }`}
                     >
                       {verificationFeedback.type === 'success' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                        <AlertCircle className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                       )}
                       <span>{verificationFeedback.text}</span>
                     </div>
@@ -3404,15 +3406,15 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   {/* 2. Security & Password Change */}
                   <form
                     onSubmit={handleChangePassword}
-                    className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 space-y-4"
+                    className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 sm:p-6 space-y-4"
                   >
-                    <div className="flex items-center gap-2.5 border-b border-[#B98A78]/25 pb-3">
-                      <KeyRound className="w-5 h-5 text-[#D8755B]" />
+                    <div className="flex items-center gap-2.5 border-b border-[#D97757]/25 pb-3">
+                      <KeyRound className="w-5 h-5 text-[#D97757]" />
                       <div>
-                        <h2 className="text-base font-display font-bold text-[#252321]">
+                        <h2 className="text-base font-display font-bold text-[#1F1F1C]">
                           2. الأمان وتغيير كلمة المرور
                         </h2>
-                        <p className="text-xs text-[#252321]/70">
+                        <p className="text-xs text-[#1F1F1C]/70">
                           تحديث كلمة مرور حسابك في Firebase Authentication
                         </p>
                       </div>
@@ -3421,7 +3423,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <div className="space-y-3">
                       {!isGoogleOnlyPasswordlessSession && (
                         <div>
-                          <label className="block text-xs font-bold text-[#252321] mb-1">
+                          <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                             كلمة المرور الحالية *
                           </label>
                           <input
@@ -3431,13 +3433,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             placeholder="أدخل كلمة المرور الحالية للتحقق"
-                            className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
+                            className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2 text-right text-sm text-[#1F1F1C]"
                           />
                         </div>
                       )}
 
                       <div>
-                        <label className="block text-xs font-bold text-[#252321] mb-1">
+                        <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                           كلمة المرور الجديدة *
                         </label>
                         <input
@@ -3447,12 +3449,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="6 خانات على الأقل"
-                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2 text-right text-sm text-[#1F1F1C]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#252321] mb-1">
+                        <label className="block text-xs font-bold text-[#1F1F1C] mb-1">
                           تأكيد كلمة المرور الجديدة *
                         </label>
                         <input
@@ -3462,7 +3464,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           value={confirmNewPassword}
                           onChange={(e) => setConfirmNewPassword(e.target.value)}
                           placeholder="أعد كتابة كلمة المرور الجديدة"
-                          className="w-full rounded-xl bg-white border border-[#B98A78]/50 px-3.5 py-2 text-right text-sm text-[#252321]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 px-3.5 py-2 text-right text-sm text-[#1F1F1C]"
                         />
                       </div>
                     </div>
@@ -3471,14 +3473,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <div
                         className={`rounded-xl px-3.5 py-2.5 text-xs font-bold flex items-start gap-2 ${
                           passwordFeedback.type === 'success'
-                            ? 'bg-emerald-50 border border-emerald-300 text-emerald-900'
-                            : 'bg-red-50 border border-red-200 text-red-700'
+                            ? 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]'
+                            : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757]'
                         }`}
                       >
                         {passwordFeedback.type === 'success' ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                         ) : (
-                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          <AlertCircle className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                         )}
                         <span>{passwordFeedback.text}</span>
                       </div>
@@ -3488,7 +3490,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <button
                         type="submit"
                         disabled={isChangingPassword}
-                        className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                        className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
                       >
                         {isChangingPassword && (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3503,27 +3505,27 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   </form>
 
                   {/* 4. Notification Management */}
-                  <div className="rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/40 p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                  <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 sm:p-6 flex flex-col justify-between space-y-4">
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2.5 border-b border-[#B98A78]/25 pb-3">
-                        <Bell className="w-5 h-5 text-[#D8755B]" />
+                      <div className="flex items-center gap-2.5 border-b border-[#D97757]/25 pb-3">
+                        <Bell className="w-5 h-5 text-[#D97757]" />
                         <div>
-                          <h2 className="text-base font-display font-bold text-[#252321]">
+                          <h2 className="text-base font-display font-bold text-[#1F1F1C]">
                             3. إدارة الإشعارات البريدية
                           </h2>
-                          <p className="text-xs text-[#252321]/70">
+                          <p className="text-xs text-[#1F1F1C]/70">
                             تحكم في التنبيهات المرسلة إلى بريدك ({userEmail})
                           </p>
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-[#B98A78]/35 cursor-pointer">
+                        <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 cursor-pointer">
                           <div>
-                            <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                            <div className="text-xs sm:text-sm font-display font-bold text-[#1F1F1C]">
                               إشعارات تحديث تذاكر البحث والتحقيق النسبي
                             </div>
-                            <div className="text-[11px] text-[#252321]/65 mt-0.5">
+                            <div className="text-[11px] text-[#1F1F1C]/65 mt-0.5">
                               استلام بريد فوري عند إثراء عمود نسبك أو إضافة مصادر جديدة من الباحثين
                             </div>
                           </div>
@@ -3541,16 +3543,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                                 }).catch(() => {});
                               }
                             }}
-                            className="w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
+                            className="w-4 h-4 accent-[#D97757] rounded cursor-pointer shrink-0"
                           />
                         </label>
 
-                        <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-white border border-[#B98A78]/35 cursor-pointer">
+                        <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 cursor-pointer">
                           <div>
-                            <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                            <div className="text-xs sm:text-sm font-display font-bold text-[#1F1F1C]">
                               إشعارات إضافات وتحديثات شجرة العائلة (شجرتي)
                             </div>
-                            <div className="text-[11px] text-[#252321]/65 mt-0.5">
+                            <div className="text-[11px] text-[#1F1F1C]/65 mt-0.5">
                               تنبيهات دورية عند توثيق أفراد جدد أو وثائق في خزانة الأسرة
                             </div>
                           </div>
@@ -3568,15 +3570,15 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                                 }).catch(() => {});
                               }
                             }}
-                            className="w-4 h-4 accent-[#D8755B] rounded cursor-pointer shrink-0"
+                            className="w-4 h-4 accent-[#D97757] rounded cursor-pointer shrink-0"
                           />
                         </label>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-[#B98A78]/20 text-xs text-[#8D4925] font-semibold">
+                    <div className="flex items-center justify-between pt-2 border-t border-[#D97757]/20 text-xs text-[#D97757] font-semibold">
                       <span className="inline-flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-[#D8755B]" />
+                        <ShieldCheck className="w-4 h-4 text-[#D97757]" />
                         <span>تُرسل جميع رموز التوثيق والمراسلات والإشعارات باسم «منصة جذوري» عبر info@Juthori.com</span>
                       </span>
                     </div>
@@ -3584,22 +3586,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 </div>
 
                 {/* 5. Community Blocked Users Governance (إدارة المستخدمين المحظورين في مجتمعي) */}
-                <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 p-5 sm:p-6 space-y-3.5">
+                <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 sm:p-6 space-y-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-[#252321] font-display font-extrabold text-sm sm:text-base">
-                      <ShieldCheck className="w-5 h-5 text-[#8D4925]" />
+                    <div className="flex items-center gap-2 text-[#1F1F1C] font-display font-extrabold text-sm sm:text-base">
+                      <ShieldCheck className="w-5 h-5 text-[#D97757]" />
                       <span>4. إدارة المستخدمين المحظورين في «مجتمعي»</span>
                     </div>
-                    <span className="text-xs font-semibold text-[#8D4925] bg-white border border-[#B98A78]/35 px-2.5 py-1 rounded-lg">
+                    <span className="text-xs font-semibold text-[#D97757] bg-[#F5F1E8] border border-[#D97757]/35 px-2.5 py-1 rounded-lg">
                       المحظورون حالياً: {blockedUserIds.length}
                     </span>
                   </div>
-                  <p className="text-xs text-[#252321]/75 leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/75 leading-relaxed">
                     يتم إخفاء منشورات وتعليقات المستخدمين المحظورين فوراً من واجهة «مجتمعي» الخاصة بك، ويمكنك فك الحظر عن أي حساب في أي وقت.
                   </p>
 
                   {blockedUserIds.length === 0 ? (
-                    <div className="rounded-xl bg-white border border-[#B98A78]/30 px-4 py-3 text-xs text-[#252321]/70">
+                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 px-4 py-3 text-xs text-[#1F1F1C]/70">
                       لا يوجد أي مستخدم محظور في قائمة الحظر الخاصة بحسابك حالياً.
                     </div>
                   ) : (
@@ -3611,20 +3613,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         return (
                           <div
                             key={bUid}
-                            className="rounded-xl bg-white border border-[#B98A78]/35 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3"
+                            className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3"
                           >
                             <div>
-                              <div className="text-xs sm:text-sm font-display font-bold text-[#252321]">
+                              <div className="text-xs sm:text-sm font-display font-bold text-[#1F1F1C]">
                                 {meta?.name || 'عضو في مجتمعي'}
                               </div>
-                              <div className="text-[11px] text-[#252321]/60 font-mono" dir="ltr">
+                              <div className="text-[11px] text-[#1F1F1C]/60 font-mono" dir="ltr">
                                 {bUid}
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleUnblockCommunityUser(bUid)}
-                              className="px-3.5 py-1.5 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                              className="px-3.5 py-1.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
                             >
                               فك الحظر
                             </button>
@@ -3636,13 +3638,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 </div>
 
                 {/* 6. Danger Zone (منطقة الخطر - طلب حذف الحساب نهائياً) */}
-                <div className="rounded-2xl bg-red-50/70 border-2 border-red-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="rounded-2xl bg-[#F5F1E8]/70 border-2 border-[#D8C7B2] p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-red-800 font-display font-extrabold text-base">
-                      <ShieldAlert className="w-5 h-5 text-red-600" />
+                    <div className="flex items-center gap-2 text-[#1F1F1C] font-display font-extrabold text-base">
+                      <ShieldAlert className="w-5 h-5 text-[#D97757]" />
                       <span>5. منطقة الخطر (Danger Zone)</span>
                     </div>
-                    <p className="text-xs text-red-900/80 leading-relaxed max-w-2xl">
+                    <p className="text-xs text-[#1F1F1C]/80 leading-relaxed max-w-2xl">
                       حذف الحساب نهائياً يؤدي إلى إزالة ملفك الشخصي وبيانات جلستك من قاعدة بيانات Firebase وإنهاء الجلسة الحالية فوراً.
                     </p>
                   </div>
@@ -3651,7 +3653,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowDeleteAccountConfirm(true)}
-                      className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                      className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>طلب حذف الحساب نهائياً</span>
@@ -3662,7 +3664,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         type="button"
                         disabled={isDeletingAccount}
                         onClick={handleConfirmDeleteAccount}
-                        className="px-4 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-display font-extrabold cursor-pointer disabled:opacity-60"
+                        className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#1F1F1C] text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer disabled:opacity-60"
                       >
                         {isDeletingAccount
                           ? 'جاري حذف الحساب...'
@@ -3671,7 +3673,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowDeleteAccountConfirm(false)}
-                        className="px-3.5 py-2.5 rounded-xl bg-white border border-red-200 text-xs font-bold text-[#252321] cursor-pointer"
+                        className="px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C] cursor-pointer"
                       >
                         تراجع
                       </button>
@@ -3684,33 +3686,33 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {activeUtilityDrawer === 'cart' && (
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <div className="text-xs font-display font-bold text-[#D8755B] flex items-center gap-1.5">
+                  <div className="text-xs font-display font-bold text-[#D97757] flex items-center gap-1.5">
                     <Crown className="w-4 h-4" />
                     <span>تفعيل باقة بريميوم والترقيات الأساسية</span>
                   </div>
                   {availableCartItems.length === 0 ? (
-                    <div className="rounded-xl bg-[#F7F2E9] border border-[#D8755B]/40 p-4 text-sm text-[#252321] font-semibold flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#D8755B] shrink-0" />
+                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 p-4 text-sm text-[#1F1F1C] font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
                       <span>
-                        أنت مشترك بالفعل في أعلى باقة (عضوية بريميوم ✦) وجميع المزايا مفعّلة في حسابك.
+                        أنت مشترك بالفعل في أعلى باقة (عضوية بريميوم) وجميع المزايا مفعّلة في حسابك.
                       </span>
                     </div>
                   ) : (
                     availableCartItems.map((item) => (
                       <div
                         key={item.id}
-                        className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
                         <div>
-                          <div className="text-sm font-display font-bold text-[#252321]">
+                          <div className="text-sm font-display font-bold text-[#1F1F1C]">
                             {item.title}
                           </div>
-                          <div className="text-xs text-[#252321]/75 mt-0.5">
+                          <div className="text-xs text-[#1F1F1C]/75 mt-0.5">
                             {item.subtitle}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-lg font-display font-bold text-[#252321] tabular-nums">
+                          <span className="text-lg font-display font-bold text-[#1F1F1C] tabular-nums">
                             ${item.priceUsd}
                           </span>
                           <button
@@ -3720,7 +3722,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                                 ? handleUnlockRoot5Usd
                                 : handleUpgradeAnnualVip
                             }
-                            className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                           >
                             إتمام التفعيل الآن
                           </button>
@@ -3730,7 +3732,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   )}
                 </div>
 
-                <div className="pt-5 border-t border-[#B98A78]/30">
+                <div className="pt-5 border-t border-[#D97757]/30">
                   <WalletView
                     result={result}
                     userId={resolvedCustomerUid}
@@ -3764,19 +3766,19 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 {notifications.map((n) => (
                   <div
                     key={n.id}
-                    className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div>
-                      <div className="text-sm font-display font-bold text-[#252321]">
+                      <div className="text-sm font-display font-bold text-[#1F1F1C]">
                         {n.title}
                       </div>
-                      <div className="text-xs text-[#252321]/75 mt-1">{n.body}</div>
+                      <div className="text-xs text-[#1F1F1C]/75 mt-1">{n.body}</div>
                     </div>
                     {n.actionType === 'unlock_5' && !caps.isRootUnlocked && (
                       <button
                         type="button"
                         onClick={handleUnlockRoot5Usd}
-                        className="px-4 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold whitespace-nowrap cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer"
                       >
                         فتح الجذر ($5)
                       </button>
@@ -3785,7 +3787,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <button
                         type="button"
                         onClick={handleUpgradeAnnualVip}
-                        className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-white text-xs font-display font-bold whitespace-nowrap cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer"
                       >
                         ترقية لبريميوم
                       </button>
@@ -3801,7 +3803,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             setActiveUtilityDrawer(null);
                             setActiveTab(DashboardTab.ResearchTickets);
                           }}
-                          className="px-4 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733A1D] text-white text-xs font-display font-bold whitespace-nowrap cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer"
                         >
                           متابعة والرد على الباحث ←
                         </button>
@@ -3814,17 +3816,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {activeUtilityDrawer === 'activity' && (
               <div className="space-y-6">
                 {/* Official Legal Audit Trail & Electronic Signatures Card */}
-                <div className="rounded-2xl bg-[#FAF6F0] border-2 border-[#D8755B]/45 p-5 sm:p-6 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#B98A78]/30 pb-3.5">
+                <div className="rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757]/45 p-5 sm:p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D97757]/30 pb-3.5">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
                         <FileSignature className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+                        <h3 className="text-sm sm:text-base font-display font-extrabold text-[#1F1F1C]">
                           سجل التدقيق القانوني والموافقات الإلكترونية (Audit Trail)
                         </h3>
-                        <p className="text-xs text-[#252321]/70">
+                        <p className="text-xs text-[#1F1F1C]/70">
                           توثيق رسمي مرتبط بحسابك في قواعد بيانات Firebase لعقود أمين السجل وشروط الاستخدام وسياسة الخصوصية
                         </p>
                       </div>
@@ -3832,7 +3834,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowCharterModal(true)}
-                      className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileSignature className="w-3.5 h-3.5" />
                       <span>
@@ -3844,7 +3846,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   </div>
 
                   {userAuditTrail.length === 0 ? (
-                    <div className="rounded-xl bg-white border border-[#B98A78]/35 p-4 text-xs text-[#252321]/75 flex items-center justify-between gap-3">
+                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 p-4 text-xs text-[#1F1F1C]/75 flex items-center justify-between gap-3">
                       <span>
                         لم يتم تسجيل شهادات توقيع إلكتروني إضافية بعد. يمكنك استعراض وتوقيع عقد أمين السجل لتفعيل بناء الشجرة.
                       </span>
@@ -3854,51 +3856,51 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       {userAuditTrail.map((audit) => (
                         <div
                           key={audit.id}
-                          className="rounded-xl bg-white border border-[#B98A78]/40 p-4 space-y-2.5 shadow-2xs"
+                          className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 p-4 space-y-2.5 shadow-2xs"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span
                                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                                   audit.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
-                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                                    : 'bg-[#FAF6F0] border-[#B98A78]/50 text-[#8D4925]'
+                                    ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
+                                    : 'bg-[#F5F1E8] border-[#D97757]/50 text-[#D97757]'
                                 }`}
                               >
                                 {audit.eventType === 'RECORD_KEEPER_CONTRACT_SIGNATURE'
                                   ? 'عقد أمين السجل الموثّق ✓'
                                   : 'موافقة شروط الاستخدام وسياسة الخصوصية ✓'}
                               </span>
-                              <span className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                              <span className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
                                 {audit.documentTitle}
                               </span>
                             </div>
                             <span
                               dir="ltr"
-                              className="px-2.5 py-1 rounded-lg bg-[#252321] text-[#F3D299] font-mono text-[11px] font-bold"
+                              className="px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#D97757] font-mono text-[11px] font-bold"
                             >
                               {audit.certificateCode}
                             </span>
                           </div>
 
-                          <p className="text-xs text-[#252321]/80 leading-relaxed bg-[#F7F2E9]/70 rounded-lg p-2.5 border border-[#B98A78]/25">
+                          <p className="text-xs text-[#1F1F1C]/80 leading-relaxed bg-[#F5F1E8]/70 rounded-lg p-2.5 border border-[#D97757]/25">
                             {audit.consentStatement}
                           </p>
 
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6E6456] pt-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#1F1F1C]/70 pt-1">
                             <span>
                               الإصدار:{' '}
-                              <strong className="font-mono text-[#252321]">
+                              <strong className="font-mono text-[#1F1F1C]">
                                 {audit.documentVersion}
                               </strong>{' '}
                               · البريد:{' '}
-                              <strong className="font-mono text-[#252321]">
+                              <strong className="font-mono text-[#1F1F1C]">
                                 {audit.userEmail}
                               </strong>
                             </span>
                             <span>
                               عنوان IP:{' '}
-                              <strong className="font-mono text-[#252321]" dir="ltr">
+                              <strong className="font-mono text-[#1F1F1C]" dir="ltr">
                                 {audit.ipAddress}
                               </strong>{' '}
                               ({audit.ipCountry}) · التاريخ: {audit.signedAtFormatted}
@@ -3912,19 +3914,19 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                 {/* Operational Activity Log */}
                 <div className="space-y-2.5">
-                  <div className="text-xs font-display font-bold text-[#8D4925]">
+                  <div className="text-xs font-display font-bold text-[#D97757]">
                     السجل الزمني للعمليات في الحساب:
                   </div>
                   {activityLog.map((entry) => (
                     <div
                       key={entry.id}
-                      className="rounded-xl bg-[#F7F2E9] border border-[#B98A78]/35 px-4 py-3 flex items-center justify-between gap-3 text-xs sm:text-sm"
+                      className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 px-4 py-3 flex items-center justify-between gap-3 text-xs sm:text-sm"
                     >
                       <div>
-                        <strong className="text-[#252321]">{entry.action}:</strong>{' '}
-                        <span className="text-[#252321]/80">{entry.detail}</span>
+                        <strong className="text-[#1F1F1C]">{entry.action}:</strong>{' '}
+                        <span className="text-[#1F1F1C]/80">{entry.detail}</span>
                       </div>
-                      <span className="text-[#252321]/60 whitespace-nowrap text-xs">
+                      <span className="text-[#1F1F1C]/60 whitespace-nowrap text-xs">
                         {entry.timestamp}
                       </span>
                     </div>
@@ -4051,16 +4053,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         ) : (
           <div className="w-full space-y-4">
             {activeTab === DashboardTab.MyTree && charterSignedBanner && (
-              <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-400 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="rounded-2xl bg-[#F5F1E8] border-2 border-[#D8C7B2] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                 <div className="flex items-start sm:items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-sm sm:text-base font-display font-extrabold text-emerald-950">
+                    <div className="text-sm sm:text-base font-display font-extrabold text-[#1F1F1C]">
                       تم اعتماد توقيعك الإلكتروني وتفعيل صلاحية «رب أسرة / أمين السجل» بنجاح ✓
                     </div>
-                    <div className="text-xs text-emerald-900/85 mt-0.5">
+                    <div className="text-xs text-[#1F1F1C]/85 mt-0.5">
                       شهادة الإكمال في سجل التدقيق (Audit Trail):{' '}
                       <strong className="font-mono" dir="ltr">
                         {charterSignedBanner.certificateCode}
@@ -4073,7 +4075,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowCharterModal(true)}
-                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-bold cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-bold cursor-pointer"
                   >
                     عرض العقد الموقّع
                   </button>
@@ -4081,7 +4083,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     type="button"
                     onClick={() => setCharterSignedBanner(null)}
                     aria-label="إخفاء التنبيه"
-                    className="p-1.5 rounded-lg hover:bg-emerald-200/60 text-emerald-900 cursor-pointer"
+                    className="p-1.5 rounded-lg hover:bg-[#E8DED2]/60 text-[#1F1F1C] cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -4222,22 +4224,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       </main>
 
       {/* Platform Editorial Footer matching LandingPage */}
-      <footer className="border-t border-[#B98A78]/30 bg-[#EDE6DA]/70 py-12 mt-12">
+      <footer className="border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 mt-12">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center space-y-3.5">
           <div className="mb-1">
             <JuthoriLogo size="sm" onClick={onBackToLanding} />
           </div>
-          <p className="text-base font-display font-medium text-[#252321]/85 max-w-xl">
+          <p className="text-base font-display font-medium text-[#1F1F1C]/85 max-w-xl">
             ما لا يُوثق اليوم… قد يصبح مجرد رواية غامضة غدًا.
           </p>
-          <p className="text-sm text-[#252321]/75 max-w-xl">
+          <p className="text-sm text-[#1F1F1C]/75 max-w-xl">
             تعمل المنصة من خلال شركة جينيا لاب - الولايات المتحدة الأمريكية.
           </p>
           <div className="space-y-1 pt-2">
-            <p className="text-xs text-[#252321]/70">
+            <p className="text-xs text-[#1F1F1C]/70">
               منصة الأنساب والإرث العائلي العربي — juthori.com
             </p>
-            <p className="text-xs text-[#252321]/70">
+            <p className="text-xs text-[#1F1F1C]/70">
               جميع الحقوق محفوظة. جذوري © 2026
             </p>
           </div>
@@ -4247,21 +4249,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* MODAL 1: Locked Premium Tab Prompt */}
       {lockedTabPromptName && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#252321]/60 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F1F1C]/60 backdrop-blur-xs p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="locked-tab-modal-title"
         >
-          <div className="w-full max-w-md rounded-2xl bg-[#F7F2E9] border border-[#B98A78]/50 p-6 sm:p-7 shadow-xl space-y-4">
+          <div className="w-full max-w-md rounded-2xl bg-[#F5F1E8] border border-[#D97757]/50 p-6 sm:p-7 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 text-[#DC2626] flex items-center justify-center">
+              <div className="w-11 h-11 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center">
                 <Lock className="w-5 h-5" aria-hidden="true" />
               </div>
               <button
                 type="button"
                 onClick={() => setLockedTabPromptName(null)}
                 aria-label="إغلاق"
-                className="w-9 h-9 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer"
+                className="w-9 h-9 rounded-lg hover:bg-[#E8DED2] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4269,11 +4271,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
             <h3
               id="locked-tab-modal-title"
-              className="text-lg font-display font-bold text-[#252321]"
+              className="text-lg font-display font-bold text-[#1F1F1C]"
             >
               تبويب «{lockedTabPromptName}» ضمن مزايا باقة بريميوم السنوية
             </h3>
-            <p className="text-sm text-[#252321]/80 leading-relaxed">
+            <p className="text-sm text-[#1F1F1C]/80 leading-relaxed">
               أنت حالياً على العضوية الأساسية. رقِّ حسابك إلى الاشتراك السنوي (بريميوم) لفتح عمود النسب الكامل فوق الجذر وتفعيل خدمات (شجرتي، خزانتي، موقعي، مجتمعي).
             </p>
 
@@ -4281,14 +4283,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               <button
                 type="button"
                 onClick={handleUpgradeAnnualVip}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-sm font-display font-bold cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-sm font-display font-bold cursor-pointer"
               >
                 الترقية الآن إلى بريميوم ($60/سنة)
               </button>
               <button
                 type="button"
                 onClick={() => setLockedTabPromptName(null)}
-                className="py-2.5 px-4 rounded-xl bg-[#EDE6DA] text-[#252321] text-sm font-semibold cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-[#E8DED2] text-[#1F1F1C] text-sm font-semibold cursor-pointer"
               >
                 البقاء في الباقة الأساسية
               </button>

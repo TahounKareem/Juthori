@@ -2750,11 +2750,11 @@ export function App() {
       {optOutFeedbackModal && (
         <div
           dir="rtl"
-          className="fixed inset-0 z-[130] bg-[#1E1C1A]/75 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[130] bg-[#1F1F1C]/75 backdrop-blur-sm flex items-center justify-center p-4"
         >
-          <div className="w-full max-w-md rounded-2xl bg-[#FDFBF7] border-2 border-[#B98A78]/50 shadow-2xl overflow-hidden">
-            <div className="bg-[#252321] text-[#F7F2E9] px-6 py-4 border-b border-[#B98A78]/30">
-              <p className="text-[11px] font-bold text-[#E6B980] mb-1">
+          <div className="w-full max-w-md rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757]/50 shadow-2xl overflow-hidden">
+            <div className="bg-[#1F1F1C] text-[#F5F1E8] px-6 py-4 border-b border-[#D97757]/30">
+              <p className="text-[11px] font-bold text-[#D97757] mb-1">
                 حماية الخصوصية الفورية — منصة جذوري
               </p>
               <h3 className="text-base font-display font-bold">
@@ -2764,16 +2764,16 @@ export function App() {
               </h3>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs sm:text-sm text-[#3A3632] leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-[#1F1F1C] leading-relaxed font-medium">
                 {optOutFeedbackModal.messageAr}
               </p>
-              <div className="rounded-xl bg-[#F4EFE6] border border-[#E2D9C8] p-3 text-[11px] text-[#5C554E] leading-relaxed">
+              <div className="rounded-xl bg-[#E8DED2] border border-[#D8C7B2] p-3 text-[11px] text-[#1F1F1C]/70 leading-relaxed">
                 لا يتطلب هذا الإجراء تسجيل الدخول أو إنشاء حساب، ولن تصلك أي دعوات مستقبلية من هذه الدائرة العائلية على هذا البريد الإلكتروني.
               </div>
               <button
                 type="button"
                 onClick={() => setOptOutFeedbackModal(null)}
-                className="w-full py-2.5 rounded-xl bg-[#252321] hover:bg-[#3A3632] text-[#F7F2E9] text-xs font-display font-bold transition-colors cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold transition-colors cursor-pointer"
               >
                 حسناً، إغلاق النافذة
               </button>

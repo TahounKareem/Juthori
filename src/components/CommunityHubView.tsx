@@ -28,7 +28,6 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
-  TreePine,
   UserCheck,
   UserPlus,
   Users,
@@ -964,38 +963,38 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   const renderJoinedFamilyPortalsCard = () => (
     <section
       data-testid="joined-family-portals-card"
-      className="rounded-3xl border border-[#D4AF37]/45 bg-gradient-to-b from-[#0A251B] via-[#0E2F23] to-[#081D16] p-5 sm:p-7 text-[#FBF8F1] shadow-[0_18px_46px_-24px_rgba(8,29,22,0.55)] space-y-5"
+      className="rounded-3xl border border-[#D8C7B2]/45 bg-gradient-to-b from-[#1F1F1C] via-[#1F1F1C] to-[#1F1F1C] p-5 sm:p-7 text-[#F5F1E8] shadow-[0_18px_46px_-24px_rgba(31,31,28,0.55)] space-y-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#E8C76A]">
-            <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#D97757]">
+            <ShieldCheck className="w-4 h-4 text-[#D97757]" />
             <span>عضويات الدوائر العائلية الموثّقة</span>
           </div>
-          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#FFF9EC]">
+          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#F5F1E8]">
             دوائر وشجرات العائلات المنضمّ إليها
           </h2>
-          <p className="text-xs sm:text-sm text-[#E3DEC9]/85">
+          <p className="text-xs sm:text-sm text-[#F5F1E8]/85">
             تصفح الشجرة العائلية المشتركة، اقترح إضافات للأقارب، وتابع المناسبات
             والذكريات في العائلات التي دُعيت إليها مباشرة من هنا.
           </p>
         </div>
-        <div className="text-xs font-bold text-[#F3D77E] tabular-nums">
+        <div className="text-xs font-bold text-[#D97757] tabular-nums">
           {authorizedPortals.length} دائرة عائلية نشطة
         </div>
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-xs text-[#E3DEC9]/80">
+        <div className="rounded-2xl border border-[#F5F1E8]/10 bg-[#F5F1E8]/[0.04] p-6 text-center text-xs text-[#F5F1E8]/80">
           جاري تحميل دوائر العائلات المنضمّ إليها...
         </div>
       ) : authorizedPortals.length === 0 ? (
-        <div className="rounded-2xl border border-[#D4AF37]/25 bg-white/[0.04] p-6 text-center space-y-2">
-          <TreePine className="w-8 h-8 text-[#D4AF37] mx-auto" />
-          <div className="text-sm font-bold text-[#FFF9EC]">
+        <div className="rounded-2xl border border-[#D8C7B2]/25 bg-[#F5F1E8]/[0.04] p-6 text-center space-y-2">
+          <JUTHORI_SERVICE_ICONS.tree className="w-8 h-8 text-[#D97757] mx-auto" />
+          <div className="text-sm font-bold text-[#F5F1E8]">
             لم تنضم إلى دائرة عائلة منشورة بعد
           </div>
-          <p className="text-xs text-[#E3DEC9]/80 max-w-lg mx-auto leading-relaxed">
+          <p className="text-xs text-[#F5F1E8]/80 max-w-lg mx-auto leading-relaxed">
             فور قبولك دعوة من أمين سجل عائلتك أو إدراج بريدك الإلكتروني في دائرة
             العائلة، ستظهر شجرة العائلة المشتركة وديوانها هنا مباشرة.
           </p>
@@ -1012,67 +1011,67 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
               <div
                 key={portal.siteSlug}
                 data-testid={`joined-family-card-${portal.siteSlug}`}
-                className="rounded-2xl border border-[#D4AF37]/30 bg-white/[0.05] p-5 flex flex-col justify-between gap-4"
+                className="rounded-2xl border border-[#D8C7B2]/30 bg-[#F5F1E8]/[0.05] p-5 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1 min-w-0">
-                      <div className="text-xs font-bold text-[#E8C76A]">
+                      <div className="text-xs font-bold text-[#D97757]">
                         {portal.viewerRoleLabelAr}
                         {portal.kinshipRelation
                           ? ` · ${portal.kinshipRelation}`
                           : ''}
                       </div>
-                      <h3 className="text-lg font-display font-extrabold text-[#FFF9EC] truncate">
+                      <h3 className="text-lg font-display font-extrabold text-[#F5F1E8] truncate">
                         ديوان وعائلة {portal.familyName}
                       </h3>
-                      <p className="text-xs text-[#E3DEC9]/80">
+                      <p className="text-xs text-[#F5F1E8]/80">
                         أمين السجل: {portal.ownerDisplayName}
                         {portal.originCountry ? ` · ${portal.originCountry}` : ''}
                       </p>
                     </div>
-                    <span className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center shrink-0 text-[#E8C76A]">
-                      <TreePine className="w-5 h-5" />
+                    <span className="w-10 h-10 rounded-xl bg-[#D97757]/15 border border-[#D8C7B2]/40 flex items-center justify-center shrink-0 text-[#D97757]">
+                      <JUTHORI_SERVICE_ICONS.tree className="w-5 h-5" />
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#E6DEC8] tabular-nums">
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#F5F1E8] tabular-nums">
                     <span>
-                      <strong className="text-[#F5DFA0]">
+                      <strong className="text-[#F5F1E8]">
                         {portal.membersCount}
                       </strong>{' '}
                       فرد في الدوحة
                     </span>
                     {portal.generationsCount > 0 && (
                       <span>
-                        <strong className="text-[#F5DFA0]">
+                        <strong className="text-[#F5F1E8]">
                           {portal.generationsCount}
                         </strong>{' '}
                         أجيال
                       </span>
                     )}
                     {portal.canProposeEnrichment && (
-                      <span className="text-emerald-300 font-bold">
+                      <span className="text-[#D8C7B2] font-bold">
                         ✦ يمكنك اقتراح إضافة أقارب في الشجرة
                       </span>
                     )}
                   </div>
 
                   {upcomingEvents.length > 0 && (
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-1.5">
-                      <div className="text-[11px] font-bold text-[#E8C76A] flex items-center gap-1.5">
+                    <div className="rounded-xl border border-[#F5F1E8]/10 bg-[#1F1F1C]/20 p-3 space-y-1.5">
+                      <div className="text-[11px] font-bold text-[#D97757] flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>أحدث مناسبات العائلة</span>
                       </div>
                       {upcomingEvents.map((ev) => (
                         <div
                           key={ev.id}
-                          className="text-xs text-[#F5EFE0] flex items-center justify-between gap-2"
+                          className="text-xs text-[#F5F1E8] flex items-center justify-between gap-2"
                         >
                           <span className="truncate font-semibold">
                             {ev.title}
                           </span>
-                          <span className="text-[11px] text-[#E3DEC9]/70 shrink-0">
+                          <span className="text-[11px] text-[#F5F1E8]/70 shrink-0">
                             {ev.locationLabel}
                           </span>
                         </div>
@@ -1087,18 +1086,18 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     disabled={!hasTree}
                     data-testid={`open-shared-tree-btn-${portal.siteSlug}`}
                     onClick={() => setActiveSharedTreePortal(portal)}
-                    className="flex-1 h-10 px-4 rounded-xl bg-gradient-to-l from-[#C89F2D] via-[#DFBA4D] to-[#C89F2D] hover:brightness-105 disabled:opacity-50 text-[#0B2219] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-sm transition"
+                    className="flex-1 h-10 px-4 rounded-xl bg-gradient-to-l from-[#D97757] via-[#D97757] to-[#D97757] hover:brightness-105 disabled:opacity-50 text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-sm transition"
                   >
-                    <TreePine className="w-4 h-4 shrink-0" />
+                    <JUTHORI_SERVICE_ICONS.tree className="w-4 h-4 shrink-0" />
                     <span>🌳 فتح دوحة العائلة المشتركة</span>
                   </button>
 
                   <a
                     href={`/${portal.siteSlug}`}
                     data-testid={`visit-joined-portal-link-${portal.siteSlug}`}
-                    className="h-10 px-4 rounded-xl border border-[#D4AF37]/45 bg-white/5 hover:bg-white/12 text-[#FFF9EC] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
+                    className="h-10 px-4 rounded-xl border border-[#D8C7B2]/45 bg-[#F5F1E8]/5 hover:bg-[#F5F1E8]/12 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
                   >
-                    <Globe className="w-3.5 h-3.5 text-[#E8C76A] shrink-0" />
+                    <JUTHORI_SERVICE_ICONS.site className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                     <span>🏛️ زيارة موقع ديوان العائلة</span>
                   </a>
                 </div>
@@ -1121,7 +1120,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           metaItems={[
             'مساحة التواصل والمشاركة العائلية',
             <span key="joined" className="tabular-nums">
-              <strong className="font-semibold text-[#2C1E14]">
+              <strong className="font-semibold text-[#1F1F1C]">
                 {authorizedPortals.length}
               </strong>{' '}
               عائلة منضمّ إليها
@@ -1178,13 +1177,13 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         metaItems={[
           'مساحة عائلية مغلقة',
           <span key="members" className="tabular-nums">
-            <strong className="font-semibold text-[#2C1E14]">
+            <strong className="font-semibold text-[#1F1F1C]">
               {circle.members.length}
             </strong>{' '}
             أعضاء بالدائرة
           </span>,
           <span key="enrichments" className="tabular-nums">
-            <strong className="font-semibold text-[#9E5631]">
+            <strong className="font-semibold text-[#D97757]">
               {totalIncomingEnrichmentCount}
             </strong>{' '}
             طلبات إثراء واردة
@@ -1193,7 +1192,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             <span>رصيد المكافآت:</span>
             <strong
               dir="ltr"
-              className="font-mono font-semibold text-emerald-800 tabular-nums"
+              className="font-mono font-semibold text-[#1F1F1C] tabular-nums"
             >
               ${referralStats.totalEarnedUsd.toFixed(2)}
             </strong>
@@ -1230,7 +1229,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           1B. SEPARATED 4-PILLAR NAVIGATION BAR (mt-3.5 below unified header)
       ====================================================================== */}
       <div
-        className="p-1.5 rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3] shadow-[0_2px_10px_rgba(44,30,20,0.02)] grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5"
+        className="p-1.5 rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_2px_10px_rgba(31,31,28,0.02)] grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-1.5"
         role="tablist"
         aria-label="أركان مجتمعي"
       >
@@ -1241,14 +1240,14 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           onClick={() => setActiveTab('circle')}
           className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
             activeTab === 'circle'
-              ? 'bg-[#9E5631] text-white shadow-xs'
-              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+              ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+              : 'text-[#1F1F1C] hover:text-[#1F1F1C] hover:bg-[#E8DED2]/70'
           }`}
         >
           <span className="inline-flex items-center gap-2 truncate">
             <Users
               className={`w-4 h-4 shrink-0 ${
-                activeTab === 'circle' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
+                activeTab === 'circle' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
               }`}
             />
             <span className="truncate">1. دائرة عائلتي والصلاحيات</span>
@@ -1256,8 +1255,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           <span
             className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
               activeTab === 'circle'
-                ? 'bg-white/20 text-white'
-                : 'bg-[#F5ECE0] text-[#8C5327]'
+                ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                : 'bg-[#E8DED2] text-[#D97757]'
             }`}
           >
             {circle.members.length}
@@ -1271,14 +1270,14 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           onClick={() => setActiveTab('enrichment')}
           className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
             activeTab === 'enrichment'
-              ? 'bg-[#9E5631] text-white shadow-xs'
-              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+              ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+              : 'text-[#1F1F1C] hover:text-[#1F1F1C] hover:bg-[#E8DED2]/70'
           }`}
         >
           <span className="inline-flex items-center gap-2 truncate">
             <Inbox
               className={`w-4 h-4 shrink-0 ${
-                activeTab === 'enrichment' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
+                activeTab === 'enrichment' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
               }`}
             />
             <span className="truncate">2. مركز الإثراء وحملات الذاكرة</span>
@@ -1286,10 +1285,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           <span
             className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
               activeTab === 'enrichment'
-                ? 'bg-white/20 text-white'
+                ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
                 : totalIncomingEnrichmentCount > 0
-                ? 'bg-[#9E5631] text-white'
-                : 'bg-[#F5ECE0] text-[#7A6855]'
+                ? 'bg-[#D97757] text-[#F5F1E8]'
+                : 'bg-[#E8DED2] text-[#D97757]'
             }`}
           >
             {totalIncomingEnrichmentCount}
@@ -1303,14 +1302,14 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           onClick={() => setActiveTab('events')}
           className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
             activeTab === 'events'
-              ? 'bg-[#9E5631] text-white shadow-xs'
-              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+              ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+              : 'text-[#1F1F1C] hover:text-[#1F1F1C] hover:bg-[#E8DED2]/70'
           }`}
         >
           <span className="inline-flex items-center gap-2 truncate">
             <Calendar
               className={`w-4 h-4 shrink-0 ${
-                activeTab === 'events' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
+                activeTab === 'events' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
               }`}
             />
             <span className="truncate">3. صلة الرحم والمناسبات (RSVP)</span>
@@ -1318,8 +1317,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           <span
             className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
               activeTab === 'events'
-                ? 'bg-white/20 text-white'
-                : 'bg-[#F5ECE0] text-[#8C5327]'
+                ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                : 'bg-[#E8DED2] text-[#D97757]'
             }`}
           >
             {realEventsCount}
@@ -1333,14 +1332,14 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           onClick={() => setActiveTab('ambassador')}
           className={`px-3.5 py-2.5 rounded-xl text-xs font-display font-bold flex items-center justify-between gap-2 transition-all cursor-pointer ${
             activeTab === 'ambassador'
-              ? 'bg-[#9E5631] text-white shadow-xs'
-              : 'text-[#4E3C2D] hover:text-[#2C1E14] hover:bg-[#F5ECE0]/70'
+              ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+              : 'text-[#1F1F1C] hover:text-[#1F1F1C] hover:bg-[#E8DED2]/70'
           }`}
         >
           <span className="inline-flex items-center gap-2 truncate">
             <Award
               className={`w-4 h-4 shrink-0 ${
-                activeTab === 'ambassador' ? 'text-[#F6DCA2]' : 'text-[#8C5327]'
+                activeTab === 'ambassador' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
               }`}
             />
             <span className="truncate">4. سفير جذوري ومكافآت</span>
@@ -1349,8 +1348,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             dir="ltr"
             className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold tabular-nums shrink-0 ${
               activeTab === 'ambassador'
-                ? 'bg-white/20 text-[#F6DCA2]'
-                : 'bg-[#F5ECE0] text-[#8C5327]'
+                ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                : 'bg-[#E8DED2] text-[#D97757]'
             }`}
           >
             ${REFERRAL_REWARD_USD}
@@ -1363,17 +1362,17 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         <div
           className={`rounded-xl px-4 py-3 text-xs font-semibold flex items-center justify-between gap-3 border ${
             banner.type === 'success'
-              ? 'bg-emerald-950/5 border-emerald-800/25 text-emerald-950'
+              ? 'bg-[#1F1F1C]/5 border-[#1F1F1C]/25 text-[#1F1F1C]'
               : banner.type === 'error'
-              ? 'bg-rose-950/5 border-rose-800/25 text-rose-950'
-              : 'bg-[#FAF6EE] border-[#B98A78]/40 text-[#252321]'
+              ? 'bg-[#1F1F1C]/5 border-[#1F1F1C]/25 text-[#1F1F1C]'
+              : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#1F1F1C]'
           }`}
         >
           <span>{banner.text}</span>
           <button
             type="button"
             onClick={() => setBanner(null)}
-            className="p-1 rounded-md hover:bg-black/5 cursor-pointer"
+            className="p-1 rounded-md hover:bg-[#1F1F1C]/5 cursor-pointer"
             aria-label="إغلاق التنبيه"
           >
             <X className="w-3.5 h-3.5" />
@@ -1382,7 +1381,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       )}
 
       {isLoading && (
-        <div className="rounded-2xl bg-white border border-[#B98A78]/30 p-8 text-center text-xs text-[#252321]/65">
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 p-8 text-center text-xs text-[#1F1F1C]/65">
           جارٍ مزامنة دائرة عائلة {result.familyName} من السجل السحابي الموثق...
         </div>
       )}
@@ -1394,23 +1393,23 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         <div className="space-y-6">
           {/* Registrar Upgrade Notice if user is not yet Record Keeper */}
           {!isRegistrar && (
-            <div className="rounded-2xl bg-[#252321] text-[#F7F2E9] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#D4AF6A]/35">
+            <div className="rounded-2xl bg-[#1F1F1C] text-[#F5F1E8] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#D8C7B2]/35">
               <div className="space-y-1">
-                <div className="text-xs font-bold text-[#E5C17A]">
+                <div className="text-xs font-bold text-[#D97757]">
                   صلاحيات إدارة الدائرة العائلية
                 </div>
                 <h3 className="text-base font-display font-bold">
                   فعّل ميثاق «أمين سجل العائلة» لدعوة أقاربك ومنحهم صلاحيات التوثيق
                 </h3>
-                <p className="text-xs text-[#F7F2E9]/75 max-w-2xl leading-relaxed">
-                  يمكنك الآن تصفح البوابات العائلية المصرح لك بها أدناه أو استخدام رابط «سفير جذوري» لربح <span dir="ltr" className="font-mono font-bold text-[#E5C17A]">$10</span>، وبتفعيل صفة أمين السجل تفتح إدارة دائرة عائلتك بالكامل.
+                <p className="text-xs text-[#F5F1E8]/75 max-w-2xl leading-relaxed">
+                  يمكنك الآن تصفح البوابات العائلية المصرح لك بها أدناه أو استخدام رابط «سفير جذوري» لربح <span dir="ltr" className="font-mono font-bold text-[#D97757]">$10</span>، وبتفعيل صفة أمين السجل تفتح إدارة دائرة عائلتك بالكامل.
                 </p>
               </div>
               {onSignCharterAndEnableTree && (
                 <button
                   type="button"
                   onClick={onSignCharterAndEnableTree}
-                  className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
                 >
                   تفعيل صفة أمين السجل الآن
                 </button>
@@ -1422,18 +1421,18 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           {isRegistrar && (
             <div
               ref={inviteStudioRef}
-              className="rounded-2xl bg-white border border-[#B98A78]/40 overflow-hidden"
+              className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 overflow-hidden"
             >
-              <div className="px-6 py-4 bg-[#FAF6EE] border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-3">
+              <div className="px-6 py-4 bg-[#F5F1E8] border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#252321] text-[#E5C17A] flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
                     <UserPlus className="w-4.5 h-4.5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-display font-bold text-[#252321]">
+                    <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                       استوديو دعوة قريب للدائرة وتحديد الصلاحيات
                     </h3>
-                    <p className="text-[11px] text-[#252321]/60">
+                    <p className="text-[11px] text-[#1F1F1C]/60">
                       اختر مستوى الصلاحية، اربط القريب ببطاقته في «شجرتي» (اختياري)، وأرسل دعوته بالبريد أو واتساب
                     </p>
                   </div>
@@ -1441,7 +1440,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setInviteStudioOpen((v) => !v)}
-                  className="px-3.5 py-1.5 rounded-lg bg-white border border-[#B98A78]/35 text-xs font-display font-bold text-[#252321] hover:bg-[#F7F2E9] cursor-pointer transition-colors"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-xs font-display font-bold text-[#1F1F1C] hover:bg-[#F5F1E8] cursor-pointer transition-colors"
                 >
                   {inviteStudioOpen ? 'طي النموذج' : '+ فتح نموذج الدعوة'}
                 </button>
@@ -1452,7 +1451,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   {/* Basic Relative Details */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-display font-bold text-[#252321]">
+                      <label className="block text-xs font-display font-bold text-[#1F1F1C]">
                         اسم القريب الكامل
                       </label>
                       <input
@@ -1461,12 +1460,12 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         value={relName}
                         onChange={(e) => setRelName(e.target.value)}
                         placeholder="مثال: عبد الله بن خالد"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/40 text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-display font-bold text-[#252321]">
+                      <label className="block text-xs font-display font-bold text-[#1F1F1C]">
                         البريد الإلكتروني للقريب
                       </label>
                       <input
@@ -1476,12 +1475,12 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         value={relEmail}
                         onChange={(e) => setRelEmail(e.target.value)}
                         placeholder="relative@example.com"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/40 text-xs text-[#252321] text-left focus:outline-none focus:border-[#D8755B]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] text-left focus:outline-none focus:border-[#D97757]"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-display font-bold text-[#252321]">
+                      <label className="block text-xs font-display font-bold text-[#1F1F1C]">
                         صلة القرابة
                       </label>
                       <input
@@ -1490,7 +1489,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         value={relKinship}
                         onChange={(e) => setRelKinship(e.target.value)}
                         placeholder="ابن عم / شقيق / عم"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] border border-[#B98A78]/40 text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       />
                       <div className="flex flex-wrap gap-1 pt-1">
                         {KINSHIP_PRESETS.slice(0, 5).map((preset) => (
@@ -1500,8 +1499,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                             onClick={() => setRelKinship(preset)}
                             className={`px-2 py-0.5 rounded-md text-[10px] font-semibold cursor-pointer transition-colors ${
                               relKinship === preset
-                                ? 'bg-[#8D4925] text-white'
-                                : 'bg-[#F7F2E9] text-[#252321]/70 hover:bg-[#EFE6D8]'
+                                ? 'bg-[#D97757] text-[#F5F1E8]'
+                                : 'bg-[#F5F1E8] text-[#1F1F1C]/70 hover:bg-[#E8DED2]'
                             }`}
                           >
                             {preset}
@@ -1513,7 +1512,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
                   {/* Role Selector (3 Tiers Persisted in Firestore) */}
                   <div className="space-y-2">
-                    <label className="block text-xs font-display font-bold text-[#252321]">
+                    <label className="block text-xs font-display font-bold text-[#1F1F1C]">
                       مستوى الصلاحية داخل دائرة العائلة
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1526,25 +1525,25 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                             onClick={() => setRelRole(roleOpt.id)}
                             className={`text-right rounded-xl p-3.5 border transition-all cursor-pointer ${
                               selected
-                                ? 'bg-[#FAF6EE] border-[#D8755B] ring-1 ring-[#D8755B]/40'
-                                : 'bg-white border-[#B98A78]/35 hover:border-[#8D4925]/50'
+                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/40'
+                                : 'bg-[#F5F1E8] border-[#D97757]/35 hover:border-[#D97757]/50'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-display font-bold text-[#252321]">
+                              <span className="text-xs font-display font-bold text-[#1F1F1C]">
                                 {roleOpt.labelAr}
                               </span>
                               <span
                                 className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
                                   selected
-                                    ? 'bg-[#D8755B] border-[#D8755B] text-white'
-                                    : 'border-[#B98A78]'
+                                    ? 'bg-[#D97757] border-[#D97757] text-[#F5F1E8]'
+                                    : 'border-[#D97757]'
                                 }`}
                               >
                                 {selected && <Check className="w-2.5 h-2.5" />}
                               </span>
                             </div>
-                            <p className="text-[11px] text-[#252321]/65 mt-1.5 leading-relaxed">
+                            <p className="text-[11px] text-[#1F1F1C]/65 mt-1.5 leading-relaxed">
                               {roleOpt.descriptionAr}
                             </p>
                           </button>
@@ -1554,13 +1553,13 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   </div>
 
                   {/* Optional Smart Tree Member Binding */}
-                  <div className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-0.5">
-                      <div className="text-xs font-display font-bold text-[#252321] flex items-center gap-1.5">
-                        <TreePine className="w-4 h-4 text-[#8D4925]" />
+                      <div className="text-xs font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
+                        <JUTHORI_SERVICE_ICONS.tree className="w-4 h-4 text-[#D97757]" />
                         <span>ربط العضو ببطاقته في «شجرتي» (اختياري)</span>
                       </div>
-                      <p className="text-[11px] text-[#252321]/60">
+                      <p className="text-[11px] text-[#1F1F1C]/60">
                         {contemporaryTreeOptions.length > 0
                           ? `اختر بطاقة القريب من بين ${contemporaryTreeOptions.length} فرداً مسجلاً في شجرتك المعاصرة.`
                           : 'أضف أفراد عائلتك في «شجرتي» لتتمكن من ربط كل مدعو بموقعه الفعلي في الشجرة.'}
@@ -1570,7 +1569,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       value={relTreePersonId}
                       onChange={(e) => setRelTreePersonId(e.target.value)}
                       disabled={contemporaryTreeOptions.length === 0}
-                      className="sm:w-72 px-3.5 py-2.5 rounded-xl bg-white border border-[#B98A78]/40 text-xs text-[#252321] focus:outline-none focus:border-[#D8755B] disabled:opacity-50"
+                      className="sm:w-72 px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50"
                     >
                       <option value="">— بدون ربط مسبق في الشجرة —</option>
                       {contemporaryTreeOptions.map((opt) => (
@@ -1584,8 +1583,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
                   {/* Multi-Channel Submit & WhatsApp Invite Actions */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                    <div className="text-[11px] text-[#252321]/60 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-[#8D4925] shrink-0" />
+                    <div className="text-[11px] text-[#1F1F1C]/60 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
                       <span>
                         يصل القريب بريد دعوة رسمي مع خيار إلغاء الارتباط الفوري (Opt-out) احتراماً لخصوصيته.
                       </span>
@@ -1596,7 +1595,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         href={craftedRelativeWhatsappHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-4 py-2.5 rounded-xl bg-[#1F6E43] hover:bg-[#195a36] text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
+                        className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
                       >
                         <Share2 className="w-3.5 h-3.5" />
                         <span>مشاركة دعوة مجهزة عبر واتساب</span>
@@ -1605,7 +1604,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       <button
                         type="submit"
                         disabled={invitingRelative}
-                        className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] disabled:opacity-55 text-white text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                        className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 disabled:opacity-55 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                       >
                         <Mail className="w-3.5 h-3.5" />
                         <span>
@@ -1623,13 +1622,13 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
           {/* Smart Majlis Link Controls & Token Rotation */}
           {isRegistrar && (
-            <div className="rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/35 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#252321]">
-                  <Link2 className="w-4 h-4 text-[#8D4925]" />
+                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#1F1F1C]">
+                  <Link2 className="w-4 h-4 text-[#D97757]" />
                   <span>رابط المجلس العائلي الذكي والتحكم الأمني</span>
                   {circle.majlisInviteRotatedAt && (
-                    <span className="text-[10px] font-normal text-[#252321]/55">
+                    <span className="text-[10px] font-normal text-[#1F1F1C]/55">
                       · آخر تدوير:{' '}
                       {new Date(
                         circle.majlisInviteRotatedAt
@@ -1639,7 +1638,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 </div>
                 <div
                   dir="ltr"
-                  className="text-xs font-mono font-bold text-[#8D4925] truncate select-all"
+                  className="text-xs font-mono font-bold text-[#D97757] truncate select-all"
                 >
                   {cleanMajlisUrl}
                 </div>
@@ -1649,11 +1648,11 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyMajlisUrl}
-                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F7F2E9] border border-[#B98A78]/40 text-xs font-display font-bold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/40 text-xs font-display font-bold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
                   {copiedMajlisUrl ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-700" />
+                      <Check className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>تم النسخ ✓</span>
                     </>
                   ) : (
@@ -1667,9 +1666,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setQrModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F7F2E9] border border-[#B98A78]/40 text-xs font-display font-bold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/40 text-xs font-display font-bold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
-                  <QrCode className="w-3.5 h-3.5 text-[#8D4925]" />
+                  <QrCode className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>رمز QR</span>
                 </button>
 
@@ -1677,10 +1676,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   type="button"
                   onClick={handleRotateMajlisLink}
                   disabled={rotatingMajlisLink}
-                  className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3633] disabled:opacity-55 text-[#F7F2E9] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="px-3.5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 disabled:opacity-55 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <RotateCcw
-                    className={`w-3.5 h-3.5 text-[#E5C17A] ${
+                    className={`w-3.5 h-3.5 text-[#D97757] ${
                       rotatingMajlisLink ? 'animate-spin' : ''
                     }`}
                   />
@@ -1692,31 +1691,31 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
           {/* Pending Private Site Access Requests (Only when real pending requests exist) */}
           {isRegistrar && accessRequests.length > 0 && (
-            <div className="rounded-2xl bg-white border border-[#D8755B]/45 overflow-hidden">
-              <div className="px-6 py-3.5 bg-[#D8755B]/10 border-b border-[#D8755B]/25 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#8D4925]">
+            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 overflow-hidden">
+              <div className="px-6 py-3.5 bg-[#D97757]/10 border-b border-[#D97757]/25 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#D97757]">
                   <UserCheck className="w-4 h-4" />
                   <span>طلبات دخول جديدة لبوابة العائلة الخاصة</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-[#D8755B] text-white text-[11px] font-bold tabular-nums">
+                <span className="px-2 py-0.5 rounded-md bg-[#D97757] text-[#F5F1E8] text-[11px] font-bold tabular-nums">
                   {accessRequests.length}
                 </span>
               </div>
-              <div className="divide-y divide-[#B98A78]/20">
+              <div className="divide-y divide-[#D97757]/20">
                 {accessRequests.map((req) => (
                   <div
                     key={req.id}
                     className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="space-y-0.5">
-                      <div className="text-xs font-display font-bold text-[#252321]">
+                      <div className="text-xs font-display font-bold text-[#1F1F1C]">
                         {req.visitorName}
-                        <span className="font-normal text-[#252321]/60 mr-2" dir="ltr">
+                        <span className="font-normal text-[#1F1F1C]/60 mr-2" dir="ltr">
                           ({req.visitorEmail})
                         </span>
                       </div>
                       {req.kinshipNote && (
-                        <div className="text-[11px] text-[#8D4925]">
+                        <div className="text-[11px] text-[#D97757]">
                           ملاحظة القرابة: {req.kinshipNote}
                         </div>
                       )}
@@ -1726,7 +1725,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         type="button"
                         disabled={resolvingAccessId === req.id}
                         onClick={() => handleResolveAccess(req, true)}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                        className="px-3.5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
                       >
                         قبول وإضافة للدائرة ✓
                       </button>
@@ -1734,7 +1733,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         type="button"
                         disabled={resolvingAccessId === req.id}
                         onClick={() => handleResolveAccess(req, false)}
-                        className="px-3 py-2 rounded-xl bg-[#F7F2E9] hover:bg-[#EDE4D5] disabled:opacity-50 text-[#252321] text-xs font-semibold cursor-pointer transition-colors"
+                        className="px-3 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] disabled:opacity-50 text-[#1F1F1C] text-xs font-semibold cursor-pointer transition-colors"
                       >
                         اعتذار
                       </button>
@@ -1747,31 +1746,31 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
           {/* Approved Relatives Roster — Luxury Membership Cards */}
           {isRegistrar && (
-            <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-2">
+            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
+              <div className="px-6 py-4 border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4.5 h-4.5 text-[#8D4925]" />
-                  <h3 className="text-sm font-display font-bold text-[#252321]">
+                  <Users className="w-4.5 h-4.5 text-[#D97757]" />
+                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                     أفراد دائرة عائلة {result.familyName} المعتمدون
                   </h3>
                 </div>
-                <span className="text-xs text-[#252321]/60 tabular-nums">
+                <span className="text-xs text-[#1F1F1C]/60 tabular-nums">
                   {circle.members.length} عضو موثق الصلاحية
                 </span>
               </div>
 
               <div className="p-6">
                 {circle.members.length === 0 ? (
-                  <div className="rounded-2xl bg-gradient-to-b from-[#FAF6EE] to-white border border-dashed border-[#B98A78]/50 p-8 sm:p-10 text-center space-y-4">
+                  <div className="rounded-2xl bg-gradient-to-b from-[#F5F1E8] to-[#F5F1E8] border border-dashed border-[#D97757]/50 p-8 sm:p-10 text-center space-y-4">
                     {/* Custom Heritage Crest SVG Illustration */}
-                    <div className="w-16 h-16 rounded-2xl bg-[#252321] text-[#E5C17A] mx-auto flex items-center justify-center shadow-sm">
+                    <div className="w-16 h-16 rounded-2xl bg-[#1F1F1C] text-[#D97757] mx-auto flex items-center justify-center shadow-sm">
                       <Users className="w-8 h-8" />
                     </div>
                     <div className="space-y-1.5 max-w-lg mx-auto">
-                      <h4 className="text-base font-display font-bold text-[#252321]">
+                      <h4 className="text-base font-display font-bold text-[#1F1F1C]">
                         دائرة عائلتك جاهزة لاستقبال أول أفرادها
                       </h4>
-                      <p className="text-xs text-[#252321]/65 leading-relaxed">
+                      <p className="text-xs text-[#1F1F1C]/65 leading-relaxed">
                         توثيق تاريخ العائلة أجمل حين يتشارك فيه الأبناء والأعمام. ادعُ الآن أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
                       </p>
                     </div>
@@ -1779,7 +1778,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       <button
                         type="button"
                         onClick={handleOpenInviteStudioAction}
-                        className="px-5 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+                        className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
                       >
                         <UserPlus className="w-4 h-4" />
                         <span>دعوة أول قريب الآن</span>
@@ -1799,40 +1798,40 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       return (
                         <div
                           key={member.id}
-                          className="rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/35 p-5 flex flex-col justify-between gap-4 hover:border-[#8D4925]/45 transition-colors"
+                          className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col justify-between gap-4 hover:border-[#D97757]/45 transition-colors"
                         >
                           {/* Top Identity Row */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3 min-w-0">
-                              <div className="w-11 h-11 rounded-xl bg-[#252321] text-[#E5C17A] font-display font-bold text-sm flex items-center justify-center shrink-0">
+                              <div className="w-11 h-11 rounded-xl bg-[#1F1F1C] text-[#D97757] font-display font-bold text-sm flex items-center justify-center shrink-0">
                                 {getArabicInitials(member.name)}
                               </div>
                               <div className="min-w-0 space-y-0.5">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <h4 className="text-sm font-display font-bold text-[#252321] truncate">
+                                  <h4 className="text-sm font-display font-bold text-[#1F1F1C] truncate">
                                     {member.name}
                                   </h4>
                                   <span
                                     className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                                       isActive
-                                        ? 'bg-emerald-900/12 text-emerald-900'
-                                        : 'bg-amber-900/10 text-[#8D4925]'
+                                        ? 'bg-[#1F1F1C]/12 text-[#1F1F1C]'
+                                        : 'bg-[#1F1F1C]/10 text-[#D97757]'
                                     }`}
                                   >
                                     {isActive ? 'عضو نشط ✓' : 'تم إرسال الدعوة'}
                                   </span>
                                 </div>
-                                <div className="text-xs text-[#8D4925] font-semibold">
+                                <div className="text-xs text-[#D97757] font-semibold">
                                   {member.kinshipRelation}
                                   {member.approvedEnrichmentsCount > 0 && (
-                                    <span className="text-[#252321]/55 font-normal mr-2">
+                                    <span className="text-[#1F1F1C]/55 font-normal mr-2">
                                       · {member.approvedEnrichmentsCount} مساهمة معتمدة
                                     </span>
                                   )}
                                 </div>
                                 <div
                                   dir="ltr"
-                                  className="text-[11px] font-mono text-[#252321]/60 truncate text-right"
+                                  className="text-[11px] font-mono text-[#1F1F1C]/60 truncate text-right"
                                 >
                                   {member.email}
                                 </div>
@@ -1844,16 +1843,16 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               onClick={() => handleRemoveRelative(member)}
                               disabled={removingEmail === member.email}
                               title="إلغاء صلاحية القريب"
-                              className="p-2 rounded-lg text-[#252321]/45 hover:text-rose-700 hover:bg-rose-950/5 disabled:opacity-40 cursor-pointer transition-colors shrink-0"
+                              className="p-2 rounded-lg text-[#1F1F1C]/45 hover:text-[#D97757] hover:bg-[#1F1F1C]/5 disabled:opacity-40 cursor-pointer transition-colors shrink-0"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
 
                           {/* Inline Editable Role & Tree-Link Controls */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#B98A78]/20">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#D97757]/20">
                             <div className="space-y-1">
-                              <label className="block text-[10px] font-semibold text-[#252321]/60">
+                              <label className="block text-[10px] font-semibold text-[#1F1F1C]/60">
                                 مستوى الصلاحية
                               </label>
                               <select
@@ -1865,7 +1864,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                       .value as KinshipCircleMemberRole,
                                   })
                                 }
-                                className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#B98A78]/35 text-[11px] font-semibold text-[#252321] focus:outline-none focus:border-[#D8755B] disabled:opacity-50"
+                                className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-[11px] font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50"
                               >
                                 {ROLE_OPTIONS.map((opt) => (
                                   <option key={opt.id} value={opt.id}>
@@ -1876,7 +1875,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                             </div>
 
                             <div className="space-y-1">
-                              <label className="block text-[10px] font-semibold text-[#252321]/60">
+                              <label className="block text-[10px] font-semibold text-[#1F1F1C]/60">
                                 الربط ببطاقة «شجرتي»
                               </label>
                               <select
@@ -1895,7 +1894,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                     linkedTreePersonName: found?.label || null,
                                   });
                                 }}
-                                className="w-full px-2.5 py-2 rounded-lg bg-white border border-[#B98A78]/35 text-[11px] font-semibold text-[#252321] focus:outline-none focus:border-[#D8755B] disabled:opacity-50"
+                                className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-[11px] font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50"
                               >
                                 <option value="">غير مربوط بعد</option>
                                 {contemporaryTreeOptions.map((opt) => (
@@ -1909,10 +1908,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
                           {/* Footer Quick Link */}
                           <div className="flex items-center justify-between gap-2 text-[11px]">
-                            <span className="text-[#252321]/55">
+                            <span className="text-[#1F1F1C]/55">
                               {member.linkedTreePersonName ? (
-                                <span className="inline-flex items-center gap-1 text-emerald-900 font-semibold">
-                                  <TreePine className="w-3.5 h-3.5" />
+                                <span className="inline-flex items-center gap-1 text-[#1F1F1C] font-semibold">
+                                  <JUTHORI_SERVICE_ICONS.tree className="w-3.5 h-3.5 text-[#D97757]" />
                                   مربوط: {member.linkedTreePersonName}
                                 </span>
                               ) : (
@@ -1928,7 +1927,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               href={memberWhatsappHref}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[#1F6E43] hover:underline font-bold"
+                              className="inline-flex items-center gap-1 text-[#D97757] hover:underline font-bold"
                             >
                               <Share2 className="w-3 h-3" />
                               <span>تذكير عبر واتساب</span>
@@ -1944,22 +1943,22 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           )}
 
           {/* Authorized Family Portals (For ALL Users) */}
-          <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#B98A78]/25 flex items-center justify-between gap-2">
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#D97757]/25 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Globe className="w-4.5 h-4.5 text-[#8D4925]" />
-                <h3 className="text-sm font-display font-bold text-[#252321]">
+                <Globe className="w-4.5 h-4.5 text-[#D97757]" />
+                <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                   البوابات العائلية المصرح لي بدخولها
                 </h3>
               </div>
-              <span className="text-xs text-[#252321]/60 tabular-nums">
+              <span className="text-xs text-[#1F1F1C]/60 tabular-nums">
                 {authorizedPortals.length} بوابة
               </span>
             </div>
 
             <div className="p-6">
               {authorizedPortals.length === 0 ? (
-                <div className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/25 px-5 py-6 text-center text-xs text-[#252321]/65">
+                <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 px-5 py-6 text-center text-xs text-[#1F1F1C]/65">
                   لا توجد بوابات عائلية خاصة أخرى مصرح لبريدك بدخولها حالياً. عندما يضيفك قريبك إلى دائرته العائلية، ستظهر بوابته هنا للدخول المباشر بنقرة واحدة.
                 </div>
               ) : (
@@ -1968,23 +1967,23 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     <a
                       key={portal.siteSlug}
                       href={`/${portal.siteSlug}`}
-                      className="group rounded-2xl bg-[#FAF6EE] hover:bg-[#F3E9D8] border border-[#B98A78]/35 p-4 flex items-center justify-between gap-3 transition-colors"
+                      className="group rounded-2xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/35 p-4 flex items-center justify-between gap-3 transition-colors"
                     >
                       <div className="min-w-0 space-y-0.5">
-                        <div className="text-sm font-display font-bold text-[#252321] truncate">
+                        <div className="text-sm font-display font-bold text-[#1F1F1C] truncate">
                           ديوان عائلة {portal.familyName}
                         </div>
-                        <div className="text-[11px] text-[#252321]/60 truncate">
+                        <div className="text-[11px] text-[#1F1F1C]/60 truncate">
                           بإشراف: {portal.ownerDisplayName}
                         </div>
                         <div
                           dir="ltr"
-                          className="text-[11px] font-mono text-[#8D4925] truncate text-right"
+                          className="text-[11px] font-mono text-[#D97757] truncate text-right"
                         >
                           {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{portal.siteSlug}
                         </div>
                       </div>
-                      <div className="w-9 h-9 rounded-xl bg-white border border-[#B98A78]/30 flex items-center justify-center text-[#8D4925] group-hover:bg-[#252321] group-hover:text-[#E5C17A] transition-colors shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 flex items-center justify-center text-[#D97757] group-hover:bg-[#1F1F1C] group-hover:text-[#D97757] transition-colors shrink-0">
                         <ArrowUpLeft className="w-4 h-4" />
                       </div>
                     </a>
@@ -2002,17 +2001,17 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       {!isLoading && activeTab === 'enrichment' && (
         <div className="space-y-6">
           {/* Family Memory & Photo Quests Studio */}
-          <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden">
-            <div className="px-6 py-4 bg-[#FAF6EE] border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
+            <div className="px-6 py-4 bg-[#F5F1E8] border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#D8755B]/15 text-[#8D4925] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#D97757]/15 text-[#D97757] flex items-center justify-center shrink-0">
                   <Megaphone className="w-4.5 h-4.5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-display font-bold text-[#252321]">
+                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                     حملات استكتاب العائلة وجمع الذاكرة
                   </h3>
-                  <p className="text-[11px] text-[#252321]/60">
+                  <p className="text-[11px] text-[#1F1F1C]/60">
                     أطلق نداءً حقيقياً للعائلة لجمع الصور والمواليد وذكريات الأجداد، وشاركه في مجموعة واتساب العائلة
                   </p>
                 </div>
@@ -2022,9 +2021,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setQuestComposerOpen((v) => !v)}
-                  className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3633] text-[#F7F2E9] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5 text-[#E5C17A]" />
+                  <Plus className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>
                     {questComposerOpen ? 'إغلاق المحرر' : 'إطلاق حملة ذاكرة مخصصة'}
                   </span>
@@ -2036,24 +2035,24 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
               {/* Ready Starter Templates to Launch Real Campaigns */}
               {isRegistrar && (
                 <div className="space-y-2.5">
-                  <div className="text-xs font-display font-bold text-[#252321]/80 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#D8755B]" />
+                  <div className="text-xs font-display font-bold text-[#1F1F1C]/80 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
                     <span>قوالب حملات جاهزة للإطلاق الفوري بنقرة واحدة:</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {MEMORY_QUEST_TEMPLATES.map((tpl) => (
                       <div
                         key={tpl.category}
-                        className="rounded-xl bg-[#FAF6EE] border border-[#B98A78]/30 p-4 flex flex-col justify-between gap-3"
+                        className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 p-4 flex flex-col justify-between gap-3"
                       >
                         <div className="space-y-1.5">
-                          <span className="inline-block text-[10px] font-bold text-[#8D4925]">
+                          <span className="inline-block text-[10px] font-bold text-[#D97757]">
                             {tpl.badgeAr}
                           </span>
-                          <h4 className="text-xs font-display font-bold text-[#252321] leading-snug">
+                          <h4 className="text-xs font-display font-bold text-[#1F1F1C] leading-snug">
                             {tpl.title}
                           </h4>
-                          <p className="text-[11px] text-[#252321]/65 leading-relaxed line-clamp-3">
+                          <p className="text-[11px] text-[#1F1F1C]/65 leading-relaxed line-clamp-3">
                             {tpl.promptText}
                           </p>
                         </div>
@@ -2067,7 +2066,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               category: tpl.category,
                             })
                           }
-                          className="w-full py-2 rounded-lg bg-white hover:bg-[#252321] hover:text-[#F7F2E9] border border-[#B98A78]/40 text-xs font-display font-bold text-[#252321] transition-colors cursor-pointer disabled:opacity-50"
+                          className="w-full py-2 rounded-lg bg-[#F5F1E8] hover:bg-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D97757]/40 text-xs font-display font-bold text-[#1F1F1C] transition-colors cursor-pointer disabled:opacity-50"
                         >
                           إطلاق هذه الحملة للعائلة ✦
                         </button>
@@ -2079,8 +2078,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
               {/* Custom Quest Composer */}
               {isRegistrar && questComposerOpen && (
-                <div className="rounded-2xl bg-[#FAF6EE] border border-[#D8755B]/40 p-5 space-y-3">
-                  <div className="text-xs font-display font-bold text-[#252321]">
+                <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 space-y-3">
+                  <div className="text-xs font-display font-bold text-[#1F1F1C]">
                     صياغة نداء توثيق خاص بعائلة {result.familyName}
                   </div>
                   <input
@@ -2088,20 +2087,20 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     value={questTitle}
                     onChange={(e) => setQuestTitle(e.target.value)}
                     placeholder="عنوان الحملة (مثال: توثيق صور رحلة المصيف العائلي عام 1415هـ)"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#B98A78]/40 text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                   />
                   <textarea
                     rows={3}
                     value={questPrompt}
                     onChange={(e) => setQuestPrompt(e.target.value)}
                     placeholder="اكتب السؤال أو النداء الذي سيصل إلى أقاربك لتحفيزهم على رفع الصور أو القصص..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#B98A78]/40 text-xs text-[#252321] focus:outline-none focus:border-[#D8755B]"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                   />
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setQuestComposerOpen(false)}
-                      className="px-4 py-2 rounded-xl bg-white border border-[#B98A78]/35 text-xs font-semibold text-[#252321] cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 text-xs font-semibold text-[#1F1F1C] cursor-pointer"
                     >
                       إلغاء
                     </button>
@@ -2115,7 +2114,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                           category: questCategory,
                         })
                       }
-                      className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] disabled:opacity-50 text-white text-xs font-display font-bold cursor-pointer transition-colors"
+                      className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
                     >
                       {savingQuest ? 'جارٍ الإطلاق...' : 'حفظ وإطلاق الحملة ✓'}
                     </button>
@@ -2125,12 +2124,12 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
               {/* Active & Saved Real Memory Quests List */}
               {memoryQuests.length > 0 ? (
-                <div className="space-y-3 pt-2 border-t border-[#B98A78]/20">
+                <div className="space-y-3 pt-2 border-t border-[#D97757]/20">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-display font-bold text-[#252321]">
+                    <span className="font-display font-bold text-[#1F1F1C]">
                       حملات الذاكرة المحفوظة لعائلة {result.familyName}
                     </span>
-                    <span className="text-[#252321]/60 tabular-nums">
+                    <span className="text-[#1F1F1C]/60 tabular-nums">
                       {activeMemoryQuests.length} نشطة ·{' '}
                       {memoryQuests.length - activeMemoryQuests.length} مؤرشفة
                     </span>
@@ -2145,31 +2144,31 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                           key={quest.id}
                           className={`rounded-2xl border p-4.5 flex flex-col justify-between gap-3.5 ${
                             isQuestActive
-                              ? 'bg-white border-[#D8755B]/40 shadow-xs'
-                              : 'bg-[#FAF6EE]/70 border-[#B98A78]/25 opacity-80'
+                              ? 'bg-[#F5F1E8] border-[#D97757]/40 shadow-xs'
+                              : 'bg-[#F5F1E8]/70 border-[#D97757]/25 opacity-80'
                           }`}
                         >
                           <div className="space-y-2">
                             <div className="flex items-start justify-between gap-2">
-                              <h4 className="text-sm font-display font-bold text-[#252321] leading-snug">
+                              <h4 className="text-sm font-display font-bold text-[#1F1F1C] leading-snug">
                                 {quest.title}
                               </h4>
                               <span
                                 className={`shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold ${
                                   isQuestActive
-                                    ? 'bg-emerald-900/12 text-emerald-900'
-                                    : 'bg-[#252321]/10 text-[#252321]/60'
+                                    ? 'bg-[#1F1F1C]/12 text-[#1F1F1C]'
+                                    : 'bg-[#1F1F1C]/10 text-[#1F1F1C]/60'
                                 }`}
                               >
                                 {isQuestActive ? 'حملة نشطة' : 'مؤرشفة'}
                               </span>
                             </div>
-                            <p className="text-xs text-[#252321]/70 leading-relaxed">
+                            <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
                               {quest.promptText}
                             </p>
                           </div>
 
-                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#B98A78]/20">
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#D97757]/20">
                             <div className="flex flex-wrap items-center gap-2">
                               <a
                                 href={`https://wa.me/?text=${encodeURIComponent(
@@ -2177,7 +2176,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                 )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-3 py-1.5 rounded-lg bg-[#1F6E43] hover:bg-[#195a36] text-white text-[11px] font-display font-bold inline-flex items-center gap-1.5 transition-colors"
+                                className="px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-[11px] font-display font-bold inline-flex items-center gap-1.5 transition-colors"
                               >
                                 <Share2 className="w-3 h-3" />
                                 <span>مشاركة عبر واتساب العائلة</span>
@@ -2185,11 +2184,11 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleCopyQuestCallout(quest)}
-                                className="px-2.5 py-1.5 rounded-lg bg-[#FAF6EE] hover:bg-[#EFE6D8] border border-[#B98A78]/35 text-[11px] font-semibold text-[#252321] inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/35 text-[11px] font-semibold text-[#1F1F1C] inline-flex items-center gap-1 cursor-pointer"
                               >
                                 {copiedQuestId === quest.id ? (
                                   <>
-                                    <Check className="w-3 h-3 text-emerald-700" />
+                                    <Check className="w-3 h-3 text-[#D97757]" />
                                     <span>نُسخ</span>
                                   </>
                                 ) : (
@@ -2211,7 +2210,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                       isQuestActive ? 'ARCHIVED' : 'ACTIVE'
                                     )
                                   }
-                                  className="px-2 py-1 rounded-md text-[11px] text-[#252321]/65 hover:text-[#252321] hover:bg-black/5 inline-flex items-center gap-1 cursor-pointer"
+                                  className="px-2 py-1 rounded-md text-[11px] text-[#1F1F1C]/65 hover:text-[#1F1F1C] hover:bg-[#1F1F1C]/5 inline-flex items-center gap-1 cursor-pointer"
                                 >
                                   <Archive className="w-3 h-3" />
                                   <span>{isQuestActive ? 'أرشفة' : 'تفعيل'}</span>
@@ -2222,7 +2221,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                     handleQuestStatusAction(quest, 'DELETE')
                                   }
                                   title="حذف الحملة"
-                                  className="p-1.5 rounded-md text-[#252321]/45 hover:text-rose-700 hover:bg-rose-950/5 cursor-pointer"
+                                  className="p-1.5 rounded-md text-[#1F1F1C]/45 hover:text-[#D97757] hover:bg-[#1F1F1C]/5 cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -2235,7 +2234,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl bg-[#FAF6EE]/80 border border-dashed border-[#B98A78]/40 px-5 py-4 text-xs text-[#252321]/65 text-center">
+                <div className="rounded-xl bg-[#F5F1E8]/80 border border-dashed border-[#D97757]/40 px-5 py-4 text-xs text-[#1F1F1C]/65 text-center">
                   لم تُطلق حملات جمع ذاكرة بعد. اختر أحد القوالب أعلاه أو صُغ سؤالك الخاص لتحفيز أفراد عائلتك على مشاركة صورهم وذكرياتهم.
                 </div>
               )}
@@ -2243,15 +2242,15 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           </div>
 
           {/* Categorized Family Enrichment Moderation Studio */}
-          <div className="rounded-2xl bg-white border border-[#B98A78]/35 overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#B98A78]/25 flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <Inbox className="w-4.5 h-4.5 text-[#D8755B]" />
+                <Inbox className="w-4.5 h-4.5 text-[#D97757]" />
                 <div>
-                  <h3 className="text-sm font-display font-bold text-[#252321]">
+                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                     صندوق مراجعة واعتماد إثراءات العائلة
                   </h3>
-                  <p className="text-[11px] text-[#252321]/60">
+                  <p className="text-[11px] text-[#1F1F1C]/60">
                     لا يُدمج أي مقترح في «شجرتي» أو «خزانتي» إلا بموافقتك الصريحة كأمين سجل
                   </p>
                 </div>
@@ -2261,7 +2260,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowReviewedHistory((v) => !v)}
-                  className="text-xs font-display font-bold text-[#8D4925] hover:underline cursor-pointer"
+                  className="text-xs font-display font-bold text-[#D97757] hover:underline cursor-pointer"
                 >
                   {showReviewedHistory
                     ? 'إخفاء الأرشيف المراجع'
@@ -2271,7 +2270,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             </div>
 
             {/* Category Filter Strip */}
-            <div className="px-6 py-3 bg-[#FAF6EE] border-b border-[#B98A78]/20 flex flex-wrap items-center gap-2">
+            <div className="px-6 py-3 bg-[#F5F1E8] border-b border-[#D97757]/20 flex flex-wrap items-center gap-2">
               {(
                 [
                   {
@@ -2315,16 +2314,16 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     onClick={() => setEnrichmentFilter(flt.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
                       active
-                        ? 'bg-[#252321] text-[#F7F2E9]'
-                        : 'bg-white border border-[#B98A78]/35 text-[#252321]/75 hover:border-[#8D4925]/50'
+                        ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                        : 'bg-[#F5F1E8] border border-[#D97757]/35 text-[#1F1F1C]/75 hover:border-[#D97757]/50'
                     }`}
                   >
                     <span>{flt.label}</span>
                     <span
                       className={`text-[10px] px-1.5 py-0.2 rounded tabular-nums ${
                         active
-                          ? 'bg-white/15 text-[#E5C17A]'
-                          : 'bg-[#F7F2E9] text-[#8D4925]'
+                          ? 'bg-[#F5F1E8]/15 text-[#D97757]'
+                          : 'bg-[#F5F1E8] text-[#D97757]'
                       }`}
                     >
                       {flt.count}
@@ -2338,14 +2337,14 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             <div className="p-6 space-y-4">
               {filteredPendingEnrichments.length === 0 &&
               (!showFaceIdInQueue || realFaceIdEntries.length === 0) ? (
-                <div className="rounded-2xl bg-[#FAF6EE] border border-dashed border-[#B98A78]/45 p-8 text-center space-y-2.5">
-                  <div className="w-12 h-12 rounded-2xl bg-white border border-[#B98A78]/30 mx-auto flex items-center justify-center text-[#8D4925]">
+                <div className="rounded-2xl bg-[#F5F1E8] border border-dashed border-[#D97757]/45 p-8 text-center space-y-2.5">
+                  <div className="w-12 h-12 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 mx-auto flex items-center justify-center text-[#D97757]">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <h4 className="text-sm font-display font-bold text-[#252321]">
+                  <h4 className="text-sm font-display font-bold text-[#1F1F1C]">
                     صندوق الإثراءات المعلّقة نظيف تماماً
                   </h4>
-                  <p className="text-xs text-[#252321]/65 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/65 max-w-md mx-auto leading-relaxed">
                     عندما يقترح أحد أقاربك إضافة مولود جديد أو رفع صورة تاريخية أو التعرف على شخص في صورة عبر «موقعي»، ستصل مساهمته هنا للمراجعة والدمج بضغطة واحدة.
                   </p>
                 </div>
@@ -2379,19 +2378,19 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                             proposedCount > 1
                               ? `اقتراح إضافة (${proposedCount}) أفراد للشجرة`
                               : 'اقتراح إضافة فرع أو قريب للشجرة',
-                          icon: TreePine,
-                          color: 'bg-emerald-900/10 text-emerald-900',
+                          icon: JUTHORI_SERVICE_ICONS.tree,
+                          color: 'bg-[#1F1F1C]/10 text-[#1F1F1C]',
                         }
                       : req.requestType === 'VAULT_MEDIA'
                       ? {
                           label: 'إهداء صورة / وثيقة للخزانة',
-                          icon: FileImage,
-                          color: 'bg-[#D8755B]/15 text-[#8D4925]',
+                          icon: JUTHORI_SERVICE_ICONS.vault,
+                          color: 'bg-[#D97757]/15 text-[#D97757]',
                         }
                       : {
                           label: 'قصة / تصحيح سيرة',
                           icon: MessageSquareHeart,
-                          color: 'bg-amber-900/10 text-[#8D4925]',
+                          color: 'bg-[#1F1F1C]/10 text-[#D97757]',
                         };
                     const TypeIcon = typeBadge.icon;
 
@@ -2399,7 +2398,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       <div
                         key={req.id}
                         data-testid={`enrichment-review-card-${req.id}`}
-                        className="rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/40 p-5 space-y-4"
+                        className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 space-y-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="space-y-1">
@@ -2410,13 +2409,13 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                 <TypeIcon className="w-3.5 h-3.5" />
                                 {typeBadge.label}
                               </span>
-                              <span className="text-[#8D4925] font-bold">
+                              <span className="text-[#D97757] font-bold">
                                 {req.requesterRoleLabel || 'قريب مساهم'}
                               </span>
-                              <span aria-hidden="true" className="text-[#252321]/30">
+                              <span aria-hidden="true" className="text-[#1F1F1C]/30">
                                 ·
                               </span>
-                              <span className="text-[#252321]/60 inline-flex items-center gap-1 tabular-nums">
+                              <span className="text-[#1F1F1C]/60 inline-flex items-center gap-1 tabular-nums">
                                 <Clock className="w-3 h-3" />
                                 {new Date(req.createdAt).toLocaleDateString(
                                   'ar-SA',
@@ -2429,10 +2428,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               </span>
                             </div>
 
-                            <div className="text-sm font-display font-bold text-[#252321] pt-1">
+                            <div className="text-sm font-display font-bold text-[#1F1F1C] pt-1">
                               مقدّم من: {req.requesterName}
                               {req.kinshipRelation && (
-                                <span className="text-xs font-semibold text-[#8D4925] mr-2">
+                                <span className="text-xs font-semibold text-[#D97757] mr-2">
                                   ({req.kinshipRelation})
                                 </span>
                               )}
@@ -2441,9 +2440,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         </div>
 
                         {/* Proposal Details + Optional Media Preview */}
-                        <div className="rounded-xl bg-white border border-[#B98A78]/25 p-4 flex flex-col sm:flex-row gap-4">
+                        <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 p-4 flex flex-col sm:flex-row gap-4">
                           {req.mediaDataOrUrl && (
-                            <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden bg-[#F7F2E9] border border-[#B98A78]/30 shrink-0">
+                            <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden bg-[#F5F1E8] border border-[#D97757]/30 shrink-0">
                               <img
                                 src={req.mediaDataOrUrl}
                                 alt={req.mediaTitle || 'مرفق إثراء عائلي'}
@@ -2451,48 +2450,48 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               />
                             </div>
                           )}
-                          <div className="space-y-2 text-xs text-[#252321]/85 flex-1 min-w-0">
+                          <div className="space-y-2 text-xs text-[#1F1F1C]/85 flex-1 min-w-0">
                             {isTreeProposal && proposedNamesPreview.length > 0 && (
                               <div className="space-y-1">
-                                <div className="text-[#252321]/65 font-semibold">
+                                <div className="text-[#1F1F1C]/65 font-semibold">
                                   الإضافات المقترحة ({proposedCount}{' '}
                                   {proposedCount === 1
                                     ? 'فرد جديد'
                                     : 'أفراد جدد'}
                                   ):
                                 </div>
-                                <div className="font-display font-bold text-emerald-950 leading-relaxed">
+                                <div className="font-display font-bold text-[#1F1F1C] leading-relaxed">
                                   {proposedNamesPreview.join(' · ')}
                                 </div>
                               </div>
                             )}
                             {req.targetPersonName && (
                               <div>
-                                <span className="text-[#252321]/60">
+                                <span className="text-[#1F1F1C]/60">
                                   نقطة الارتباط في الشجرة:{' '}
                                 </span>
-                                <strong className="font-display text-[#8D4925]">
+                                <strong className="font-display text-[#D97757]">
                                   {req.targetPersonName}
                                 </strong>
                               </div>
                             )}
                             {req.mediaTitle && (
                               <div>
-                                <span className="text-[#252321]/60">
+                                <span className="text-[#1F1F1C]/60">
                                   عنوان الوثيقة / الصورة:{' '}
                                 </span>
-                                <strong className="font-display text-[#252321]">
+                                <strong className="font-display text-[#1F1F1C]">
                                   {req.mediaTitle}
                                 </strong>
                                 {req.mediaDateOrOccasion && (
-                                  <span className="text-[#252321]/60 mr-2">
+                                  <span className="text-[#1F1F1C]/60 mr-2">
                                     · {req.mediaDateOrOccasion}
                                   </span>
                                 )}
                               </div>
                             )}
                             {req.proposedNotes && (
-                              <p className="text-xs text-[#252321]/75 leading-relaxed pt-1">
+                              <p className="text-xs text-[#1F1F1C]/75 leading-relaxed pt-1">
                                 {req.proposedNotes}
                               </p>
                             )}
@@ -2510,7 +2509,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                   onClick={() =>
                                     setVisualDiffReviewRequest(req)
                                   }
-                                  className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#3A342E] text-[#F5DFAA] border border-[#C8A054]/50 text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                  className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] border border-[#D97757]/50 text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                   <span>🔍 معاينة الإضافات على الشجرة</span>
@@ -2525,9 +2524,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                 onClick={() =>
                                   handleReviewEnrichment(req, false)
                                 }
-                                className="px-4 py-2 rounded-xl bg-white hover:bg-rose-950/5 border border-[#B98A78]/40 text-xs font-semibold text-[#252321] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#1F1F1C]/5 border border-[#D97757]/40 text-xs font-semibold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
                               >
-                                <XCircle className="w-3.5 h-3.5 text-[#8D4925]" />
+                                <XCircle className="w-3.5 h-3.5 text-[#D97757]" />
                                 <span>
                                   {isTreeProposal
                                     ? '✕ رفض المقترح'
@@ -2540,7 +2539,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                 onClick={() =>
                                   handleReviewEnrichment(req, true)
                                 }
-                                className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                                className="px-5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                                 <span>
@@ -2563,35 +2562,35 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     realFaceIdEntries.map((entry) => (
                       <div
                         key={entry.id}
-                        className="rounded-2xl bg-[#FAF6EE] border border-[#B98A78]/35 p-5 flex flex-col sm:flex-row items-start gap-4"
+                        className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col sm:flex-row items-start gap-4"
                       >
                         {entry.previewUrl ? (
                           <img
                             src={entry.previewUrl}
                             alt={entry.photoTitle}
-                            className="w-24 h-24 rounded-xl object-cover border border-[#B98A78]/30 shrink-0"
+                            className="w-24 h-24 rounded-xl object-cover border border-[#D97757]/30 shrink-0"
                           />
                         ) : (
-                          <div className="w-24 h-24 rounded-xl bg-white border border-[#B98A78]/30 flex items-center justify-center text-[#8D4925] shrink-0">
+                          <div className="w-24 h-24 rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 flex items-center justify-center text-[#D97757] shrink-0">
                             <Camera className="w-6 h-6" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#252321] text-[#E5C17A] text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#1F1F1C] text-[#D97757] text-[10px] font-bold">
                               <ScanFace className="w-3 h-3" />
                               التعرف على وجوه الصور
                             </span>
-                            <span className="text-[11px] text-[#252321]/55">
+                            <span className="text-[11px] text-[#1F1F1C]/55">
                               {new Date(entry.createdAt).toLocaleDateString(
                                 'ar-SA'
                               )}
                             </span>
                           </div>
-                          <div className="text-xs font-display font-bold text-[#252321]">
+                          <div className="text-xs font-display font-bold text-[#1F1F1C]">
                             أفاد «{entry.senderName}» حول صورة: {entry.photoTitle}
                           </div>
-                          <p className="text-xs text-[#252321]/80 bg-white rounded-xl px-3.5 py-2.5 border border-[#B98A78]/25">
+                          <p className="text-xs text-[#1F1F1C]/80 bg-[#F5F1E8] rounded-xl px-3.5 py-2.5 border border-[#D97757]/25">
                             “{entry.note}”
                           </p>
                           {onNavigateTab && (
@@ -2599,7 +2598,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onNavigateTab(DashboardTab.MyVault)}
-                                className="text-xs font-display font-bold text-[#8D4925] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                className="text-xs font-display font-bold text-[#D97757] hover:underline inline-flex items-center gap-1 cursor-pointer"
                               >
                                 <span>توثيق الاسم وربط الصورة في «خزانتي»</span>
                                 <ArrowUpLeft className="w-3.5 h-3.5" />
@@ -2614,21 +2613,21 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
               {/* Collapsible Reviewed History */}
               {showReviewedHistory && reviewedEnrichments.length > 0 && (
-                <div className="pt-4 border-t border-[#B98A78]/25 space-y-2.5">
-                  <div className="text-xs font-display font-bold text-[#252321]/75">
+                <div className="pt-4 border-t border-[#D97757]/25 space-y-2.5">
+                  <div className="text-xs font-display font-bold text-[#1F1F1C]/75">
                     الأرشيف السابق للإثراءات المراجعة
                   </div>
                   <div className="space-y-2">
                     {reviewedEnrichments.slice(0, 12).map((item) => (
                       <div
                         key={item.id}
-                        className="rounded-xl bg-[#FAF6EE]/70 border border-[#B98A78]/25 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs"
+                        className="rounded-xl bg-[#F5F1E8]/70 border border-[#D97757]/25 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs"
                       >
                         <div>
-                          <strong className="font-display text-[#252321]">
+                          <strong className="font-display text-[#1F1F1C]">
                             {item.requesterName}
                           </strong>
-                          <span className="text-[#252321]/60 mr-2">
+                          <span className="text-[#1F1F1C]/60 mr-2">
                             —{' '}
                             {item.proposedFirstName ||
                               item.mediaTitle ||
@@ -2639,8 +2638,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         <span
                           className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
                             item.status === 'APPROVED_AND_MERGED'
-                              ? 'bg-emerald-900/12 text-emerald-900'
-                              : 'bg-[#252321]/10 text-[#252321]/60'
+                              ? 'bg-[#1F1F1C]/12 text-[#1F1F1C]'
+                              : 'bg-[#1F1F1C]/10 text-[#1F1F1C]/60'
                           }`}
                         >
                           {item.status === 'APPROVED_AND_MERGED'
@@ -2703,16 +2702,16 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             aria-modal="true"
             data-testid="visual-diff-tree-review-modal"
             aria-label="معاينة الإضافات المقترحة على شجرة العائلة"
-            className="fixed inset-0 z-[80] flex flex-col bg-[#F7F1E4] text-[#231E1A]"
+            className="fixed inset-0 z-[80] flex flex-col bg-[#E8DED2] text-[#1F1F1C]"
           >
             {/* Visual Diff Top Bar */}
-            <header className="shrink-0 bg-[#221D19] text-[#FAF5EB] border-b border-[#C8A054]/40 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+            <header className="shrink-0 bg-[#1F1F1C] text-[#F5F1E8] border-b border-[#D97757]/40 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-400/60 text-emerald-300 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#D97757]/20 border border-[#D8C7B2]/60 text-[#D8C7B2] flex items-center justify-center shrink-0">
                   <GitBranch className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-emerald-300 tracking-wide">
+                  <div className="text-[11px] font-bold text-[#D8C7B2] tracking-wide">
                     ✦ معاينة الفروقات البصرية قبل الاعتماد والدمج
                   </div>
                   <h2 className="text-sm sm:text-base font-display font-bold truncate">
@@ -2733,7 +2732,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   onClick={() =>
                     handleReviewEnrichment(visualDiffReviewRequest, false)
                   }
-                  className="h-9 px-3.5 rounded-xl bg-white/10 hover:bg-rose-900/50 border border-white/20 text-[#FAF5EB] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors whitespace-nowrap"
+                  className="h-9 px-3.5 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#1F1F1C]/50 border border-[#F5F1E8]/20 text-[#F5F1E8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors whitespace-nowrap"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   <span>✕ رفض المقترح</span>
@@ -2745,7 +2744,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   onClick={() =>
                     handleReviewEnrichment(visualDiffReviewRequest, true)
                   }
-                  className="h-9 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 border border-emerald-400/50 text-white text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-sm"
+                  className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 disabled:opacity-50 border border-[#D8C7B2]/50 text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
@@ -2757,7 +2756,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setVisualDiffReviewRequest(null)}
-                  className="h-9 px-3.5 rounded-xl bg-[#C8A054] hover:bg-[#b58d43] text-[#1D1610] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                  className="h-9 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                 >
                   <span>إغلاق</span>
                   <X className="w-4 h-4" />
@@ -2766,21 +2765,21 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             </header>
 
             {/* Visual Diff Legend Strip */}
-            <div className="shrink-0 bg-[#1B2B23] text-[#FAF5EB] border-b border-emerald-500/35 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="shrink-0 bg-[#1F1F1C] text-[#F5F1E8] border-b border-[#D97757]/35 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-semibold text-[#FAF5EB]/85">
+                <span className="font-semibold text-[#F5F1E8]/85">
                   البطاقات الباهتة: شجرتك الحالية المعتمدة
                 </span>
                 <span aria-hidden="true" className="opacity-40">
                   ·
                 </span>
-                <span className="font-bold text-emerald-300">
+                <span className="font-bold text-[#D8C7B2]">
                   البطاقات المضيئة بالأخضر (✦ جديد): الإضافات المقترحة التي
                   ستُدمج عند الاعتماد
                 </span>
               </div>
               {visualDiffPreviewData.proposedNames.length > 0 && (
-                <div className="text-[11px] font-bold text-[#E3C17C] truncate max-w-md">
+                <div className="text-[11px] font-bold text-[#D97757] truncate max-w-md">
                   الجديد: {visualDiffPreviewData.proposedNames.join(' · ')}
                 </div>
               )}

@@ -510,18 +510,18 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
     return (
       <div className="space-y-3.5" data-testid="mysite-sections-master-index">
         {/* Top Guidance Bar */}
-        <div className="rounded-2xl bg-[#FFFDF9] border border-[#E6DAC3] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#9E5631] shrink-0" />
-              <h3 className="text-[13.5px] font-display font-extrabold text-[#2C1E14]">
+              <Layers className="w-4 h-4 text-[#D97757] shrink-0" />
+              <h3 className="text-[13.5px] font-display font-extrabold text-[#1F1F1C]">
                 خريطة أقسام الديوان ({visualBranding.sectionOrder.length} قسماً)
               </h3>
-              <span className="text-[11px] font-display font-bold text-[#8C5327] tabular-nums">
+              <span className="text-[11px] font-display font-bold text-[#D97757] tabular-nums">
                 · {enabledCount} مفعّل
               </span>
             </div>
-            <p className="text-[11.5px] text-[#7A5C43] mt-0.5">
+            <p className="text-[11.5px] text-[#D97757] mt-0.5">
               رتّب أقسام ديوانك، تحكّم في إظهارها، واضغط على أي قسم لإثراء
               محتواه
             </p>
@@ -533,8 +533,8 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             onClick={onResetSectionOrder}
             className={`h-8.5 px-3 rounded-xl border text-[11.5px] font-display font-bold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap ${
               isRecommendedSectionOrder
-                ? 'bg-[#FAF6EE] border-[#EAE0CF] text-[#A2917D] cursor-default'
-                : 'bg-[#FAF6EE] hover:bg-[#F2E8D6] border-[#DFC798] text-[#7B401F] cursor-pointer'
+                ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#D97757] cursor-default'
+                : 'bg-[#F5F1E8] hover:bg-[#E8DED2] border-[#D8C7B2] text-[#D97757] cursor-pointer'
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -562,8 +562,8 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 }}
                 className={`group rounded-2xl border px-3 py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 transition-all cursor-pointer ${
                   enabled
-                    ? 'bg-[#FFFDF9] border-[#E6DAC3] hover:border-[#C5A059] hover:shadow-[0_6px_20px_-14px_rgba(61,43,31,0.28)]'
-                    : 'bg-[#FAF7F2]/80 border-[#ECE3D4] opacity-75 hover:opacity-100 hover:border-[#D4B988]'
+                    ? 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D97757] hover:shadow-[0_6px_20px_-14px_rgba(31,31,28,0.28)]'
+                    : 'bg-[#F5F1E8]/80 border-[#D8C7B2] opacity-75 hover:opacity-100 hover:border-[#D8C7B2]'
                 }`}
               >
                 {/* Right Side: Reorder arrows + Sequence Badge + Icon + Title + Status */}
@@ -579,9 +579,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                       onClick={() => onMoveSectionOrder(secKey, 'up')}
                       title="تقديم للأعلى"
                       aria-label={`تقديم ${PORTAL_SECTION_LABELS[secKey]} للأعلى`}
-                      className="w-5.5 h-4.5 rounded-md bg-[#FAF6EE] hover:bg-[#EFE4D0] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-25 cursor-pointer transition-colors"
+                      className="w-5.5 h-4.5 rounded-md bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center disabled:opacity-25 cursor-pointer transition-colors"
                     >
-                      <ArrowUp className="w-3 h-3 text-[#5C4938]" />
+                      <ArrowUp className="w-3 h-3 text-[#D97757]" />
                     </button>
                     <button
                       type="button"
@@ -589,14 +589,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                       onClick={() => onMoveSectionOrder(secKey, 'down')}
                       title="تأخير للأسفل"
                       aria-label={`تأخير ${PORTAL_SECTION_LABELS[secKey]} للأسفل`}
-                      className="w-5.5 h-4.5 rounded-md bg-[#FAF6EE] hover:bg-[#EFE4D0] border border-[#E6DAC3] flex items-center justify-center disabled:opacity-25 cursor-pointer transition-colors"
+                      className="w-5.5 h-4.5 rounded-md bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center disabled:opacity-25 cursor-pointer transition-colors"
                     >
-                      <ArrowDown className="w-3 h-3 text-[#5C4938]" />
+                      <ArrowDown className="w-3 h-3 text-[#D97757]" />
                     </button>
                   </div>
 
                   {/* Sequence Badge */}
-                  <span className="w-6.5 h-6.5 rounded-lg bg-[#FBF4E4] border border-[#D4AF6A]/60 text-[11px] font-display font-extrabold text-[#7B401F] flex items-center justify-center tabular-nums shrink-0">
+                  <span className="w-6.5 h-6.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/60 text-[11px] font-display font-extrabold text-[#D97757] flex items-center justify-center tabular-nums shrink-0">
                     {idx + 1}
                   </span>
 
@@ -604,8 +604,8 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   <div
                     className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
                       enabled
-                        ? 'bg-[#FAF6EE] border-[#E6DAC3] text-[#9E5631] group-hover:bg-[#9E5631]/10'
-                        : 'bg-[#F3ECE0] border-[#E5DAC8] text-[#8E7C69]'
+                        ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#D97757] group-hover:bg-[#D97757]/10'
+                        : 'bg-[#E8DED2] border-[#D8C7B2] text-[#D97757]'
                     }`}
                   >
                     {SECTION_ICON_MAP[secKey]}
@@ -613,23 +613,23 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
 
                   {/* Title + Live Status */}
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-display font-extrabold text-[#2C1E14] truncate">
+                    <div className="text-[13px] font-display font-extrabold text-[#1F1F1C] truncate">
                       {PORTAL_SECTION_LABELS[secKey]}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-[11px]">
                       <span
                         className={`font-display font-bold tabular-nums ${
                           status.filled
-                            ? 'text-emerald-700'
-                            : 'text-[#968370]'
+                            ? 'text-[#D97757]'
+                            : 'text-[#D97757]'
                         }`}
                       >
                         {status.label}
                       </span>
                       {!enabled && (
                         <>
-                          <span className="text-[#D4C5AE]">·</span>
-                          <span className="text-[#968370]">مخفي حالياً</span>
+                          <span className="text-[#D8C7B2]">·</span>
+                          <span className="text-[#D97757]">مخفي حالياً</span>
                         </>
                       )}
                     </div>
@@ -649,7 +649,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                       e.stopPropagation();
                       onSelectSection(secKey);
                     }}
-                    className="h-8 px-3 rounded-xl bg-[#FAF6EE] group-hover:bg-[#9E5631] border border-[#E2D5BE] group-hover:border-[#9E5631] text-[11.5px] font-display font-bold text-[#5C4028] group-hover:text-white inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
+                    className="h-8 px-3 rounded-xl bg-[#F5F1E8] group-hover:bg-[#D97757] border border-[#D8C7B2] group-hover:border-[#D97757] text-[11.5px] font-display font-bold text-[#D97757] group-hover:text-[#F5F1E8] inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <span>تحرير وإثراء</span>
                     <ArrowLeft className="w-3.5 h-3.5" />
@@ -680,14 +680,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
       data-testid={`mysite-section-detail-${focusedSectionKey}`}
     >
       {/* Sticky Top Section Navigation Bar */}
-      <div className="sticky top-2 z-10 rounded-2xl bg-[#FFFDF9]/96 backdrop-blur-md border border-[#DFC798] px-4 py-3 shadow-[0_10px_28px_-20px_rgba(61,43,31,0.3)] space-y-3">
+      <div className="sticky top-2 z-10 rounded-2xl bg-[#F5F1E8]/96 backdrop-blur-md border border-[#D8C7B2] px-4 py-3 shadow-[0_10px_28px_-20px_rgba(31,31,28,0.3)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => onSelectSection(null)}
-            className="h-8.5 px-3 rounded-xl bg-[#FAF6EE] hover:bg-[#EFE5D4] border border-[#E2D5BE] text-xs font-display font-extrabold text-[#5C4028] inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+            className="h-8.5 px-3 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-extrabold text-[#D97757] inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
           >
-            <ArrowRight className="w-3.5 h-3.5 text-[#9E5631]" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#D97757]" />
             <span>العودة إلى فهرس الأقسام ({order.length})</span>
           </button>
 
@@ -696,7 +696,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               type="button"
               disabled={!prevKey}
               onClick={() => prevKey && onSelectSection(prevKey)}
-              className="h-8 px-2.5 rounded-xl bg-white hover:bg-[#FAF6EE] border border-[#E6DAC3] text-[11px] font-display font-bold text-[#5C4938] disabled:opacity-35 inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
+              className="h-8 px-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-display font-bold text-[#D97757] disabled:opacity-35 inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
             >
               <ArrowRight className="w-3 h-3" />
               <span>القسم السابق</span>
@@ -705,7 +705,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               type="button"
               disabled={!nextKey}
               onClick={() => nextKey && onSelectSection(nextKey)}
-              className="h-8 px-2.5 rounded-xl bg-white hover:bg-[#FAF6EE] border border-[#E6DAC3] text-[11px] font-display font-bold text-[#5C4938] disabled:opacity-35 inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
+              className="h-8 px-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-display font-bold text-[#D97757] disabled:opacity-35 inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
             >
               <span>القسم التالي</span>
               <ArrowLeft className="w-3 h-3" />
@@ -713,19 +713,19 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-[#F0E8DA]">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-[#D8C7B2]">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-7 h-7 rounded-lg bg-[#FBF4E4] border border-[#D4AF6A]/65 text-xs font-display font-extrabold text-[#7B401F] flex items-center justify-center tabular-nums shrink-0">
+            <span className="w-7 h-7 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/65 text-xs font-display font-extrabold text-[#D97757] flex items-center justify-center tabular-nums shrink-0">
               {activeIdx + 1}
             </span>
-            <div className="w-8 h-8 rounded-xl bg-[#9E5631]/10 border border-[#9E5631]/25 text-[#9E5631] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[#D97757]/10 border border-[#D97757]/25 text-[#D97757] flex items-center justify-center shrink-0">
               {SECTION_ICON_MAP[focusedSectionKey]}
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-display font-extrabold text-[#2C1E14] truncate">
+              <h3 className="text-sm font-display font-extrabold text-[#1F1F1C] truncate">
                 {PORTAL_SECTION_LABELS[focusedSectionKey]}
               </h3>
-              <p className="text-[11px] text-[#7A5C43] truncate">
+              <p className="text-[11px] text-[#D97757] truncate">
                 {SECTION_DESC_MAP[focusedSectionKey]}
               </p>
             </div>
@@ -748,14 +748,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
       </div>
 
       {/* Focused Editor Body */}
-      <div className="rounded-2xl bg-[#FFFDF9] border border-[#E6DAC3] p-5 space-y-4">
+      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 space-y-4">
         {/* --------------------------------------------------------------- */}
         {/* 1. PATRIARCH QUOTE                                              */}
         {/* --------------------------------------------------------------- */}
         {focusedSectionKey === 'patriarch_quote' && (
           <div className="space-y-3.5">
             <div className="space-y-1.5">
-              <label className="text-xs font-display font-bold text-[#5C4938]">
+              <label className="text-xs font-display font-bold text-[#D97757]">
                 نص كلمة عميد العائلة
               </label>
               <textarea
@@ -772,13 +772,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   }))
                 }
                 placeholder={`مثال: «إنما تُحفظ الأنساب ليُصل بها الرحم، وتُروى سِيَر الأجداد لتكون نبراساً لأبنائنا في كل زمان...»`}
-                className="w-full rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 py-2.5 text-xs text-[#2C1E14] leading-relaxed focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 text-xs text-[#1F1F1C] leading-relaxed focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-display font-bold text-[#5C4938]">
+                <label className="text-xs font-display font-bold text-[#D97757]">
                   اسم القائل أو عميد العائلة
                 </label>
                 <input
@@ -794,11 +794,11 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                     }))
                   }
                   placeholder={`مثال: الشيخ عبد الله ${familyName}`}
-                  className="w-full h-10 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3 text-xs text-[#2C1E14] focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                  className="w-full h-10 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-display font-bold text-[#5C4938]">
+                <label className="text-xs font-display font-bold text-[#D97757]">
                   الصفة العائلية
                 </label>
                 <input
@@ -814,7 +814,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                     }))
                   }
                   placeholder={`عميد عائلة ${familyName}`}
-                  className="w-full h-10 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3 text-xs text-[#2C1E14] focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                  className="w-full h-10 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                 />
               </div>
             </div>
@@ -826,12 +826,12 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
         {/* --------------------------------------------------------------- */}
         {focusedSectionKey === 'atlas' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[#FAF6EE] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-3">
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-display font-bold text-[#2C1E14]">
+                <div className="text-xs font-display font-bold text-[#1F1F1C]">
                   إظهار إحصاءات الدوحة التلقائية
                 </div>
-                <p className="text-[11px] text-[#7A5C43]">
+                <p className="text-[11px] text-[#D97757]">
                   عرض عدد الأفراد والأجيال تلقائياً من «شجرتي» أعلى قسم الأطلس
                 </p>
               </div>
@@ -873,9 +873,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewLocCity('');
                 setNewLocCount(5);
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-3"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 إضافة حاضرة أو ديرة جديدة
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -884,14 +884,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newLocCountry}
                   onChange={(e) => setNewLocCountry(e.target.value)}
                   placeholder="الدولة (مثال: السعودية)"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newLocCity}
                   onChange={(e) => setNewLocCity(e.target.value)}
                   placeholder="المدينة أو الحاضرة *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="number"
@@ -899,12 +899,12 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newLocCount}
                   onChange={(e) => setNewLocCount(Number(e.target.value) || 1)}
                   placeholder="عدد الأسر / الأفراد"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs tabular-nums"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs tabular-nums"
                 />
               </div>
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة الحاضرة للأطلس</span>
@@ -912,7 +912,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.atlasAndStatsModule.locations.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لم تُضف أي حواضر بعد. أضف المدن التي تقطنها فروع عائلة{' '}
                 {familyName} أعلاه.
               </p>
@@ -921,11 +921,11 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.atlasAndStatsModule.locations.map((loc) => (
                   <div
                     key={loc.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2"
                   >
-                    <div className="text-xs font-display font-bold text-[#2C1E14]">
+                    <div className="text-xs font-display font-bold text-[#1F1F1C]">
                       {loc.city} — {loc.country}{' '}
-                      <span className="text-[#8C5327] font-semibold tabular-nums">
+                      <span className="text-[#D97757] font-semibold tabular-nums">
                         ({loc.householdsOrMembersCount} أسرة/فرد)
                       </span>
                     </div>
@@ -942,7 +942,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -958,14 +958,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
         {/* --------------------------------------------------------------- */}
         {focusedSectionKey === 'tree_mirror' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
                   متزامنة تلقائياً مع ثيم وخطوط «شجرتي»
                 </div>
-                <p className="text-[11px] text-[#7A5C43] mt-0.5">
+                <p className="text-[11px] text-[#D97757] mt-0.5">
                   عدد الأفراد الجاهزين للعرض حالياً:{' '}
-                  <strong className="tabular-nums text-[#7B401F]">
+                  <strong className="tabular-nums text-[#D97757]">
                     {contemporaryOnlyMembers.length}
                   </strong>{' '}
                   فرداً معاصراً.
@@ -975,7 +975,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 <button
                   type="button"
                   onClick={onOpenTreeSettings}
-                  className="h-9 px-3.5 rounded-xl bg-white hover:bg-[#F5ECE0] border border-[#DFC798] text-xs font-display font-bold text-[#7B401F] inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                  className="h-9 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                   <span>فتح إعدادات «شجرتي»</span>
@@ -984,13 +984,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-display font-bold text-[#5C4938]">
+              <label className="text-xs font-display font-bold text-[#D97757]">
                 تحديد الجد الذي تبدأ منه الشجرة المنشورة (اختياري)
               </label>
               <select
                 value={startRootPersonId}
                 onChange={(e) => setStartRootPersonId(e.target.value)}
-                className="w-full h-10 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3 text-xs font-display font-bold text-[#2C1E14] focus:outline-none focus:border-[#C5A059]"
+                className="w-full h-10 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs font-display font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
               >
                 <option value="">
                   عرض الشجرة المعاصرة بالكامل (الافتراضي)
@@ -1011,10 +1011,10 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
 
             {contemporaryOnlyMembers.length > 0 && (
               <div className="space-y-2">
-                <div className="text-xs font-display font-bold text-[#5C4938]">
+                <div className="text-xs font-display font-bold text-[#D97757]">
                   استثناء فروع محددة من النشر (انقر لاستثناء الفرع أو إعادته)
                 </div>
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2.5 rounded-xl bg-[#FAF6EE] border border-[#EAE0CF]">
+                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]">
                   {contemporaryOnlyMembers.map((m) => {
                     const excluded = excludedBranchRootIds.includes(m.id);
                     const memberLabel =
@@ -1034,8 +1034,8 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                         }
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold border transition-colors cursor-pointer ${
                           excluded
-                            ? 'bg-red-50 border-red-300 text-red-800 line-through'
-                            : 'bg-white border-[#E2D5BE] text-[#3D2B1F] hover:border-[#C5A059]'
+                            ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C] line-through'
+                            : 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C] hover:border-[#D97757]'
                         }`}
                       >
                         {memberLabel}
@@ -1081,9 +1081,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewNotableBio('');
                 setNewNotableImageUrl('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 إضافة علم أو رائد من العائلة
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1092,21 +1092,21 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newNotableName}
                   onChange={(e) => setNewNotableName(e.target.value)}
                   placeholder="الاسم الكامل *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newNotableRole}
                   onChange={(e) => setNewNotableRole(e.target.value)}
                   placeholder="الصفة أو اللقب (مثال: طبيب، شاعر)"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newNotableEra}
                   onChange={(e) => setNewNotableEra(e.target.value)}
                   placeholder="الحقبة (مثال: 1350 - 1420هـ)"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <textarea
@@ -1114,7 +1114,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 value={newNotableBio}
                 onChange={(e) => setNewNotableBio(e.target.value)}
                 placeholder="نبذة موجزة عن أبرز مآثره وإنجازاته..."
-                className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
               />
               <OptionalImagePicker
                 value={newNotableImageUrl}
@@ -1125,7 +1125,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة إلى قائمة الأعلام</span>
@@ -1133,7 +1133,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.notablesModule.items.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لا توجد شخصيات مضافة بعد. وثّق أعلام ورواد عائلة {familyName}{' '}
                 أعلاه.
               </p>
@@ -1142,13 +1142,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.notablesModule.items.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {item.fullName}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {item.roleOrTitle} · {item.eraLabel}
                       </div>
                     </div>
@@ -1165,7 +1165,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1207,9 +1207,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewStoryBody('');
                 setNewStoryImageUrl('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 تدوين قصة أو ذكرى عائلية
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1218,14 +1218,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newStoryTitle}
                   onChange={(e) => setNewStoryTitle(e.target.value)}
                   placeholder="عنوان القصة *"
-                  className="sm:col-span-2 h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="sm:col-span-2 h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newStoryEra}
                   onChange={(e) => setNewStoryEra(e.target.value)}
                   placeholder="السنة أو الحقبة"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <textarea
@@ -1233,7 +1233,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 value={newStoryBody}
                 onChange={(e) => setNewStoryBody(e.target.value)}
                 placeholder="اكتب تفاصيل القصة أو الموقف المأثور..."
-                className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
               />
               <OptionalImagePicker
                 value={newStoryImageUrl}
@@ -1243,7 +1243,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>حفظ القصة في الديوان</span>
@@ -1251,7 +1251,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.storiesModule.items.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لا توجد قصص مدونة بعد.
               </p>
             ) : (
@@ -1259,13 +1259,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.storiesModule.items.map((st) => (
                   <div
                     key={st.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {st.title}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {st.eraOrYearLabel}
                       </div>
                     </div>
@@ -1282,7 +1282,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1298,13 +1298,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
         {/* --------------------------------------------------------------- */}
         {focusedSectionKey === 'vault_gallery' && (
           <div className="space-y-4">
-            <div className="divide-y divide-[#F0E8DA] rounded-xl border border-[#EAE0CF] bg-[#FCF9F3]">
+            <div className="divide-y divide-[#D8C7B2] rounded-xl border border-[#D8C7B2] bg-[#F5F1E8]">
               <div className="px-3.5 py-2.5 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-display font-bold text-[#2C1E14]">
+                  <div className="text-xs font-display font-bold text-[#1F1F1C]">
                     علامة مائية ديناميكية لحماية الصور والوثائق
                   </div>
-                  <p className="text-[11px] text-[#7A5C43]">
+                  <p className="text-[11px] text-[#D97757]">
                     دمغ المقتنيات تلقائياً برابط الديوان لحفظ الحقوق العائلية
                   </p>
                 </div>
@@ -1316,10 +1316,10 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               </div>
               <div className="px-3.5 py-2.5 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-display font-bold text-[#2C1E14]">
+                  <div className="text-xs font-display font-bold text-[#1F1F1C]">
                     تمكين طلب التعرف على الوجوه في الصور التراثية
                   </div>
-                  <p className="text-[11px] text-[#7A5C43]">
+                  <p className="text-[11px] text-[#D97757]">
                     يتيح للأقارب مساعدتك في تسمية الشخصيات في الصور القديمة
                   </p>
                 </div>
@@ -1334,7 +1334,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             {/* Folders picker */}
             {vaultFolders.length > 0 && (
               <div className="space-y-2">
-                <div className="text-xs font-display font-bold text-[#5C4938]">
+                <div className="text-xs font-display font-bold text-[#D97757]">
                   مجلدات خزانتي المختارة للعرض ({selectedFolderIds.length})
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1353,8 +1353,8 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                         }
                         className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                           selected
-                            ? 'bg-[#9E5631] border-[#9E5631] text-white'
-                            : 'bg-[#FAF6EE] border-[#E2D5BE] text-[#3D2B1F] hover:border-[#C5A059]'
+                            ? 'bg-[#D97757] border-[#D97757] text-[#F5F1E8]'
+                            : 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C] hover:border-[#D97757]'
                         }`}
                       >
                         <FolderOpen className="w-3.5 h-3.5" />
@@ -1368,11 +1368,11 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
 
             {/* Individual items picker */}
             <div className="space-y-2">
-              <div className="text-xs font-display font-bold text-[#5C4938]">
+              <div className="text-xs font-display font-bold text-[#D97757]">
                 اختيار صور ووثائق محددة من خزانتي ({selectedVaultItemIds.length})
               </div>
               {allVaultItems.length === 0 ? (
-                <p className="text-xs text-[#8C7A68] bg-[#FAF6EE] border border-[#EAE0CF] rounded-xl p-4 text-center">
+                <p className="text-xs text-[#D97757] bg-[#F5F1E8] border border-[#D8C7B2] rounded-xl p-4 text-center">
                   لا توجد مقتنيات مرفوعة في «خزانتي» بعد. ارفع صورك في تبويب
                   «خزانتي» لتظهر هنا فوراً.
                 </p>
@@ -1393,12 +1393,12 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                         }
                         className={`rounded-xl border overflow-hidden text-right transition-all cursor-pointer ${
                           selected
-                            ? 'border-[#9E5631] ring-2 ring-[#9E5631]/25 bg-[#FBF5EA]'
-                            : 'border-[#E6DAC3] bg-white hover:border-[#C5A059]'
+                            ? 'border-[#D97757] ring-2 ring-[#D97757]/25 bg-[#F5F1E8]'
+                            : 'border-[#D8C7B2] bg-[#F5F1E8] hover:border-[#D97757]'
                         }`}
                       >
                         {item.thumbnailDataUrl || item.fileDataUrl ? (
-                          <div className="h-20 bg-[#F5EFE4] overflow-hidden">
+                          <div className="h-20 bg-[#E8DED2] overflow-hidden">
                             <img
                               src={item.thumbnailDataUrl || item.fileDataUrl}
                               alt={item.title}
@@ -1407,11 +1407,11 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                             />
                           </div>
                         ) : (
-                          <div className="h-20 bg-[#F5EFE4] flex items-center justify-center text-[#8C5327]">
+                          <div className="h-20 bg-[#E8DED2] flex items-center justify-center text-[#D97757]">
                             <ImageIcon className="w-5 h-5" />
                           </div>
                         )}
-                        <div className="p-2 text-[11px] font-display font-bold text-[#2C1E14] truncate">
+                        <div className="p-2 text-[11px] font-display font-bold text-[#1F1F1C] truncate">
                           {item.title}
                         </div>
                       </button>
@@ -1456,9 +1456,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewAudioUrl('');
                 setNewAudioExcerpt('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 إضافة تسجيل صوتي أو شهادة شفهية
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1467,21 +1467,21 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newAudioTitle}
                   onChange={(e) => setNewAudioTitle(e.target.value)}
                   placeholder="عنوان التسجيل *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newAudioSpeaker}
                   onChange={(e) => setNewAudioSpeaker(e.target.value)}
                   placeholder="اسم الراوي"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newAudioYear}
                   onChange={(e) => setNewAudioYear(e.target.value)}
                   placeholder="سنة التسجيل"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <input
@@ -1490,18 +1490,18 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 value={newAudioUrl}
                 onChange={(e) => setNewAudioUrl(e.target.value)}
                 placeholder="https://... (رابط ملف MP3 أو صوتي — اختياري)"
-                className="w-full h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs font-mono"
+                className="w-full h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs font-mono"
               />
               <textarea
                 rows={2}
                 value={newAudioExcerpt}
                 onChange={(e) => setNewAudioExcerpt(e.target.value)}
                 placeholder="مقتطف نصي من الحديث أو الرواية..."
-                className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة إلى أرشيف الصوتيات</span>
@@ -1509,7 +1509,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.oralHeritageModule.items.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لا توجد تسجيلات شفهية مضافة بعد.
               </p>
             ) : (
@@ -1517,13 +1517,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.oralHeritageModule.items.map((aud) => (
                   <div
                     key={aud.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {aud.title}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {aud.speakerName} · {aud.recordedYearLabel}
                       </div>
                     </div>
@@ -1540,7 +1540,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1581,9 +1581,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewProfSpecialty('');
                 setNewProfCity('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 إضافة كفاءة أو متخصص من أبناء العائلة
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1592,19 +1592,19 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newProfName}
                   onChange={(e) => setNewProfName(e.target.value)}
                   placeholder="اسم الفرد *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newProfSpecialty}
                   onChange={(e) => setNewProfSpecialty(e.target.value)}
                   placeholder="التخصص الدقيق أو المهنة *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <select
                   value={newProfCategory}
                   onChange={(e) => setNewProfCategory(e.target.value)}
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 >
                   <option value="الطب والرعاية الصحية">
                     الطب والرعاية الصحية
@@ -1626,12 +1626,12 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newProfCity}
                   onChange={(e) => setNewProfCity(e.target.value)}
                   placeholder="المدينة (اختياري)"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة إلى دليل الكفاءات</span>
@@ -1639,7 +1639,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.professionsModule.items.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لم تُضف أي كفاءات مهنية بعد.
               </p>
             ) : (
@@ -1647,13 +1647,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.professionsModule.items.map((pr) => (
                   <div
                     key={pr.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {pr.memberName} — {pr.specialtyOrProfession}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {pr.fieldCategory}
                         {pr.cityCountryLabel ? ` · ${pr.cityCountryLabel}` : ''}
                       </div>
@@ -1671,7 +1671,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1714,9 +1714,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewNewsSummary('');
                 setNewNewsImageUrl('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 نشر خبر أو تهنئة عائلية
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1725,7 +1725,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   onChange={(e) =>
                     setNewNewsCategory(e.target.value as typeof newNewsCategory)
                   }
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 >
                   <option value="مولود جديد">مولود جديد</option>
                   <option value="عقد قران وزواج">عقد قران وزواج</option>
@@ -1738,7 +1738,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newNewsTitle}
                   onChange={(e) => setNewNewsTitle(e.target.value)}
                   placeholder="عنوان الخبر أو التهنئة *"
-                  className="sm:col-span-2 h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="sm:col-span-2 h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <textarea
@@ -1746,7 +1746,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 value={newNewsSummary}
                 onChange={(e) => setNewNewsSummary(e.target.value)}
                 placeholder="تفاصيل موجزة للخبر..."
-                className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
               />
               <OptionalImagePicker
                 value={newNewsImageUrl}
@@ -1756,7 +1756,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة الخبر للنشرة</span>
@@ -1764,7 +1764,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.newsModule.items.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لا توجد أخبار أو تهانٍ منشورة بعد.
               </p>
             ) : (
@@ -1772,13 +1772,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.newsModule.items.map((n) => (
                   <div
                     key={n.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {n.title}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {n.category} · {n.dateLabel}
                       </div>
                     </div>
@@ -1795,7 +1795,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1836,9 +1836,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewEventDate('');
                 setNewEventLocation('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 إضافة مناسبة أو لقاء عائلي
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1847,25 +1847,25 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newEventTitle}
                   onChange={(e) => setNewEventTitle(e.target.value)}
                   placeholder="اسم المناسبة *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="date"
                   value={newEventDate}
                   onChange={(e) => setNewEventDate(e.target.value)}
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newEventLocation}
                   onChange={(e) => setNewEventLocation(e.target.value)}
                   placeholder="الموقع / مجلس العائلة"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة المناسبة للتقويم</span>
@@ -1873,7 +1873,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.eventsModule.items.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لا توجد مناسبات مجدولة بعد.
               </p>
             ) : (
@@ -1881,13 +1881,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.eventsModule.items.map((ev) => (
                   <div
                     key={ev.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {ev.title}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {ev.eventDateIso} · {ev.locationLabel}
                       </div>
                     </div>
@@ -1904,7 +1904,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1921,13 +1921,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
         {focusedSectionKey === 'memorial' && (
           <div className="space-y-4">
             {/* Time capsule block */}
-            <div className="rounded-xl bg-[#FAF6EE] border border-[#DFC798] p-3.5 space-y-3">
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-xs font-display font-extrabold text-[#7B401F]">
+                  <div className="text-xs font-display font-extrabold text-[#D97757]">
                     كبسولة الزمن للأجيال القادمة
                   </div>
-                  <p className="text-[11px] text-[#7A5C43]">
+                  <p className="text-[11px] text-[#D97757]">
                     رسالة أو وصية مختومة تُفتح تلقائياً في تاريخ مستقبلي تختاره
                   </p>
                 </div>
@@ -1970,7 +1970,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                         }))
                       }
                       placeholder="عنوان الرسالة المختومة"
-                      className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                      className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                     />
                     <input
                       type="date"
@@ -1990,7 +1990,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                      className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                     />
                   </div>
                   <textarea
@@ -2012,7 +2012,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                       }))
                     }
                     placeholder="نص الوصية أو الرسالة المحفوظة للأحفاد..."
-                    className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                    className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
                   />
                 </div>
               )}
@@ -2046,9 +2046,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewElderBio('');
                 setNewElderCharity('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 إضافة سيرة في لوحة الوفاء والدعاء
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2057,14 +2057,14 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                   value={newElderName}
                   onChange={(e) => setNewElderName(e.target.value)}
                   placeholder="الاسم الكامل للراحل رحمه الله *"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
                 <input
                   type="text"
                   value={newElderYear}
                   onChange={(e) => setNewElderYear(e.target.value)}
                   placeholder="سنة الوفاة (مثال: 1438هـ)"
-                  className="h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                  className="h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
                 />
               </div>
               <input
@@ -2072,18 +2072,18 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 value={newElderCharity}
                 onChange={(e) => setNewElderCharity(e.target.value)}
                 placeholder="صدقة جارية أو وقف مقترح (اختياري)"
-                className="w-full h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                className="w-full h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
               />
               <textarea
                 rows={2}
                 value={newElderBio}
                 onChange={(e) => setNewElderBio(e.target.value)}
                 placeholder="نبذة وفاء ودعاء..."
-                className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>إضافة إلى لوحة الوفاء</span>
@@ -2095,13 +2095,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.memorialAndCapsuleModule.elders.map((el) => (
                   <div
                     key={el.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {el.fullName}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {el.passingYearLabel}
                         {el.ongoingCharityTitle
                           ? ` · ${el.ongoingCharityTitle}`
@@ -2121,7 +2121,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -2137,12 +2137,12 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
         {/* --------------------------------------------------------------- */}
         {focusedSectionKey === 'majlis' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[#FAF6EE] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-3">
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-display font-bold text-[#2C1E14]">
+                <div className="text-xs font-display font-bold text-[#1F1F1C]">
                   إظهار لوحة شرف «حراس الذاكرة»
                 </div>
-                <p className="text-[11px] text-[#7A5C43]">
+                <p className="text-[11px] text-[#D97757]">
                   تكريم أبرز المساهمين من أفراد العائلة في إثراء الشجرة والخزانة
                 </p>
               </div>
@@ -2189,9 +2189,9 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 setNewTopicTitle('');
                 setNewTopicPrompt('');
               }}
-              className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 space-y-2.5"
+              className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-2.5"
             >
-              <div className="text-xs font-display font-extrabold text-[#7B401F]">
+              <div className="text-xs font-display font-extrabold text-[#D97757]">
                 طرح موضوع حواري جديد في مجلس العائلة
               </div>
               <input
@@ -2199,18 +2199,18 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 value={newTopicTitle}
                 onChange={(e) => setNewTopicTitle(e.target.value)}
                 placeholder="عنوان الحوار (مثال: ذكريات العيد في بيت الجد) *"
-                className="w-full h-9.5 rounded-xl bg-white border border-[#E2D5BE] px-3 text-xs"
+                className="w-full h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 text-xs"
               />
               <textarea
                 rows={2}
                 value={newTopicPrompt}
                 onChange={(e) => setNewTopicPrompt(e.target.value)}
                 placeholder="سؤال توجيهي يشجع الأقارب على مشاركة ذكرياتهم..."
-                className="w-full rounded-xl bg-white border border-[#E2D5BE] px-3 py-2 text-xs"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3 py-2 text-xs"
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>نشر الموضوع في المجلس</span>
@@ -2218,7 +2218,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
             </form>
 
             {cmsModules.majlisAndGuardiansModule.topics.length === 0 ? (
-              <p className="text-xs text-[#8C7A68] text-center py-4">
+              <p className="text-xs text-[#D97757] text-center py-4">
                 لا توجد حوارات منشورة في المجلس بعد.
               </p>
             ) : (
@@ -2226,13 +2226,13 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                 {cmsModules.majlisAndGuardiansModule.topics.map((t) => (
                   <div
                     key={t.id}
-                    className="rounded-xl bg-[#FCF9F3] border border-[#EAE0CF] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
+                    className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex items-center justify-between gap-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {t.title}
                       </div>
-                      <div className="text-[11px] text-[#8C5327] truncate">
+                      <div className="text-[11px] text-[#D97757] truncate">
                         {t.promptQuestion}
                       </div>
                     </div>
@@ -2249,7 +2249,7 @@ export const MySiteSectionHubPanel: React.FC<MySiteSectionHubPanelProps> = ({
                           },
                         }))
                       }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

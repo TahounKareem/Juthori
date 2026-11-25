@@ -7,19 +7,21 @@
   --font-amiri: "Amiri", "Cairo", serif;
   --font-ibm-arabic: "IBM Plex Sans Arabic", "Tajawal", sans-serif;
 
-  --color-coral: #D8755B;
-  --color-ivory: #F7F2E9;
-  --color-charcoal: #252321;
-  --color-beige: #EDE6DA;
-  --color-clay: #B98A78;
+  --color-coral: #D97757;
+  --color-terracotta: #D97757;
+  --color-ivory: #F5F1E8;
+  --color-charcoal: #1F1F1C;
+  --color-beige: #E8DED2;
+  --color-sand: #D8C7B2;
+  --color-clay: #D8C7B2;
 }
 
 @layer base {
   html {
     direction: rtl;
     font-family: var(--font-sans);
-    background-color: #F7F2E9;
-    color: #252321;
+    background-color: #F5F1E8;
+    color: #1F1F1C;
     scroll-behavior: smooth;
   }
 

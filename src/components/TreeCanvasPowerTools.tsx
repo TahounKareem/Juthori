@@ -2,16 +2,17 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   ArrowLeftRight,
   GitFork,
+  LocateFixed,
   Map as MapIcon,
   Maximize2,
   Minimize2,
-  Scan,
   Search,
   Sparkles,
   X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { WorkspaceIconTooltip } from './UnifiedWorkspaceHeader';
 import type {
   KinshipPathResult,
   PedigreePersonLike,
@@ -86,24 +87,25 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
       data-testid="tree-smart-search"
     >
       {expandable && !showInput ? (
-        <button
-          type="button"
-          data-testid="tree-smart-search-expand-btn"
-          onClick={() => {
-            setIsExpanded(true);
-            window.setTimeout(() => inputRef.current?.focus(), 20);
-          }}
-          title="البحث عن فرد في الشجرة"
-          aria-label="البحث عن فرد في الشجرة"
-          className="h-10 w-10 rounded-xl bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border border-[#E2D5BE] shadow-2xs inline-flex items-center justify-center transition-all cursor-pointer"
-        >
-          <Search className="w-4 h-4 text-[#8C5327]" />
-        </button>
+        <WorkspaceIconTooltip label="البحث عن فرد في الشجرة" placement="bottom">
+          <button
+            type="button"
+            data-testid="tree-smart-search-expand-btn"
+            onClick={() => {
+              setIsExpanded(true);
+              window.setTimeout(() => inputRef.current?.focus(), 20);
+            }}
+            aria-label="البحث عن فرد في الشجرة"
+            className="h-10 w-10 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D8C7B2] shadow-2xs inline-flex items-center justify-center transition-all cursor-pointer"
+          >
+            <Search className="w-4 h-4 text-[#D97757]" />
+          </button>
+        </WorkspaceIconTooltip>
       ) : (
         <div className="relative flex items-center">
           <Search
             className={`w-3.5 h-3.5 absolute right-3 pointer-events-none ${
-              expandable ? 'text-[#8C5327]' : 'text-[#8D4925]/70'
+              expandable ? 'text-[#D97757]' : 'text-[#D97757]/70'
             }`}
           />
           <input
@@ -133,8 +135,8 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
             data-testid="tree-smart-search-input"
             className={
               expandable
-                ? 'w-full h-10 pr-8 pl-7 rounded-xl bg-white border border-[#C5A059] shadow-2xs outline-none text-xs font-display font-semibold text-[#2C1E14] placeholder:text-[#7A6855]/70 transition-all'
-                : 'w-full pr-8 pl-7 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-white focus:bg-white border border-[#B98A78]/40 focus:border-[#D8755B] outline-none text-[11.5px] font-display font-semibold text-[#252321] placeholder:text-[#252321]/50 transition-colors'
+                ? 'w-full h-10 pr-8 pl-7 rounded-xl bg-[#F5F1E8] border border-[#D97757] shadow-2xs outline-none text-xs font-display font-semibold text-[#1F1F1C] placeholder:text-[#D97757]/70 transition-all'
+                : 'w-full pr-8 pl-7 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] focus:bg-[#F5F1E8] border border-[#D97757]/40 focus:border-[#D97757] outline-none text-[11.5px] font-display font-semibold text-[#1F1F1C] placeholder:text-[#1F1F1C]/50 transition-colors'
             }
           />
           {(query || expandable) && (
@@ -147,7 +149,7 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
                 if (expandable) setIsExpanded(false);
               }}
               aria-label={query ? 'مسح البحث' : 'إغلاق البحث'}
-              className="absolute left-2.5 text-[#7A6855] hover:text-[#8D4925] cursor-pointer"
+              className="absolute left-2.5 text-[#D97757] hover:text-[#D97757] cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -158,16 +160,16 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
       {isFocused && query.trim().length > 0 && (
         <div
           data-testid="tree-smart-search-dropdown"
-          className={`absolute top-full mt-1.5 z-50 rounded-2xl bg-white border border-[#C5A059]/60 shadow-xl overflow-hidden ${
+          className={`absolute top-full mt-1.5 z-50 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/60 shadow-xl overflow-hidden ${
             expandable ? 'right-0 w-64' : 'inset-x-0'
           }`}
         >
           {matches.length === 0 ? (
-            <div className="px-3 py-3 text-[11px] text-[#252321]/60 text-center font-display">
+            <div className="px-3 py-3 text-[11px] text-[#1F1F1C]/60 text-center font-display">
               لا توجد مطابقة للاسم «{query}»
             </div>
           ) : (
-            <ul className="max-h-60 overflow-y-auto divide-y divide-[#F0EAE0]">
+            <ul className="max-h-60 overflow-y-auto divide-y divide-[#D8C7B2]">
               {matches.map((p) => (
                 <li key={p.id}>
                   <button
@@ -179,30 +181,30 @@ export const TreeSmartNodeSearch: React.FC<TreeSmartNodeSearchProps> = ({
                       setIsFocused(false);
                       if (expandable) setIsExpanded(false);
                     }}
-                    className="w-full px-3 py-2 text-right hover:bg-[#FAF6F0] flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                    className="w-full px-3 py-2 text-right hover:bg-[#F5F1E8] flex items-center justify-between gap-2 transition-colors cursor-pointer"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-display font-extrabold text-[#252321] truncate">
+                      <div className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                         {p.honorificTitle && p.honorificTitle !== 'بدون'
                           ? `${p.honorificTitle} `
                           : ''}
                         {p.firstName}
                       </div>
                       {(p.epithet || p.kunya) && (
-                        <div className="text-[10px] text-[#8D4925] truncate">
+                        <div className="text-[10px] text-[#D97757] truncate">
                           {p.epithet && (
-                            <span className="font-semibold text-[#9A6B25]">
+                            <span className="font-semibold text-[#D97757]">
                               {p.epithet}
                             </span>
                           )}
                           {p.epithet && p.kunya && (
-                            <span className="mx-1 text-[#C59B27]/80">·</span>
+                            <span className="mx-1 text-[#D97757]/80">·</span>
                           )}
                           {p.kunya && <span>{p.kunya}</span>}
                         </div>
                       )}
                     </div>
-                    <span className="text-[9.5px] font-bold text-[#252321]/55 shrink-0 truncate max-w-[85px]">
+                    <span className="text-[9.5px] font-bold text-[#1F1F1C]/55 shrink-0 truncate max-w-[85px]">
                       {p.relationToTargetLabel || 'فرد'}
                     </span>
                   </button>
@@ -251,6 +253,7 @@ export const TreeFloatingStudioDock: React.FC<TreeFloatingStudioDockProps> = ({
   const isHeader = variant === 'header';
   const isInline = variant === 'inline' || isHeader;
   const useDarkPalette = !isInline && isDarkSurface;
+  const tooltipPlacement = isInline ? 'bottom' : 'top';
 
   return (
     <div
@@ -259,173 +262,150 @@ export const TreeFloatingStudioDock: React.FC<TreeFloatingStudioDockProps> = ({
       }
       className={`inline-flex items-center transition-colors ${
         isHeader
-          ? 'h-10 gap-0.5 px-1.5 rounded-xl bg-white border border-[#E2D5BE] text-[#3D2B1F] shadow-2xs'
+          ? 'h-10 gap-0.5 px-1.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] shadow-2xs'
           : isInline
-          ? 'gap-0.5 sm:gap-1 px-1.5 py-1 rounded-xl bg-[#FAF6F0]/95 border border-[#D4AF37]/30 text-[#252321] shadow-2xs'
+          ? 'gap-0.5 px-1.5 py-1 rounded-xl bg-[#F5F1E8]/95 border border-[#D8C7B2] text-[#1F1F1C] shadow-2xs'
           : useDarkPalette
-          ? 'gap-0.5 sm:gap-1 px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg bg-[#211C17]/88 border-[#D4AF37]/45 text-[#FAF3E3]'
-          : 'gap-0.5 sm:gap-1 px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg bg-white/92 border-[#B98A78]/45 text-[#252321]'
+          ? 'gap-1 px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg bg-[#1F1F1C]/88 border-[#D8C7B2]/45 text-[#F5F1E8]'
+          : 'gap-1 px-2 py-1.5 rounded-2xl backdrop-blur-md border shadow-lg bg-[#F5F1E8]/92 border-[#D8C7B2] text-[#1F1F1C]'
       }`}
     >
-      <button
-        type="button"
-        onClick={onZoomOut}
-        title="تصغير (-)"
-        aria-label="تصغير عرض الشجرة"
-        className={`${
-          isHeader ? 'w-7 h-7' : 'p-1.5'
-        } rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
-          useDarkPalette
-            ? 'hover:bg-white/10'
-            : isHeader
-            ? 'hover:bg-[#FAF5EC] text-[#3D2B1F]'
-            : isInline
-            ? 'hover:bg-white text-[#5A4637]'
-            : 'hover:bg-[#FAF6F0]'
-        }`}
-      >
-        <ZoomOut className="w-3.5 h-3.5" />
-      </button>
+      <WorkspaceIconTooltip label="تصغير العرض" placement={tooltipPlacement}>
+        <button
+          type="button"
+          onClick={onZoomOut}
+          aria-label="تصغير عرض الشجرة"
+          className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+            useDarkPalette
+              ? 'hover:bg-[#F5F1E8]/10 text-[#F5F1E8]'
+              : 'hover:bg-[#E8DED2] text-[#1F1F1C]'
+          }`}
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+      </WorkspaceIconTooltip>
 
-      <button
-        type="button"
-        onClick={onResetZoom}
-        title="إعادة التكبير إلى 100%"
-        className="px-1 py-1 rounded-lg text-[11.5px] font-mono font-bold tabular-nums min-w-[38px] text-center hover:text-[#9E5631] transition-colors cursor-pointer"
+      <WorkspaceIconTooltip
+        label="إعادة التكبير إلى 100%"
+        placement={tooltipPlacement}
       >
-        {zoomPercent}%
-      </button>
+        <button
+          type="button"
+          onClick={onResetZoom}
+          aria-label="إعادة التكبير إلى 100%"
+          className="px-1 py-1 rounded-lg text-[11.5px] font-mono font-bold tabular-nums min-w-[38px] text-center text-[#D97757] hover:bg-[#E8DED2] transition-colors cursor-pointer"
+          dir="ltr"
+        >
+          {zoomPercent}%
+        </button>
+      </WorkspaceIconTooltip>
 
-      <button
-        type="button"
-        onClick={onZoomIn}
-        title="تكبير (+)"
-        aria-label="تكبير عرض الشجرة"
-        className={`${
-          isHeader ? 'w-7 h-7' : 'p-1.5'
-        } rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
-          useDarkPalette
-            ? 'hover:bg-white/10'
-            : isHeader
-            ? 'hover:bg-[#FAF5EC] text-[#3D2B1F]'
-            : isInline
-            ? 'hover:bg-white text-[#5A4637]'
-            : 'hover:bg-[#FAF6F0]'
-        }`}
-      >
-        <ZoomIn className="w-3.5 h-3.5" />
-      </button>
+      <WorkspaceIconTooltip label="تكبير العرض" placement={tooltipPlacement}>
+        <button
+          type="button"
+          onClick={onZoomIn}
+          aria-label="تكبير عرض الشجرة"
+          className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+            useDarkPalette
+              ? 'hover:bg-[#F5F1E8]/10 text-[#F5F1E8]'
+              : 'hover:bg-[#E8DED2] text-[#1F1F1C]'
+          }`}
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+      </WorkspaceIconTooltip>
 
       <span
         aria-hidden="true"
         className={`w-px h-4 mx-1 ${
-          useDarkPalette
-            ? 'bg-white/15'
-            : isHeader
-            ? 'bg-[#E2D5BE]'
-            : 'bg-[#C59B27]/30'
+          useDarkPalette ? 'bg-[#F5F1E8]/15' : 'bg-[#D8C7B2]'
         }`}
       />
 
-      <button
-        type="button"
-        data-testid="canvas-fit-center-btn"
-        aria-pressed={isAutoFitActive}
-        onClick={onFitAndCenter}
-        title={
+      <WorkspaceIconTooltip
+        label={
           isAutoFitActive
-            ? 'احتواء وتوسيط تلقائي مفعّل — اضغط لإعادة التوسيط'
-            : 'احتواء وتوسيط الشجرة الكاملة تلقائياً'
+            ? 'توسيط واحتواء الشجرة (مفعّل)'
+            : 'توسيط واحتواء الشجرة'
         }
-        className={`${
-          isHeader ? 'h-7 px-2 text-[11.5px]' : 'px-2 py-1 text-[11px]'
-        } rounded-lg font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap border ${
-          isAutoFitActive
-            ? useDarkPalette
-              ? 'bg-[#D4AF37]/20 text-[#F3D299] border-[#D4AF37]/45 shadow-2xs'
-              : isHeader
-              ? 'bg-[#F5ECE0] text-[#8C5327] border-[#D4AF37]/45'
-              : 'bg-white text-[#8D4925] border-[#D4AF37]/45 shadow-2xs'
-            : useDarkPalette
-            ? 'border-transparent hover:bg-white/10 text-[#F3D299]'
-            : isHeader
-            ? 'border-transparent hover:bg-[#FAF5EC] text-[#3D2B1F]'
-            : isInline
-            ? 'border-transparent hover:bg-white text-[#7A4B21]'
-            : 'border-transparent hover:bg-[#FAF6F0] text-[#8D4925]'
-        }`}
+        placement={tooltipPlacement}
       >
-        <Scan className="w-3.5 h-3.5 shrink-0" />
-        <span className="hidden sm:inline">
-          {isHeader ? 'توسيط' : 'احتواء وتوسيط'}
-        </span>
-      </button>
+        <button
+          type="button"
+          data-testid="canvas-fit-center-btn"
+          aria-pressed={isAutoFitActive}
+          onClick={onFitAndCenter}
+          aria-label="توسيط واحتواء الشجرة"
+          className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer border ${
+            isAutoFitActive
+              ? useDarkPalette
+                ? 'bg-[#D97757]/20 text-[#D97757] border-[#D8C7B2]/45 shadow-2xs'
+                : 'bg-[#E8DED2] text-[#D97757] border-[#D8C7B2]'
+              : useDarkPalette
+              ? 'border-transparent hover:bg-[#F5F1E8]/10 text-[#D97757]'
+              : 'border-transparent hover:bg-[#E8DED2] text-[#D97757]'
+          }`}
+        >
+          <LocateFixed className="w-4 h-4 shrink-0" />
+        </button>
+      </WorkspaceIconTooltip>
 
-      <button
-        type="button"
-        data-testid="canvas-minimap-toggle-btn"
-        onClick={onToggleMinimap}
-        title="إظهار / إخفاء الخريطة المصغرة"
-        className={`${
-          isHeader ? 'h-7 px-2 text-[11.5px]' : 'px-2 py-1 text-[11px]'
-        } rounded-lg font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-          showMinimap
-            ? 'bg-[#9E5631] text-white shadow-2xs'
-            : useDarkPalette
-            ? 'hover:bg-white/10 text-[#FAF3E3]'
-            : isHeader
-            ? 'hover:bg-[#FAF5EC] text-[#3D2B1F]'
-            : isInline
-            ? 'hover:bg-white text-[#483A2F]'
-            : 'hover:bg-[#FAF6F0] text-[#252321]'
-        }`}
+      <WorkspaceIconTooltip
+        label={showMinimap ? 'إخفاء الخريطة المصغرة' : 'الخريطة المصغرة'}
+        placement={tooltipPlacement}
       >
-        <MapIcon className="w-3.5 h-3.5 shrink-0" />
-        <span className="hidden md:inline">الخريطة</span>
-      </button>
+        <button
+          type="button"
+          data-testid="canvas-minimap-toggle-btn"
+          aria-pressed={showMinimap}
+          onClick={onToggleMinimap}
+          aria-label={
+            showMinimap ? 'إخفاء الخريطة المصغرة' : 'الخريطة المصغرة'
+          }
+          className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+            showMinimap
+              ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
+              : useDarkPalette
+              ? 'hover:bg-[#F5F1E8]/10 text-[#F5F1E8]'
+              : 'hover:bg-[#E8DED2] text-[#D97757]'
+          }`}
+        >
+          <MapIcon className="w-4 h-4 shrink-0" />
+        </button>
+      </WorkspaceIconTooltip>
 
       <span
         aria-hidden="true"
         className={`w-px h-4 mx-1 ${
-          useDarkPalette
-            ? 'bg-white/15'
-            : isHeader
-            ? 'bg-[#E2D5BE]'
-            : 'bg-[#C59B27]/30'
+          useDarkPalette ? 'bg-[#F5F1E8]/15' : 'bg-[#D8C7B2]'
         }`}
       />
 
-      <button
-        type="button"
-        data-testid="canvas-cinema-mode-btn"
-        onClick={onToggleCinemaMode}
-        title={
-          isCinemaMode
-            ? 'الخروج من وضع العرض الكامل'
-            : 'وضع العرض الكامل للمجالس'
-        }
-        className={`${
-          isHeader ? 'h-7 px-2 text-[11.5px]' : 'px-2.5 py-1 text-[11px]'
-        } rounded-lg font-display font-bold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-          isCinemaMode
-            ? 'bg-[#8D4925] text-white shadow-2xs'
-            : isHeader
-            ? 'bg-[#FAF5EC] hover:bg-[#F5ECE0] text-[#8C5327]'
-            : 'bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white'
-        }`}
+      <WorkspaceIconTooltip
+        label={isCinemaMode ? 'إنهاء عرض المجالس' : 'عرض المجالس (شاشة كاملة)'}
+        placement={tooltipPlacement}
       >
-        {isCinemaMode ? (
-          <>
-            <Minimize2 className="w-3.5 h-3.5 shrink-0" />
-            <span>خروج من العرض</span>
-          </>
-        ) : (
-          <>
-            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">عرض المجالس</span>
-          </>
-        )}
-      </button>
+        <button
+          type="button"
+          data-testid="canvas-cinema-mode-btn"
+          aria-pressed={isCinemaMode}
+          onClick={onToggleCinemaMode}
+          aria-label={
+            isCinemaMode ? 'إنهاء عرض المجالس' : 'عرض المجالس (شاشة كاملة)'
+          }
+          className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+            isCinemaMode
+              ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
+              : 'bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#D97757] border border-[#D8C7B2]/55'
+          }`}
+        >
+          {isCinemaMode ? (
+            <Minimize2 className="w-4 h-4 shrink-0" />
+          ) : (
+            <Maximize2 className="w-4 h-4 shrink-0" />
+          )}
+        </button>
+      </WorkspaceIconTooltip>
     </div>
   );
 };
@@ -475,20 +455,20 @@ export const TreeInteractiveMinimap: React.FC<TreeInteractiveMinimapProps> = ({
       data-testid="tree-interactive-minimap"
       className={`w-[206px] rounded-2xl border shadow-xl backdrop-blur-md p-2 transition-colors ${
         theme.isDarkSurface
-          ? 'bg-[#1D1813]/92 border-[#D4AF37]/45 text-[#FAF3E3]'
-          : 'bg-white/95 border-[#B98A78]/50 text-[#252321]'
+          ? 'bg-[#1F1F1C]/92 border-[#D8C7B2]/45 text-[#F5F1E8]'
+          : 'bg-[#F5F1E8]/95 border-[#D97757]/50 text-[#1F1F1C]'
       }`}
     >
-      <div className="flex items-center justify-between gap-2 pb-1 mb-1 border-b border-[#B98A78]/20">
+      <div className="flex items-center justify-between gap-2 pb-1 mb-1 border-b border-[#D97757]/20">
         <span className="text-[10px] font-display font-extrabold inline-flex items-center gap-1">
-          <MapIcon className="w-3 h-3 text-[#D8755B]" />
+          <MapIcon className="w-3 h-3 text-[#D97757]" />
           <span>الخريطة المصغرة ({people.length})</span>
         </span>
         <button
           type="button"
           onClick={onClose}
           aria-label="إغلاق الخريطة المصغرة"
-          className="p-0.5 rounded hover:bg-[#FAF6F0]/30 cursor-pointer"
+          className="p-0.5 rounded hover:bg-[#F5F1E8]/30 cursor-pointer"
         >
           <X className="w-3 h-3" />
         </button>
@@ -533,12 +513,12 @@ export const TreeInteractiveMinimap: React.FC<TreeInteractiveMinimapProps> = ({
                       r={p.isRecordKeeper ? 4.8 : isHl ? 4.2 : 3.2}
                       fill={
                         isHl
-                          ? '#D4AF37'
+                          ? '#D97757'
                           : p.isRecordKeeper
                           ? theme.primaryHex
                           : theme.goldAccentHex
                       }
-                      stroke={theme.isDarkSurface ? '#15120E' : '#FFFFFF'}
+                      stroke={theme.isDarkSurface ? '#1F1F1C' : '#F5F1E8'}
                       strokeWidth="1"
                     />
                   </g>
@@ -589,7 +569,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-[#252321]/55 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-[70] bg-[#1F1F1C]/55 backdrop-blur-xs flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label="حاسبة صلة القرابة بين فردين"
@@ -597,18 +577,18 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
       <div
         dir="rtl"
         data-testid="kinship-calculator-modal"
-        className="bg-white border-2 border-[#C5A059] rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 text-right shadow-2xl"
+        className="bg-[#F5F1E8] border-2 border-[#D97757] rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 text-right shadow-2xl"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-[#E5DDD0] pb-3">
+        <div className="flex items-center justify-between gap-3 border-b border-[#D8C7B2] pb-3">
           <div className="flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-2xl bg-[#FDF6F1] border border-[#D8755B]/45 flex items-center justify-center text-[#8D4925]">
-              <GitFork className="w-4 h-4 text-[#D8755B]" />
+            <span className="w-9 h-9 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 flex items-center justify-center text-[#D97757]">
+              <GitFork className="w-4 h-4 text-[#D97757]" />
             </span>
             <div>
-              <h4 className="text-sm sm:text-base font-display font-extrabold text-[#252321]">
+              <h4 className="text-sm sm:text-base font-display font-extrabold text-[#1F1F1C]">
                 كاشف وحاسبة صلة القرابة الذكي
               </h4>
-              <p className="text-[11px] text-[#252321]/65">
+              <p className="text-[11px] text-[#1F1F1C]/65">
                 اختر فردين لاكتشاف الجد الجامع وإضاءة المسار النسبي بالذهب
               </p>
             </div>
@@ -616,7 +596,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-lg bg-[#FAF6F0] hover:bg-[#F5E6DC] flex items-center justify-center text-[#252321] cursor-pointer"
+            className="w-7 h-7 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] flex items-center justify-center text-[#1F1F1C] cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -626,7 +606,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
           <div className="space-y-1">
             <label
               htmlFor="kinship-person-a"
-              className="text-[11px] font-display font-extrabold text-[#8D4925] block"
+              className="text-[11px] font-display font-extrabold text-[#D97757] block"
             >
               الفرد الأول
             </label>
@@ -635,7 +615,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
               data-testid="kinship-select-a"
               value={personAId}
               onChange={(e) => onChangePersonA(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#DFD4C2] focus:border-[#D8755B] outline-none text-xs font-display font-bold text-[#252321]"
+              className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-display font-bold text-[#1F1F1C]"
             >
               <option value="">اختر الفرد الأول...</option>
               {people.map((p) => (
@@ -655,7 +635,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
               onChangePersonB(tmp);
             }}
             title="تبديل الفردين"
-            className="w-9 h-9 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#DFD4C2] flex items-center justify-center text-[#8D4925] cursor-pointer self-center sm:self-end"
+            className="w-9 h-9 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] cursor-pointer self-center sm:self-end"
           >
             <ArrowLeftRight className="w-4 h-4" />
           </button>
@@ -663,7 +643,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
           <div className="space-y-1">
             <label
               htmlFor="kinship-person-b"
-              className="text-[11px] font-display font-extrabold text-[#8D4925] block"
+              className="text-[11px] font-display font-extrabold text-[#D97757] block"
             >
               الفرد الثاني
             </label>
@@ -672,7 +652,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
               data-testid="kinship-select-b"
               value={personBId}
               onChange={(e) => onChangePersonB(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#DFD4C2] focus:border-[#D8755B] outline-none text-xs font-display font-bold text-[#252321]"
+              className="w-full px-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] outline-none text-xs font-display font-bold text-[#1F1F1C]"
             >
               <option value="">اختر الفرد الثاني...</option>
               {people.map((p) => (
@@ -691,17 +671,17 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
             data-testid="kinship-result-card"
             className={`rounded-2xl border p-4 space-y-2.5 ${
               result.connected
-                ? 'bg-gradient-to-br from-[#FFFDF7] to-[#FAF1DC] border-[#D4AF37]/80'
-                : 'bg-[#FAF6F0] border-[#E5DDD0]'
+                ? 'bg-gradient-to-br from-[#F5F1E8] to-[#E8DED2] border-[#D8C7B2]/80'
+                : 'bg-[#F5F1E8] border-[#D8C7B2]'
             }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs font-display font-extrabold text-[#8D4925] inline-flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <div className="text-xs font-display font-extrabold text-[#D97757] inline-flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
                 <span>العلاقة النسبية: {result.relationshipLabel}</span>
               </div>
               {result.connected && result.degreeCount > 0 && (
-                <span className="text-[11px] font-mono font-bold text-[#92400E] tabular-nums">
+                <span className="text-[11px] font-mono font-bold text-[#D97757] tabular-nums">
                   {result.degreeCount}{' '}
                   {result.degreeCount === 1 ? 'درجة' : 'درجات'}
                 </span>
@@ -709,29 +689,29 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
             </div>
 
             {result.commonAncestor && (
-              <div className="text-xs text-[#252321] font-display">
+              <div className="text-xs text-[#1F1F1C] font-display">
                 الجد الجامع:{' '}
-                <strong className="text-[#8D4925]">
+                <strong className="text-[#D97757]">
                   {result.commonAncestor.firstName}
                 </strong>
               </div>
             )}
 
             {result.pathNodes.length > 1 && (
-              <div className="pt-2 border-t border-[#D4AF37]/30 flex flex-wrap items-center gap-1.5 text-[11px] font-display font-bold text-[#252321]">
+              <div className="pt-2 border-t border-[#D8C7B2]/30 flex flex-wrap items-center gap-1.5 text-[11px] font-display font-bold text-[#1F1F1C]">
                 {result.pathNodes.map((n, idx) => (
                   <React.Fragment key={`kp-${n.id}`}>
                     <span
                       className={`px-2 py-0.5 rounded-lg border ${
                         n.id === result.commonAncestor?.id
-                          ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#78350F]'
-                          : 'bg-white border-[#E5DDD0]'
+                          ? 'bg-[#D97757]/25 border-[#D8C7B2] text-[#D97757]'
+                          : 'bg-[#F5F1E8] border-[#D8C7B2]'
                       }`}
                     >
                       {n.firstName}
                     </span>
                     {idx < result.pathNodes.length - 1 && (
-                      <span className="text-[#B98A78]">←</span>
+                      <span className="text-[#D97757]">←</span>
                     )}
                   </React.Fragment>
                 ))}
@@ -740,12 +720,12 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E5DDD0]">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#D8C7B2]">
           {isPathHighlightedOnCanvas ? (
             <button
               type="button"
               onClick={onClearHighlightOnCanvas}
-              className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#F5E6DC] border border-[#DFD4C2] text-xs font-display font-bold text-[#8D4925] cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] cursor-pointer"
             >
               إلغاء الإضاءة الذهبية
             </button>
@@ -757,7 +737,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-[#FAF6F0] text-xs font-display font-bold text-[#252321] cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-[#F5F1E8] text-xs font-display font-bold text-[#1F1F1C] cursor-pointer"
             >
               إغلاق
             </button>
@@ -769,7 +749,7 @@ export function TreeKinshipCalculatorModal<T extends PedigreePersonLike>({
                   onApplyHighlightOnCanvas();
                   onClose();
                 }}
-                className="px-4 py-2 rounded-xl bg-[#8D4925] hover:bg-[#D8755B] text-white text-xs font-display font-extrabold cursor-pointer transition-colors shadow-2xs"
+                className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer transition-colors shadow-2xs"
               >
                 إضاءة المسار على الشجرة ✦
               </button>

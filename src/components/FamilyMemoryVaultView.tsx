@@ -10,7 +10,6 @@ import {
   Download,
   ExternalLink,
   FileText,
-  FolderArchive,
   FolderInput,
   FolderPlus,
   Grid2x2,
@@ -860,18 +859,18 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* =================================================================== */}
       {isGlobalDragActive && (
         <div
-          className="fixed inset-0 z-50 bg-[#252321]/65 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-none transition-opacity duration-150"
+          className="fixed inset-0 z-50 bg-[#1F1F1C]/65 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-none transition-opacity duration-150"
           aria-live="polite"
         >
-          <div className="w-full max-w-xl rounded-3xl bg-[#FFFDF9]/95 border-2 border-dashed border-[#C5A059] p-10 text-center shadow-2xl space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#D8755B] to-[#8D4925] text-[#FFFDF9] flex items-center justify-center mx-auto shadow-md">
+          <div className="w-full max-w-xl rounded-3xl bg-[#F5F1E8]/95 border-2 border-dashed border-[#D97757] p-10 text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#D97757] to-[#D97757] text-[#F5F1E8] flex items-center justify-center mx-auto shadow-md">
               <Upload className="w-8 h-8" />
             </div>
             <div className="space-y-1.5">
-              <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+              <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#1F1F1C]">
                 أفلت الصور أو الوثائق هنا لإيداعها في الخزانة
               </h3>
-              <p className="text-xs sm:text-sm text-[#8D4925] font-semibold">
+              <p className="text-xs sm:text-sm text-[#D97757] font-semibold">
                 المجلد المستهدف: {activeFolderLabel} · يدعم رفع عدة ملفات دفعة واحدة
               </p>
             </div>
@@ -890,21 +889,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           <div className="inline-flex items-center gap-1.5">
             {/* Compact Expanding Quick Search */}
             <div className="relative w-44 focus-within:w-56 transition-all duration-200 ease-out">
-              <Search className="w-3.5 h-3.5 text-[#8C5327]/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-[#D97757]/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="بحث سريع..."
                 aria-label="بحث سريع في الخزانة"
-                className="w-full h-10 pr-8 pl-7 rounded-xl bg-white border border-[#E2D5BE] focus:border-[#C5A059] text-xs font-display font-medium text-[#2C1E14] placeholder:text-[#7A6855]/65 focus:outline-none shadow-2xs transition-colors"
+                className="w-full h-10 pr-8 pl-7 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] focus:border-[#D97757] text-xs font-display font-medium text-[#1F1F1C] placeholder:text-[#D97757]/65 focus:outline-none shadow-2xs transition-colors"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   aria-label="مسح البحث"
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A6855] hover:text-[#2C1E14] cursor-pointer"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#D97757] hover:text-[#1F1F1C] cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -916,7 +915,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               value={selectedPersonFilterId}
               onChange={(e) => setSelectedPersonFilterId(e.target.value)}
               aria-label="تصفية حسب أفراد شجرتي"
-              className="h-10 px-2.5 rounded-xl bg-white border border-[#E2D5BE] hover:border-[#C5A059] text-xs font-display font-semibold text-[#3D2B1F] focus:outline-none focus:border-[#C5A059] shadow-2xs cursor-pointer max-w-[148px]"
+              className="h-10 px-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-xs font-display font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] shadow-2xs cursor-pointer max-w-[148px]"
             >
               <option value="ALL">أفراد شجرتي ({treePeople.length})</option>
               {treePeople.map((person) => (
@@ -948,8 +947,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               aria-label="تبديل ترتيب المقتنيات"
               className={`h-10 w-10 rounded-xl border inline-flex items-center justify-center shadow-2xs transition-colors cursor-pointer shrink-0 ${
                 sortBy !== 'newest'
-                  ? 'bg-[#F5ECE0] text-[#8C5327] border-[#D4AF37]/55'
-                  : 'bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
+                  ? 'bg-[#E8DED2] text-[#D97757] border-[#D8C7B2]/55'
+                  : 'bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] border-[#D8C7B2]'
               }`}
             >
               <ArrowUpDown className="w-4 h-4" />
@@ -959,7 +958,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <div
               role="group"
               aria-label="حجم عرض الشبكة"
-              className="inline-flex h-10 items-center rounded-xl bg-white p-1 border border-[#E2D5BE] shadow-2xs shrink-0"
+              className="inline-flex h-10 items-center rounded-xl bg-[#F5F1E8] p-1 border border-[#D8C7B2] shadow-2xs shrink-0"
             >
               <button
                 type="button"
@@ -968,8 +967,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 aria-label="شبكة قياسية 4 أعمدة"
                 className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
                   gridDensity === 'standard'
-                    ? 'bg-[#F5ECE0] text-[#8C5327]'
-                    : 'text-[#7A6855] hover:text-[#2C1E14]'
+                    ? 'bg-[#E8DED2] text-[#D97757]'
+                    : 'text-[#D97757] hover:text-[#1F1F1C]'
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -981,8 +980,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 aria-label="شبكة مكبرة 3 أعمدة"
                 className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
                   gridDensity === 'large'
-                    ? 'bg-[#F5ECE0] text-[#8C5327]'
-                    : 'text-[#7A6855] hover:text-[#2C1E14]'
+                    ? 'bg-[#E8DED2] text-[#D97757]'
+                    : 'text-[#D97757] hover:text-[#1F1F1C]'
                 }`}
               >
                 <Grid2x2 className="w-3.5 h-3.5" />
@@ -1002,8 +1001,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               aria-label="تحديد متعدد"
               className={`h-10 rounded-xl border inline-flex items-center justify-center gap-1 shadow-2xs transition-colors cursor-pointer shrink-0 disabled:opacity-45 disabled:cursor-not-allowed ${
                 isMultiSelectMode
-                  ? 'px-2.5 bg-[#252321] text-[#F3D299] border-[#252321]'
-                  : 'w-10 bg-white hover:bg-[#FAF5EC] text-[#3D2B1F] border-[#E2D5BE]'
+                  ? 'px-2.5 bg-[#1F1F1C] text-[#D97757] border-[#1F1F1C]'
+                  : 'w-10 bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] border-[#D8C7B2]'
               }`}
             >
               <CheckSquare className="w-4 h-4 shrink-0" />
@@ -1049,16 +1048,16 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* STAGING QUEUE (Only shown when user selected/dropped new files)     */}
       {/* =================================================================== */}
       {pendingDrafts.length > 0 && (
-        <section className="rounded-2xl bg-[#FFFDF9] border-2 border-[#C5A059]/75 p-4 sm:p-5 space-y-4 shadow-sm">
+        <section className="rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757]/75 p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="text-xs sm:text-sm font-display font-extrabold text-[#8D4925]">
+            <div className="text-xs sm:text-sm font-display font-extrabold text-[#D97757]">
               قائمة الملفات الجاهزة للإيداع ({pendingDrafts.length}) — سمّها واربطها بأفراد شجرتك قبل الحفظ:
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setPendingDrafts([])}
-                className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-red-50 text-xs font-bold text-red-700 border border-[#B98A78]/35 cursor-pointer whitespace-nowrap"
+                className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-xs font-bold text-[#D97757] border border-[#D97757]/35 cursor-pointer whitespace-nowrap"
               >
                 إلغاء الكل
               </button>
@@ -1066,9 +1065,9 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 type="button"
                 disabled={isSavingDraftsToCloud}
                 onClick={handleSaveAllPendingDrafts}
-                className="px-4 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] disabled:opacity-60 text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors whitespace-nowrap"
+                className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] disabled:opacity-60 text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors whitespace-nowrap"
               >
-                <CheckCircle2 className="w-4 h-4 text-[#F3D299]" />
+                <CheckCircle2 className="w-4 h-4 text-[#D97757]" />
                 <span>
                   {isSavingDraftsToCloud
                     ? 'جاري الضغط والحفظ السحابي...'
@@ -1079,20 +1078,20 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           </div>
 
           {vaultQuotaAlert && (
-            <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF6F0] to-[#FEF3C7]/45 border border-[#C5A059] p-4 space-y-3">
+            <div className="rounded-2xl bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2]/45 border border-[#D97757] p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <h4 className="text-sm font-display font-extrabold text-[#252321]">
+                  <h4 className="text-sm font-display font-extrabold text-[#1F1F1C]">
                     تجاوزت الحد الأقصى لسعة الخزانة في باقتك الحالية ({vaultQuotaAlert.currentCount} / {vaultQuotaAlert.maxAllowed} ملفات)
                   </h4>
-                  <p className="text-xs text-[#252321]/80 leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/80 leading-relaxed">
                     ملفاتك الجاهزة ({vaultQuotaAlert.tryingToAdd}) وعناوينها محفوظة في قائمة الانتظار ولن تضيع. قم بترقية باقتك الآن لحفظها فوراً:
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setVaultQuotaAlert(null)}
-                  className="p-1.5 rounded-lg bg-white hover:bg-[#EDE6DA] text-[#252321] cursor-pointer shrink-0"
+                  className="p-1.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] cursor-pointer shrink-0"
                   aria-label="إغلاق تنبيه السعة"
                 >
                   <X className="w-4 h-4" />
@@ -1104,7 +1103,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   <button
                     type="button"
                     onClick={onUnlockRoot5Usd}
-                    className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
                     فتح الجذر ($5) ← رفع السعة إلى 20 وثيقة
                   </button>
@@ -1113,7 +1112,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   <button
                     type="button"
                     onClick={onUpgradeAnnualVip}
-                    className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#3a3734] text-[#F3D299] text-xs font-display font-bold cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold cursor-pointer"
                   >
                     الباقة السنوية بريميوم ← 100 وثيقة
                   </button>
@@ -1122,7 +1121,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   <button
                     type="button"
                     onClick={onSignCharterAndEnableTree}
-                    className="px-3.5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1c] text-white text-xs font-display font-bold cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
                     تفعيل أمين سجل العائلة ✦ ← سعة غير محدودة
                   </button>
@@ -1135,10 +1134,10 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             {pendingDrafts.map((draft) => (
               <div
                 key={draft.tempId}
-                className="rounded-2xl bg-[#FAF6F0] border border-[#D9CCB9] p-3.5 space-y-3"
+                className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3"
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-18 h-18 rounded-xl bg-white border border-[#B98A78]/35 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="w-18 h-18 rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden shrink-0 flex items-center justify-center">
                     {draft.fileDataUrl.startsWith('data:image') ? (
                       <img
                         src={draft.fileDataUrl}
@@ -1146,7 +1145,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <FileText className="w-7 h-7 text-[#8D4925]" />
+                      <FileText className="w-7 h-7 text-[#D97757]" />
                     )}
                   </div>
 
@@ -1165,7 +1164,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           )
                         }
                         placeholder="عنوان الصورة أو الوثيقة..."
-                        className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-xs font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/45 text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       />
                       <button
                         type="button"
@@ -1174,7 +1173,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             prev.filter((p) => p.tempId !== draft.tempId)
                           )
                         }
-                        className="p-1.5 rounded-lg hover:bg-red-100 text-red-700 cursor-pointer shrink-0"
+                        className="p-1.5 rounded-lg hover:bg-[#E8DED2] text-[#D97757] cursor-pointer shrink-0"
                         title="إزالة من القائمة"
                       >
                         <X className="w-4 h-4" />
@@ -1198,7 +1197,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             )
                           )
                         }
-                        className="px-2 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
+                        className="px-2 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/45 text-[11px] font-bold text-[#1F1F1C]"
                       >
                         <option value="photo">صورة عائلية</option>
                         <option value="document">وثيقة / صك</option>
@@ -1215,7 +1214,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             )
                           )
                         }
-                        className="px-2 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
+                        className="px-2 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/45 text-[11px] font-bold text-[#1F1F1C]"
                       >
                         {folders.map((f) => (
                           <option key={f.id} value={f.id}>
@@ -1237,16 +1236,16 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           )
                         }
                         placeholder="السنة أو المناسبة"
-                        className="px-2 py-1.5 rounded-lg bg-white border border-[#B98A78]/45 text-[11px] font-bold text-[#252321]"
+                        className="px-2 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/45 text-[11px] font-bold text-[#1F1F1C]"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Multi-Select Person Linking for this Draft */}
-                <div className="pt-2 border-t border-[#B98A78]/20 space-y-1.5">
-                  <div className="text-[11px] font-display font-bold text-[#8D4925] flex items-center gap-1.5">
-                    <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                <div className="pt-2 border-t border-[#D97757]/20 space-y-1.5">
+                  <div className="text-[11px] font-display font-bold text-[#D97757] flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-[#D97757]" />
                     <span>ربط مباشر بأفراد «شجرتي» (اختياري):</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
@@ -1278,8 +1277,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           }
                           className={`px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer border ${
                             isChecked
-                              ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-                              : 'bg-white text-[#252321] border-[#B98A78]/35 hover:border-[#C5A059]'
+                              ? 'bg-[#1F1F1C] text-[#D97757] border-[#1F1F1C]'
+                              : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D97757]/35 hover:border-[#D97757]'
                           }`}
                         >
                           {isChecked && <Check className="w-3 h-3" />}
@@ -1308,8 +1307,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           onClick={() => setSelectedFolderId('ALL')}
           className={`h-[56px] shrink-0 px-3.5 rounded-2xl border transition-all duration-150 inline-flex items-center gap-2.5 cursor-pointer whitespace-nowrap ${
             selectedFolderId === 'ALL'
-              ? 'border-[#C5A059] bg-gradient-to-l from-[#FFFDF9] to-[#FBF2DC] ring-1 ring-[#C5A059]/35 shadow-2xs text-[#252321]'
-              : 'border-[#E5DAC8] bg-[#FFFDF9] hover:border-[#C5A059]/70 text-[#252321]/85'
+              ? 'border-[#D97757] bg-gradient-to-l from-[#F5F1E8] to-[#F5F1E8] ring-1 ring-[#D97757]/35 shadow-2xs text-[#1F1F1C]'
+              : 'border-[#D8C7B2] bg-[#F5F1E8] hover:border-[#D97757]/70 text-[#1F1F1C]/85'
           }`}
         >
           <span className="text-lg leading-none" aria-hidden="true">
@@ -1321,8 +1320,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           <span
             className={`min-w-[24px] h-6 px-1.5 rounded-full text-[11px] font-display font-extrabold tabular-nums inline-flex items-center justify-center ${
               selectedFolderId === 'ALL'
-                ? 'bg-[#252321] text-[#F3D299]'
-                : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E5DAC8]'
+                ? 'bg-[#1F1F1C] text-[#D97757]'
+                : 'bg-[#F5F1E8] text-[#D97757] border border-[#D8C7B2]'
             }`}
           >
             {items.length}
@@ -1352,10 +1351,10 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               }}
               className={`group h-[56px] shrink-0 px-3.5 rounded-2xl border transition-all duration-150 inline-flex items-center gap-2.5 cursor-pointer whitespace-nowrap ${
                 isSelected
-                  ? 'border-[#C5A059] bg-gradient-to-l from-[#FFFDF9] to-[#FBF2DC] ring-1 ring-[#C5A059]/35 shadow-2xs text-[#252321]'
+                  ? 'border-[#D97757] bg-gradient-to-l from-[#F5F1E8] to-[#F5F1E8] ring-1 ring-[#D97757]/35 shadow-2xs text-[#1F1F1C]'
                   : isEmpty
-                    ? 'border-[#E7DFD2] bg-[#FAF6F0]/75 text-[#252321]/60 hover:text-[#252321] hover:bg-[#FFFDF9] hover:border-[#C5A059]/55'
-                    : 'border-[#E5DAC8] bg-[#FFFDF9] text-[#252321] hover:border-[#C5A059]/75'
+                    ? 'border-[#D8C7B2] bg-[#F5F1E8]/75 text-[#1F1F1C]/60 hover:text-[#1F1F1C] hover:bg-[#F5F1E8] hover:border-[#D97757]/55'
+                    : 'border-[#D8C7B2] bg-[#F5F1E8] text-[#1F1F1C] hover:border-[#D97757]/75'
               }`}
             >
               <span
@@ -1372,10 +1371,10 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               <span
                 className={`min-w-[24px] h-6 px-1.5 rounded-full text-[11px] font-display font-extrabold tabular-nums inline-flex items-center justify-center ${
                   isSelected
-                    ? 'bg-[#8D4925] text-[#FFFDF9]'
+                    ? 'bg-[#D97757] text-[#F5F1E8]'
                     : isEmpty
-                      ? 'bg-[#EFE8DC] text-[#8D4925]/65'
-                      : 'bg-[#FAF6F0] text-[#8D4925] border border-[#E5DAC8]'
+                      ? 'bg-[#E8DED2] text-[#D97757]/65'
+                      : 'bg-[#F5F1E8] text-[#D97757] border border-[#D8C7B2]'
                 }`}
               >
                 {count}
@@ -1390,7 +1389,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   }}
                   title="حذف المجلد المخصص"
                   aria-label={`حذف مجلد ${folder.name}`}
-                  className="w-5 h-5 rounded-full hover:bg-red-100 text-[#8D4925]/55 hover:text-red-700 inline-flex items-center justify-center transition-colors cursor-pointer -ml-1"
+                  className="w-5 h-5 rounded-full hover:bg-[#E8DED2] text-[#D97757]/55 hover:text-[#D97757] inline-flex items-center justify-center transition-colors cursor-pointer -ml-1"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1403,23 +1402,23 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* =================================================================== */}
       {/* TIER 3 — COMPACT MOBILE/TABLET FILTER BAR (<1200px ONLY)            */}
       {/* =================================================================== */}
-      <div className="min-[1200px]:hidden rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] px-3.5 py-2.5 flex flex-wrap items-center gap-2 shadow-2xs">
+      <div className="min-[1200px]:hidden rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 flex flex-wrap items-center gap-2 shadow-2xs">
         {/* Quick Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-[#8D4925]/75 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#D97757]/75 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="بحث سريع داخل الألبوم أو الخزانة..."
-            className="w-full h-9 pr-9 pl-8 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs sm:text-sm text-[#252321] placeholder:text-[#252321]/45 focus:outline-none focus:border-[#C5A059]"
+            className="w-full h-9 pr-9 pl-8 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs sm:text-sm text-[#1F1F1C] placeholder:text-[#1F1F1C]/45 focus:outline-none focus:border-[#D97757]"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
               aria-label="مسح البحث"
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8D4925]/60 hover:text-[#252321] cursor-pointer"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#D97757]/60 hover:text-[#1F1F1C] cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -1431,7 +1430,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           value={selectedPersonFilterId}
           onChange={(e) => setSelectedPersonFilterId(e.target.value)}
           aria-label="تصفية حسب أفراد شجرتي"
-          className="h-9 px-3 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-display font-bold text-[#252321] focus:outline-none focus:border-[#C5A059] cursor-pointer max-w-[185px]"
+          className="h-9 px-3 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] cursor-pointer max-w-[185px]"
         >
           <option value="ALL">أفراد شجرتي ({treePeople.length})</option>
           {treePeople.map((person) => (
@@ -1443,12 +1442,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
 
         {/* Sort Selector */}
         <div className="relative inline-flex items-center shrink-0">
-          <ArrowUpDown className="w-3.5 h-3.5 text-[#8D4925] absolute right-2.5 pointer-events-none" />
+          <ArrowUpDown className="w-3.5 h-3.5 text-[#D97757] absolute right-2.5 pointer-events-none" />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as VaultSortMode)}
             aria-label="ترتيب المقتنيات"
-            className="h-9 pr-8 pl-3 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-display font-bold text-[#252321] focus:outline-none focus:border-[#C5A059] cursor-pointer"
+            className="h-9 pr-8 pl-3 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] cursor-pointer"
           >
             <option value="newest">الأحدث إضافة</option>
             <option value="historical_asc">الأقدم تاريخياً</option>
@@ -1460,7 +1459,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         <div
           role="group"
           aria-label="حجم عرض الشبكة"
-          className="inline-flex h-9 items-center rounded-xl bg-[#FAF6F0] p-1 border border-[#E5DAC8] shrink-0"
+          className="inline-flex h-9 items-center rounded-xl bg-[#F5F1E8] p-1 border border-[#D8C7B2] shrink-0"
         >
           <button
             type="button"
@@ -1469,8 +1468,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             aria-label="شبكة قياسية 4 أعمدة"
             className={`h-7 px-2.5 rounded-lg inline-flex items-center gap-1 text-[11px] font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
               gridDensity === 'standard'
-                ? 'bg-[#FFFDF9] text-[#252321] shadow-2xs border border-[#C5A059]/40'
-                : 'text-[#252321]/60 hover:text-[#252321]'
+                ? 'bg-[#F5F1E8] text-[#1F1F1C] shadow-2xs border border-[#D97757]/40'
+                : 'text-[#1F1F1C]/60 hover:text-[#1F1F1C]'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
@@ -1483,8 +1482,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             aria-label="شبكة مكبرة 3 أعمدة"
             className={`h-7 px-2.5 rounded-lg inline-flex items-center gap-1 text-[11px] font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
               gridDensity === 'large'
-                ? 'bg-[#FFFDF9] text-[#252321] shadow-2xs border border-[#C5A059]/40'
-                : 'text-[#252321]/60 hover:text-[#252321]'
+                ? 'bg-[#F5F1E8] text-[#1F1F1C] shadow-2xs border border-[#D97757]/40'
+                : 'text-[#1F1F1C]/60 hover:text-[#1F1F1C]'
             }`}
           >
             <Grid2x2 className="w-3.5 h-3.5" />
@@ -1499,8 +1498,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
           disabled={items.length === 0}
           className={`h-9 px-3 rounded-xl border text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-45 disabled:cursor-not-allowed ${
             isMultiSelectMode
-              ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-              : 'bg-[#FAF6F0] text-[#252321] border-[#E5DAC8] hover:border-[#C5A059]'
+              ? 'bg-[#1F1F1C] text-[#D97757] border-[#1F1F1C]'
+              : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2] hover:border-[#D97757]'
           }`}
         >
           <CheckSquare className="w-3.5 h-3.5" />
@@ -1514,9 +1513,9 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
 
       {/* Contextual Multi-Select Bulk Action Bar */}
       {isMultiSelectMode && filteredItems.length > 0 && (
-        <div className="rounded-2xl bg-[#252321] text-[#FAF6F0] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        <div className="rounded-2xl bg-[#1F1F1C] text-[#F5F1E8] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3 text-xs font-display font-bold">
-            <span className="text-[#F3D299] tabular-nums">
+            <span className="text-[#D97757] tabular-nums">
               تم تحديد {selectedItemIds.length} من {filteredItems.length}
             </span>
             <button
@@ -1528,7 +1527,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   setSelectedItemIds(filteredItems.map((i) => i.id));
                 }
               }}
-              className="underline decoration-[#F3D299]/50 hover:text-[#F3D299] cursor-pointer"
+              className="underline decoration-[#D97757]/50 hover:text-[#D97757] cursor-pointer"
             >
               {selectedItemIds.length === filteredItems.length
                 ? 'إلغاء تحديد الكل'
@@ -1538,7 +1537,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-1.5">
-              <FolderInput className="w-3.5 h-3.5 text-[#F3D299]" />
+              <FolderInput className="w-3.5 h-3.5 text-[#D97757]" />
               <select
                 value={bulkMoveTargetFolderId}
                 disabled={selectedItemIds.length === 0}
@@ -1550,7 +1549,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   }
                 }}
                 aria-label="نقل المحدد إلى مجلد"
-                className="h-8 px-2.5 rounded-lg bg-[#35322F] border border-[#C5A059]/40 text-xs font-bold text-[#FAF6F0] focus:outline-none disabled:opacity-45 cursor-pointer"
+                className="h-8 px-2.5 rounded-lg bg-[#1F1F1C] border border-[#D97757]/40 text-xs font-bold text-[#F5F1E8] focus:outline-none disabled:opacity-45 cursor-pointer"
               >
                 <option value="">نقل إلى مجلد...</option>
                 {folders.map((f) => (
@@ -1566,27 +1565,27 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 type="button"
                 disabled={selectedItemIds.length === 0}
                 onClick={() => setConfirmBulkDelete(true)}
-                className="h-8 px-3 rounded-lg bg-red-600/90 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-8 px-3 rounded-lg bg-[#D97757]/90 hover:bg-[#D97757] disabled:opacity-40 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>حذف المحدد</span>
               </button>
             ) : (
-              <div className="inline-flex items-center gap-1.5 bg-red-950/80 border border-red-400/50 rounded-lg px-2.5 py-1">
-                <span className="text-[11px] font-bold text-red-100">
+              <div className="inline-flex items-center gap-1.5 bg-[#1F1F1C]/80 border border-[#D8C7B2]/50 rounded-lg px-2.5 py-1">
+                <span className="text-[11px] font-bold text-[#F5F1E8]">
                   تأكيد حذف ({selectedItemIds.length})؟
                 </span>
                 <button
                   type="button"
                   onClick={handleBulkDeleteSelected}
-                  className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold cursor-pointer"
+                  className="px-2 py-0.5 rounded bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
                 >
                   نعم، احذف
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmBulkDelete(false)}
-                  className="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold cursor-pointer"
+                  className="px-2 py-0.5 rounded bg-[#F5F1E8]/15 hover:bg-[#F5F1E8]/25 text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
                 >
                   تراجع
                 </button>
@@ -1596,7 +1595,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <button
               type="button"
               onClick={handleToggleMultiSelectMode}
-              className="h-8 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold cursor-pointer"
+              className="h-8 px-2.5 rounded-lg bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 text-xs font-bold cursor-pointer"
             >
               إنهاء
             </button>
@@ -1615,17 +1614,17 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             e.preventDefault();
             handleFilesSelected(e.dataTransfer.files);
           }}
-          className="rounded-3xl bg-gradient-to-b from-[#FFFDF9] to-[#FAF6F0] border-2 border-dashed border-[#C5A059]/60 hover:border-[#D8755B] p-8 sm:p-12 text-center space-y-5 transition-colors shadow-2xs"
+          className="rounded-3xl bg-gradient-to-b from-[#F5F1E8] to-[#F5F1E8] border-2 border-dashed border-[#D97757]/60 hover:border-[#D97757] p-8 sm:p-12 text-center space-y-5 transition-colors shadow-2xs"
         >
-          <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-[#FBF3E0] via-[#F4E1B8] to-[#E6C782]/60 border border-[#C5A059]/70 text-[#8D4925] flex items-center justify-center mx-auto shadow-xs">
+          <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-[#F5F1E8] via-[#E8DED2] to-[#D97757]/60 border border-[#D97757]/70 text-[#D97757] flex items-center justify-center mx-auto shadow-xs">
             <Upload className="w-8 h-8" />
           </div>
 
           <div className="space-y-2 max-w-lg mx-auto">
-            <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#252321]">
+            <h3 className="text-lg sm:text-xl font-display font-extrabold text-[#1F1F1C]">
               خزانة عائلة {result.familyName} جاهزة لحفظ ذكرياتكم ووثائقكم
             </h3>
-            <p className="text-xs sm:text-sm text-[#252321]/70 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/70 leading-relaxed">
               اسحب وأفلت صور الأجداد أو الصكوك والوثائق هنا مباشرة، أو اختر ملفاتك لرفعها وتصنيفها وربطها بأفراد «شجرتي» لتبقى أرشيفاً عائلياً موثقاً.
             </p>
           </div>
@@ -1634,7 +1633,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-6 py-3 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold shadow-xs inline-flex items-center gap-2 cursor-pointer transition-colors"
+              className="px-6 py-3 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold shadow-xs inline-flex items-center gap-2 cursor-pointer transition-colors"
             >
               <Camera className="w-4 h-4" />
               <span>رفع أول صورة أو وثيقة عائلية</span>
@@ -1642,16 +1641,16 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <button
               type="button"
               onClick={() => setShowNewFolderModal(true)}
-              className="px-5 py-3 rounded-xl bg-[#FFFDF9] hover:bg-[#F3EBE0] border border-[#D9CCB9] text-[#252321] text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+              className="px-5 py-3 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
             >
-              <FolderPlus className="w-4 h-4 text-[#8D4925]" />
+              <FolderPlus className="w-4 h-4 text-[#D97757]" />
               <span>إنشاء مجلد خاص</span>
             </button>
           </div>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="rounded-2xl bg-[#FFFDF9] border border-[#E5DAC8] p-8 text-center space-y-3">
-          <div className="text-sm font-display font-bold text-[#252321]">
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-8 text-center space-y-3">
+          <div className="text-sm font-display font-bold text-[#1F1F1C]">
             لا توجد مقتنيات مطابقة لخيارات البحث أو التصفية الحالية.
           </div>
           {hasActiveFilters && (
@@ -1663,7 +1662,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 setSelectedPersonFilterId('ALL');
                 setSearchQuery('');
               }}
-              className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D9CCB9] text-xs font-display font-bold text-[#8D4925] cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] cursor-pointer"
             >
               إعادة ضبط الفلاتر وعرض كل الخزانة
             </button>
@@ -1706,12 +1705,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     ? () => handleToggleSelectItem(item.id)
                     : undefined
                 }
-                className={`group rounded-2xl bg-[#FFFDF9] border transition-all duration-200 flex flex-col overflow-hidden ${
+                className={`group rounded-2xl bg-[#F5F1E8] border transition-all duration-200 flex flex-col overflow-hidden ${
                   isMultiSelectMode ? 'cursor-pointer' : ''
                 } ${
                   isSelectedForBulk
-                    ? 'border-[#C5A059] ring-2 ring-[#C5A059]/35 shadow-md'
-                    : 'border-[#E6DAC3] hover:border-[#C5A059] shadow-2xs hover:shadow-md'
+                    ? 'border-[#D97757] ring-2 ring-[#D97757]/35 shadow-md'
+                    : 'border-[#D8C7B2] hover:border-[#D97757] shadow-2xs hover:shadow-md'
                 }`}
               >
                 {/* Museum-Framed 4:3 Visual Stage */}
@@ -1721,7 +1720,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     e.stopPropagation();
                     setLightboxItemId(item.id);
                   }}
-                  className="relative aspect-[4/3] w-full bg-[#F4EEE4] border-b border-[#EDE6DA] overflow-hidden cursor-pointer flex items-center justify-center"
+                  className="relative aspect-[4/3] w-full bg-[#E8DED2] border-b border-[#D8C7B2] overflow-hidden cursor-pointer flex items-center justify-center"
                 >
                   {canRenderImg ? (
                     <img
@@ -1742,9 +1741,9 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                       }`}
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-2 text-[#8D4925] p-4 text-center">
-                      <div className="w-12 h-12 rounded-xl bg-[#FFFDF9] border border-[#E5DAC8] flex items-center justify-center shadow-2xs">
-                        <FileText className="w-6 h-6 text-[#D8755B]" />
+                    <div className="flex flex-col items-center justify-center gap-2 text-[#D97757] p-4 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-center shadow-2xs">
+                        <FileText className="w-6 h-6 text-[#D97757]" />
                       </div>
                       <span className="text-[11px] font-display font-bold line-clamp-1 max-w-[180px]">
                         {displayTitle}
@@ -1754,7 +1753,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
 
                   {/* Subtle Bottom Vignette on Hover for Crisp Floating Action Contrast */}
                   <div
-                    className={`absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 via-black/20 to-transparent transition-opacity duration-200 pointer-events-none ${
+                    className={`absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#1F1F1C]/55 via-[#1F1F1C]/20 to-transparent transition-opacity duration-200 pointer-events-none ${
                       isConfirmingDelete
                         ? 'opacity-100'
                         : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
@@ -1768,19 +1767,19 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                       <span
                         className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors shadow-xs ${
                           isSelectedForBulk
-                            ? 'bg-[#C5A059] border-[#FFFDF9] text-[#252321]'
-                            : 'bg-[#FFFDF9]/90 border-[#8D4925]/50 text-transparent'
+                            ? 'bg-[#D97757] border-[#F5F1E8] text-[#1F1F1C]'
+                            : 'bg-[#F5F1E8]/90 border-[#D97757]/50 text-transparent'
                         }`}
                       >
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-[#252321]/72 backdrop-blur-xs text-[#FAF6F0] text-[10px] font-display font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-[#1F1F1C]/72 backdrop-blur-xs text-[#F5F1E8] text-[10px] font-display font-bold">
                         {item.mediaType === 'photo' ? 'صورة' : 'وثيقة'}
                       </span>
                     )}
                     {item.enhanced && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-800/85 text-white text-[10px] font-bold">
+                      <span className="px-1.5 py-0.5 rounded-md bg-[#1F1F1C]/85 text-[#F5F1E8] text-[10px] font-bold">
                         مرمّمة ✦
                       </span>
                     )}
@@ -1796,13 +1795,13 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0'
                       }`}
                     >
-                      <div className="inline-flex items-center gap-1 px-1.5 py-1 rounded-xl bg-[#252321]/82 backdrop-blur-md border border-white/15 shadow-lg">
+                      <div className="inline-flex items-center gap-1 px-1.5 py-1 rounded-xl bg-[#1F1F1C]/82 backdrop-blur-md border border-[#F5F1E8]/15 shadow-lg">
                         <button
                           type="button"
                           onClick={() => setLightboxItemId(item.id)}
                           title="معاينة مكبرة"
                           aria-label={`معاينة مكبرة لـ ${displayTitle}`}
-                          className="w-7 h-7 rounded-lg text-[#FAF6F0] hover:bg-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                          className="w-7 h-7 rounded-lg text-[#F5F1E8] hover:bg-[#F5F1E8]/15 flex items-center justify-center transition-colors cursor-pointer"
                         >
                           <Maximize2 className="w-3.5 h-3.5" />
                         </button>
@@ -1818,8 +1817,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           aria-label={`ربط ${displayTitle} بشجرتي`}
                           className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                             linkedPeopleObjs.length > 0
-                              ? 'text-[#F3D299] hover:bg-white/15'
-                              : 'text-[#FAF6F0] hover:bg-white/15'
+                              ? 'text-[#D97757] hover:bg-[#F5F1E8]/15'
+                              : 'text-[#F5F1E8] hover:bg-[#F5F1E8]/15'
                           }`}
                         >
                           <Link2 className="w-3.5 h-3.5" />
@@ -1830,7 +1829,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           onClick={() => handleStartInlineRename(item)}
                           title="إعادة تسمية"
                           aria-label={`تعديل عنوان ${displayTitle}`}
-                          className="w-7 h-7 rounded-lg text-[#FAF6F0] hover:bg-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                          className="w-7 h-7 rounded-lg text-[#F5F1E8] hover:bg-[#F5F1E8]/15 flex items-center justify-center transition-colors cursor-pointer"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -1840,19 +1839,19 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           download={item.fileName || `${displayTitle}.jpg`}
                           title="تنزيل نسخة أصلية"
                           aria-label={`تنزيل ${displayTitle}`}
-                          className="w-7 h-7 rounded-lg text-[#FAF6F0] hover:bg-white/15 flex items-center justify-center transition-colors"
+                          className="w-7 h-7 rounded-lg text-[#F5F1E8] hover:bg-[#F5F1E8]/15 flex items-center justify-center transition-colors"
                         >
                           <Download className="w-3.5 h-3.5" />
                         </a>
 
-                        <span className="w-px h-4 bg-white/15 mx-0.5" aria-hidden="true" />
+                        <span className="w-px h-4 bg-[#F5F1E8]/15 mx-0.5" aria-hidden="true" />
 
                         {isConfirmingDelete ? (
                           <div className="inline-flex items-center gap-1 pr-0.5">
                             <button
                               type="button"
                               onClick={() => handleDeleteItem(item.id)}
-                              className="h-7 px-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-display font-bold cursor-pointer whitespace-nowrap"
+                              className="h-7 px-2 rounded-lg bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-[10px] font-display font-bold cursor-pointer whitespace-nowrap"
                             >
                               تأكيد الحذف
                             </button>
@@ -1861,7 +1860,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                               onClick={() => setConfirmDeleteItemId(null)}
                               title="إلغاء الحذف"
                               aria-label="إلغاء الحذف"
-                              className="w-6 h-6 rounded-lg text-white/80 hover:bg-white/15 flex items-center justify-center cursor-pointer"
+                              className="w-6 h-6 rounded-lg text-[#F5F1E8]/80 hover:bg-[#F5F1E8]/15 flex items-center justify-center cursor-pointer"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -1872,7 +1871,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             onClick={() => setConfirmDeleteItemId(item.id)}
                             title="حذف من الخزانة"
                             aria-label={`حذف ${displayTitle}`}
-                            className="w-7 h-7 rounded-lg text-[#FAF6F0]/85 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center transition-colors cursor-pointer"
+                            className="w-7 h-7 rounded-lg text-[#F5F1E8]/85 hover:text-[#D8C7B2] hover:bg-[#D97757]/20 flex items-center justify-center transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1905,14 +1904,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             }
                           }}
                           aria-label="تعديل عنوان المقتنى"
-                          className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-[#FAF6F0] border border-[#C5A059] text-xs font-display font-bold text-[#252321] focus:outline-none"
+                          className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-[#F5F1E8] border border-[#D97757] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => handleCommitInlineRename(item.id)}
                           title="حفظ الاسم"
                           aria-label="حفظ العنوان الجديد"
-                          className="w-6 h-6 rounded-md bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0 cursor-pointer"
+                          className="w-6 h-6 rounded-md bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0 cursor-pointer"
                         >
                           <Check className="w-3.5 h-3.5" />
                         </button>
@@ -1921,7 +1920,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           onClick={handleCancelInlineRename}
                           title="إلغاء"
                           aria-label="إلغاء التعديل"
-                          className="w-6 h-6 rounded-md bg-[#FAF6F0] text-[#8D4925] border border-[#E5DAC8] flex items-center justify-center shrink-0 cursor-pointer"
+                          className="w-6 h-6 rounded-md bg-[#F5F1E8] text-[#D97757] border border-[#D8C7B2] flex items-center justify-center shrink-0 cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -1938,7 +1937,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             ? `${displayTitle} (اسم الملف: ${item.title}) — انقر لتعديل العنوان`
                             : 'انقر لتعديل العنوان مباشرة'
                         }
-                        className="text-[13px] font-display font-extrabold text-[#2C1E14] hover:text-[#9E5631] transition-colors cursor-text truncate"
+                        className="text-[13px] font-display font-extrabold text-[#1F1F1C] hover:text-[#D97757] transition-colors cursor-text truncate"
                       >
                         {displayTitle}
                       </h4>
@@ -1949,7 +1948,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   <div className="flex items-center justify-between gap-2 pt-0.5">
                     {linkedPeopleObjs.length > 0 ? (
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-[#252321] text-[#F3D299] text-[9px] font-bold flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-[#C5A059]/40">
+                        <span className="w-5 h-5 rounded-full bg-[#1F1F1C] text-[#D97757] text-[9px] font-bold flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-[#D97757]/40">
                           {linkedPeopleObjs[0].avatarDataUrl ? (
                             <img
                               src={linkedPeopleObjs[0].avatarDataUrl}
@@ -1960,22 +1959,22 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                             linkedPeopleObjs[0].fullName.charAt(0)
                           )}
                         </span>
-                        <span className="text-[11px] font-display font-bold text-[#2C1E14] truncate">
+                        <span className="text-[11px] font-display font-bold text-[#1F1F1C] truncate">
                           {linkedPeopleObjs[0].fullName}
                         </span>
                         {linkedPeopleObjs.length > 1 && (
-                          <span className="text-[10px] font-display font-bold text-[#8C5327] tabular-nums shrink-0">
+                          <span className="text-[10px] font-display font-bold text-[#D97757] tabular-nums shrink-0">
                             +{linkedPeopleObjs.length - 1}
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-[11px] text-[#7A6A58]/75 truncate">
+                      <span className="text-[11px] text-[#D97757]/75 truncate">
                         {folderObj ? folderObj.name : 'أرشيف الخزانة'}
                       </span>
                     )}
 
-                    <div className="flex items-center gap-1 text-[10.5px] text-[#7A6A58] shrink-0 max-w-[52%] truncate">
+                    <div className="flex items-center gap-1 text-[10.5px] text-[#D97757] shrink-0 max-w-[52%] truncate">
                       {linkedPeopleObjs.length > 0 && folderObj && (
                         <>
                           <span className="truncate">{folderObj.name}</span>
@@ -1999,21 +1998,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* =================================================================== */}
       {activeLinkingItem && (
         <div
-          className="fixed inset-0 z-50 bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[#1F1F1C]/65 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-lg rounded-3xl bg-[#FFFDF9] border-2 border-[#C5A059] p-6 shadow-2xl space-y-4 text-right">
-            <div className="flex items-start justify-between gap-3 border-b border-[#E5DAC8] pb-3.5">
+          <div className="w-full max-w-lg rounded-3xl bg-[#F5F1E8] border-2 border-[#D97757] p-6 shadow-2xl space-y-4 text-right">
+            <div className="flex items-start justify-between gap-3 border-b border-[#D8C7B2] pb-3.5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-display font-extrabold text-[#252321]">
+                  <h3 className="text-base font-display font-extrabold text-[#1F1F1C]">
                     ربط «{activeLinkingItem.title}» بأفراد شجرتي
                   </h3>
-                  <p className="text-xs text-[#252321]/70">
+                  <p className="text-xs text-[#1F1F1C]/70">
                     اختر فرداً أو أكثر ليظهر هذا المقتنى تلقائياً في بطاقته داخل «شجرتي»
                   </p>
                 </div>
@@ -2022,20 +2021,20 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 type="button"
                 onClick={() => setLinkingItemId(null)}
                 aria-label="إغلاق نافذة الربط"
-                className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-[#E8DED2] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="relative">
-              <Search className="w-4 h-4 text-[#8D4925] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[#D97757] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={personSearchInModal}
                 onChange={(e) => setPersonSearchInModal(e.target.value)}
                 placeholder="ابحث عن اسم الفرد في شجرتي..."
-                className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#D9CCB9] text-xs font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
+                className="w-full pr-9 pl-3 py-2 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
               />
             </div>
 
@@ -2064,12 +2063,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                       }
                       className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-3 transition-all cursor-pointer ${
                         isLinked
-                          ? 'bg-emerald-50/90 border-emerald-500 shadow-2xs'
-                          : 'bg-white hover:bg-[#FAF6F0] border-[#E5DAC8]'
+                          ? 'bg-[#F5F1E8]/90 border-[#D97757] shadow-2xs'
+                          : 'bg-[#F5F1E8] hover:bg-[#E8DED2] border-[#D8C7B2]'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-[#252321] text-[#F3D299] flex items-center justify-center font-display font-bold text-xs overflow-hidden shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[#1F1F1C] text-[#D97757] flex items-center justify-center font-display font-bold text-xs overflow-hidden shrink-0">
                           {person.avatarDataUrl ? (
                             <img
                               src={person.avatarDataUrl}
@@ -2081,15 +2080,15 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321] truncate flex items-center gap-1.5">
+                          <div className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C] truncate flex items-center gap-1.5">
                             <span className="truncate">{person.fullName}</span>
                             {person.isCertifiedReference && (
-                              <span className="text-[10px] font-bold text-[#92400E] shrink-0">
+                              <span className="text-[10px] font-bold text-[#D97757] shrink-0">
                                 · مرجع موثق ✦
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] font-semibold text-[#8D4925]">
+                          <div className="text-[11px] font-semibold text-[#D97757]">
                             {person.relationLabel}
                           </div>
                         </div>
@@ -2098,8 +2097,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                       <span
                         className={`px-3 py-1 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1 shrink-0 ${
                           isLinked
-                            ? 'bg-emerald-700 text-white'
-                            : 'bg-[#FAF6F0] text-[#252321] border border-[#E5DAC8]'
+                            ? 'bg-[#D97757] text-[#F5F1E8]'
+                            : 'bg-[#F5F1E8] text-[#1F1F1C] border border-[#D8C7B2]'
                         }`}
                       >
                         {isLinked ? (
@@ -2116,14 +2115,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 })}
             </div>
 
-            <div className="pt-2 border-t border-[#E5DAC8] flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-[#8D4925] tabular-nums">
+            <div className="pt-2 border-t border-[#D8C7B2] flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-[#D97757] tabular-nums">
                 الأفراد المربوطون: {activeLinkingItem.linkedPersonIds.length}
               </span>
               <button
                 type="button"
                 onClick={() => setLinkingItemId(null)}
-                className="px-5 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer"
               >
                 تم الحفظ والمزامنة
               </button>
@@ -2137,30 +2136,30 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* =================================================================== */}
       {showNewFolderModal && (
         <div
-          className="fixed inset-0 z-50 bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[#1F1F1C]/65 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >
           <form
             onSubmit={handleCreateFolder}
-            className="w-full max-w-md rounded-3xl bg-[#FFFDF9] border-2 border-[#C5A059] p-6 shadow-2xl space-y-4 text-right"
+            className="w-full max-w-md rounded-3xl bg-[#F5F1E8] border-2 border-[#D97757] p-6 shadow-2xl space-y-4 text-right"
           >
-            <div className="flex items-center justify-between border-b border-[#E5DAC8] pb-3">
-              <h3 className="text-base font-display font-extrabold text-[#252321]">
+            <div className="flex items-center justify-between border-b border-[#D8C7B2] pb-3">
+              <h3 className="text-base font-display font-extrabold text-[#1F1F1C]">
                 إنشاء مجلد خاص في خزانتي
               </h3>
               <button
                 type="button"
                 onClick={() => setShowNewFolderModal(false)}
                 aria-label="إغلاق نافذة إنشاء مجلد"
-                className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-[#E8DED2] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#252321]">
+              <label className="block text-xs font-bold text-[#1F1F1C]">
                 اسم المجلد *
               </label>
               <input
@@ -2169,12 +2168,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="مثال: وثائق الجد الأول، صور مجلس العائلة..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#D9CCB9] text-xs sm:text-sm font-bold text-[#252321] focus:outline-none focus:border-[#C5A059]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs sm:text-sm font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#252321]">
+              <label className="block text-xs font-bold text-[#1F1F1C]">
                 أيقونة المجلد
               </label>
               <div className="flex flex-wrap gap-2">
@@ -2185,8 +2184,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     onClick={() => setNewFolderIcon(ic)}
                     className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center border cursor-pointer transition-all ${
                       newFolderIcon === ic
-                        ? 'bg-[#252321] border-[#252321] scale-105 shadow-xs'
-                        : 'bg-[#FAF6F0] border-[#E5DAC8] hover:border-[#C5A059]'
+                        ? 'bg-[#1F1F1C] border-[#1F1F1C] scale-105 shadow-xs'
+                        : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D97757]'
                     }`}
                   >
                     {ic}
@@ -2196,7 +2195,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#252321]">
+              <label className="block text-xs font-bold text-[#1F1F1C]">
                 طابع اللون
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -2216,8 +2215,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     onClick={() => setNewFolderTheme(t.id)}
                     className={`py-2 px-3 rounded-xl text-xs font-bold border cursor-pointer ${
                       newFolderTheme === t.id
-                        ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-                        : 'bg-[#FAF6F0] text-[#252321] border-[#E5DAC8]'
+                        ? 'bg-[#1F1F1C] text-[#D97757] border-[#1F1F1C]'
+                        : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]'
                     }`}
                   >
                     {t.label}
@@ -2229,14 +2228,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             <div className="pt-2 flex items-center gap-2">
               <button
                 type="submit"
-                className="flex-1 py-2.5 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs sm:text-sm font-display font-extrabold cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold cursor-pointer"
               >
                 إنشاء وحفظ المجلد
               </button>
               <button
                 type="button"
                 onClick={() => setShowNewFolderModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-[#FAF6F0] border border-[#E5DAC8] text-xs font-bold text-[#252321] cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold text-[#1F1F1C] cursor-pointer"
               >
                 إلغاء
               </button>
@@ -2250,17 +2249,17 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       {/* =================================================================== */}
       {activeLightboxItem && (
         <div
-          className="fixed inset-0 z-50 bg-[#252321]/85 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[#1F1F1C]/85 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           onClick={() => setLightboxItemId(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-5xl rounded-3xl bg-[#FFFDF9] border-2 border-[#C5A059] overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-12 max-h-[90vh]"
+            className="w-full max-w-5xl rounded-3xl bg-[#F5F1E8] border-2 border-[#D97757] overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-12 max-h-[90vh]"
           >
             {/* Visual Preview Column */}
-            <div className="lg:col-span-7 bg-[#181614] flex items-center justify-center p-5 relative min-h-[280px] lg:min-h-[480px]">
+            <div className="lg:col-span-7 bg-[#1F1F1C] flex items-center justify-center p-5 relative min-h-[280px] lg:min-h-[480px]">
               {isRenderableImageSource(
                 activeLightboxItem.fileDataUrl,
                 activeLightboxItem.fileMimeType,
@@ -2277,12 +2276,12 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                   }`}
                 />
               ) : (
-                <div className="text-center space-y-3 text-[#FAF6F0] p-8">
-                  <FileText className="w-16 h-16 text-[#D8755B] mx-auto" />
+                <div className="text-center space-y-3 text-[#F5F1E8] p-8">
+                  <FileText className="w-16 h-16 text-[#D97757] mx-auto" />
                   <div className="text-base font-display font-bold">
                     {activeLightboxItem.title}
                   </div>
-                  <div className="text-xs text-[#FAF6F0]/70">
+                  <div className="text-xs text-[#F5F1E8]/70">
                     {activeLightboxItem.fileName}
                   </div>
                 </div>
@@ -2301,7 +2300,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     }}
                     title="السابق"
                     aria-label="المقتنى السابق"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#252321]/80 hover:bg-[#C5A059] text-[#FFFDF9] hover:text-[#252321] border border-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#1F1F1C]/80 hover:bg-[#D97757] text-[#F5F1E8] hover:text-[#1F1F1C] border border-[#F5F1E8]/15 flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -2314,11 +2313,11 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     }}
                     title="التالي"
                     aria-label="المقتنى التالي"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#252321]/80 hover:bg-[#C5A059] text-[#FFFDF9] hover:text-[#252321] border border-white/15 flex items-center justify-center transition-colors cursor-pointer"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#1F1F1C]/80 hover:bg-[#D97757] text-[#F5F1E8] hover:text-[#1F1F1C] border border-[#F5F1E8]/15 flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#252321]/80 text-[#FAF6F0] text-[11px] font-display font-bold tabular-nums">
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#1F1F1C]/80 text-[#F5F1E8] text-[11px] font-display font-bold tabular-nums">
                     {activeLightboxIndex + 1} / {filteredItems.length}
                   </div>
                 </>
@@ -2328,9 +2327,9 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
             {/* Metadata, Inline Rename & Two-Way Tree Links Column */}
             <div className="lg:col-span-5 p-6 flex flex-col justify-between space-y-5 overflow-y-auto text-right">
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-2 border-b border-[#E5DAC8] pb-3.5">
+                <div className="flex items-start justify-between gap-2 border-b border-[#D8C7B2] pb-3.5">
                   <div className="flex-1 min-w-0">
-                    <span className="text-[11px] font-bold text-[#8D4925]">
+                    <span className="text-[11px] font-bold text-[#D97757]">
                       {activeLightboxItem.mediaType === 'photo'
                         ? 'صورة فوتوغرافية عائلية'
                         : 'وثيقة أو صك تاريخي'}
@@ -2352,21 +2351,21 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                               handleCancelInlineRename();
                             }
                           }}
-                          className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#C5A059] text-sm font-display font-extrabold text-[#252321] focus:outline-none"
+                          className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757] text-sm font-display font-extrabold text-[#1F1F1C] focus:outline-none"
                         />
                         <button
                           type="button"
                           onClick={() =>
                             handleCommitInlineRename(activeLightboxItem.id)
                           }
-                          className="px-2.5 py-1.5 rounded-lg bg-[#252321] text-[#F3D299] text-xs font-bold cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg bg-[#1F1F1C] text-[#D97757] text-xs font-bold cursor-pointer"
                         >
                           حفظ
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 mt-0.5">
-                        <h3 className="text-lg font-display font-extrabold text-[#252321] truncate">
+                        <h3 className="text-lg font-display font-extrabold text-[#1F1F1C] truncate">
                           {activeLightboxItem.title}
                         </h3>
                         <button
@@ -2376,7 +2375,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           }
                           title="تعديل العنوان"
                           aria-label="تعديل عنوان المقتنى"
-                          className="w-7 h-7 rounded-lg hover:bg-[#FAF6F0] text-[#8D4925] flex items-center justify-center shrink-0 cursor-pointer"
+                          className="w-7 h-7 rounded-lg hover:bg-[#F5F1E8] text-[#D97757] flex items-center justify-center shrink-0 cursor-pointer"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -2388,23 +2387,23 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                     type="button"
                     onClick={() => setLightboxItemId(null)}
                     aria-label="إغلاق المعاينة"
-                    className="w-8 h-8 rounded-lg hover:bg-[#EDE6DA] flex items-center justify-center cursor-pointer shrink-0"
+                    className="w-8 h-8 rounded-lg hover:bg-[#E8DED2] flex items-center justify-center cursor-pointer shrink-0"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 text-xs">
-                  <div className="rounded-xl bg-[#FAF6F0] p-3 border border-[#E5DAC8]">
-                    <div className="text-[10px] text-[#8D4925] font-bold">
+                  <div className="rounded-xl bg-[#F5F1E8] p-3 border border-[#D8C7B2]">
+                    <div className="text-[10px] text-[#D97757] font-bold">
                       التاريخ / المناسبة
                     </div>
-                    <div className="font-display font-extrabold text-[#252321] mt-0.5 tabular-nums">
+                    <div className="font-display font-extrabold text-[#1F1F1C] mt-0.5 tabular-nums">
                       {activeLightboxItem.dateOrOccasion}
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#FAF6F0] p-3 border border-[#E5DAC8]">
-                    <div className="text-[10px] text-[#8D4925] font-bold">
+                  <div className="rounded-xl bg-[#F5F1E8] p-3 border border-[#D8C7B2]">
+                    <div className="text-[10px] text-[#D97757] font-bold">
                       المجلد الحالي
                     </div>
                     <select
@@ -2415,7 +2414,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                           e.target.value
                         )
                       }
-                      className="w-full bg-transparent font-display font-extrabold text-[#252321] mt-0.5 focus:outline-none cursor-pointer"
+                      className="w-full bg-transparent font-display font-extrabold text-[#1F1F1C] mt-0.5 focus:outline-none cursor-pointer"
                     >
                       {folders.map((f) => (
                         <option key={f.id} value={f.id}>
@@ -2429,13 +2428,13 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 {/* Linked Individuals in `شجرتي` */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-display font-extrabold text-[#252321] tabular-nums">
+                    <span className="text-xs font-display font-extrabold text-[#1F1F1C] tabular-nums">
                       الأفراد المربوطون في «شجرتي» ({activeLightboxItem.linkedPersonIds.length})
                     </span>
                     <button
                       type="button"
                       onClick={() => setLinkingItemId(activeLightboxItem.id)}
-                      className="text-xs font-bold text-[#D8755B] hover:underline cursor-pointer"
+                      className="text-xs font-bold text-[#D97757] hover:underline cursor-pointer"
                     >
                       + تعديل الربط
                     </button>
@@ -2443,7 +2442,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
 
                   <div className="flex flex-wrap gap-1.5">
                     {activeLightboxItem.linkedPersonIds.length === 0 ? (
-                      <div className="text-xs text-[#252321]/60 bg-[#FAF6F0] rounded-xl p-3 w-full border border-[#E5DAC8]">
+                      <div className="text-xs text-[#1F1F1C]/60 bg-[#F5F1E8] rounded-xl p-3 w-full border border-[#D8C7B2]">
                         لم يتم ربط هذا الملف بفرد في الشجرة بعد. اضغط «+ تعديل الربط» لربطه بأفراد شجرتك.
                       </div>
                     ) : (
@@ -2453,10 +2452,10 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                         return (
                           <span
                             key={pid}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#C5A059]/55 text-xs font-display font-bold text-[#252321]"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/55 text-xs font-display font-bold text-[#1F1F1C]"
                           >
                             <span>{person.fullName}</span>
-                            <span className="text-[10px] text-[#8D4925]">
+                            <span className="text-[10px] text-[#D97757]">
                               · {person.relationLabel}
                             </span>
                           </span>
@@ -2467,14 +2466,14 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-[#E5DAC8] flex flex-wrap items-center gap-2">
+              <div className="pt-4 border-t border-[#D8C7B2] flex flex-wrap items-center gap-2">
                 <a
                   href={activeLightboxItem.fileDataUrl}
                   download={
                     activeLightboxItem.fileName ||
                     `${activeLightboxItem.title}.jpg`
                   }
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
                 >
                   <Download className="w-4 h-4" />
                   <span>تنزيل نسخة أصلية</span>
@@ -2483,7 +2482,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleToggleEnhancement(activeLightboxItem.id)}
-                  className="py-2.5 px-3.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#D9CCB9] text-xs font-display font-bold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  className="py-2.5 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>
@@ -2496,7 +2495,7 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleDeleteItem(activeLightboxItem.id)}
-                  className="py-2.5 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-700 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                  className="py-2.5 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-bold text-[#D97757] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>حذف</span>

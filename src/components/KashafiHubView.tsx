@@ -359,7 +359,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
   return (
     <div
       data-testid="kashafi-hub-view"
-      className="w-full space-y-3.5 text-[#252321]"
+      className="w-full space-y-3.5 text-[#1F1F1C]"
     >
       {/* Unified Workspace Header (Obsidian Gilded Icon Variant + 1-Line Meta Strip) */}
       <UnifiedWorkspaceHeader
@@ -370,7 +370,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
           'متابعة البعثات البحثية والرادار العلمي',
           <span key="missions" className="tabular-nums">
             البعثات الجارية:{' '}
-            <strong className="font-semibold text-[#2C1E14]">
+            <strong className="font-semibold text-[#1F1F1C]">
               {activeMissionsCount}
             </strong>
           </span>,
@@ -378,7 +378,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
             <span>رصيد المحفظة:</span>
             <strong
               dir="ltr"
-              className="font-mono font-semibold tabular-nums text-[#2C1E14]"
+              className="font-mono font-semibold tabular-nums text-[#1F1F1C]"
             >
               ${walletBalance.toFixed(2)}
             </strong>
@@ -395,7 +395,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
             >
               <RefreshCw
                 className={`w-4 h-4 shrink-0 ${
-                  isLoadingData ? 'animate-spin text-[#9E5631]' : ''
+                  isLoadingData ? 'animate-spin text-[#D97757]' : ''
                 }`}
               />
               <span>تحديث الرادار</span>
@@ -415,15 +415,15 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
       />
 
       {orderSuccessToast && (
-        <div className="rounded-2xl bg-emerald-50 border border-emerald-400 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-display font-bold text-emerald-950">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+        <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-display font-bold text-[#1F1F1C]">
+            <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
             <span>{orderSuccessToast}</span>
           </div>
           <button
             type="button"
             onClick={() => setOrderSuccessToast(null)}
-            className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-900 cursor-pointer"
+            className="p-1 rounded-lg hover:bg-[#E8DED2] text-[#1F1F1C] cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -455,17 +455,17 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
       {/* ===================================================================
           SECTION 2: رادار الاكتشافات والبشارات العلمية لعائلتكم (100% Real Data)
          =================================================================== */}
-      <section className="space-y-4 pt-5 border-t border-[#E2DACB]">
+      <section className="space-y-4 pt-5 border-t border-[#D8C7B2]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#FAF4E4] border border-[#C5A059]/60 flex items-center justify-center text-[#8D4925] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] border border-[#D97757]/60 flex items-center justify-center text-[#D97757] shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+              <h2 className="text-base sm:text-lg font-display font-bold text-[#1F1F1C]">
                 رادار الاكتشافات والبشارات العلمية لعائلتكم
               </h2>
-              <p className="text-xs text-[#6E6456]">
+              <p className="text-xs text-[#1F1F1C]/70">
                 التحديثات الفعلية المعتمدة من مرصد البحوث لعائلة {result.familyName}
                 {unreadItemsCount > 0 ? ` · ${unreadItemsCount} جديد غير مقروء` : ''}
               </p>
@@ -474,15 +474,15 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
         </div>
 
         {isLoadingData ? (
-          <div className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-6 text-center">
-            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#D8755B]" />
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-6 text-center">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#D97757]" />
           </div>
         ) : kashafiItems.length === 0 ? (
           <div
             data-testid="kashafi-radar-empty-state"
-            className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-6 text-right"
+            className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-6 text-right"
           >
-            <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed max-w-3xl">
+            <p className="text-xs sm:text-sm text-[#1F1F1C]/70 leading-relaxed max-w-3xl">
               رادار كشّافي يتابع سجلات عائلتكم لدى مرصد البحوث — ستظهر هنا تلقائياً أي حلقات نسب مكتشفة أو وثائق مرجعية فور رصدها واعتمادها.
             </p>
           </div>
@@ -495,24 +495,24 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                   key={item.id}
                   className={`rounded-2xl border p-5 transition-colors ${
                     item.isRead
-                      ? 'bg-[#FFFDF9] border-[#E2DACB]'
-                      : 'bg-[#FFFDF9] border-[#C5A059]'
+                      ? 'bg-[#F5F1E8] border-[#D8C7B2]'
+                      : 'bg-[#F5F1E8] border-[#D97757]'
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#8D4925]">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#D97757]">
                         <span className="font-display font-bold">
                           {getItemTypeLabelAr(item.type)}
                         </span>
-                        <span aria-hidden="true" className="text-[#D8D0C0]">
+                        <span aria-hidden="true" className="text-[#D8C7B2]">
                           ·
                         </span>
-                        <span className="text-[#6E6456]">{item.authorName}</span>
-                        <span aria-hidden="true" className="text-[#D8D0C0]">
+                        <span className="text-[#1F1F1C]/70">{item.authorName}</span>
+                        <span aria-hidden="true" className="text-[#D8C7B2]">
                           ·
                         </span>
-                        <span className="text-[#8C8272] tabular-nums">
+                        <span className="text-[#1F1F1C]/70 tabular-nums">
                           {new Date(item.createdAt).toLocaleDateString('ar-SA', {
                             year: 'numeric',
                             month: 'short',
@@ -521,21 +521,21 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                         </span>
                         {!item.isRead && (
                           <>
-                            <span aria-hidden="true" className="text-[#D8D0C0]">
+                            <span aria-hidden="true" className="text-[#D8C7B2]">
                               ·
                             </span>
-                            <span className="font-display font-bold text-[#D8755B]">
+                            <span className="font-display font-bold text-[#D97757]">
                               جديد
                             </span>
                           </>
                         )}
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-display font-bold text-[#252321]">
+                      <h3 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]">
                         {item.title}
                       </h3>
 
-                      <p className="text-xs sm:text-sm text-[#5C5346] leading-relaxed">
+                      <p className="text-xs sm:text-sm text-[#1F1F1C]/70 leading-relaxed">
                         {item.summary}
                       </p>
                     </div>
@@ -548,7 +548,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                             setExpandedItemId(isExpanded ? null : item.id);
                             if (!item.isRead) handleMarkItemRead(item);
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#E2DACB] text-xs font-display font-bold text-[#8D4925] cursor-pointer whitespace-nowrap shrink-0"
+                          className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] cursor-pointer whitespace-nowrap shrink-0"
                         >
                           {isExpanded ? 'إخفاء التفاصيل' : 'عرض التقرير والمصادر'}
                         </button>
@@ -557,7 +557,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleMarkItemRead(item)}
-                          className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#5C5346] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                          className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]/70 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                         >
                           <Check className="w-3.5 h-3.5" />
                           <span>تمت القراءة</span>
@@ -567,15 +567,15 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                   </div>
 
                   {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-[#EDE6DA] space-y-2.5 text-xs">
+                    <div className="mt-4 pt-4 border-t border-[#D8C7B2] space-y-2.5 text-xs">
                       {item.details && (
-                        <div className="text-[#252321] leading-relaxed whitespace-pre-line">
+                        <div className="text-[#1F1F1C] leading-relaxed whitespace-pre-line">
                           {item.details}
                         </div>
                       )}
                       {item.sourceCitation && (
-                        <div className="text-[#5C5346]">
-                          <strong className="text-[#8D4925]">
+                        <div className="text-[#1F1F1C]/70">
+                          <strong className="text-[#D97757]">
                             المصدر والمرجع المعتمد:
                           </strong>{' '}
                           {item.sourceCitation}
@@ -587,7 +587,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                             href={item.deliverableUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[#8D4925] hover:text-[#D8755B] font-display font-bold underline"
+                            className="inline-flex items-center gap-1.5 text-[#D97757] hover:text-[#D97757] font-display font-bold underline"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                             <span>فتح الملف أو الوثيقة المرفقة</span>
@@ -607,16 +607,16 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
           ACTIVE KASHAFI SERVICE ORDERS TRACKER (Only when real orders exist)
          =================================================================== */}
       {orders.length > 0 && (
-        <section className="space-y-3 pt-2 border-t border-[#E2DACB]">
+        <section className="space-y-3 pt-2 border-t border-[#D8C7B2]">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] shrink-0">
               <FileCheck2 className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-display font-bold text-[#252321]">
+              <h2 className="text-base font-display font-bold text-[#1F1F1C]">
                 طلباتك البحثية الجارية في كشّافي ({orders.length})
               </h2>
-              <p className="text-xs text-[#6E6456]">
+              <p className="text-xs text-[#1F1F1C]/70">
                 حالة الخدمات البحثية المسندة تلقائياً إلى مدير البحوث
               </p>
             </div>
@@ -626,27 +626,27 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
             {orders.map((ord) => (
               <div
                 key={ord.id}
-                className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-4 flex flex-col justify-between gap-3"
+                className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-4 flex flex-col justify-between gap-3"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-mono tabular-nums font-bold text-[#8D4925]">
+                    <span className="font-mono tabular-nums font-bold text-[#D97757]">
                       #{ord.orderNumber}
                     </span>
                     <span
                       className={`font-display font-bold ${
                         ord.status === 'COMPLETED'
-                          ? 'text-emerald-700'
-                          : 'text-[#D8755B]'
+                          ? 'text-[#D97757]'
+                          : 'text-[#D97757]'
                       }`}
                     >
                       {getKashafiOrderStatusLabelAr(ord.status)}
                     </span>
                   </div>
-                  <h3 className="text-sm font-display font-bold text-[#252321]">
+                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                     {ord.campaignTitle}
                   </h3>
-                  <div className="text-[11px] text-[#6E6456] flex flex-wrap items-center gap-2">
+                  <div className="text-[11px] text-[#1F1F1C]/70 flex flex-wrap items-center gap-2">
                     <span>المسؤول: {ord.assignedResearcherName || 'مدير البحوث'}</span>
                     <span>·</span>
                     <span className="tabular-nums">
@@ -659,7 +659,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                   </div>
                 </div>
                 {ord.status === 'COMPLETED' && ord.researcherReport && (
-                  <p className="text-xs text-[#5C5346] pt-2 border-t border-[#EDE6DA] line-clamp-2">
+                  <p className="text-xs text-[#1F1F1C]/70 pt-2 border-t border-[#D8C7B2] line-clamp-2">
                     {ord.researcherReport}
                   </p>
                 )}
@@ -672,29 +672,29 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
       {/* ===================================================================
           SECTION 3: خدمات ومزايا متاحة للإضافة وإعلانات المنصة (100% Real Published Campaigns ONLY)
          =================================================================== */}
-      <section className="space-y-4 pt-2 border-t border-[#E2DACB]">
+      <section className="space-y-4 pt-2 border-t border-[#D8C7B2]">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E2DACB] flex items-center justify-center text-[#8D4925] shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-display font-bold text-[#252321]">
+            <h2 className="text-base sm:text-lg font-display font-bold text-[#1F1F1C]">
               خدمات ومزايا متاحة للإضافة وإعلانات المنصة
             </h2>
-            <p className="text-xs text-[#6E6456]">
+            <p className="text-xs text-[#1F1F1C]/70">
               البرامج البحثية والخدمات المنشورة فعلياً من إدارة منصة جذوري والمناسبة لحسابكم
             </p>
           </div>
         </div>
 
         {isLoadingData ? (
-          <div className="rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-6 text-center">
-            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#D8755B]" />
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-6 text-center">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#D97757]" />
           </div>
         ) : eligibleCampaigns.length === 0 ? (
           <p
             data-testid="kashafi-campaigns-empty-note"
-            className="text-xs text-[#8C8272] py-2"
+            className="text-xs text-[#1F1F1C]/70 py-2"
           >
             لا توجد خدمات إضافية أو إعلانات موجهة منشورة لحسابكم في الوقت الحالي.
           </p>
@@ -712,42 +712,42 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
               return (
                 <div
                   key={cmp.id}
-                  className="h-full rounded-2xl bg-[#FFFDF9] border border-[#E2DACB] p-5 flex flex-col justify-between gap-4 hover:border-[#C5A059] transition-colors"
+                  className="h-full rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 hover:border-[#D97757] transition-colors"
                 >
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2 text-xs text-[#8D4925]">
+                    <div className="flex items-center justify-between gap-2 text-xs text-[#D97757]">
                       <span className="font-display font-bold">
                         {getKashafiCategoryLabelAr(cmp.category)}
                       </span>
-                      <span className="font-mono tabular-nums font-bold text-[#252321]">
+                      <span className="font-mono tabular-nums font-bold text-[#1F1F1C]">
                         {priceText}
                       </span>
                     </div>
 
-                    <h3 className="text-sm sm:text-base font-display font-bold text-[#252321] leading-snug">
+                    <h3 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C] leading-snug">
                       {cmp.title}
                     </h3>
 
-                    <p className="text-xs text-[#5C5346] leading-relaxed">
+                    <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
                       {cmp.description}
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-[#EDE6DA]">
+                  <div className="pt-3 border-t border-[#D8C7B2]">
                     {existingOrder &&
                     existingOrder.status !== 'CANCELLED' ? (
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1.5 font-display font-bold text-[#8D4925]">
+                        <span className="inline-flex items-center gap-1.5 font-display font-bold text-[#D97757]">
                           {existingOrder.status === 'COMPLETED' ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                            <CheckCircle2 className="w-4 h-4 text-[#D97757]" />
                           ) : (
-                            <Clock className="w-4 h-4 text-[#D8755B]" />
+                            <Clock className="w-4 h-4 text-[#D97757]" />
                           )}
                           <span>
                             {getKashafiOrderStatusLabelAr(existingOrder.status)}
                           </span>
                         </span>
-                        <span className="font-mono tabular-nums text-[11px] text-[#8C8272]">
+                        <span className="font-mono tabular-nums text-[11px] text-[#1F1F1C]/70">
                           #{existingOrder.orderNumber}
                         </span>
                       </div>
@@ -755,7 +755,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleCampaignCtaClick(cmp)}
-                        className="w-full py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#D97757] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
                       >
                         <span>
                           {cmp.ctaLabel ||
@@ -779,44 +779,44 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
          =================================================================== */}
       {selectedCampaignForOrder && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#252321]/65 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#1F1F1C]/65 backdrop-blur-xs p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-lg rounded-2xl bg-[#FFFDF9] border border-[#C5A059] p-6 shadow-2xl space-y-4 text-right">
-            <div className="flex items-start justify-between gap-3 border-b border-[#EDE6DA] pb-3">
+          <div className="w-full max-w-lg rounded-2xl bg-[#F5F1E8] border border-[#D97757] p-6 shadow-2xl space-y-4 text-right">
+            <div className="flex items-start justify-between gap-3 border-b border-[#D8C7B2] pb-3">
               <div>
-                <div className="text-xs font-display font-bold text-[#8D4925]">
+                <div className="text-xs font-display font-bold text-[#D97757]">
                   تأكيد طلب خدمة بحثية وإسنادها لمدير البحوث
                 </div>
-                <h3 className="text-base font-display font-bold text-[#252321] mt-1">
+                <h3 className="text-base font-display font-bold text-[#1F1F1C] mt-1">
                   {selectedCampaignForOrder.title}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedCampaignForOrder(null)}
-                className="w-8 h-8 rounded-lg hover:bg-[#FAF6F0] flex items-center justify-center text-[#252321] cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-[#F5F1E8] flex items-center justify-center text-[#1F1F1C] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-[#5C5346] leading-relaxed">
+            <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
               {selectedCampaignForOrder.description}
             </p>
 
-            <div className="rounded-xl bg-[#FAF6F0] border border-[#E2DACB] p-3.5 space-y-1.5 text-xs">
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-[#6E6456]">جهة التنفيذ المعتمدة:</span>
-                <strong className="text-[#252321]">
+                <span className="text-[#1F1F1C]/70">جهة التنفيذ المعتمدة:</span>
+                <strong className="text-[#1F1F1C]">
                   {selectedCampaignForOrder.assignedResearcherName ||
                     'مدير البحوث (إسناد تلقائي)'}
                 </strong>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6E6456]">التكلفة المطلوبة:</span>
-                <strong className="font-mono tabular-nums text-[#8D4925]">
+                <span className="text-[#1F1F1C]/70">التكلفة المطلوبة:</span>
+                <strong className="font-mono tabular-nums text-[#D97757]">
                   {selectedCampaignForOrder.freeForPremium && caps.isVip
                     ? '$0 (مشمول في الباقة السنوية)'
                     : selectedCampaignForOrder.priceUsd > 0
@@ -825,15 +825,15 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                 </strong>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6E6456]">رصيد محفظتك الحالي:</span>
-                <strong className="font-mono tabular-nums text-[#252321]">
+                <span className="text-[#1F1F1C]/70">رصيد محفظتك الحالي:</span>
+                <strong className="font-mono tabular-nums text-[#1F1F1C]">
                   ${walletBalance.toFixed(2)}
                 </strong>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-display font-bold text-[#252321] mb-1">
+              <label className="block text-xs font-display font-bold text-[#1F1F1C] mb-1">
                 ملاحظات أو تفاصيل إضافية للباحث (اختياري)
               </label>
               <textarea
@@ -841,12 +841,12 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                 value={orderCustomerNotes}
                 onChange={(e) => setOrderCustomerNotes(e.target.value)}
                 placeholder="أضف أي تفاصيل تساعد مدير البحوث في تنفيذ طلبكم بدقة..."
-                className="w-full rounded-xl bg-[#FAF6F0] border border-[#D8D0C0] px-3.5 py-2 text-xs text-[#252321] focus:bg-white focus:outline-none focus:border-[#D8755B]"
+                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] focus:bg-[#F5F1E8] focus:outline-none focus:border-[#D97757]"
               />
             </div>
 
             {orderError && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2">
+              <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3 text-xs text-[#1F1F1C] flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="space-y-1.5">
                   <p>{orderError}</p>
@@ -856,7 +856,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                       setSelectedCampaignForOrder(null);
                       onOpenWalletDrawer();
                     }}
-                    className="underline font-bold text-[#8D4925] cursor-pointer"
+                    className="underline font-bold text-[#D97757] cursor-pointer"
                   >
                     فتح المحفظة لشحن الرصيد ←
                   </button>
@@ -864,11 +864,11 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EDE6DA]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8C7B2]">
               <button
                 type="button"
                 onClick={() => setSelectedCampaignForOrder(null)}
-                className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#D8D0C0] text-xs font-display font-bold text-[#5C5346] cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]/70 cursor-pointer"
               >
                 إلغاء
               </button>
@@ -876,7 +876,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                 type="button"
                 disabled={isSubmittingOrder}
                 onClick={handleConfirmResearchServiceOrder}
-                className="px-5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
               >
                 {isSubmittingOrder ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

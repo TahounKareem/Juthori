@@ -500,7 +500,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[90] bg-[#2A221B]/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-[90] bg-[#1F1F1C]/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label={bindingHeadline}
@@ -509,20 +509,20 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
       <div
         ref={modalScrollContainerRef}
         dir="rtl"
-        className="bg-[#FDFBF7] border border-[#D4AF37]/45 rounded-3xl max-w-xl w-full shadow-[0_24px_70px_-18px_rgba(68,46,24,0.34)] my-4 max-h-[92vh] overflow-y-auto text-right flex flex-col animate-[treePopoverIn_180ms_cubic-bezier(0.16,1,0.3,1)_both]"
+        className="bg-[#F5F1E8] border border-[#D8C7B2]/45 rounded-3xl max-w-xl w-full shadow-[0_24px_70px_-18px_rgba(31,31,28,0.34)] my-4 max-h-[92vh] overflow-y-auto text-right flex flex-col animate-[treePopoverIn_180ms_cubic-bezier(0.16,1,0.3,1)_both]"
       >
         {/* ================================================================= */}
         {/* 1. COMPACT SINGLE-LINE TOP BAR                                    */}
         {/* ================================================================= */}
-        <div className="px-5 py-3.5 bg-gradient-to-l from-[#FAF5EA] via-[#F7F0E3] to-[#F3E9D8] border-b border-[#D4AF37]/25 flex items-center justify-between gap-3 shrink-0">
-          <h3 className="text-sm font-display font-extrabold text-[#2D241E] truncate">
+        <div className="px-5 py-3.5 bg-gradient-to-l from-[#F5F1E8] via-[#E8DED2] to-[#E8DED2] border-b border-[#D8C7B2]/25 flex items-center justify-between gap-3 shrink-0">
+          <h3 className="text-sm font-display font-extrabold text-[#1F1F1C] truncate">
             {bindingHeadline}
           </h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="إغلاق النافذة"
-            className="w-8 h-8 rounded-full bg-white/90 hover:bg-[#F3E5D0] border border-[#D4AF37]/30 text-[#6E543D] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+            className="w-8 h-8 rounded-full bg-[#F5F1E8]/90 hover:bg-[#E8DED2] border border-[#D8C7B2]/30 text-[#D97757] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -534,16 +534,16 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
         {hasExistingFatherWivesSelector && smartAddMotherContext && (
           <div
             data-testid="smart-add-mother-panel"
-            className="mx-5 mt-4 rounded-2xl bg-[#FEF9EC] border border-[#C5A059]/50 p-3.5 space-y-2.5 shrink-0"
+            className="mx-5 mt-4 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/50 p-3.5 space-y-2.5 shrink-0"
           >
             <div className="space-y-0.5">
-              <div className="text-xs font-display font-extrabold text-[#7A4B1B] flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+              <div className="text-xs font-display font-extrabold text-[#D97757] flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                 <span>
                   اختيار الأم من زوجات ({smartAddMotherContext.fatherName}) أو إضافة زوجة جديدة
                 </span>
               </div>
-              <p className="text-[11px] text-[#5E4A39]">
+              <p className="text-[11px] text-[#D97757]">
                 اختر إحدى زوجات {smartAddMotherContext.fatherName} لربط «{smartAddMotherContext.childName}» بها فوراً دون تكرار، أو أضف أماً جديدة.
               </p>
             </div>
@@ -568,8 +568,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     }}
                     className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-2 ${
                       active
-                        ? 'bg-gradient-to-b from-[#B9623D] to-[#8D4925] text-[#FFFDF8] border-[#8D4925] shadow-xs'
-                        : 'bg-white text-[#2D241E] border-[#D4AF37]/40 hover:border-[#8D4925]'
+                        ? 'bg-gradient-to-b from-[#D97757] to-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs'
+                        : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D8C7B2]/40 hover:border-[#D97757]'
                     }`}
                   >
                     <span aria-hidden="true">💍</span>
@@ -578,7 +578,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       {wife.kunya ? ` (${wife.kunya})` : ''}
                     </span>
                     {active && (
-                      <Check className="w-3.5 h-3.5 text-[#F9E4B0]" />
+                      <Check className="w-3.5 h-3.5 text-[#F5F1E8]" />
                     )}
                   </button>
                 );
@@ -592,8 +592,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 }
                 className={`px-3.5 py-2 rounded-xl text-xs font-display font-extrabold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                   smartAddMotherContext.choiceMode === 'create_new'
-                    ? 'bg-[#F5E6CE] text-[#7A4B1B] border-[#C59B27] shadow-2xs'
-                    : 'bg-white text-[#8D4925] border-dashed border-[#C5A059] hover:bg-[#FAF4E8]'
+                    ? 'bg-[#E8DED2] text-[#D97757] border-[#D97757] shadow-2xs'
+                    : 'bg-[#F5F1E8] text-[#D97757] border-dashed border-[#D97757] hover:bg-[#F5F1E8]'
                 }`}
               >
                 <span>
@@ -615,17 +615,17 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
         >
           {/* Rapid-Add Feedback Toast (when using حفظ وإضافة آخر +) */}
           {quickAddSuccessNotice && (
-            <div className="rounded-xl bg-emerald-50/90 border border-emerald-200 px-3.5 py-2 text-xs font-display font-bold text-emerald-800 flex items-center gap-2 animate-[studioPanelReveal_180ms_ease-out_both]">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="rounded-xl bg-[#F5F1E8]/90 border border-[#D8C7B2] px-3.5 py-2 text-xs font-display font-bold text-[#1F1F1C] flex items-center gap-2 animate-[studioPanelReveal_180ms_ease-out_both]">
+              <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
               <span>{quickAddSuccessNotice}</span>
             </div>
           )}
 
           {isSelectingExistingMother && smartAddMotherContext ? (
-            <div className="rounded-2xl bg-white border border-[#D4AF37]/35 p-4 space-y-2 text-xs text-[#4A3B2F] leading-relaxed">
+            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2]/35 p-4 space-y-2 text-xs text-[#1F1F1C] leading-relaxed">
               {chosenExistingWifeForMotherFlow ? (
                 <>
-                  <div className="font-display font-extrabold text-[#2D241E] text-sm">
+                  <div className="font-display font-extrabold text-[#1F1F1C] text-sm">
                     تأكيد ربط الأم: «{chosenExistingWifeForMotherFlow.firstName}»
                   </div>
                   <p>
@@ -635,7 +635,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                   </p>
                 </>
               ) : (
-                <p className="text-[#8D4925] font-semibold">
+                <p className="text-[#D97757] font-semibold">
                   يرجى اختيار إحدى الزوجات المسجلات أعلاه، أو النقر على «+ إضافة أم جديدة».
                 </p>
               )}
@@ -651,9 +651,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 <div className="flex flex-col items-center gap-1 shrink-0">
                   <label
                     title="رفع صورة شخصية"
-                    className="group relative block p-[3px] rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F2D598] to-[#9E6B2B] shadow-sm cursor-pointer transition-transform duration-200 hover:scale-[1.03]"
+                    className="group relative block p-[3px] rounded-full bg-gradient-to-br from-[#D97757] via-[#D97757] to-[#D97757] shadow-sm cursor-pointer transition-transform duration-200 hover:scale-[1.03]"
                   >
-                    <div className="rounded-full bg-[#FDFBF7] p-0.5">
+                    <div className="rounded-full bg-[#F5F1E8] p-0.5">
                       <HeritageNodeAvatar
                         personRole={
                           isRecordKeeperTarget
@@ -673,7 +673,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         size="lg"
                       />
                     </div>
-                    <span className="absolute -bottom-0.5 -left-0.5 w-7 h-7 rounded-full bg-gradient-to-b from-[#B9623D] to-[#8D4925] group-hover:from-[#C76E47] group-hover:to-[#7A3D1E] text-[#FFFDF8] border-2 border-[#FDFBF7] flex items-center justify-center shadow-xs transition-colors">
+                    <span className="absolute -bottom-0.5 -left-0.5 w-7 h-7 rounded-full bg-gradient-to-b from-[#D97757] to-[#D97757] group-hover:from-[#D97757] group-hover:to-[#D97757] text-[#F5F1E8] border-2 border-[#F5F1E8] flex items-center justify-center shadow-xs transition-colors">
                       {isUploadingPortrait ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
@@ -698,7 +698,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     <button
                       type="button"
                       onClick={onClearPhotoUrl}
-                      className="text-[10.5px] font-display font-semibold text-[#7B644D] hover:text-[#8D4925] inline-flex items-center gap-0.5 cursor-pointer"
+                      className="text-[10.5px] font-display font-semibold text-[#D97757] hover:text-[#D97757] inline-flex items-center gap-0.5 cursor-pointer"
                     >
                       <RotateCcw className="w-2.5 h-2.5" />
                       <span>رمزية</span>
@@ -710,9 +710,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 <div className="flex-1 min-w-0">
                   <label
                     htmlFor="studio-person-name-input"
-                    className="block text-xs font-display font-extrabold text-[#2D241E] mb-1.5"
+                    className="block text-xs font-display font-extrabold text-[#1F1F1C] mb-1.5"
                   >
-                    الاسم <span className="text-[#B8502C]">*</span>
+                    الاسم <span className="text-[#D97757]">*</span>
                   </label>
                   <input
                     id="studio-person-name-input"
@@ -727,7 +727,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         ? 'مثال: نورة / فاطمة / تغريد'
                         : 'مثال: محمد / عبدالله / شريف'
                     }
-                    className="w-full rounded-xl bg-white border border-[#D4AF37]/45 px-4 py-3 text-[15px] font-display font-bold text-[#252321] placeholder:text-[#252321]/35 focus:outline-none focus:border-[#A85A34] focus:ring-3 focus:ring-[#D4AF37]/20 shadow-2xs transition-all"
+                    className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/45 px-4 py-3 text-[15px] font-display font-bold text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757] focus:ring-3 focus:ring-[#D8C7B2]/20 shadow-2xs transition-all"
                   />
                 </div>
               </div>
@@ -737,7 +737,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
               {/* =========================================================== */}
               <div className="pt-1 space-y-2.5">
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <span className="text-[11px] font-display font-bold text-[#7E6750] ml-0.5">
+                  <span className="text-[11px] font-display font-bold text-[#D97757] ml-0.5">
                     تفاصيل إضافية:
                   </span>
 
@@ -749,16 +749,16 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     onClick={() => handleTogglePanel('identity')}
                     className={`px-3 py-1.5 rounded-full text-[11.5px] font-display font-bold border transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${
                       activeDetailPanel === 'identity'
-                        ? 'bg-gradient-to-b from-[#FAF0DC] to-[#F1DFBE] text-[#7A4319] border-[#C59B27]/70 shadow-2xs'
-                        : 'bg-[#F8F3EA]/80 hover:bg-[#F3EBDC] text-[#5E4A39] border-[#D9CBB5]/70 hover:border-[#C59B27]/50'
+                        ? 'bg-gradient-to-b from-[#E8DED2] to-[#E8DED2] text-[#D97757] border-[#D97757]/70 shadow-2xs'
+                        : 'bg-[#F5F1E8]/80 hover:bg-[#E8DED2] text-[#D97757] border-[#D8C7B2]/70 hover:border-[#D97757]/50'
                     }`}
                   >
-                    <Sparkles className="w-3 h-3 text-[#B68422] shrink-0" />
+                    <Sparkles className="w-3 h-3 text-[#D97757] shrink-0" />
                     <span>{identityPanelLabel}</span>
                     {hasIdentityDetails && activeDetailPanel !== 'identity' && (
                       <span
                         aria-hidden="true"
-                        className="w-1.5 h-1.5 rounded-full bg-[#C59B27]"
+                        className="w-1.5 h-1.5 rounded-full bg-[#D97757]"
                       />
                     )}
                     <ChevronDown
@@ -776,16 +776,16 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     onClick={() => handleTogglePanel('life')}
                     className={`px-3 py-1.5 rounded-full text-[11.5px] font-display font-bold border transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${
                       activeDetailPanel === 'life'
-                        ? 'bg-gradient-to-b from-[#FAF0DC] to-[#F1DFBE] text-[#7A4319] border-[#C59B27]/70 shadow-2xs'
-                        : 'bg-[#F8F3EA]/80 hover:bg-[#F3EBDC] text-[#5E4A39] border-[#D9CBB5]/70 hover:border-[#C59B27]/50'
+                        ? 'bg-gradient-to-b from-[#E8DED2] to-[#E8DED2] text-[#D97757] border-[#D97757]/70 shadow-2xs'
+                        : 'bg-[#F5F1E8]/80 hover:bg-[#E8DED2] text-[#D97757] border-[#D8C7B2]/70 hover:border-[#D97757]/50'
                     }`}
                   >
-                    <Clock className="w-3 h-3 text-[#B68422] shrink-0" />
+                    <Clock className="w-3 h-3 text-[#D97757] shrink-0" />
                     <span>الميلاد والديار</span>
                     {hasLifeDetails && activeDetailPanel !== 'life' && (
                       <span
                         aria-hidden="true"
-                        className="w-1.5 h-1.5 rounded-full bg-[#C59B27]"
+                        className="w-1.5 h-1.5 rounded-full bg-[#D97757]"
                       />
                     )}
                     <ChevronDown
@@ -803,11 +803,11 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     onClick={() => handleTogglePanel('legacy')}
                     className={`px-3 py-1.5 rounded-full text-[11.5px] font-display font-bold border transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5 ${
                       activeDetailPanel === 'legacy'
-                        ? 'bg-gradient-to-b from-[#FAF0DC] to-[#F1DFBE] text-[#7A4319] border-[#C59B27]/70 shadow-2xs'
-                        : 'bg-[#F8F3EA]/80 hover:bg-[#F3EBDC] text-[#5E4A39] border-[#D9CBB5]/70 hover:border-[#C59B27]/50'
+                        ? 'bg-gradient-to-b from-[#E8DED2] to-[#E8DED2] text-[#D97757] border-[#D97757]/70 shadow-2xs'
+                        : 'bg-[#F5F1E8]/80 hover:bg-[#E8DED2] text-[#D97757] border-[#D8C7B2]/70 hover:border-[#D97757]/50'
                     }`}
                   >
-                    <BookOpen className="w-3 h-3 text-[#B68422] shrink-0" />
+                    <BookOpen className="w-3 h-3 text-[#D97757] shrink-0" />
                     <span>
                       السيرة والوثائق
                       {linkedMediaForPerson.length > 0
@@ -817,7 +817,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {hasLegacyDetails && activeDetailPanel !== 'legacy' && (
                       <span
                         aria-hidden="true"
-                        className="w-1.5 h-1.5 rounded-full bg-[#C59B27]"
+                        className="w-1.5 h-1.5 rounded-full bg-[#D97757]"
                       />
                     )}
                     <ChevronDown
@@ -832,9 +832,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 {showLivePlaquePreview && (
                   <div
                     data-testid="studio-live-plaque-preview"
-                    className="rounded-2xl bg-[#F9F4E9]/70 border border-[#D4AF37]/25 px-4 py-3 flex flex-col items-center gap-2 animate-[studioPanelReveal_180ms_ease-out_both]"
+                    className="rounded-2xl bg-[#F5F1E8]/70 border border-[#D8C7B2]/25 px-4 py-3 flex flex-col items-center gap-2 animate-[studioPanelReveal_180ms_ease-out_both]"
                   >
-                    <span className="text-[10px] font-display font-bold text-[#8A6D4E]">
+                    <span className="text-[10px] font-display font-bold text-[#D97757]">
                       معاينة البطاقة في الشجرة
                     </span>
                     <div
@@ -846,20 +846,20 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         previewCrownLabel ? 'mt-2' : ''
                       } ${
                         activeTreeTheme.isDarkSurface
-                          ? 'bg-[#221D17] border-[#D4AF37]/75'
-                          : 'bg-gradient-to-l from-[#FFFDF9] via-[#FFFFFF] to-[#FCF7EC] border-[#C69E4B]/80'
+                          ? 'bg-[#1F1F1C] border-[#D8C7B2]/75'
+                          : 'bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8] to-[#F5F1E8] border-[#D97757]/80'
                       }`}
                     >
                       {previewCrownLabel && (
                         <div
                           className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9.5px] font-display font-bold leading-none whitespace-nowrap max-w-[184px] shadow-2xs ${
                             activeTreeTheme.isDarkSurface
-                              ? 'bg-[#2B2318] border-[#D4AF37]/75 text-[#F4D58D]'
-                              : 'bg-gradient-to-b from-[#FFFDF7] to-[#FBF0D4] border-[#C99B3B]/65 text-[#8A5A17]'
+                              ? 'bg-[#1F1F1C] border-[#D8C7B2]/75 text-[#D97757]'
+                              : 'bg-gradient-to-b from-[#F5F1E8] to-[#E8DED2] border-[#D97757]/65 text-[#D97757]'
                           }`}
                         >
                           {previewPrestigeMeta && (
-                            <Award className="w-2.5 h-2.5 shrink-0 text-[#C59B27]" />
+                            <Award className="w-2.5 h-2.5 shrink-0 text-[#D97757]" />
                           )}
                           <span className="truncate">{previewCrownLabel}</span>
                         </div>
@@ -901,8 +901,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               <span
                                 className={`text-[12px] font-display font-medium opacity-85 ml-1 ${
                                   activeTreeTheme.isDarkSurface
-                                    ? 'text-[#E5C479]'
-                                    : 'text-[#96682A]'
+                                    ? 'text-[#D97757]'
+                                    : 'text-[#D97757]'
                                 }`}
                               >
                                 {previewHonorific}
@@ -924,7 +924,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                   {idx > 0 && (
                                     <span
                                       aria-hidden="true"
-                                      className="mx-1 text-[#C59B27]/80 font-bold"
+                                      className="mx-1 text-[#D97757]/80 font-bold"
                                     >
                                       ·
                                     </span>
@@ -933,8 +933,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                     className={
                                       item.kind === 'epithet'
                                         ? activeTreeTheme.isDarkSurface
-                                          ? 'font-semibold text-[#E7C271]'
-                                          : 'font-semibold text-[#9A6B25]'
+                                          ? 'font-semibold text-[#D97757]'
+                                          : 'font-semibold text-[#D97757]'
                                         : undefined
                                     }
                                   >
@@ -951,8 +951,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         <div
                           className={`w-full px-3 py-1.5 rounded-b-[inherit] border-t flex items-center justify-between gap-2 text-[10.5px] leading-none whitespace-nowrap ${
                             activeTreeTheme.isDarkSurface
-                              ? 'bg-[#2A231B]/80 border-[#D4AF37]/25 text-[#D8C5A0]'
-                              : 'bg-[#F7F1E3]/65 border-[#D4AF37]/20 text-[#6F5842]'
+                              ? 'bg-[#1F1F1C]/80 border-[#D8C7B2]/25 text-[#D97757]'
+                              : 'bg-[#E8DED2]/65 border-[#D8C7B2]/20 text-[#D97757]'
                           }`}
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -966,7 +966,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               </span>
                             )}
                             {previewPedestalDate && previewPedestalPlace && (
-                              <span className="text-[#C59B27]/80 font-bold shrink-0">
+                              <span className="text-[#D97757]/80 font-bold shrink-0">
                                 ·
                               </span>
                             )}
@@ -985,12 +985,12 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           {(previewMediaCount > 0 || previewHasBio) && (
                             <div className="flex items-center gap-1 shrink-0">
                               {previewMediaCount > 0 && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[9.5px] font-display font-bold bg-[#FBF3DF] border border-[#D4AF37]/50 text-[#8A5616] tabular-nums">
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-md text-[9.5px] font-display font-bold bg-[#F5F1E8] border border-[#D8C7B2]/50 text-[#D97757] tabular-nums">
                                   📎 {previewMediaCount}
                                 </span>
                               )}
                               {previewHasBio && (
-                                <span className="inline-flex items-center justify-center w-[19px] h-[17px] rounded-md border bg-[#FFFDF7] border-[#D4AF37]/45 text-[#8A5616]">
+                                <span className="inline-flex items-center justify-center w-[19px] h-[17px] rounded-md border bg-[#F5F1E8] border-[#D8C7B2]/45 text-[#D97757]">
                                   <ScrollText className="w-2.5 h-2.5" />
                                 </span>
                               )}
@@ -1006,13 +1006,13 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 {/* EXPANDABLE PANEL 1: ✦ المكانة والأم                        */}
                 {/* --------------------------------------------------------- */}
                 {activeDetailPanel === 'identity' && (
-                  <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-3.5 animate-[studioPanelReveal_200ms_ease-out_both]">
+                  <div className="rounded-2xl bg-[#F5F1E8]/90 border border-[#D8C7B2]/30 p-4 space-y-3.5 animate-[studioPanelReveal_200ms_ease-out_both]">
                     {/* Balanced 2x2 Identity Grid: Row 1 (الصفة + اللقب) | Row 2 (الكنية + الوسام) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label
                           htmlFor="studio-honorific-select"
-                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                          className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1"
                         >
                           الصفة
                         </label>
@@ -1025,7 +1025,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               e.target.value as ArabicHonorificTitle
                             )
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] cursor-pointer"
                         >
                           {honorificChoices.map((title) => (
                             <option key={title} value={title}>
@@ -1038,7 +1038,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       <div>
                         <label
                           htmlFor="studio-person-epithet-input"
-                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                          className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1"
                         >
                           اللقب
                         </label>
@@ -1053,14 +1053,14 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               ? 'مثال: الفاضلة / الصابرة / أم الخير'
                               : 'مثال: الأمين / الفاروق / شمس الدين'
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-semibold text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
 
                       <div>
                         <label
                           htmlFor="studio-person-kunya-input"
-                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                          className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1"
                         >
                           الكنية
                         </label>
@@ -1073,14 +1073,14 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           placeholder={
                             isFemale ? 'مثال: أم عبدالله' : 'مثال: أبو محمد'
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-semibold text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
 
                       <div>
                         <label
                           htmlFor="studio-prestige-select"
-                          className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1"
+                          className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1"
                         >
                           الوسام
                         </label>
@@ -1093,7 +1093,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               e.target.value as TreePrestigeBadgeId
                             )
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] cursor-pointer"
                         >
                           {prestigeChoices.map((opt) => (
                             <option key={opt.id} value={opt.id}>
@@ -1108,17 +1108,17 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {showMotherSelector && !isSpouseRole && (
                       <div
                         data-testid="studio-mother-selector"
-                        className="pt-2.5 border-t border-[#D4AF37]/20 space-y-2"
+                        className="pt-2.5 border-t border-[#D8C7B2]/20 space-y-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <label
                             htmlFor="studio-mother-select"
-                            className="text-[11.5px] font-display font-bold text-[#4A3B2F] flex items-center gap-1.5"
+                            className="text-[11.5px] font-display font-bold text-[#1F1F1C] flex items-center gap-1.5"
                           >
-                            <Heart className="w-3 h-3 text-[#C59B27] shrink-0" />
+                            <Heart className="w-3 h-3 text-[#D97757] shrink-0" />
                             <span>الأم</span>
                             {motherSelectorFatherName && (
-                              <span className="text-[10.5px] font-normal text-[#7E6750]">
+                              <span className="text-[10.5px] font-normal text-[#D97757]">
                                 — زوجات {motherSelectorFatherName}
                               </span>
                             )}
@@ -1136,8 +1136,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               }
                               className={`px-2 py-0.5 rounded-lg text-[10.5px] font-display font-bold border transition-colors cursor-pointer ${
                                 isCreatingInlineMother
-                                  ? 'bg-[#F1DFBE] text-[#7A4319] border-[#C59B27]'
-                                  : 'bg-white text-[#8D4925] border-[#D4AF37]/45 hover:bg-[#FEF9EC]'
+                                  ? 'bg-[#E8DED2] text-[#D97757] border-[#D97757]'
+                                  : 'bg-[#F5F1E8] text-[#D97757] border-[#D8C7B2]/45 hover:bg-[#F5F1E8]'
                               }`}
                             >
                               {isCreatingInlineMother
@@ -1153,7 +1153,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             data-testid="studio-mother-select"
                             value={formMotherId}
                             onChange={(e) => onChangeMotherId(e.target.value)}
-                            className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925] cursor-pointer"
+                            className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] cursor-pointer"
                           >
                             <option value="">غير محدد</option>
                             {motherOptions.map((mom) => (
@@ -1174,8 +1174,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             className="grid grid-cols-1 sm:grid-cols-2 gap-2"
                           >
                             <div>
-                              <label className="block text-[10.5px] font-display font-bold text-[#7A4319] mb-1">
-                                اسم الأم <span className="text-[#B8502C]">*</span>
+                              <label className="block text-[10.5px] font-display font-bold text-[#D97757] mb-1">
+                                اسم الأم <span className="text-[#D97757]">*</span>
                               </label>
                               <input
                                 type="text"
@@ -1185,11 +1185,11 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                   onChangeInlineNewMotherName(e.target.value)
                                 }
                                 placeholder="مثال: أمينة / فاطمة"
-                                className="w-full rounded-xl bg-white border border-[#C59B27]/55 px-2.5 py-1.5 text-xs font-bold text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D97757]/55 px-2.5 py-1.5 text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10.5px] font-display font-bold text-[#5E4A39] mb-1">
+                              <label className="block text-[10.5px] font-display font-bold text-[#D97757] mb-1">
                                 عائلتها / نسب المصاهرة
                               </label>
                               <input
@@ -1201,7 +1201,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                   )
                                 }
                                 placeholder="مثال: من عائلة آل..."
-                                className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                                className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-2.5 py-1.5 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                               />
                             </div>
                           </div>
@@ -1213,9 +1213,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {isSpouseRole && (
                       <div
                         data-testid="studio-wife-maiden-family-field"
-                        className="pt-2.5 border-t border-[#D4AF37]/20 space-y-1"
+                        className="pt-2.5 border-t border-[#D8C7B2]/20 space-y-1"
                       >
-                        <label className="block text-[11.5px] font-display font-bold text-[#8D4925]">
+                        <label className="block text-[11.5px] font-display font-bold text-[#D97757]">
                           عائلتها / نسب المصاهرة
                         </label>
                         <input
@@ -1225,7 +1225,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             onChangeMaidenFamilyLine(e.target.value)
                           }
                           placeholder="مثال: كريمة الشيخ... / من عائلة آل..."
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
                     )}
@@ -1234,9 +1234,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {isDaughterRole && !isSpouseRole && (
                       <div
                         data-testid="studio-daughter-alliance-field"
-                        className="pt-2.5 border-t border-[#D4AF37]/20 space-y-1"
+                        className="pt-2.5 border-t border-[#D8C7B2]/20 space-y-1"
                       >
-                        <label className="block text-[11.5px] font-display font-bold text-[#8D4925]">
+                        <label className="block text-[11.5px] font-display font-bold text-[#D97757]">
                           بيان المصاهرة / قرينة
                         </label>
                         <input
@@ -1246,7 +1246,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             onChangeMarriageAllianceNote(e.target.value)
                           }
                           placeholder="مثال: قرينة الأستاذ... من عائلة آل..."
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] placeholder:text-[#2D241E]/35 focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/35 focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
                     )}
@@ -1254,7 +1254,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {/* Female Privacy Toggle & Subtree Focus */}
                     {((isFemale && !isVerticalOnlyModal) ||
                       (canFocusSubtree && onFocusSubtree)) && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#D4AF37]/20">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#D8C7B2]/20">
                         {isFemale && !isVerticalOnlyModal && (
                           <button
                             type="button"
@@ -1265,8 +1265,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             }
                             className={`px-3 py-1.5 rounded-xl text-[11.5px] font-display font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                               formFemalePrivacyMasked
-                                ? 'bg-[#F5EBD6] text-[#7A4319] border-[#C59B27]/60'
-                                : 'bg-white text-[#5E4A39] border-[#D4AF37]/30'
+                                ? 'bg-[#E8DED2] text-[#D97757] border-[#D97757]/60'
+                                : 'bg-[#F5F1E8] text-[#D97757] border-[#D8C7B2]/30'
                             }`}
                           >
                             <EyeOff className="w-3.5 h-3.5 shrink-0" />
@@ -1283,9 +1283,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             type="button"
                             data-testid="focus-subtree-person-btn"
                             onClick={onFocusSubtree}
-                            className="px-3 py-1.5 rounded-xl bg-[#FEF9EC] hover:bg-[#F5E6DC] border border-[#C5A059]/55 text-[11.5px] font-display font-extrabold text-[#8D4925] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                            className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/55 text-[11.5px] font-display font-extrabold text-[#D97757] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                           >
-                            <Crosshair className="w-3.5 h-3.5 text-[#9A3412] shrink-0" />
+                            <Crosshair className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                             <span>تركيز العرض على هذا الفرع</span>
                           </button>
                         )}
@@ -1298,10 +1298,10 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 {/* EXPANDABLE PANEL 2: ⏳ الميلاد والديار                     */}
                 {/* --------------------------------------------------------- */}
                 {activeDetailPanel === 'life' && (
-                  <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-4 animate-[studioPanelReveal_200ms_ease-out_both]">
+                  <div className="rounded-2xl bg-[#F5F1E8]/90 border border-[#D8C7B2]/30 p-4 space-y-4 animate-[studioPanelReveal_200ms_ease-out_both]">
                     {/* Vital Status Toggle (Warm Heritage Palette — Zero Black) */}
                     <div className="space-y-1.5">
-                      <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                      <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C]">
                         الحالة الحياتية
                       </label>
                       <div
@@ -1329,11 +1329,11 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               className={`px-2.5 py-2 rounded-xl text-[11.5px] font-display font-extrabold border transition-all cursor-pointer ${
                                 active
                                   ? opt.id === 'deceased'
-                                    ? 'bg-[#8D4925] text-[#FFFDF8] border-[#8D4925] shadow-2xs'
+                                    ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-2xs'
                                     : opt.id === 'living'
-                                    ? 'bg-[#265C3E] text-white border-[#265C3E] shadow-2xs'
-                                    : 'bg-[#F1DFBE] text-[#7A4319] border-[#C59B27]'
-                                  : 'bg-white text-[#5E4A39] border-[#D4AF37]/30 hover:border-[#C59B27]/60'
+                                    ? 'bg-[#D97757] text-[#F5F1E8] border-[#D8C7B2] shadow-2xs'
+                                    : 'bg-[#E8DED2] text-[#D97757] border-[#D97757]'
+                                  : 'bg-[#F5F1E8] text-[#D97757] border-[#D8C7B2]/30 hover:border-[#D97757]/60'
                               }`}
                             >
                               {opt.label}
@@ -1346,17 +1346,17 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {/* Calendar & Precision Toggles */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                        <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C]">
                           التقويم
                         </label>
-                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EFE8DA] border border-[#D4AF37]/25">
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2]/25">
                           <button
                             type="button"
                             onClick={() => onChangeBirthCalendar('hijri')}
                             className={`py-1.5 rounded-lg text-[11.5px] font-display font-extrabold transition-all cursor-pointer ${
                               formBirthCalendar === 'hijri'
-                                ? 'bg-white text-[#7A4319] shadow-2xs'
-                                : 'text-[#6A5746] hover:text-[#2D241E]'
+                                ? 'bg-[#F5F1E8] text-[#D97757] shadow-2xs'
+                                : 'text-[#D97757] hover:text-[#1F1F1C]'
                             }`}
                           >
                             هجري (هـ)
@@ -1366,8 +1366,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             onClick={() => onChangeBirthCalendar('gregorian')}
                             className={`py-1.5 rounded-lg text-[11.5px] font-display font-extrabold transition-all cursor-pointer ${
                               formBirthCalendar === 'gregorian'
-                                ? 'bg-white text-[#7A4319] shadow-2xs'
-                                : 'text-[#6A5746] hover:text-[#2D241E]'
+                                ? 'bg-[#F5F1E8] text-[#D97757] shadow-2xs'
+                                : 'text-[#D97757] hover:text-[#1F1F1C]'
                             }`}
                           >
                             ميلادي (م)
@@ -1376,10 +1376,10 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                        <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C]">
                           دقة التاريخ
                         </label>
-                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#EFE8DA] border border-[#D4AF37]/25">
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2]/25">
                           {(
                             [
                               { id: 'year_only', label: 'سنة مؤكدة' },
@@ -1398,8 +1398,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                 onClick={() => onChangeBirthPrecision(prec.id)}
                                 className={`py-1.5 rounded-lg text-[11px] font-display font-extrabold transition-all cursor-pointer ${
                                   active
-                                    ? 'bg-white text-[#7A4319] shadow-2xs'
-                                    : 'text-[#6A5746] hover:text-[#2D241E]'
+                                    ? 'bg-[#F5F1E8] text-[#D97757] shadow-2xs'
+                                    : 'text-[#D97757] hover:text-[#1F1F1C]'
                                 }`}
                               >
                                 {prec.label}
@@ -1413,7 +1413,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {/* Birth Date & Birth Place */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                        <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1">
                           {formBirthPrecision === 'era'
                             ? 'الحقبة الزمنية'
                             : 'تاريخ الميلاد'}
@@ -1429,13 +1429,13 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               ? 'مثال: 1395'
                               : 'مثال: 1975'
                           }
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] tabular-nums focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-semibold text-[#1F1F1C] tabular-nums focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-[#C59B27]" />
+                        <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-[#D97757]" />
                           <span>مكان الميلاد</span>
                         </label>
                         <input
@@ -1443,7 +1443,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           value={formBirthPlace}
                           onChange={(e) => onChangeBirthPlace(e.target.value)}
                           placeholder="مثال: بغداد / الرياض / دمشق"
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
                     </div>
@@ -1452,10 +1452,10 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     {formVitalStatus === 'deceased' && (
                       <div
                         data-testid="studio-deceased-fields"
-                        className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[#D4AF37]/20"
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[#D8C7B2]/20"
                       >
                         <div>
-                          <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                          <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1">
                             تاريخ الوفاة
                           </label>
                           <input
@@ -1467,12 +1467,12 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                 ? 'مثال: 1435 هـ'
                                 : 'مثال: 2014 م'
                             }
-                            className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] tabular-nums focus:outline-none focus:border-[#8D4925]"
+                            className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-semibold text-[#1F1F1C] tabular-nums focus:outline-none focus:border-[#D97757]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                          <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1">
                             مكان الوفاة أو المدفن
                           </label>
                           <input
@@ -1480,7 +1480,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             value={formDeathPlace}
                             onChange={(e) => onChangeDeathPlace(e.target.value)}
                             placeholder="مثال: مقبرة العود / البقيع / النجف"
-                            className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs font-semibold text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                            className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                           />
                         </div>
                       </div>
@@ -1488,8 +1488,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
 
                     {/* Conditional Contact Field */}
                     {formVitalStatus === 'living' && (
-                      <div className="pt-3 border-t border-[#D4AF37]/20">
-                        <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                      <div className="pt-3 border-t border-[#D8C7B2]/20">
+                        <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1">
                           التواصل العائلي
                         </label>
                         <input
@@ -1498,7 +1498,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                           value={formContactInfo}
                           onChange={(e) => onChangeContactInfo(e.target.value)}
                           placeholder="relative@family.com / +966500000000"
-                          className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] text-right focus:outline-none focus:border-[#8D4925]"
+                          className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs text-[#1F1F1C] text-right focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
                     )}
@@ -1509,11 +1509,11 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 {/* EXPANDABLE PANEL 3: 📜 السيرة والوثائق                     */}
                 {/* --------------------------------------------------------- */}
                 {activeDetailPanel === 'legacy' && (
-                  <div className="rounded-2xl bg-[#F9F5EC]/90 border border-[#D4AF37]/30 p-4 space-y-4 animate-[studioPanelReveal_200ms_ease-out_both]">
+                  <div className="rounded-2xl bg-[#F5F1E8]/90 border border-[#D8C7B2]/30 p-4 space-y-4 animate-[studioPanelReveal_200ms_ease-out_both]">
                     {/* Biography + Quick Inspiration Prompts */}
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <label className="text-[11.5px] font-display font-bold text-[#4A3B2F]">
+                        <label className="text-[11.5px] font-display font-bold text-[#1F1F1C]">
                           السيرة
                         </label>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -1522,7 +1522,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               key={prompt.label}
                               type="button"
                               onClick={() => handleAppendBioPrompt(prompt.snippet)}
-                              className="px-2 py-0.5 rounded-lg bg-white hover:bg-[#F3E5CE] text-[#8D4925] border border-[#D4AF37]/35 text-[10.5px] font-display font-bold transition-colors cursor-pointer"
+                              className="px-2 py-0.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D8C7B2]/35 text-[10.5px] font-display font-bold transition-colors cursor-pointer"
                             >
                               {prompt.label}
                             </button>
@@ -1538,13 +1538,13 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             ? 'دوّن نبذةً عن سيرتها الكريمة ومآثرها...'
                             : 'دوّن نبذةً عن سيرته ومآثره وأعماله...'
                         }
-                        className="w-full rounded-xl bg-white border border-[#D4AF37]/35 p-3 text-xs sm:text-sm text-[#2D241E] leading-relaxed focus:outline-none focus:border-[#8D4925]"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 p-3 text-xs sm:text-sm text-[#1F1F1C] leading-relaxed focus:outline-none focus:border-[#D97757]"
                       />
                     </div>
 
                     {/* Historical Document Reference Note */}
                     <div>
-                      <label className="block text-[11.5px] font-display font-bold text-[#4A3B2F] mb-1">
+                      <label className="block text-[11.5px] font-display font-bold text-[#1F1F1C] mb-1">
                         صك أو وثيقة تاريخية
                       </label>
                       <input
@@ -1552,29 +1552,29 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         value={formAttachedDocName}
                         onChange={(e) => onChangeAttachedDocName(e.target.value)}
                         placeholder="مثال: وثيقة حصر إرث مؤرخة عام 1372 هـ"
-                        className="w-full rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-2 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-2 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       />
                     </div>
 
                     {/* Visual Media Vault Gallery (`خزانتي`) */}
                     <div
                       data-testid="person-modal-vault-media-section"
-                      className="pt-3 border-t border-[#D4AF37]/20 space-y-3"
+                      className="pt-3 border-t border-[#D8C7B2]/20 space-y-3"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#2D241E]">
-                          <Paperclip className="w-3.5 h-3.5 text-[#8D4925]" />
+                        <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#1F1F1C]">
+                          <Paperclip className="w-3.5 h-3.5 text-[#D97757]" />
                           <span>
                             ملفات «خزانتي» ({linkedMediaForPerson.length})
                           </span>
                         </div>
-                        <span className="text-[10.5px] font-semibold text-[#8D4925]">
+                        <span className="text-[10.5px] font-semibold text-[#D97757]">
                           مزامنة فورية
                         </span>
                       </div>
 
                       {linkedMediaForPerson.length === 0 ? (
-                        <div className="rounded-xl bg-white/70 border border-dashed border-[#D4AF37]/45 p-3 text-[11.5px] text-[#6E5A48] text-center">
+                        <div className="rounded-xl bg-[#F5F1E8]/70 border border-dashed border-[#D8C7B2]/45 p-3 text-[11.5px] text-[#D97757] text-center">
                           لا توجد صور أو وثائق مربوطة بعد. ارفع ملفاً أدناه أو اربطه من خزانتك.
                         </div>
                       ) : (
@@ -1589,9 +1589,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             return (
                               <div
                                 key={media.id}
-                                className="rounded-xl bg-white border border-[#D4AF37]/35 overflow-hidden flex flex-col shadow-2xs"
+                                className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 overflow-hidden flex flex-col shadow-2xs"
                               >
-                                <div className="h-20 bg-[#F7F2E8] relative flex items-center justify-center overflow-hidden">
+                                <div className="h-20 bg-[#F5F1E8] relative flex items-center justify-center overflow-hidden">
                                   {isImage ? (
                                     <img
                                       src={previewSrc}
@@ -1600,22 +1600,22 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <FileText className="w-6 h-6 text-[#8D4925]/70" />
+                                    <FileText className="w-6 h-6 text-[#D97757]/70" />
                                   )}
                                   <button
                                     type="button"
                                     onClick={() => onToggleVaultItemLink(media.id)}
                                     title="فك الربط"
-                                    className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-[#8D4925]/90 hover:bg-red-700 text-white text-[10px] font-bold cursor-pointer transition-colors"
+                                    className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-[#D97757]/90 hover:bg-[#D97757] text-[#F5F1E8] text-[10px] font-bold cursor-pointer transition-colors"
                                   >
                                     فك
                                   </button>
                                 </div>
                                 <div className="p-1.5">
-                                  <div className="text-[11px] font-display font-bold text-[#2D241E] truncate">
+                                  <div className="text-[11px] font-display font-bold text-[#1F1F1C] truncate">
                                     {media.title}
                                   </div>
-                                  <div className="text-[10px] text-[#8D4925] truncate">
+                                  <div className="text-[10px] text-[#D97757] truncate">
                                     {media.mediaType === 'photo' ? 'صورة' : 'وثيقة'} ·{' '}
                                     {media.dateOrOccasion}
                                   </div>
@@ -1627,9 +1627,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       )}
 
                       {/* Direct 1-Click Upload into Vault */}
-                      <div className="rounded-xl bg-white/80 border border-[#D4AF37]/30 p-3 space-y-2.5">
+                      <div className="rounded-xl bg-[#F5F1E8]/80 border border-[#D8C7B2]/30 p-3 space-y-2.5">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[11px] font-display font-bold text-[#5E4A39] ml-0.5">
+                          <span className="text-[11px] font-display font-bold text-[#D97757] ml-0.5">
                             المجلد:
                           </span>
                           {vaultFolders.map((vf) => {
@@ -1643,8 +1643,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                 }
                                 className={`px-2 py-1 rounded-lg text-[10.5px] font-display font-bold border transition-all cursor-pointer ${
                                   active
-                                    ? 'bg-[#F1DFBE] text-[#7A4319] border-[#C59B27]'
-                                    : 'bg-[#FAF7F2] text-[#5E4A39] border-[#D4AF37]/30 hover:border-[#C59B27]'
+                                    ? 'bg-[#E8DED2] text-[#D97757] border-[#D97757]'
+                                    : 'bg-[#F5F1E8] text-[#D97757] border-[#D8C7B2]/30 hover:border-[#D97757]'
                                 }`}
                               >
                                 {vf.icon} {vf.name}
@@ -1661,9 +1661,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                               onChangeTreeVaultUploadTitle(e.target.value)
                             }
                             placeholder="عنوان الصورة أو الوثيقة..."
-                            className="flex-1 rounded-xl bg-white border border-[#D4AF37]/35 px-3 py-1.5 text-xs text-[#2D241E] focus:outline-none focus:border-[#8D4925]"
+                            className="flex-1 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/35 px-3 py-1.5 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                           />
-                          <label className="px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-[#B9623D] to-[#8D4925] hover:from-[#C76E47] hover:to-[#7A3D1E] text-[#FFFDF8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0">
+                          <label className="px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-[#D97757] to-[#D97757] hover:from-[#D97757] hover:to-[#D97757] text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0">
                             <Upload className="w-3.5 h-3.5" />
                             <span>
                               {isUploadingToVault ? 'جاري الحفظ...' : 'رفع ملف'}
@@ -1685,8 +1685,8 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                       {/* Unlinked Vault Items — 1-Click Linking */}
                       {unlinkedMediaInVault.length > 0 && (
                         <div className="space-y-1.5">
-                          <div className="text-[11px] font-display font-bold text-[#5E4A39] flex items-center gap-1.5">
-                            <Link2 className="w-3.5 h-3.5 text-[#8D4925]" />
+                          <div className="text-[11px] font-display font-bold text-[#D97757] flex items-center gap-1.5">
+                            <Link2 className="w-3.5 h-3.5 text-[#D97757]" />
                             <span>ربط مقتنيات موجودة في «خزانتي»:</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto py-0.5">
@@ -1702,9 +1702,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                   key={uv.id}
                                   type="button"
                                   onClick={() => onToggleVaultItemLink(uv.id)}
-                                  className="pl-2.5 pr-1.5 py-1 rounded-xl bg-white hover:bg-[#F5EBD6] text-[#2D241E] hover:text-[#7A4319] border border-[#D4AF37]/35 text-[11px] font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                                  className="pl-2.5 pr-1.5 py-1 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] hover:text-[#D97757] border border-[#D8C7B2]/35 text-[11px] font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                                 >
-                                  <span className="w-5 h-5 rounded-md bg-[#F7F2E8] overflow-hidden shrink-0 flex items-center justify-center">
+                                  <span className="w-5 h-5 rounded-md bg-[#F5F1E8] overflow-hidden shrink-0 flex items-center justify-center">
                                     {isImg ? (
                                       <img
                                         src={thumb}
@@ -1713,7 +1713,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                                         className="w-full h-full object-cover"
                                       />
                                     ) : (
-                                      <FileText className="w-3 h-3 text-[#8D4925]" />
+                                      <FileText className="w-3 h-3 text-[#D97757]" />
                                     )}
                                   </span>
                                   <span className="max-w-[130px] truncate">
@@ -1733,7 +1733,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
           )}
 
           {formError && (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-xs font-bold text-red-700">
+            <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 text-xs font-bold text-[#D97757]">
               {formError}
             </div>
           )}
@@ -1744,9 +1744,9 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
             smartAddMotherContext?.fatherName && (
               <div
                 data-testid="smart-add-mother-panel"
-                className="rounded-xl bg-[#FAF4E8]/85 border border-[#D4AF37]/30 px-3.5 py-2 flex items-center gap-2 text-[11.5px] text-[#7A5424] leading-relaxed"
+                className="rounded-xl bg-[#F5F1E8]/85 border border-[#D8C7B2]/30 px-3.5 py-2 flex items-center gap-2 text-[11.5px] text-[#D97757] leading-relaxed"
               >
-                <Heart className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                <Heart className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                 <span>
                   سيتم ربطها تلقائياً كزوجة للأب (
                   <strong>{smartAddMotherContext.fatherName}</strong>) وأمٍ لـ (
@@ -1756,17 +1756,17 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
             )}
 
           {!isSelectingExistingMother && isVerticalOnlyModal && (
-            <div className="rounded-xl bg-[#FAF4E8]/85 border border-[#D4AF37]/30 px-3.5 py-2 text-[11.5px] text-[#5E4A39] leading-relaxed">
+            <div className="rounded-xl bg-[#F5F1E8]/85 border border-[#D8C7B2]/30 px-3.5 py-2 text-[11.5px] text-[#D97757] leading-relaxed">
               {isHorizontalBridgeAboveFamily ? (
                 <>
-                  <strong className="text-[#8D4925]">
+                  <strong className="text-[#D97757]">
                     فرع أفقي فوق العائلة وحتى الجذر:
                   </strong>{' '}
                   يُسجَّل هذا الفرع بشكل أفقي مجاور في نطاق الوصل الواقع بين العائلة ونقطة الجذر الموثقة.
                 </>
               ) : (
                 <>
-                  <strong className="text-[#8D4925]">
+                  <strong className="text-[#D97757]">
                     حلقة ربط عمودية نحو الجذر:
                   </strong>{' '}
                   تُسجَّل كعقدة عمودية منفردة لربط عمود عائلتك بنقطة الجذر الموثقة.
@@ -1778,11 +1778,11 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
           {/* ================================================================= */}
           {/* FOOTER ACTION BAR — WARM HERITAGE BRONZE & GOLD (ZERO BLACK)      */}
           {/* ================================================================= */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3.5 border-t border-[#D4AF37]/25">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3.5 border-t border-[#D8C7B2]/25">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-[#F2ECE1] hover:bg-[#E7DEC9] text-xs font-display font-bold text-[#5B4938] cursor-pointer transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-xs font-display font-bold text-[#D97757] cursor-pointer transition-colors"
             >
               إلغاء
             </button>
@@ -1797,7 +1797,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                     disabled={isUploadingToVault || isUploadingPortrait}
                     data-testid="studio-save-and-add-another-btn"
                     onClick={onSaveAndAddAnother}
-                    className="px-4 py-2.5 rounded-xl bg-[#FAF3E6] hover:bg-[#F3E4C8] disabled:opacity-60 border border-[#C59B27]/50 text-[#7A4319] text-xs font-display font-extrabold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    className="px-4 py-2.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] disabled:opacity-60 border border-[#D97757]/50 text-[#D97757] text-xs font-display font-extrabold inline-flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     <span>حفظ وإضافة آخر</span>
                     <Plus className="w-3.5 h-3.5" />
@@ -1808,7 +1808,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                 type="submit"
                 disabled={isUploadingToVault || isUploadingPortrait}
                 data-testid="studio-save-person-btn"
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-b from-[#B9623D] to-[#8D4925] hover:from-[#C76E47] hover:to-[#7A3D1E] disabled:opacity-60 text-[#FFFDF8] border border-[#D4AF37]/35 text-xs sm:text-sm font-display font-extrabold cursor-pointer shadow-[0_6px_18px_-6px_rgba(141,73,37,0.52)] transition-all"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-b from-[#D97757] to-[#D97757] hover:from-[#D97757] hover:to-[#D97757] disabled:opacity-60 text-[#F5F1E8] border border-[#D8C7B2]/35 text-xs sm:text-sm font-display font-extrabold cursor-pointer shadow-[0_6px_18px_-6px_rgba(217,119,87,0.52)] transition-all"
               >
                 {isUploadingToVault || isUploadingPortrait
                   ? 'جاري الحفظ...'

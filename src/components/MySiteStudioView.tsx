@@ -161,42 +161,42 @@ function CalmInspectorAccordion({
       data-testid={`mysite-inspector-${id}`}
       className={`rounded-2xl backdrop-blur-sm border transition-all duration-200 ${
         isOpen
-          ? 'bg-[#FFFDF9] border-[#D4AF37]/55 shadow-[0_10px_28px_-20px_rgba(61,43,31,0.28)]'
-          : 'bg-[#FFFDF9]/92 border-[#E6DAC3] hover:border-[#D4B988] shadow-2xs'
+          ? 'bg-[#F5F1E8] border-[#D8C7B2]/55 shadow-[0_10px_28px_-20px_rgba(31,31,28,0.28)]'
+          : 'bg-[#F5F1E8]/92 border-[#D8C7B2] hover:border-[#D8C7B2] shadow-2xs'
       }`}
     >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-right cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C5A059]/45"
+        className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-right cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]/45"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div
             className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-colors duration-200 ${
               isOpen
-                ? 'bg-[#9E5631]/10 border-[#9E5631]/25 text-[#9E5631]'
-                : 'bg-[#F8F3EA] border-[#E6DAC3] text-[#8C5327]'
+                ? 'bg-[#D97757]/10 border-[#D97757]/25 text-[#D97757]'
+                : 'bg-[#F5F1E8] border-[#D8C7B2] text-[#D97757]'
             }`}
           >
             {icon}
           </div>
-          <h3 className="text-[13px] font-display font-extrabold text-[#2C1E14] truncate">
+          <h3 className="text-[13px] font-display font-extrabold text-[#1F1F1C] truncate">
             {title}
           </h3>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 min-w-0">
           {!isOpen && summary && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF6EE] border border-[#E6DAC3] text-[11px] font-display font-bold text-[#5C4938] max-w-[200px] sm:max-w-[240px] overflow-hidden">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[11px] font-display font-bold text-[#D97757] max-w-[200px] sm:max-w-[240px] overflow-hidden">
               {summary}
             </div>
           )}
           <span
             className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 ${
               isOpen
-                ? 'bg-[#FAF6EE] text-[#9E5631]'
-                : 'text-[#8C5327]/70 hover:bg-[#FAF6EE]'
+                ? 'bg-[#F5F1E8] text-[#D97757]'
+                : 'text-[#D97757]/70 hover:bg-[#F5F1E8]'
             }`}
           >
             <ChevronDown
@@ -214,7 +214,7 @@ function CalmInspectorAccordion({
         }`}
       >
         <div className="overflow-hidden">
-          <div className="px-4 pb-4 pt-3.5 border-t border-[#F0E8DA] space-y-4">
+          <div className="px-4 pb-4 pt-3.5 border-t border-[#D8C7B2] space-y-4">
             {children}
           </div>
         </div>
@@ -1085,8 +1085,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             key="status"
             className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-display font-bold border whitespace-nowrap ${
               isPublished
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-[#F5ECE0] border-[#D4AF37]/35 text-[#8C5327]'
+                ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
+                : 'bg-[#E8DED2] border-[#D8C7B2]/35 text-[#D97757]'
             }`}
           >
             {isPublished ? 'منشور' : 'مسودة خاصة'}
@@ -1096,15 +1096,15 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             type="button"
             onClick={handleCopyPortalUrl}
             title="نسخ رابط البوابة بنقرة واحدة"
-            className="inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold text-[#5C4938] hover:text-[#9E5631] transition-colors cursor-pointer max-w-[260px]"
+            className="inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold text-[#D97757] hover:text-[#D97757] transition-colors cursor-pointer max-w-[260px]"
           >
             <span dir="ltr" className="truncate">
               {OFFICIAL_BRAND_HOST}/{cleanSlugDisplay}
             </span>
             {copiedUrl ? (
-              <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
             ) : (
-              <Copy className="w-3.5 h-3.5 text-[#8C5327]/75 shrink-0" />
+              <Copy className="w-3.5 h-3.5 text-[#D97757]/75 shrink-0" />
             )}
           </button>,
         ]}
@@ -1181,10 +1181,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         <div
           className={`rounded-2xl px-4 py-3 border text-xs font-bold flex flex-wrap items-center justify-between gap-2 ${
             feedbackBanner.tone === 'success'
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+              ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
               : feedbackBanner.tone === 'warning'
-                ? 'bg-amber-50 border-amber-300 text-amber-950'
-                : 'bg-red-50 border-red-300 text-red-900'
+                ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
+                : 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
           }`}
         >
           <span>{feedbackBanner.text}</span>
@@ -1193,7 +1193,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
               <button
                 type="button"
                 onClick={onSignCharterAndEnableTree}
-                className="px-3 py-1 rounded-lg bg-[#252321] text-[#F3D299] text-[11px] font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-[#1F1F1C] text-[#D97757] text-[11px] font-bold cursor-pointer"
               >
                 توقيع ميثاق أمين السجل
               </button>
@@ -1202,7 +1202,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenEmailVerification}
-                className="px-3 py-1 rounded-lg bg-[#D8755B] text-white text-[11px] font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-[#D97757] text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
               >
                 تأكيد البريد الآن
               </button>
@@ -1211,7 +1211,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
               <button
                 type="button"
                 onClick={onUpgradeAnnualVip}
-                className="px-3 py-1 rounded-lg bg-[#8D4925] text-white text-[11px] font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-[#D97757] text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
               >
                 ترقية الباقة
               </button>
@@ -1225,20 +1225,20 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       {/* =================================================================== */}
       {workspaceMode === 'fullscreen_preview' ? (
         <div className="space-y-3.5">
-          <div className="rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3] text-[#2C1E14] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-2 text-xs font-display font-bold text-[#8C5327]">
-              <Eye className="w-4 h-4 text-[#9E5631]" />
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2 text-xs font-display font-bold text-[#D97757]">
+              <Eye className="w-4 h-4 text-[#D97757]" />
               <span>معاينة حية لموقع عائلة {result.familyName}</span>
             </div>
 
-            <div className="inline-flex rounded-xl bg-[#F5ECE0] border border-[#E2D5BE] p-1">
+            <div className="inline-flex rounded-xl bg-[#E8DED2] border border-[#D8C7B2] p-1">
               <button
                 type="button"
                 onClick={() => setPreviewViewport('desktop')}
                 className={`px-3 py-1 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                   previewViewport === 'desktop'
-                    ? 'bg-[#9E5631] text-white shadow-2xs'
-                    : 'text-[#5C4938] hover:text-[#2C1E14]'
+                    ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
+                    : 'text-[#D97757] hover:text-[#1F1F1C]'
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5" />
@@ -1249,8 +1249,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 onClick={() => setPreviewViewport('mobile')}
                 className={`px-3 py-1 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                   previewViewport === 'mobile'
-                    ? 'bg-[#9E5631] text-white shadow-2xs'
-                    : 'text-[#5C4938] hover:text-[#2C1E14]'
+                    ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
+                    : 'text-[#D97757] hover:text-[#1F1F1C]'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -1261,7 +1261,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             <button
               type="button"
               onClick={() => setWorkspaceMode('split_studio')}
-              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF5EC] border border-[#E2D5BE] text-[#3D2B1F] text-xs font-display font-bold cursor-pointer transition-colors"
+              className="px-3.5 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold cursor-pointer transition-colors"
             >
               العودة لاستوديو التخصيص
             </button>
@@ -1270,8 +1270,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           <div
             className={
               previewViewport === 'mobile'
-                ? 'max-w-[400px] mx-auto rounded-[2.2rem] border-[8px] border-[#252321] shadow-2xl overflow-hidden bg-white max-h-[82vh] overflow-y-auto'
-                : 'rounded-3xl border border-[#C5A059]/45 shadow-xl overflow-hidden bg-white'
+                ? 'max-w-[400px] mx-auto rounded-[2.2rem] border-[8px] border-[#1F1F1C] shadow-2xl overflow-hidden bg-[#F5F1E8] max-h-[82vh] overflow-y-auto'
+                : 'rounded-3xl border border-[#D97757]/45 shadow-xl overflow-hidden bg-[#F5F1E8]'
             }
           >
             <PublicFamilyMicrositePage
@@ -1293,7 +1293,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             <nav
               aria-label="محطات استوديو موقعي"
               data-testid="mysite-3pillar-tabs"
-              className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-[#FDFBF7] border border-[#E6DAC3]"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2]"
             >
               {(
                 [
@@ -1328,8 +1328,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                     }}
                     className={`py-2.5 px-3 rounded-xl text-xs font-display font-extrabold inline-flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
                       isActive
-                        ? 'bg-[#9E5631] text-white shadow-xs'
-                        : 'text-[#5C4938] hover:bg-[#F5ECE0]/75 hover:text-[#2C1E14]'
+                        ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+                        : 'text-[#D97757] hover:bg-[#E8DED2]/75 hover:text-[#1F1F1C]'
                     }`}
                   >
                     {tab.icon}
@@ -1338,8 +1338,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       <span
                         className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums ${
                           isActive
-                            ? 'bg-white/20 text-white'
-                            : 'bg-[#F3E9D8] text-[#7B401F]'
+                            ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                            : 'bg-[#E8DED2] text-[#D97757]'
                         }`}
                       >
                         {tab.count}
@@ -1375,7 +1375,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 >
                   {/* Featured Full-Width Hero Cover Banner Dropzone (120px) */}
                   <div
-                    className="relative h-[120px] w-full rounded-2xl overflow-hidden border border-[#DFC798]/80 shadow-xs"
+                    className="relative h-[120px] w-full rounded-2xl overflow-hidden border border-[#D8C7B2]/80 shadow-xs"
                     style={
                       hasCustomHeroCover
                         ? {
@@ -1405,13 +1405,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                     />
 
                     <div className="relative z-10 h-full px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                      <div className="min-w-0 text-white">
-                        <div className="text-[10.5px] font-display font-bold text-[#F3D299]">
+                      <div className="min-w-0 text-[#F5F1E8]">
+                        <div className="text-[10.5px] font-display font-bold text-[#D97757]">
                           {hasCustomHeroCover
                             ? 'صورة غلاف مخصصة مفعّلة'
                             : `خلفية تراثية: ${activeHeroPreset.label}`}
                         </div>
-                        <div className="text-xs sm:text-[13px] font-display font-extrabold text-white truncate mt-0.5">
+                        <div className="text-xs sm:text-[13px] font-display font-extrabold text-[#F5F1E8] truncate mt-0.5">
                           أضف صورة مجلس العائلة أو الديرة لواجهة الديوان
                         </div>
                       </div>
@@ -1421,12 +1421,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                           type="button"
                           disabled={uploadingHeroCover}
                           onClick={() => heroCoverFileRef.current?.click()}
-                          className="h-9 px-3.5 rounded-xl bg-white hover:bg-[#FAF6EE] text-[#2C1E14] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors whitespace-nowrap"
+                          className="h-9 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors whitespace-nowrap"
                         >
                           {uploadingHeroCover ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9E5631]" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D97757]" />
                           ) : (
-                            <Camera className="w-3.5 h-3.5 text-[#9E5631]" />
+                            <Camera className="w-3.5 h-3.5 text-[#D97757]" />
                           )}
                           <span>
                             {uploadingHeroCover
@@ -1444,7 +1444,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 heroCoverMode: 'preset',
                               }))
                             }
-                            className="h-9 px-3 rounded-xl bg-black/45 hover:bg-black/65 border border-white/25 text-white text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                            className="h-9 px-3 rounded-xl bg-[#1F1F1C]/45 hover:bg-[#1F1F1C]/65 border border-[#F5F1E8]/25 text-[#F5F1E8] text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             <span>استعادة الخلفية الافتراضية</span>
@@ -1457,10 +1457,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   {/* Compact Strip of 6 Architectural / Heritage Presets */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11.5px] font-display font-extrabold text-[#5C4938]">
+                      <span className="text-[11.5px] font-display font-extrabold text-[#D97757]">
                         خلفيات معمارية وتراثية جاهزة
                       </span>
-                      <span className="text-[10.5px] text-[#8C7A68]">
+                      <span className="text-[10.5px] text-[#D97757]">
                         تُطبق فوراً على المعاينة
                       </span>
                     </div>
@@ -1483,8 +1483,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             title={preset.label}
                             className={`group rounded-xl overflow-hidden border text-right transition-all cursor-pointer ${
                               selected
-                                ? 'border-[#9E5631] ring-2 ring-[#C5A059]/45'
-                                : 'border-[#E6DAC3] hover:border-[#C5A059]'
+                                ? 'border-[#D97757] ring-2 ring-[#D97757]/45'
+                                : 'border-[#D8C7B2] hover:border-[#D97757]'
                             }`}
                           >
                             <div
@@ -1492,12 +1492,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                               style={{ background: preset.previewGradient }}
                             >
                               {selected && (
-                                <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white text-[#9E5631] flex items-center justify-center shadow-xs">
+                                <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#F5F1E8] text-[#D97757] flex items-center justify-center shadow-xs">
                                   <Check className="w-2.5 h-2.5" />
                                 </span>
                               )}
                             </div>
-                            <div className="px-1.5 py-1 bg-white text-[10px] font-display font-bold text-[#2C1E14] truncate text-center">
+                            <div className="px-1.5 py-1 bg-[#F5F1E8] text-[10px] font-display font-bold text-[#1F1F1C] truncate text-center">
                               {preset.label.split(' ').slice(0, 2).join(' ')}
                             </div>
                           </button>
@@ -1508,7 +1508,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
                   {/* 3-Option Hero Layout Selector */}
                   <div className="space-y-2">
-                    <span className="text-[11.5px] font-display font-extrabold text-[#5C4938]">
+                    <span className="text-[11.5px] font-display font-extrabold text-[#D97757]">
                       تخطيط واجهة الترحيب
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1526,16 +1526,16 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             }
                             className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/30'
-                                : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/30'
+                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-1.5">
-                              <span className="text-xs font-display font-extrabold text-[#2C1E14]">
+                              <span className="text-xs font-display font-extrabold text-[#1F1F1C]">
                                 {layout.label}
                               </span>
                               {active && (
-                                <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                                <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                               )}
                             </div>
                           </button>
@@ -1545,12 +1545,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   </div>
 
                   {/* Overlay Intensity Slider */}
-                  <div className="rounded-xl bg-[#FAF6EE] border border-[#EAE0CF] px-3.5 py-2.5 space-y-1.5">
+                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 space-y-1.5">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-display font-bold text-[#5C4938]">
+                      <span className="font-display font-bold text-[#D97757]">
                         شدة التظليل فوق الغلاف لإبراز النص
                       </span>
-                      <span className="font-mono text-[11px] font-bold text-[#9E5631] tabular-nums">
+                      <span className="font-mono text-[11px] font-bold text-[#D97757] tabular-nums">
                         {visualBranding.heroOverlayIntensity ?? 55}%
                       </span>
                     </div>
@@ -1566,7 +1566,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                           heroOverlayIntensity: Number(e.target.value),
                         }))
                       }
-                      className="w-full accent-[#9E5631] cursor-pointer"
+                      className="w-full accent-[#D97757] cursor-pointer"
                     />
                   </div>
                 </CalmInspectorAccordion>
@@ -1582,7 +1582,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 >
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-display font-bold text-[#5C4938]">
+                      <label className="text-xs font-display font-bold text-[#D97757]">
                         العنوان الرئيسي للبوابة
                       </label>
                       <input
@@ -1590,12 +1590,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         value={bioTitle}
                         onChange={(e) => setBioTitle(e.target.value)}
                         placeholder={`ديوان وسجل عائلة ${result.familyName}`}
-                        className="w-full h-10 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 text-xs font-display font-bold text-[#2C1E14] focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                        className="w-full h-10 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 text-xs font-display font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-display font-bold text-[#5C4938]">
+                      <label className="text-xs font-display font-bold text-[#D97757]">
                         الشعار الترحيبي أعلى العنوان
                       </label>
                       <input
@@ -1603,12 +1603,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         value={emblemTag}
                         onChange={(e) => setEmblemTag(e.target.value)}
                         placeholder={`ديوان وسجل عائلة ${result.familyName} المعاصر`}
-                        className="w-full h-10 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 text-xs text-[#2C1E14] focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                        className="w-full h-10 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-display font-bold text-[#5C4938]">
+                      <label className="text-xs font-display font-bold text-[#D97757]">
                         النبذة التعريفية للعائلة
                       </label>
                       <textarea
@@ -1616,7 +1616,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         value={bioDescription}
                         onChange={(e) => setBioDescription(e.target.value)}
                         placeholder="نبذة موجزة تعرّف الزوار بعائلتكم ورسالة هذا الديوان..."
-                        className="w-full rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 py-2.5 text-xs text-[#2C1E14] leading-relaxed focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                        className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2.5 text-xs text-[#1F1F1C] leading-relaxed focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                       />
                     </div>
                   </div>
@@ -1638,7 +1638,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   }
                 >
                   {/* Segmented Switch: Auto Gilded vs Custom Upload */}
-                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#F5ECE0] border border-[#E2D5BE]">
+                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2]">
                     <button
                       type="button"
                       onClick={() =>
@@ -1649,8 +1649,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       }
                       className={`py-2 px-3 rounded-lg text-xs font-display font-extrabold cursor-pointer transition-colors ${
                         visualBranding.crestMode !== 'custom_image'
-                          ? 'bg-white text-[#2C1E14] shadow-2xs'
-                          : 'text-[#6B5440] hover:text-[#2C1E14]'
+                          ? 'bg-[#F5F1E8] text-[#1F1F1C] shadow-2xs'
+                          : 'text-[#D97757] hover:text-[#1F1F1C]'
                       }`}
                     >
                       ختم تراثي مذهّب تلقائي
@@ -1665,8 +1665,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       }
                       className={`py-2 px-3 rounded-lg text-xs font-display font-extrabold cursor-pointer transition-colors ${
                         visualBranding.crestMode === 'custom_image'
-                          ? 'bg-white text-[#2C1E14] shadow-2xs'
-                          : 'text-[#6B5440] hover:text-[#2C1E14]'
+                          ? 'bg-[#F5F1E8] text-[#1F1F1C] shadow-2xs'
+                          : 'text-[#D97757] hover:text-[#1F1F1C]'
                       }`}
                     >
                       رفع شعار خاص بالعائلة
@@ -1674,9 +1674,9 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   </div>
 
                   {visualBranding.crestMode === 'custom_image' ? (
-                    <div className="rounded-xl bg-[#FAF6EE] border border-dashed border-[#C5A059] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="rounded-xl bg-[#F5F1E8] border border-dashed border-[#D97757] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-16 h-16 rounded-2xl bg-white border border-[#E2D5BE] flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="w-16 h-16 rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] flex items-center justify-center overflow-hidden shrink-0">
                           {visualBranding.customCrestUrl ? (
                             <img
                               src={visualBranding.customCrestUrl}
@@ -1685,16 +1685,16 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                               className="w-full h-full object-contain p-1"
                             />
                           ) : (
-                            <Sparkles className="w-6 h-6 text-[#C5A059]" />
+                            <Sparkles className="w-6 h-6 text-[#D97757]" />
                           )}
                         </div>
                         <div>
-                          <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                          <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
                             {visualBranding.customCrestUrl
                               ? 'تم اعتماد شعار عائلتك المخصص'
                               : 'ارفع شعار العائلة (PNG أو JPG)'}
                           </div>
-                          <p className="text-[11px] text-[#7A5C43] mt-0.5">
+                          <p className="text-[11px] text-[#D97757] mt-0.5">
                             يفضّل خلفية شفافة وبأبعاد مربعة ليظهر بأبهى صورة في
                             الهيرو والبطاقات
                           </p>
@@ -1705,7 +1705,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         type="button"
                         disabled={uploadingCrest}
                         onClick={() => crestFileRef.current?.click()}
-                        className="h-9.5 px-4 rounded-xl bg-[#9E5631] hover:bg-[#844524] text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                        className="h-9.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                       >
                         {uploadingCrest ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1738,11 +1738,11 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             }
                             className={`rounded-xl p-3 border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                               selected
-                                ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/35'
-                                : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
+                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                             }`}
                           >
-                            <div className="w-12 h-12 rounded-xl bg-[#1F1A16] flex items-center justify-center p-1.5">
+                            <div className="w-12 h-12 rounded-xl bg-[#1F1F1C] flex items-center justify-center p-1.5">
                               <FamilyCrestEmblem
                                 familyName={result.familyName}
                                 crestMode="auto_gilded"
@@ -1750,7 +1750,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 size="sm"
                               />
                             </div>
-                            <span className="text-[11px] font-display font-extrabold text-[#2C1E14] text-center leading-snug">
+                            <span className="text-[11px] font-display font-extrabold text-[#1F1F1C] text-center leading-snug">
                               {opt.label}
                             </span>
                           </button>
@@ -1770,11 +1770,11 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   summary={
                     <>
                       <span
-                        className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
+                        className="w-2.5 h-2.5 rounded-full border border-[#1F1F1C]/15 shrink-0"
                         style={{ backgroundColor: activeThemeDef.swatchAccent }}
                       />
                       <span className="truncate">{activeThemeDef.nameAr}</span>
-                      <span className="text-[#C5A059] shrink-0">·</span>
+                      <span className="text-[#D97757] shrink-0">·</span>
                       <span className="truncate">
                         {activeTypographyOption.label}
                       </span>
@@ -1784,10 +1784,10 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   {/* 5 Color Themes in Compact 2-Column Grid (No Fatiguing Subtitles) */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11.5px] font-display font-extrabold text-[#5C4938]">
+                      <span className="text-[11.5px] font-display font-extrabold text-[#D97757]">
                         القالب اللوني للموقع
                       </span>
-                      <span className="text-[10.5px] text-[#8C7A68]">
+                      <span className="text-[10.5px] text-[#D97757]">
                         ينعكس فوراً في المعاينة الحية
                       </span>
                     </div>
@@ -1802,36 +1802,36 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             onClick={() => setThemeId(theme.id)}
                             className={`rounded-xl px-3.5 py-2.5 border flex items-center justify-between gap-3 transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/35'
-                                : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
+                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               <span
                                 className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 ${
                                   active
-                                    ? 'bg-[#9E5631] border-[#9E5631] text-white'
-                                    : 'border-[#D5C6AE] bg-white'
+                                    ? 'bg-[#D97757] border-[#D97757] text-[#F5F1E8]'
+                                    : 'border-[#D8C7B2] bg-[#F5F1E8]'
                                 }`}
                               >
                                 {active && <Check className="w-3 h-3" />}
                               </span>
-                              <span className="text-xs font-display font-extrabold text-[#2C1E14] truncate">
+                              <span className="text-xs font-display font-extrabold text-[#1F1F1C] truncate">
                                 {theme.nameAr}
                               </span>
                             </div>
 
                             <div className="flex items-center -space-x-1 space-x-reverse shrink-0">
                               <span
-                                className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                                className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
                                 style={{ backgroundColor: theme.swatchCanvas }}
                               />
                               <span
-                                className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                                className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
                                 style={{ backgroundColor: theme.swatchAccent }}
                               />
                               <span
-                                className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                                className="w-4 h-4 rounded-full border border-[#F5F1E8] shadow-2xs"
                                 style={{ backgroundColor: theme.swatchHero }}
                               />
                             </div>
@@ -1843,8 +1843,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
                   {/* 3 Clean Arabic Typography Options */}
                   <div className="space-y-2 pt-1">
-                    <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#5C4938]">
-                      <Type className="w-3.5 h-3.5 text-[#9E5631]" />
+                    <div className="flex items-center gap-1.5 text-[11.5px] font-display font-extrabold text-[#D97757]">
+                      <Type className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>الخط العربي للموقع</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1862,19 +1862,19 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                             }
                             className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/35'
-                                : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
+                                : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-1.5">
                               <span
-                                className="text-sm font-bold text-[#2C1E14] truncate"
+                                className="text-sm font-bold text-[#1F1F1C] truncate"
                                 style={{ fontFamily: tp.fontCss }}
                               >
                                 {tp.label}
                               </span>
                               {active && (
-                                <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                                <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                               )}
                             </div>
                           </button>
@@ -1905,12 +1905,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 >
                   <div className="space-y-4">
                     {/* 1. Master Toggle */}
-                    <div className="rounded-xl bg-[#FAF6EE] border border-[#E6DAC3] p-3.5 flex items-center justify-between gap-3">
+                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                        <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
                           تفعيل الوقفة الوجدانية في الموقع
                         </div>
-                        <p className="text-[11px] text-[#7A5C43] mt-0.5 leading-relaxed">
+                        <p className="text-[11px] text-[#D97757] mt-0.5 leading-relaxed">
                           لوحة إنسانية دافئة واحدة فقط تجمع صورة عائلية مؤطرة
                           بالذهب وعبارة شاعرية مؤثرة دون أي تكرار
                         </p>
@@ -1935,7 +1935,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                       <>
                         {/* 2. Position Selector */}
                         <div className="space-y-1.5">
-                          <label className="text-xs font-display font-extrabold text-[#5C4938]">
+                          <label className="text-xs font-display font-extrabold text-[#D97757]">
                             موضع ظهور الوقفة الوجدانية في الموقع
                           </label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1958,19 +1958,19 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                   }
                                   className={`rounded-xl px-3 py-2.5 border text-right transition-all cursor-pointer ${
                                     active
-                                      ? 'bg-[#FBF5EA] border-[#C5A059] ring-1 ring-[#C5A059]/35'
-                                      : 'bg-white border-[#EAE0CF] hover:border-[#D4B988]'
+                                      ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/35'
+                                      : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                                   }`}
                                 >
                                   <div className="flex items-center justify-between gap-1.5">
-                                    <span className="text-xs font-display font-extrabold text-[#2C1E14]">
+                                    <span className="text-xs font-display font-extrabold text-[#1F1F1C]">
                                       {pos.label}
                                     </span>
                                     {active && (
-                                      <Check className="w-3.5 h-3.5 text-[#9E5631] shrink-0" />
+                                      <Check className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
                                     )}
                                   </div>
-                                  <p className="text-[10.5px] text-[#7A5C43] mt-0.5 leading-snug">
+                                  <p className="text-[10.5px] text-[#D97757] mt-0.5 leading-snug">
                                     {pos.description}
                                   </p>
                                 </button>
@@ -1982,7 +1982,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         {/* 3. Scene Picker (4 Curated Warm Scenes + Custom Upload) */}
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-xs font-display font-extrabold text-[#5C4938]">
+                            <span className="text-xs font-display font-extrabold text-[#D97757]">
                               اختر مشهداً إنسانياً دافئاً أو ارفع صورتكم الخاصة
                             </span>
                             <div className="flex items-center gap-1.5">
@@ -1992,7 +1992,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 onClick={() =>
                                   interludeFileRef.current?.click()
                                 }
-                                className="h-8 px-3 rounded-lg bg-[#9E5631] hover:bg-[#844524] text-white text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                                className="h-8 px-3 rounded-lg bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-[11px] font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                               >
                                 {uploadingInterlude ? (
                                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -2019,7 +2019,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                       },
                                     }))
                                   }
-                                  className="h-8 px-2.5 rounded-lg bg-white hover:bg-red-50 border border-[#E6DAC3] text-[11px] font-bold text-red-700 cursor-pointer whitespace-nowrap"
+                                  className="h-8 px-2.5 rounded-lg bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-bold text-[#D97757] cursor-pointer whitespace-nowrap"
                                 >
                                   إلغاء الخاصة
                                 </button>
@@ -2028,7 +2028,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                           </div>
 
                           {visualBranding.emotionalInterlude.customImageUrl && (
-                            <div className="rounded-xl bg-[#FBF5EA] border border-[#C5A059] p-2.5 flex items-center gap-3">
+                            <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757] p-2.5 flex items-center gap-3">
                               <img
                                 src={
                                   visualBranding.emotionalInterlude
@@ -2036,13 +2036,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 }
                                 alt="صورة الوقفة الوجدانية الخاصة"
                                 referrerPolicy="no-referrer"
-                                className="w-16 h-12 rounded-lg object-cover border border-[#DFC798] shrink-0"
+                                className="w-16 h-12 rounded-lg object-cover border border-[#D8C7B2] shrink-0"
                               />
                               <div className="min-w-0 flex-1">
-                                <div className="text-xs font-display font-extrabold text-[#2C1E14]">
+                                <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
                                   صورتكم العائلية الخاصة مفعّلة حالياً
                                 </div>
-                                <div className="text-[11px] text-[#7A5C43]">
+                                <div className="text-[11px] text-[#D97757]">
                                   يمكنك التبديل في أي وقت لأحد المشاهد التراثية
                                   أدناه
                                 </div>
@@ -2074,11 +2074,11 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                   }
                                   className={`group rounded-xl overflow-hidden border text-right transition-all cursor-pointer ${
                                     isSelected
-                                      ? 'border-[#C5A059] ring-2 ring-[#C5A059]/40 bg-[#FBF5EA]'
-                                      : 'border-[#EAE0CF] hover:border-[#D4B988] bg-white'
+                                      ? 'border-[#D97757] ring-2 ring-[#D97757]/40 bg-[#F5F1E8]'
+                                      : 'border-[#D8C7B2] hover:border-[#D8C7B2] bg-[#F5F1E8]'
                                   }`}
                                 >
-                                  <div className="aspect-[4/3] w-full overflow-hidden relative bg-[#2C1E14]">
+                                  <div className="aspect-[4/3] w-full overflow-hidden relative bg-[#1F1F1C]">
                                     <img
                                       src={scene.imageUrl}
                                       alt={scene.label}
@@ -2086,13 +2086,13 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     />
                                     {isSelected && (
-                                      <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-[#9E5631] text-white flex items-center justify-center shadow-sm">
+                                      <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shadow-sm">
                                         <Check className="w-3 h-3" />
                                       </span>
                                     )}
                                   </div>
                                   <div className="p-2">
-                                    <div className="text-[11px] font-display font-extrabold text-[#2C1E14] truncate">
+                                    <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] truncate">
                                       {scene.label}
                                     </div>
                                   </div>
@@ -2105,7 +2105,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                         {/* 4. Editable Kicker & Poetic Quote + 4 One-Click Suggestions */}
                         <div className="space-y-3 pt-1">
                           <div className="space-y-1.5">
-                            <label className="text-xs font-display font-bold text-[#5C4938]">
+                            <label className="text-xs font-display font-bold text-[#D97757]">
                               العنوان الفرعي للوقفة
                             </label>
                             <input
@@ -2121,12 +2121,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 }))
                               }
                               placeholder="مثال: صلة الأجيال وامتداد الدوحة"
-                              className="w-full h-9.5 rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 text-xs font-display font-bold text-[#2C1E14] focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                              className="w-full h-9.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 text-xs font-display font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                             />
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-xs font-display font-bold text-[#5C4938]">
+                            <label className="text-xs font-display font-bold text-[#D97757]">
                               العبارة الوجدانية المؤثرة
                             </label>
                             <textarea
@@ -2142,12 +2142,12 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 }))
                               }
                               placeholder="اكتب عبارة دافئة تعبّر عن روح عائلتكم..."
-                              className="w-full rounded-xl bg-[#FAF6EE] border border-[#E2D5BE] px-3.5 py-2 text-xs text-[#2C1E14] leading-relaxed focus:outline-none focus:border-[#C5A059] focus:bg-white"
+                              className="w-full rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-3.5 py-2 text-xs text-[#1F1F1C] leading-relaxed focus:outline-none focus:border-[#D97757] focus:bg-[#F5F1E8]"
                             />
                           </div>
 
                           <div className="space-y-1.5">
-                            <div className="text-[11px] font-display font-bold text-[#7A5C43]">
+                            <div className="text-[11px] font-display font-bold text-[#D97757]">
                               اقتراحات جاهزة (تُطبق بنقرة واحدة):
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -2172,11 +2172,11 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                       }
                                       className={`rounded-xl px-3 py-2 border text-right text-[11px] leading-relaxed transition-colors cursor-pointer ${
                                         active
-                                          ? 'bg-[#FBF5EA] border-[#C5A059] text-[#2C1E14] font-bold'
-                                          : 'bg-white border-[#EAE0CF] hover:border-[#D4B988] text-[#5C4938]'
+                                          ? 'bg-[#F5F1E8] border-[#D97757] text-[#1F1F1C] font-bold'
+                                          : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2] text-[#D97757]'
                                       }`}
                                     >
-                                      <span className="text-[#C5A059] ml-1">
+                                      <span className="text-[#D97757] ml-1">
                                         ✦
                                       </span>
                                       {sug.quote}
@@ -2281,19 +2281,19 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
           {/* LEFT (Desktop xl): STICKY LIVE INTERACTIVE MINI-BROWSER */}
           <aside className="hidden xl:block xl:col-span-5 xl:sticky xl:top-24 self-start">
-            <div className="rounded-3xl border border-[#D4AF37]/45 bg-[#252321] shadow-[0_20px_50px_-24px_rgba(37,35,33,0.45)] overflow-hidden flex flex-col">
+            <div className="rounded-3xl border border-[#D8C7B2]/45 bg-[#1F1F1C] shadow-[0_20px_50px_-24px_rgba(31,31,28,0.45)] overflow-hidden flex flex-col">
               {/* Sleek Browser Chrome Bar */}
-              <div className="px-4 py-2.5 bg-[#1D1B19] border-b border-white/10 flex items-center justify-between gap-3">
+              <div className="px-4 py-2.5 bg-[#1F1F1C] border-b border-[#F5F1E8]/10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-400/75" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-300/75" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/75" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]/75" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]/75" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]/75" />
                 </div>
                 <div
                   dir="ltr"
-                  className="flex-1 mx-2 px-3 py-1 rounded-lg bg-white/8 border border-white/8 text-[11px] font-mono text-[#FAF6F0]/90 inline-flex items-center justify-center gap-1.5 truncate"
+                  className="flex-1 mx-2 px-3 py-1 rounded-lg bg-[#F5F1E8]/8 border border-[#F5F1E8]/8 text-[11px] font-mono text-[#F5F1E8]/90 inline-flex items-center justify-center gap-1.5 truncate"
                 >
-                  <Lock className="w-3 h-3 text-[#D4AF6A] shrink-0" />
+                  <Lock className="w-3 h-3 text-[#D97757] shrink-0" />
                   <span className="truncate">
                     {OFFICIAL_BRAND_HOST}/{cleanSlugDisplay}
                   </span>
@@ -2302,14 +2302,14 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                   type="button"
                   onClick={() => setWorkspaceMode('fullscreen_preview')}
                   title="توسيع لملء الشاشة"
-                  className="text-[10.5px] font-display font-bold text-[#F3D299] hover:underline cursor-pointer whitespace-nowrap shrink-0"
+                  className="text-[10.5px] font-display font-bold text-[#D97757] hover:underline cursor-pointer whitespace-nowrap shrink-0"
                 >
                   تكبير ↗
                 </button>
               </div>
 
               {/* Live Synchronized Scrollable Mini-Portal */}
-              <div className="h-[calc(100vh-12.5rem)] min-h-[540px] max-h-[780px] overflow-y-auto bg-white">
+              <div className="h-[calc(100vh-12.5rem)] min-h-[540px] max-h-[780px] overflow-y-auto bg-[#F5F1E8]">
                 <PublicFamilyMicrositePage
                   siteSlug={cleanSlugDisplay}
                   previewData={livePreviewPayload}
