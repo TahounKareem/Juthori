@@ -5567,9 +5567,72 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   const [isNodeEditorUnlocked, setIsNodeEditorUnlocked] =
     useState<boolean>(false);
+  const [isNodeInspectorOpen, setIsNodeInspectorOpen] =
+    useState<boolean>(false);
+  const [inspectorSectionTab, setInspectorSectionTab] = useState<
+    'all' | 'identity' | 'geo' | 'sources'
+  >('all');
   const [showAdamSaveConfirmModal, setShowAdamSaveConfirmModal] =
     useState<boolean>(false);
   const [newGeoTagInput, setNewGeoTagInput] = useState<string>('');
+  const adamTreeScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const adamTreePanStateRef = useRef<{
+    isDragging: boolean;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  }>({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+  });
+  const [isAdamTreePanning, setIsAdamTreePanning] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isNodeInspectorOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !showAdamSaveConfirmModal) {
+        setIsNodeInspectorOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isNodeInspectorOpen, showAdamSaveConfirmModal]);
+
+  const handleAdamTreeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, input, select, textarea, a')) return;
+    const container = adamTreeScrollContainerRef.current;
+    if (!container) return;
+    adamTreePanStateRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    };
+    setIsAdamTreePanning(true);
+  };
+
+  const handleAdamTreeMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!adamTreePanStateRef.current.isDragging) return;
+    const container = adamTreeScrollContainerRef.current;
+    if (!container) return;
+    const dx = e.clientX - adamTreePanStateRef.current.startX;
+    const dy = e.clientY - adamTreePanStateRef.current.startY;
+    container.scrollLeft = adamTreePanStateRef.current.scrollLeft - dx;
+    container.scrollTop = adamTreePanStateRef.current.scrollTop - dy;
+  };
+
+  const handleAdamTreeMouseUpOrLeave = () => {
+    if (!adamTreePanStateRef.current.isDragging) return;
+    adamTreePanStateRef.current.isDragging = false;
+    setIsAdamTreePanning(false);
+  };
 
   // 5 Integrated Search & Filter Controls for "🔍 البحث التفاعلي في شجرة آدم"
   // Strictly decoupled: adamArcFilter and adamRepFilter never mutate each other!
@@ -5925,9 +5988,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     });
   };
 
-  // Clicking a node name in the tree: select it and ADD its ancestor path + itself to expandedNodeIds without clearing existing open branches
+  // Clicking a node name in the tree: select it, open floating inspector, and ADD its ancestor path + itself to expandedNodeIds without clearing existing open branches
   const handleSelectTreeNodeInNavigator = (node: AdamTreeInteractiveNode) => {
     setSelectedAdamNodeId(node.node_id);
+    setIsNodeInspectorOpen(true);
     const ancestors = getAncestorsChainForNode(node);
     setExpandedNodeIds((prev) => {
       const next = new Set(prev);
@@ -6509,6 +6573,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       },
     }));
     setSelectedAdamNodeId(targetNode.node_id);
+    setIsNodeInspectorOpen(true);
 
     // If codedOnlyTreeToggle is ON and the selected node is uncoded, turn off codedOnlyTreeToggle so it appears in the tree
     const nextCodedOnly =
@@ -7618,7 +7683,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     >
       {/* TOAST FEEDBACK BANNER */}
       {toastBanner && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
+        <div
+          className={
+            activeSubTab === 'adam_tree_explorer'
+              ? 'w-full max-w-none px-1 sm:px-2 mt-2'
+              : 'max-w-7xl mx-auto px-4 sm:px-6 mt-4'
+          }
+        >
           <div className="bg-[#F5F1E8] text-[#1F1F1C] border border-[#D97757] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-[#D97757] shrink-0" />
@@ -7635,7 +7706,13 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
+      <div
+        className={
+          activeSubTab === 'adam_tree_explorer'
+            ? 'w-full max-w-none px-1 sm:px-2 mt-2'
+            : 'max-w-7xl mx-auto px-4 sm:px-6 mt-6'
+        }
+      >
         {/* ===================================================================
             SUB-TAB 1: 🧭 بوصلة الجذور (BOSLET AL-JUTHOR™ — DIAGNOSTIC COMPASS)
             Unified Warm Heritage Header Banner Matching Platform Identity
@@ -12172,16 +12249,21 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               )}
             </div>
 
-            {/* SPLIT-VIEW INTERACTIVE EXPLORER */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* RIGHT PANE (7 COLS): 🧭 المستكشف الشجري التفاعلي في شجرة آدم */}
-              <div className="lg:col-span-7 bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2]/90 p-6 shadow-xs space-y-5">
+            {/* FULL-WIDTH INTERACTIVE EXPLORER + SMART FLOATING ON-DEMAND INSPECTOR */}
+            <div className="relative w-full">
+              {/* FULL-WIDTH EXPLORER CANVAS: 🧭 المستكشف الشجري التفاعلي في شجرة آدم */}
+              <div className="w-full bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2]/90 p-4 sm:p-6 shadow-xs space-y-4">
                 {/* 2. SMART CONTROL BAR AT TOP OF NAVIGATOR */}
                 <div className="space-y-3.5 border-b border-[#D8C7B2]/80 pb-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold font-serif text-[#1F1F1C]">
-                      🧭 المستكشف الشجري التفاعلي في شجرة آدم
-                    </h3>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h3 className="text-sm sm:text-base font-bold font-serif text-[#1F1F1C]">
+                        🧭 المستكشف الشجري التفاعلي في شجرة آدم
+                      </h3>
+                      <span className="text-[11px] font-medium text-[#1F1F1C]/65 hidden sm:inline">
+                        (انقر على أي عقدة لاستعراض بياناتها • اسحب المساحة الفارغة للتنقل)
+                      </span>
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Layout Mode Toggle: الوضع الرأسي vs الوضع الجانبي */}
@@ -12212,6 +12294,28 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         </button>
                       </div>
 
+                      {selectedAdamNode && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIsNodeInspectorOpen((prev) => !prev)
+                          }
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all border ${
+                            isNodeInspectorOpen
+                              ? 'bg-[#E8DED2] border-[#D97757] text-[#1F1F1C]'
+                              : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D97757] text-[#1F1F1C]'
+                          }`}
+                          title="فتح أو إخفاء بطاقة بيانات العقدة المختارة"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-[#D97757]" />
+                          <span>
+                            {isNodeInspectorOpen
+                              ? `إخفاء بطاقة (${selectedAdamNode.name})`
+                              : `بيانات العقدة: ${selectedAdamNode.name}`}
+                          </span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setShowAddChildForm((prev) => !prev)}
@@ -12219,7 +12323,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>
-                          + إضافة فرع تحت ({selectedAdamNode?.name})
+                          إضافة فرع تحت ({selectedAdamNode?.name})
                         </span>
                       </button>
                     </div>
@@ -12400,8 +12504,15 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
                 {/* 3. DUAL-MODE EXPANDABLE TREE VIEW (VERTICAL TOP-DOWN OR SIDE HIERARCHICAL) */}
                 <div
+                  ref={adamTreeScrollContainerRef}
                   data-testid="adam-top-down-hierarchical-tree"
-                  className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2]/90 p-4 max-h-[680px] overflow-auto"
+                  onMouseDown={handleAdamTreeMouseDown}
+                  onMouseMove={handleAdamTreeMouseMove}
+                  onMouseUp={handleAdamTreeMouseUpOrLeave}
+                  onMouseLeave={handleAdamTreeMouseUpOrLeave}
+                  className={`bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2]/90 p-5 min-h-[62vh] max-h-[78vh] overflow-auto ${
+                    isAdamTreePanning ? 'cursor-grabbing select-none' : 'cursor-grab'
+                  }`}
                 >
                   {(() => {
                     const topRoots =
@@ -12453,10 +12564,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           <div
                             className={`flex flex-col items-center rounded-2xl border transition-all px-3 py-2 min-w-[120px] shadow-2xs ${
                               isSelected
-                                ? 'bg-[#F5F1E8] border-2 border-[#D8C7B2] text-[#1F1F1C] ring-2 ring-[#D8C7B2]/25'
+                                ? 'bg-[#F5F1E8] border-2 border-[#D97757] text-[#1F1F1C] ring-2 ring-[#D97757]/25 shadow-sm'
                                 : isOnSelectedPath
-                                ? 'bg-[#F5F1E8]/70 border-[#D8C7B2]/60 text-[#1F1F1C]'
-                                : 'bg-[#F5F1E8] hover:bg-[#F5F1E8]/80 border-[#D8C7B2]/90 text-[#1F1F1C]'
+                                ? 'bg-[#F5F1E8]/70 border-[#D8C7B2]/80 text-[#1F1F1C]'
+                                : 'bg-[#F5F1E8] hover:border-[#D97757]/60 border-[#D8C7B2]/90 text-[#1F1F1C]'
                             }`}
                           >
                             <button
@@ -12691,484 +12802,582 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 </div>
               </div>
 
-              {/* LEFT PANE (5 COLS): ⚙️ لوحة بيانات وتكويد السجل المختار (Node Coding Editor) */}
-              <div className="lg:col-span-5 bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2]/90 p-6 shadow-xs space-y-5">
-                {/* 5. INTEGRATED WARM GOLD/CREAM SELECTED NODE HEADER (NO BLACK BAR) */}
-                {selectedAdamNode && (
+              {/* SMART FLOATING ON-DEMAND NODE INSPECTOR SHEET (NON-BLOCKING RTL LEFT-EDGE DRAWER) */}
+              {isNodeInspectorOpen && selectedAdamNode && (
+                <aside
+                  data-testid="adam-floating-node-inspector"
+                  aria-label="بطاقة بيانات وتكويد السجل المختار"
+                  className="fixed top-4 bottom-4 left-4 z-50 w-[min(520px,calc(100vw-2rem))] rounded-3xl bg-[#F5F1E8]/98 backdrop-blur-md border-2 border-[#D8C7B2] shadow-[0_24px_64px_-16px_rgba(31,31,28,0.28)] flex flex-col overflow-hidden"
+                >
+                  {/* STICKY HEADER: SELECTED NODE IDENTITY, ACTIONS, ANCESTRY TRAIL & QUICK TABS */}
                   <div
                     data-testid="selected-adam-node-warm-header"
-                    className="rounded-2xl bg-[#F5F1E8] border-2 border-[#D8C7B2] p-5 shadow-2xs space-y-3"
+                    className="shrink-0 bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2]/70 border-b border-[#D8C7B2] px-5 pt-4 pb-3 space-y-3"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#D97757] block">
-                          ⚙️ لوحة بيانات وتكويد السجل المختار (Node Coding Editor)
-                        </span>
-                        <h3 className="text-lg font-extrabold font-serif text-[#1F1F1C] mt-0.5">
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold text-[#D97757] tracking-wide">
+                            بطاقة بيانات وتكويد العقدة
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-[#E8DED2] text-[#1F1F1C] text-[10px] font-bold">
+                            {isNodeEditorUnlocked
+                              ? 'وضع التحرير مفتوح'
+                              : 'وضع القراءة المحمي'}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-extrabold font-serif text-[#1F1F1C] mt-0.5 truncate">
                           {selectedAdamNode.name}
                         </h3>
                       </div>
 
-                      {/* Read-Only / Edit Mode Toggle Button */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setIsNodeEditorUnlocked((prev) => !prev)
-                        }
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                          isNodeEditorUnlocked
-                            ? 'bg-[#E8DED2] text-[#1F1F1C] hover:bg-[#D8C7B2]'
-                            : 'bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8]'
-                        }`}
-                      >
-                        <span>
-                          {isNodeEditorUnlocked
-                            ? '🔒 قفل وضع التحرير'
-                            : '✏️ تعديل البيانات'}
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIsNodeEditorUnlocked((prev) => !prev)
+                          }
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs ${
+                            isNodeEditorUnlocked
+                              ? 'bg-[#E8DED2] text-[#1F1F1C] hover:bg-[#D8C7B2]'
+                              : 'bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8]'
+                          }`}
+                          title={
+                            isNodeEditorUnlocked
+                              ? 'قفل وضع التحرير'
+                              : 'فتح تعديل بيانات العقدة'
+                          }
+                        >
+                          <span>
+                            {isNodeEditorUnlocked ? '🔒 قفل' : '✏️ تعديل'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddChildForm(true);
+                            setIsNodeInspectorOpen(false);
+                          }}
+                          className="p-1.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] hover:border-[#D97757] text-[#1F1F1C] cursor-pointer transition-colors"
+                          title={`إضافة فرع تحت (${selectedAdamNode.name})`}
+                        >
+                          <Plus className="w-4 h-4 text-[#D97757]" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsNodeInspectorOpen(false)}
+                          className="p-1.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] hover:bg-[#E8DED2] text-[#1F1F1C] cursor-pointer transition-colors"
+                          title="إغلاق البطاقة (Esc)"
+                          aria-label="إغلاق بطاقة العقدة"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Refined Metadata Badges (Zero Black Background, Zero UNASSIGNED) */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {/* Refined Metadata Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {(() => {
                         const vMeta = getSmartVisualTierMeta(
                           selectedAdamNode.arc_code
                         );
                         return vMeta.isCoded ? (
                           <span
-                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${vMeta.capsuleClass}`}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold ${vMeta.capsuleClass}`}
                           >
-                            الكود الهيكلي: {vMeta.code}
+                            {vMeta.code}
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 text-xs font-bold">
+                          <span className="px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 text-[11px] font-bold">
                             جد فردي متسلسل
                           </span>
                         );
                       })()}
 
-                      <span className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/50 text-[#1F1F1C] text-xs font-bold">
+                      <span className="px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/60 text-[#1F1F1C] text-[11px] font-bold">
                         {selectedAdamNode.representation === 'FAMILY'
-                          ? 'التصنيف: أسرة (FAMILY)'
+                          ? 'أسرة (FAMILY)'
                           : selectedAdamNode.representation === 'TRIBE'
-                          ? 'التصنيف: قبيلة (TRIBE)'
+                          ? 'قبيلة (TRIBE)'
                           : selectedAdamNode.representation === 'ALLIANCE'
-                          ? 'التصنيف: حلف (ALLIANCE)'
-                          : 'التصنيف: فرد (INDIVIDUAL)'}
+                          ? 'حلف (ALLIANCE)'
+                          : 'فرد (INDIVIDUAL)'}
                       </span>
 
-                      <span className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 font-mono text-xs font-bold">
+                      <span className="px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 font-mono text-[11px] font-bold">
                         ID: {selectedAdamNode.node_id}
                       </span>
-                    </div>
 
-                    <div className="text-xs text-[#1F1F1C]/70 bg-[#F5F1E8]/80 rounded-xl px-3 py-2 border border-[#D8C7B2]/30 flex flex-wrap items-center justify-between gap-2">
-                      <span>
-                        <strong className="text-[#D97757]">
-                          الرابط بالعقدة الأب:
-                        </strong>{' '}
+                      <span className="px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/50 text-[#1F1F1C]/75 text-[11px] font-semibold">
                         {selectedAdamNode.relation_nature === 'DIRECT'
-                          ? 'بن (DIRECT — اتصال مباشر)'
-                          : 'من (FROM — انحدار فرعي)'}{' '}
-                        <strong>
+                          ? 'بن'
+                          : 'من'}{' '}
+                        <strong className="text-[#1F1F1C]">
                           {selectedParentNodeObj?.name ||
                             selectedAdamNode.parent_name ||
                             'الجذر الأعلى'}
                         </strong>
                       </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isNodeEditorUnlocked
-                            ? 'bg-[#E8DED2] text-[#1F1F1C]'
-                            : 'bg-[#E8DED2] text-[#1F1F1C]'
-                        }`}
-                      >
-                        {isNodeEditorUnlocked
-                          ? 'وضع التحرير مفتوح ✏️'
-                          : 'وضع القراءة المحمي 🔒'}
-                      </span>
+                    </div>
+
+                    {/* Interactive Clickable Ancestry Breadcrumb Trail */}
+                    {selectedNodeAncestorsChain.length > 0 && (
+                      <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[11px]">
+                        <span className="text-[#D97757] font-bold shrink-0">
+                          السلسلة:
+                        </span>
+                        {selectedNodeAncestorsChain.slice(-6).map((anc) => (
+                          <React.Fragment key={anc.node_id}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSelectTreeNodeInNavigator(anc)
+                              }
+                              className="px-2 py-0.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/80 hover:border-[#D97757] text-[#1F1F1C]/80 hover:text-[#1F1F1C] font-semibold whitespace-nowrap cursor-pointer transition-colors"
+                              title={`الانتقال إلى بيانات (${anc.name})`}
+                            >
+                              {anc.name}
+                            </button>
+                            <span className="text-[#1F1F1C]/40 shrink-0">/</span>
+                          </React.Fragment>
+                        ))}
+                        <span className="px-2 py-0.5 rounded-lg bg-[#E8DED2] text-[#1F1F1C] font-extrabold whitespace-nowrap">
+                          {selectedAdamNode.name}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Compact Section Switcher */}
+                    <div className="grid grid-cols-4 gap-1 bg-[#E8DED2]/60 p-1 rounded-xl border border-[#D8C7B2]/70">
+                      {(
+                        [
+                          { id: 'all', label: 'الكل' },
+                          { id: 'identity', label: 'الهوية والتكويد' },
+                          { id: 'geo', label: 'الجغرافيا' },
+                          { id: 'sources', label: 'المصادر' },
+                        ] as const
+                      ).map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setInspectorSectionTab(tab.id)}
+                          className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer truncate ${
+                            inspectorSectionTab === tab.id
+                              ? 'bg-[#F5F1E8] text-[#1F1F1C] border border-[#D97757]/60 shadow-2xs'
+                              : 'text-[#1F1F1C]/70 hover:text-[#1F1F1C]'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
 
-                {/* 6. 3 STRUCTURED INFORMATION BUNDLES (READ-ONLY BY DEFAULT) */}
-                <div className="space-y-4">
-                  {/* BUNDLE 1: 📌 الهوية والتكويد الهيكلي */}
-                  <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-4 space-y-3">
-                    <div className="flex items-center justify-between border-b border-[#D8C7B2]/80 pb-2">
-                      <h4 className="text-xs font-extrabold font-serif text-[#1F1F1C]">
-                        📌 الحزمة 1: الهوية والتكويد الهيكلي
-                      </h4>
-                      <span className="text-[10px] text-[#1F1F1C]/70 font-bold">
-                        معرف السجل (ID) محمي للقراءة فقط
-                      </span>
-                    </div>
+                  {/* SCROLLABLE 3 STRUCTURED INFORMATION BUNDLES */}
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                    {/* BUNDLE 1: 📌 الهوية والتكويد الهيكلي */}
+                    {(inspectorSectionTab === 'all' ||
+                      inspectorSectionTab === 'identity') && (
+                      <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-[#D8C7B2]/80 pb-2">
+                          <h4 className="text-xs font-extrabold font-serif text-[#1F1F1C]">
+                            📌 الحزمة 1: الهوية والتكويد الهيكلي
+                          </h4>
+                          <span className="text-[10px] text-[#1F1F1C]/65 font-bold">
+                            المعرف محمي للقراءة
+                          </span>
+                        </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                          اسم السجل (name)
-                        </label>
-                        <input
-                          type="text"
-                          value={editNodeName}
-                          disabled={!isNodeEditorUnlocked}
-                          onChange={(e) => setEditNodeName(e.target.value)}
-                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
-                            isNodeEditorUnlocked
-                              ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
-                              : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
-                          }`}
-                        />
-                      </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                              اسم السجل (name)
+                            </label>
+                            <input
+                              type="text"
+                              value={editNodeName}
+                              disabled={!isNodeEditorUnlocked}
+                              onChange={(e) => setEditNodeName(e.target.value)}
+                              className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                                isNodeEditorUnlocked
+                                  ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
+                                  : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
+                              }`}
+                            />
+                          </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                          معرف السجل (ID — للقراءة فقط)
-                        </label>
-                        <input
-                          type="text"
-                          value={editNodeId}
-                          readOnly
-                          disabled
-                          className="w-full px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#E8DED2] text-[#1F1F1C]/70 text-xs font-mono font-bold cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                              معرف السجل (ID)
+                            </label>
+                            <input
+                              type="text"
+                              value={editNodeId}
+                              readOnly
+                              disabled
+                              className="w-full px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#E8DED2] text-[#1F1F1C]/70 text-xs font-mono font-bold cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                        الكود الهيكلي (Arc Code)
-                      </label>
-                      <select
-                        value={editArcCode}
-                        disabled={!isNodeEditorUnlocked}
-                        onChange={(e) => {
-                          const nextCode = e.target.value;
-                          setEditArcCode(nextCode);
-                          const conflict = checkArcCodeRepresentationConflict(
-                            nextCode,
-                            editRepresentation
-                          );
-                          if (conflict.hasConflict) {
-                            setEditRepresentation(
-                              conflict.suggestedRepresentation
-                            );
-                          }
-                        }}
-                        className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
-                          isNodeEditorUnlocked
-                            ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
-                            : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
-                        }`}
-                      >
-                        {ARC_CODE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                          تصنيف العقدة (Representation)
-                        </label>
-                        <select
-                          value={editRepresentation}
-                          disabled={!isNodeEditorUnlocked}
-                          onChange={(e) =>
-                            setEditRepresentation(
-                              e.target
-                                .value as AdamTreeInteractiveNode['representation']
-                            )
-                          }
-                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
-                            isNodeEditorUnlocked
-                              ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
-                              : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
-                          }`}
-                        >
-                          <option value="INDIVIDUAL">INDIVIDUAL — فرد</option>
-                          <option value="FAMILY">FAMILY — أسرة</option>
-                          <option value="TRIBE">TRIBE — قبيلة</option>
-                          <option value="ALLIANCE">ALLIANCE — حلف</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                          طبيعة الرابط بالعقدة الأب
-                        </label>
-                        <select
-                          value={editRelationNature}
-                          disabled={!isNodeEditorUnlocked}
-                          onChange={(e) =>
-                            setEditRelationNature(
-                              e.target
-                                .value as AdamTreeInteractiveNode['relation_nature']
-                            )
-                          }
-                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
-                            isNodeEditorUnlocked
-                              ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
-                              : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
-                          }`}
-                        >
-                          <option value="DIRECT">
-                            DIRECT — يظهر &quot;بن&quot;
-                          </option>
-                          <option value="DIRECT_DESCENDANT">
-                            FROM — يظهر &quot;من&quot;
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Rule 5: Conflict Alert between Arc Code and Representation */}
-                    {editorCodingConflict.hasConflict && (
-                      <div className="p-3 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold text-[#1F1F1C]">
-                          ⚠️ {editorCodingConflict.message}
-                        </span>
-                        {isNodeEditorUnlocked && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditRepresentation(
-                                editorCodingConflict.suggestedRepresentation
-                              )
-                            }
-                            className="px-2.5 py-1 rounded-lg bg-[#D97757] text-[#F5F1E8] text-[10px] font-bold cursor-pointer"
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                            الكود الهيكلي (Arc Code)
+                          </label>
+                          <select
+                            value={editArcCode}
+                            disabled={!isNodeEditorUnlocked}
+                            onChange={(e) => {
+                              const nextCode = e.target.value;
+                              setEditArcCode(nextCode);
+                              const conflict =
+                                checkArcCodeRepresentationConflict(
+                                  nextCode,
+                                  editRepresentation
+                                );
+                              if (conflict.hasConflict) {
+                                setEditRepresentation(
+                                  conflict.suggestedRepresentation
+                                );
+                              }
+                            }}
+                            className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                              isNodeEditorUnlocked
+                                ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
+                                : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
+                            }`}
                           >
-                            تصحيح تلقائي إلى ({editorCodingConflict.suggestedRepresentation})
-                          </button>
+                            {ARC_CODE_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                              تصنيف العقدة (Representation)
+                            </label>
+                            <select
+                              value={editRepresentation}
+                              disabled={!isNodeEditorUnlocked}
+                              onChange={(e) =>
+                                setEditRepresentation(
+                                  e.target
+                                    .value as AdamTreeInteractiveNode['representation']
+                                )
+                              }
+                              className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                                isNodeEditorUnlocked
+                                  ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
+                                  : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
+                              }`}
+                            >
+                              <option value="INDIVIDUAL">
+                                INDIVIDUAL — فرد
+                              </option>
+                              <option value="FAMILY">FAMILY — أسرة</option>
+                              <option value="TRIBE">TRIBE — قبيلة</option>
+                              <option value="ALLIANCE">ALLIANCE — حلف</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                              طبيعة الرابط بالعقدة الأب
+                            </label>
+                            <select
+                              value={editRelationNature}
+                              disabled={!isNodeEditorUnlocked}
+                              onChange={(e) =>
+                                setEditRelationNature(
+                                  e.target
+                                    .value as AdamTreeInteractiveNode['relation_nature']
+                                )
+                              }
+                              className={`w-full px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                                isNodeEditorUnlocked
+                                  ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
+                                  : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
+                              }`}
+                            >
+                              <option value="DIRECT">
+                                DIRECT — يظهر &quot;بن&quot;
+                              </option>
+                              <option value="DIRECT_DESCENDANT">
+                                FROM — يظهر &quot;من&quot;
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Rule 5: Conflict Alert between Arc Code and Representation */}
+                        {editorCodingConflict.hasConflict && (
+                          <div className="p-3 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-[#1F1F1C]">
+                              ⚠️ {editorCodingConflict.message}
+                            </span>
+                            {isNodeEditorUnlocked && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditRepresentation(
+                                    editorCodingConflict.suggestedRepresentation
+                                  )
+                                }
+                                className="px-2.5 py-1 rounded-lg bg-[#D97757] text-[#F5F1E8] text-[10px] font-bold cursor-pointer"
+                              >
+                                تصحيح تلقائي إلى (
+                                {editorCodingConflict.suggestedRepresentation})
+                              </button>
+                            )}
+                          </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* BUNDLE 2: 🌍 النطاق الجغرافي والفروع الأبناء */}
+                    {(inspectorSectionTab === 'all' ||
+                      inspectorSectionTab === 'geo') && (
+                      <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-4 space-y-3">
+                        <h4 className="text-xs font-extrabold font-serif text-[#1F1F1C] border-b border-[#D8C7B2]/80 pb-2">
+                          🌍 الحزمة 2: النطاق الجغرافي والفروع الأبناء
+                        </h4>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
+                            الموطن والانتشار الجغرافي (geo_footprint):
+                          </label>
+                          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                            {editGeoFootprint
+                              .split(/[،,]/)
+                              .map((s) => s.trim())
+                              .filter(Boolean)
+                              .map((tag, tIdx) => (
+                                <span
+                                  key={tIdx}
+                                  className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/60 text-xs font-bold text-[#D97757] flex items-center gap-1.5"
+                                >
+                                  <span>📍 {tag}</span>
+                                  {isNodeEditorUnlocked && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const remaining = editGeoFootprint
+                                          .split(/[،,]/)
+                                          .map((s) => s.trim())
+                                          .filter(Boolean)
+                                          .filter((_, idx) => idx !== tIdx);
+                                        setEditGeoFootprint(
+                                          remaining.join('، ')
+                                        );
+                                      }}
+                                      className="text-[#D97757] hover:text-[#1F1F1C] font-bold cursor-pointer"
+                                      title="حذف الوسم الجغرافي"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                            {editGeoFootprint
+                              .split(/[،,]/)
+                              .map((s) => s.trim())
+                              .filter(Boolean).length === 0 && (
+                              <span className="text-[11px] text-[#1F1F1C]/55">
+                                لا توجد وسوم جغرافية مسجلة حالياً
+                              </span>
+                            )}
+                          </div>
+
+                          {isNodeEditorUnlocked && (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={newGeoTagInput}
+                                onChange={(e) =>
+                                  setNewGeoTagInput(e.target.value)
+                                }
+                                placeholder="أضف دولة أو إقليماً جديداً (مثل: الحجاز، نجد، العراق)..."
+                                className="flex-1 px-3 py-1.5 rounded-xl border border-[#D97757] bg-[#F5F1E8] text-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const clean = newGeoTagInput.trim();
+                                  if (!clean) return;
+                                  const current = editGeoFootprint
+                                    .split(/[،,]/)
+                                    .map((s) => s.trim())
+                                    .filter(Boolean);
+                                  if (!current.includes(clean)) {
+                                    setEditGeoFootprint(
+                                      [...current, clean].join('، ')
+                                    );
+                                  }
+                                  setNewGeoTagInput('');
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-[#D97757] text-[#F5F1E8] text-xs font-bold cursor-pointer"
+                              >
+                                + إضافة وسم
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                            الفروع والأبناء المرتبطون بالسجل
+                            (enriched_branches):
+                          </label>
+                          <input
+                            type="text"
+                            value={editEnrichedBranches}
+                            disabled={!isNodeEditorUnlocked}
+                            onChange={(e) =>
+                              setEditEnrichedBranches(e.target.value)
+                            }
+                            placeholder="فروع العائلة أو البطون المنحدرة (مفصولة بفاصلة)..."
+                            className={`w-full px-3 py-2 rounded-xl border text-xs transition-colors ${
+                              isNodeEditorUnlocked
+                                ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
+                                : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BUNDLE 3: 📚 المصادر الموثقة وسجل الإثراء */}
+                    {(inspectorSectionTab === 'all' ||
+                      inspectorSectionTab === 'sources') && (
+                      <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-4 space-y-3">
+                        <h4 className="text-xs font-extrabold font-serif text-[#1F1F1C] border-b border-[#D8C7B2]/80 pb-2">
+                          📚 الحزمة 3: المصادر الموثقة وسجل الإثراء
+                        </h4>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
+                            المراجع التاريخية المعتمدة للعقدة
+                            (enriched_sources):
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={editEnrichedSources}
+                            disabled={!isNodeEditorUnlocked}
+                            onChange={(e) =>
+                              setEditEnrichedSources(e.target.value)
+                            }
+                            placeholder="كل مصدر تاريخي موثق في سطر مستقل..."
+                            className={`w-full p-3 rounded-xl border text-xs transition-colors ${
+                              isNodeEditorUnlocked
+                                ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
+                                : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
+                            }`}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* BUNDLE 2: 🌍 النطاق الجغرافي والفروع الأبناء */}
-                  <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-4 space-y-3">
-                    <h4 className="text-xs font-extrabold font-serif text-[#1F1F1C] border-b border-[#D8C7B2]/80 pb-2">
-                      🌍 الحزمة 2: النطاق الجغرافي والفروع الأبناء
-                    </h4>
+                  {/* STICKY FOOTER: SAVE ACTION */}
+                  <div className="shrink-0 border-t border-[#D8C7B2] bg-[#F5F1E8] px-5 py-3.5">
+                    <button
+                      type="button"
+                      disabled={!isNodeEditorUnlocked}
+                      onClick={handleRequestSaveAdamNodeCoding}
+                      className={`w-full py-2.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all ${
+                        isNodeEditorUnlocked
+                          ? 'bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] cursor-pointer'
+                          : 'bg-[#E8DED2] text-[#1F1F1C]/65 cursor-not-allowed'
+                      }`}
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>
+                        {isNodeEditorUnlocked
+                          ? '💾 حفظ التعديلات (يتطلب التأكيد الإلزامي)'
+                          : 'اضغط «✏️ تعديل» بالأعلى لفتح الحفظ والتحرير'}
+                      </span>
+                    </button>
+                  </div>
+                </aside>
+              )}
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
-                        الموطن والانتشار الجغرافي (geo_footprint):
-                      </label>
-                      {/* Organized Geographic Tags */}
-                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                        {editGeoFootprint
-                          .split(/[،,]/)
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                          .map((tag, tIdx) => (
-                            <span
-                              key={tIdx}
-                              className="px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2]/60 text-xs font-bold text-[#D97757] flex items-center gap-1.5"
-                            >
-                              <span>📍 {tag}</span>
-                              {isNodeEditorUnlocked && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const remaining = editGeoFootprint
-                                      .split(/[،,]/)
-                                      .map((s) => s.trim())
-                                      .filter(Boolean)
-                                      .filter((_, idx) => idx !== tIdx);
-                                    setEditGeoFootprint(remaining.join('، '));
-                                  }}
-                                  className="text-[#D97757] hover:text-[#1F1F1C] font-bold cursor-pointer"
-                                  title="حذف الوسم الجغرافي"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </span>
-                          ))}
-                        {editGeoFootprint
-                          .split(/[،,]/)
-                          .map((s) => s.trim())
-                          .filter(Boolean).length === 0 && (
-                          <span className="text-[11px] text-[#1F1F1C]/55">
-                            لا توجد وسوم جغرافية مسجلة حالياً
-                          </span>
-                        )}
+              {/* 6.4 MANDATORY CONFIRMATION MODAL BEFORE SAVING TO ADAM TREE */}
+              {showAdamSaveConfirmModal && selectedAdamNode && (
+                <div
+                  data-testid="adam-save-mandatory-confirmation-modal"
+                  className="fixed inset-0 z-[60] bg-[#1F1F1C]/50 backdrop-blur-xs flex items-center justify-center p-4"
+                >
+                  <div className="bg-[#F5F1E8] border-2 border-[#D8C7B2] rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+                    <div className="space-y-1.5">
+                      <span className="px-3 py-1 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-extrabold inline-block">
+                        حماية قاعدة بيانات شجرة آدم المركزية
+                      </span>
+                      <h4 className="text-base font-extrabold font-serif text-[#1F1F1C] leading-relaxed">
+                        ⚠️ تأكيد تحديث قاعدة بيانات شجرة آدم المركزية: هل أنت
+                        متأكد من مراجعة واعتماد هذه التعديلات على السجل [
+                        {selectedAdamNode.name}]؟
+                      </h4>
+                    </div>
+
+                    {/* Diff Comparison Table */}
+                    <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] overflow-hidden">
+                      <div className="grid grid-cols-3 bg-[#E8DED2] px-3.5 py-2 text-[11px] font-extrabold text-[#1F1F1C]/70 border-b border-[#D8C7B2]">
+                        <span>الحقل</span>
+                        <span>القيمة السابقة</span>
+                        <span>القيمة الجديدة</span>
                       </div>
-
-                      {isNodeEditorUnlocked && (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={newGeoTagInput}
-                            onChange={(e) => setNewGeoTagInput(e.target.value)}
-                            placeholder="أضف دولة أو إقليماً جديداً (مثل: الحجاز، نجد، العراق)..."
-                            className="flex-1 px-3 py-1.5 rounded-xl border border-[#D97757] bg-[#F5F1E8] text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const clean = newGeoTagInput.trim();
-                              if (!clean) return;
-                              const current = editGeoFootprint
-                                .split(/[،,]/)
-                                .map((s) => s.trim())
-                                .filter(Boolean);
-                              if (!current.includes(clean)) {
-                                setEditGeoFootprint(
-                                  [...current, clean].join('، ')
-                                );
-                              }
-                              setNewGeoTagInput('');
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-[#D97757] text-[#F5F1E8] text-xs font-bold cursor-pointer"
-                          >
-                            + إضافة وسم
-                          </button>
+                      {pendingNodeChangesDiff.length === 0 ? (
+                        <div className="p-4 text-xs text-[#1F1F1C]/70 text-center">
+                          لم يتم تغيير أي قيمة عن البيانات المسجلة حالياً للسجل (
+                          {selectedAdamNode.name}).
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-[#D8C7B2] max-h-60 overflow-y-auto">
+                          {pendingNodeChangesDiff.map((diff, dIdx) => (
+                            <div
+                              key={dIdx}
+                              className="grid grid-cols-3 gap-2 px-3.5 py-2.5 text-xs items-center"
+                            >
+                              <span className="font-bold text-[#1F1F1C]">
+                                {diff.fieldLabel}
+                              </span>
+                              <span className="text-[#1F1F1C]/70 line-through break-words">
+                                {diff.oldValue}
+                              </span>
+                              <span className="font-extrabold text-[#D97757] break-words">
+                                {diff.newValue}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                        الفروع والأبناء المرتبطون بالسجل (enriched_branches):
-                      </label>
-                      <input
-                        type="text"
-                        value={editEnrichedBranches}
-                        disabled={!isNodeEditorUnlocked}
-                        onChange={(e) =>
-                          setEditEnrichedBranches(e.target.value)
-                        }
-                        placeholder="فروع العائلة أو البطون المنحدرة (مفصولة بفاصلة)..."
-                        className={`w-full px-3 py-2 rounded-xl border text-xs transition-colors ${
-                          isNodeEditorUnlocked
-                            ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
-                            : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
-                        }`}
-                      />
+                    <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdamSaveConfirmModal(false)}
+                        className="px-4 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] hover:bg-[#E8DED2] text-[#1F1F1C] text-xs font-bold cursor-pointer transition-all"
+                      >
+                        ❌ إلغاء وتراجع
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmAndSaveAdamNodeCoding}
+                        className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-extrabold cursor-pointer shadow-sm transition-all"
+                      >
+                        ✅ نعم، اعتمد التعديل النهائي
+                      </button>
                     </div>
                   </div>
-
-                  {/* BUNDLE 3: 📚 المصادر الموثقة وسجل الإثراء */}
-                  <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-4 space-y-3">
-                    <h4 className="text-xs font-extrabold font-serif text-[#1F1F1C] border-b border-[#D8C7B2]/80 pb-2">
-                      📚 الحزمة 3: المصادر الموثقة وسجل الإثراء
-                    </h4>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1">
-                        المراجع التاريخية المعتمدة للعقدة (enriched_sources):
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={editEnrichedSources}
-                        disabled={!isNodeEditorUnlocked}
-                        onChange={(e) =>
-                          setEditEnrichedSources(e.target.value)
-                        }
-                        placeholder="كل مصدر تاريخي موثق في سطر مستقل..."
-                        className={`w-full p-3 rounded-xl border text-xs transition-colors ${
-                          isNodeEditorUnlocked
-                            ? 'border-[#D97757] bg-[#F5F1E8] text-[#1F1F1C]'
-                            : 'border-[#D8C7B2] bg-[#E8DED2]/80 text-[#1F1F1C]/70 cursor-not-allowed'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Action Button: Triggers Mandatory Confirmation Modal */}
-                  <button
-                    type="button"
-                    disabled={!isNodeEditorUnlocked}
-                    onClick={handleRequestSaveAdamNodeCoding}
-                    className={`w-full py-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all ${
-                      isNodeEditorUnlocked
-                        ? 'bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] cursor-pointer'
-                        : 'bg-[#E8DED2] text-[#1F1F1C]/70 cursor-not-allowed'
-                    }`}
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>
-                      💾 حفظ التعديلات (يتطلب التأكيد الإلزامي قبل التحديث)
-                    </span>
-                  </button>
                 </div>
-
-                {/* 6.4 MANDATORY CONFIRMATION MODAL BEFORE SAVING TO ADAM TREE */}
-                {showAdamSaveConfirmModal && selectedAdamNode && (
-                  <div
-                    data-testid="adam-save-mandatory-confirmation-modal"
-                    className="fixed inset-0 z-50 bg-[#1F1F1C]/50 backdrop-blur-xs flex items-center justify-center p-4"
-                  >
-                    <div className="bg-[#F5F1E8] border-2 border-[#D8C7B2] rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-                      <div className="space-y-1.5">
-                        <span className="px-3 py-1 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-extrabold inline-block">
-                          حماية قاعدة بيانات شجرة آدم المركزية
-                        </span>
-                        <h4 className="text-base font-extrabold font-serif text-[#1F1F1C] leading-relaxed">
-                          ⚠️ تأكيد تحديث قاعدة بيانات شجرة آدم المركزية: هل أنت متأكد من مراجعة واعتماد هذه التعديلات على السجل [{selectedAdamNode.name}]؟
-                        </h4>
-                      </div>
-
-                      {/* Diff Comparison Table: القيمة السابقة ⬅️ القيمة الجديدة */}
-                      <div className="bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2] overflow-hidden">
-                        <div className="grid grid-cols-3 bg-[#E8DED2] px-3.5 py-2 text-[11px] font-extrabold text-[#1F1F1C]/70 border-b border-[#D8C7B2]">
-                          <span>الحقل</span>
-                          <span>القيمة السابقة</span>
-                          <span>⬅️ القيمة الجديدة</span>
-                        </div>
-                        {pendingNodeChangesDiff.length === 0 ? (
-                          <div className="p-4 text-xs text-[#1F1F1C]/70 text-center">
-                            لم يتم تغيير أي قيمة عن البيانات المسجلة حالياً للسجل ({selectedAdamNode.name}).
-                          </div>
-                        ) : (
-                          <div className="divide-y divide-[#D8C7B2] max-h-60 overflow-y-auto">
-                            {pendingNodeChangesDiff.map((diff, dIdx) => (
-                              <div
-                                key={dIdx}
-                                className="grid grid-cols-3 gap-2 px-3.5 py-2.5 text-xs items-center"
-                              >
-                                <span className="font-bold text-[#1F1F1C]">
-                                  {diff.fieldLabel}
-                                </span>
-                                <span className="text-[#1F1F1C]/70 line-through break-words">
-                                  {diff.oldValue}
-                                </span>
-                                <span className="font-extrabold text-[#1F1F1C] break-words">
-                                  ⬅️ {diff.newValue}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowAdamSaveConfirmModal(false)}
-                          className="px-4 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] hover:bg-[#E8DED2] text-[#1F1F1C] text-xs font-bold cursor-pointer transition-all"
-                        >
-                          ❌ إلغاء وتراجع
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleConfirmAndSaveAdamNodeCoding}
-                          className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-extrabold cursor-pointer shadow-sm transition-all"
-                        >
-                          ✅ نعم، اعتمد التعديل النهائي
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}

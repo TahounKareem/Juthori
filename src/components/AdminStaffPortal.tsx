@@ -2127,10 +2127,15 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 ${
-          activeTab === 'command_hub' && visibleWorkspaceWindows.length === 1
-            ? 'py-3.5'
-            : 'py-6'
+        className={`flex-1 w-full mx-auto ${
+          activeTab === 'adam_tree_management'
+            ? 'max-w-none px-3 sm:px-5 py-4'
+            : `max-w-7xl px-4 sm:px-6 ${
+                activeTab === 'command_hub' &&
+                visibleWorkspaceWindows.length === 1
+                  ? 'py-3.5'
+                  : 'py-6'
+              }`
         }`}
       >
         {/* =====================================================================
@@ -2756,7 +2761,13 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           activeTab === 'adam_tree_management' ||
           activeTab === 'direct_search_inspection') &&
           allowedTabs.includes(activeTab) && (
-            <div className="bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2] p-4 sm:p-6 shadow-sm">
+            <div
+              className={`bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2] shadow-sm ${
+                activeTab === 'adam_tree_management'
+                  ? 'p-3 sm:p-4'
+                  : 'p-4 sm:p-6'
+              }`}
+            >
               <ResearcherStudio
                 activePortalSection={activeTab}
                 onSelectPortalSection={(sec) => {
