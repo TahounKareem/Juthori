@@ -1,14 +1,25 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Circle,
+  Compass,
   Cpu,
+  Crown,
   FileText,
+  Filter,
+  GitFork,
   GitMerge,
   GripVertical,
+  LayoutGrid,
+  Leaf,
   Loader2,
+  LocateFixed,
+  Maximize2,
   MessageSquare,
+  Minimize2,
+  Palette,
   Paperclip,
   Plus,
   RefreshCw,
@@ -16,12 +27,33 @@ import {
   Search,
   Send,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Star,
+  Type,
   UploadCloud,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
+import {
+  WORKSPACE_ICON_ACTIVE_BTN_CLASS,
+  WORKSPACE_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
+} from './UnifiedWorkspaceHeader';
+import {
+  TREE_ARABIC_FONT_OPTIONS,
+  TREE_CARD_THEMES,
+  TreeArabicFontId,
+  TreeCanvasBackground,
+  TreeCardDensity,
+  TreeCardThemeId,
+  TreeConnectorStyle,
+  TreeNodeShape,
+  getTreeArabicFontDefinition,
+  getTreeCanvasBackgroundStyle,
+} from '../utils/treeStudioConfig';
 import {
   AccountLegalType,
   AdamPrimeRegistrySourceItem,
@@ -5575,64 +5607,198 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   const [showAdamSaveConfirmModal, setShowAdamSaveConfirmModal] =
     useState<boolean>(false);
   const [newGeoTagInput, setNewGeoTagInput] = useState<string>('');
+
+  // Unified Studio Canvas & Display Settings (Consistent with "شجرتي")
+  const [adamZoomPercent, setAdamZoomPercent] = useState<number>(100);
+  const [adamCanvasPanOffset, setAdamCanvasPanOffset] = useState<{
+    x: number;
+    y: number;
+  }>({ x: 0, y: 0 });
+  const adamCanvasPanOffsetRef = useRef<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  adamCanvasPanOffsetRef.current = adamCanvasPanOffset;
+  const [isAdamCinemaMode, setIsAdamCinemaMode] = useState<boolean>(false);
+  const [isAdamDisplaySettingsOpen, setIsAdamDisplaySettingsOpen] =
+    useState<boolean>(false);
+  const [adamDisplaySettingsTab, setAdamDisplaySettingsTab] = useState<
+    'layout' | 'identity'
+  >('layout');
+  const [adamTreeThemeId, setAdamTreeThemeId] =
+    useState<TreeCardThemeId>('heritage');
+  const [adamTreeFontId, setAdamTreeFontId] =
+    useState<TreeArabicFontId>('amiri');
+  const [adamNodeShape, setAdamNodeShape] = useState<TreeNodeShape>('card');
+  const [adamCardDensity, setAdamCardDensity] =
+    useState<TreeCardDensity>('balanced');
+  const [adamConnectorStyle, setAdamConnectorStyle] =
+    useState<TreeConnectorStyle>('orthogonal');
+  const [adamCanvasBackground, setAdamCanvasBackground] =
+    useState<TreeCanvasBackground>('dots');
+
+  const activeAdamTreeTheme =
+    TREE_CARD_THEMES[adamTreeThemeId] || TREE_CARD_THEMES.heritage;
+  const activeAdamTreeFont = useMemo(
+    () => getTreeArabicFontDefinition(adamTreeFontId),
+    [adamTreeFontId]
+  );
+
   const adamTreeScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const adamTreeContentRef = useRef<HTMLDivElement | null>(null);
   const adamTreePanStateRef = useRef<{
     isDragging: boolean;
     startX: number;
     startY: number;
     scrollLeft: number;
     scrollTop: number;
+    panX: number;
+    panY: number;
   }>({
     isDragging: false,
     startX: 0,
     startY: 0,
     scrollLeft: 0,
     scrollTop: 0,
+    panX: 0,
+    panY: 0,
   });
   const [isAdamTreePanning, setIsAdamTreePanning] = useState<boolean>(false);
 
+  const handleAdamZoomIn = useCallback(() => {
+    setAdamZoomPercent((z) => Math.min(200, z + 10));
+  }, []);
+
+  const handleAdamZoomOut = useCallback(() => {
+    setAdamZoomPercent((z) => Math.max(35, z - 10));
+  }, []);
+
+  const handleAdamResetZoom = useCallback(() => {
+    setAdamCanvasPanOffset({ x: 0, y: 0 });
+    setAdamZoomPercent(100);
+  }, []);
+
+  const handleAdamFitAndCenter = useCallback(() => {
+    setAdamCanvasPanOffset({ x: 0, y: 0 });
+    const vp = adamTreeScrollContainerRef.current;
+    const content = adamTreeContentRef.current;
+    if (vp && content) {
+      const contentWidth = content.scrollWidth || vp.clientWidth;
+      const vpWidth = vp.clientWidth || 1;
+      if (contentWidth > vpWidth * 1.05) {
+        const fitted = Math.max(
+          45,
+          Math.min(100, Math.floor((vpWidth / contentWidth) * 94))
+        );
+        setAdamZoomPercent(fitted);
+      } else {
+        setAdamZoomPercent(100);
+      }
+      window.requestAnimationFrame(() => {
+        if (!adamTreeScrollContainerRef.current) return;
+        const el = adamTreeScrollContainerRef.current;
+        el.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    } else {
+      setAdamZoomPercent(100);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!isNodeInspectorOpen) return;
+    if (!isNodeInspectorOpen && !isAdamCinemaMode) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !showAdamSaveConfirmModal) {
-        setIsNodeInspectorOpen(false);
+        if (isNodeInspectorOpen) {
+          setIsNodeInspectorOpen(false);
+        } else if (isAdamCinemaMode) {
+          setIsAdamCinemaMode(false);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNodeInspectorOpen, showAdamSaveConfirmModal]);
+  }, [isNodeInspectorOpen, isAdamCinemaMode, showAdamSaveConfirmModal]);
 
-  const handleAdamTreeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement | null;
-    if (target?.closest('button, input, select, textarea, a')) return;
-    const container = adamTreeScrollContainerRef.current;
-    if (!container) return;
-    adamTreePanStateRef.current = {
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop,
+  // Smooth Mouse-Wheel Zoom directly inside the Adam Tree Canvas viewport (matches "شجرتي")
+  useEffect(() => {
+    if (activeSubTab !== 'adam_tree_explorer') return;
+    const vp = adamTreeScrollContainerRef.current;
+    if (!vp) return;
+    const handleWheelZoom = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) < 0.5) return;
+      e.preventDefault();
+      const step = Math.abs(e.deltaY) < 35 ? 4 : 8;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      setAdamZoomPercent((prev) =>
+        Math.max(35, Math.min(200, prev + direction * step))
+      );
     };
-    setIsAdamTreePanning(true);
-  };
+    vp.addEventListener('wheel', handleWheelZoom, { passive: false });
+    return () => {
+      vp.removeEventListener('wheel', handleWheelZoom);
+    };
+  }, [activeSubTab, isAdamCinemaMode]);
 
-  const handleAdamTreeMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!adamTreePanStateRef.current.isDragging) return;
-    const container = adamTreeScrollContainerRef.current;
-    if (!container) return;
-    const dx = e.clientX - adamTreePanStateRef.current.startX;
-    const dy = e.clientY - adamTreePanStateRef.current.startY;
-    container.scrollLeft = adamTreePanStateRef.current.scrollLeft - dx;
-    container.scrollTop = adamTreePanStateRef.current.scrollTop - dy;
-  };
+  // Window-level smooth drag-to-pan on empty canvas areas (matches "شجرتي")
+  useEffect(() => {
+    if (!isAdamTreePanning) return;
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const drag = adamTreePanStateRef.current;
+      const vp = adamTreeScrollContainerRef.current;
+      if (!drag.isDragging || !vp) return;
+      e.preventDefault();
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      vp.scrollLeft = drag.scrollLeft - dx;
+      vp.scrollTop = drag.scrollTop - dy;
+      const actualDx = drag.scrollLeft - vp.scrollLeft;
+      const actualDy = drag.scrollTop - vp.scrollTop;
+      const remX = dx - actualDx;
+      const remY = dy - actualDy;
+      setAdamCanvasPanOffset({
+        x: Math.max(-900, Math.min(900, drag.panX + remX)),
+        y: Math.max(-900, Math.min(900, drag.panY + remY)),
+      });
+    };
+    const handleWindowMouseUp = () => {
+      adamTreePanStateRef.current.isDragging = false;
+      setIsAdamTreePanning(false);
+    };
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [isAdamTreePanning]);
 
-  const handleAdamTreeMouseUpOrLeave = () => {
-    if (!adamTreePanStateRef.current.isDragging) return;
-    adamTreePanStateRef.current.isDragging = false;
-    setIsAdamTreePanning(false);
-  };
+  const handleAdamTreeMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(
+          'button, input, select, textarea, a, [role="button"], [data-no-canvas-pan="true"]'
+        )
+      ) {
+        return;
+      }
+      const container = adamTreeScrollContainerRef.current;
+      if (!container) return;
+      e.preventDefault();
+      adamTreePanStateRef.current = {
+        isDragging: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        scrollLeft: container.scrollLeft,
+        scrollTop: container.scrollTop,
+        panX: adamCanvasPanOffsetRef.current.x,
+        panY: adamCanvasPanOffsetRef.current.y,
+      };
+      setIsAdamTreePanning(true);
+    },
+    []
+  );
 
   // 5 Integrated Search & Filter Controls for "🔍 البحث التفاعلي في شجرة آدم"
   // Strictly decoupled: adamArcFilter and adamRepFilter never mutate each other!
@@ -12249,556 +12415,1526 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               )}
             </div>
 
-            {/* FULL-WIDTH INTERACTIVE EXPLORER + SMART FLOATING ON-DEMAND INSPECTOR */}
-            <div className="relative w-full">
-              {/* FULL-WIDTH EXPLORER CANVAS: 🧭 المستكشف الشجري التفاعلي في شجرة آدم */}
-              <div className="w-full bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2]/90 p-4 sm:p-6 shadow-xs space-y-4">
-                {/* 2. SMART CONTROL BAR AT TOP OF NAVIGATOR */}
-                <div className="space-y-3.5 border-b border-[#D8C7B2]/80 pb-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <h3 className="text-sm sm:text-base font-bold font-serif text-[#1F1F1C]">
-                        🧭 المستكشف الشجري التفاعلي في شجرة آدم
-                      </h3>
-                      <span className="text-[11px] font-medium text-[#1F1F1C]/65 hidden sm:inline">
-                        (انقر على أي عقدة لاستعراض بياناتها • اسحب المساحة الفارغة للتنقل)
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Layout Mode Toggle: الوضع الرأسي vs الوضع الجانبي */}
-                      <div className="inline-flex items-center gap-1 bg-[#F5F1E8] p-1 rounded-xl border border-[#D8C7B2]">
-                        <button
-                          type="button"
-                          onClick={() => setTreeLayoutMode('VERTICAL')}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                            treeLayoutMode === 'VERTICAL'
-                              ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
-                              : 'text-[#1F1F1C]/70 hover:bg-[#E8DED2]/60'
-                          }`}
-                          title="الوضع الرأسي: نقاط البداية في الأعلى ومع فتح العقدة تفتح عقد الأبناء في الأسفل"
-                        >
-                          <span>📊 الوضع الرأسي</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setTreeLayoutMode('SIDE')}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                            treeLayoutMode === 'SIDE'
-                              ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
-                              : 'text-[#1F1F1C]/70 hover:bg-[#E8DED2]/60'
-                          }`}
-                          title="الوضع الجانبي: شجرة متدرجة جانبياً"
-                        >
-                          <span>📑 الوضع الجانبي</span>
-                        </button>
-                      </div>
-
-                      {selectedAdamNode && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setIsNodeInspectorOpen((prev) => !prev)
-                          }
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all border ${
-                            isNodeInspectorOpen
-                              ? 'bg-[#E8DED2] border-[#D97757] text-[#1F1F1C]'
-                              : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D97757] text-[#1F1F1C]'
-                          }`}
-                          title="فتح أو إخفاء بطاقة بيانات العقدة المختارة"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-[#D97757]" />
-                          <span>
-                            {isNodeInspectorOpen
-                              ? `إخفاء بطاقة (${selectedAdamNode.name})`
-                              : `بيانات العقدة: ${selectedAdamNode.name}`}
-                          </span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setShowAddChildForm((prev) => !prev)}
-                        className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>
-                          إضافة فرع تحت ({selectedAdamNode?.name})
-                        </span>
-                      </button>
-                    </div>
+            {/* FULL-WIDTH STUDIO EXPLORER (UNIFIED WITH "شجرتي" DESIGN LANGUAGE) + SMART FLOATING INSPECTOR */}
+            <div className="relative w-full space-y-3">
+              {/* 1. UNIFIED COMPACT STUDIO HEADER BAR (ICON-ONLY CONTROLS WITH TOOLTIPS — MATCHES "شجرتي") */}
+              <div
+                data-testid="adam-tree-studio-header"
+                className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] px-4 py-3 shadow-2xs flex flex-wrap items-center justify-between gap-3"
+              >
+                {/* Right: Title & Heritage Icon */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                    <GitFork className="w-5 h-5" />
                   </div>
-
-                  {/* Single-Row Control Bar: Starting Point (MT Peaks first & default, then Adam) + Coded-Only Toggle on the same row */}
-                  <div className="bg-[#F5F1E8] border border-[#D8C7B2]/50 rounded-2xl p-3 flex flex-wrap xl:flex-nowrap items-center justify-between gap-2.5">
-                    {/* 2.1 Segmented Control: نقطة البدء في الشجرة (MT_PEAKS first & default) */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-bold text-[#1F1F1C]/70 shrink-0">
-                        نقطة البدء:
-                      </span>
-                      <div className="inline-flex flex-wrap items-center gap-1 bg-[#F5F1E8] p-1 rounded-xl border border-[#D8C7B2]/90">
-                        <button
-                          type="button"
-                          onClick={() => setTreeStartMode('MT_PEAKS')}
-                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                            treeStartMode === 'MT_PEAKS'
-                              ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
-                              : 'text-[#1F1F1C]/70 hover:bg-[#E8DED2]'
-                          }`}
-                        >
-                          <span>
-                            🏕️ البدء من الذروات القبلية الـ 6 (مستوى MT)
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setTreeStartMode('ADAM_ROOT')}
-                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                            treeStartMode === 'ADAM_ROOT'
-                              ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
-                              : 'text-[#1F1F1C]/70 hover:bg-[#E8DED2]'
-                          }`}
-                        >
-                          <span>👑 البدء من آدم عليه السلام</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 2.2 Smart Toggle Switch on the SAME row: عرض العقد المكودة فقط (Default: true) */}
-                    <div className="flex items-center gap-2 bg-[#F5F1E8] px-3 py-1.5 rounded-xl border border-[#D8C7B2]/90 shrink-0">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={codedOnlyTreeToggle}
-                        onClick={() =>
-                          setCodedOnlyTreeToggle((prev) => !prev)
-                        }
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                          codedOnlyTreeToggle
-                            ? 'bg-[#D97757]'
-                            : 'bg-[#D8C7B2]'
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[#F5F1E8] shadow-sm transition duration-200 ease-in-out ${
-                            codedOnlyTreeToggle
-                              ? '-translate-x-4'
-                              : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                      <div
-                        onClick={() =>
-                          setCodedOnlyTreeToggle((prev) => !prev)
-                        }
-                        className="cursor-pointer select-none"
-                      >
-                        <span className="text-[11px] font-bold text-[#1F1F1C] block">
-                          عرض العقد المكودة فقط
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Color Legend (Rule 4 Visual System) */}
-                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#1F1F1C]/70 px-1">
-                    <span className="font-bold text-[#1F1F1C]/70">
-                      الدليل البصري للطبقات:
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#D97757]" />
-                      <span>الجذوم والقبائل الأم (M / MT / B0)</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#D97757]" />
-                      <span>البطون والفروع (MM / B1 - B9)</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#D97757]" />
-                      <span>العائلات والأسر (FE0)</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#D8C7B2] border border-[#D8C7B2]" />
-                      <span>جد فردي متسلسل</span>
-                    </span>
-                  </div>
+                  <h3 className="text-sm sm:text-base font-display font-extrabold text-[#1F1F1C] truncate">
+                    المستكشف الشجري التفاعلي في شجرة آدم
+                  </h3>
                 </div>
 
-                {/* Inline Add Child Node Form */}
-                {showAddChildForm && (
-                  <div className="p-4 rounded-2xl bg-[#F5F1E8]/90 border border-[#D8C7B2] space-y-3">
+                {/* Center: Unified Studio Zoom / Fit / Cinema Mode Dock (Matches TreeFloatingStudioDock in "شجرتي") */}
+                <div
+                  data-testid="adam-tree-studio-dock"
+                  className="inline-flex items-center h-10 gap-0.5 px-1.5 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] text-[#1F1F1C] shadow-2xs"
+                >
+                  <WorkspaceIconTooltip label="تصغير العرض" placement="bottom">
+                    <button
+                      type="button"
+                      onClick={handleAdamZoomOut}
+                      aria-label="تصغير عرض شجرة آدم"
+                      className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[#E8DED2] text-[#1F1F1C] transition-colors cursor-pointer"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                  </WorkspaceIconTooltip>
+
+                  <WorkspaceIconTooltip
+                    label="إعادة التكبير إلى 100%"
+                    placement="bottom"
+                  >
+                    <button
+                      type="button"
+                      onClick={handleAdamResetZoom}
+                      aria-label="إعادة التكبير إلى 100%"
+                      className="px-1 py-1 rounded-lg text-[11.5px] font-mono font-bold tabular-nums min-w-[38px] text-center text-[#D97757] hover:bg-[#E8DED2] transition-colors cursor-pointer"
+                      dir="ltr"
+                    >
+                      {adamZoomPercent}%
+                    </button>
+                  </WorkspaceIconTooltip>
+
+                  <WorkspaceIconTooltip label="تكبير العرض" placement="bottom">
+                    <button
+                      type="button"
+                      onClick={handleAdamZoomIn}
+                      aria-label="تكبير عرض شجرة آدم"
+                      className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[#E8DED2] text-[#1F1F1C] transition-colors cursor-pointer"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  </WorkspaceIconTooltip>
+
+                  <span
+                    aria-hidden="true"
+                    className="w-px h-4 mx-1 bg-[#D8C7B2]"
+                  />
+
+                  <WorkspaceIconTooltip
+                    label="توسيط واحتواء الشجرة"
+                    placement="bottom"
+                  >
+                    <button
+                      type="button"
+                      onClick={handleAdamFitAndCenter}
+                      aria-label="توسيط واحتواء الشجرة"
+                      className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[#E8DED2] text-[#D97757] transition-colors cursor-pointer"
+                    >
+                      <LocateFixed className="w-4 h-4" />
+                    </button>
+                  </WorkspaceIconTooltip>
+
+                  <span
+                    aria-hidden="true"
+                    className="w-px h-4 mx-1 bg-[#D8C7B2]"
+                  />
+
+                  <WorkspaceIconTooltip
+                    label={
+                      isAdamCinemaMode
+                        ? 'إنهاء العرض بملء الشاشة'
+                        : 'عرض الشجرة بملء الشاشة'
+                    }
+                    placement="bottom"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setIsAdamCinemaMode((v) => !v)}
+                      aria-label={
+                        isAdamCinemaMode
+                          ? 'إنهاء العرض بملء الشاشة'
+                          : 'عرض الشجرة بملء الشاشة'
+                      }
+                      aria-pressed={isAdamCinemaMode}
+                      className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
+                        isAdamCinemaMode
+                          ? 'bg-[#D97757] text-[#F5F1E8] shadow-2xs'
+                          : 'hover:bg-[#E8DED2] text-[#D97757]'
+                      }`}
+                    >
+                      {isAdamCinemaMode ? (
+                        <Minimize2 className="w-4 h-4" />
+                      ) : (
+                        <Maximize2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </WorkspaceIconTooltip>
+                </div>
+
+                {/* Left: Simplified Icon-Only Controls (Layout Mode, Start Root, Coded-Only Filter, Studio Appearance Settings) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Layout Mode Pair: Vertical vs Sideways (Icon-Only with Tooltip) */}
+                  <div className="inline-flex items-center h-10 p-1 gap-0.5 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2]">
+                    <WorkspaceIconTooltip
+                      label="الوضع الرأسي (متدرج للأسفل)"
+                      placement="bottom"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTreeLayoutMode('VERTICAL');
+                          setAdamCanvasPanOffset({ x: 0, y: 0 });
+                        }}
+                        aria-label="الوضع الرأسي"
+                        aria-pressed={treeLayoutMode === 'VERTICAL'}
+                        className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-all cursor-pointer ${
+                          treeLayoutMode === 'VERTICAL'
+                            ? 'bg-[#E8DED2] text-[#D97757] border border-[#D97757]/70 shadow-2xs'
+                            : 'text-[#1F1F1C]/65 hover:bg-[#E8DED2]/60 hover:text-[#1F1F1C] border border-transparent'
+                        }`}
+                      >
+                        <svg
+                          width="18"
+                          height="16"
+                          viewBox="0 0 34 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <rect
+                            x="12"
+                            y="1.5"
+                            width="10"
+                            height="5"
+                            rx="1.5"
+                            fill="currentColor"
+                          />
+                          <path
+                            d="M17 6.5V12M8 12H26M8 12V16M26 12V16"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                          <rect
+                            x="3"
+                            y="16"
+                            width="10"
+                            height="5"
+                            rx="1.5"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                          <rect
+                            x="21"
+                            y="16"
+                            width="10"
+                            height="5"
+                            rx="1.5"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                        </svg>
+                      </button>
+                    </WorkspaceIconTooltip>
+
+                    <WorkspaceIconTooltip
+                      label="الوضع الجانبي (أفقي متدرج)"
+                      placement="bottom"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTreeLayoutMode('SIDE');
+                          setAdamCanvasPanOffset({ x: 0, y: 0 });
+                        }}
+                        aria-label="الوضع الجانبي"
+                        aria-pressed={treeLayoutMode === 'SIDE'}
+                        className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-all cursor-pointer ${
+                          treeLayoutMode === 'SIDE'
+                            ? 'bg-[#E8DED2] text-[#D97757] border border-[#D97757]/70 shadow-2xs'
+                            : 'text-[#1F1F1C]/65 hover:bg-[#E8DED2]/60 hover:text-[#1F1F1C] border border-transparent'
+                        }`}
+                      >
+                        <svg
+                          width="18"
+                          height="16"
+                          viewBox="0 0 34 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <rect
+                            x="23"
+                            y="9"
+                            width="9"
+                            height="6"
+                            rx="1.5"
+                            fill="currentColor"
+                          />
+                          <path
+                            d="M23 12H16M16 5V19M16 5H11M16 19H11"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                          <rect
+                            x="2"
+                            y="2.5"
+                            width="9"
+                            height="5"
+                            rx="1.5"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                          <rect
+                            x="2"
+                            y="16.5"
+                            width="9"
+                            height="5"
+                            rx="1.5"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                        </svg>
+                      </button>
+                    </WorkspaceIconTooltip>
+                  </div>
+
+                  {/* Starting Point Pair: MT Peaks vs Adam Root (Icon-Only with Tooltip) */}
+                  <div className="inline-flex items-center h-10 p-1 gap-0.5 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2]">
+                    <WorkspaceIconTooltip
+                      label="البدء من الذروات القبلية الـ 6 (مستوى MT)"
+                      placement="bottom"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setTreeStartMode('MT_PEAKS')}
+                        aria-label="البدء من الذروات القبلية الـ 6"
+                        aria-pressed={treeStartMode === 'MT_PEAKS'}
+                        className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-all cursor-pointer ${
+                          treeStartMode === 'MT_PEAKS'
+                            ? 'bg-[#E8DED2] text-[#D97757] border border-[#D97757]/70 shadow-2xs'
+                            : 'text-[#1F1F1C]/65 hover:bg-[#E8DED2]/60 hover:text-[#1F1F1C] border border-transparent'
+                        }`}
+                      >
+                        <Compass className="w-4 h-4" />
+                      </button>
+                    </WorkspaceIconTooltip>
+
+                    <WorkspaceIconTooltip
+                      label="البدء من آدم عليه السلام"
+                      placement="bottom"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setTreeStartMode('ADAM_ROOT')}
+                        aria-label="البدء من آدم عليه السلام"
+                        aria-pressed={treeStartMode === 'ADAM_ROOT'}
+                        className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-all cursor-pointer ${
+                          treeStartMode === 'ADAM_ROOT'
+                            ? 'bg-[#E8DED2] text-[#D97757] border border-[#D97757]/70 shadow-2xs'
+                            : 'text-[#1F1F1C]/65 hover:bg-[#E8DED2]/60 hover:text-[#1F1F1C] border border-transparent'
+                        }`}
+                      >
+                        <Crown className="w-4 h-4" />
+                      </button>
+                    </WorkspaceIconTooltip>
+                  </div>
+
+                  {/* Coded-Only Toggle (Icon-Only with Tooltip) */}
+                  <WorkspaceIconTooltip
+                    label={
+                      codedOnlyTreeToggle
+                        ? 'عرض العقد المكودة فقط (مفعّل)'
+                        : 'عرض جميع العقد (تفعيل المكودة فقط)'
+                    }
+                    placement="bottom"
+                  >
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={codedOnlyTreeToggle}
+                      aria-label="عرض العقد المكودة فقط"
+                      onClick={() =>
+                        setCodedOnlyTreeToggle((prev) => !prev)
+                      }
+                      className={
+                        codedOnlyTreeToggle
+                          ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                          : WORKSPACE_ICON_BTN_CLASS
+                      }
+                    >
+                      <Filter className="w-4 h-4" />
+                    </button>
+                  </WorkspaceIconTooltip>
+
+                  {/* Studio Display Settings Drawer Toggle (Matches "إعدادات شجرتي") */}
+                  <WorkspaceIconTooltip
+                    label="إعدادات عرض الشجرة والمظهر"
+                    placement="bottom"
+                    align="left"
+                  >
+                    <button
+                      type="button"
+                      data-testid="toggle-adam-tree-settings-btn"
+                      aria-label="إعدادات عرض الشجرة والمظهر"
+                      aria-pressed={isAdamDisplaySettingsOpen}
+                      onClick={() =>
+                        setIsAdamDisplaySettingsOpen((prev) => !prev)
+                      }
+                      className={
+                        isAdamDisplaySettingsOpen
+                          ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                          : WORKSPACE_ICON_BTN_CLASS
+                      }
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                    </button>
+                  </WorkspaceIconTooltip>
+                </div>
+              </div>
+
+              {/* Inline Add Child Node Form (Triggered from Floating Node Inspector) */}
+              {showAddChildForm && (
+                <div className="p-4 rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757]/60 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-2">
                     <h5 className="text-xs font-bold text-[#1F1F1C]">
                       إدراج عقدة فرعية جديدة مباشرة تحت ({selectedAdamNode?.name}):
                     </h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        value={newChildName}
-                        onChange={(e) => setNewChildName(e.target.value)}
-                        placeholder="اسم العائلة أو الفرع أو الجد الجديد..."
-                        className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold"
-                      />
-                      <select
-                        value={newChildArcCode}
-                        onChange={(e) => setNewChildArcCode(e.target.value)}
-                        className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold"
-                      >
-                        {ARC_CODE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={newChildRepresentation}
-                        onChange={(e) =>
-                          setNewChildRepresentation(
-                            e.target
-                              .value as AdamTreeInteractiveNode['representation']
-                          )
-                        }
-                        className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold"
-                      >
-                        <option value="FAMILY">FAMILY — أسرة</option>
-                        <option value="TRIBE">TRIBE — قبيلة / فخذ</option>
-                        <option value="INDIVIDUAL">INDIVIDUAL — فرد</option>
-                        <option value="ALLIANCE">ALLIANCE — حلف</option>
-                      </select>
-                      <select
-                        value={newChildRelationNature}
-                        onChange={(e) =>
-                          setNewChildRelationNature(
-                            e.target
-                              .value as AdamTreeInteractiveNode['relation_nature']
-                          )
-                        }
-                        className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold"
-                      >
-                        <option value="DIRECT_DESCENDANT">
-                          FROM — يظهر &quot;من&quot;
+                    <button
+                      type="button"
+                      onClick={() => setShowAddChildForm(false)}
+                      className="p-1 rounded-lg hover:bg-[#E8DED2] text-[#1F1F1C]/70 cursor-pointer"
+                      aria-label="إغلاق نموذج إضافة فرع"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <input
+                      type="text"
+                      value={newChildName}
+                      onChange={(e) => setNewChildName(e.target.value)}
+                      placeholder="اسم العائلة أو الفرع أو الجد الجديد..."
+                      className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold"
+                    />
+                    <select
+                      value={newChildArcCode}
+                      onChange={(e) => setNewChildArcCode(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold"
+                    >
+                      {ARC_CODE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
                         </option>
-                        <option value="DIRECT">
-                          DIRECT — يظهر &quot;بن&quot;
-                        </option>
-                      </select>
+                      ))}
+                    </select>
+                    <select
+                      value={newChildRepresentation}
+                      onChange={(e) =>
+                        setNewChildRepresentation(
+                          e.target
+                            .value as AdamTreeInteractiveNode['representation']
+                        )
+                      }
+                      className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold"
+                    >
+                      <option value="FAMILY">FAMILY — أسرة</option>
+                      <option value="TRIBE">TRIBE — قبيلة / فخذ</option>
+                      <option value="INDIVIDUAL">INDIVIDUAL — فرد</option>
+                      <option value="ALLIANCE">ALLIANCE — حلف</option>
+                    </select>
+                    <select
+                      value={newChildRelationNature}
+                      onChange={(e) =>
+                        setNewChildRelationNature(
+                          e.target
+                            .value as AdamTreeInteractiveNode['relation_nature']
+                        )
+                      }
+                      className="px-3 py-2 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold"
+                    >
+                      <option value="DIRECT_DESCENDANT">
+                        FROM — يظهر &quot;من&quot;
+                      </option>
+                      <option value="DIRECT">
+                        DIRECT — يظهر &quot;بن&quot;
+                      </option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddChildForm(false)}
+                      className="px-3 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] text-xs font-bold cursor-pointer"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddChildNodeToAdam}
+                      className="px-4 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold cursor-pointer"
+                    >
+                      إدراج وحفظ في شجرة آدم ✓
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. MUSEUM STUDIO WORKSPACE: COLLAPSIBLE SETTINGS INSPECTOR + FULL-WIDTH INTERACTIVE CANVAS (MATCHES "شجرتي") */}
+              <div
+                data-testid="adam-tree-studio-workspace"
+                className={
+                  isAdamCinemaMode
+                    ? 'fixed inset-0 z-[80] flex flex-col bg-[#FAF6F0] overflow-hidden'
+                    : `rounded-3xl border-2 ${activeAdamTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
+                }
+              >
+                {/* Fullscreen Cinema Mode Top Bar (Shown ONLY when fullscreen is active) */}
+                {isAdamCinemaMode && (
+                  <div className="px-4 py-2.5 bg-[#F5F1E8]/95 backdrop-blur-xs border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2.5 text-[#1F1F1C] shrink-0 z-20">
+                    <div className="flex items-center gap-2">
+                      <WorkspaceIconTooltip
+                        label="إعدادات عرض الشجرة والمظهر"
+                        align="right"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIsAdamDisplaySettingsOpen((prev) => !prev)
+                          }
+                          aria-label="إعدادات عرض الشجرة والمظهر"
+                          className={
+                            isAdamDisplaySettingsOpen
+                              ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                              : WORKSPACE_ICON_BTN_CLASS
+                          }
+                        >
+                          <SlidersHorizontal className="w-4 h-4" />
+                        </button>
+                      </WorkspaceIconTooltip>
+                      <span className="text-sm font-display font-extrabold text-[#1F1F1C]">
+                        شجرة آدم للأجداد
+                      </span>
                     </div>
-                    <div className="flex justify-end gap-2">
+
+                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2]">
                       <button
                         type="button"
-                        onClick={() => setShowAddChildForm(false)}
-                        className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] text-xs font-bold cursor-pointer"
+                        onClick={handleAdamZoomOut}
+                        className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[#E8DED2] cursor-pointer"
+                        title="تصغير"
                       >
-                        إلغاء
+                        <ZoomOut className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
-                        onClick={handleAddChildNodeToAdam}
-                        className="px-4 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold cursor-pointer"
+                        onClick={handleAdamResetZoom}
+                        className="px-1.5 text-xs font-mono font-bold text-[#D97757] hover:bg-[#E8DED2] rounded-lg cursor-pointer"
+                        dir="ltr"
                       >
-                        إدراج وحفظ في شجرة آدم ✓
+                        {adamZoomPercent}%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAdamZoomIn}
+                        className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[#E8DED2] cursor-pointer"
+                        title="تكبير"
+                      >
+                        <ZoomIn className="w-4 h-4" />
+                      </button>
+                      <span className="w-px h-4 mx-1 bg-[#D8C7B2]" />
+                      <button
+                        type="button"
+                        onClick={handleAdamFitAndCenter}
+                        className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[#E8DED2] text-[#D97757] cursor-pointer"
+                        title="توسيط واحتواء"
+                      >
+                        <LocateFixed className="w-4 h-4" />
+                      </button>
+                      <span className="w-px h-4 mx-1 bg-[#D8C7B2]" />
+                      <button
+                        type="button"
+                        onClick={() => setIsAdamCinemaMode(false)}
+                        className="w-8 h-8 rounded-lg inline-flex items-center justify-center bg-[#D97757] text-[#F5F1E8] cursor-pointer"
+                        title="إنهاء ملء الشاشة"
+                      >
+                        <Minimize2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* 3. DUAL-MODE EXPANDABLE TREE VIEW (VERTICAL TOP-DOWN OR SIDE HIERARCHICAL) */}
                 <div
-                  ref={adamTreeScrollContainerRef}
-                  data-testid="adam-top-down-hierarchical-tree"
-                  onMouseDown={handleAdamTreeMouseDown}
-                  onMouseMove={handleAdamTreeMouseMove}
-                  onMouseUp={handleAdamTreeMouseUpOrLeave}
-                  onMouseLeave={handleAdamTreeMouseUpOrLeave}
-                  className={`bg-[#F5F1E8] rounded-2xl border border-[#D8C7B2]/90 p-5 min-h-[62vh] max-h-[78vh] overflow-auto ${
-                    isAdamTreePanning ? 'cursor-grabbing select-none' : 'cursor-grab'
+                  className={`flex flex-col lg:flex-row relative flex-1 min-w-0 ${
+                    isAdamCinemaMode ? 'min-h-0' : 'min-h-[64vh] max-h-[80vh]'
                   }`}
                 >
-                  {(() => {
-                    const topRoots =
-                      treeStartMode === 'MT_PEAKS'
-                        ? mtSixPeakRoots
-                        : adamTopRootNode
-                        ? [adamTopRootNode]
-                        : [adamGraphNodes[0]].filter(Boolean);
-
-                    const ancestorSet = new Set(
-                      selectedNodeAncestorsChain.map((a) => a.node_id)
-                    );
-
-                    // MODE 1: VERTICAL TOP-DOWN TREE (Starting nodes at top, children open below)
-                    const renderVerticalTreeBranch = (
-                      node: AdamTreeInteractiveNode,
-                      depth: number,
-                      skippedGenerations: number,
-                      visitedPath: Set<string>
-                    ): React.ReactNode => {
-                      if (!node || visitedPath.has(node.node_id) || depth > 50) {
-                        return null;
-                      }
-                      const nextVisited = new Set(visitedPath);
-                      nextVisited.add(node.node_id);
-
-                      const resolvedChildren = getResolvedChildrenForTreeNode(
-                        node.node_id
-                      );
-                      const isExpanded = expandedNodeIds.has(node.node_id);
-                      const isSelected =
-                        selectedAdamNode?.node_id === node.node_id;
-                      const isOnSelectedPath = ancestorSet.has(node.node_id);
-                      const visualMeta = getSmartVisualTierMeta(node.arc_code);
-
-                      return (
-                        <div
-                          key={node.node_id}
-                          className="flex flex-col items-center select-none"
-                        >
-                          {/* Skipped generations badge above node if any */}
-                          {skippedGenerations > 0 && (
-                            <span className="mb-1 text-[9px] px-2 py-0.5 rounded-full bg-[#E8DED2]/90 text-[#1F1F1C] border border-[#D8C7B2]/70 font-bold whitespace-nowrap">
-                              +{skippedGenerations} جيل
-                            </span>
-                          )}
-
-                          {/* Node Card */}
-                          <div
-                            className={`flex flex-col items-center rounded-2xl border transition-all px-3 py-2 min-w-[120px] shadow-2xs ${
-                              isSelected
-                                ? 'bg-[#F5F1E8] border-2 border-[#D97757] text-[#1F1F1C] ring-2 ring-[#D97757]/25 shadow-sm'
-                                : isOnSelectedPath
-                                ? 'bg-[#F5F1E8]/70 border-[#D8C7B2]/80 text-[#1F1F1C]'
-                                : 'bg-[#F5F1E8] hover:border-[#D97757]/60 border-[#D8C7B2]/90 text-[#1F1F1C]'
-                            }`}
-                          >
-                            <button
-                              id={`adam-tree-node-btn-${node.node_id}`}
-                              type="button"
-                              onClick={() =>
-                                handleSelectTreeNodeInNavigator(node)
-                              }
-                              title={visualMeta.tierTitle}
-                              className="flex items-center gap-1.5 cursor-pointer text-center"
-                            >
-                              <span
-                                className={`w-2.5 h-2.5 rounded-full shrink-0 ${visualMeta.dotClass}`}
-                              />
-                              <span
-                                className={`text-xs whitespace-nowrap ${
-                                  isSelected || visualMeta.isCoded
-                                    ? 'font-extrabold text-[#1F1F1C]'
-                                    : 'font-semibold text-[#1F1F1C]/70'
+                  {/* COLLAPSIBLE STUDIO DISPLAY SETTINGS DRAWER (MATCHES TreeStudioSideInspector IN "شجرتي") */}
+                  {isAdamDisplaySettingsOpen && (
+                    <aside
+                      dir="rtl"
+                      data-testid="adam-tree-settings-drawer"
+                      aria-label="إعدادات عرض شجرة آدم"
+                      className="fixed inset-x-0 bottom-0 z-[85] max-h-[80vh] rounded-t-3xl border-t-2 border-[#D97757]/60 bg-[#F5F1E8] text-[#1F1F1C] shadow-2xl flex flex-col lg:static lg:z-20 lg:w-[340px] lg:shrink-0 lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-e lg:border-[#D97757]/35 lg:shadow-none overflow-hidden"
+                    >
+                      <div className="px-2.5 py-2 bg-[#F5F1E8] border-b border-[#D8C7B2] shrink-0 flex items-stretch gap-1.5">
+                        <div className="flex-1 grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2]">
+                          {(
+                            [
+                              {
+                                id: 'layout' as const,
+                                label: 'التخطيط والعرض',
+                                icon: LayoutGrid,
+                              },
+                              {
+                                id: 'identity' as const,
+                                label: 'المظهر والخط',
+                                icon: Palette,
+                              },
+                            ] as const
+                          ).map((tab) => {
+                            const Icon = tab.icon;
+                            const active = adamDisplaySettingsTab === tab.id;
+                            return (
+                              <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setAdamDisplaySettingsTab(tab.id)}
+                                className={`py-1.5 px-2 rounded-lg text-[11px] font-display font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                  active
+                                    ? 'bg-[#F5F1E8] text-[#D97757] shadow-xs border border-[#D97757]/45'
+                                    : 'text-[#1F1F1C]/70 hover:text-[#D97757] border border-transparent'
                                 }`}
                               >
-                                {node.name}
-                              </span>
-                              {visualMeta.isCoded && (
-                                <span
-                                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold ${visualMeta.capsuleClass}`}
+                                <Icon className="w-3.5 h-3.5 shrink-0" />
+                                <span>{tab.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsAdamDisplaySettingsOpen(false)}
+                          aria-label="إغلاق إعدادات العرض"
+                          className="w-8 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center text-[#1F1F1C]/75 hover:text-[#D97757] transition-colors cursor-pointer shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto px-3.5 py-3.5 space-y-3">
+                        {adamDisplaySettingsTab === 'layout' ? (
+                          <>
+                            {/* Group 1: Tree Orientation */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                طريقة عرض الشجرة
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTreeLayoutMode('VERTICAL');
+                                    setAdamCanvasPanOffset({ x: 0, y: 0 });
+                                  }}
+                                  className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                    treeLayoutMode === 'VERTICAL'
+                                      ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] shadow-2xs'
+                                      : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:border-[#D97757]/55'
+                                  }`}
                                 >
-                                  {visualMeta.code}
-                                </span>
-                              )}
-                            </button>
-
-                            {/* Expand / Collapse Children Downward Button */}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleToggleExpandTreeNode(node.node_id)
-                              }
-                              className={`mt-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors ${
-                                isExpanded
-                                  ? 'bg-[#E8DED2] text-[#D97757] hover:bg-[#E8DED2]'
-                                  : 'bg-[#E8DED2] hover:bg-[#D8C7B2]/60 text-[#1F1F1C]/70'
-                              }`}
-                              title={
-                                isExpanded
-                                  ? 'طي الأبناء'
-                                  : 'فتح الأبناء في الأسفل'
-                              }
-                            >
-                              <span>{isExpanded ? '▴ طي' : '▾ الأبناء'}</span>
-                              {resolvedChildren.length > 0 && (
-                                <span className="font-mono">
-                                  ({resolvedChildren.length})
-                                </span>
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Downward Connector + Children Row */}
-                          {isExpanded && resolvedChildren.length > 0 && (
-                            <div className="flex flex-col items-center">
-                              {/* Vertical stem from parent */}
-                              <div className="w-0.5 h-4 bg-[#D8C7B2]" />
-                              {/* Horizontal bar & children columns */}
-                              <div className="flex items-start justify-center gap-3 pt-2 border-t-2 border-[#D8C7B2]/90">
-                                {resolvedChildren.map((childEntry) => (
-                                  <div
-                                    key={childEntry.node.node_id}
-                                    className="flex flex-col items-center"
+                                  <svg
+                                    width="30"
+                                    height="20"
+                                    viewBox="0 0 34 24"
+                                    fill="none"
+                                    aria-hidden="true"
                                   >
-                                    {renderVerticalTreeBranch(
-                                      childEntry.node,
-                                      depth + 1,
-                                      childEntry.skippedGenerations,
-                                      nextVisited
-                                    )}
-                                  </div>
+                                    <rect
+                                      x="12"
+                                      y="1.5"
+                                      width="10"
+                                      height="5"
+                                      rx="1.5"
+                                      fill="currentColor"
+                                    />
+                                    <path
+                                      d="M17 6.5V12M8 12H26M8 12V16M26 12V16"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                    />
+                                    <rect
+                                      x="3"
+                                      y="16"
+                                      width="10"
+                                      height="5"
+                                      rx="1.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.4"
+                                    />
+                                    <rect
+                                      x="21"
+                                      y="16"
+                                      width="10"
+                                      height="5"
+                                      rx="1.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.4"
+                                    />
+                                  </svg>
+                                  <span className="text-[10.5px] font-display font-bold">
+                                    عمودي متدرج
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTreeLayoutMode('SIDE');
+                                    setAdamCanvasPanOffset({ x: 0, y: 0 });
+                                  }}
+                                  className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                    treeLayoutMode === 'SIDE'
+                                      ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] shadow-2xs'
+                                      : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:border-[#D97757]/55'
+                                  }`}
+                                >
+                                  <svg
+                                    width="30"
+                                    height="20"
+                                    viewBox="0 0 34 24"
+                                    fill="none"
+                                    aria-hidden="true"
+                                  >
+                                    <rect
+                                      x="23"
+                                      y="9"
+                                      width="9"
+                                      height="6"
+                                      rx="1.5"
+                                      fill="currentColor"
+                                    />
+                                    <path
+                                      d="M23 12H16M16 5V19M16 5H11M16 19H11"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                    />
+                                    <rect
+                                      x="2"
+                                      y="2.5"
+                                      width="9"
+                                      height="5"
+                                      rx="1.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.4"
+                                    />
+                                    <rect
+                                      x="2"
+                                      y="16.5"
+                                      width="9"
+                                      height="5"
+                                      rx="1.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.4"
+                                    />
+                                  </svg>
+                                  <span className="text-[10.5px] font-display font-bold">
+                                    جانبي أفقي
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Group 2: Starting Point & Coded-Only Switch */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                نقطة البدء والتصفية
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setTreeStartMode('MT_PEAKS')}
+                                  className={`py-2 px-2 rounded-xl border text-[10.5px] font-display font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                    treeStartMode === 'MT_PEAKS'
+                                      ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                                      : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
+                                  }`}
+                                >
+                                  <Compass className="w-3.5 h-3.5 shrink-0" />
+                                  <span>الذروات الـ 6</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTreeStartMode('ADAM_ROOT')}
+                                  className={`py-2 px-2 rounded-xl border text-[10.5px] font-display font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                    treeStartMode === 'ADAM_ROOT'
+                                      ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                                      : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
+                                  }`}
+                                >
+                                  <Crown className="w-3.5 h-3.5 shrink-0" />
+                                  <span>آدم عليه السلام</span>
+                                </button>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-[#D8C7B2]/60">
+                                <span className="text-[11px] font-display font-bold text-[#1F1F1C]">
+                                  عرض العقد المكودة فقط
+                                </span>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={codedOnlyTreeToggle}
+                                  onClick={() =>
+                                    setCodedOnlyTreeToggle((prev) => !prev)
+                                  }
+                                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors cursor-pointer ${
+                                    codedOnlyTreeToggle
+                                      ? 'bg-[#D97757] border-[#D97757]'
+                                      : 'bg-[#E8DED2] border-[#D97757]/45'
+                                  }`}
+                                >
+                                  <span
+                                    className={`pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-[#F5F1E8] shadow-xs transition-transform ${
+                                      codedOnlyTreeToggle
+                                        ? '-translate-x-4'
+                                        : '-translate-x-0.5'
+                                    }`}
+                                  />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Group 3: Node Shape (Matches "شجرتي") */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                شكل العُقد في المشجرة
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {(
+                                  [
+                                    {
+                                      id: 'card' as const,
+                                      label: 'بطاقة',
+                                      icon: LayoutGrid,
+                                    },
+                                    {
+                                      id: 'circle' as const,
+                                      label: 'دائرة',
+                                      icon: Circle,
+                                    },
+                                    {
+                                      id: 'leaf' as const,
+                                      label: 'ورقة',
+                                      icon: Leaf,
+                                    },
+                                  ] as const
+                                ).map((sh) => {
+                                  const Icon = sh.icon;
+                                  const active = adamNodeShape === sh.id;
+                                  return (
+                                    <button
+                                      key={sh.id}
+                                      type="button"
+                                      onClick={() => setAdamNodeShape(sh.id)}
+                                      className={`py-2 px-2 rounded-xl border text-[11px] font-display font-bold flex flex-col items-center gap-1 transition-colors cursor-pointer ${
+                                        active
+                                          ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                                          : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
+                                      }`}
+                                    >
+                                      <Icon className="w-3.5 h-3.5" />
+                                      <span>{sh.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Group 4: Card Density (Matches "شجرتي") */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                كثافة عرض البطاقات
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {(
+                                  [
+                                    { id: 'detailed' as const, label: 'مفصّل' },
+                                    { id: 'balanced' as const, label: 'متوازن' },
+                                    { id: 'compact' as const, label: 'مضغوط' },
+                                  ] as const
+                                ).map((den) => (
+                                  <button
+                                    key={den.id}
+                                    type="button"
+                                    onClick={() => setAdamCardDensity(den.id)}
+                                    className={`py-2 px-2 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
+                                      adamCardDensity === den.id
+                                        ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                                        : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
+                                    }`}
+                                  >
+                                    {den.label}
+                                  </button>
                                 ))}
                               </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    };
 
-                    // MODE 2: SIDE HIERARCHICAL TREE (Indented list)
-                    const renderSideTreeBranch = (
-                      node: AdamTreeInteractiveNode,
-                      depth: number,
-                      isLastSibling: boolean,
-                      skippedGenerations: number,
-                      visitedPath: Set<string>
-                    ): React.ReactNode => {
-                      if (!node || visitedPath.has(node.node_id) || depth > 60) {
-                        return null;
-                      }
-                      const nextVisited = new Set(visitedPath);
-                      nextVisited.add(node.node_id);
-
-                      const resolvedChildren = getResolvedChildrenForTreeNode(
-                        node.node_id
-                      );
-                      const hasChildren = resolvedChildren.length > 0;
-                      const isExpanded = expandedNodeIds.has(node.node_id);
-                      const isSelected =
-                        selectedAdamNode?.node_id === node.node_id;
-                      const isOnSelectedPath = ancestorSet.has(node.node_id);
-                      const visualMeta = getSmartVisualTierMeta(node.arc_code);
-
-                      return (
-                        <div key={node.node_id} className="select-none">
-                          {/* Tree Row */}
-                          <div className="flex items-center gap-1.5 py-1">
-                            {depth > 0 && (
-                              <span className="font-mono text-[#1F1F1C]/55 text-xs pl-1 shrink-0">
-                                {isLastSibling ? '└─' : '├─'}
-                              </span>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleToggleExpandTreeNode(node.node_id)
-                              }
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold transition-colors cursor-pointer shrink-0 ${
-                                isExpanded
-                                  ? 'bg-[#E8DED2] text-[#D97757] hover:bg-[#E8DED2]'
-                                  : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 hover:bg-[#E8DED2]'
-                              }`}
-                              title={
-                                isExpanded
-                                  ? 'طي الفروع المنحدرة'
-                                  : `توسيع الفروع (${resolvedChildren.length})`
-                              }
-                            >
-                              {isExpanded ? '▾' : '▸'}
-                            </button>
-
-                            <button
-                              id={`adam-tree-node-btn-${node.node_id}`}
-                              type="button"
-                              onClick={() =>
-                                handleSelectTreeNodeInNavigator(node)
-                              }
-                              title={visualMeta.tierTitle}
-                              className={`group flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl text-right transition-all cursor-pointer border ${
-                                isSelected
-                                  ? 'bg-[#F5F1E8] border-2 border-[#D8C7B2] text-[#1F1F1C] shadow-xs ring-2 ring-[#D8C7B2]/25'
-                                  : isOnSelectedPath
-                                  ? 'bg-[#F5F1E8]/60 border-[#D8C7B2]/50 text-[#1F1F1C]'
-                                  : 'bg-[#F5F1E8] hover:bg-[#F5F1E8]/80 border-[#D8C7B2]/90 text-[#1F1F1C]'
-                              }`}
-                            >
-                              <span
-                                className={`w-2.5 h-2.5 rounded-full shrink-0 ${visualMeta.dotClass}`}
-                              />
-                              <span
-                                className={`text-xs ${
-                                  isSelected || visualMeta.isCoded
-                                    ? 'font-extrabold text-[#1F1F1C]'
-                                    : 'font-semibold text-[#1F1F1C]/70'
-                                }`}
-                              >
-                                {node.name}
-                              </span>
-                              {visualMeta.isCoded && (
-                                <span
-                                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${visualMeta.capsuleClass}`}
-                                >
-                                  {visualMeta.code}
-                                </span>
-                              )}
-                              {skippedGenerations > 0 && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8DED2]/90 text-[#1F1F1C] border border-[#D8C7B2]/70 font-bold">
-                                  (تخطي +{skippedGenerations} جيل فردي)
-                                </span>
-                              )}
-                              {hasChildren && (
-                                <span className="text-[10px] text-[#1F1F1C]/55 font-mono">
-                                  ({resolvedChildren.length})
-                                </span>
-                              )}
-                            </button>
-                          </div>
-
-                          {hasChildren && isExpanded && (
-                            <div className="mr-3 pr-3.5 border-r-2 border-[#D8C7B2]/80 space-y-0.5">
-                              {resolvedChildren.map((childEntry, cIdx) =>
-                                renderSideTreeBranch(
-                                  childEntry.node,
-                                  depth + 1,
-                                  cIdx === resolvedChildren.length - 1,
-                                  childEntry.skippedGenerations,
-                                  nextVisited
-                                )
-                              )}
+                            {/* Group 5: Connector Style (Matches "شجرتي") */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                نمط خطوط الربط النسبي
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {(
+                                  [
+                                    {
+                                      id: 'orthogonal' as const,
+                                      label: 'هندسية',
+                                    },
+                                    {
+                                      id: 'curved' as const,
+                                      label: 'منحنية',
+                                    },
+                                    {
+                                      id: 'heritage_branch' as const,
+                                      label: 'غصن تراثي',
+                                    },
+                                  ] as const
+                                ).map((cs) => (
+                                  <button
+                                    key={cs.id}
+                                    type="button"
+                                    onClick={() => setAdamConnectorStyle(cs.id)}
+                                    className={`py-2 px-1.5 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
+                                      adamConnectorStyle === cs.id
+                                        ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                                        : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
+                                    }`}
+                                  >
+                                    {cs.label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    };
 
-                    if (treeLayoutMode === 'VERTICAL') {
-                      return (
-                        <div className="flex items-start justify-center gap-5 min-w-max py-2 px-2">
-                          {topRoots.map((rootNode) =>
-                            renderVerticalTreeBranch(
-                              rootNode,
-                              0,
-                              0,
-                              new Set<string>()
-                            )
-                          )}
-                        </div>
-                      );
-                    }
+                            {/* Group 6: Canvas Surface (Matches "شجرتي") */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                خلفية مساحة الرسم
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {(
+                                  [
+                                    {
+                                      id: 'dots' as const,
+                                      label: 'شبكة نقطية',
+                                    },
+                                    {
+                                      id: 'parchment' as const,
+                                      label: 'رقّ مخطوطة',
+                                    },
+                                    {
+                                      id: 'marble' as const,
+                                      label: 'رخامي صافي',
+                                    },
+                                  ] as const
+                                ).map((bg) => (
+                                  <button
+                                    key={bg.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setAdamCanvasBackground(bg.id)
+                                    }
+                                    className={`py-2 px-1.5 rounded-xl border text-[10.5px] font-display font-bold transition-colors cursor-pointer ${
+                                      adamCanvasBackground === bg.id
+                                        ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                                        : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/75 hover:bg-[#F5F1E8]'
+                                    }`}
+                                  >
+                                    {bg.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Museum Themes (Unified with "شجرتي" & "موقعي" — Terracotta border selection, zero checkmarks) */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757] flex items-center gap-1.5">
+                                <Palette className="w-3.5 h-3.5" />
+                                <span>ثيمات الألوان المتحفية</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {Object.values(TREE_CARD_THEMES).map((th) => {
+                                  const active = adamTreeThemeId === th.id;
+                                  return (
+                                    <button
+                                      key={th.id}
+                                      type="button"
+                                      onClick={() => setAdamTreeThemeId(th.id)}
+                                      className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer space-y-1.5 ${
+                                        active
+                                          ? 'bg-[#F5F1E8] border-2 border-[#D97757] shadow-2xs'
+                                          : 'bg-[#F5F1E8]/65 border-[#D8C7B2] hover:border-[#D97757]/55'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-1">
+                                        {th.swatches.map((hex, sIdx) => (
+                                          <span
+                                            key={sIdx}
+                                            className="w-3.5 h-3.5 rounded-full border border-[#1F1F1C]/15"
+                                            style={{ backgroundColor: hex }}
+                                          />
+                                        ))}
+                                      </div>
+                                      <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] leading-tight">
+                                        {th.label}
+                                      </div>
+                                      <div className="text-[9.5px] text-[#1F1F1C]/60 leading-tight truncate">
+                                        {th.subtitle}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
 
-                    return (
-                      <div className="space-y-1.5">
-                        {topRoots.map((rootNode, rIdx) =>
-                          renderSideTreeBranch(
-                            rootNode,
-                            0,
-                            rIdx === topRoots.length - 1,
-                            0,
-                            new Set<string>()
-                          )
+                            {/* Arabic Fonts (Unified with "شجرتي") */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757] flex items-center gap-1.5">
+                                <Type className="w-3.5 h-3.5" />
+                                <span>الخط العربي للمشجرة</span>
+                              </div>
+                              <div className="space-y-1.5">
+                                {TREE_ARABIC_FONT_OPTIONS.map((fontOpt) => {
+                                  const active = adamTreeFontId === fontOpt.id;
+                                  return (
+                                    <button
+                                      key={fontOpt.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setAdamTreeFontId(fontOpt.id)
+                                      }
+                                      className={`w-full px-3 py-2 rounded-xl border text-right transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                                        active
+                                          ? 'bg-[#F5F1E8] border-2 border-[#D97757] text-[#1F1F1C]'
+                                          : 'bg-[#F5F1E8]/65 border-[#D8C7B2] text-[#1F1F1C]/80 hover:border-[#D97757]/55'
+                                      }`}
+                                    >
+                                      <span
+                                        className="text-xs font-bold"
+                                        style={{
+                                          fontFamily: fontOpt.cssFamily,
+                                        }}
+                                      >
+                                        {fontOpt.shortLabel}
+                                      </span>
+                                      <span
+                                        className="text-[11px] text-[#1F1F1C]/60"
+                                        style={{
+                                          fontFamily: fontOpt.cssFamily,
+                                        }}
+                                      >
+                                        شجرة آدم
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </>
                         )}
                       </div>
-                    );
-                  })()}
+                    </aside>
+                  )}
+
+                  {/* LIVE MUSEUM TREE CANVAS STAGE (EXACT VISUAL CONSISTENCY WITH "شجرتي") */}
+                  <div
+                    className="flex-1 min-w-0 relative flex flex-col overflow-hidden transition-colors"
+                    style={{
+                      ...getTreeCanvasBackgroundStyle(
+                        activeAdamTreeTheme,
+                        adamCanvasBackground
+                      ),
+                      fontFamily: activeAdamTreeFont.cssFamily,
+                    }}
+                  >
+                    <div
+                      ref={adamTreeScrollContainerRef}
+                      data-testid="adam-top-down-hierarchical-tree"
+                      dir="rtl"
+                      onMouseDown={handleAdamTreeMouseDown}
+                      className={`w-full flex-1 overflow-auto touch-pan-x touch-pan-y px-4 sm:px-6 pt-6 pb-20 ${
+                        isAdamTreePanning
+                          ? 'cursor-grabbing select-none'
+                          : 'cursor-grab'
+                      }`}
+                    >
+                      <div
+                        ref={adamTreeContentRef}
+                        className="w-max min-w-full"
+                        style={{
+                          transform:
+                            adamCanvasPanOffset.x !== 0 ||
+                            adamCanvasPanOffset.y !== 0
+                              ? `translate3d(${adamCanvasPanOffset.x}px, ${adamCanvasPanOffset.y}px, 0)`
+                              : undefined,
+                        }}
+                      >
+                        <div
+                          className={
+                            treeLayoutMode === 'VERTICAL'
+                              ? 'w-max min-w-full transition-transform origin-top'
+                              : 'w-max min-w-full transition-transform origin-top-right'
+                          }
+                          style={{
+                            transform: `scale(${adamZoomPercent / 100})`,
+                          }}
+                        >
+                          {(() => {
+                            const topRoots =
+                              treeStartMode === 'MT_PEAKS'
+                                ? mtSixPeakRoots
+                                : adamTopRootNode
+                                ? [adamTopRootNode]
+                                : [adamGraphNodes[0]].filter(Boolean);
+
+                            const ancestorSet = new Set(
+                              selectedNodeAncestorsChain.map((a) => a.node_id)
+                            );
+
+                            const stemThicknessClass =
+                              adamConnectorStyle === 'heritage_branch'
+                                ? 'w-[3px]'
+                                : 'w-[1.5px]';
+                            const barBorderClass =
+                              adamConnectorStyle === 'heritage_branch'
+                                ? 'border-t-[3px]'
+                                : 'border-t-2';
+                            const barRadiusClass =
+                              adamConnectorStyle === 'curved'
+                                ? 'rounded-t-2xl'
+                                : '';
+
+                            const getNodeCardShapeClass = () => {
+                              if (adamNodeShape === 'circle') {
+                                return adamCardDensity === 'compact'
+                                  ? 'rounded-full px-3.5 py-2 min-w-[104px]'
+                                  : 'rounded-full px-4 py-2.5 min-w-[126px]';
+                              }
+                              if (adamNodeShape === 'leaf') {
+                                return adamCardDensity === 'compact'
+                                  ? 'rounded-tr-3xl rounded-bl-3xl rounded-tl-lg rounded-br-lg px-3.5 py-2 min-w-[110px]'
+                                  : 'rounded-tr-3xl rounded-bl-3xl rounded-tl-xl rounded-br-xl px-4 py-2.5 min-w-[132px]';
+                              }
+                              return adamCardDensity === 'compact'
+                                ? 'rounded-xl px-2.5 py-1.5 min-w-[105px]'
+                                : adamCardDensity === 'detailed'
+                                ? 'rounded-2xl px-4 py-3 min-w-[148px]'
+                                : 'rounded-2xl px-3.5 py-2.5 min-w-[128px]';
+                            };
+
+                            // MODE 1: VERTICAL TOP-DOWN MUSEUM TREE
+                            const renderVerticalTreeBranch = (
+                              node: AdamTreeInteractiveNode,
+                              depth: number,
+                              skippedGenerations: number,
+                              visitedPath: Set<string>
+                            ): React.ReactNode => {
+                              if (
+                                !node ||
+                                visitedPath.has(node.node_id) ||
+                                depth > 50
+                              ) {
+                                return null;
+                              }
+                              const nextVisited = new Set(visitedPath);
+                              nextVisited.add(node.node_id);
+
+                              const resolvedChildren =
+                                getResolvedChildrenForTreeNode(node.node_id);
+                              const isExpanded = expandedNodeIds.has(
+                                node.node_id
+                              );
+                              const isSelected =
+                                selectedAdamNode?.node_id === node.node_id;
+                              const isOnSelectedPath = ancestorSet.has(
+                                node.node_id
+                              );
+                              const visualMeta = getSmartVisualTierMeta(
+                                node.arc_code
+                              );
+
+                              const cardSurfaceStyle: React.CSSProperties = {
+                                backgroundColor: activeAdamTreeTheme.cardFillHex,
+                                borderColor: isSelected
+                                  ? '#D97757'
+                                  : isOnSelectedPath
+                                  ? activeAdamTreeTheme.primaryHex
+                                  : activeAdamTreeTheme.cardStrokeHex,
+                                color: activeAdamTreeTheme.textPrimaryHex,
+                              };
+
+                              return (
+                                <div
+                                  key={node.node_id}
+                                  className="flex flex-col items-center select-none"
+                                >
+                                  {skippedGenerations > 0 && (
+                                    <span
+                                      className="mb-1 text-[9.5px] px-2 py-0.5 rounded-full border font-bold whitespace-nowrap"
+                                      style={{
+                                        backgroundColor:
+                                          activeAdamTreeTheme.cardFillHex,
+                                        borderColor:
+                                          activeAdamTreeTheme.cardStrokeHex,
+                                        color:
+                                          activeAdamTreeTheme.textMutedHex,
+                                      }}
+                                    >
+                                      +{skippedGenerations} جيل
+                                    </span>
+                                  )}
+
+                                  {/* Museum Node Nameplate Card */}
+                                  <div
+                                    style={cardSurfaceStyle}
+                                    className={`flex flex-col items-center border-2 transition-all shadow-xs hover:shadow-md ${getNodeCardShapeClass()} ${
+                                      isSelected
+                                        ? 'ring-3 ring-[#D97757]/25 shadow-md -translate-y-0.5'
+                                        : ''
+                                    }`}
+                                  >
+                                    <button
+                                      id={`adam-tree-node-btn-${node.node_id}`}
+                                      type="button"
+                                      onClick={() =>
+                                        handleSelectTreeNodeInNavigator(node)
+                                      }
+                                      title={visualMeta.tierTitle}
+                                      className="flex flex-col items-center gap-1 cursor-pointer text-center"
+                                    >
+                                      <div className="flex items-center gap-1.5">
+                                        <span
+                                          className="w-2 h-2 rounded-full shrink-0"
+                                          style={{
+                                            backgroundColor: visualMeta.isCoded
+                                              ? activeAdamTreeTheme.secondaryHex
+                                              : activeAdamTreeTheme.cardStrokeHex,
+                                          }}
+                                        />
+                                        <span
+                                          className={`${
+                                            adamCardDensity === 'compact'
+                                              ? 'text-xs'
+                                              : 'text-[13px]'
+                                          } whitespace-nowrap ${
+                                            isSelected || visualMeta.isCoded
+                                              ? 'font-extrabold'
+                                              : 'font-semibold opacity-85'
+                                          }`}
+                                          style={{
+                                            color:
+                                              activeAdamTreeTheme.textPrimaryHex,
+                                          }}
+                                        >
+                                          {node.name}
+                                        </span>
+                                      </div>
+
+                                      {(visualMeta.isCoded ||
+                                        adamCardDensity === 'detailed') && (
+                                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                                          {visualMeta.isCoded && (
+                                            <span
+                                              className="text-[9.5px] font-mono px-1.5 py-0.5 rounded-full font-bold border"
+                                              style={{
+                                                borderColor: `${activeAdamTreeTheme.primaryHex}55`,
+                                                color:
+                                                  activeAdamTreeTheme.primaryHex,
+                                                backgroundColor: `${activeAdamTreeTheme.primaryHex}12`,
+                                              }}
+                                            >
+                                              {visualMeta.code}
+                                            </span>
+                                          )}
+                                          {adamCardDensity === 'detailed' && (
+                                            <span
+                                              className="text-[9.5px] font-semibold"
+                                              style={{
+                                                color:
+                                                  activeAdamTreeTheme.textMutedHex,
+                                              }}
+                                            >
+                                              {node.representation === 'TRIBE'
+                                                ? 'قبيلة'
+                                                : node.representation ===
+                                                  'FAMILY'
+                                                ? 'أسرة'
+                                                : node.representation ===
+                                                  'ALLIANCE'
+                                                ? 'حلف'
+                                                : 'فرد'}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </button>
+
+                                    {/* Subtle Museum Expand/Collapse Pill */}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleToggleExpandTreeNode(node.node_id)
+                                      }
+                                      className="mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all border"
+                                      style={{
+                                        borderColor: isExpanded
+                                          ? `${activeAdamTreeTheme.secondaryHex}75`
+                                          : `${activeAdamTreeTheme.cardStrokeHex}80`,
+                                        backgroundColor: isExpanded
+                                          ? `${activeAdamTreeTheme.secondaryHex}16`
+                                          : 'transparent',
+                                        color: isExpanded
+                                          ? activeAdamTreeTheme.secondaryHex
+                                          : activeAdamTreeTheme.textMutedHex,
+                                      }}
+                                      title={
+                                        isExpanded
+                                          ? 'طي الأبناء'
+                                          : 'فتح الأبناء'
+                                      }
+                                    >
+                                      <span>{isExpanded ? '▴' : '▾'}</span>
+                                      {resolvedChildren.length > 0 && (
+                                        <span className="font-mono">
+                                          {resolvedChildren.length}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </div>
+
+                                  {/* Downward Museum Connector + Children Row */}
+                                  {isExpanded && resolvedChildren.length > 0 && (
+                                    <div className="flex flex-col items-center">
+                                      <div
+                                        className={`${stemThicknessClass} h-4`}
+                                        style={{
+                                          backgroundColor:
+                                            activeAdamTreeTheme.primaryHex,
+                                          opacity: 0.65,
+                                        }}
+                                      />
+                                      <div
+                                        className={`flex items-start justify-center ${
+                                          adamCardDensity === 'compact'
+                                            ? 'gap-2.5'
+                                            : 'gap-4'
+                                        } pt-2.5 ${barBorderClass} ${barRadiusClass}`}
+                                        style={{
+                                          borderColor: `${activeAdamTreeTheme.primaryHex}66`,
+                                        }}
+                                      >
+                                        {resolvedChildren.map((childEntry) => (
+                                          <div
+                                            key={childEntry.node.node_id}
+                                            className="flex flex-col items-center"
+                                          >
+                                            {renderVerticalTreeBranch(
+                                              childEntry.node,
+                                              depth + 1,
+                                              childEntry.skippedGenerations,
+                                              nextVisited
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            };
+
+                            // MODE 2: SIDEWAYS HIERARCHICAL MUSEUM TREE
+                            const renderSideTreeBranch = (
+                              node: AdamTreeInteractiveNode,
+                              depth: number,
+                              isLastSibling: boolean,
+                              skippedGenerations: number,
+                              visitedPath: Set<string>
+                            ): React.ReactNode => {
+                              if (
+                                !node ||
+                                visitedPath.has(node.node_id) ||
+                                depth > 60
+                              ) {
+                                return null;
+                              }
+                              const nextVisited = new Set(visitedPath);
+                              nextVisited.add(node.node_id);
+
+                              const resolvedChildren =
+                                getResolvedChildrenForTreeNode(node.node_id);
+                              const hasChildren = resolvedChildren.length > 0;
+                              const isExpanded = expandedNodeIds.has(
+                                node.node_id
+                              );
+                              const isSelected =
+                                selectedAdamNode?.node_id === node.node_id;
+                              const isOnSelectedPath = ancestorSet.has(
+                                node.node_id
+                              );
+                              const visualMeta = getSmartVisualTierMeta(
+                                node.arc_code
+                              );
+
+                              return (
+                                <div key={node.node_id} className="select-none">
+                                  <div className="flex items-center gap-1.5 py-1">
+                                    {depth > 0 && (
+                                      <span
+                                        className="font-mono text-xs pl-1 shrink-0"
+                                        style={{
+                                          color:
+                                            activeAdamTreeTheme.textMutedHex,
+                                        }}
+                                      >
+                                        {isLastSibling ? '└─' : '├─'}
+                                      </span>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleToggleExpandTreeNode(node.node_id)
+                                      }
+                                      className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold transition-colors cursor-pointer shrink-0 border"
+                                      style={{
+                                        backgroundColor: isExpanded
+                                          ? `${activeAdamTreeTheme.secondaryHex}18`
+                                          : activeAdamTreeTheme.cardFillHex,
+                                        borderColor: isExpanded
+                                          ? activeAdamTreeTheme.secondaryHex
+                                          : activeAdamTreeTheme.cardStrokeHex,
+                                        color: isExpanded
+                                          ? activeAdamTreeTheme.secondaryHex
+                                          : activeAdamTreeTheme.textMutedHex,
+                                      }}
+                                      title={
+                                        isExpanded
+                                          ? 'طي الفروع المنحدرة'
+                                          : `توسيع الفروع (${resolvedChildren.length})`
+                                      }
+                                    >
+                                      {isExpanded ? '▾' : '▸'}
+                                    </button>
+
+                                    <button
+                                      id={`adam-tree-node-btn-${node.node_id}`}
+                                      type="button"
+                                      onClick={() =>
+                                        handleSelectTreeNodeInNavigator(node)
+                                      }
+                                      title={visualMeta.tierTitle}
+                                      style={{
+                                        backgroundColor:
+                                          activeAdamTreeTheme.cardFillHex,
+                                        borderColor: isSelected
+                                          ? '#D97757'
+                                          : isOnSelectedPath
+                                          ? activeAdamTreeTheme.primaryHex
+                                          : activeAdamTreeTheme.cardStrokeHex,
+                                        color:
+                                          activeAdamTreeTheme.textPrimaryHex,
+                                      }}
+                                      className={`group flex flex-wrap items-center gap-2 px-3 py-1.5 text-right transition-all cursor-pointer border-2 shadow-2xs ${
+                                        adamNodeShape === 'circle'
+                                          ? 'rounded-full'
+                                          : adamNodeShape === 'leaf'
+                                          ? 'rounded-tr-2xl rounded-bl-2xl rounded-tl-md rounded-br-md'
+                                          : 'rounded-xl'
+                                      } ${
+                                        isSelected
+                                          ? 'ring-2 ring-[#D97757]/25 shadow-sm'
+                                          : 'hover:shadow-xs'
+                                      }`}
+                                    >
+                                      <span
+                                        className="w-2 h-2 rounded-full shrink-0"
+                                        style={{
+                                          backgroundColor: visualMeta.isCoded
+                                            ? activeAdamTreeTheme.secondaryHex
+                                            : activeAdamTreeTheme.cardStrokeHex,
+                                        }}
+                                      />
+                                      <span
+                                        className={`text-xs ${
+                                          isSelected || visualMeta.isCoded
+                                            ? 'font-extrabold'
+                                            : 'font-semibold opacity-85'
+                                        }`}
+                                      >
+                                        {node.name}
+                                      </span>
+                                      {visualMeta.isCoded && (
+                                        <span
+                                          className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border"
+                                          style={{
+                                            borderColor: `${activeAdamTreeTheme.primaryHex}55`,
+                                            color:
+                                              activeAdamTreeTheme.primaryHex,
+                                            backgroundColor: `${activeAdamTreeTheme.primaryHex}12`,
+                                          }}
+                                        >
+                                          {visualMeta.code}
+                                        </span>
+                                      )}
+                                      {skippedGenerations > 0 && (
+                                        <span
+                                          className="text-[10px] px-2 py-0.5 rounded-full border font-bold"
+                                          style={{
+                                            borderColor:
+                                              activeAdamTreeTheme.cardStrokeHex,
+                                            color:
+                                              activeAdamTreeTheme.textMutedHex,
+                                          }}
+                                        >
+                                          +{skippedGenerations} جيل
+                                        </span>
+                                      )}
+                                      {hasChildren && (
+                                        <span
+                                          className="text-[10px] font-mono"
+                                          style={{
+                                            color:
+                                              activeAdamTreeTheme.textMutedHex,
+                                          }}
+                                        >
+                                          ({resolvedChildren.length})
+                                        </span>
+                                      )}
+                                    </button>
+                                  </div>
+
+                                  {hasChildren && isExpanded && (
+                                    <div
+                                      className="mr-3 pr-3.5 border-r-2 space-y-0.5"
+                                      style={{
+                                        borderColor: `${activeAdamTreeTheme.primaryHex}55`,
+                                      }}
+                                    >
+                                      {resolvedChildren.map(
+                                        (childEntry, cIdx) =>
+                                          renderSideTreeBranch(
+                                            childEntry.node,
+                                            depth + 1,
+                                            cIdx ===
+                                              resolvedChildren.length - 1,
+                                            childEntry.skippedGenerations,
+                                            nextVisited
+                                          )
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            };
+
+                            if (treeLayoutMode === 'VERTICAL') {
+                              return (
+                                <div className="flex items-start justify-center gap-6 min-w-max py-3 px-4">
+                                  {topRoots.map((rootNode) =>
+                                    renderVerticalTreeBranch(
+                                      rootNode,
+                                      0,
+                                      0,
+                                      new Set<string>()
+                                    )
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="space-y-1.5 py-2 px-3">
+                                {topRoots.map((rootNode, rIdx) =>
+                                  renderSideTreeBranch(
+                                    rootNode,
+                                    0,
+                                    rIdx === topRoots.length - 1,
+                                    0,
+                                    new Set<string>()
+                                  )
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -12807,7 +13943,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 <aside
                   data-testid="adam-floating-node-inspector"
                   aria-label="بطاقة بيانات وتكويد السجل المختار"
-                  className="fixed top-4 bottom-4 left-4 z-50 w-[min(520px,calc(100vw-2rem))] rounded-3xl bg-[#F5F1E8]/98 backdrop-blur-md border-2 border-[#D8C7B2] shadow-[0_24px_64px_-16px_rgba(31,31,28,0.28)] flex flex-col overflow-hidden"
+                  className="fixed top-4 bottom-4 left-4 z-[90] w-[min(520px,calc(100vw-2rem))] rounded-3xl bg-[#F5F1E8]/98 backdrop-blur-md border-2 border-[#D8C7B2] shadow-[0_24px_64px_-16px_rgba(31,31,28,0.28)] flex flex-col overflow-hidden"
                 >
                   {/* STICKY HEADER: SELECTED NODE IDENTITY, ACTIONS, ANCESTRY TRAIL & QUICK TABS */}
                   <div
@@ -13311,7 +14447,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               {showAdamSaveConfirmModal && selectedAdamNode && (
                 <div
                   data-testid="adam-save-mandatory-confirmation-modal"
-                  className="fixed inset-0 z-[60] bg-[#1F1F1C]/50 backdrop-blur-xs flex items-center justify-center p-4"
+                  className="fixed inset-0 z-[95] bg-[#1F1F1C]/50 backdrop-blur-xs flex items-center justify-center p-4"
                 >
                   <div className="bg-[#F5F1E8] border-2 border-[#D8C7B2] rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
                     <div className="space-y-1.5">
