@@ -8,6 +8,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Copy,
   Eye,
@@ -15,14 +16,13 @@ import {
   GitBranch,
   Globe,
   Inbox,
-  Link2,
   Lock,
   Mail,
   Megaphone,
+  MessageCircle,
   MessageSquareHeart,
   Plus,
   QrCode,
-  RotateCcw,
   ScanFace,
   Share2,
   ShieldCheck,
@@ -81,7 +81,6 @@ import {
   removeRelativeFromKinshipCircle,
   resolveSiteAccessRequest,
   reviewAndMergeEnrichmentRequest,
-  rotateKinshipMajlisInviteToken,
   subscribeToOwnerEnrichmentRequests,
   updateFamilyMemoryQuestStatus,
   updateKinshipCircleMemberMeta,
@@ -332,8 +331,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   const [resolvingAccessId, setResolvingAccessId] = useState<string | null>(
     null
   );
-  const [rotatingMajlisLink, setRotatingMajlisLink] = useState(false);
-  const [copiedMajlisUrl, setCopiedMajlisUrl] = useState(false);
 
   // Pillar 2: Memory Quests & Categorized Enrichment Moderation
   const [enrichmentFilter, setEnrichmentFilter] =
@@ -821,46 +818,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     }
   };
 
-  const handleRotateMajlisLink = async () => {
-    if (!isOwnRegistrarWorkspace) {
-      requireCommunityPremiumAction('community_invite', () => {
-        handleRotateMajlisLink().catch(() => {});
-      });
-      return;
-    }
-    setRotatingMajlisLink(true);
-    try {
-      const updated = await rotateKinshipMajlisInviteToken({
-        ownerId: effectiveUserId,
-        familyName: result.familyName,
-        siteSlug: activeSiteSlug || undefined,
-      });
-      setCircle(updated);
-      showToast(
-        'success',
-        'تم تدوير رمز رابط المجلس العائلي وإلغاء الرابط السابق بنجاح ✓'
-      );
-      onLogActivity?.(
-        'تدوير رابط المجلس العائلي',
-        'تم توليد رمز وصول جديد لدائرة العائلة في مجتمعي'
-      );
-    } catch {
-      showToast('error', 'تعذر تدوير رابط المجلس حالياً.');
-    } finally {
-      setRotatingMajlisLink(false);
-    }
-  };
-
-  const handleCopyMajlisUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(cleanMajlisUrl);
-      setCopiedMajlisUrl(true);
-      setTimeout(() => setCopiedMajlisUrl(false), 2200);
-    } catch {
-      // Ignore clipboard restriction
-    }
-  };
-
   const handleLaunchMemoryQuest = async (
     payload: {
       title: string;
@@ -1213,7 +1170,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 activeTab === 'circle' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
               }`}
             />
-            <span className="truncate">1. دائرة عائلتي والصلاحيات</span>
+            <span className="truncate">1. دائرة الأقارب</span>
           </span>
           <span
             className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
@@ -1350,29 +1307,67 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       )}
 
       {/* =====================================================================
-          2. PILLAR 1: دائرة عائلتي والصلاحيات
+          2. PILLAR 1: دائرة الأقارب
       ====================================================================== */}
       {!isLoading && activeTab === 'circle' && (
-        <div className="space-y-6">
-          {/* Smart Relative Invitation Studio (Visible to all; execution gated on action) */}
+        <div className="space-y-5">
+          {/* Section 1: Sculpted Invitation Atelier */}
           <div
             ref={inviteStudioRef}
-            className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] overflow-hidden"
+            className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] via-[#FDFBF7] to-[#F5EFE4] border border-[#D8C7B2]/80 relative overflow-hidden shadow-[0_2px_14px_rgba(31,31,28,0.03)] transition-all"
           >
-            <div className="px-6 py-4 bg-[#FAF7F2] border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+            {/* Soft decorative top highlight hairline */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-l from-[#D97757]/55 via-[#D8C7B2]/60 to-transparent" />
+
+            {/* Subtle family branch watermark in right corner */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 220 110"
+              fill="none"
+              className="pointer-events-none absolute -top-2 -right-3 w-48 h-24 text-[#1F1F1C] opacity-[0.05]"
+            >
+              <path
+                d="M210 95 C175 75, 155 58, 130 48 C105 38, 88 22, 68 12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M155 62 C150 42, 162 28, 178 18"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M122 45 C106 52, 92 64, 78 78"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M96 31 C90 19, 97 10, 108 5"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinecap="round"
+              />
+              <circle cx="178" cy="18" r="3" fill="currentColor" />
+              <circle cx="68" cy="12" r="3" fill="currentColor" />
+              <circle cx="78" cy="78" r="2.5" fill="currentColor" />
+              <circle cx="108" cy="5" r="2.5" fill="currentColor" />
+              <circle cx="130" cy="48" r="2.5" fill="currentColor" />
+            </svg>
+
+            {/* Collapsed / Header Plaque */}
+            <div className="relative z-10 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-11 h-11 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(217,119,87,0.12)]">
                   <UserPlus className="w-4.5 h-4.5" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
-                    استوديو دعوة قريب للدائرة وتحديد الصلاحيات
-                  </h3>
-                  <p className="text-[11px] text-[#1F1F1C]/65">
-                    اختر مستوى الصلاحية، اربط القريب ببطاقته في «شجرتي» (اختياري)، وأرسل دعوته بالبريد أو واتساب
-                  </p>
-                </div>
+                <h3 className="text-[15px] font-display font-bold text-[#1F1F1C] tracking-tight">
+                  دعوة قريب لدائرة العائلة وتحديد الصلاحيات
+                </h3>
               </div>
+
               <button
                 type="button"
                 onClick={() => {
@@ -1384,136 +1379,154 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   }
                   setInviteStudioOpen((v) => !v);
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2]/60 border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] cursor-pointer transition-colors"
+                className={`px-4 py-2 rounded-xl text-xs font-display font-bold cursor-pointer transition-all shrink-0 ${
+                  inviteStudioOpen
+                    ? 'bg-[#E8DED2]/90 hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C]'
+                    : 'bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] shadow-[0_2px_10px_rgba(217,119,87,0.22)]'
+                }`}
               >
-                {inviteStudioOpen ? 'طي النموذج' : '+ فتح نموذج الدعوة'}
+                {inviteStudioOpen ? 'طي النموذج' : '+ دعوة قريب جديد'}
               </button>
             </div>
 
-              {inviteStudioOpen && (
-                <form onSubmit={handleAddRelative} className="p-6 space-y-5">
-                  {/* Basic Relative Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-display font-bold text-[#1F1F1C]">
-                        اسم القريب الكامل
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={relName}
-                        onChange={(e) => setRelName(e.target.value)}
-                        placeholder="مثال: عبد الله بن خالد"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-display font-bold text-[#1F1F1C]">
-                        البريد الإلكتروني للقريب
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        dir="ltr"
-                        value={relEmail}
-                        onChange={(e) => setRelEmail(e.target.value)}
-                        placeholder="relative@example.com"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] text-left focus:outline-none focus:border-[#D97757]"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-display font-bold text-[#1F1F1C]">
-                        صلة القرابة
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={relKinship}
-                        onChange={(e) => setRelKinship(e.target.value)}
-                        placeholder="ابن عم / شقيق / عم"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
-                      />
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {KINSHIP_PRESETS.slice(0, 5).map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setRelKinship(preset)}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold cursor-pointer transition-colors ${
-                              relKinship === preset
-                                ? 'bg-[#D97757] text-[#F5F1E8]'
-                                : 'bg-[#F5F1E8] text-[#1F1F1C]/70 hover:bg-[#E8DED2]'
-                            }`}
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Role Selector (3 Tiers Persisted in Firestore) */}
-                  <div className="space-y-2">
+            {/* Smooth Unfolding Invitation Form */}
+            {inviteStudioOpen && (
+              <form
+                onSubmit={handleAddRelative}
+                className="relative z-10 px-6 pb-6 pt-5 border-t border-[#D8C7B2]/60 bg-[#FDFBF7]/70 space-y-5"
+              >
+                {/* Basic Relative Details */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
                     <label className="block text-xs font-display font-bold text-[#1F1F1C]">
-                      مستوى الصلاحية داخل دائرة العائلة
+                      اسم القريب الكامل
                     </label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {ROLE_OPTIONS.map((roleOpt) => {
-                        const selected = relRole === roleOpt.id;
-                        return (
-                          <button
-                            key={roleOpt.id}
-                            type="button"
-                            onClick={() => setRelRole(roleOpt.id)}
-                            className={`text-right rounded-xl p-3.5 border transition-all cursor-pointer ${
-                              selected
-                                ? 'bg-[#F5F1E8] border-[#D97757] ring-1 ring-[#D97757]/40'
-                                : 'bg-[#F5F1E8] border-[#D97757]/35 hover:border-[#D97757]/50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-display font-bold text-[#1F1F1C]">
-                                {roleOpt.labelAr}
-                              </span>
-                              <span
-                                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                                  selected
-                                    ? 'bg-[#D97757] border-[#D97757] text-[#F5F1E8]'
-                                    : 'border-[#D97757]'
-                                }`}
-                              >
-                                {selected && <Check className="w-2.5 h-2.5" />}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-[#1F1F1C]/65 mt-1.5 leading-relaxed">
-                              {roleOpt.descriptionAr}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={relName}
+                      onChange={(e) => setRelName(e.target.value)}
+                      placeholder="مثال: عبد الله بن خالد"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] focus:bg-[#FDFBF7] border border-[#D8C7B2] text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/40 focus:outline-none focus:border-[#D97757] focus:ring-2 focus:ring-[#D97757]/15 transition-all"
+                    />
                   </div>
 
-                  {/* Optional Smart Tree Member Binding */}
-                  <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <div className="text-xs font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
-                        <JUTHORI_SERVICE_ICONS.tree className="w-4 h-4 text-[#D97757]" />
-                        <span>ربط العضو ببطاقته في «شجرتي» (اختياري)</span>
-                      </div>
-                      <p className="text-[11px] text-[#1F1F1C]/60">
-                        {contemporaryTreeOptions.length > 0
-                          ? `اختر بطاقة القريب من بين ${contemporaryTreeOptions.length} فرداً مسجلاً في شجرتك المعاصرة.`
-                          : 'أضف أفراد عائلتك في «شجرتي» لتتمكن من ربط كل مدعو بموقعه الفعلي في الشجرة.'}
-                      </p>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-display font-bold text-[#1F1F1C]">
+                      البريد الإلكتروني للقريب
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      dir="ltr"
+                      value={relEmail}
+                      onChange={(e) => setRelEmail(e.target.value)}
+                      placeholder="relative@example.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] focus:bg-[#FDFBF7] border border-[#D8C7B2] text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/40 text-left focus:outline-none focus:border-[#D97757] focus:ring-2 focus:ring-[#D97757]/15 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-display font-bold text-[#1F1F1C]">
+                      صلة القرابة
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={relKinship}
+                      onChange={(e) => setRelKinship(e.target.value)}
+                      placeholder="ابن عم / شقيق / عم"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] focus:bg-[#FDFBF7] border border-[#D8C7B2] text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/40 focus:outline-none focus:border-[#D97757] focus:ring-2 focus:ring-[#D97757]/15 transition-all"
+                    />
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {KINSHIP_PRESETS.slice(0, 6).map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setRelKinship(preset)}
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border cursor-pointer transition-all ${
+                            relKinship === preset
+                              ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-2xs'
+                              : 'bg-[#F5F1E8] text-[#1F1F1C]/75 border-[#D8C7B2]/80 hover:bg-[#E8DED2]'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
                     </div>
+                  </div>
+                </div>
+
+                {/* Role Selector — 3 Sculpted Medallion Cards */}
+                <div className="space-y-2.5">
+                  <label className="block text-xs font-display font-bold text-[#1F1F1C]">
+                    مستوى الصلاحية داخل دائرة العائلة
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {ROLE_OPTIONS.map((roleOpt) => {
+                      const selected = relRole === roleOpt.id;
+                      return (
+                        <button
+                          key={roleOpt.id}
+                          type="button"
+                          onClick={() => setRelRole(roleOpt.id)}
+                          className={`relative overflow-hidden text-right rounded-2xl p-4 border transition-all cursor-pointer ${
+                            selected
+                              ? 'bg-gradient-to-b from-[#FAF6EE] to-[#F5EFE4] border-[#D97757] ring-1 ring-[#D97757]/30 shadow-[0_4px_14px_rgba(217,119,87,0.09)]'
+                              : 'bg-[#FDFBF7] border-[#D8C7B2]/80 hover:border-[#D97757]/55 hover:bg-[#FAF6EE]/70'
+                          }`}
+                        >
+                          {/* Subtle heritage corner motif */}
+                          <span
+                            aria-hidden="true"
+                            className={`pointer-events-none absolute -bottom-3 -left-3 w-12 h-12 rounded-full border transition-opacity ${
+                              selected
+                                ? 'border-[#D97757]/25 opacity-100'
+                                : 'border-[#D8C7B2]/35 opacity-60'
+                            }`}
+                          />
+                          <div className="relative z-10 flex items-center justify-between gap-2">
+                            <span className="text-xs font-display font-bold text-[#1F1F1C]">
+                              {roleOpt.labelAr}
+                            </span>
+                            <span
+                              className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                                selected
+                                  ? 'bg-[#D97757] border-[#D97757] text-[#F5F1E8]'
+                                  : 'bg-[#FAF6EE] border-[#D8C7B2]'
+                              }`}
+                            >
+                              {selected && <Check className="w-2.5 h-2.5" />}
+                            </span>
+                          </div>
+                          <p className="relative z-10 text-[11px] text-[#1F1F1C]/65 mt-1.5 leading-relaxed">
+                            {roleOpt.descriptionAr}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Optional Smart Tree Member Binding */}
+                <div className="rounded-xl bg-[#F5F1E8]/85 border border-[#D8C7B2]/80 px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
+                      <JUTHORI_SERVICE_ICONS.tree className="w-4 h-4 text-[#D97757]" />
+                      <span>ربط العضو ببطاقته في «شجرتي» (اختياري)</span>
+                    </div>
+                    <p className="text-[11px] text-[#1F1F1C]/60">
+                      {contemporaryTreeOptions.length > 0
+                        ? `اختر بطاقة القريب من بين ${contemporaryTreeOptions.length} فرداً مسجلاً في شجرتك المعاصرة.`
+                        : 'أضف أفراد عائلتك في «شجرتي» لتتمكن من ربط كل مدعو بموقعه الفعلي في الشجرة.'}
+                    </p>
+                  </div>
+                  <div className="relative sm:w-72 shrink-0">
                     <select
                       value={relTreePersonId}
                       onChange={(e) => setRelTreePersonId(e.target.value)}
                       disabled={contemporaryTreeOptions.length === 0}
-                      className="sm:w-72 px-3.5 py-2.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 text-xs text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50"
+                      className="w-full appearance-none pr-3.5 pl-9 py-2 rounded-full bg-[#FDFBF7] border border-[#D8C7B2] text-xs font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50 cursor-pointer"
                     >
                       <option value="">— بدون ربط مسبق في الشجرة —</option>
                       {contemporaryTreeOptions.map((opt) => (
@@ -1523,132 +1536,61 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         </option>
                       ))}
                     </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
+                </div>
 
-                  {/* Multi-Channel Submit & WhatsApp Invite Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                    <div className="text-[11px] text-[#1F1F1C]/60 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
-                      <span>
-                        يصل القريب بريد دعوة رسمي مع خيار إلغاء الارتباط الفوري (Opt-out) احتراماً لخصوصيته.
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <a
-                        href={craftedRelativeWhatsappHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>مشاركة دعوة مجهزة عبر واتساب</span>
-                      </a>
-
-                      <button
-                        type="submit"
-                        disabled={invitingRelative}
-                        className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 disabled:opacity-55 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        <span>
-                          {invitingRelative
-                            ? 'جارٍ الحفظ والإرسال...'
-                            : 'حفظ وإرسال الدعوة البريدية'}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              )}
-            </div>
-
-          {/* Smart Majlis Link Controls & Token Rotation */}
-          {isRegistrar && (
-            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2 text-xs font-display font-bold text-[#1F1F1C]">
-                  <Link2 className="w-4 h-4 text-[#D97757]" />
-                  <span>رابط المجلس العائلي الذكي والتحكم الأمني</span>
-                  {circle.majlisInviteRotatedAt && (
-                    <span className="text-[10px] font-normal text-[#1F1F1C]/55">
-                      · آخر تدوير:{' '}
-                      {new Date(
-                        circle.majlisInviteRotatedAt
-                      ).toLocaleDateString('ar-SA')}
+                {/* Multi-Channel Submit & WhatsApp Invite Actions */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="text-[11px] text-[#1F1F1C]/60 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
+                    <span>
+                      يصل القريب بريد دعوة رسمي مع خيار إلغاء الارتباط الفوري احتراماً لخصوصيته.
                     </span>
-                  )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <a
+                      href={craftedRelativeWhatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 rounded-xl bg-[#FAF6EE] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-[#D97757]" />
+                      <span>مشاركة دعوة مجهزة عبر واتساب</span>
+                    </a>
+
+                    <button
+                      type="submit"
+                      disabled={invitingRelative}
+                      className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-55 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer shadow-[0_2px_10px_rgba(217,119,87,0.2)]"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>
+                        {invitingRelative
+                          ? 'جارٍ الحفظ والإرسال...'
+                          : 'حفظ وإرسال الدعوة البريدية'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
-                <div
-                  dir="ltr"
-                  className="text-xs font-mono font-bold text-[#D97757] truncate select-all"
-                >
-                  {cleanMajlisUrl}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleCopyMajlisUrl}
-                  className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/40 text-xs font-display font-bold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  {copiedMajlisUrl ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-[#D97757]" />
-                      <span>تم النسخ ✓</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>نسخ الرابط</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    requireCommunityPremiumAction('community_qr', () =>
-                      setQrModalOpen(true)
-                    )
-                  }
-                  className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <QrCode className="w-3.5 h-3.5 text-[#D97757]" />
-                  <span>رمز QR</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRotateMajlisLink}
-                  disabled={rotatingMajlisLink}
-                  className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] disabled:opacity-55 text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <RotateCcw
-                    className={`w-3.5 h-3.5 text-[#D97757] ${
-                      rotatingMajlisLink ? 'animate-spin' : ''
-                    }`}
-                  />
-                  <span>تدوير / إلغاء الرابط السابق</span>
-                </button>
-              </div>
-            </div>
-          )}
+              </form>
+            )}
+          </div>
 
           {/* Pending Private Site Access Requests (Only when real pending requests exist) */}
           {isRegistrar && accessRequests.length > 0 && (
-            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 overflow-hidden">
-              <div className="px-6 py-3.5 bg-[#D97757]/10 border-b border-[#D97757]/25 flex items-center justify-between">
+            <div className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] to-[#FDFBF7] border border-[#D97757]/40 overflow-hidden shadow-[0_2px_12px_rgba(217,119,87,0.06)]">
+              <div className="px-6 py-3.5 bg-[#E8DED2]/55 border-b border-[#D8C7B2]/80 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-display font-bold text-[#D97757]">
                   <UserCheck className="w-4 h-4" />
                   <span>طلبات دخول جديدة لبوابة العائلة الخاصة</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-[#D97757] text-[#F5F1E8] text-[11px] font-bold tabular-nums">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#D97757] text-[#F5F1E8] text-[11px] font-bold tabular-nums">
                   {accessRequests.length}
                 </span>
               </div>
-              <div className="divide-y divide-[#D97757]/20">
+              <div className="divide-y divide-[#D8C7B2]/50">
                 {accessRequests.map((req) => (
                   <div
                     key={req.id}
@@ -1657,7 +1599,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     <div className="space-y-0.5">
                       <div className="text-xs font-display font-bold text-[#1F1F1C]">
                         {req.visitorName}
-                        <span className="font-normal text-[#1F1F1C]/60 mr-2" dir="ltr">
+                        <span
+                          className="font-normal text-[#1F1F1C]/60 mr-2"
+                          dir="ltr"
+                        >
                           ({req.visitorEmail})
                         </span>
                       </div>
@@ -1680,7 +1625,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         type="button"
                         disabled={resolvingAccessId === req.id}
                         onClick={() => handleResolveAccess(req, false)}
-                        className="px-3 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] disabled:opacity-50 text-[#1F1F1C] text-xs font-semibold cursor-pointer transition-colors"
+                        className="px-3 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] disabled:opacity-50 text-[#1F1F1C] text-xs font-semibold cursor-pointer transition-colors"
                       >
                         اعتذار
                       </button>
@@ -1691,252 +1636,562 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             </div>
           )}
 
-          {/* Approved Relatives Roster — Luxury Membership Cards (Visible to all members) */}
-          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Users className="w-4.5 h-4.5 text-[#D97757]" />
-                <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
+          {/* Section 2: Bespoke Relative Membership Passes (Zero Outer Dry Box) */}
+          <section className="space-y-3.5">
+            {/* Editorial Header with Capsule Count & Gradient Hairline */}
+            <div className="flex items-center gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+                <h3 className="text-[15px] font-display font-bold text-[#1F1F1C]">
                   أفراد دائرة عائلة {result.familyName} المعتمدون
                 </h3>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2]/85 border border-[#D8C7B2] text-[11px] font-display font-bold text-[#1F1F1C]/80 tabular-nums">
+                  {circle.members.length === 0
+                    ? '0 أقارب معتمدين'
+                    : circle.members.length === 1
+                    ? '1 قريب معتمد'
+                    : circle.members.length === 2
+                    ? 'قريبان معتمدان'
+                    : `${circle.members.length} أقارب معتمدين`}
+                </span>
               </div>
-              <span className="text-xs text-[#1F1F1C]/60 tabular-nums">
-                {circle.members.length} عضو موثق الصلاحية
-              </span>
+              <div className="hidden sm:block flex-1 h-px bg-gradient-to-l from-[#D8C7B2] via-[#D8C7B2]/45 to-transparent" />
             </div>
 
-            <div className="p-6">
-              {circle.members.length === 0 ? (
-                <div className="rounded-2xl bg-[#FAF7F2] border border-dashed border-[#D8C7B2] p-8 sm:p-10 text-center space-y-4">
-                  {/* Warm Heritage Crest Container */}
-                  <div className="w-16 h-16 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] mx-auto flex items-center justify-center shadow-xs">
-                    <Users className="w-8 h-8" />
+            {circle.members.length === 0 ? (
+              <div className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] via-[#FDFBF7] to-[#F5EFE4] border border-dashed border-[#D8C7B2] px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4 text-right">
+                  <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5" />
                   </div>
-                  <div className="space-y-1.5 max-w-lg mx-auto">
-                    <h4 className="text-base font-display font-bold text-[#1F1F1C]">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-display font-bold text-[#1F1F1C]">
                       دائرة عائلتك جاهزة لاستقبال أول أفرادها
                     </h4>
-                    <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
-                      توثيق تاريخ العائلة أجمل حين يتشارك فيه الأبناء والأعمام. ادعُ الآن أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
+                    <p className="text-xs text-[#1F1F1C]/65 leading-relaxed max-w-xl">
+                      ادعُ أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
                     </p>
                   </div>
-                  {!inviteStudioOpen && (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenInviteStudioAction()}
-                      className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      <span>دعوة أول قريب الآن</span>
-                    </button>
-                  )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {circle.members.map((member) => {
-                    const isActive = member.status === 'ACTIVE';
-                    const currentRole: KinshipCircleMemberRole =
-                      member.role || 'memory_contributor';
-                    const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
-                      `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
-                    )}`;
-
-                    return (
-                      <div
-                        key={member.id}
-                        className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 hover:border-[#D97757]/55 transition-colors"
-                      >
-                        {/* Top Identity Row */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="w-11 h-11 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] font-display font-bold text-sm flex items-center justify-center shrink-0">
-                              {getArabicInitials(member.name)}
-                            </div>
-                              <div className="min-w-0 space-y-0.5">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <h4 className="text-sm font-display font-bold text-[#1F1F1C] truncate">
-                                    {member.name}
-                                  </h4>
-                                  <span
-                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                                      isActive
-                                        ? 'bg-[#1F1F1C]/12 text-[#1F1F1C]'
-                                        : 'bg-[#1F1F1C]/10 text-[#D97757]'
-                                    }`}
-                                  >
-                                    {isActive ? 'عضو نشط ✓' : 'تم إرسال الدعوة'}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-[#D97757] font-semibold">
-                                  {member.kinshipRelation}
-                                  {member.approvedEnrichmentsCount > 0 && (
-                                    <span className="text-[#1F1F1C]/55 font-normal mr-2">
-                                      · {member.approvedEnrichmentsCount} مساهمة معتمدة
-                                    </span>
-                                  )}
-                                </div>
-                                <div
-                                  dir="ltr"
-                                  className="text-[11px] font-mono text-[#1F1F1C]/60 truncate text-right"
-                                >
-                                  {member.email}
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveRelative(member)}
-                              disabled={removingEmail === member.email}
-                              title="إلغاء صلاحية القريب"
-                              className="p-2 rounded-lg text-[#1F1F1C]/45 hover:text-[#D97757] hover:bg-[#1F1F1C]/5 disabled:opacity-40 cursor-pointer transition-colors shrink-0"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          {/* Inline Editable Role & Tree-Link Controls */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#D97757]/20">
-                            <div className="space-y-1">
-                              <label className="block text-[10px] font-semibold text-[#1F1F1C]/60">
-                                مستوى الصلاحية
-                              </label>
-                              <select
-                                value={currentRole}
-                                disabled={updatingMemberId === member.id}
-                                onChange={(e) =>
-                                  handleUpdateMemberRoleOrTree(member, {
-                                    role: e.target
-                                      .value as KinshipCircleMemberRole,
-                                  })
-                                }
-                                className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-[11px] font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50"
-                              >
-                                {ROLE_OPTIONS.map((opt) => (
-                                  <option key={opt.id} value={opt.id}>
-                                    {opt.shortLabelAr}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="block text-[10px] font-semibold text-[#1F1F1C]/60">
-                                الربط ببطاقة «شجرتي»
-                              </label>
-                              <select
-                                value={member.linkedTreePersonId || ''}
-                                disabled={
-                                  updatingMemberId === member.id ||
-                                  contemporaryTreeOptions.length === 0
-                                }
-                                onChange={(e) => {
-                                  const selectedId = e.target.value;
-                                  const found = contemporaryTreeOptions.find(
-                                    (o) => o.id === selectedId
-                                  );
-                                  handleUpdateMemberRoleOrTree(member, {
-                                    linkedTreePersonId: selectedId || null,
-                                    linkedTreePersonName: found?.label || null,
-                                  });
-                                }}
-                                className="w-full px-2.5 py-2 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-[11px] font-semibold text-[#1F1F1C] focus:outline-none focus:border-[#D97757] disabled:opacity-50"
-                              >
-                                <option value="">غير مربوط بعد</option>
-                                {contemporaryTreeOptions.map((opt) => (
-                                  <option key={opt.id} value={opt.id}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-
-                          {/* Footer Quick Link */}
-                          <div className="flex items-center justify-between gap-2 text-[11px]">
-                            <span className="text-[#1F1F1C]/55">
-                              {member.linkedTreePersonName ? (
-                                <span className="inline-flex items-center gap-1 text-[#1F1F1C] font-semibold">
-                                  <JUTHORI_SERVICE_ICONS.tree className="w-3.5 h-3.5 text-[#D97757]" />
-                                  مربوط: {member.linkedTreePersonName}
-                                </span>
-                              ) : (
-                                <span>
-                                  أُضيف{' '}
-                                  {new Date(member.addedAt).toLocaleDateString(
-                                    'ar-SA'
-                                  )}
-                                </span>
-                              )}
-                            </span>
-                            <a
-                              href={memberWhatsappHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[#D97757] hover:underline font-bold"
-                            >
-                              <Share2 className="w-3 h-3" />
-                              <span>تذكير عبر واتساب</span>
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {!inviteStudioOpen && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenInviteStudioAction()}
+                    className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors shrink-0 shadow-[0_2px_10px_rgba(217,119,87,0.2)]"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>دعوة أول قريب الآن</span>
+                  </button>
                 )}
               </div>
-            </div>
+            ) : circle.members.length === 1 ? (
+              (() => {
+                const member = circle.members[0];
+                const isActive = member.status === 'ACTIVE';
+                const currentRole: KinshipCircleMemberRole =
+                  member.role || 'memory_contributor';
+                const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
+                  `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
+                )}`;
 
-          {/* Authorized Family Portals (For ALL Users) */}
-          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#D97757]/25 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4.5 h-4.5 text-[#D97757]" />
-                <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
-                  البوابات العائلية المصرح لي بدخولها
-                </h3>
-              </div>
-              <span className="text-xs text-[#1F1F1C]/60 tabular-nums">
-                {authorizedPortals.length} بوابة
-              </span>
-            </div>
+                return (
+                  <div
+                    key={member.id}
+                    className="w-full rounded-2xl bg-gradient-to-l from-[#FDFBF7] via-[#FAF6EE] to-[#F5EFE4]/90 border border-[#D8C7B2]/90 hover:border-[#D97757]/55 px-6 py-5 relative overflow-hidden shadow-[0_3px_16px_rgba(31,31,28,0.03)] transition-all"
+                  >
+                    {/* Subtle terracotta heritage accent hairline at top-right */}
+                    <div className="pointer-events-none absolute top-0 right-0 w-28 h-[2px] bg-gradient-to-l from-[#D97757]/75 to-transparent" />
 
-            <div className="p-6">
-              {authorizedPortals.length === 0 ? (
-                <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 px-5 py-6 text-center text-xs text-[#1F1F1C]/65">
-                  لا توجد بوابات عائلية خاصة أخرى مصرح لبريدك بدخولها حالياً. عندما يضيفك قريبك إلى دائرته العائلية، ستظهر بوابته هنا للدخول المباشر بنقرة واحدة.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {authorizedPortals.map((portal) => (
-                    <a
-                      key={portal.siteSlug}
-                      href={`/${portal.siteSlug}`}
-                      className="group rounded-2xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/35 p-4 flex items-center justify-between gap-3 transition-colors"
-                    >
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="text-sm font-display font-bold text-[#1F1F1C] truncate">
-                          ديوان عائلة {portal.familyName}
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto] items-center gap-5">
+                      {/* Zone 1 (Right): Relative Identity */}
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] font-display font-extrabold text-base flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(31,31,28,0.05)]">
+                          {getArabicInitials(member.name)}
                         </div>
-                        <div className="text-[11px] text-[#1F1F1C]/60 truncate">
-                          بإشراف: {portal.ownerDisplayName}
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-[15px] font-display font-extrabold text-[#1F1F1C] truncate">
+                              {member.name}
+                            </h4>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2]/90 border border-[#D8C7B2] text-[11px] font-display font-bold text-[#D97757]">
+                              {member.kinshipRelation}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                isActive
+                                  ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
+                                  : 'bg-[#FAF6EE] border-[#D97757]/35 text-[#D97757]'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isActive ? 'bg-[#1F1F1C]' : 'bg-[#D97757]'
+                                }`}
+                              />
+                              {isActive ? 'عضو مفعّل' : 'تم إرسال الدعوة'}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[#1F1F1C]/60">
+                            <span dir="ltr" className="font-mono truncate">
+                              {member.email}
+                            </span>
+                            <span aria-hidden="true" className="text-[#D8C7B2]">
+                              •
+                            </span>
+                            <span>
+                              أُضيف{' '}
+                              {new Date(member.addedAt).toLocaleDateString(
+                                'ar-SA'
+                              )}
+                            </span>
+                            {member.approvedEnrichmentsCount > 0 && (
+                              <>
+                                <span
+                                  aria-hidden="true"
+                                  className="text-[#D8C7B2]"
+                                >
+                                  •
+                                </span>
+                                <span className="text-[#D97757] font-semibold">
+                                  {member.approvedEnrichmentsCount} مساهمة معتمدة
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div
-                          dir="ltr"
-                          className="text-[11px] font-mono text-[#D97757] truncate text-right"
+                      </div>
+
+                      {/* Zone 2 (Center): Sleek Compact Pill Dropdowns */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:px-5 xl:border-x xl:border-[#D8C7B2]/60">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
+                            الصلاحية
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={currentRole}
+                              disabled={updatingMemberId === member.id}
+                              onChange={(e) =>
+                                handleUpdateMemberRoleOrTree(member, {
+                                  role: e.target
+                                    .value as KinshipCircleMemberRole,
+                                })
+                              }
+                              className="w-full appearance-none pr-3.5 pl-8 py-2 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
+                            >
+                              {ROLE_OPTIONS.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.shortLabelAr}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
+                            الربط ببطاقة شجرتي
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={member.linkedTreePersonId || ''}
+                              disabled={
+                                updatingMemberId === member.id ||
+                                contemporaryTreeOptions.length === 0
+                              }
+                              onChange={(e) => {
+                                const selectedId = e.target.value;
+                                const found = contemporaryTreeOptions.find(
+                                  (o) => o.id === selectedId
+                                );
+                                handleUpdateMemberRoleOrTree(member, {
+                                  linkedTreePersonId: selectedId || null,
+                                  linkedTreePersonName: found?.label || null,
+                                });
+                              }}
+                              className="w-full appearance-none pr-3.5 pl-8 py-2 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
+                            >
+                              <option value="">غير مربوط بعد</option>
+                              {contemporaryTreeOptions.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Zone 3 (Left): Quick Actions */}
+                      <div className="flex items-center justify-between xl:justify-end gap-2 shrink-0">
+                        <a
+                          href={memberWhatsappHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#FAF6EE] hover:bg-[#D97757] border border-[#D97757]/45 hover:border-[#D97757] text-[#D97757] hover:text-[#F5F1E8] text-xs font-display font-bold transition-all shadow-[0_1px_4px_rgba(217,119,87,0.08)] whitespace-nowrap"
                         >
-                          {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{portal.siteSlug}
+                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>إرسال تذكير عبر واتساب</span>
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRelative(member)}
+                          disabled={removingEmail === member.email}
+                          title="إلغاء صلاحية القريب"
+                          aria-label={`إلغاء صلاحية ${member.name}`}
+                          className="w-9 h-9 rounded-full border border-transparent hover:border-[#D97757]/35 text-[#1F1F1C]/40 hover:text-[#D97757] hover:bg-[#D97757]/10 disabled:opacity-40 flex items-center justify-center cursor-pointer transition-all shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {circle.members.map((member) => {
+                  const isActive = member.status === 'ACTIVE';
+                  const currentRole: KinshipCircleMemberRole =
+                    member.role || 'memory_contributor';
+                  const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
+                    `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
+                  )}`;
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="rounded-2xl bg-gradient-to-l from-[#FDFBF7] via-[#FAF6EE] to-[#F5EFE4]/90 border border-[#D8C7B2]/90 hover:border-[#D97757]/55 p-5 relative overflow-hidden shadow-[0_2px_14px_rgba(31,31,28,0.025)] flex flex-col justify-between gap-4 transition-all"
+                    >
+                      <div className="pointer-events-none absolute top-0 right-0 w-20 h-[2px] bg-gradient-to-l from-[#D97757]/65 to-transparent" />
+
+                      {/* Identity Row */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3.5 min-w-0">
+                          <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] font-display font-extrabold text-base flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(31,31,28,0.05)]">
+                            {getArabicInitials(member.name)}
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h4 className="text-[15px] font-display font-extrabold text-[#1F1F1C] truncate">
+                                {member.name}
+                              </h4>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#E8DED2]/90 border border-[#D8C7B2] text-[10px] font-display font-bold text-[#D97757]">
+                                {member.kinshipRelation}
+                              </span>
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  isActive
+                                    ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
+                                    : 'bg-[#FAF6EE] border-[#D97757]/35 text-[#D97757]'
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    isActive ? 'bg-[#1F1F1C]' : 'bg-[#D97757]'
+                                  }`}
+                                />
+                                {isActive ? 'عضو مفعّل' : 'تم إرسال الدعوة'}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[#1F1F1C]/60">
+                              <span dir="ltr" className="font-mono truncate">
+                                {member.email}
+                              </span>
+                              {member.approvedEnrichmentsCount > 0 && (
+                                <>
+                                  <span
+                                    aria-hidden="true"
+                                    className="text-[#D8C7B2]"
+                                  >
+                                    •
+                                  </span>
+                                  <span className="text-[#D97757] font-semibold">
+                                    {member.approvedEnrichmentsCount} مساهمة معتمدة
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRelative(member)}
+                          disabled={removingEmail === member.email}
+                          title="إلغاء صلاحية القريب"
+                          aria-label={`إلغاء صلاحية ${member.name}`}
+                          className="w-8 h-8 rounded-full border border-transparent hover:border-[#D97757]/35 text-[#1F1F1C]/40 hover:text-[#D97757] hover:bg-[#D97757]/10 disabled:opacity-40 flex items-center justify-center cursor-pointer transition-all shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Compact Pill Dropdowns */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-[#D8C7B2]/55">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
+                            الصلاحية
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={currentRole}
+                              disabled={updatingMemberId === member.id}
+                              onChange={(e) =>
+                                handleUpdateMemberRoleOrTree(member, {
+                                  role: e.target
+                                    .value as KinshipCircleMemberRole,
+                                })
+                              }
+                              className="w-full appearance-none pr-3.5 pl-8 py-1.5 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-[11px] font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
+                            >
+                              {ROLE_OPTIONS.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.shortLabelAr}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
+                            الربط ببطاقة شجرتي
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={member.linkedTreePersonId || ''}
+                              disabled={
+                                updatingMemberId === member.id ||
+                                contemporaryTreeOptions.length === 0
+                              }
+                              onChange={(e) => {
+                                const selectedId = e.target.value;
+                                const found = contemporaryTreeOptions.find(
+                                  (o) => o.id === selectedId
+                                );
+                                handleUpdateMemberRoleOrTree(member, {
+                                  linkedTreePersonId: selectedId || null,
+                                  linkedTreePersonName: found?.label || null,
+                                });
+                              }}
+                              className="w-full appearance-none pr-3.5 pl-8 py-1.5 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-[11px] font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
+                            >
+                              <option value="">غير مربوط بعد</option>
+                              {contemporaryTreeOptions.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          </div>
                         </div>
                       </div>
-                      <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] group-hover:bg-[#D97757] group-hover:text-[#F5F1E8] transition-colors shrink-0">
-                        <ArrowUpLeft className="w-4 h-4" />
+
+                      {/* Footer Meta & WhatsApp Pill */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <span className="text-[11px] text-[#1F1F1C]/55">
+                          {member.linkedTreePersonName ? (
+                            <span className="inline-flex items-center gap-1.5 text-[#1F1F1C] font-semibold">
+                              <JUTHORI_SERVICE_ICONS.tree className="w-3.5 h-3.5 text-[#D97757]" />
+                              مربوط: {member.linkedTreePersonName}
+                            </span>
+                          ) : (
+                            <span>
+                              أُضيف{' '}
+                              {new Date(member.addedAt).toLocaleDateString(
+                                'ar-SA'
+                              )}
+                            </span>
+                          )}
+                        </span>
+
+                        <a
+                          href={memberWhatsappHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FAF6EE] hover:bg-[#D97757] border border-[#D97757]/45 hover:border-[#D97757] text-[#D97757] hover:text-[#F5F1E8] text-[11px] font-display font-bold transition-all whitespace-nowrap"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>إرسال تذكير عبر واتساب</span>
+                        </a>
                       </div>
-                    </a>
-                  ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Section 3: Authorized Family Portals Gallery */}
+          {authorizedPortals.length === 0 ? (
+            /* Single Compact Sleek Horizon Banner (Zero Double Boxes) */
+            <div className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] via-[#FDFBF7] to-[#F5EFE4] border border-[#D8C7B2]/80 px-6 py-4 relative overflow-hidden shadow-[0_2px_12px_rgba(31,31,28,0.02)]">
+              {/* Faint heritage arch watermark */}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 180 100"
+                fill="none"
+                className="pointer-events-none absolute -bottom-2 right-6 w-40 h-22 text-[#1F1F1C] opacity-[0.045]"
+              >
+                <path
+                  d="M20 100 V46 C20 22, 52 8, 90 8 C128 8, 160 22, 160 46 V100"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
+                <path
+                  d="M42 100 V52 C42 34, 63 22, 90 22 C117 22, 138 34, 138 52 V100"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+              </svg>
+
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                    <Globe className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="min-w-0 space-y-0.5">
+                    <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
+                      البوابات العائلية المصرح لي بدخولها
+                    </h3>
+                    <p className="text-[11px] text-[#1F1F1C]/65 leading-relaxed">
+                      عندما يضيفك أحد أقاربك إلى دائرته العائلية، ستظهر بوابة عائلته هنا للدخول المباشر بنقرة واحدة.
+                    </p>
+                  </div>
                 </div>
-              )}
+
+                <span className="inline-flex items-center self-start sm:self-center px-3 py-1.5 rounded-full bg-[#E8DED2]/75 border border-[#D8C7B2]/80 text-[11px] font-display font-semibold text-[#1F1F1C]/65 whitespace-nowrap shrink-0">
+                  لا توجد دعوات خارجية حالياً
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <section className="space-y-3.5">
+              {/* Editorial Header */}
+              <div className="flex items-center gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-[15px] font-display font-bold text-[#1F1F1C]">
+                    البوابات العائلية المصرح لي بدخولها
+                  </h3>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2]/85 border border-[#D8C7B2] text-[11px] font-display font-bold text-[#1F1F1C]/80 tabular-nums">
+                    {authorizedPortals.length === 1
+                      ? 'بوابة واحدة'
+                      : authorizedPortals.length === 2
+                      ? 'بوابتان'
+                      : `${authorizedPortals.length} بوابات`}
+                  </span>
+                </div>
+                <div className="hidden sm:block flex-1 h-px bg-gradient-to-l from-[#D8C7B2] via-[#D8C7B2]/45 to-transparent" />
+              </div>
+
+              {/* Arch-Accented Family Portal Passes */}
+              <div
+                className={`grid grid-cols-1 gap-4 ${
+                  authorizedPortals.length >= 2 ? 'md:grid-cols-2' : ''
+                }`}
+              >
+                {authorizedPortals.map((portal) => {
+                  const hasTree =
+                    (portal.siteData.publishedTreeMembers || []).length > 0;
+                  return (
+                    <div
+                      key={portal.siteSlug}
+                      className="rounded-2xl bg-gradient-to-l from-[#FDFBF7] via-[#FAF6EE] to-[#F5EFE4] border border-[#D8C7B2]/90 hover:border-[#D97757]/60 p-5 relative overflow-hidden shadow-[0_2px_14px_rgba(31,31,28,0.03)] flex flex-col justify-between gap-4 transition-all"
+                    >
+                      {/* Heritage arch corner filigree */}
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 120 90"
+                        fill="none"
+                        className="pointer-events-none absolute -bottom-2 -left-2 w-28 h-20 text-[#D97757] opacity-[0.07]"
+                      >
+                        <path
+                          d="M15 90 V42 C15 20, 35 8, 60 8 C85 8, 105 20, 105 42 V90"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                        <path
+                          d="M32 90 V48 C32 32, 45 22, 60 22 C75 22, 88 32, 88 48 V90"
+                          stroke="currentColor"
+                          strokeWidth="1.4"
+                        />
+                      </svg>
+
+                      <div className="relative z-10 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          {/* Host Family Seal / Monogram */}
+                          <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] font-display font-extrabold text-base flex items-center justify-center shrink-0 shadow-xs">
+                            {getArabicInitials(portal.familyName)}
+                          </div>
+
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-[15px] font-display font-extrabold text-[#1F1F1C] truncate">
+                                ديوان عائلة {portal.familyName}
+                              </h4>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2]/90 border border-[#D8C7B2] text-[10px] font-display font-bold text-[#D97757]">
+                                {portal.viewerRoleLabelAr}
+                                {portal.kinshipRelation
+                                  ? ` · ${portal.kinshipRelation}`
+                                  : ''}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-[#1F1F1C]/65">
+                              <span>بإشراف: {portal.ownerDisplayName}</span>
+                              <span
+                                aria-hidden="true"
+                                className="text-[#D8C7B2]"
+                              >
+                                •
+                              </span>
+                              <span
+                                dir="ltr"
+                                className="font-mono text-[#D97757] truncate"
+                              >
+                                {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/
+                                {portal.siteSlug}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="relative z-10 flex flex-wrap items-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          disabled={!hasTree}
+                          onClick={() => setActiveSharedTreePortal(portal)}
+                          className="flex-1 min-w-[155px] h-9.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-45 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-[0_2px_8px_rgba(217,119,87,0.18)]"
+                        >
+                          <span>🌳 فتح دوحة العائلة</span>
+                        </button>
+
+                        <a
+                          href={`/${portal.siteSlug}`}
+                          className="flex-1 min-w-[155px] h-9.5 px-4 rounded-xl bg-[#FAF6EE] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <span>🏛️ دخول موقع الديوان</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       )}
 
