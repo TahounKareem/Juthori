@@ -308,11 +308,15 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
               onClick={() => setActiveTab('smart_guide')}
               className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'smart_guide'
-                  ? 'bg-[#1F1F1C] text-[#D97757] shadow-xs'
-                  : 'bg-[#E8DED2] text-[#1F1F1C] hover:bg-[#E8DED2]'
+                  ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
+                  : 'bg-[#E8DED2] text-[#1F1F1C] hover:bg-[#D8C7B2]/60'
               }`}
             >
-              <Compass className="w-4 h-4 text-[#D97757] shrink-0" />
+              <Compass
+                className={`w-4 h-4 shrink-0 ${
+                  activeTab === 'smart_guide' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
+                }`}
+              />
               <span>المرشد الذكي (إجابة فورية آلياً)</span>
             </button>
 
@@ -358,7 +362,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
               </div>
 
               {/* Smart Guide Quick Launcher Card */}
-              <div className="lg:col-span-5 bg-[#1F1F1C] text-[#F5F1E8] rounded-2xl p-4 sm:p-5 flex flex-col justify-between border border-[#D97757]/40">
+              <div className="lg:col-span-5 bg-[#E8DED2] text-[#1F1F1C] rounded-2xl p-4 sm:p-5 flex flex-col justify-between border border-[#D8C7B2]">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-display font-bold text-[#D97757]">
@@ -366,18 +370,18 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                     </span>
                     <Compass className="w-4 h-4 text-[#D97757]" />
                   </div>
-                  <p className="text-xs text-[#F5F1E8]/85 leading-relaxed">
+                  <p className="text-xs text-[#1F1F1C]/80 leading-relaxed">
                     هل تبحث عن إجابة مخصصة لسؤالك؟ اسأل “المرشد الذكي” وسيجيبك فوراً استناداً إلى الدليل الإرشادي والسياسات المعتمدة.
                   </p>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-[#F5F1E8]/10 flex items-center justify-between">
-                  <span className="text-[11px] text-[#D97757]/80">
+                <div className="mt-3 pt-2.5 border-t border-[#D8C7B2] flex items-center justify-between">
+                  <span className="text-[11px] text-[#1F1F1C]/65">
                     متاح على مدار الساعة
                   </span>
                   <button
                     type="button"
                     onClick={() => setActiveTab('smart_guide')}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                     <span>تحدث مع المرشد الذكي ←</span>
@@ -521,13 +525,13 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Right Column: Smart Guide Info & Quick Topics */}
             <div className="lg:col-span-4 space-y-4">
-              <div className="rounded-2xl bg-[#1F1F1C] text-[#F5F1E8] p-5 border border-[#D97757]/40 space-y-3">
+              <div className="rounded-2xl bg-[#E8DED2] text-[#1F1F1C] p-5 border border-[#D8C7B2] space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-[#D97757]/25 border border-[#D8C7B2]/30 flex items-center justify-center text-[#D97757]">
+                  <div className="w-10 h-10 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757]">
                     <Compass className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base sm:text-lg font-display font-extrabold text-[#F5F1E8]">
+                    <h2 className="text-base sm:text-lg font-display font-extrabold text-[#1F1F1C]">
                       المرشد الذكي لمنصة جذوري
                     </h2>
                     <p className="text-xs text-[#D97757]">
@@ -536,11 +540,11 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                   </div>
                 </div>
 
-                <p className="text-xs sm:text-sm text-[#F5F1E8]/85 leading-relaxed">
+                <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed">
                   أداة إرشادية تساعدك على فهم الخدمات، مراحل توثيق “السجل الأساسي” وعمود النسب، صلاحيات “أمين السجل”، ومنهجية التعامل مع الروايات والمصادر.
                 </p>
 
-                <div className="rounded-xl bg-[#F5F1E8]/5 border border-[#F5F1E8]/10 p-3 text-[11px] text-[#D97757]/90 leading-relaxed">
+                <div className="rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] p-3 text-[11px] text-[#1F1F1C]/75 leading-relaxed">
                   تنبيه مهم: يعتمد “المرشد الذكي” على الأسئلة الشائعة والدليل الإرشادي والعقود والسياسات الرسمية، ولا يُعد بديلاً عن العقود أو السياسات أو فريق البحث المختص.
                 </div>
               </div>
@@ -752,7 +756,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                   <button
                     type="button"
                     onClick={() => setSupportSent(false)}
-                    className="px-5 py-2.5 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
                     إرسال استفسار آخر
                   </button>

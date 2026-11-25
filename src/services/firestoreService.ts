@@ -304,6 +304,13 @@ function canWriteOnAuth(
   return true;
 }
 
+export async function signOutAllCustomerAuthSessions(): Promise<void> {
+  await Promise.allSettled([
+    auth.signOut().catch(() => {}),
+    mirrorAuth.signOut().catch(() => {}),
+  ]);
+}
+
 function resolveAuthorizedCloudUids(
   safeUid: string,
   emailUid: string
@@ -312,15 +319,32 @@ function resolveAuthorizedCloudUids(
     return Array.from(new Set([safeUid, emailUid].filter(Boolean)));
   }
   const activeUids = new Set<string>();
-  if (auth.currentUser?.uid) {
-    if (!safeUid || safeUid === auth.currentUser.uid) {
-      activeUids.add(auth.currentUser.uid);
+  const matchesTargetIdentity = (
+    currentUser: { uid?: string; email?: string | null } | null
+  ): boolean => {
+    if (!currentUser?.uid) return false;
+    const currentEmailUid = canonicalCustomerEmailUid(currentUser.email || '');
+    if (safeUid && currentUser.uid === safeUid) {
+      // If both sides have an email identity, verify they belong to the same account
+      if (emailUid && currentEmailUid && currentEmailUid !== emailUid) {
+        return false;
+      }
+      return true;
     }
+    if (!safeUid && emailUid && currentEmailUid && currentEmailUid === emailUid) {
+      return true;
+    }
+    return false;
+  };
+
+  if (matchesTargetIdentity(auth.currentUser) && auth.currentUser?.uid) {
+    activeUids.add(auth.currentUser.uid);
   }
-  if (mirrorAuth.currentUser?.uid) {
-    if (!safeUid || safeUid === mirrorAuth.currentUser.uid) {
-      activeUids.add(mirrorAuth.currentUser.uid);
-    }
+  if (
+    matchesTargetIdentity(mirrorAuth.currentUser) &&
+    mirrorAuth.currentUser?.uid
+  ) {
+    activeUids.add(mirrorAuth.currentUser.uid);
   }
   return Array.from(activeUids);
 }
@@ -7023,20 +7047,17 @@ const CHUNKED_VAULT_MEDIA_PREFIX = '__CHUNKED_VAULT_MEDIA__:';
 
 function getVaultLocalStorageKeys(
   userId?: string,
-  familyName?: string,
+  _familyName?: string,
   userEmail?: string
 ): string[] {
   const keys: string[] = [];
   const safeUid = (userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
   const emailUid = canonicalCustomerEmailUid(userEmail);
-  const safeFam = (familyName || 'default').trim().replace(/\s+/g, '_');
   if (safeUid) keys.push(`juthori_vault_v2_${safeUid}`);
   if (emailUid && !keys.includes(`juthori_vault_v2_${emailUid}`)) {
     keys.push(`juthori_vault_v2_${emailUid}`);
   }
-  if (!safeUid && !emailUid) {
-    keys.push(`juthori_vault_v2_fam_${safeFam}`);
-  }
+  // Never fall back to a shared family-name key; vaults are strictly isolated per user account.
   return keys;
 }
 

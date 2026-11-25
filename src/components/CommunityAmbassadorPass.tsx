@@ -94,11 +94,11 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
 
   return (
     <div className="space-y-6">
-      {/* Black & Gold VIP Ambassador Pass */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#1F1F1C] via-[#1F1F1C] to-[#1F1F1C] border border-[#D8C7B2]/45 text-[#F5F1E8] shadow-lg">
-        {/* Subtle engraved gold filigree top rim */}
+      {/* Warm Ivory & Terracotta VIP Ambassador Pass */}
+      <div className="relative overflow-hidden rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] text-[#1F1F1C] shadow-sm">
+        {/* Subtle Terracotta top accent rim */}
         <div
-          className="h-1 w-full bg-gradient-to-l from-[#D97757] via-[#D97757] to-[#D97757]"
+          className="h-1.5 w-full bg-[#D97757]"
           aria-hidden="true"
         />
 
@@ -110,8 +110,8 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                 <Award className="w-4 h-4 text-[#D97757]" aria-hidden="true" />
                 بطاقة سفير جذوري المعتمد
               </span>
-              <span className="text-[#F5F1E8]/30">·</span>
-              <span className="text-[#F5F1E8]/70">
+              <span className="text-[#D8C7B2]">·</span>
+              <span className="text-[#1F1F1C]/75">
                 مكافأة محفظة ذرية فورية{' '}
                 <span dir="ltr" className="inline-block font-mono font-bold text-[#D97757] tabular-nums">
                   +${REFERRAL_REWARD_USD}
@@ -120,14 +120,14 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xl sm:text-2xl font-display font-bold text-[#F5F1E8] leading-snug">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-[#1F1F1C] leading-snug">
                 شارك إرث «جذوري» واحصل على{' '}
                 <span dir="ltr" className="inline-block text-[#D97757] tabular-nums">
                   +${REFERRAL_REWARD_USD}
                 </span>{' '}
                 فوراً في محفظتك عن كل مشترك سنوي
               </h3>
-              <p className="text-xs sm:text-sm text-[#F5F1E8]/75 leading-relaxed max-w-2xl">
+              <p className="text-xs sm:text-sm text-[#1F1F1C]/75 leading-relaxed max-w-2xl">
                 عندما ينضم أحد أقاربك أو أصدقائك عبر رابط سفيرك الرسمي ويفعّل أول اشتراك سنوي له، تُودع المكافأة آلياً في محفظتك لتستخدمها في فتح الكبسولات التاريخية أو تجديد عضويتك.
               </p>
             </div>
@@ -135,10 +135,10 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
             {/* Clean Official URL Bar + Quick Actions */}
             <div className="pt-1 space-y-3">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                <div className="flex-1 min-w-0 rounded-xl bg-[#1F1F1C]/45 border border-[#D8C7B2]/35 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0 rounded-xl bg-[#F5F1E8] border border-[#D8C7B2] px-4 py-3 flex items-center justify-between gap-3">
                   <span
                     dir="ltr"
-                    className="font-mono text-xs sm:text-sm font-semibold text-[#F5F1E8] truncate select-all"
+                    className="font-mono text-xs sm:text-sm font-semibold text-[#1F1F1C] truncate select-all"
                   >
                     {cleanOfficialReferralUrl}
                   </span>
@@ -146,7 +146,7 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                     type="button"
                     onClick={handleCopyCode}
                     title="نسخ رمز الدعوة فقط"
-                    className="shrink-0 px-2.5 py-1 rounded-lg bg-[#D97757]/15 hover:bg-[#D97757]/25 border border-[#D8C7B2]/30 text-[#D97757] font-mono text-[11px] font-bold transition-colors cursor-pointer"
+                    className="shrink-0 px-2.5 py-1 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#D97757] font-mono text-[11px] font-bold transition-colors cursor-pointer"
                     dir="ltr"
                   >
                     {copiedCode ? 'Copied ✓' : cleanCode}
@@ -156,7 +156,7 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                 <button
                   type="button"
                   onClick={handleCopyUrl}
-                  className="px-5 py-3 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
+                  className="px-5 py-3 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
                 >
                   {copiedUrl ? (
                     <>
@@ -177,18 +177,18 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
+                  <Share2 className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>مشاركة الدعوة عبر واتساب</span>
                 </a>
                 <a
                   href={telegramHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>مشاركة عبر تيليجرام</span>
                 </a>
               </div>
@@ -196,8 +196,8 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
           </div>
 
           {/* Right/End Instant Mini QR Card */}
-          <div className="shrink-0 flex sm:flex-row xl:flex-col items-center justify-between xl:justify-center gap-4 rounded-2xl bg-[#F5F1E8]/[0.06] border border-[#D8C7B2]/30 p-4 sm:p-5">
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-xl bg-[#F5F1E8] p-2 flex items-center justify-center shadow-inner shrink-0">
+          <div className="shrink-0 flex sm:flex-row xl:flex-col items-center justify-between xl:justify-center gap-4 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] p-4 sm:p-5">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] p-2 flex items-center justify-center shadow-inner shrink-0">
               {miniQrDataUrl ? (
                 <img
                   src={miniQrDataUrl}
@@ -212,10 +212,10 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
               <div className="text-[11px] font-semibold text-[#D97757]">
                 امسح الرمز للانضمام الفوري
               </div>
-              <div dir="ltr" className="text-xs font-mono font-bold text-[#F5F1E8]">
+              <div dir="ltr" className="text-xs font-mono font-bold text-[#1F1F1C]">
                 {cleanCode}
               </div>
-              <div className="text-[10px] text-[#F5F1E8]/60">
+              <div className="text-[10px] text-[#1F1F1C]/65">
                 مرتبط تلقائياً بمحفظة عائلة {familyName}
               </div>
             </div>
@@ -224,10 +224,10 @@ export const CommunityAmbassadorPass: React.FC<CommunityAmbassadorPassProps> = (
       </div>
 
       {/* Visual 3-Step Reward Flow */}
-      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 sm:p-6">
+      <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 sm:p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
-          <div className="flex items-start gap-3.5 rounded-xl bg-[#F5F1E8] border border-[#D97757]/25 p-4">
-            <div className="w-9 h-9 rounded-xl bg-[#1F1F1C] text-[#D97757] font-display font-bold text-sm flex items-center justify-center shrink-0 tabular-nums">
+          <div className="flex items-start gap-3.5 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] p-4">
+            <div className="w-9 h-9 rounded-xl bg-[#D97757] text-[#F5F1E8] font-display font-bold text-sm flex items-center justify-center shrink-0 tabular-nums">
               1
             </div>
             <div className="space-y-1">

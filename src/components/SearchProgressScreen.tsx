@@ -321,7 +321,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
               onClick={onBackToEdit}
               className="flex items-center gap-2 text-[#1F1F1C]/70 hover:text-[#1F1F1C] transition-colors cursor-pointer"
             >
-              <span className="w-6 h-6 rounded-full bg-[#1F1F1C] text-[#F5F1E8] flex items-center justify-center text-xs">
+              <span className="w-6 h-6 rounded-full bg-[#D97757] text-[#F5F1E8] flex items-center justify-center text-xs">
                 1
               </span>
               <span>1. البيانات الأساسية</span>
@@ -551,7 +551,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
               <div className="rounded-2xl border border-[#D97757]/50 bg-[#F5F1E8] p-5 sm:p-6 shadow-xs text-right relative overflow-hidden space-y-4">
                 <div className="absolute top-0 right-0 w-2.5 h-full bg-[#D97757]" />
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#1F1F1C] text-[#F5F1E8] flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0 shadow-xs">
                     <Search className="w-6 h-6" />
                   </div>
                   <div className="space-y-1.5">
@@ -588,7 +588,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
                     onClick={() => setAuthMode('password')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                       authMode === 'password'
-                        ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
                         : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
                     }`}
                   >
@@ -849,16 +849,16 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
           aria-modal="true"
         >
           <div className="w-full max-w-2xl max-h-[88vh] rounded-3xl bg-[#F5F1E8] border-2 border-[#D97757]/60 shadow-2xl flex flex-col overflow-hidden text-right">
-            <div className="bg-[#1F1F1C] text-[#F5F1E8] px-5 py-4 flex items-center justify-between gap-3 border-b border-[#D97757]/40">
+            <div className="bg-[#E8DED2] text-[#1F1F1C] px-5 py-4 flex items-center justify-between gap-3 border-b border-[#D8C7B2]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#D97757]/20 border border-[#D97757]/50 text-[#D97757] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="text-[11px] font-mono text-[#D97757]">
                     {TERMS_AND_PRIVACY_VERSION} · GeneaLab LLC (USA)
                   </div>
-                  <h3 className="text-sm sm:text-base font-display font-extrabold">
+                  <h3 className="text-sm sm:text-base font-display font-extrabold text-[#1F1F1C]">
                     شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب
                   </h3>
                 </div>
@@ -866,7 +866,7 @@ export const SearchProgressScreen: React.FC<SearchProgressScreenProps> = ({
               <button
                 type="button"
                 onClick={() => setShowTermsModal(false)}
-                className="w-8 h-8 rounded-lg bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-[#FAF7F2] hover:bg-[#D8C7B2]/55 border border-[#D8C7B2] text-[#1F1F1C] flex items-center justify-center cursor-pointer"
                 aria-label="إغلاق"
               >
                 <X className="w-4 h-4" />

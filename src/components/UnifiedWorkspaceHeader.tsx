@@ -71,11 +71,13 @@ export const WorkspaceIconTooltip: React.FC<{
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none select-none absolute ${posVertical} ${posHorizontal} z-[95] px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] border border-[#D8C7B2]/35 shadow-lg text-[11px] font-display font-semibold whitespace-nowrap opacity-0 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 transition-all duration-150`}
+        className={`pointer-events-none select-none absolute ${posVertical} ${posHorizontal} z-[95] px-2.5 py-1 rounded-lg bg-[#FAF7F2] text-[#1F1F1C] border border-[#D8C7B2] shadow-md text-[11px] font-display font-semibold whitespace-nowrap opacity-0 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100 transition-all duration-150`}
       >
         <span
           aria-hidden="true"
-          className={`absolute ${arrowVertical} ${arrowHorizontal} w-2 h-2 rotate-45 bg-[#1F1F1C]`}
+          className={`absolute ${arrowVertical} ${arrowHorizontal} w-2 h-2 rotate-45 bg-[#FAF7F2] border-[#D8C7B2] ${
+            placement === 'top' ? 'border-b border-r' : 'border-t border-l'
+          }`}
         />
         <span className="relative z-10">{label}</span>
       </span>

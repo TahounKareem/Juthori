@@ -97,6 +97,10 @@ import { DashboardHeaderWatermark } from './DashboardHeaderWatermark';
 import { CheckoutExecutionResult, CheckoutModal } from './CheckoutModal';
 import { SupportAndHelpCenterView } from './SupportAndHelpCenterView';
 import { ResearchTicketsView } from './ResearchTicketsView';
+import {
+  UpgradePromptRequest,
+  UpgradeToPremiumModal,
+} from './UpgradeToPremiumModal';
 
 interface CustomerDashboardProps {
   stateMode: DashboardStateMode;
@@ -263,6 +267,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       : []
   );
   const [bilingualLabels, setBilingualLabels] = useState(false);
+  const [activeUpgradePrompt, setActiveUpgradePrompt] =
+    useState<UpgradePromptRequest | null>(null);
+  const pendingUpgradePromptRef = useRef<UpgradePromptRequest | null>(null);
 
   // Wallet Balance & Unlocked Capsules (Stage 4 of Adam Tree)
   const [walletBalance, setWalletBalance] = useState<number>(
@@ -1886,7 +1893,33 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     void invoiceNumber;
     setActiveCheckoutOrder(null);
     setActiveUtilityDrawer(null);
+
+    const pendingPrompt = pendingUpgradePromptRef.current;
+    if (order.type === 'upgrade_vip_60' && pendingPrompt) {
+      if (accountType === AccountLegalType.RecordKeeper) {
+        const continueFn = pendingPrompt.onAuthorizedContinue;
+        pendingUpgradePromptRef.current = null;
+        setActiveUpgradePrompt(null);
+        if (continueFn) {
+          window.setTimeout(() => continueFn(), 120);
+        }
+      } else {
+        // Stay on current tab and advance seamlessly to Step 2 (Registrar Charter Signature)
+        setActiveUpgradePrompt(pendingPrompt);
+      }
+      return;
+    }
+
     setActiveTab(DashboardTab.Lineage);
+  };
+
+  const requestPremiumAction = (req: UpgradePromptRequest) => {
+    if (caps.isVip && accountType === AccountLegalType.RecordKeeper) {
+      req.onAuthorizedContinue?.();
+      return;
+    }
+    pendingUpgradePromptRef.current = req;
+    setActiveUpgradePrompt(req);
   };
 
   const handleTabClick = (tab: (typeof DASHBOARD_TABS)[number]) => {
@@ -2469,7 +2502,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 )}
                 <span
                   role="tooltip"
-                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#FAF7F2] text-[#1F1F1C] border border-[#D8C7B2] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                 >
                   السلة والاشتراكات
                 </span>
@@ -2509,7 +2542,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 )}
                 <span
                   role="tooltip"
-                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
+                  className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#FAF7F2] text-[#1F1F1C] border border-[#D8C7B2] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                 >
                   الإشعارات
                 </span>
@@ -2952,7 +2985,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       onClick={() => setActiveUtilityDrawer('profile')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                         activeUtilityDrawer === 'profile'
-                          ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                          ? 'bg-[#D97757] text-[#F5F1E8]'
                           : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
                       }`}
                     >
@@ -3230,7 +3263,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     <button
                       type="submit"
                       disabled={isSavingProfile}
-                      className="px-6 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer disabled:opacity-60"
+                      className="px-6 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-display font-bold transition-colors cursor-pointer disabled:opacity-60"
                     >
                       {isSavingProfile
                         ? 'جاري الحفظ في Firebase...'
@@ -3263,7 +3296,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           verificationResendCooldown > 0
                         }
                         onClick={handleSendEmailVerificationCode}
-                        className="px-3 py-1 rounded-lg bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1 rounded-lg bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-[11px] font-display font-bold transition-colors cursor-pointer disabled:opacity-50"
                       >
                         {isSendingVerificationOtp
                           ? 'جاري الإرسال...'
@@ -3368,7 +3401,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <button
                         type="submit"
                         disabled={isVerifyingOtpCode}
-                        className="px-5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                        className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
                       >
                         {isVerifyingOtpCode ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -3626,7 +3659,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             <button
                               type="button"
                               onClick={() => handleUnblockCommunityUser(bUid)}
-                              className="px-3.5 py-1.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
+                              className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
                             >
                               فك الحظر
                             </button>
@@ -3664,7 +3697,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         type="button"
                         disabled={isDeletingAccount}
                         onClick={handleConfirmDeleteAccount}
-                        className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#1F1F1C] text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer disabled:opacity-60"
+                        className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer disabled:opacity-60"
                       >
                         {isDeletingAccount
                           ? 'جاري حذف الحساب...'
@@ -3787,7 +3820,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       <button
                         type="button"
                         onClick={handleUpgradeAnnualVip}
-                        className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer"
                       >
                         ترقية لبريميوم
                       </button>
@@ -3819,7 +3852,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 <div className="rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757]/45 p-5 sm:p-6 space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D97757]/30 pb-3.5">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                         <FileSignature className="w-5 h-5" />
                       </div>
                       <div>
@@ -3877,7 +3910,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                             </div>
                             <span
                               dir="ltr"
-                              className="px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#D97757] font-mono text-[11px] font-bold"
+                              className="px-2.5 py-1 rounded-lg bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] font-mono text-[11px] font-bold"
                             >
                               {audit.certificateCode}
                             </span>
@@ -4108,6 +4141,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               onUnlockRoot5Usd={handleUnlockRoot5Usd}
               onUpgradeAnnualVip={handleUpgradeAnnualVip}
               onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
+              onRequirePremiumAction={requestPremiumAction}
               onLogActivity={appendActivity}
               onSyncImmediateParents={onUpdateImmediateParents}
               unlockedCapsules={unlockedCapsules}
@@ -4306,6 +4340,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         onProceedToMyTree={() => {
           setShowCharterModal(false);
           setActiveUtilityDrawer(null);
+          const pendingPrompt = pendingUpgradePromptRef.current;
+          if (pendingPrompt) {
+            const continueFn = pendingPrompt.onAuthorizedContinue;
+            pendingUpgradePromptRef.current = null;
+            setActiveUpgradePrompt(null);
+            if (continueFn) {
+              window.setTimeout(() => continueFn(), 120);
+            }
+            return;
+          }
           setActiveTab(DashboardTab.MyTree);
         }}
         onConfirmElectronicSignature={handleConfirmRecordKeeperContractSignature}
@@ -4370,6 +4414,28 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             `شحن فوري للمحفظة (${res.transactionId || 'TXN'})`,
             `إيداع $${amountUsd.toFixed(2)} عبر بوابة الدفع السريع — الرصيد بعدها: $${res.balanceAfter.toFixed(2)}`
           );
+        }}
+      />
+      {/* MODAL 4: Unified Product-Led Upgrade + Registrar Charter Signature Modal */}
+      <UpgradeToPremiumModal
+        isOpen={Boolean(activeUpgradePrompt)}
+        request={activeUpgradePrompt}
+        familyName={activeResult.familyName}
+        isVip={caps.isVip}
+        isCharterSigned={accountType === AccountLegalType.RecordKeeper}
+        onClose={() => {
+          setActiveUpgradePrompt(null);
+          pendingUpgradePromptRef.current = null;
+        }}
+        onStartVipCheckout={() => {
+          // Close modal temporarily while CheckoutModal runs, keeping pendingUpgradePromptRef intact
+          setActiveUpgradePrompt(null);
+          handleUpgradeAnnualVip();
+        }}
+        onConfirmCharterSignature={handleConfirmRecordKeeperContractSignature}
+        onOpenFullContractModal={() => {
+          setActiveUpgradePrompt(null);
+          setShowCharterModal(true);
         }}
       />
     </div>

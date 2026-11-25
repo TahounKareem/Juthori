@@ -140,28 +140,28 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
         {/* ================================================================= */}
         {/* TOP OFFICIAL HEADER BAR                                           */}
         {/* ================================================================= */}
-        <div className="bg-[#1F1F1C] text-[#F5F1E8] px-4 sm:px-7 py-4 border-b border-[#D97757]/30 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="bg-[#E8DED2] text-[#1F1F1C] px-4 sm:px-7 py-4 border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shadow-md shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shadow-sm shrink-0">
               <FileSignature className="w-6 h-6" aria-hidden="true" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-md bg-[#D97757]/25 border border-[#D97757]/50 text-[#D97757] font-mono text-[11px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-md bg-[#FAF7F2] border border-[#D8C7B2] text-[#D97757] font-mono text-[11px] font-bold">
                   {RECORD_KEEPER_CONTRACT_VERSION}
                 </span>
-                <span className="text-xs text-[#F5F1E8]/80 font-semibold">
+                <span className="text-xs text-[#1F1F1C]/75 font-semibold">
                   GeneaLab LLC · الولايات المتحدة الأمريكية
                 </span>
                 {(isAlreadySigned || showSuccessScreen) && (
-                  <span className="px-2.5 py-0.5 rounded-md bg-[#D97757]/20 border border-[#D8C7B2]/40 text-[#D8C7B2] text-[11px] font-bold">
+                  <span className="px-2.5 py-0.5 rounded-md bg-[#FAF7F2] border border-[#D97757]/40 text-[#D97757] text-[11px] font-bold">
                     موقّع وموثّق إلكترونياً ✓
                   </span>
                 )}
               </div>
               <h2
                 id="record-keeper-contract-title"
-                className="text-sm sm:text-lg font-display font-extrabold text-[#F5F1E8] truncate mt-0.5"
+                className="text-sm sm:text-lg font-display font-extrabold text-[#1F1F1C] truncate mt-0.5"
               >
                 {RECORD_KEEPER_CONTRACT_METADATA.mainTitle}{' '}
                 <span className="text-[#D97757] font-normal text-xs sm:text-sm">
@@ -175,7 +175,7 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
             <button
               type="button"
               onClick={() => setShowMobileToc((v) => !v)}
-              className="lg:hidden px-3 py-2 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+              className="lg:hidden px-3 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#D8C7B2]/50 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
             >
               <ListFilter className="w-4 h-4 text-[#D97757]" />
               <span>فهرس المواد (29)</span>
@@ -184,7 +184,7 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
               type="button"
               onClick={() => window.print()}
               title="طباعة أو حفظ نسخة PDF"
-              className="hidden sm:inline-flex px-3 py-2 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 text-[#F5F1E8] text-xs font-display font-bold items-center gap-1.5 cursor-pointer"
+              className="hidden sm:inline-flex px-3 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#D8C7B2]/50 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold items-center gap-1.5 cursor-pointer"
             >
               <Printer className="w-4 h-4 text-[#D97757]" />
               <span>طباعة العقد</span>
@@ -193,7 +193,7 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
               type="button"
               onClick={onClose}
               aria-label="إغلاق نافذة العقد"
-              className="w-9 h-9 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#D97757] text-[#F5F1E8] flex items-center justify-center transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-xl bg-[#FAF7F2] hover:bg-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] flex items-center justify-center transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -387,7 +387,7 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
                     onClick={() => scrollToSection('order-details')}
                     className={`w-full text-right px-3 py-2 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer ${
                       activeSectionId === 'order-details'
-                        ? 'bg-[#1F1F1C] text-[#D97757]'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
                         : 'text-[#1F1F1C] hover:bg-[#E8DED2]'
                     }`}
                   >
@@ -399,7 +399,7 @@ export const RecordKeeperContractModal: React.FC<RecordKeeperContractModalProps>
                     onClick={() => scrollToSection('contract-preamble')}
                     className={`w-full text-right px-3 py-2 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer ${
                       activeSectionId === 'contract-preamble'
-                        ? 'bg-[#1F1F1C] text-[#D97757]'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
                         : 'text-[#1F1F1C] hover:bg-[#E8DED2]'
                     }`}
                   >

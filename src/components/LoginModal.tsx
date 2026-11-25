@@ -763,7 +763,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         {(pendingTicket || pendingHandoff) && (
-          <div className="mb-4 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] border border-[#D97757]/60 p-3.5 text-right flex items-start gap-2.5">
+          <div className="mb-4 rounded-xl bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2] p-3.5 text-right flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
             <div className="space-y-0.5 text-[11px] leading-relaxed">
               {pendingTicket ? (
@@ -771,7 +771,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <div className="font-display font-bold text-[#D97757]">
                     تذكرتك البحثية لعائلة ({pendingTicket.familyName}) جاهزة للفتح باسمك
                   </div>
-                  <p className="text-[#F5F1E8]/80">
+                  <p className="text-[#1F1F1C]/80">
                     بمجرد تسجيل الدخول أو إنشاء الحساب، ستُفتح لك نافذة التذكرة في «مرصد البحوث» معبأةً تلقائياً بكافة بياناتك.
                   </p>
                 </>
@@ -780,7 +780,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <div className="font-display font-bold text-[#D97757]">
                     سيتم ترحيل نتيجة فحص عائلة ({pendingHandoff.familyName}) تلقائياً لحسابك
                   </div>
-                  <p className="text-[#F5F1E8]/80">
+                  <p className="text-[#1F1F1C]/80">
                     ادخل أو أنشئ حسابك لتنتقل مباشرةً إلى تبويب «عمود نسبي» دون الحاجة لإعادة البحث.
                   </p>
                 </>

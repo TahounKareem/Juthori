@@ -755,7 +755,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleCampaignCtaClick(cmp)}
-                        className="w-full py-2.5 px-4 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#D97757] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
                       >
                         <span>
                           {cmp.ctaLabel ||

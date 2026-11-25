@@ -655,7 +655,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
                 onClick={() => setShowArchivedTickets((v) => !v)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold border transition-colors inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                   showArchivedTickets
-                    ? 'bg-[#1F1F1C] text-[#F5F1E8] border-[#1F1F1C]'
+                    ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
                     : 'bg-[#F5F1E8] text-[#1F1F1C]/70 border-[#D8C7B2] hover:bg-[#F5F1E8]'
                 }`}
               >
@@ -731,7 +731,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
             <button
               type="button"
               onClick={() => setShowNewTicketModal(true)}
-              className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>طلب تحقيق أو استكشاف نسبي جديد</span>
@@ -1050,7 +1050,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
                         data-testid={`adopt-ticket-resolution-btn-${ticket.id}`}
                         disabled={adoptingTicketId === ticket.id}
                         onClick={() => handleAdoptResolution(ticket)}
-                        className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-60 whitespace-nowrap shrink-0"
+                        className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-60 whitespace-nowrap shrink-0"
                       >
                         {adoptingTicketId === ticket.id ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1469,7 +1469,7 @@ export const ResearchTicketsView: React.FC<ResearchTicketsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setVaultPickerContext(null)}
-                className="px-5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
               >
                 تم الاختيار ({activeVaultSelectedIds.size})
               </button>

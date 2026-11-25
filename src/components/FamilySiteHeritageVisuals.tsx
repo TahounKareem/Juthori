@@ -241,8 +241,8 @@ export const FamilyCrestEmblem: React.FC<FamilyCrestEmblemProps> = ({
       <div
         className={`${dims} rounded-2xl overflow-hidden border flex items-center justify-center shrink-0 ${
           isIvory
-            ? 'border-[#D4AF6A]/60 bg-[#FAF6EE] shadow-xs'
-            : 'border-[#D4AF6A]/65 bg-[#1B1815]/60 shadow-lg'
+            ? 'border-[#D8C7B2] bg-[#FAF7F2] shadow-xs'
+            : 'border-[#D8C7B2] bg-[#E8DED2] shadow-sm'
         } ${className}`}
       >
         <img
@@ -1272,35 +1272,23 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             aria-label={`قاعة استعراض دوحة نسب عائلة ${familyName}`}
             className="fixed inset-0 z-[70] flex flex-col bg-[#F7F1E4] text-[#231E1A]"
           >
-            {/* Theater Top Bar */}
-            <header className="shrink-0 bg-[#221D19] text-[#FAF5EB] border-b border-[#C8A054]/35 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+            {/* Theater Top Bar — Strict Warm Ivory Brand Palette */}
+            <header className="shrink-0 bg-[#E8DED2] text-[#1F1F1C] border-b border-[#D8C7B2] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
-                    isProposalSandboxActive
-                      ? 'bg-emerald-600/20 border-emerald-400/60 text-emerald-300'
-                      : 'bg-[#C8A054]/15 border-[#C8A054]/55 text-[#E3C17C]'
-                  }`}
-                >
+                <div className="w-10 h-10 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-[#D97757] flex items-center justify-center shrink-0">
                   <GitBranch className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div
-                    className={`text-[11px] font-bold tracking-wide ${
-                      isProposalSandboxActive
-                        ? 'text-emerald-300'
-                        : 'text-[#E3C17C]'
-                    }`}
-                  >
+                  <div className="text-[11px] font-bold tracking-wide text-[#D97757]">
                     {isProposalSandboxActive
-                      ? '✦ وضع اقتراح إثراء الدوحة (مسودة تفاعلية آمنة)'
-                      : '✦ قاعة استعراض السجل الشجري الجامع'}
+                      ? 'وضع اقتراح إثراء الدوحة (مسودة تفاعلية آمنة)'
+                      : 'قاعة استعراض السجل الشجري الجامع'}
                   </div>
-                  <h2 className="text-sm sm:text-lg font-display font-bold truncate">
+                  <h2 className="text-sm sm:text-lg font-display font-bold truncate text-[#1F1F1C]">
                     دوحة نسب عائلة {familyName}
                   </h2>
                 </div>
-                <div className="hidden lg:flex items-center gap-2 mr-2 text-[11px] text-[#FAF5EB]/80 tabular-nums">
+                <div className="hidden lg:flex items-center gap-2 mr-2 text-[11px] text-[#1F1F1C]/70 tabular-nums">
                   <span>{mappedMirrorMembers.length} فرد موثق</span>
                   {resolvedGenerationsCount > 0 && (
                     <>
@@ -1325,7 +1313,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                         setSubmitErrorText(null);
                         setIsProposalSandboxActive(true);
                       }}
-                      className="h-9 px-3.5 rounded-xl bg-emerald-700/90 hover:bg-emerald-600 border border-emerald-400/50 text-white text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-xs"
+                      className="h-9 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-xs"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>اقترح إضافة فرع أو قريب</span>
@@ -1343,11 +1331,11 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                           setSubmitSuccessText(null);
                           setShowSubmitProposalModal(true);
                         }}
-                        className="h-9 px-4 rounded-xl bg-gradient-to-l from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 border border-emerald-300/60 text-white text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-md whitespace-nowrap"
+                        className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm whitespace-nowrap"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>
-                          ✦ إرسال الإضافات المقترحة لاعتماد أمين السجل (
+                          إرسال الإضافات المقترحة لاعتماد أمين السجل (
                           {proposedCount}{' '}
                           {proposedCount === 1 ? 'فرد جديد' : 'أفراد جدد'})
                         </span>
@@ -1357,9 +1345,9 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                       type="button"
                       data-testid="cancel-tree-proposal-sandbox-btn"
                       onClick={handleExitSandboxMode}
-                      className="h-9 px-3 rounded-xl bg-white/10 hover:bg-white/18 border border-white/20 text-[#FAF5EB] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                      className="h-9 px-3 rounded-xl bg-[#FAF7F2] hover:bg-[#D8C7B2]/45 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>إلغاء وضع الاقتراح</span>
                     </button>
                   </>
@@ -1369,10 +1357,10 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                   type="button"
                   data-testid="close-tree-theater-btn"
                   onClick={handleCloseTheater}
-                  className="h-9 px-4 rounded-xl bg-[#C8A054] hover:bg-[#b58d43] text-[#1D1610] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs whitespace-nowrap"
+                  className="h-9 px-4 rounded-xl bg-[#FAF7F2] hover:bg-[#D8C7B2]/50 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs whitespace-nowrap"
                 >
                   <span>إغلاق والعودة للديوان</span>
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4 text-[#D97757]" />
                 </button>
               </div>
             </header>
@@ -1381,17 +1369,17 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             {isProposalSandboxActive && (
               <div
                 data-testid="proposal-sandbox-guidance-banner"
-                className="shrink-0 bg-gradient-to-l from-emerald-950 via-[#1E3A2F] to-[#2C2418] text-[#FAF5EB] border-b border-emerald-500/40 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs"
+                className="shrink-0 bg-[#FAF7F2] text-[#1F1F1C] border-b border-[#D8C7B2] px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs"
               >
                 <div className="flex items-center gap-2 leading-relaxed">
-                  <Sparkles className="w-4 h-4 text-[#E3C17C] shrink-0" />
+                  <Sparkles className="w-4 h-4 text-[#D97757] shrink-0" />
                   <span className="font-semibold">
                     وضع اقتراح الإثراء نشط: اضغط على علامة (+) في أي بطاقة قريب
                     لإضافة ابن أو ابنة أو زوجة أو شقيق كما في الشجرة الحقيقية،
                     ثم أرسل مقترحك لاعتماد أمين السجل.
                   </span>
                 </div>
-                <div className="text-[11px] font-bold text-emerald-200 tabular-nums shrink-0">
+                <div className="text-[11px] font-bold text-[#D97757] tabular-nums shrink-0">
                   {proposedCount > 0
                     ? `تمت إضافة ${proposedCount} ${
                         proposedCount === 1 ? 'فرد مقترح' : 'أفراد مقترحين'
@@ -1722,36 +1710,27 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
           </svg>
         </div>
 
-        {/* Atmospheric Veil */}
+        {/* Atmospheric Veil — Strict Warm Ivory Parchment */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{
-            background: velvetBandMode
-              ? 'radial-gradient(circle at 50% 45%, rgba(255,244,220,0.05) 0%, rgba(16,12,9,0.52) 72%, rgba(12,9,7,0.75) 100%)'
-              : 'radial-gradient(circle at 50% 48%, rgba(255,253,249,0.58) 0%, rgba(246,240,227,0.82) 68%, rgba(238,228,208,0.92) 100%)',
+            background:
+              'radial-gradient(circle at 50% 48%, rgba(250,247,242,0.72) 0%, rgba(245,241,232,0.88) 68%, rgba(232,222,210,0.94) 100%)',
           }}
         />
 
         {/* Delicate Inner Archival Corner Hairline */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-3 rounded-2xl border opacity-35"
-          style={{ borderColor: 'var(--fs-gold)' }}
+          className="pointer-events-none absolute inset-3 rounded-2xl border border-[#D8C7B2]/60"
         />
 
-        {/* Centered Gilded Charter Gatehouse Plaque */}
+        {/* Centered Heritage Charter Gatehouse Plaque — Strict Warm Ivory */}
         <div
-          className={`relative z-10 w-full max-w-2xl rounded-3xl backdrop-blur-md border shadow-[0_22px_54px_rgba(10,7,5,0.28)] text-center flex flex-col items-center ${
+          className={`relative z-10 w-full max-w-2xl rounded-3xl backdrop-blur-md border border-[#D8C7B2] bg-[#FAF7F2]/95 text-[#1F1F1C] shadow-[0_18px_44px_rgba(31,31,28,0.08)] text-center flex flex-col items-center ${
             compactPreview ? 'p-5 space-y-4' : 'p-6 sm:p-9 space-y-5'
-          } ${
-            velvetBandMode
-              ? 'bg-[#1A1410]/72 text-[#FAF4E8]'
-              : 'fs-surface/95'
           }`}
-          style={{
-            borderColor: 'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
-          }}
         >
           {/* Top Gilded Crown Line */}
           <div

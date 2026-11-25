@@ -88,6 +88,7 @@ import {
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { CommunityAmbassadorPass } from './CommunityAmbassadorPass';
 import { CommunityKinshipEventsView } from './CommunityKinshipEventsView';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 import { PublicVisualTreeMirror } from './FamilySiteHeritageVisuals';
 import {
   ArabicHonorificTitle,
@@ -133,6 +134,7 @@ interface CommunityHubViewProps {
   onBlockUser?: (targetUid: string, targetName: string) => void;
   onNavigateTab?: (tab: DashboardTab) => void;
   onSignCharterAndEnableTree?: () => void;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onLogActivity?: (title: string, details: string) => void;
 }
 
@@ -232,6 +234,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   publishedSiteSlug,
   onNavigateTab,
   onSignCharterAndEnableTree,
+  onRequirePremiumAction,
   onLogActivity,
 }) => {
   const effectiveUserId = useMemo(
@@ -257,10 +260,26 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     caps.hasRegistrarBadge || accountType === AccountLegalType.RecordKeeper;
   const isOwnRegistrarWorkspace = Boolean(caps.isVip && isRegistrar);
 
-  // Navigation & UI state
-  const [activeTab, setActiveTab] = useState<CommunityTabId>(
-    isOwnRegistrarWorkspace ? 'circle' : 'ambassador'
-  );
+  const requireCommunityPremiumAction = (
+    feature: 'community_invite' | 'community_qr' | 'community_quest' | 'community_event',
+    onAuthorizedContinue: () => void
+  ) => {
+    if (isOwnRegistrarWorkspace) {
+      onAuthorizedContinue();
+      return;
+    }
+    if (onRequirePremiumAction) {
+      onRequirePremiumAction({
+        feature,
+        onAuthorizedContinue,
+      });
+    } else {
+      onSignCharterAndEnableTree?.();
+    }
+  };
+
+  // Navigation & UI state — unified 4-tab layout for all users
+  const [activeTab, setActiveTab] = useState<CommunityTabId>('circle');
   const [isLoading, setIsLoading] = useState(true);
   const [banner, setBanner] = useState<{
     type: 'success' | 'info' | 'error';
@@ -656,7 +675,13 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     enrichmentFilter === 'ALL' || enrichmentFilter === 'FACE_ID';
 
   // Handlers
-  const handleOpenInviteStudioAction = () => {
+  const handleOpenInviteStudioAction = (bypassGate?: boolean) => {
+    if (!bypassGate && !isOwnRegistrarWorkspace) {
+      requireCommunityPremiumAction('community_invite', () =>
+        handleOpenInviteStudioAction(true)
+      );
+      return;
+    }
     setActiveTab('circle');
     setInviteStudioOpen(true);
     setTimeout(() => {
@@ -669,8 +694,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
   const handleAddRelative = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isRegistrar) {
-      onSignCharterAndEnableTree?.();
+    if (!isOwnRegistrarWorkspace) {
+      requireCommunityPremiumAction('community_invite', () => {
+        setInviteStudioOpen(true);
+      });
       return;
     }
     const cleanName = relName.trim();
@@ -794,8 +821,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   };
 
   const handleRotateMajlisLink = async () => {
-    if (!isRegistrar) {
-      onSignCharterAndEnableTree?.();
+    if (!isOwnRegistrarWorkspace) {
+      requireCommunityPremiumAction('community_invite', () => {
+        handleRotateMajlisLink().catch(() => {});
+      });
       return;
     }
     setRotatingMajlisLink(true);
@@ -831,13 +860,18 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     }
   };
 
-  const handleLaunchMemoryQuest = async (payload: {
-    title: string;
-    promptText: string;
-    category: MemoryQuestCategory;
-  }) => {
-    if (!isRegistrar) {
-      onSignCharterAndEnableTree?.();
+  const handleLaunchMemoryQuest = async (
+    payload: {
+      title: string;
+      promptText: string;
+      category: MemoryQuestCategory;
+    },
+    bypassGate?: boolean
+  ) => {
+    if (!bypassGate && !isOwnRegistrarWorkspace) {
+      requireCommunityPremiumAction('community_quest', () => {
+        handleLaunchMemoryQuest(payload, true).catch(() => {});
+      });
       return;
     }
     const cleanTitle = payload.title.trim();
@@ -959,11 +993,11 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   }, [relName, relRole, result.familyName, cleanMajlisUrl]);
 
-  // Shared Flagship Card for Joined Family Circles & Shared Trees
+  // Shared Flagship Card for Joined Family Circles & Shared Trees (Warm Ivory Brand Palette)
   const renderJoinedFamilyPortalsCard = () => (
     <section
       data-testid="joined-family-portals-card"
-      className="rounded-3xl border border-[#D8C7B2]/45 bg-gradient-to-b from-[#1F1F1C] via-[#1F1F1C] to-[#1F1F1C] p-5 sm:p-7 text-[#F5F1E8] shadow-[0_18px_46px_-24px_rgba(31,31,28,0.55)] space-y-5"
+      className="rounded-3xl border border-[#D8C7B2] bg-[#FAF7F2] p-5 sm:p-7 text-[#1F1F1C] shadow-xs space-y-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
@@ -971,30 +1005,30 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             <ShieldCheck className="w-4 h-4 text-[#D97757]" />
             <span>عضويات الدوائر العائلية الموثّقة</span>
           </div>
-          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#F5F1E8]">
+          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1F1F1C]">
             دوائر وشجرات العائلات المنضمّ إليها
           </h2>
-          <p className="text-xs sm:text-sm text-[#F5F1E8]/85">
+          <p className="text-xs sm:text-sm text-[#1F1F1C]/75">
             تصفح الشجرة العائلية المشتركة، اقترح إضافات للأقارب، وتابع المناسبات
             والذكريات في العائلات التي دُعيت إليها مباشرة من هنا.
           </p>
         </div>
-        <div className="text-xs font-bold text-[#D97757] tabular-nums">
+        <div className="px-3 py-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-xs font-bold text-[#D97757] tabular-nums">
           {authorizedPortals.length} دائرة عائلية نشطة
         </div>
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-[#F5F1E8]/10 bg-[#F5F1E8]/[0.04] p-6 text-center text-xs text-[#F5F1E8]/80">
+        <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-6 text-center text-xs text-[#1F1F1C]/75">
           جاري تحميل دوائر العائلات المنضمّ إليها...
         </div>
       ) : authorizedPortals.length === 0 ? (
-        <div className="rounded-2xl border border-[#D8C7B2]/25 bg-[#F5F1E8]/[0.04] p-6 text-center space-y-2">
+        <div className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-6 text-center space-y-2">
           <JUTHORI_SERVICE_ICONS.tree className="w-8 h-8 text-[#D97757] mx-auto" />
-          <div className="text-sm font-bold text-[#F5F1E8]">
+          <div className="text-sm font-bold text-[#1F1F1C]">
             لم تنضم إلى دائرة عائلة منشورة بعد
           </div>
-          <p className="text-xs text-[#F5F1E8]/80 max-w-lg mx-auto leading-relaxed">
+          <p className="text-xs text-[#1F1F1C]/75 max-w-lg mx-auto leading-relaxed">
             فور قبولك دعوة من أمين سجل عائلتك أو إدراج بريدك الإلكتروني في دائرة
             العائلة، ستظهر شجرة العائلة المشتركة وديوانها هنا مباشرة.
           </p>
@@ -1011,7 +1045,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
               <div
                 key={portal.siteSlug}
                 data-testid={`joined-family-card-${portal.siteSlug}`}
-                className="rounded-2xl border border-[#D8C7B2]/30 bg-[#F5F1E8]/[0.05] p-5 flex flex-col justify-between gap-4"
+                className="rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] p-5 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
@@ -1022,43 +1056,43 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                           ? ` · ${portal.kinshipRelation}`
                           : ''}
                       </div>
-                      <h3 className="text-lg font-display font-extrabold text-[#F5F1E8] truncate">
+                      <h3 className="text-lg font-display font-extrabold text-[#1F1F1C] truncate">
                         ديوان وعائلة {portal.familyName}
                       </h3>
-                      <p className="text-xs text-[#F5F1E8]/80">
+                      <p className="text-xs text-[#1F1F1C]/75">
                         أمين السجل: {portal.ownerDisplayName}
                         {portal.originCountry ? ` · ${portal.originCountry}` : ''}
                       </p>
                     </div>
-                    <span className="w-10 h-10 rounded-xl bg-[#D97757]/15 border border-[#D8C7B2]/40 flex items-center justify-center shrink-0 text-[#D97757]">
+                    <span className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center shrink-0 text-[#D97757]">
                       <JUTHORI_SERVICE_ICONS.tree className="w-5 h-5" />
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#F5F1E8] tabular-nums">
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#1F1F1C]/80 tabular-nums">
                     <span>
-                      <strong className="text-[#F5F1E8]">
+                      <strong className="text-[#1F1F1C]">
                         {portal.membersCount}
                       </strong>{' '}
                       فرد في الدوحة
                     </span>
                     {portal.generationsCount > 0 && (
                       <span>
-                        <strong className="text-[#F5F1E8]">
+                        <strong className="text-[#1F1F1C]">
                           {portal.generationsCount}
                         </strong>{' '}
                         أجيال
                       </span>
                     )}
                     {portal.canProposeEnrichment && (
-                      <span className="text-[#D8C7B2] font-bold">
-                        ✦ يمكنك اقتراح إضافة أقارب في الشجرة
+                      <span className="text-[#D97757] font-bold">
+                        يمكنك اقتراح إضافة أقارب في الشجرة
                       </span>
                     )}
                   </div>
 
                   {upcomingEvents.length > 0 && (
-                    <div className="rounded-xl border border-[#F5F1E8]/10 bg-[#1F1F1C]/20 p-3 space-y-1.5">
+                    <div className="rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] p-3 space-y-1.5">
                       <div className="text-[11px] font-bold text-[#D97757] flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>أحدث مناسبات العائلة</span>
@@ -1066,12 +1100,12 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                       {upcomingEvents.map((ev) => (
                         <div
                           key={ev.id}
-                          className="text-xs text-[#F5F1E8] flex items-center justify-between gap-2"
+                          className="text-xs text-[#1F1F1C] flex items-center justify-between gap-2"
                         >
                           <span className="truncate font-semibold">
                             {ev.title}
                           </span>
-                          <span className="text-[11px] text-[#F5F1E8]/70 shrink-0">
+                          <span className="text-[11px] text-[#1F1F1C]/70 shrink-0">
                             {ev.locationLabel}
                           </span>
                         </div>
@@ -1086,19 +1120,19 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     disabled={!hasTree}
                     data-testid={`open-shared-tree-btn-${portal.siteSlug}`}
                     onClick={() => setActiveSharedTreePortal(portal)}
-                    className="flex-1 h-10 px-4 rounded-xl bg-gradient-to-l from-[#D97757] via-[#D97757] to-[#D97757] hover:brightness-105 disabled:opacity-50 text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-sm transition"
+                    className="flex-1 h-10 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition"
                   >
                     <JUTHORI_SERVICE_ICONS.tree className="w-4 h-4 shrink-0" />
-                    <span>🌳 فتح دوحة العائلة المشتركة</span>
+                    <span>فتح دوحة العائلة المشتركة</span>
                   </button>
 
                   <a
                     href={`/${portal.siteSlug}`}
                     data-testid={`visit-joined-portal-link-${portal.siteSlug}`}
-                    className="h-10 px-4 rounded-xl border border-[#D8C7B2]/45 bg-[#F5F1E8]/5 hover:bg-[#F5F1E8]/12 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
+                    className="h-10 px-4 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] hover:bg-[#E8DED2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
                   >
                     <JUTHORI_SERVICE_ICONS.site className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
-                    <span>🏛️ زيارة موقع ديوان العائلة</span>
+                    <span>زيارة موقع ديوان العائلة</span>
                   </a>
                 </div>
               </div>
@@ -1108,62 +1142,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       )}
     </section>
   );
-
-  // Non-owner / Invited Member Role-Aware Community View (Hides all owner-only registrar tools)
-  if (!isOwnRegistrarWorkspace) {
-    return (
-      <div className="w-full space-y-5 pb-8" data-testid="community-member-view">
-        <UnifiedWorkspaceHeader
-          testId="community-unified-header"
-          icon={<JUTHORI_SERVICE_ICONS.community className="w-5 h-5" />}
-          title="مجتمعي ودوائر العائلة"
-          metaItems={[
-            'مساحة التواصل والمشاركة العائلية',
-            <span key="joined" className="tabular-nums">
-              <strong className="font-semibold text-[#1F1F1C]">
-                {authorizedPortals.length}
-              </strong>{' '}
-              عائلة منضمّ إليها
-            </span>,
-          ]}
-        />
-
-        {renderJoinedFamilyPortalsCard()}
-
-        {/* Ambassador / Referral Pass available to all verified members */}
-        <CommunityAmbassadorPass
-          familyName={result.familyName}
-          referralStats={referralStats}
-          onLogActivity={(title, details) =>
-            showToast('success', `${title} — ${details}`)
-          }
-        />
-
-        {/* Shared Fullscreen Family Tree Theater with Role-Aware Interactive Sandbox */}
-        {activeSharedTreePortal && (
-          <PublicVisualTreeMirror
-            members={activeSharedTreePortal.siteData.publishedTreeMembers || []}
-            familyName={activeSharedTreePortal.familyName}
-            generationsCount={activeSharedTreePortal.generationsCount}
-            treeDisplaySettings={
-              activeSharedTreePortal.siteData.treeDisplaySettings
-            }
-            isAuthorizedFamilyViewer
-            canProposeEnrichment={activeSharedTreePortal.canProposeEnrichment}
-            siteSlug={activeSharedTreePortal.siteSlug}
-            ownerId={activeSharedTreePortal.ownerId}
-            viewerDefaultName={ownerDisplayName}
-            viewerDefaultEmail={effectiveEmail}
-            viewerDefaultKinship={activeSharedTreePortal.kinshipRelation || ''}
-            viewerRoleLabel={activeSharedTreePortal.viewerRoleLabelAr}
-            externalTheaterOpen={Boolean(activeSharedTreePortal)}
-            onExternalTheaterClose={() => setActiveSharedTreePortal(null)}
-            hideInlinePreview
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="w-full space-y-3.5 pb-8">
@@ -1203,7 +1181,11 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             <button
               type="button"
               data-testid="community-qr-card-btn"
-              onClick={() => setQrModalOpen(true)}
+              onClick={() =>
+                requireCommunityPremiumAction('community_qr', () =>
+                  setQrModalOpen(true)
+                )
+              }
               className={WORKSPACE_SECONDARY_BTN_CLASS}
             >
               <QrCode className="w-4 h-4 shrink-0" />
@@ -1213,7 +1195,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             <button
               type="button"
               data-testid="community-invite-relative-btn"
-              onClick={handleOpenInviteStudioAction}
+              onClick={() => handleOpenInviteStudioAction()}
               className={WORKSPACE_PRIMARY_BTN_CLASS}
             >
               <Plus className="w-4 h-4 shrink-0" />
@@ -1391,60 +1373,41 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       ====================================================================== */}
       {!isLoading && activeTab === 'circle' && (
         <div className="space-y-6">
-          {/* Registrar Upgrade Notice if user is not yet Record Keeper */}
-          {!isRegistrar && (
-            <div className="rounded-2xl bg-[#1F1F1C] text-[#F5F1E8] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#D8C7B2]/35">
-              <div className="space-y-1">
-                <div className="text-xs font-bold text-[#D97757]">
-                  صلاحيات إدارة الدائرة العائلية
+          {/* Smart Relative Invitation Studio (Visible to all; execution gated on action) */}
+          <div
+            ref={inviteStudioRef}
+            className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] overflow-hidden"
+          >
+            <div className="px-6 py-4 bg-[#FAF7F2] border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                  <UserPlus className="w-4.5 h-4.5" />
                 </div>
-                <h3 className="text-base font-display font-bold">
-                  فعّل ميثاق «أمين سجل العائلة» لدعوة أقاربك ومنحهم صلاحيات التوثيق
-                </h3>
-                <p className="text-xs text-[#F5F1E8]/75 max-w-2xl leading-relaxed">
-                  يمكنك الآن تصفح البوابات العائلية المصرح لك بها أدناه أو استخدام رابط «سفير جذوري» لربح <span dir="ltr" className="font-mono font-bold text-[#D97757]">$10</span>، وبتفعيل صفة أمين السجل تفتح إدارة دائرة عائلتك بالكامل.
-                </p>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
+                    استوديو دعوة قريب للدائرة وتحديد الصلاحيات
+                  </h3>
+                  <p className="text-[11px] text-[#1F1F1C]/65">
+                    اختر مستوى الصلاحية، اربط القريب ببطاقته في «شجرتي» (اختياري)، وأرسل دعوته بالبريد أو واتساب
+                  </p>
+                </div>
               </div>
-              {onSignCharterAndEnableTree && (
-                <button
-                  type="button"
-                  onClick={onSignCharterAndEnableTree}
-                  className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
-                >
-                  تفعيل صفة أمين السجل الآن
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!inviteStudioOpen && !isOwnRegistrarWorkspace) {
+                    requireCommunityPremiumAction('community_invite', () =>
+                      setInviteStudioOpen(true)
+                    );
+                    return;
+                  }
+                  setInviteStudioOpen((v) => !v);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2]/60 border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] cursor-pointer transition-colors"
+              >
+                {inviteStudioOpen ? 'طي النموذج' : '+ فتح نموذج الدعوة'}
+              </button>
             </div>
-          )}
-
-          {/* Smart Relative Invitation Studio (Drawer-style Collapsible Panel) */}
-          {isRegistrar && (
-            <div
-              ref={inviteStudioRef}
-              className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 overflow-hidden"
-            >
-              <div className="px-6 py-4 bg-[#F5F1E8] border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
-                    <UserPlus className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
-                      استوديو دعوة قريب للدائرة وتحديد الصلاحيات
-                    </h3>
-                    <p className="text-[11px] text-[#1F1F1C]/60">
-                      اختر مستوى الصلاحية، اربط القريب ببطاقته في «شجرتي» (اختياري)، وأرسل دعوته بالبريد أو واتساب
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setInviteStudioOpen((v) => !v)}
-                  className="px-3.5 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D97757]/35 text-xs font-display font-bold text-[#1F1F1C] hover:bg-[#F5F1E8] cursor-pointer transition-colors"
-                >
-                  {inviteStudioOpen ? 'طي النموذج' : '+ فتح نموذج الدعوة'}
-                </button>
-              </div>
 
               {inviteStudioOpen && (
                 <form onSubmit={handleAddRelative} className="p-6 space-y-5">
@@ -1618,7 +1581,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 </form>
               )}
             </div>
-          )}
 
           {/* Smart Majlis Link Controls & Token Rotation */}
           {isRegistrar && (
@@ -1665,8 +1627,12 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setQrModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/40 text-xs font-display font-bold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  onClick={() =>
+                    requireCommunityPremiumAction('community_qr', () =>
+                      setQrModalOpen(true)
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <QrCode className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>رمز QR</span>
@@ -1676,7 +1642,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   type="button"
                   onClick={handleRotateMajlisLink}
                   disabled={rotatingMajlisLink}
-                  className="px-3.5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 disabled:opacity-55 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] disabled:opacity-55 text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <RotateCcw
                     className={`w-3.5 h-3.5 text-[#D97757] ${
@@ -1725,7 +1691,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         type="button"
                         disabled={resolvingAccessId === req.id}
                         onClick={() => handleResolveAccess(req, true)}
-                        className="px-3.5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
+                        className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
                       >
                         قبول وإضافة للدائرة ✓
                       </button>
@@ -1744,68 +1710,67 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             </div>
           )}
 
-          {/* Approved Relatives Roster — Luxury Membership Cards */}
-          {isRegistrar && (
-            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4.5 h-4.5 text-[#D97757]" />
-                  <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
-                    أفراد دائرة عائلة {result.familyName} المعتمدون
-                  </h3>
-                </div>
-                <span className="text-xs text-[#1F1F1C]/60 tabular-nums">
-                  {circle.members.length} عضو موثق الصلاحية
-                </span>
+          {/* Approved Relatives Roster — Luxury Membership Cards (Visible to all members) */}
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4.5 h-4.5 text-[#D97757]" />
+                <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
+                  أفراد دائرة عائلة {result.familyName} المعتمدون
+                </h3>
               </div>
+              <span className="text-xs text-[#1F1F1C]/60 tabular-nums">
+                {circle.members.length} عضو موثق الصلاحية
+              </span>
+            </div>
 
-              <div className="p-6">
-                {circle.members.length === 0 ? (
-                  <div className="rounded-2xl bg-gradient-to-b from-[#F5F1E8] to-[#F5F1E8] border border-dashed border-[#D97757]/50 p-8 sm:p-10 text-center space-y-4">
-                    {/* Custom Heritage Crest SVG Illustration */}
-                    <div className="w-16 h-16 rounded-2xl bg-[#1F1F1C] text-[#D97757] mx-auto flex items-center justify-center shadow-sm">
-                      <Users className="w-8 h-8" />
-                    </div>
-                    <div className="space-y-1.5 max-w-lg mx-auto">
-                      <h4 className="text-base font-display font-bold text-[#1F1F1C]">
-                        دائرة عائلتك جاهزة لاستقبال أول أفرادها
-                      </h4>
-                      <p className="text-xs text-[#1F1F1C]/65 leading-relaxed">
-                        توثيق تاريخ العائلة أجمل حين يتشارك فيه الأبناء والأعمام. ادعُ الآن أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
-                      </p>
-                    </div>
-                    {!inviteStudioOpen && (
-                      <button
-                        type="button"
-                        onClick={handleOpenInviteStudioAction}
-                        className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        <span>دعوة أول قريب الآن</span>
-                      </button>
-                    )}
+            <div className="p-6">
+              {circle.members.length === 0 ? (
+                <div className="rounded-2xl bg-[#FAF7F2] border border-dashed border-[#D8C7B2] p-8 sm:p-10 text-center space-y-4">
+                  {/* Warm Heritage Crest Container */}
+                  <div className="w-16 h-16 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] mx-auto flex items-center justify-center shadow-xs">
+                    <Users className="w-8 h-8" />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {circle.members.map((member) => {
-                      const isActive = member.status === 'ACTIVE';
-                      const currentRole: KinshipCircleMemberRole =
-                        member.role || 'memory_contributor';
-                      const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
-                        `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
-                      )}`;
+                  <div className="space-y-1.5 max-w-lg mx-auto">
+                    <h4 className="text-base font-display font-bold text-[#1F1F1C]">
+                      دائرة عائلتك جاهزة لاستقبال أول أفرادها
+                    </h4>
+                    <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
+                      توثيق تاريخ العائلة أجمل حين يتشارك فيه الأبناء والأعمام. ادعُ الآن أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
+                    </p>
+                  </div>
+                  {!inviteStudioOpen && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenInviteStudioAction()}
+                      className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>دعوة أول قريب الآن</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {circle.members.map((member) => {
+                    const isActive = member.status === 'ACTIVE';
+                    const currentRole: KinshipCircleMemberRole =
+                      member.role || 'memory_contributor';
+                    const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
+                      `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
+                    )}`;
 
-                      return (
-                        <div
-                          key={member.id}
-                          className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col justify-between gap-4 hover:border-[#D97757]/45 transition-colors"
-                        >
-                          {/* Top Identity Row */}
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 min-w-0">
-                              <div className="w-11 h-11 rounded-xl bg-[#1F1F1C] text-[#D97757] font-display font-bold text-sm flex items-center justify-center shrink-0">
-                                {getArabicInitials(member.name)}
-                              </div>
+                    return (
+                      <div
+                        key={member.id}
+                        className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-5 flex flex-col justify-between gap-4 hover:border-[#D97757]/55 transition-colors"
+                      >
+                        {/* Top Identity Row */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-11 h-11 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] font-display font-bold text-sm flex items-center justify-center shrink-0">
+                              {getArabicInitials(member.name)}
+                            </div>
                               <div className="min-w-0 space-y-0.5">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <h4 className="text-sm font-display font-bold text-[#1F1F1C] truncate">
@@ -1940,7 +1905,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 )}
               </div>
             </div>
-          )}
 
           {/* Authorized Family Portals (For ALL Users) */}
           <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
@@ -1983,7 +1947,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                           {ACTIVE_PUBLIC_SITE_DISPLAY_HOST}/{portal.siteSlug}
                         </div>
                       </div>
-                      <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 flex items-center justify-center text-[#D97757] group-hover:bg-[#1F1F1C] group-hover:text-[#D97757] transition-colors shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] group-hover:bg-[#D97757] group-hover:text-[#F5F1E8] transition-colors shrink-0">
                         <ArrowUpLeft className="w-4 h-4" />
                       </div>
                     </a>
@@ -2001,83 +1965,87 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       {!isLoading && activeTab === 'enrichment' && (
         <div className="space-y-6">
           {/* Family Memory & Photo Quests Studio */}
-          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 overflow-hidden">
-            <div className="px-6 py-4 bg-[#F5F1E8] border-b border-[#D97757]/25 flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] overflow-hidden">
+            <div className="px-6 py-4 bg-[#FAF7F2] border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#D97757]/15 text-[#D97757] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <Megaphone className="w-4.5 h-4.5" />
                 </div>
                 <div>
                   <h3 className="text-sm font-display font-bold text-[#1F1F1C]">
                     حملات استكتاب العائلة وجمع الذاكرة
                   </h3>
-                  <p className="text-[11px] text-[#1F1F1C]/60">
+                  <p className="text-[11px] text-[#1F1F1C]/65">
                     أطلق نداءً حقيقياً للعائلة لجمع الصور والمواليد وذكريات الأجداد، وشاركه في مجموعة واتساب العائلة
                   </p>
                 </div>
               </div>
 
-              {isRegistrar && (
-                <button
-                  type="button"
-                  onClick={() => setQuestComposerOpen((v) => !v)}
-                  className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5 text-[#D97757]" />
-                  <span>
-                    {questComposerOpen ? 'إغلاق المحرر' : 'إطلاق حملة ذاكرة مخصصة'}
-                  </span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!questComposerOpen && !isOwnRegistrarWorkspace) {
+                    requireCommunityPremiumAction('community_quest', () =>
+                      setQuestComposerOpen(true)
+                    );
+                    return;
+                  }
+                  setQuestComposerOpen((v) => !v);
+                }}
+                className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#F5F1E8]" />
+                <span>
+                  {questComposerOpen ? 'إغلاق المحرر' : 'إطلاق حملة ذاكرة مخصصة'}
+                </span>
+              </button>
             </div>
 
             <div className="p-6 space-y-5">
               {/* Ready Starter Templates to Launch Real Campaigns */}
-              {isRegistrar && (
-                <div className="space-y-2.5">
-                  <div className="text-xs font-display font-bold text-[#1F1F1C]/80 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
-                    <span>قوالب حملات جاهزة للإطلاق الفوري بنقرة واحدة:</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {MEMORY_QUEST_TEMPLATES.map((tpl) => (
-                      <div
-                        key={tpl.category}
-                        className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 p-4 flex flex-col justify-between gap-3"
-                      >
-                        <div className="space-y-1.5">
-                          <span className="inline-block text-[10px] font-bold text-[#D97757]">
-                            {tpl.badgeAr}
-                          </span>
-                          <h4 className="text-xs font-display font-bold text-[#1F1F1C] leading-snug">
-                            {tpl.title}
-                          </h4>
-                          <p className="text-[11px] text-[#1F1F1C]/65 leading-relaxed line-clamp-3">
-                            {tpl.promptText}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={savingQuest}
-                          onClick={() =>
-                            handleLaunchMemoryQuest({
-                              title: tpl.title,
-                              promptText: tpl.promptText,
-                              category: tpl.category,
-                            })
-                          }
-                          className="w-full py-2 rounded-lg bg-[#F5F1E8] hover:bg-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D97757]/40 text-xs font-display font-bold text-[#1F1F1C] transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          إطلاق هذه الحملة للعائلة ✦
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-2.5">
+                <div className="text-xs font-display font-bold text-[#1F1F1C]/80 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
+                  <span>قوالب حملات جاهزة للإطلاق الفوري بنقرة واحدة:</span>
                 </div>
-              )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {MEMORY_QUEST_TEMPLATES.map((tpl) => (
+                    <div
+                      key={tpl.category}
+                      className="rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] p-4 flex flex-col justify-between gap-3"
+                    >
+                      <div className="space-y-1.5">
+                        <span className="inline-block text-[10px] font-bold text-[#D97757]">
+                          {tpl.badgeAr}
+                        </span>
+                        <h4 className="text-xs font-display font-bold text-[#1F1F1C] leading-snug">
+                          {tpl.title}
+                        </h4>
+                        <p className="text-[11px] text-[#1F1F1C]/70 leading-relaxed line-clamp-3">
+                          {tpl.promptText}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={savingQuest}
+                        onClick={() =>
+                          handleLaunchMemoryQuest({
+                            title: tpl.title,
+                            promptText: tpl.promptText,
+                            category: tpl.category,
+                          })
+                        }
+                        className="w-full py-2 rounded-lg bg-[#E8DED2] hover:bg-[#D97757] hover:text-[#F5F1E8] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        إطلاق هذه الحملة للعائلة
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Custom Quest Composer */}
-              {isRegistrar && questComposerOpen && (
+              {questComposerOpen && (
                 <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/40 p-5 space-y-3">
                   <div className="text-xs font-display font-bold text-[#1F1F1C]">
                     صياغة نداء توثيق خاص بعائلة {result.familyName}
@@ -2314,16 +2282,16 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     onClick={() => setEnrichmentFilter(flt.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
                       active
-                        ? 'bg-[#1F1F1C] text-[#F5F1E8]'
-                        : 'bg-[#F5F1E8] border border-[#D97757]/35 text-[#1F1F1C]/75 hover:border-[#D97757]/50'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
+                        : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/80 hover:border-[#D97757]/60'
                     }`}
                   >
                     <span>{flt.label}</span>
                     <span
                       className={`text-[10px] px-1.5 py-0.2 rounded tabular-nums ${
                         active
-                          ? 'bg-[#F5F1E8]/15 text-[#D97757]'
-                          : 'bg-[#F5F1E8] text-[#D97757]'
+                          ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                          : 'bg-[#E8DED2] text-[#D97757]'
                       }`}
                     >
                       {flt.count}
@@ -2509,10 +2477,10 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                   onClick={() =>
                                     setVisualDiffReviewRequest(req)
                                   }
-                                  className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] border border-[#D97757]/50 text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                  className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] text-[#1F1F1C] border border-[#D8C7B2] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                                 >
-                                  <Eye className="w-3.5 h-3.5" />
-                                  <span>🔍 معاينة الإضافات على الشجرة</span>
+                                  <Eye className="w-3.5 h-3.5 text-[#D97757]" />
+                                  <span>معاينة الإضافات على الشجرة</span>
                                 </button>
                               )}
                             </div>
@@ -2524,7 +2492,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                 onClick={() =>
                                   handleReviewEnrichment(req, false)
                                 }
-                                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#1F1F1C]/5 border border-[#D97757]/40 text-xs font-semibold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                                className="px-4 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-semibold text-[#1F1F1C] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
                               >
                                 <XCircle className="w-3.5 h-3.5 text-[#D97757]" />
                                 <span>
@@ -2539,7 +2507,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                                 onClick={() =>
                                   handleReviewEnrichment(req, true)
                                 }
-                                className="px-5 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                                className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                                 <span>
@@ -2562,22 +2530,22 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                     realFaceIdEntries.map((entry) => (
                       <div
                         key={entry.id}
-                        className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/35 p-5 flex flex-col sm:flex-row items-start gap-4"
+                        className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex flex-col sm:flex-row items-start gap-4"
                       >
                         {entry.previewUrl ? (
                           <img
                             src={entry.previewUrl}
                             alt={entry.photoTitle}
-                            className="w-24 h-24 rounded-xl object-cover border border-[#D97757]/30 shrink-0"
+                            className="w-24 h-24 rounded-xl object-cover border border-[#D8C7B2] shrink-0"
                           />
                         ) : (
-                          <div className="w-24 h-24 rounded-xl bg-[#F5F1E8] border border-[#D97757]/30 flex items-center justify-center text-[#D97757] shrink-0">
+                          <div className="w-24 h-24 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] shrink-0">
                             <Camera className="w-6 h-6" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#1F1F1C] text-[#D97757] text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] text-[10px] font-bold">
                               <ScanFace className="w-3 h-3" />
                               التعرف على وجوه الصور
                             </span>
@@ -2666,6 +2634,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
           ownerMicrosite={ownerMicrosite}
           circle={circle}
           rawTreeMembers={rawTreeMembers}
+          isAuthorizedOwner={isOwnRegistrarWorkspace}
+          onRequirePremiumAction={onRequirePremiumAction}
           onNavigateTab={onNavigateTab}
         />
       )}
@@ -2704,17 +2674,17 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             aria-label="معاينة الإضافات المقترحة على شجرة العائلة"
             className="fixed inset-0 z-[80] flex flex-col bg-[#E8DED2] text-[#1F1F1C]"
           >
-            {/* Visual Diff Top Bar */}
-            <header className="shrink-0 bg-[#1F1F1C] text-[#F5F1E8] border-b border-[#D97757]/40 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+            {/* Visual Diff Top Bar (Warm Ivory Brand Palette) */}
+            <header className="shrink-0 bg-[#FAF7F2] text-[#1F1F1C] border-b border-[#D8C7B2] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-[#D97757]/20 border border-[#D8C7B2]/60 text-[#D8C7B2] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <GitBranch className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-[#D8C7B2] tracking-wide">
-                    ✦ معاينة الفروقات البصرية قبل الاعتماد والدمج
+                  <div className="text-[11px] font-bold text-[#D97757] tracking-wide">
+                    معاينة الفروقات البصرية قبل الاعتماد والدمج
                   </div>
-                  <h2 className="text-sm sm:text-base font-display font-bold truncate">
+                  <h2 className="text-sm sm:text-base font-display font-bold truncate text-[#1F1F1C]">
                     مقترح من {visualDiffReviewRequest.requesterName} (
                     {visualDiffReviewRequest.requesterRoleLabel || 'قريب مساهم'}
                     ) · {visualDiffPreviewData.highlightedNewIds.length}{' '}
@@ -2732,9 +2702,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   onClick={() =>
                     handleReviewEnrichment(visualDiffReviewRequest, false)
                   }
-                  className="h-9 px-3.5 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#1F1F1C]/50 border border-[#F5F1E8]/20 text-[#F5F1E8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors whitespace-nowrap"
+                  className="h-9 px-3.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors whitespace-nowrap"
                 >
-                  <XCircle className="w-3.5 h-3.5" />
+                  <XCircle className="w-3.5 h-3.5 text-[#D97757]" />
                   <span>✕ رفض المقترح</span>
                 </button>
                 <button
@@ -2744,7 +2714,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   onClick={() =>
                     handleReviewEnrichment(visualDiffReviewRequest, true)
                   }
-                  className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 disabled:opacity-50 border border-[#D8C7B2]/50 text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-sm"
+                  className="h-9 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-50 text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shadow-xs"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
@@ -2756,7 +2726,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setVisualDiffReviewRequest(null)}
-                  className="h-9 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                  className="h-9 px-3.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                 >
                   <span>إغلاق</span>
                   <X className="w-4 h-4" />
@@ -2765,17 +2735,16 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             </header>
 
             {/* Visual Diff Legend Strip */}
-            <div className="shrink-0 bg-[#1F1F1C] text-[#F5F1E8] border-b border-[#D97757]/35 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="shrink-0 bg-[#E8DED2] text-[#1F1F1C] border-b border-[#D8C7B2] px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-semibold text-[#F5F1E8]/85">
+                <span className="font-semibold text-[#1F1F1C]/80">
                   البطاقات الباهتة: شجرتك الحالية المعتمدة
                 </span>
                 <span aria-hidden="true" className="opacity-40">
                   ·
                 </span>
-                <span className="font-bold text-[#D8C7B2]">
-                  البطاقات المضيئة بالأخضر (✦ جديد): الإضافات المقترحة التي
-                  ستُدمج عند الاعتماد
+                <span className="font-bold text-[#D97757]">
+                  البطاقات المضيئة (جديد): الإضافات المقترحة التي ستُدمج عند الاعتماد
                 </span>
               </div>
               {visualDiffPreviewData.proposedNames.length > 0 && (

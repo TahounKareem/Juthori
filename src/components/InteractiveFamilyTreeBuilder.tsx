@@ -64,7 +64,7 @@ import {
 import { resolveSpineConnectorLabel } from '../utils/lineageEngine';
 import { buildCleanSingleSelfTreeNode } from '../utils/portalSecurityUtils';
 import { resolveClientPublicAppBaseUrl } from '../config/referralAndSiteConfig';
-import { RoyalPremiumFeatureGate } from './RoyalPremiumFeatureGate';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 import {
   HeritageNodeAvatar,
   getHistoricalEraBadgeLabel,
@@ -276,6 +276,7 @@ interface InteractiveFamilyTreeBuilderProps {
   onUnlockRoot5Usd?: () => void;
   onUpgradeAnnualVip: () => void;
   onSignCharterAndEnableTree: () => void;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onLogActivity: (action: string, detail: string) => void;
   onSyncImmediateParents?: (fatherName: string, grandfatherName: string) => void;
   unlockedCapsules?: string[];
@@ -387,6 +388,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   onUnlockRoot5Usd,
   onUpgradeAnnualVip,
   onSignCharterAndEnableTree,
+  onRequirePremiumAction,
   onLogActivity,
   onSyncImmediateParents,
   unlockedCapsules = [],
@@ -2032,14 +2034,29 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const openAddRelativeModal = (
     targetNode: InteractiveTreePerson,
     relationKind: RelativeRelationKind,
-    preselectedMotherId?: string
+    preselectedMotherId?: string,
+    bypassGate?: boolean
   ) => {
     setRadialTargetNodeId(null);
     setActiveUnionQuickAddKey(null);
 
-    // 1. Strict Charter Gate: Must sign Record Keeper Charter (`ميثاق أمين السجل`) before adding ANY node (bypassed in Sandbox Proposal Mode)!
-    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
-      onSignCharterAndEnableTree();
+    // 1. Product-Led Premium + Charter Gate (bypassed in Sandbox Proposal Mode or immediately post-authorization)
+    if (
+      !bypassGate &&
+      !isProposalSandboxMode &&
+      (!caps.isVip || !isRecordKeeperCharterSigned)
+    ) {
+      if (onRequirePremiumAction) {
+        onRequirePremiumAction({
+          feature: 'tree_add_relative',
+          title:
+            'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل للبدء في بناء وتوسيع شجرة عائلتك',
+          onAuthorizedContinue: () =>
+            openAddRelativeModal(targetNode, relationKind, preselectedMotherId, true),
+        });
+      } else {
+        onSignCharterAndEnableTree();
+      }
       return;
     }
 
@@ -3619,8 +3636,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 data-testid="direct-family-edit-vault-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isRecordKeeperCharterSigned) {
-                    onSignCharterAndEnableTree();
+                  if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                    if (onRequirePremiumAction) {
+                      onRequirePremiumAction({
+                        feature: 'vault_upload',
+                        onAuthorizedContinue: () =>
+                          setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID),
+                      });
+                    } else if (!isRecordKeeperCharterSigned) {
+                      onSignCharterAndEnableTree();
+                    }
                     return;
                   }
                   setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID);
@@ -3650,8 +3675,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 data-testid="direct-family-plus-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isRecordKeeperCharterSigned) {
-                    onSignCharterAndEnableTree();
+                  if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                    if (onRequirePremiumAction) {
+                      onRequirePremiumAction({
+                        feature: 'tree_add_relative',
+                        onAuthorizedContinue: () =>
+                          setRadialTargetNodeId(DIRECT_FAMILY_VAULT_NODE_ID),
+                      });
+                    } else if (!isRecordKeeperCharterSigned) {
+                      onSignCharterAndEnableTree();
+                    }
                     return;
                   }
                   setRadialTargetNodeId((cur) =>
@@ -3662,9 +3695,9 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 }}
                 title="إضافة جد أو فرع"
                 aria-label="إضافة جد أو فرع للعائلة"
-                className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-white transition-all cursor-pointer ${
+                className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-[#F5F1E8] transition-all cursor-pointer ${
                   isDirectFamilyMenuOpen
-                    ? 'bg-[#252321] text-white scale-110 ring-2 ring-[#C59B43]/45'
+                    ? 'bg-[#D97757] text-[#F5F1E8] scale-110 ring-2 ring-[#D8C7B2]'
                     : `${activeTreeTheme.plusBtn} hover:scale-110`
                 }`}
               >
@@ -3678,20 +3711,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           }
         />
 
-        {/* 2-Option Popover for Direct Family Node: إضافة جد | إضافة فرع (Warm Royal Gold — ZERO Purple!) */}
+        {/* 2-Option Popover for Direct Family Node: إضافة جد | إضافة فرع (Warm Ivory Brand Palette) */}
         {isDirectFamilyMenuOpen && (
           <div
             data-testid="direct-family-radial-menu"
-            className="mt-4 rounded-2xl bg-[#252321] text-white p-3.5 shadow-2xl border border-[#C59B43]/70 space-y-2.5 relative z-50 w-[240px]"
+            className="mt-4 rounded-2xl bg-[#FAF7F2] text-[#1F1F1C] p-3.5 shadow-xl border border-[#D8C7B2] space-y-2.5 relative z-50 w-[240px]"
           >
-            <div className="flex items-center justify-between border-b border-white/15 pb-1.5">
-              <span className="text-xs font-display font-bold text-[#F3D299]">
+            <div className="flex items-center justify-between border-b border-[#D8C7B2] pb-1.5">
+              <span className="text-xs font-display font-bold text-[#D97757]">
                 {cleanNaturalSpineName(result.familyName)}
               </span>
               <button
                 type="button"
                 onClick={() => setRadialTargetNodeId(null)}
-                className="px-1.5 py-0.5 rounded-md bg-white/10 hover:bg-white/20 text-[10px] font-bold text-white cursor-pointer"
+                className="px-1.5 py-0.5 rounded-md bg-[#E8DED2] hover:bg-[#D8C7B2] text-[10px] font-bold text-[#1F1F1C] cursor-pointer"
               >
                 ✕
               </button>
@@ -4488,8 +4521,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             data-testid={`tree-node-quick-add-${person.id}`}
             onClick={(e) => {
               e.stopPropagation();
-              if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
-                onSignCharterAndEnableTree();
+              if (
+                !isProposalSandboxMode &&
+                (!caps.isVip || !isRecordKeeperCharterSigned)
+              ) {
+                if (onRequirePremiumAction) {
+                  onRequirePremiumAction({
+                    feature: 'tree_add_relative',
+                    title:
+                      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل للبدء في بناء وتوسيع شجرة عائلتك',
+                    onAuthorizedContinue: () =>
+                      setRadialTargetNodeId(person.id),
+                  });
+                } else {
+                  onSignCharterAndEnableTree();
+                }
                 return;
               }
               setRadialTargetNodeId((cur) =>
@@ -4499,16 +4545,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             title={
               isProposalSandboxMode
                 ? 'اقتراح إضافة قريب (+)'
-                : isRecordKeeperCharterSigned
+                : caps.isVip && isRecordKeeperCharterSigned
                 ? 'إضافة قريب (+)'
-                : 'وقّع ميثاق أمين السجل لتفعيل الإضافة'
+                : 'رقِّ لبريميوم ووقّع ميثاق أمين السجل لإضافة الأقارب'
             }
             aria-label={`إضافة قريب لـ ${person.firstName}`}
-            className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-white transition-all cursor-pointer ${
+            className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-[#F5F1E8] transition-all cursor-pointer ${
               isRadialOpen
-                ? 'bg-[#252321] text-white scale-110 ring-2 ring-[#C59B43]/45'
+                ? 'bg-[#D97757] text-[#F5F1E8] scale-110 ring-2 ring-[#D8C7B2]'
                 : isProposalSandboxMode
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-110 ring-2 ring-emerald-400/40'
+                ? 'bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] hover:scale-110 ring-2 ring-[#D8C7B2]'
                 : `${activeTreeTheme.plusBtn} hover:scale-110`
             }`}
           >
@@ -5500,16 +5546,16 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             <div
               dir="rtl"
               onClick={(e) => e.stopPropagation()}
-              className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 z-50 rounded-2xl bg-[#1C1917] text-[#F7E7CE] border border-[#C5A059]/75 p-2 shadow-xl w-44 space-y-1.5"
+              className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 z-50 rounded-2xl bg-[#FAF7F2] text-[#1F1F1C] border border-[#D8C7B2] p-2 shadow-xl w-44 space-y-1.5"
             >
-              <div className="flex items-center justify-between gap-1 text-[10px] font-display font-bold text-[#F3D299] border-b border-white/10 pb-1">
+              <div className="flex items-center justify-between gap-1 text-[10px] font-display font-bold text-[#D97757] border-b border-[#D8C7B2] pb-1">
                 <span className="truncate">
                   ذرية {person.firstName} و{spouse.firstName}
                 </span>
                 <button
                   type="button"
                   onClick={() => setActiveUnionQuickAddKey(null)}
-                  className="text-white/60 hover:text-white cursor-pointer"
+                  className="text-[#1F1F1C]/55 hover:text-[#1F1F1C] cursor-pointer"
                 >
                   ✕
                 </button>
@@ -5518,7 +5564,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 <button
                   type="button"
                   onClick={() => openAddRelativeModal(person, 'son', spouse.id)}
-                  className="py-1.5 px-2 rounded-lg bg-[#8D4925] hover:bg-[#D8755B] text-white text-[10.5px] font-display font-extrabold cursor-pointer transition-colors"
+                  className="py-1.5 px-2 rounded-lg bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-[10.5px] font-display font-extrabold cursor-pointer transition-colors"
                 >
                   + ابن
                 </button>
@@ -6582,16 +6628,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
   const sideNoteElement = renderTreeUpperLayersSideNote();
 
-  if (!isPublicMirror && !caps.isVip) {
-    return (
-      <RoyalPremiumFeatureGate
-        feature="my_tree"
-        familyName={result.familyName}
-        onUpgradePremium={onUpgradeAnnualVip}
-      />
-    );
-  }
-
   return (
     <div
       className={
@@ -6650,6 +6686,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     type="button"
                     data-testid="invite-family-icon-btn"
                     onClick={() => {
+                      if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                        if (onRequirePremiumAction) {
+                          onRequirePremiumAction({
+                            feature: 'tree_invite',
+                            onAuthorizedContinue: () => {
+                              setCopiedInviteLink(false);
+                              setShowInviteFamilyModal(true);
+                            },
+                          });
+                        } else {
+                          onUpgradeAnnualVip();
+                        }
+                        return;
+                      }
                       setCopiedInviteLink(false);
                       setShowInviteFamilyModal(true);
                     }}
@@ -6719,7 +6769,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     type="button"
                     data-testid="open-tree-official-export-btn"
                     aria-label="تصدير وطباعة الشجرة"
-                    onClick={() => setShowOfficialExportModal(true)}
+                    onClick={() => {
+                      if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                        if (onRequirePremiumAction) {
+                          onRequirePremiumAction({
+                            feature: 'tree_export',
+                            onAuthorizedContinue: () =>
+                              setShowOfficialExportModal(true),
+                          });
+                        } else {
+                          onUpgradeAnnualVip();
+                        }
+                        return;
+                      }
+                      setShowOfficialExportModal(true);
+                    }}
                     className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
                   >
                     <Download className="w-4 h-4 shrink-0" />
@@ -6730,22 +6794,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           />
 
           {/* ==================================================================== */}
-          {/* 1B. MANDATORY RECORD KEEPER CHARTER GATE BANNER                      */}
+          {/* 1B. MANDATORY RECORD KEEPER CHARTER GATE BANNER (VIP Unsigned Only)  */}
           {/* ==================================================================== */}
-          {!isRecordKeeperCharterSigned && (
+          {caps.isVip && !isRecordKeeperCharterSigned && (
             <div
               data-testid="tree-charter-required-banner"
-              className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] via-[#FAF3E6] to-[#FFF8EB] border-2 border-[#D4AF37] px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs"
+              className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs"
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#252321] text-[#F3D299] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0 mt-0.5">
                   <FileSignature className="w-4 h-4" />
                 </div>
                 <div className="space-y-0.5">
-                  <h3 className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
+                  <h3 className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
                     يلزم التوقيع على «ميثاق أمين السجل» قبل إضافة أي عقدة أو تعديل سجلات المشجرة
                   </h3>
-                  <p className="text-[11px] sm:text-xs text-[#252321]/75 leading-relaxed">
+                  <p className="text-[11px] sm:text-xs text-[#1F1F1C]/75 leading-relaxed">
                     حفاظاً على أمانة التوثيق النَّسبي، تُفعَّل صلاحية إضافة الأفراد والفروع والحلقات العمودية فور اعتماد توقيعك الإلكتروني على ميثاق أمين السجل.
                   </p>
                 </div>
@@ -6755,7 +6819,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 type="button"
                 data-testid="require-charter-before-add-btn"
                 onClick={onSignCharterAndEnableTree}
-                className="px-4 py-2.5 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#F3D299] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors shadow-2xs"
+                className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors shadow-2xs"
               >
                 <FileSignature className="w-3.5 h-3.5" />
                 <span>التوقيع على ميثاق أمين السجل وتفعيل الإضافة ←</span>
@@ -6941,15 +7005,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           kinshipPathResult && (
             <div
               data-testid="kinship-active-banner"
-              className="px-4 py-2 bg-[#252321] text-white border-b border-[#C5A059]/50 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0"
+              className="px-4 py-2 bg-[#E8DED2] text-[#1F1F1C] border-b border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2 text-xs shrink-0"
             >
               <div className="flex flex-wrap items-center gap-2 font-display">
-                <Sparkles className="w-3.5 h-3.5 text-[#F3D299] shrink-0" />
-                <span className="font-extrabold text-[#F3D299]">
+                <Sparkles className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
+                <span className="font-extrabold text-[#D97757]">
                   {kinshipPathResult.relationshipLabel}
                 </span>
                 {kinshipPathResult.commonAncestor && (
-                  <span className="text-white/75 text-[11px]">
+                  <span className="text-[#1F1F1C]/75 text-[11px]">
                     · الجد الجامع: {kinshipPathResult.commonAncestor.firstName} (
                     {kinshipPathResult.degreeCount} درجات)
                   </span>
@@ -6959,14 +7023,14 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 <button
                   type="button"
                   onClick={() => setShowKinshipModal(true)}
-                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[#F3D299] text-[11px] font-bold cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-[#FAF7F2] hover:bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-bold cursor-pointer"
                 >
                   تفاصيل المسار
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsKinshipHighlightedOnCanvas(false)}
-                  className="px-2.5 py-1 rounded-lg bg-[#D8755B] hover:bg-[#c5644b] text-white text-[11px] font-bold cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
                 >
                   إلغاء الإضاءة
                 </button>
@@ -7003,7 +7067,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               onApplyMirrorDefault={handleApplyAsMirrorDefault}
               mirrorPresetFeedback={mirrorPresetFeedback}
               familyName={result.familyName}
-              onOpenExportModal={() => setShowOfficialExportModal(true)}
+              onOpenExportModal={() => {
+                if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                  if (onRequirePremiumAction) {
+                    onRequirePremiumAction({
+                      feature: 'tree_export',
+                      onAuthorizedContinue: () =>
+                        setShowOfficialExportModal(true),
+                    });
+                  } else {
+                    onUpgradeAnnualVip();
+                  }
+                  return;
+                }
+                setShowOfficialExportModal(true);
+              }}
               onExportJsonBackup={handleExportTreeJsonBackup}
               onImportJsonBackup={() => jsonImportInputRef.current?.click()}
             />
@@ -7842,8 +7920,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     }}
                     className={`py-2.5 px-3 rounded-xl border text-xs font-display font-bold cursor-pointer transition-colors ${
                       inviteRoleMode === 'contribute'
-                        ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-                        : 'bg-[#FAF6F0] text-[#252321] border-[#B98A78]/45'
+                        ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                        : 'bg-[#FAF7F2] text-[#1F1F1C] border-[#D8C7B2]'
                     }`}
                   >
                     دعوة للمساهمة والإثراء
@@ -7856,8 +7934,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     }}
                     className={`py-2.5 px-3 rounded-xl border text-xs font-display font-bold cursor-pointer transition-colors ${
                       inviteRoleMode === 'view'
-                        ? 'bg-[#252321] text-[#F3D299] border-[#252321]'
-                        : 'bg-[#FAF6F0] text-[#252321] border-[#B98A78]/45'
+                        ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                        : 'bg-[#FAF7F2] text-[#1F1F1C] border-[#D8C7B2]'
                     }`}
                   >
                     دعوة للمعاينة فقط
@@ -8208,7 +8286,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               <div className="text-xs font-display font-bold text-[#252321]">
                 رفع صورة حقيقية من جهازك (ضغط WebP/JPEG ذكي وتخزين سحابي آمن):
               </div>
-              <label className="w-full py-2.5 px-4 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-colors">
+              <label className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-colors">
                 {isUploadingNodeAvatar ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -8643,7 +8721,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         </option>
                       ))}
                     </select>
-                    <label className="px-3 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                    <label className="px-3 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
                       <Upload className="w-3.5 h-3.5" />
                       <span>
                         {isUploadingToVaultFromTree
@@ -8671,8 +8749,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
                 {unlinkedForPreview.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="text-[11px] font-display font-bold text-[#252321] flex items-center gap-1.5">
-                      <Link2 className="w-3.5 h-3.5 text-[#D8755B]" />
+                    <div className="text-[11px] font-display font-bold text-[#1F1F1C] flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-[#D97757]" />
                       <span>أو اربط ملفاً موجوداً في «خزانتي»:</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
@@ -8686,7 +8764,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                               resolvedPreviewId
                             )
                           }
-                          className="px-2.5 py-1 rounded-full bg-white hover:bg-[#252321] text-[#252321] hover:text-[#FEF3C7] border border-[#B98A78]/45 text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-full bg-[#FAF7F2] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D8C7B2] text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
                         >
                           <span>{uv.mediaType === 'photo' ? '📸' : '📜'}</span>
                           <span>+ {uv.title}</span>
@@ -8696,7 +8774,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-[#B98A78]/30 flex flex-wrap items-center justify-between gap-2">
+                <div className="pt-3 border-t border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
                   {previewPerson ? (
                     <button
                       type="button"
@@ -8705,7 +8783,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                         setQuickVaultPreviewPersonId(null);
                         openEditPersonModal(targetP);
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#EDE6DA] border border-[#B98A78]/50 text-xs font-display font-bold text-[#252321] cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] cursor-pointer"
                     >
                       تعديل بطاقة الفرد الكاملة
                     </button>
@@ -8722,7 +8800,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                           setQuickVaultPreviewPersonId(null);
                           onOpenVaultForPerson(resolvedPreviewId);
                         }}
-                        className="px-3.5 py-2 rounded-xl bg-[#252321] hover:bg-[#8D4925] text-[#FEF3C7] text-xs font-display font-extrabold cursor-pointer transition-colors"
+                        className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-extrabold cursor-pointer transition-colors"
                       >
                         عرض وفلترة في خزانتي ←
                       </button>

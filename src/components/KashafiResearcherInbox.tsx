@@ -239,7 +239,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
             onClick={() => setStatusFilter(tab.key)}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
               statusFilter === tab.key
-                ? 'bg-[#1F1F1C] text-[#D97757]'
+                ? 'bg-[#D97757] text-[#F5F1E8]'
                 : 'bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C]/70 hover:bg-[#F5F1E8]'
             }`}
           >
@@ -366,7 +366,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                     <button
                       type="button"
                       onClick={() => openOrderEditor(ord)}
-                      className="px-3.5 py-1.5 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>إعداد وتسليم النتيجة</span>
@@ -458,7 +458,7 @@ export const KashafiResearcherInbox: React.FC<KashafiResearcherInboxProps> = ({
                 <button
                   type="submit"
                   disabled={isUpdatingOrder}
-                  className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#1F1F1C] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  className="px-5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
                   {isUpdatingOrder ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

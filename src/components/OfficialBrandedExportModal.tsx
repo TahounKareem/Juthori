@@ -160,7 +160,7 @@ export const OfficialBrandedExportModal: React.FC<
         className="w-full max-w-3xl rounded-3xl bg-[#F5F1E8] border-2 border-[#D8C7B2] shadow-2xl overflow-hidden my-6 max-h-[92vh] flex flex-col text-right"
       >
         {/* Modal Top Bar */}
-        <div className="px-5 sm:px-7 py-4 bg-[#1F1F1C] text-[#F5F1E8] flex items-center justify-between gap-3 border-b border-[#D8C7B2]/40 shrink-0">
+        <div className="px-5 sm:px-7 py-4 bg-[#E8DED2] text-[#1F1F1C] flex items-center justify-between gap-3 border-b border-[#D8C7B2] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shrink-0 shadow-xs">
               <FileCheck2 className="w-5 h-5" />
@@ -169,7 +169,7 @@ export const OfficialBrandedExportModal: React.FC<
               <div className="text-[11px] font-display font-bold text-[#D97757]">
                 نظام الإصدار والتوثيق المرجعي · منصة جذوري
               </div>
-              <h3 className="text-sm sm:text-lg font-display font-extrabold text-[#F5F1E8] truncate">
+              <h3 className="text-sm sm:text-lg font-display font-extrabold text-[#1F1F1C] truncate">
                 {exportKind === 'lineage_spine'
                   ? `تصدير بطاقة عمود نسب عائلة ${result.familyName} الموثق`
                   : `تصدير لوحة مشجرة عائلة ${result.familyName} الموثقة`}
@@ -180,7 +180,7 @@ export const OfficialBrandedExportModal: React.FC<
             type="button"
             onClick={onClose}
             aria-label="إغلاق"
-            className="w-8 h-8 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 text-[#F5F1E8] flex items-center justify-center cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-xl bg-[#FAF7F2] hover:bg-[#D8C7B2]/55 border border-[#D8C7B2] text-[#1F1F1C] flex items-center justify-center cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -220,12 +220,7 @@ export const OfficialBrandedExportModal: React.FC<
             >
               <div className="flex items-center gap-3">
                 <div
-                  className="w-12 h-12 rounded-2xl border-2 flex items-center justify-center font-display font-extrabold text-sm shrink-0"
-                  style={{
-                    backgroundColor: charter?.isDarkSurface ? '#1F1F1C' : '#1F1F1C',
-                    color: '#E8DED2',
-                    borderColor: charter?.goldHex || '#D97757',
-                  }}
+                  className="w-12 h-12 rounded-2xl border-2 flex items-center justify-center font-display font-extrabold text-sm shrink-0 bg-[#E8DED2] text-[#D97757] border-[#D8C7B2]"
                 >
                   جذوري
                 </div>
@@ -301,7 +296,7 @@ export const OfficialBrandedExportModal: React.FC<
               <div
                 className={`px-3.5 py-2 rounded-xl border text-xs font-display font-extrabold inline-flex items-center gap-1.5 shrink-0 ${
                   meta.isRegistrar
-                    ? 'bg-[#1F1F1C] text-[#D97757] border-[#D8C7B2] shadow-xs'
+                    ? 'bg-[#E8DED2] text-[#D97757] border-[#D8C7B2] shadow-xs'
                     : meta.isEligibleForCertifiedExport
                     ? 'bg-[#F5F1E8] text-[#D97757] border-[#D97757]/45'
                     : 'bg-[#E8DED2] text-[#1F1F1C]/70 border-[#D8C7B2]'
@@ -581,7 +576,7 @@ export const OfficialBrandedExportModal: React.FC<
               className="rounded-2xl bg-gradient-to-l from-[#F5F1E8] via-[#E8DED2]/55 to-[#F5F1E8] border-2 border-[#D8C7B2] p-4 sm:p-5 space-y-3"
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1F1F1C] text-[#D97757] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
                   <Crown className="w-4 h-4" />
                 </div>
                 <div className="space-y-1">
@@ -602,7 +597,7 @@ export const OfficialBrandedExportModal: React.FC<
                       onClose();
                       onUnlockRoot5Usd();
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer transition-colors"
+                    className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold cursor-pointer transition-colors"
                   >
                     فتح الجذر الموثق وتفعيل التصدير ($5)
                   </button>
@@ -614,7 +609,7 @@ export const OfficialBrandedExportModal: React.FC<
                       onClose();
                       onUpgradeAnnualVip();
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-extrabold cursor-pointer transition-colors"
+                    className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-extrabold cursor-pointer transition-colors"
                   >
                     الترقية للباقة السنوية VIP ($60)
                   </button>
@@ -674,12 +669,12 @@ export const OfficialBrandedExportModal: React.FC<
               disabled={isFreeRestricted}
               onClick={handlePrintPdf}
               data-testid="official-export-print-pdf-btn"
-              className="px-5 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+              className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] disabled:opacity-50 disabled:cursor-not-allowed text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
             >
               {isFreeRestricted ? (
-                <Lock className="w-3.5 h-3.5 text-[#D97757]" />
+                <Lock className="w-3.5 h-3.5 text-[#F5F1E8]" />
               ) : (
-                <Printer className="w-4 h-4 text-[#D97757]" />
+                <Printer className="w-4 h-4 text-[#F5F1E8]" />
               )}
               <span>طباعة / حفظ ملف PDF رسمي موثق</span>
               {!isFreeRestricted && <Download className="w-3.5 h-3.5" />}

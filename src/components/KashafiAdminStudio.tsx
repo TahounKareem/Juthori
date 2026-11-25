@@ -404,7 +404,7 @@ export const KashafiAdminStudio: React.FC<KashafiAdminStudioProps> = ({
                       className={`w-full py-2 px-4 rounded-xl text-xs font-display font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                         isAlreadyPublished
                           ? 'bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D97757]'
-                          : 'bg-[#1F1F1C] hover:bg-[#D97757] text-[#D97757]'
+                          : 'bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8]'
                       }`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -682,7 +682,7 @@ export const KashafiAdminStudio: React.FC<KashafiAdminStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveSubTab('publisher')}
-                className="px-3.5 py-1.5 rounded-xl bg-[#1F1F1C] text-[#D97757] text-xs font-display font-bold cursor-pointer whitespace-nowrap shrink-0"
+                className="px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer whitespace-nowrap shrink-0"
               >
                 + نشر حملة جديدة
               </button>

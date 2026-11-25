@@ -12,7 +12,7 @@ import { InteractiveFamilyTreeBuilder } from './InteractiveFamilyTreeBuilder';
 import { FamilyMemoryVaultView } from './FamilyMemoryVaultView';
 import { MySiteStudioView } from './MySiteStudioView';
 import { CommunityHubView } from './CommunityHubView';
-import { RoyalPremiumFeatureGate } from './RoyalPremiumFeatureGate';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 import {
   CustomerCommunityPostData,
   CustomerSiteSettingsData,
@@ -27,6 +27,7 @@ interface PremiumTabViewsProps {
   onUnlockRoot5Usd: () => void;
   onUpgradeAnnualVip: () => void;
   onSignCharterAndEnableTree: () => void;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onLogActivity: (action: string, detail: string) => void;
   onSyncImmediateParents?: (fatherName: string, grandfatherName: string) => void;
   unlockedCapsules?: string[];
@@ -83,6 +84,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   onUnlockRoot5Usd,
   onUpgradeAnnualVip,
   onSignCharterAndEnableTree,
+  onRequirePremiumAction,
   onLogActivity,
   onSyncImmediateParents,
   unlockedCapsules = [],
@@ -146,16 +148,6 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   }
 
   if (activeTab === DashboardTab.MyTree) {
-    if (!caps.isVip) {
-      return (
-        <RoyalPremiumFeatureGate
-          feature="my_tree"
-          familyName={result.familyName}
-          onUpgradePremium={onUpgradeAnnualVip}
-          onExploreCommunity={() => onNavigateTab(DashboardTab.MyCommunity)}
-        />
-      );
-    }
     return (
       <InteractiveFamilyTreeBuilder
         result={result}
@@ -164,6 +156,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         onUnlockRoot5Usd={onUnlockRoot5Usd}
         onUpgradeAnnualVip={onUpgradeAnnualVip}
         onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+        onRequirePremiumAction={onRequirePremiumAction}
         onLogActivity={onLogActivity}
         onSyncImmediateParents={onSyncImmediateParents}
         unlockedCapsules={unlockedCapsules}
@@ -199,21 +192,12 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         onUnlockRoot5Usd={onUnlockRoot5Usd}
         onUpgradeAnnualVip={onUpgradeAnnualVip}
         onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+        onRequirePremiumAction={onRequirePremiumAction}
       />
     );
   }
 
   if (activeTab === DashboardTab.MySite) {
-    if (!caps.isVip) {
-      return (
-        <RoyalPremiumFeatureGate
-          feature="my_site"
-          familyName={result.familyName}
-          onUpgradePremium={onUpgradeAnnualVip}
-          onExploreCommunity={() => onNavigateTab(DashboardTab.MyCommunity)}
-        />
-      );
-    }
     return (
       <MySiteStudioView
         result={result}
@@ -227,6 +211,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         onSaveSiteSettings={onSaveSiteSettings}
         onUpgradeAnnualVip={onUpgradeAnnualVip}
         onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+        onRequirePremiumAction={onRequirePremiumAction}
         onOpenEmailVerification={onOpenEmailVerification}
         onOpenTreeSettings={() => {
           setOpenTreeSettingsOnMount(true);
@@ -251,6 +236,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
       }
       onNavigateTab={onNavigateTab}
       onSignCharterAndEnableTree={onSignCharterAndEnableTree}
+      onRequirePremiumAction={onRequirePremiumAction}
       onLogActivity={onLogActivity}
     />
   );

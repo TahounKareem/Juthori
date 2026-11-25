@@ -20,6 +20,7 @@ import {
 } from '../services/priority4Service';
 import { DashboardTab } from '../types/juthori';
 import { resolveClientPublicAppBaseUrl } from '../config/referralAndSiteConfig';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 
 interface CommunityKinshipEventsViewProps {
   familyName: string;
@@ -27,6 +28,8 @@ interface CommunityKinshipEventsViewProps {
   ownerMicrosite: PublicMicrositeData | null;
   circle: KinshipCircleDoc;
   rawTreeMembers: RawTreePersonForPublicProjection[];
+  isAuthorizedOwner?: boolean;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onNavigateTab?: (tab: DashboardTab) => void;
 }
 
@@ -38,8 +41,20 @@ export const CommunityKinshipEventsView: React.FC<
   ownerMicrosite,
   circle,
   rawTreeMembers,
+  isAuthorizedOwner = true,
+  onRequirePremiumAction,
   onNavigateTab,
 }) => {
+  const handleCreateOrManageEvent = () => {
+    if (!isAuthorizedOwner && onRequirePremiumAction) {
+      onRequirePremiumAction({
+        feature: 'community_event',
+        onAuthorizedContinue: () => onNavigateTab?.(DashboardTab.MySite),
+      });
+      return;
+    }
+    onNavigateTab?.(DashboardTab.MySite);
+  };
   const realEvents = useMemo(
     () => ownerMicrosite?.cmsModules?.eventsModule?.items || [],
     [ownerMicrosite]
@@ -121,8 +136,8 @@ export const CommunityKinshipEventsView: React.FC<
 
           <button
             type="button"
-            onClick={() => onNavigateTab?.(DashboardTab.MySite)}
-            className="px-3.5 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D97757]/35 text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            onClick={handleCreateOrManageEvent}
+            className="px-3.5 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>إدارة المناسبات في «موقعي»</span>
             <ArrowUpLeft className="w-3.5 h-3.5" />
@@ -131,8 +146,8 @@ export const CommunityKinshipEventsView: React.FC<
 
         <div className="p-6">
           {realEvents.length === 0 ? (
-            <div className="rounded-2xl bg-[#F5F1E8] border border-dashed border-[#D97757]/50 p-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#F5F1E8] border border-[#D97757]/30 mx-auto flex items-center justify-center text-[#D97757]">
+            <div className="rounded-2xl bg-[#FAF7F2] border border-dashed border-[#D8C7B2] p-8 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] mx-auto flex items-center justify-center text-[#D97757]">
                 <Calendar className="w-6 h-6" />
               </div>
               <div className="space-y-1 max-w-md mx-auto">
@@ -146,10 +161,10 @@ export const CommunityKinshipEventsView: React.FC<
               {onNavigateTab && (
                 <button
                   type="button"
-                  onClick={() => onNavigateTab(DashboardTab.MySite)}
-                  className="mt-1 px-5 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                  onClick={handleCreateOrManageEvent}
+                  className="mt-1 px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
-                  <span>إضافة أول مناسبة في «موقعي»</span>
+                  <span>إنشاء مناسبة عائلية رسمية</span>
                   <ArrowUpLeft className="w-3.5 h-3.5" />
                 </button>
               )}

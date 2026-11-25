@@ -88,7 +88,7 @@ import {
 } from '../utils/mediaPipeline';
 import { PublicFamilyMicrositePage } from './PublicFamilyMicrositePage';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
-import { RoyalPremiumFeatureGate } from './RoyalPremiumFeatureGate';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 import {
   CREST_STYLE_OPTIONS,
   FamilyCrestEmblem,
@@ -117,6 +117,7 @@ interface MySiteStudioViewProps {
   onSaveSiteSettings?: (settings: CustomerSiteSettingsData) => void;
   onUpgradeAnnualVip: () => void;
   onSignCharterAndEnableTree?: () => void;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onOpenEmailVerification?: () => void;
   onOpenTreeSettings?: () => void;
   onLogActivity: (action: string, detail: string) => void;
@@ -233,6 +234,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   onSaveSiteSettings,
   onUpgradeAnnualVip,
   onSignCharterAndEnableTree,
+  onRequirePremiumAction,
   onOpenEmailVerification,
   onOpenTreeSettings,
   onLogActivity,
@@ -798,7 +800,28 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     ]
   );
 
-  const handlePersistAndPublish = async (nextPublishState: boolean) => {
+  const handlePersistAndPublish = async (
+    nextPublishState: boolean,
+    bypassGate?: boolean
+  ) => {
+    if (
+      nextPublishState &&
+      !bypassGate &&
+      (!caps.isVip || !caps.hasRegistrarBadge)
+    ) {
+      if (onRequirePremiumAction) {
+        onRequirePremiumAction({
+          feature: 'site_publish',
+          onAuthorizedContinue: () => {
+            handlePersistAndPublish(true, true).catch(() => {});
+          },
+        });
+      } else {
+        onUpgradeAnnualVip();
+      }
+      return;
+    }
+
     if (siteAccessMode === 'PRIVATE_WHITELIST' && !familyAccessCode.trim()) {
       setStudioTab('link_privacy');
       setFeedbackBanner({
@@ -1038,16 +1061,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     setActiveIdentitySection((prev) => (prev === sectionId ? null : sectionId));
   };
 
-  if (!caps.isVip) {
-    return (
-      <RoyalPremiumFeatureGate
-        feature="my_site"
-        familyName={result.familyName}
-        onUpgradePremium={onUpgradeAnnualVip}
-      />
-    );
-  }
-
   return (
     <div dir="rtl" className="w-full space-y-3.5 text-right">
       {/* Hidden File Inputs for Crest & Hero Cover */}
@@ -1112,7 +1125,20 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           <>
             <button
               type="button"
-              onClick={() => setShowRoyalQrModal(true)}
+              onClick={() => {
+                if (!caps.isVip || !caps.hasRegistrarBadge) {
+                  if (onRequirePremiumAction) {
+                    onRequirePremiumAction({
+                      feature: 'site_qr',
+                      onAuthorizedContinue: () => setShowRoyalQrModal(true),
+                    });
+                  } else {
+                    onUpgradeAnnualVip();
+                  }
+                  return;
+                }
+                setShowRoyalQrModal(true);
+              }}
               className={WORKSPACE_SECONDARY_BTN_CLASS}
             >
               <QrCode className="w-4 h-4 shrink-0" />
@@ -1193,7 +1219,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
               <button
                 type="button"
                 onClick={onSignCharterAndEnableTree}
-                className="px-3 py-1 rounded-lg bg-[#1F1F1C] text-[#D97757] text-[11px] font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
               >
                 توقيع ميثاق أمين السجل
               </button>
@@ -1742,7 +1768,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                 : 'bg-[#F5F1E8] border-[#D8C7B2] hover:border-[#D8C7B2]'
                             }`}
                           >
-                            <div className="w-12 h-12 rounded-xl bg-[#1F1F1C] flex items-center justify-center p-1.5">
+                            <div className="w-12 h-12 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center p-1.5">
                               <FamilyCrestEmblem
                                 familyName={result.familyName}
                                 crestMode="auto_gilded"
@@ -2078,7 +2104,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                                       : 'border-[#D8C7B2] hover:border-[#D8C7B2] bg-[#F5F1E8]'
                                   }`}
                                 >
-                                  <div className="aspect-[4/3] w-full overflow-hidden relative bg-[#1F1F1C]">
+                                  <div className="aspect-[4/3] w-full overflow-hidden relative bg-[#E8DED2]">
                                     <img
                                       src={scene.imageUrl}
                                       alt={scene.label}
@@ -2281,17 +2307,17 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
 
           {/* LEFT (Desktop xl): STICKY LIVE INTERACTIVE MINI-BROWSER */}
           <aside className="hidden xl:block xl:col-span-5 xl:sticky xl:top-24 self-start">
-            <div className="rounded-3xl border border-[#D8C7B2]/45 bg-[#1F1F1C] shadow-[0_20px_50px_-24px_rgba(31,31,28,0.45)] overflow-hidden flex flex-col">
-              {/* Sleek Browser Chrome Bar */}
-              <div className="px-4 py-2.5 bg-[#1F1F1C] border-b border-[#F5F1E8]/10 flex items-center justify-between gap-3">
+            <div className="rounded-3xl border border-[#D8C7B2] bg-[#FAF7F2] shadow-[0_20px_50px_-24px_rgba(31,31,28,0.18)] overflow-hidden flex flex-col">
+              {/* Sleek Warm Ivory Browser Chrome Bar */}
+              <div className="px-4 py-2.5 bg-[#E8DED2] border-b border-[#D8C7B2] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]/75" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]/75" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]/75" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D97757]/70" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8C7B2]" />
                 </div>
                 <div
                   dir="ltr"
-                  className="flex-1 mx-2 px-3 py-1 rounded-lg bg-[#F5F1E8]/8 border border-[#F5F1E8]/8 text-[11px] font-mono text-[#F5F1E8]/90 inline-flex items-center justify-center gap-1.5 truncate"
+                  className="flex-1 mx-2 px-3 py-1 rounded-lg bg-[#FAF7F2] border border-[#D8C7B2] text-[11px] font-mono text-[#1F1F1C] inline-flex items-center justify-center gap-1.5 truncate"
                 >
                   <Lock className="w-3 h-3 text-[#D97757] shrink-0" />
                   <span className="truncate">

@@ -187,7 +187,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     >
       <div className="w-full max-w-xl rounded-3xl bg-[#F5F1E8] border-2 border-[#D97757]/60 shadow-2xl overflow-hidden my-auto">
         {/* Top Header */}
-        <div className="bg-[#1F1F1C] text-[#F5F1E8] px-6 py-4 flex items-center justify-between">
+        <div className="bg-[#E8DED2] text-[#1F1F1C] border-b border-[#D8C7B2] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#D97757] text-[#F5F1E8] flex items-center justify-center">
               <ShieldCheck className="w-5 h-5" />
@@ -195,11 +195,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div>
               <h2
                 id="checkout-modal-title"
-                className="text-sm sm:text-base font-display font-bold"
+                className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]"
               >
                 بوابة السداد الذري وتوثيق الصلاحيات — جذوري
               </h2>
-              <p className="text-[11px] text-[#F5F1E8]/70">
+              <p className="text-[11px] text-[#1F1F1C]/70">
                 حماية ضد الخصم المزدوج ومرتبط مباشرة بمحرك شجرة آدم والمحفظة الرقمية
               </p>
             </div>
@@ -210,7 +210,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="إغلاق نافذة الدفع"
-              className="w-8 h-8 rounded-lg bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 flex items-center justify-center text-[#F5F1E8] cursor-pointer"
+              className="w-8 h-8 rounded-lg bg-[#FAF7F2] hover:bg-[#D8C7B2]/55 border border-[#D8C7B2] flex items-center justify-center text-[#1F1F1C] cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -265,13 +265,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     onClick={() => setPaymentMethod('wallet')}
                     className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                       paymentMethod === 'wallet'
-                        ? 'bg-[#1F1F1C] text-[#F5F1E8] border-[#1F1F1C] shadow-xs'
-                        : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D97757]/45 hover:bg-[#E8DED2]'
+                        ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs'
+                        : 'bg-[#FAF7F2] text-[#1F1F1C] border-[#D8C7B2] hover:bg-[#E8DED2]'
                     }`}
                   >
                     <Wallet
                       className={`w-4 h-4 ${
-                        paymentMethod === 'wallet' ? 'text-[#D97757]' : 'text-[#D97757]'
+                        paymentMethod === 'wallet' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
                       }`}
                     />
                     <div>
@@ -279,7 +279,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <div
                         className={`text-[10px] tabular-nums ${
                           paymentMethod === 'wallet'
-                            ? 'text-[#F5F1E8]/75'
+                            ? 'text-[#F5F1E8]/85'
                             : 'text-[#1F1F1C]/65'
                         }`}
                       >
@@ -294,20 +294,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={() => setPaymentMethod('mada')}
                   className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                     paymentMethod === 'mada'
-                      ? 'bg-[#1F1F1C] text-[#F5F1E8] border-[#1F1F1C] shadow-xs'
-                      : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D97757]/45 hover:bg-[#E8DED2]'
+                      ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs'
+                      : 'bg-[#FAF7F2] text-[#1F1F1C] border-[#D8C7B2] hover:bg-[#E8DED2]'
                   }`}
                 >
                   <CreditCard
                     className={`w-4 h-4 ${
-                      paymentMethod === 'mada' ? 'text-[#D97757]' : 'text-[#1F1F1C]'
+                      paymentMethod === 'mada' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
                     }`}
                   />
                   <div>
                     <div className="text-xs font-display font-bold">بطاقة مدى</div>
                     <div
                       className={`text-[10px] ${
-                        paymentMethod === 'mada' ? 'text-[#F5F1E8]/75' : 'text-[#1F1F1C]/65'
+                        paymentMethod === 'mada' ? 'text-[#F5F1E8]/85' : 'text-[#1F1F1C]/65'
                       }`}
                     >
                       Mada Pay
@@ -320,20 +320,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={() => setPaymentMethod('card')}
                   className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                     paymentMethod === 'card'
-                      ? 'bg-[#1F1F1C] text-[#F5F1E8] border-[#1F1F1C] shadow-xs'
-                      : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D97757]/45 hover:bg-[#E8DED2]'
+                      ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs'
+                      : 'bg-[#FAF7F2] text-[#1F1F1C] border-[#D8C7B2] hover:bg-[#E8DED2]'
                   }`}
                 >
                   <CreditCard
                     className={`w-4 h-4 ${
-                      paymentMethod === 'card' ? 'text-[#D97757]' : 'text-[#1F1F1C]'
+                      paymentMethod === 'card' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
                     }`}
                   />
                   <div>
                     <div className="text-xs font-display font-bold">بطاقة ائتمانية</div>
                     <div
                       className={`text-[10px] ${
-                        paymentMethod === 'card' ? 'text-[#F5F1E8]/75' : 'text-[#1F1F1C]/65'
+                        paymentMethod === 'card' ? 'text-[#F5F1E8]/85' : 'text-[#1F1F1C]/65'
                       }`}
                     >
                       Visa / Master
@@ -346,13 +346,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={() => setPaymentMethod('apple_pay')}
                   className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                     paymentMethod === 'apple_pay'
-                      ? 'bg-[#1F1F1C] text-[#F5F1E8] border-[#1F1F1C] shadow-xs'
-                      : 'bg-[#F5F1E8] text-[#1F1F1C] border-[#D97757]/45 hover:bg-[#E8DED2]'
+                      ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs'
+                      : 'bg-[#FAF7F2] text-[#1F1F1C] border-[#D8C7B2] hover:bg-[#E8DED2]'
                   }`}
                 >
                   <Lock
                     className={`w-4 h-4 ${
-                      paymentMethod === 'apple_pay' ? 'text-[#D97757]' : 'text-[#1F1F1C]'
+                      paymentMethod === 'apple_pay' ? 'text-[#F5F1E8]' : 'text-[#D97757]'
                     }`}
                   />
                   <div>
@@ -360,7 +360,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div
                       className={`text-[10px] ${
                         paymentMethod === 'apple_pay'
-                          ? 'text-[#F5F1E8]/75'
+                          ? 'text-[#F5F1E8]/85'
                           : 'text-[#1F1F1C]/65'
                       }`}
                     >
@@ -432,9 +432,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           type="button"
                           disabled={isQuickToppingUp}
                           onClick={() => handleQuickTopUpClick(20)}
-                          className="px-3 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          className="px-3 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-3 h-3 text-[#D97757]" />
                           <span>شحن +$20</span>
                         </button>
                         <button

@@ -43,26 +43,26 @@ export const RoyalPremiumFeatureGate: React.FC<RoyalPremiumFeatureGateProps> = (
   return (
     <div
       dir="rtl"
-      className="relative overflow-hidden rounded-3xl border border-[#D8C7B2]/40 bg-gradient-to-b from-[#1F1F1C] via-[#1F1F1C] to-[#1F1F1C] p-6 sm:p-10 text-[#F5F1E8] shadow-[0_24px_60px_-24px_rgba(31,31,28,0.65)]"
+      className="relative overflow-hidden rounded-3xl border border-[#D8C7B2] bg-[#FAF7F2] p-6 sm:p-10 text-[#1F1F1C] shadow-[0_24px_60px_-24px_rgba(31,31,28,0.12)]"
       data-testid={`royal-premium-gate-${feature}`}
     >
       {/* Subtle geometric parchment sheen */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-20"
+        className="pointer-events-none absolute inset-0 opacity-35"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 85% 15%, rgba(217,119,87,0.35), transparent 45%), radial-gradient(circle at 12% 88%, rgba(217,119,87,0.22), transparent 40%)',
+            'radial-gradient(circle at 85% 15%, rgba(217,119,87,0.16), transparent 45%), radial-gradient(circle at 12% 88%, rgba(216,199,178,0.28), transparent 42%)',
         }}
       />
 
       <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
-        <div className="inline-flex items-center gap-2 rounded-xl border border-[#D8C7B2]/45 bg-[#D97757]/12 px-4 py-1.5 text-xs font-bold text-[#D97757]">
+        <div className="inline-flex items-center gap-2 rounded-xl border border-[#D8C7B2] bg-[#E8DED2] px-4 py-1.5 text-xs font-bold text-[#D97757]">
           <Crown className="w-4 h-4 text-[#D97757]" />
           <span>ميزة حصرية لعضوية جذوري بريميوم</span>
         </div>
 
-        <div className="mx-auto w-16 h-16 rounded-2xl border border-[#D8C7B2]/45 bg-[#E8DED2] flex items-center justify-center shadow-lg">
+        <div className="mx-auto w-16 h-16 rounded-2xl border border-[#D8C7B2] bg-[#E8DED2] flex items-center justify-center shadow-xs">
           {isTree ? (
             <JUTHORI_SERVICE_ICONS.tree className="w-8 h-8 text-[#D97757]" />
           ) : (
@@ -71,10 +71,10 @@ export const RoyalPremiumFeatureGate: React.FC<RoyalPremiumFeatureGateProps> = (
         </div>
 
         <div className="space-y-3">
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-snug text-[#F5F1E8]">
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-snug text-[#1F1F1C]">
             {heading}
           </h2>
-          <p className="text-sm sm:text-base leading-relaxed text-[#F5F1E8]/90 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base leading-relaxed text-[#1F1F1C]/75 max-w-2xl mx-auto">
             {subtitle}
           </p>
         </div>
@@ -83,17 +83,17 @@ export const RoyalPremiumFeatureGate: React.FC<RoyalPremiumFeatureGateProps> = (
           {highlights.map((item) => (
             <div
               key={item}
-              className="flex items-start gap-2.5 rounded-2xl border border-[#D8C7B2]/20 bg-[#F5F1E8]/[0.04] px-4 py-3"
+              className="flex items-start gap-2.5 rounded-2xl border border-[#D8C7B2] bg-[#F5F1E8] px-4 py-3"
             >
               <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
-              <span className="text-xs sm:text-sm text-[#F5F1E8] leading-relaxed">
+              <span className="text-xs sm:text-sm text-[#1F1F1C] leading-relaxed">
                 {item}
               </span>
             </div>
           ))}
         </div>
 
-        <div className="rounded-2xl border border-[#D8C7B2]/25 bg-[#1F1F1C]/70 px-4 py-3 text-xs text-[#D8C7B2] flex items-center justify-center gap-2">
+        <div className="rounded-2xl border border-[#D8C7B2] bg-[#E8DED2]/65 px-4 py-3 text-xs text-[#1F1F1C]/80 flex items-center justify-center gap-2">
           <ShieldCheck className="w-4 h-4 text-[#D97757] shrink-0" />
           <span>
             حسابك الحالي معزول وآمن بالكامل — يمكنك تصفح شجرة عائلتك المنضمّ إليها وإثرائها مجاناً من تبويب «مجتمعي»، أو الترقية لإنشاء دوحتك وموقعك المستقل.
@@ -105,17 +105,17 @@ export const RoyalPremiumFeatureGate: React.FC<RoyalPremiumFeatureGateProps> = (
             type="button"
             onClick={onUpgradePremium}
             data-testid={`royal-premium-upgrade-btn-${feature}`}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#D97757] via-[#D97757] to-[#D97757] px-6 py-3.5 text-sm font-extrabold text-[#1F1F1C] shadow-lg hover:brightness-105 transition cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] px-6 py-3.5 text-sm font-extrabold text-[#F5F1E8] shadow-sm transition cursor-pointer whitespace-nowrap"
           >
             <Sparkles className="w-4 h-4" />
-            <span>✦ ترقية حسابي إلى بريميوم</span>
+            <span>ترقية حسابي إلى بريميوم</span>
           </button>
 
           {onExploreCommunity && (
             <button
               type="button"
               onClick={onExploreCommunity}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D8C7B2]/40 bg-[#F5F1E8]/5 px-5 py-3.5 text-sm font-bold text-[#F5F1E8] hover:bg-[#F5F1E8]/10 transition cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] hover:bg-[#E8DED2] px-5 py-3.5 text-sm font-bold text-[#1F1F1C] transition cursor-pointer whitespace-nowrap"
             >
               <JUTHORI_SERVICE_ICONS.community className="w-4 h-4 text-[#D97757]" />
               <span>استعراض دوائر العائلات المنضمّ إليها</span>

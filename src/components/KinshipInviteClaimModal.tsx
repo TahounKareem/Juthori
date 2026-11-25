@@ -504,12 +504,12 @@ export const KinshipInviteClaimModal: React.FC<
       className="fixed inset-0 z-50 bg-[#1F1F1C]/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
     >
       <div className="w-full max-w-2xl rounded-2xl bg-[#F5F1E8] text-[#1F1F1C] border border-[#D97757]/65 shadow-2xl overflow-hidden my-6">
-        {/* Royal Heritage Header */}
-        <div className="bg-[#1F1F1C] text-[#F5F1E8] px-6 py-5 border-b-2 border-[#D8C7B2] relative">
+        {/* Warm Heritage Header */}
+        <div className="bg-[#E8DED2] text-[#1F1F1C] px-6 py-5 border-b border-[#D8C7B2] relative">
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 left-4 p-1.5 rounded-lg text-[#F5F1E8]/70 hover:text-[#F5F1E8] hover:bg-[#F5F1E8]/10 cursor-pointer"
+            className="absolute top-4 left-4 p-1.5 rounded-lg text-[#1F1F1C]/65 hover:text-[#1F1F1C] hover:bg-[#D8C7B2]/50 cursor-pointer"
             aria-label="إغلاق"
           >
             <X className="w-5 h-5" />
@@ -520,11 +520,11 @@ export const KinshipInviteClaimModal: React.FC<
             <span>دعوة صلة رحم موثّقة · الدائرة العائلية الخاصة</span>
           </div>
 
-          <h2 className="text-lg sm:text-xl font-display font-bold leading-relaxed pl-8">
-            مرحباً بك يا {invitation.relativeName} ({invitation.kinshipRelation}) في ديوان وبوابة عائلة {invitation.familyName} — بدعوة كريمة من أمين السجل {invitation.inviterName} ✦
+          <h2 className="text-lg sm:text-xl font-display font-bold leading-relaxed pl-8 text-[#1F1F1C]">
+            مرحباً بك يا {invitation.relativeName} ({invitation.kinshipRelation}) في ديوان وبوابة عائلة {invitation.familyName} — بدعوة كريمة من أمين السجل {invitation.inviterName}
           </h2>
 
-          <p className="text-xs text-[#F5F1E8]/85 mt-2 leading-relaxed">
+          <p className="text-xs text-[#1F1F1C]/75 mt-2 leading-relaxed">
             أكمل بياناتك النسبية وحسابك في جذوري لفتح الديوان والشجرة المشتركة لعائلة {invitation.familyName} مجاناً، مع تأسيس ملفك الشخصي الخاص والمستقل في المنصة.
           </p>
         </div>
@@ -547,7 +547,7 @@ export const KinshipInviteClaimModal: React.FC<
               }}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                 authMode === 'claim_new'
-                  ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                  ? 'bg-[#D97757] text-[#F5F1E8]'
                   : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
               }`}
             >
@@ -561,7 +561,7 @@ export const KinshipInviteClaimModal: React.FC<
               }}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer ${
                 authMode === 'sign_in_existing'
-                  ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                  ? 'bg-[#D97757] text-[#F5F1E8]'
                   : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
               }`}
             >
@@ -793,7 +793,7 @@ export const KinshipInviteClaimModal: React.FC<
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-sm font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 shadow-sm transition-colors"
+                className="w-full py-3 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-sm font-display font-bold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-55 shadow-sm transition-colors"
               >
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

@@ -195,7 +195,7 @@ export const RoyalQrInvitationModal: React.FC<RoyalQrInvitationModalProps> = ({
       aria-modal="true"
     >
       <div className="w-full max-w-lg rounded-2xl bg-[#F5F1E8] border border-[#D97757]/50 shadow-2xl overflow-hidden my-auto">
-        <div className="bg-[#1F1F1C] text-[#F5F1E8] px-6 py-4 flex items-center justify-between border-b-2 border-[#D97757]">
+        <div className="bg-[#E8DED2] text-[#1F1F1C] px-6 py-4 flex items-center justify-between border-b border-[#D8C7B2]">
           <div className="flex items-center gap-2.5">
             <QrCode className="w-5 h-5 text-[#D97757]" aria-hidden="true" />
             <h3 className="text-base font-display font-bold">
@@ -205,7 +205,7 @@ export const RoyalQrInvitationModal: React.FC<RoyalQrInvitationModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#F5F1E8]/75 hover:text-[#F5F1E8] hover:bg-[#F5F1E8]/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-[#1F1F1C]/65 hover:text-[#1F1F1C] hover:bg-[#D8C7B2]/50 transition-colors cursor-pointer"
             aria-label="إغلاق"
           >
             <X className="w-4 h-4" />

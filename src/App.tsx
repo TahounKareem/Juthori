@@ -23,6 +23,7 @@ import {
   isEmailPrefixOrAsciiPlaceholder,
   recordLegalAuditTrailInFirebase,
   canonicalCustomerEmailUid,
+  signOutAllCustomerAuthSessions,
   UserProfileData,
 } from './services/firestoreService';
 import { TERMS_AND_PRIVACY_VERSION } from './data/recordKeeperContractData';
@@ -2332,7 +2333,7 @@ export function App() {
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
     }
     clearAllPortalSessionUnlocks();
-    auth.signOut().catch(() => {});
+    signOutAllCustomerAuthSessions().catch(() => {});
   };
 
   const handleLogoutCustomer = () => {
@@ -2752,12 +2753,12 @@ export function App() {
           dir="rtl"
           className="fixed inset-0 z-[130] bg-[#1F1F1C]/75 backdrop-blur-sm flex items-center justify-center p-4"
         >
-          <div className="w-full max-w-md rounded-2xl bg-[#F5F1E8] border-2 border-[#D97757]/50 shadow-2xl overflow-hidden">
-            <div className="bg-[#1F1F1C] text-[#F5F1E8] px-6 py-4 border-b border-[#D97757]/30">
+          <div className="w-full max-w-md rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] shadow-2xl overflow-hidden">
+            <div className="bg-[#E8DED2] text-[#1F1F1C] px-6 py-4 border-b border-[#D8C7B2]">
               <p className="text-[11px] font-bold text-[#D97757] mb-1">
                 حماية الخصوصية الفورية — منصة جذوري
               </p>
-              <h3 className="text-base font-display font-bold">
+              <h3 className="text-base font-display font-bold text-[#1F1F1C]">
                 {optOutFeedbackModal.ok
                   ? 'تم حذف بريدك وإلغاء الإدراج فوراً ✓'
                   : 'حالة رابط إلغاء الإدراج'}
@@ -2767,13 +2768,13 @@ export function App() {
               <p className="text-xs sm:text-sm text-[#1F1F1C] leading-relaxed font-medium">
                 {optOutFeedbackModal.messageAr}
               </p>
-              <div className="rounded-xl bg-[#E8DED2] border border-[#D8C7B2] p-3 text-[11px] text-[#1F1F1C]/70 leading-relaxed">
+              <div className="rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] p-3 text-[11px] text-[#1F1F1C]/75 leading-relaxed">
                 لا يتطلب هذا الإجراء تسجيل الدخول أو إنشاء حساب، ولن تصلك أي دعوات مستقبلية من هذه الدائرة العائلية على هذا البريد الإلكتروني.
               </div>
               <button
                 type="button"
                 onClick={() => setOptOutFeedbackModal(null)}
-                className="w-full py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-display font-bold transition-colors cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold transition-colors cursor-pointer"
               >
                 حسناً، إغلاق النافذة
               </button>

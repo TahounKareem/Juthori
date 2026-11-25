@@ -463,7 +463,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="hidden lg:inline-flex px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs sm:text-sm font-display font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="hidden lg:inline-flex px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-display font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               تسجيل الدخول
             </button>
@@ -568,7 +568,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       setMobileMenuOpen(false);
                       onOpenLogin();
                     }}
-                    className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-sm font-display font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+                    className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-sm font-display font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
                   >
                     <span>تسجيل الدخول</span>
                     <ArrowLeft className="w-4 h-4" />
@@ -1257,7 +1257,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <button
                   type="button"
                   onClick={() => navigatePublicPage('support-center')}
-                  className="px-4 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <span>فتح الدليل الإرشادي والمرشد الذكي الشامل ←</span>
                 </button>
@@ -1276,7 +1276,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <button
                     type="button"
                     onClick={() => setSupportSent(false)}
-                    className="px-4 py-2 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] text-xs font-semibold cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-semibold cursor-pointer"
                   >
                     إرسال رسالة أخرى
                   </button>

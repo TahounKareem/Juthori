@@ -212,24 +212,24 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
         dir="rtl"
         className="w-full bg-[#F5F1E8] text-[#1F1F1C] rounded-3xl border border-[#D97757]/35 overflow-hidden shadow-sm pb-12"
       >
-        {/* Article Hero Banner */}
-        <div className="relative min-h-[340px] md:min-h-[420px] w-full bg-[#1F1F1C] overflow-hidden flex items-end">
+        {/* Article Hero Banner — Warm Soft Beige Editorial Surface */}
+        <div className="relative min-h-[280px] md:min-h-[340px] w-full bg-[#E8DED2] border-b border-[#D8C7B2] overflow-hidden flex items-end">
           <div className="absolute inset-0">
             <ResilientImage
               src={coverSrc}
               alt={selectedArticle.title}
-              className="w-full h-full object-cover opacity-45"
+              className="w-full h-full object-cover opacity-20"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1F1F1C] via-[#1F1F1C]/65 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#E8DED2] via-[#E8DED2]/85 to-[#E8DED2]/55" />
           </div>
 
           <div className="relative z-10 max-w-4xl mx-auto w-full px-5 sm:px-8 py-8 sm:py-10">
             <button
               type="button"
               onClick={() => setSelectedArticle(null)}
-              className="inline-flex items-center gap-2 text-[#F5F1E8]/90 hover:text-[#F5F1E8] mb-6 bg-[#F5F1E8]/15 hover:bg-[#F5F1E8]/25 backdrop-blur-md px-4 py-2 rounded-xl transition-all text-xs sm:text-sm font-display font-bold border border-[#F5F1E8]/20 cursor-pointer"
+              className="inline-flex items-center gap-2 text-[#1F1F1C] hover:text-[#D97757] mb-6 bg-[#FAF7F2] hover:bg-[#F5F1E8] px-4 py-2 rounded-xl transition-all text-xs sm:text-sm font-display font-bold border border-[#D8C7B2] cursor-pointer"
             >
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 text-[#D97757]" />
               <span>العودة للمركز المعرفي</span>
             </button>
 
@@ -242,17 +242,17 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                 )}
                 <span>{selectedArticle.type || 'مقال'}</span>
               </span>
-              <span className="bg-[#F5F1E8]/15 backdrop-blur-md text-[#F5F1E8] px-3 py-1 rounded-full text-xs font-display font-semibold border border-[#F5F1E8]/20">
+              <span className="bg-[#FAF7F2] text-[#1F1F1C] px-3 py-1 rounded-full text-xs font-display font-semibold border border-[#D8C7B2]">
                 {selectedArticle.section || 'الروايات والذاكرة'} /{' '}
                 {selectedArticle.filter || 'عام'}
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-extrabold text-[#F5F1E8] leading-tight mb-5">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-extrabold text-[#1F1F1C] leading-tight mb-5">
               {selectedArticle.title}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-5 text-[#F5F1E8]/85 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center gap-5 text-[#1F1F1C]/80 text-xs sm:text-sm">
               {(selectedArticle.author || selectedArticle.authorName) && (
                 <div className="flex items-center gap-1.5">
                   <User className="w-4 h-4 text-[#D97757]" />
@@ -280,7 +280,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
 
         {/* Standardized 16:9 Editorial Cover Image Showcase */}
         <div className="max-w-4xl mx-auto px-5 sm:px-8 mt-6">
-          <div className="relative aspect-video w-full rounded-3xl overflow-hidden bg-[#1F1F1C] border border-[#D97757]/45 shadow-md">
+          <div className="relative aspect-video w-full rounded-3xl overflow-hidden bg-[#E8DED2] border border-[#D8C7B2] shadow-md">
             <ResilientImage
               src={coverSrc}
               alt={selectedArticle.title}
@@ -314,7 +314,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
         <div className="max-w-4xl mx-auto px-5 sm:px-8 mt-6">
           <div className="bg-[#F5F1E8] rounded-3xl p-6 sm:p-10 shadow-xs border border-[#D97757]/35">
             {selectedArticle.type === 'فيديو' && selectedArticle.videoUrl && (
-              <div className="mb-8 rounded-2xl overflow-hidden shadow-md aspect-video bg-[#1F1F1C] border border-[#D97757]/40">
+              <div className="mb-8 rounded-2xl overflow-hidden shadow-md aspect-video bg-[#E8DED2] border border-[#D8C7B2]">
                 <iframe
                   src={resolveEmbedVideoUrl(selectedArticle.videoUrl)}
                   title={selectedArticle.title}
@@ -377,7 +377,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3.5 py-2 bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] rounded-xl text-xs font-display font-bold transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] rounded-xl text-xs font-display font-bold transition-colors flex items-center gap-1.5"
                 >
                   <span>شارك على X</span>
                 </a>
@@ -387,7 +387,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3.5 py-2 bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] rounded-xl text-xs font-display font-bold transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] rounded-xl text-xs font-display font-bold transition-colors flex items-center gap-1.5"
                 >
                   <span>شارك على فيسبوك</span>
                 </a>
@@ -399,7 +399,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3.5 py-2 bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] rounded-xl text-xs font-display font-bold transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-[#E8DED2] hover:bg-[#D8C7B2] border border-[#D8C7B2] text-[#1F1F1C] rounded-xl text-xs font-display font-bold transition-colors flex items-center gap-1.5"
                 >
                   <span>شارك على واتساب</span>
                 </a>
@@ -434,7 +434,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
               <button
                 type="submit"
                 disabled={isSubscribing}
-                className="px-6 py-2.5 bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] font-display font-bold rounded-xl transition-colors text-xs sm:text-sm disabled:opacity-50 cursor-pointer"
+                className="px-6 py-2.5 bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] font-display font-bold rounded-xl transition-colors text-xs sm:text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isSubscribing ? 'جاري الاشتراك...' : 'اشتراك'}
               </button>
@@ -462,10 +462,10 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
   // ===========================================================================
   return (
     <div dir="rtl" className="w-full space-y-8">
-      {/* Header Banner */}
-      <div className="rounded-3xl bg-[#1F1F1C] text-[#F5F1E8] p-6 sm:p-10 border border-[#D97757]/35 relative overflow-hidden shadow-sm">
+      {/* Header Banner — Warm Soft Beige Brand Palette */}
+      <div className="rounded-3xl bg-[#E8DED2] text-[#1F1F1C] p-6 sm:p-10 border border-[#D8C7B2] relative overflow-hidden shadow-xs">
         <div
-          className="absolute inset-0 opacity-10 pointer-events-none"
+          className="absolute inset-0 opacity-15 pointer-events-none"
           style={{
             backgroundImage: 'radial-gradient(#D97757 1px, transparent 1px)',
             backgroundSize: '20px 20px',
@@ -473,14 +473,14 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
         />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D97757]/20 border border-[#D97757]/40 text-[#D97757] text-xs font-display font-bold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF7F2] border border-[#D8C7B2] text-[#D97757] text-xs font-display font-bold">
               <BookOpen className="w-3.5 h-3.5 text-[#D97757]" />
               <span>مكتبة جذوري الموثقة</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-extrabold text-[#F5F1E8]">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-extrabold text-[#1F1F1C]">
               المركز المعرفي
             </h2>
-            <p className="text-xs sm:text-base text-[#F5F1E8]/80 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-base text-[#1F1F1C]/75 max-w-2xl leading-relaxed">
               مكتبة جذوري الرقمية للأنساب والتوثيق التاريخي والروايات العائلية
             </p>
           </div>
@@ -489,9 +489,9 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
             <button
               type="button"
               onClick={onBackHome}
-              className="self-start sm:self-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#F5F1E8]/10 hover:bg-[#F5F1E8]/20 text-[#F5F1E8] text-xs font-display font-bold border border-[#F5F1E8]/15 transition-colors cursor-pointer"
+              className="self-start sm:self-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FAF7F2] hover:bg-[#F5F1E8] text-[#1F1F1C] text-xs font-display font-bold border border-[#D8C7B2] transition-colors cursor-pointer"
             >
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 text-[#D97757]" />
               <span>العودة للرئيسية</span>
             </button>
           )}
@@ -509,8 +509,8 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
               onClick={() => handleSectionChange(sec)}
               className={`px-5 py-2.5 rounded-xl font-display font-bold text-xs sm:text-sm transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-[#1F1F1C] text-[#F5F1E8] shadow-sm'
-                  : 'bg-[#E8DED2] text-[#1F1F1C]/80 hover:bg-[#E8DED2] hover:text-[#1F1F1C]'
+                  ? 'bg-[#D97757] text-[#F5F1E8] shadow-sm'
+                  : 'bg-[#E8DED2] text-[#1F1F1C]/80 hover:bg-[#D8C7B2]/60 hover:text-[#1F1F1C]'
               }`}
             >
               {sec}
@@ -570,7 +570,7 @@ export const KnowledgeCenterView: React.FC<KnowledgeCenterViewProps> = ({
                 className="bg-[#F5F1E8] rounded-2xl overflow-hidden shadow-xs border border-[#D97757]/40 hover:shadow-md hover:border-[#D97757]/60 transition-all group cursor-pointer flex flex-col"
               >
                 {/* Card Cover Image (Standardized 16:9 Widescreen Editorial Aspect Ratio) */}
-                <div className="relative aspect-video w-full bg-[#1F1F1C] overflow-hidden shrink-0">
+                <div className="relative aspect-video w-full bg-[#E8DED2] overflow-hidden shrink-0">
                   <ResilientImage
                     src={coverSrc}
                     alt={item.title}

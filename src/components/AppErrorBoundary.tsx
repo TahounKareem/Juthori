@@ -115,16 +115,16 @@ export class AppErrorBoundary extends Component<
         className="min-h-screen bg-[#F5F1E8] text-[#1F1F1C] flex items-center justify-center p-6"
       >
         <div className="w-full max-w-lg bg-[#F5F1E8] border border-[#D97757]/40 rounded-2xl shadow-xl overflow-hidden">
-          <div className="bg-[#1F1F1C] text-[#F5F1E8] px-7 py-5 border-b-2 border-[#D97757] flex items-center justify-between gap-3">
+          <div className="bg-[#E8DED2] text-[#1F1F1C] px-7 py-5 border-b border-[#D8C7B2] flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#D97757]/20 border border-[#D97757]/40 flex items-center justify-center text-[#D97757]">
+              <div className="w-10 h-10 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757]">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
                 <div className="text-xs text-[#D97757] font-semibold">
                   منصة جذوري · نظام الحماية والاسترداد الآمن
                 </div>
-                <h1 className="text-lg font-bold text-[#F5F1E8] mt-0.5">
+                <h1 className="text-lg font-bold text-[#1F1F1C] mt-0.5">
                   تم احتواء عارض تقني مؤقت بأمان
                 </h1>
               </div>
@@ -132,7 +132,7 @@ export class AppErrorBoundary extends Component<
             {this.state.referenceCode && (
               <span
                 dir="ltr"
-                className="text-[11px] font-mono px-2.5 py-1 rounded-md bg-[#F5F1E8]/10 text-[#D97757]"
+                className="text-[11px] font-mono px-2.5 py-1 rounded-md bg-[#FAF7F2] border border-[#D8C7B2] text-[#D97757]"
               >
                 {this.state.referenceCode}
               </span>

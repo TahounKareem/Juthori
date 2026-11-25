@@ -9046,7 +9046,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             setActiveSubTab('ticket_inbox');
                             onSelectPortalSection?.('research_studio');
                           }}
-                          className="px-6 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#1F1F1C] text-[#F5F1E8] text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
+                          className="px-6 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-extrabold cursor-pointer transition-all shadow-sm flex items-center gap-2"
                         >
                           <CheckCircle2 className="w-4 h-4 shrink-0" />
                           <span>✓ تم إنشاء التذكرة في مرصد البحوث — فتحها الآن ←</span>
@@ -11034,7 +11034,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   }}
                   className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border ${
                     inboxCategoryFilter === 'CUSTOMER_MESSAGES'
-                      ? 'bg-[#1F1F1C] text-[#D97757] border-[#1F1F1C] shadow-2xs'
+                      ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-2xs'
                       : 'bg-[#F5F1E8] text-[#1F1F1C] hover:bg-[#E8DED2] border-[#D8C7B2]/60'
                   }`}
                 >
@@ -11439,7 +11439,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8C7B2] pb-3">
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#D97757] text-xs font-display font-bold">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] text-xs font-display font-bold">
                                   <MessageSquare className="w-3.5 h-3.5 text-[#D97757]" />
                                   <span>
                                     سجل مراسلات العميل وإجراءات حالة التذكرة
@@ -11591,7 +11591,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                               isCustomerMsg
                                                 ? 'bg-[#D97757] text-[#F5F1E8]'
-                                                : 'bg-[#1F1F1C] text-[#D97757]'
+                                                : 'bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757]'
                                             }`}
                                           >
                                             {isCustomerMsg
@@ -11709,7 +11709,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                     'reply_in_review'
                                   )
                                 }
-                                className="px-4 py-2 rounded-xl bg-[#1F1F1C] hover:bg-[#D97757] text-[#F5F1E8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                               >
                                 {sendingStaffReplyTicketId ===
                                 selectedTicket.id ? (
@@ -11815,7 +11815,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <a
                           href={previewCustomerAttachment.fileUrl}
                           download={previewCustomerAttachment.title}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] text-xs font-bold"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold"
                         >
                           <span>تنزيل / استعراض الملف المرفق</span>
                         </a>
@@ -12391,7 +12391,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       <button
                         type="button"
                         onClick={handleAddChildNodeToAdam}
-                        className="px-4 py-1.5 rounded-xl bg-[#1F1F1C] text-[#F5F1E8] text-xs font-bold cursor-pointer"
+                        className="px-4 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold cursor-pointer"
                       >
                         إدراج وحفظ في شجرة آدم ✓
                       </button>
@@ -13161,7 +13161,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <button
                           type="button"
                           onClick={handleConfirmAndSaveAdamNodeCoding}
-                          className="px-5 py-2.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-extrabold cursor-pointer shadow-sm transition-all"
+                          className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-extrabold cursor-pointer shadow-sm transition-all"
                         >
                           ✅ نعم، اعتمد التعديل النهائي
                         </button>
@@ -13324,7 +13324,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                             {n.name} ({n.nodeCode}) ⬅️
                           </span>
                         ))}
-                        <span className="px-2.5 py-1 rounded-lg bg-[#1F1F1C] text-[#F5F1E8] text-xs font-bold">
+                        <span className="px-2.5 py-1 rounded-lg bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] text-xs font-bold">
                           {selectedAdamTargetChain}
                         </span>
                       </div>
@@ -13348,7 +13348,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         onClick={() =>
                           handleActionAApproveAndLinkToAdam(selectedTicket)
                         }
-                        className="w-full py-3 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#F5F1E8] text-xs font-bold cursor-pointer shadow-xs"
+                        className="w-full py-3 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold cursor-pointer shadow-xs"
                       >
                         ✅ اعتماد الدمج النهائي في شجرة آدم وإقفال التذكرة
                       </button>

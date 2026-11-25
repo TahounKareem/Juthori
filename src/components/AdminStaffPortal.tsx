@@ -4316,7 +4316,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 return (
                   <div className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/60 p-3.5 text-xs space-y-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#1F1F1C] text-[#D97757] text-[11px]">
+                      <span className="font-mono font-bold px-2 py-0.5 rounded bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] text-[11px]">
                         #{linkedTicket.ticketNumber}
                       </span>
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
@@ -4404,7 +4404,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                           </span>
                           <span
                             dir="ltr"
-                            className="font-mono font-bold px-2 py-0.5 rounded bg-[#1F1F1C] text-[#D97757]"
+                            className="font-mono font-bold px-2 py-0.5 rounded bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757]"
                           >
                             {aud.certificateCode}
                           </span>
@@ -4450,7 +4450,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     onClick={() => setArticleModalTab('edit')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       articleModalTab === 'edit'
-                        ? 'bg-[#1F1F1C] text-[#F5F1E8]'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
                         : 'text-[#1F1F1C]/70 hover:text-[#1F1F1C]'
                     }`}
                   >
@@ -4500,7 +4500,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   </div>
 
                   {articleCoverImageUrl && (
-                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#1F1F1C] border border-[#D97757]/40 shadow-sm">
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#E8DED2] border border-[#D8C7B2] shadow-sm">
                       <ResilientImage
                         src={articleCoverImageUrl}
                         alt={articleTitle || 'معاينة صورة الغلاف'}
@@ -5179,7 +5179,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                             إزالة الصورة
                           </button>
                         </div>
-                        <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-[#1F1F1C] border border-[#D97757]/45 shadow-xs">
+                        <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-[#E8DED2] border border-[#D8C7B2] shadow-xs">
                           <ResilientImage
                             src={articleCoverImageUrl}
                             alt="معاينة الغلاف القياسية"

@@ -741,14 +741,14 @@ export const FullBleedVelvetBand: React.FC<{
   return (
     <section
       id={id}
-      className={`relative scroll-mt-24 overflow-hidden fs-hero ${
+      className={`relative scroll-mt-24 overflow-hidden bg-[#E8DED2] text-[#1F1F1C] border-y border-[#D8C7B2] ${
         compactPreview
-          ? 'rounded-3xl my-4 px-4 py-7'
+          ? 'rounded-3xl my-4 px-4 py-7 border'
           : 'w-full py-12 sm:py-16 lg:py-20 my-4'
       }`}
       style={{
-        background:
-          'radial-gradient(ellipse 80% 70% at 50% 0%, color-mix(in srgb, var(--fs-gold) 18%, var(--fs-hero-bg)) 0%, var(--fs-hero-bg) 52%, var(--fs-hero-bg-deep, var(--fs-hero-bg)) 100%)',
+        backgroundImage:
+          'radial-gradient(ellipse 80% 70% at 50% 0%, rgba(217,119,87,0.1) 0%, rgba(232,222,210,0.95) 55%, #E8DED2 100%)',
       }}
     >
       <div
@@ -908,7 +908,7 @@ export const SingleEmotionalInterludeShowcase: React.FC<{
                 style={{ borderColor: 'var(--fs-gold)' }}
               />
 
-              <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#2C1E14] relative">
+              <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#E8DED2] relative">
                 {!imgFailed && imageSrc ? (
                   <img
                     src={imageSrc}
@@ -921,13 +921,7 @@ export const SingleEmotionalInterludeShowcase: React.FC<{
                     }}
                   />
                 ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center p-6 text-center text-[#F3D299]"
-                    style={{
-                      background:
-                        'linear-gradient(135deg, var(--fs-hero-bg) 0%, #3E2817 100%)',
-                    }}
-                  >
+                  <div className="w-full h-full flex items-center justify-center p-6 text-center text-[#D97757] bg-[#E8DED2]">
                     <span className="text-sm font-bold fs-display-font">
                       عائلة {familyName}
                     </span>
@@ -1309,7 +1303,7 @@ export const CuratedMuseumVaultWall: React.FC<{
             <article
               key={item.id}
               onClick={() => !compactPreview && !isFaceIdOpen && setLightboxIdx(idx)}
-              className={`${getWallItemClass(idx, items.length)} group relative rounded-2xl overflow-hidden border-2 cursor-pointer shadow-[0_18px_42px_-18px_rgba(24,16,10,0.42)] hover:shadow-[0_24px_52px_-18px_rgba(24,16,10,0.52)] hover:-translate-y-1 transition-all duration-300 ease-out bg-[#1C1612] ${
+              className={`${getWallItemClass(idx, items.length)} group relative rounded-2xl overflow-hidden border-2 cursor-pointer shadow-[0_18px_42px_-18px_rgba(31,31,28,0.16)] hover:shadow-[0_24px_52px_-18px_rgba(31,31,28,0.22)] hover:-translate-y-1 transition-all duration-300 ease-out bg-[#E8DED2] ${
                 isLeadFeatured
                   ? 'min-h-[340px] sm:min-h-[420px]'
                   : items.length === 2 && idx === 0 && !compactPreview
@@ -1324,7 +1318,7 @@ export const CuratedMuseumVaultWall: React.FC<{
               {/* Delicate Inner Hairline Museum Frame */}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-2.5 rounded-xl border border-[#F3D299]/25 z-20"
+                className="pointer-events-none absolute inset-2.5 rounded-xl border border-[#F5F1E8]/35 z-20"
               />
 
               {/* Full-Bleed Artwork Photography */}
@@ -1336,9 +1330,9 @@ export const CuratedMuseumVaultWall: React.FC<{
                   className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#F3D299]/80 bg-gradient-to-br from-[#2B211A] to-[#17120E]">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#D97757] bg-[#E8DED2]">
                   <FileText className="w-12 h-12" />
-                  <span className="text-xs font-bold">وثيقة أرشيفية محفوظة</span>
+                  <span className="text-xs font-bold text-[#1F1F1C]">وثيقة أرشيفية محفوظة</span>
                 </div>
               )}
 
@@ -1409,25 +1403,25 @@ export const CuratedMuseumVaultWall: React.FC<{
                     </button>
 
                     {isFaceIdOpen && (
-                      <div className="rounded-xl bg-[#1A130E]/92 backdrop-blur-md border border-[#E5C481]/40 p-3 space-y-2">
+                      <div className="rounded-xl bg-[#FAF7F2] backdrop-blur-md border border-[#D8C7B2] p-3 space-y-2 text-[#1F1F1C]">
                         <input
                           type="text"
                           value={faceIdSenderName}
                           onChange={(e) => setFaceIdSenderName(e.target.value)}
                           placeholder="اسمك الكريم"
-                          className="w-full px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-xs text-white placeholder:text-white/60 focus:outline-none focus:border-[#E5C481]"
+                          className="w-full px-3 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/45 focus:outline-none focus:border-[#D97757]"
                         />
                         <input
                           type="text"
                           value={faceIdNote}
                           onChange={(e) => setFaceIdNote(e.target.value)}
                           placeholder="مثال: الواقف يميناً هو الجد..."
-                          className="w-full px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-xs text-white placeholder:text-white/60 focus:outline-none focus:border-[#E5C481]"
+                          className="w-full px-3 py-1.5 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-xs text-[#1F1F1C] placeholder:text-[#1F1F1C]/45 focus:outline-none focus:border-[#D97757]"
                         />
                         <button
                           type="button"
                           onClick={() => onSubmitFaceId(item.id)}
-                          className="w-full py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#c59f2c] text-[#1A130E] text-xs font-bold cursor-pointer transition-colors"
+                          className="w-full py-1.5 rounded-lg bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold cursor-pointer transition-colors"
                         >
                           إرسال التعريف لأمين السجل
                         </button>
@@ -1441,38 +1435,34 @@ export const CuratedMuseumVaultWall: React.FC<{
         })}
       </div>
 
-      {/* IMMERSIVE FULLSCREEN LIGHTBOX MODAL WITH NEXT/PREV NAVIGATION */}
+      {/* IMMERSIVE FULLSCREEN LIGHTBOX MODAL WITH NEXT/PREV NAVIGATION — WARM IVORY */}
       {activeLightboxItem && !compactPreview && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={activeLightboxTitle}
-          className="fixed inset-0 z-[80] bg-[#120E0B]/92 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+          className="fixed inset-0 z-[80] bg-[#1F1F1C]/55 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
           onClick={() => setLightboxIdx(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl rounded-3xl bg-[#1C1612] border overflow-hidden shadow-2xl flex flex-col"
-            style={{
-              borderColor:
-                'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-            }}
+            className="w-full max-w-4xl rounded-3xl bg-[#FAF7F2] border border-[#D8C7B2] overflow-hidden shadow-2xl flex flex-col"
           >
-            <div className="px-5 py-3.5 border-b border-white/10 flex items-center justify-between gap-3 text-[#FAF5EB]">
-              <div className="text-xs font-bold text-[#F3D299] tabular-nums">
+            <div className="px-5 py-3.5 bg-[#E8DED2] border-b border-[#D8C7B2] flex items-center justify-between gap-3 text-[#1F1F1C]">
+              <div className="text-xs font-bold text-[#D97757] tabular-nums">
                 مقتنى {(lightboxIdx ?? 0) + 1} من {items.length}
               </div>
               <button
                 type="button"
                 onClick={() => setLightboxIdx(null)}
                 aria-label="إغلاق العارض"
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+                className="w-9 h-9 rounded-full bg-[#FAF7F2] hover:bg-[#D8C7B2]/55 border border-[#D8C7B2] text-[#1F1F1C] flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X className="w-4.5 h-4.5" />
               </button>
             </div>
 
-            <div className="relative bg-[#110D0A] flex items-center justify-center p-4 sm:p-6 min-h-[45vh] max-h-[68vh]">
+            <div className="relative bg-[#E8DED2]/65 flex items-center justify-center p-4 sm:p-6 min-h-[45vh] max-h-[68vh]">
               {items.length > 1 && (
                 <>
                   <button
@@ -1485,7 +1475,7 @@ export const CuratedMuseumVaultWall: React.FC<{
                           : (cur - 1 + items.length) % items.length
                       )
                     }
-                    className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/85 border border-[#E5C481]/45 text-[#F6E2B3] flex items-center justify-center cursor-pointer transition-colors"
+                    className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center cursor-pointer shadow-sm transition-colors"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -1497,7 +1487,7 @@ export const CuratedMuseumVaultWall: React.FC<{
                         cur === null ? 0 : (cur + 1) % items.length
                       )
                     }
-                    className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/85 border border-[#E5C481]/45 text-[#F6E2B3] flex items-center justify-center cursor-pointer transition-colors"
+                    className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center cursor-pointer shadow-sm transition-colors"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -1509,19 +1499,19 @@ export const CuratedMuseumVaultWall: React.FC<{
                   src={activeLightboxItem.previewUrl}
                   alt={activeLightboxTitle}
                   referrerPolicy="no-referrer"
-                  className="max-h-[62vh] w-auto object-contain rounded-xl shadow-2xl"
+                  className="max-h-[62vh] w-auto object-contain rounded-xl shadow-md border border-[#D8C7B2]"
                 />
               ) : (
-                <FileText className="w-16 h-16 text-[#E5C481]" />
+                <FileText className="w-16 h-16 text-[#D97757]" />
               )}
             </div>
 
-            <div className="px-6 py-4 bg-[#1C1612] border-t border-white/10 text-[#FAF5EB] flex flex-wrap items-center justify-between gap-3">
+            <div className="px-6 py-4 bg-[#FAF7F2] border-t border-[#D8C7B2] text-[#1F1F1C] flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-base sm:text-lg font-bold fs-display-font">
+                <h3 className="text-base sm:text-lg font-bold fs-display-font text-[#1F1F1C]">
                   {activeLightboxTitle}
                 </h3>
-                <div className="text-xs text-[#FAF5EB]/70 mt-0.5 tabular-nums">
+                <div className="text-xs text-[#1F1F1C]/65 mt-0.5 tabular-nums">
                   {formatArabicLongDate(activeLightboxItem.dateOrOccasion)}
                   {activeLightboxItem.watermarkText
                     ? ` · ${activeLightboxItem.watermarkText}`
@@ -1682,30 +1672,13 @@ export const AcousticVinylConsole: React.FC<{
 
   return (
     <article
-      className="relative overflow-hidden rounded-3xl border shadow-[0_18px_46px_-22px_rgba(24,16,10,0.42)] text-[#FFF8EC]"
-      style={{
-        borderColor: isPlaying
-          ? 'var(--fs-gold)'
-          : 'color-mix(in srgb, var(--fs-gold) 46%, transparent)',
-        background:
-          'linear-gradient(135deg, #241811 0%, #372315 52%, #1D130D 100%)',
-      }}
+      className="relative overflow-hidden rounded-3xl border border-[#D8C7B2] bg-[#FAF7F2] shadow-sm text-[#1F1F1C]"
     >
       {/* Large Acoustic Oud & Soundwave Watermark */}
       <HeritageAmbientWatermark
         variant="acoustic_oud"
         position="left"
-        opacityClass="opacity-[0.11]"
-      />
-
-      {/* Top Gilded Hairline */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px]"
-        style={{
-          background:
-            'linear-gradient(90deg, transparent, var(--fs-gold), transparent)',
-        }}
+        opacityClass="opacity-[0.08]"
       />
 
       <div
@@ -1715,7 +1688,7 @@ export const AcousticVinylConsole: React.FC<{
             : 'grid-cols-1'
         }`}
       >
-        {/* Right: Vinyl Disc + Track Info + 42-Bar Golden Equalizer */}
+        {/* Right: Audio Reel Medallion + Track Info + 42-Bar Warm Equalizer */}
         <div
           className={`${
             !inBentoPair && !compactPreview && clip.transcriptExcerpt
@@ -1724,41 +1697,24 @@ export const AcousticVinylConsole: React.FC<{
           } space-y-5`}
         >
           <div className="flex items-center gap-4 sm:gap-5">
-            {/* Rotating Gilded Vinyl / Audio Reel Medallion */}
+            {/* Rotating Warm Terracotta / Soft Beige Audio Reel Medallion */}
             <button
               type="button"
               disabled={!hasAudio}
               onClick={() => onTogglePlay(clip.id, clip.audioDataOrUrl)}
               aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل الصوتي'}
-              className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full shrink-0 flex items-center justify-center cursor-pointer disabled:opacity-55 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3D299]"
+              className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full shrink-0 flex items-center justify-center cursor-pointer disabled:opacity-55 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
             >
-              {/* Vinyl Grooves Outer Disc */}
               <span
                 aria-hidden="true"
-                className={`absolute inset-0 rounded-full border-2 shadow-xl ${
+                className={`absolute inset-0 rounded-full border-2 border-[#D8C7B2] bg-[#E8DED2] shadow-sm ${
                   isPlaying ? 'fs-vinyl-spin' : ''
                 }`}
-                style={{
-                  borderColor: 'var(--fs-gold)',
-                  background:
-                    'repeating-radial-gradient(circle at center, #1C140F 0px, #1C140F 3px, #2D2017 4px, #140E0A 5px)',
-                }}
               >
-                <span
-                  className="absolute inset-2.5 rounded-full border border-dashed opacity-45"
-                  style={{ borderColor: '#F3D299' }}
-                />
+                <span className="absolute inset-2.5 rounded-full border border-dashed border-[#D97757]/45" />
               </span>
 
-              {/* Center Gilded Play Label */}
-              <span
-                className="relative z-10 w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-105"
-                style={{
-                  background:
-                    'linear-gradient(135deg, #F4D99B 0%, var(--fs-gold) 65%, #9C7125 100%)',
-                  color: '#1C130C',
-                }}
-              >
+              <span className="relative z-10 w-11 h-11 rounded-full bg-[#D97757] text-[#F5F1E8] flex items-center justify-center shadow-sm transition-transform duration-200 group-hover:scale-105">
                 {isPlaying ? (
                   <Pause className="w-5 h-5 fill-current" />
                 ) : (
@@ -1768,7 +1724,7 @@ export const AcousticVinylConsole: React.FC<{
             </button>
 
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2 text-[11px] font-bold text-[#F3D299]">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-[#D97757]">
                 <Volume2 className="w-3.5 h-3.5 shrink-0" />
                 <span>
                   {isPlaying
@@ -1778,23 +1734,18 @@ export const AcousticVinylConsole: React.FC<{
                       : 'مروية شعرية موثّقة'}
                 </span>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold fs-display-font text-[#FFF9EE] leading-snug">
+              <h3 className="text-lg sm:text-xl font-bold fs-display-font text-[#1F1F1C] leading-snug">
                 {clip.title}
               </h3>
-              <div className="text-xs text-[#F7E8CF]/75">
+              <div className="text-xs text-[#1F1F1C]/70">
                 بصوت / رواية: {clip.speakerName}
                 {clip.recordedYearLabel ? ` · ${clip.recordedYearLabel}` : ''}
               </div>
             </div>
           </div>
 
-          {/* Rich 42-Bar Golden Audio Equalizer Console */}
-          <div
-            className="rounded-2xl bg-black/35 border px-4 py-3.5 space-y-2.5"
-            style={{
-              borderColor: 'color-mix(in srgb, var(--fs-gold) 32%, transparent)',
-            }}
-          >
+          {/* Rich 42-Bar Terracotta Audio Equalizer Console */}
+          <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] px-4 py-3.5 space-y-2.5">
             <div
               className="flex items-end gap-[3px] h-11 w-full"
               aria-hidden="true"
@@ -1811,11 +1762,11 @@ export const AcousticVinylConsole: React.FC<{
                     style={{
                       height: `${heightPct}%`,
                       background: isPassed
-                        ? 'linear-gradient(180deg, #FFF1C9 0%, #E6BC6A 100%)'
+                        ? '#D97757'
                         : idx % 4 === 0
-                          ? 'linear-gradient(180deg, #F3D299 0%, #B88635 100%)'
-                          : 'linear-gradient(180deg, #D9B063 0%, #7A5622 100%)',
-                      opacity: isPlaying ? (isPassed ? 1 : 0.85) : 0.62,
+                          ? '#D97757'
+                          : '#D8C7B2',
+                      opacity: isPlaying ? (isPassed ? 1 : 0.8) : 0.72,
                       animationDelay: `${(idx % 9) * 0.11}s`,
                     }}
                   />
@@ -1823,9 +1774,9 @@ export const AcousticVinylConsole: React.FC<{
               })}
             </div>
 
-            <div className="flex items-center justify-between text-[11px] font-mono tabular-nums text-[#F3D299]/85">
+            <div className="flex items-center justify-between text-[11px] font-mono tabular-nums text-[#D97757]">
               <span>{isPlaying ? formatAudioSeconds(currentTimeSec) : '00:00'}</span>
-              <span className="font-sans text-[10.5px] text-[#FAF0DF]/65">
+              <span className="font-sans text-[10.5px] text-[#1F1F1C]/65">
                 {hasAudio
                   ? 'انقر على الأسطوانة للتشغيل أو الإيقاف'
                   : 'نص شعري محفوظ دون ملف صوتي مرفق'}

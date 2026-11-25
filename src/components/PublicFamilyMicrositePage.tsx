@@ -1238,7 +1238,7 @@ export const PublicFamilyMicrositePage: React.FC<
                   type="button"
                   onClick={() => setShowPortalLoginModal(true)}
                   data-testid="portal-gate-login-btn"
-                  className="w-full h-10 px-4 rounded-xl bg-[#0D2E22] hover:bg-[#13402F] text-[#F5DFA0] text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  className="w-full h-10 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors"
                 >
                   <LogIn className="w-4 h-4" />
                   <span>تسجيل الدخول لحسابك في جذوري</span>
@@ -2718,7 +2718,7 @@ export const PublicFamilyMicrositePage: React.FC<
                         className="pointer-events-none absolute bottom-1.5 left-1.5 w-3.5 h-3.5 border-b-2 border-l-2 rounded-bl-xs"
                         style={{ borderColor: 'var(--fs-gold)' }}
                       />
-                      <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#2A1D13]">
+                      <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#E8DED2]">
                         <img
                           src={st.imageUrl}
                           alt={st.title}
@@ -2889,7 +2889,7 @@ export const PublicFamilyMicrositePage: React.FC<
                   title={`دوحة نسب عائلة ${siteData.familyName}`}
                   subtitle="استعرض تسلسل أجيال وفروع العائلة المسجلة في الديوان العائلي عبر بوابة المشجرة التفاعلية."
                   icon={<GitBranch className="w-3.5 h-3.5" />}
-                  tone="dark"
+                  tone="light"
                 />
                 <PublicVisualTreeMirror
                   members={treeMembers}
@@ -2898,7 +2898,7 @@ export const PublicFamilyMicrositePage: React.FC<
                   treeDisplaySettings={siteData.treeDisplaySettings}
                   isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
                   compactPreview={compactPreview}
-                  velvetBandMode
+                  velvetBandMode={false}
                   canProposeEnrichment={canProposeEnrichment}
                   siteSlug={siteData.siteSlug}
                   ownerId={siteData.ownerId}
@@ -3304,43 +3304,35 @@ export const PublicFamilyMicrositePage: React.FC<
                   >
                     <div className="flex items-start gap-4 sm:gap-5 min-w-0 flex-1">
                       {/* Wax-Seal Time Vault Medallion */}
-                      <div
-                        className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 flex flex-col items-center justify-center shrink-0 shadow-lg"
-                        style={{
-                          borderColor: 'var(--fs-gold)',
-                          background:
-                            'radial-gradient(circle at 35% 30%, rgba(243,210,153,0.34), rgba(18,13,10,0.7))',
-                          color: '#F3D299',
-                        }}
-                      >
+                      <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 border-[#D8C7B2] bg-[#FAF7F2] text-[#D97757] flex flex-col items-center justify-center shrink-0 shadow-sm">
                         <Lock className="w-5 h-5" />
-                        <span className="text-[9px] font-bold mt-0.5">مختوم</span>
+                        <span className="text-[9px] font-bold mt-0.5 text-[#1F1F1C]">مختوم</span>
                       </div>
 
                       <div className="space-y-2 min-w-0 flex-1">
-                        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#F3D299]">
+                        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#D97757]">
                           <Clock className="w-3.5 h-3.5 shrink-0" />
-                          <span>✦ خزينة كبسولة الزمن العائلية</span>
+                          <span>خزينة كبسولة الزمن العائلية</span>
                         </div>
                         <h3
                           className={`${
                             compactPreview ? 'text-lg' : 'text-xl sm:text-3xl'
-                          } font-bold fs-display-font leading-snug break-words text-[#FFF9EE]`}
+                          } font-bold fs-display-font leading-snug break-words text-[#1F1F1C]`}
                         >
                           {cap.title}
                         </h3>
-                        <div className="text-xs sm:text-sm text-[#FFF9EE]/80">
+                        <div className="text-xs sm:text-sm text-[#1F1F1C]/75">
                           بقلم: {cap.authorElderName}
                         </div>
                         <div className="pt-2">
                           {capCountdown.expired ? (
-                            <p className="text-sm sm:text-base leading-loose text-[#FFF9EE]/95 max-w-2xl">
+                            <p className="text-sm sm:text-base leading-loose text-[#1F1F1C]/90 max-w-2xl">
                               {cap.sealedMessage}
                             </p>
                           ) : (
-                            <p className="text-xs sm:text-sm text-[#FFF9EE]/85 leading-relaxed max-w-2xl">
+                            <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed max-w-2xl">
                               الرسالة محفوظة ومختومة رقمياً حتى موعد الفتح الرسمي في{' '}
-                              <strong className="text-[#F3D299]">
+                              <strong className="text-[#D97757]">
                                 {formattedUnlockDate}
                               </strong>
                               .
@@ -3350,7 +3342,7 @@ export const PublicFamilyMicrositePage: React.FC<
                       </div>
                     </div>
 
-                    {/* Segmented Gilded Countdown Units */}
+                    {/* Segmented Warm Countdown Units */}
                     {!capCountdown.expired && (
                       <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                         {[
@@ -3360,16 +3352,12 @@ export const PublicFamilyMicrositePage: React.FC<
                         ].map((unit) => (
                           <div
                             key={unit.lbl}
-                            className="px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-xs border text-center min-w-[74px]"
-                            style={{
-                              borderColor:
-                                'color-mix(in srgb, var(--fs-gold) 52%, transparent)',
-                            }}
+                            className="px-4 py-3 rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] text-center min-w-[74px] shadow-2xs"
                           >
-                            <div className="text-xl sm:text-2xl font-bold text-[#F3D299] tabular-nums leading-none">
+                            <div className="text-xl sm:text-2xl font-bold text-[#D97757] tabular-nums leading-none">
                               {unit.val}
                             </div>
-                            <div className="text-[10.5px] text-[#FFF9EE]/80 mt-1.5 font-semibold">
+                            <div className="text-[10.5px] text-[#1F1F1C]/75 mt-1.5 font-semibold">
                               {unit.lbl}
                             </div>
                           </div>
@@ -4132,7 +4120,7 @@ export const PublicFamilyMicrositePage: React.FC<
                       }}
                     >
                       <span
-                        className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 ring-1 ring-[#D4AF37]/70 bg-[#0D2E22] text-[#F5DFA0]"
+                        className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 ring-1 ring-[#D8C7B2] bg-[#E8DED2] text-[#D97757]"
                       >
                         {viewerAvatarUrl || signedInUser.photoURL ? (
                           <img
@@ -4245,7 +4233,7 @@ export const PublicFamilyMicrositePage: React.FC<
                       type="button"
                       data-testid="public-header-login-btn"
                       onClick={() => setShowPortalLoginModal(true)}
-                      className="h-9 px-3.5 rounded-xl bg-[#0D2E22] hover:bg-[#13402F] text-[#F5DFA0] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs transition-colors"
+                      className="h-9 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs transition-colors"
                     >
                       <LogIn className="w-3.5 h-3.5" />
                       <span>تسجيل الدخول</span>
@@ -4430,7 +4418,7 @@ export const PublicFamilyMicrositePage: React.FC<
 
           {/* HERO LAYOUT 3: FLOATING GLASS CARD */}
           {branding.heroLayout === 'floating_glass' && (
-            <div className="max-w-3xl mx-auto rounded-3xl bg-black/35 backdrop-blur-md border border-white/20 p-6 sm:p-10 text-center flex flex-col items-center space-y-4 shadow-2xl">
+            <div className="max-w-3xl mx-auto rounded-3xl bg-[#FAF7F2]/92 backdrop-blur-md border border-[#D8C7B2] text-[#1F1F1C] p-6 sm:p-10 text-center flex flex-col items-center space-y-4 shadow-xl">
               <FamilyCrestEmblem
                 familyName={siteData.familyName}
                 crestMode={branding.crestMode}

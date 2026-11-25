@@ -1222,7 +1222,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               <button
                 type="button"
                 onClick={onOpenNotificationsDrawer}
-                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#1F1F1C] text-[#1F1F1C] hover:text-[#D97757] border border-[#D8C7B2] hover:border-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
+                className="px-4 py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] text-[#1F1F1C] hover:text-[#D97757] border border-[#D8C7B2] hover:border-[#D97757]/50 text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-all duration-300"
               >
                 <span>عرض سجل البرقيات الكامل</span>
                 <ArrowLeft className="w-3.5 h-3.5" />

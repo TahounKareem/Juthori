@@ -182,7 +182,7 @@ export const MySiteLinkPrivacyPanel: React.FC<MySiteLinkPrivacyPanelProps> = ({
                 type="button"
                 onClick={onCheckSlug}
                 disabled={slugStatus.checking}
-                className="h-10 px-3.5 rounded-xl bg-[#1F1F1C] hover:bg-[#1F1F1C]/90 text-[#D97757] text-xs font-display font-bold cursor-pointer disabled:opacity-60 transition-colors whitespace-nowrap"
+                className="h-10 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer disabled:opacity-60 transition-colors whitespace-nowrap"
               >
                 {slugStatus.checking ? 'جاري الفحص...' : 'فحص التوفر'}
               </button>
