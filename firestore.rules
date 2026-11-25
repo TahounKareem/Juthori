@@ -430,7 +430,7 @@ service cloud.firestore {
         && (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid == data.ownerId))
         && data.isPublished is bool
         && data.familyName is string && data.familyName.size() > 0 && data.familyName.size() <= 100
-        && (!('themeId' in data) || data.themeId in ['golden_parchment', 'diriyah_oasis', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
+        && (!('themeId' in data) || data.themeId in ['heritage', 'emerald_gold', 'andalusian_navy', 'olive_sand', 'royal_burgundy', 'royal_kiswah', 'pearl_bronze', 'papyrus_lapis', 'diriyah_oasis', 'manuscript_ink', 'golden_parchment', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
         && (!('siteAccessMode' in data) || data.siteAccessMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
         && (!('privacyMode' in data) || data.privacyMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
         && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'FAMILY_PIN', 'PRIVATE_WHITELIST'])
@@ -520,7 +520,7 @@ service cloud.firestore {
         && data.siteAccessMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST']
         && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'FAMILY_PIN', 'PRIVATE_WHITELIST'])
         && (!('hasFamilyPasscode' in data) || data.hasFamilyPasscode is bool)
-        && (!('themeId' in data) || data.themeId in ['golden_parchment', 'diriyah_oasis', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
+        && (!('themeId' in data) || data.themeId in ['heritage', 'emerald_gold', 'andalusian_navy', 'olive_sand', 'royal_burgundy', 'royal_kiswah', 'pearl_bronze', 'papyrus_lapis', 'diriyah_oasis', 'manuscript_ink', 'golden_parchment', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
         && data.updatedAt is string && data.updatedAt.size() <= 60;
     }
 

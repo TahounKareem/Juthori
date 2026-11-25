@@ -696,7 +696,7 @@
         "whitelistedMemberMeta": { "type": "array" },
         "themeId": {
           "type": "string",
-          "enum": ["golden_parchment", "diriyah_oasis", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
+          "enum": ["heritage", "emerald_gold", "andalusian_navy", "olive_sand", "royal_burgundy", "royal_kiswah", "pearl_bronze", "papyrus_lapis", "diriyah_oasis", "manuscript_ink", "golden_parchment", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
         },
         "familyName": { "type": "string", "maxLength": 100 },
         "siteTitle": { "type": "string", "maxLength": 200 },
@@ -869,7 +869,7 @@
         "hasFamilyPasscode": { "type": "boolean" },
         "themeId": {
           "type": "string",
-          "enum": ["golden_parchment", "diriyah_oasis", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
+          "enum": ["heritage", "emerald_gold", "andalusian_navy", "olive_sand", "royal_burgundy", "royal_kiswah", "pearl_bronze", "papyrus_lapis", "diriyah_oasis", "manuscript_ink", "golden_parchment", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
         },
         "updatedAt": { "type": "string", "maxLength": 60 }
       },
