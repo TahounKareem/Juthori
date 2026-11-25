@@ -36,8 +36,9 @@ import {
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
-  WORKSPACE_PRIMARY_BTN_CLASS,
-  WORKSPACE_SECONDARY_BTN_CLASS,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
@@ -1178,29 +1179,33 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
         ]}
         actions={
           <>
-            <button
-              type="button"
-              data-testid="community-qr-card-btn"
-              onClick={() =>
-                requireCommunityPremiumAction('community_qr', () =>
-                  setQrModalOpen(true)
-                )
-              }
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
-            >
-              <QrCode className="w-4 h-4 shrink-0" />
-              <span>بطاقة الدعوة ورمز QR</span>
-            </button>
+            <WorkspaceIconTooltip label="بطاقة الدعوة ورمز QR">
+              <button
+                type="button"
+                aria-label="بطاقة الدعوة ورمز QR"
+                data-testid="community-qr-card-btn"
+                onClick={() =>
+                  requireCommunityPremiumAction('community_qr', () =>
+                    setQrModalOpen(true)
+                  )
+                }
+                className={WORKSPACE_ICON_BTN_CLASS}
+              >
+                <QrCode className="w-4 h-4 shrink-0" />
+              </button>
+            </WorkspaceIconTooltip>
 
-            <button
-              type="button"
-              data-testid="community-invite-relative-btn"
-              onClick={() => handleOpenInviteStudioAction()}
-              className={WORKSPACE_PRIMARY_BTN_CLASS}
-            >
-              <Plus className="w-4 h-4 shrink-0" />
-              <span>دعوة قريب للدائرة</span>
-            </button>
+            <WorkspaceIconTooltip label="دعوة قريب للدائرة" align="left">
+              <button
+                type="button"
+                aria-label="دعوة قريب للدائرة"
+                data-testid="community-invite-relative-btn"
+                onClick={() => handleOpenInviteStudioAction()}
+                className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
+              >
+                <UserPlus className="w-4 h-4 shrink-0" />
+              </button>
+            </WorkspaceIconTooltip>
           </>
         }
       />

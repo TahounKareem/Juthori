@@ -15,6 +15,7 @@ import {
   Monitor,
   Palette,
   QrCode,
+  Rocket,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -25,9 +26,10 @@ import {
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
-  WORKSPACE_PRIMARY_BTN_CLASS,
-  WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS,
-  WORKSPACE_SECONDARY_BTN_CLASS,
+  WORKSPACE_ICON_ACTIVE_BTN_CLASS,
+  WORKSPACE_ICON_BTN_CLASS,
+  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
+  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
@@ -1123,81 +1125,97 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
         ]}
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => {
-                if (!caps.isVip || !caps.hasRegistrarBadge) {
-                  if (onRequirePremiumAction) {
-                    onRequirePremiumAction({
-                      feature: 'site_qr',
-                      onAuthorizedContinue: () => setShowRoyalQrModal(true),
-                    });
-                  } else {
-                    onUpgradeAnnualVip();
+            <WorkspaceIconTooltip label="بطاقة الدعوة وQR">
+              <button
+                type="button"
+                aria-label="بطاقة الدعوة وQR"
+                onClick={() => {
+                  if (!caps.isVip || !caps.hasRegistrarBadge) {
+                    if (onRequirePremiumAction) {
+                      onRequirePremiumAction({
+                        feature: 'site_qr',
+                        onAuthorizedContinue: () => setShowRoyalQrModal(true),
+                      });
+                    } else {
+                      onUpgradeAnnualVip();
+                    }
+                    return;
                   }
-                  return;
-                }
-                setShowRoyalQrModal(true);
-              }}
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
-            >
-              <QrCode className="w-4 h-4 shrink-0" />
-              <span>بطاقة الدعوة وQR</span>
-            </button>
+                  setShowRoyalQrModal(true);
+                }}
+                className={WORKSPACE_ICON_BTN_CLASS}
+              >
+                <QrCode className="w-4 h-4 shrink-0" />
+              </button>
+            </WorkspaceIconTooltip>
 
-            <button
-              type="button"
-              onClick={() =>
-                setWorkspaceMode((m) =>
-                  m === 'fullscreen_preview'
-                    ? 'split_studio'
-                    : 'fullscreen_preview'
-                )
-              }
-              className={
+            <WorkspaceIconTooltip
+              label={
                 workspaceMode === 'fullscreen_preview'
-                  ? WORKSPACE_SECONDARY_ACTIVE_BTN_CLASS
-                  : WORKSPACE_SECONDARY_BTN_CLASS
+                  ? 'العودة للاستوديو'
+                  : 'معاينة كاملة'
               }
             >
-              {workspaceMode === 'fullscreen_preview' ? (
-                <>
+              <button
+                type="button"
+                aria-label={
+                  workspaceMode === 'fullscreen_preview'
+                    ? 'العودة للاستوديو'
+                    : 'معاينة كاملة'
+                }
+                onClick={() =>
+                  setWorkspaceMode((m) =>
+                    m === 'fullscreen_preview'
+                      ? 'split_studio'
+                      : 'fullscreen_preview'
+                  )
+                }
+                className={
+                  workspaceMode === 'fullscreen_preview'
+                    ? WORKSPACE_ICON_ACTIVE_BTN_CLASS
+                    : WORKSPACE_ICON_BTN_CLASS
+                }
+              >
+                {workspaceMode === 'fullscreen_preview' ? (
                   <Palette className="w-4 h-4 shrink-0" />
-                  <span>العودة للاستوديو</span>
-                </>
-              ) : (
-                <>
+                ) : (
                   <Eye className="w-4 h-4 shrink-0" />
-                  <span>معاينة كاملة</span>
-                </>
-              )}
-            </button>
+                )}
+              </button>
+            </WorkspaceIconTooltip>
 
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => handlePersistAndPublish(false)}
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
-            >
-              <Save className="w-4 h-4 shrink-0" />
-              <span>حفظ مسودة</span>
-            </button>
+            <WorkspaceIconTooltip label="حفظ كمسودة">
+              <button
+                type="button"
+                aria-label="حفظ كمسودة"
+                disabled={saving}
+                onClick={() => handlePersistAndPublish(false)}
+                className={WORKSPACE_ICON_BTN_CLASS}
+              >
+                <Save className="w-4 h-4 shrink-0" />
+              </button>
+            </WorkspaceIconTooltip>
 
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => handlePersistAndPublish(true)}
-              className={WORKSPACE_PRIMARY_BTN_CLASS}
+            <WorkspaceIconTooltip
+              label={isPublished ? 'تحديث ونشر الموقع' : 'نشر وتفعيل الموقع'}
+              align="left"
             >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : (
-                <Sparkles className="w-4 h-4 shrink-0" />
-              )}
-              <span>
-                {isPublished ? 'تحديث ونشر الموقع' : 'نشر وتفعيل الموقع'}
-              </span>
-            </button>
+              <button
+                type="button"
+                aria-label={
+                  isPublished ? 'تحديث ونشر الموقع' : 'نشر وتفعيل الموقع'
+                }
+                disabled={saving}
+                onClick={() => handlePersistAndPublish(true)}
+                className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                ) : (
+                  <Rocket className="w-4 h-4 shrink-0" />
+                )}
+              </button>
+            </WorkspaceIconTooltip>
           </>
         }
       />

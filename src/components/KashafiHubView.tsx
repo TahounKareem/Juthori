@@ -15,11 +15,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from 'lucide-react';
-import {
-  UnifiedWorkspaceHeader,
-  WORKSPACE_PRIMARY_BTN_CLASS,
-  WORKSPACE_SECONDARY_BTN_CLASS,
-} from './UnifiedWorkspaceHeader';
+import { UnifiedWorkspaceHeader } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
   AccountLegalType,
@@ -384,34 +380,6 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
             </strong>
           </span>,
         ]}
-        actions={
-          <>
-            <button
-              type="button"
-              data-testid="kashafi-refresh-radar-btn"
-              disabled={isLoadingData}
-              onClick={() => loadKashafiData()}
-              className={WORKSPACE_SECONDARY_BTN_CLASS}
-            >
-              <RefreshCw
-                className={`w-4 h-4 shrink-0 ${
-                  isLoadingData ? 'animate-spin text-[#D97757]' : ''
-                }`}
-              />
-              <span>تحديث الرادار</span>
-            </button>
-
-            <button
-              type="button"
-              data-testid="kashafi-manage-wallet-btn"
-              onClick={onOpenWalletDrawer}
-              className={WORKSPACE_PRIMARY_BTN_CLASS}
-            >
-              <Wallet className="w-4 h-4 shrink-0" />
-              <span>إدارة المحفظة والرصيد</span>
-            </button>
-          </>
-        }
       />
 
       {orderSuccessToast && (
