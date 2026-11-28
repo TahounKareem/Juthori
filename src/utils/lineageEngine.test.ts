@@ -122,72 +122,61 @@ test('resolveDeterministicLineage resolves verified Awlad Arafat record and clea
   assert.equal(unmatchedPreset.adamSpineNodes.length, 1);
 });
 
-test('Dashboard capabilities enforce exact Basic vs VIP and Individual vs Record Keeper rules', () => {
-  // State 2: Matched Unpaid -> Root locked, upper locked, tabs locked
-  const s2 = getDashboardCapabilities(
+test('Dashboard capabilities enforce exact 3-Tier (Free / Basic / Premium) and Record Keeper rules', () => {
+  // Free Tier: My Tree (100) and My Vault (100) available immediately; lineage locked; Kashafi & My Site locked
+  const freeUser = getDashboardCapabilities(
     DashboardStateMode.State2MatchedUnpaid,
     AccountLegalType.Individual
   );
-  assert.equal(s2.isRootUnlocked, false);
-  assert.equal(s2.areUpperAncestorsUnlocked, false);
-  assert.equal(s2.showFifthBridgeNode, false);
-  assert.equal(s2.arePremiumTabsUnlocked, false);
+  assert.equal(freeUser.subscriptionPlan, 'free');
+  assert.equal(freeUser.isRootUnlocked, false);
+  assert.equal(freeUser.areUpperAncestorsUnlocked, false);
+  assert.equal(freeUser.canUseKashafi, false);
+  assert.equal(freeUser.hasDirectCustomerSupport, false);
+  assert.equal(freeUser.canAccessTreeDirectly, true);
+  assert.equal(freeUser.maxTreeMembers, 100);
+  assert.equal(freeUser.maxVaultDocuments, 100);
+  assert.equal(freeUser.canPublishPublicSite, false);
 
-  // State 1: Paid $5 Basic -> Root UNLOCKED, upper STILL locked, tabs STILL locked
-  const s1 = getDashboardCapabilities(
-    DashboardStateMode.State1Paid5Basic,
-    AccountLegalType.RecordKeeper
-  );
-  assert.equal(s1.isRootUnlocked, true);
-  assert.equal(s1.areUpperAncestorsUnlocked, false);
-  assert.equal(s1.showFifthBridgeNode, false);
-  assert.equal(s1.arePremiumTabsUnlocked, false);
-
-  // Annual VIP + Individual -> Upper unlocked, +الخامس visible, tabs unlocked, BUT شجرتي requires Charter upgrade
-  const vipIndividual = getDashboardCapabilities(
-    DashboardStateMode.AnnualVip,
-    AccountLegalType.Individual
-  );
-  assert.equal(vipIndividual.isRootUnlocked, true);
-  assert.equal(vipIndividual.areUpperAncestorsUnlocked, true);
-  assert.equal(vipIndividual.showFifthBridgeNode, true);
-  assert.equal(vipIndividual.arePremiumTabsUnlocked, true);
-  assert.equal(vipIndividual.canAccessTreeDirectly, false);
-  assert.equal(vipIndividual.requiresCharterUpgradeForTree, true);
-
-  // Annual VIP + Record Keeper -> Direct access to شجرتي + Unlimited quotas + Family invites + Priority observatory
-  const vipKeeper = getDashboardCapabilities(
-    DashboardStateMode.AnnualVip,
-    AccountLegalType.RecordKeeper
-  );
-  assert.equal(vipKeeper.canAccessTreeDirectly, true);
-  assert.equal(vipKeeper.requiresCharterUpgradeForTree, false);
-  assert.equal(vipKeeper.maxTreeMembers, 250);
-  assert.equal(vipKeeper.maxVaultDocuments, null);
-  assert.equal(vipKeeper.canPublishPublicSite, true);
-  assert.equal(vipKeeper.canInviteFamilyContributors, true);
-  assert.equal(vipKeeper.hasRegistrarBadge, true);
-  assert.equal(vipKeeper.hasPriorityResearchObservatory, true);
-
-  // Quotas for Individual Free vs $5 Basic vs Annual VIP
-  assert.equal(s2.maxTreeMembers, 15);
-  assert.equal(s2.maxVaultDocuments, 5);
-  assert.equal(s2.canPublishPublicSite, false);
-  assert.equal(s2.canInviteFamilyContributors, false);
-
-  const basicIndividual = getDashboardCapabilities(
+  // Basic Tier: Lineage unlocked + expanded Tree & Vault + Direct support; Kashafi & My Site still locked
+  const basicUser = getDashboardCapabilities(
     DashboardStateMode.State1Paid5Basic,
     AccountLegalType.Individual
   );
-  assert.equal(basicIndividual.maxTreeMembers, 50);
-  assert.equal(basicIndividual.maxVaultDocuments, 20);
-  assert.equal(basicIndividual.canPublishPublicSite, false);
+  assert.equal(basicUser.subscriptionPlan, 'basic');
+  assert.equal(basicUser.isRootUnlocked, true);
+  assert.equal(basicUser.areUpperAncestorsUnlocked, true);
+  assert.equal(basicUser.hasDirectCustomerSupport, true);
+  assert.equal(basicUser.canUseKashafi, false);
+  assert.equal(basicUser.arePremiumTabsUnlocked, false);
+  assert.ok(basicUser.maxTreeMembers > 100);
+  assert.ok(basicUser.maxVaultDocuments !== null && basicUser.maxVaultDocuments > 100);
+  assert.equal(basicUser.canPublishPublicSite, false);
 
-  assert.equal(vipIndividual.maxTreeMembers, 250);
-  assert.equal(vipIndividual.maxVaultDocuments, 100);
-  // Creating & publishing «موقعي» is reserved exclusively for RecordKeeper (`registrar`)
-  assert.equal(vipIndividual.canPublishPublicSite, false);
-  assert.equal(vipIndividual.canInviteFamilyContributors, false);
+  // Premium + Individual: Kashafi unlocked, expanded Tree & unlimited Vault, site publishing requires RecordKeeper charter
+  const premiumIndividual = getDashboardCapabilities(
+    DashboardStateMode.AnnualVip,
+    AccountLegalType.Individual
+  );
+  assert.equal(premiumIndividual.subscriptionPlan, 'premium');
+  assert.equal(premiumIndividual.isVip, true);
+  assert.equal(premiumIndividual.isRootUnlocked, true);
+  assert.equal(premiumIndividual.canUseKashafi, true);
+  assert.equal(premiumIndividual.arePremiumTabsUnlocked, true);
+  assert.equal(premiumIndividual.canAccessTreeDirectly, true);
+  assert.equal(premiumIndividual.canPublishPublicSite, false);
+
+  // Premium + Record Keeper: Full publishing & registrar badges unlocked
+  const premiumKeeper = getDashboardCapabilities(
+    DashboardStateMode.AnnualVip,
+    AccountLegalType.RecordKeeper
+  );
+  assert.equal(premiumKeeper.canAccessTreeDirectly, true);
+  assert.equal(premiumKeeper.maxVaultDocuments, null);
+  assert.equal(premiumKeeper.canPublishPublicSite, true);
+  assert.equal(premiumKeeper.canInviteFamilyContributors, true);
+  assert.equal(premiumKeeper.hasRegistrarBadge, true);
+  assert.equal(premiumKeeper.hasPriorityResearchObservatory, true);
 });
 
 test('Neo4j 4-Condition Connector Logic enforces "من (سليل غير مباشر)" by default and restricts "بن (سليل مباشر)" strictly', () => {
@@ -1454,68 +1443,111 @@ test('Granular enrichment permissions, staging tree diff extraction & collision-
     },
   ];
 
-  // 1. Default policy: Circle members ENABLED (default: true), general visitors DISABLED (default: false)
+  // 1. Strict 3-tier Circle RBAC:
+  // - assistant_registrar: Tree + Vault + Majlis
+  // - memory_contributor: Vault + Majlis ONLY (NO Tree enrichment)
+  // - family_viewer: Majlis ONLY (NO Tree, NO Vault enrichment)
+  // - Non-circle guests: ZERO enrichment (never allowed anonymously)
   const deputyRes = resolvePublicSiteEnrichmentPermission({
     privacyConfig: {
       allowCircleMembersEnrichment: true,
-      allowVisitorEnrichment: false,
     },
     siteOwnerId: 'uid_owner_1',
-    whitelistedEmails: ['deputy@family.test', 'storyteller@family.test'],
+    whitelistedEmails: ['deputy@family.test', 'storyteller@family.test', 'viewer@family.test'],
     whitelistedUids: ['uid_deputy_1'],
-    whitelistedMemberMeta: circleMeta,
+    whitelistedMemberMeta: [
+      ...circleMeta,
+      {
+        email: 'viewer@family.test',
+        name: 'عمر العارف',
+        kinshipRelation: 'قريب',
+        role: 'family_viewer' as const,
+      },
+    ],
     viewerUid: 'uid_deputy_1',
     viewerEmail: 'deputy@family.test',
   });
   assert.equal(deputyRes.isCircleMember, true);
+  assert.equal(deputyRes.canProposeTreeEnrichment, true);
+  assert.equal(deputyRes.canProposeVaultEnrichment, true);
   assert.equal(deputyRes.canProposeEnrichment, true);
+  assert.equal(deputyRes.canInteractInMajlis, true);
   assert.equal(deputyRes.viewerRoleLabel, 'مساعد أمين السجل');
 
   const storytellerRes = resolvePublicSiteEnrichmentPermission({
-    privacyConfig: {}, // allowCircleMembersEnrichment defaults to true; allowVisitorEnrichment defaults to false
+    privacyConfig: {}, // allowCircleMembersEnrichment defaults to true
     siteOwnerId: 'uid_owner_1',
     whitelistedEmails: ['storyteller@family.test'],
     whitelistedMemberMeta: circleMeta,
+    viewerUid: 'uid_storyteller_1',
     viewerEmail: 'STORYTELLER@family.test',
   });
   assert.equal(storytellerRes.isCircleMember, true);
+  assert.equal(storytellerRes.canProposeTreeEnrichment, false);
+  assert.equal(storytellerRes.canProposeVaultEnrichment, true);
   assert.equal(storytellerRes.canProposeEnrichment, true);
-  assert.equal(storytellerRes.viewerRoleLabel, 'راوي ومساهم في الذاكرة');
+  assert.equal(storytellerRes.canInteractInMajlis, true);
+  assert.equal(storytellerRes.viewerRoleLabel, 'راوي الذاكرة');
 
+  const viewerRes = resolvePublicSiteEnrichmentPermission({
+    privacyConfig: { allowCircleMembersEnrichment: true },
+    siteOwnerId: 'uid_owner_1',
+    whitelistedEmails: ['viewer@family.test'],
+    whitelistedMemberMeta: [
+      {
+        email: 'viewer@family.test',
+        name: 'عمر العارف',
+        kinshipRelation: 'قريب',
+        role: 'family_viewer' as const,
+      },
+    ],
+    viewerUid: 'uid_viewer_1',
+    viewerEmail: 'viewer@family.test',
+  });
+  assert.equal(viewerRes.isCircleMember, true);
+  assert.equal(viewerRes.canProposeTreeEnrichment, false);
+  assert.equal(viewerRes.canProposeVaultEnrichment, false);
+  assert.equal(viewerRes.canProposeEnrichment, false);
+  assert.equal(viewerRes.canInteractInMajlis, true);
+
+  // 2. Guests / non-circle visitors are ALWAYS denied enrichment, and Majlis depends strictly on allowPublicMajlis
   const strangerDefaultRes = resolvePublicSiteEnrichmentPermission({
     privacyConfig: {
       allowCircleMembersEnrichment: true,
-      allowVisitorEnrichment: false,
+      allowPublicMajlis: false,
     },
     siteOwnerId: 'uid_owner_1',
     whitelistedEmails: ['deputy@family.test'],
     viewerEmail: 'guest@external.test',
   });
   assert.equal(strangerDefaultRes.isCircleMember, false);
+  assert.equal(strangerDefaultRes.canProposeTreeEnrichment, false);
+  assert.equal(strangerDefaultRes.canProposeVaultEnrichment, false);
   assert.equal(strangerDefaultRes.canProposeEnrichment, false);
-  assert.equal(strangerDefaultRes.viewerRoleLabel, 'قريب زائر');
+  assert.equal(strangerDefaultRes.canInteractInMajlis, false);
+  assert.equal(strangerDefaultRes.viewerRoleLabel, 'زائر');
 
-  // 2. General visitor allowed ONLY when allowVisitorEnrichment === true
-  const strangerAllowedRes = resolvePublicSiteEnrichmentPermission({
+  const strangerPublicMajlisRes = resolvePublicSiteEnrichmentPermission({
     privacyConfig: {
-      allowCircleMembersEnrichment: false,
-      allowVisitorEnrichment: true,
+      allowCircleMembersEnrichment: true,
+      allowPublicMajlis: true,
     },
     siteOwnerId: 'uid_owner_1',
     whitelistedEmails: ['deputy@family.test'],
     viewerEmail: 'guest@external.test',
   });
-  assert.equal(strangerAllowedRes.isCircleMember, false);
-  assert.equal(strangerAllowedRes.canProposeEnrichment, true);
+  assert.equal(strangerPublicMajlisRes.isCircleMember, false);
+  assert.equal(strangerPublicMajlisRes.canProposeEnrichment, false);
+  assert.equal(strangerPublicMajlisRes.canInteractInMajlis, true);
 
   // 3. Opted-out invitee is denied circle recognition
   const optedOutRes = resolvePublicSiteEnrichmentPermission({
     privacyConfig: {
       allowCircleMembersEnrichment: true,
-      allowVisitorEnrichment: false,
     },
     siteOwnerId: 'uid_owner_1',
     whitelistedEmails: ['deputy@family.test'],
+    viewerUid: 'uid_deputy_1',
     viewerEmail: 'deputy@family.test',
     activeInvitationStatus: 'OPTED_OUT',
   });
@@ -1641,52 +1673,39 @@ test('Granular enrichment permissions, staging tree diff extraction & collision-
   const mergedRk = merged.mergedTree.find((n) => n.id === 'rk_1');
   assert.ok(remappedFatima && mergedRk?.spouseIds?.includes(remappedFatima.id));
 
-  // 6. Firestore rules static checks for staging proposals & visitor enrichment governance
+  // 6. Firestore rules static checks for staging proposals & strict zero-anonymous enrichment governance
   const rulesText = fs.readFileSync(
     path.resolve(process.cwd(), 'firestore.rules'),
     'utf8'
   );
   assert.ok(rulesText.includes("'whitelistedUids' in data"));
   assert.ok(rulesText.includes("'proposedNodes' in data"));
-  assert.ok(rulesText.includes("'allowVisitorEnrichment' in"));
+  assert.ok(!rulesText.includes('allowVisitorEnrichment'));
 });
 
-test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero-Leak Tier Isolation & Clean Single-Self Tree', async () => {
+test('Portal Security Overhaul: Strict Identity-Only Gate, Zero Passcodes, Zero-Leak Tier Isolation & Clean Single-Self Tree', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
   const {
-    hashFamilyPasscode,
     evaluatePublicMicrositeAccessGate,
     resolveCustomerTierStateMode,
     buildCleanSingleSelfTreeNode,
   } = await import('./portalSecurityUtils');
   const { DashboardStateMode } = await import('../types/juthori');
 
-  // 1. Deterministic SHA-256 passcode hash bound to siteSlug & normalized
-  const hashA = hashFamilyPasscode('aref', 'Aref-2026');
-  const hashB = hashFamilyPasscode('  AREF ', '  aref-2026  ');
-  const hashOtherSlug = hashFamilyPasscode('other', 'Aref-2026');
-  assert.equal(hashA, hashB);
-  assert.equal(hashA.length, 64);
-  assert.match(hashA, /^[a-f0-9]{64}$/);
-  assert.notEqual(hashA, hashOtherSlug);
-  assert.equal(hashFamilyPasscode('aref', '   '), '');
-
-  // 2. Access gate enforcement across guest, passcode unlock, owner, circle member, and post-logout lock
+  // 1. Access gate enforcement across guest, owner, circle member, and post-logout lock (ZERO passcodes)
   const publicOpen = evaluatePublicMicrositeAccessGate({
     isPreviewMode: false,
     siteData: {
       isPublished: true,
       siteAccessMode: 'PUBLIC',
       accessGateMode: 'PUBLIC_INDEXABLE',
-      hasFamilyPasscode: false,
       ownerId: 'uid_owner',
       whitelistedEmails: [],
       whitelistedUids: [],
     },
     viewerUid: null,
     viewerEmail: '',
-    passcodeUnlocked: false,
   });
   assert.equal(publicOpen.shouldShowRestrictedGate, false);
   assert.equal(publicOpen.reason, 'public_open');
@@ -1694,8 +1713,7 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
   const restrictedSiteBase = {
     isPublished: true,
     siteAccessMode: 'PRIVATE_WHITELIST' as const,
-    accessGateMode: 'FAMILY_PIN' as const,
-    hasFamilyPasscode: true,
+    accessGateMode: 'PRIVATE_WHITELIST' as const,
     ownerId: 'uid_owner',
     whitelistedEmails: ['member@family.test'],
     whitelistedUids: ['uid_member'],
@@ -1706,7 +1724,6 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
     siteData: restrictedSiteBase,
     viewerUid: null,
     viewerEmail: '',
-    passcodeUnlocked: false,
   });
   assert.equal(guestBlocked.shouldShowRestrictedGate, true);
   assert.equal(guestBlocked.reason, 'blocked_private');
@@ -1717,7 +1734,6 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
     siteData: restrictedSiteBase,
     viewerUid: null,
     viewerEmail: 'member@family.test',
-    passcodeUnlocked: false,
   });
   assert.equal(spoofedEmailBlocked.shouldShowRestrictedGate, true);
 
@@ -1727,30 +1743,19 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
     siteData: restrictedSiteBase,
     viewerUid: 'uid_member',
     viewerEmail: 'member@family.test',
-    passcodeUnlocked: false,
   });
   assert.equal(authCircleAllowed.shouldShowRestrictedGate, false);
   assert.equal(authCircleAllowed.reason, 'circle_member');
 
-  // Guest unlocked via verified passcode hash is allowed, then immediately locked upon logout
-  const passcodeUnlockedRes = evaluatePublicMicrositeAccessGate({
+  // Authenticated non-member remains blocked on private site
+  const authNonMemberBlocked = evaluatePublicMicrositeAccessGate({
     isPreviewMode: false,
     siteData: restrictedSiteBase,
-    viewerUid: null,
-    viewerEmail: '',
-    passcodeUnlocked: true,
+    viewerUid: 'uid_other',
+    viewerEmail: 'other@family.test',
   });
-  assert.equal(passcodeUnlockedRes.shouldShowRestrictedGate, false);
-  assert.equal(passcodeUnlockedRes.reason, 'passcode_unlocked');
-
-  const afterLogoutLocked = evaluatePublicMicrositeAccessGate({
-    isPreviewMode: false,
-    siteData: restrictedSiteBase,
-    viewerUid: null,
-    viewerEmail: '',
-    passcodeUnlocked: false,
-  });
-  assert.equal(afterLogoutLocked.shouldShowRestrictedGate, true);
+  assert.equal(authNonMemberBlocked.shouldShowRestrictedGate, true);
+  assert.equal(authNonMemberBlocked.reason, 'blocked_private');
 
   // Unpublished site blocks non-owner
   const unpublishedNonOwner = evaluatePublicMicrositeAccessGate({
@@ -1759,19 +1764,17 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
       isPublished: false,
       siteAccessMode: 'PUBLIC',
       accessGateMode: 'PUBLIC_INDEXABLE',
-      hasFamilyPasscode: false,
       ownerId: 'uid_owner',
       whitelistedEmails: [],
       whitelistedUids: [],
     },
     viewerUid: 'uid_guest',
     viewerEmail: 'guest@test.com',
-    passcodeUnlocked: false,
   });
   assert.equal(unpublishedNonOwner.shouldShowRestrictedGate, true);
   assert.equal(unpublishedNonOwner.reason, 'blocked_unpublished');
 
-  // 3. Strict Zero-Leak Tier Resolution (free invited user with exact lineage match MUST stay unpaid)
+  // 2. Strict Zero-Leak Tier Resolution (free invited user with exact lineage match MUST stay unpaid)
   const matchedLineage = resolveDeterministicLineage({
     firstName: 'أحمد',
     fatherName: 'محمد',
@@ -1813,7 +1816,7 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
     DashboardStateMode.AnnualVip
   );
 
-  // 4. Clean Single-Self Initial Tree Node for newly upgraded Premium users (ZERO mock relatives)
+  // 3. Clean Single-Self Initial Tree Node for newly upgraded Premium users (ZERO mock relatives)
   const cleanTree = buildCleanSingleSelfTreeNode(matchedLineage);
   assert.equal(cleanTree.length, 1);
   assert.equal(cleanTree[0].firstName, 'أحمد');
@@ -1821,14 +1824,15 @@ test('Portal Security Overhaul: Passcode Hash, Restricted Gate Enforcement, Zero
   assert.equal(cleanTree[0].isRecordKeeper, true);
   assert.deepEqual(cleanTree[0].spouseIds, []);
 
-  // 5. Verify firestore.rules contains zero-trust passcode_mirrors subcollection rules
+  // 4. Verify firestore.rules enforces strict identity-only circle_join_requests and ZERO passcode_mirrors
   const rulesText = fs.readFileSync(
     path.resolve(process.cwd(), 'firestore.rules'),
     'utf8'
   );
-  assert.ok(rulesText.includes('match /passcode_mirrors/{passcodeHash}'));
-  assert.ok(rulesText.includes('function isValidPasscodeMirror'));
-  assert.ok(rulesText.includes("!('whitelistedEmails' in data)"));
+  assert.ok(!rulesText.includes('passcode_mirrors'));
+  assert.ok(!rulesText.includes('FAMILY_PIN'));
+  assert.ok(rulesText.includes('match /circle_join_requests/{requestId}'));
+  assert.ok(rulesText.includes('function isValidCircleJoinRequest'));
 });
 
 

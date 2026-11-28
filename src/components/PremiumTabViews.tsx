@@ -4,6 +4,8 @@ import {
   AncestorCapsule,
   DashboardAccessCapabilities,
   DashboardTab,
+  FreeLeadRadarSignal,
+  LineageConnectionDecisionStatus,
   LineageSearchResult,
   NotificationItem,
 } from '../types/juthori';
@@ -36,6 +38,12 @@ interface PremiumTabViewsProps {
   onRequestUnlockAllCapsulesBundle?: () => void;
   walletBalance?: number;
   extraTreeCapacity?: number;
+  extraVaultCapacity?: number;
+  ambassadorFreeMonths?: number;
+  ambassadorCapacityBonus?: number;
+  freeLeadRadarSignal?: FreeLeadRadarSignal | null;
+  lineageResearchStatus?: LineageConnectionDecisionStatus;
+  lineageResearchStatusNote?: string;
   onPurchaseExtraTreeCapacity?: (
     extraSlots: number,
     priceUsd: number
@@ -93,6 +101,12 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
   onRequestUnlockAllCapsulesBundle,
   walletBalance = 0,
   extraTreeCapacity = 0,
+  extraVaultCapacity = 0,
+  ambassadorFreeMonths = 0,
+  ambassadorCapacityBonus = 0,
+  freeLeadRadarSignal = null,
+  lineageResearchStatus,
+  lineageResearchStatusNote,
   onPurchaseExtraTreeCapacity,
   userAvatarUrl,
   userId,
@@ -126,6 +140,12 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
         caps={caps}
         walletBalance={walletBalance}
         extraTreeCapacity={extraTreeCapacity}
+        extraVaultCapacity={extraVaultCapacity}
+        ambassadorFreeMonths={ambassadorFreeMonths}
+        ambassadorCapacityBonus={ambassadorCapacityBonus}
+        freeLeadRadarSignal={freeLeadRadarSignal}
+        lineageResearchStatus={lineageResearchStatus}
+        lineageResearchStatusNote={lineageResearchStatusNote}
         unlockedCapsules={unlockedCapsules}
         unlockedAddonSourceIds={unlockedAddonSourceIds}
         userId={userId}
@@ -182,6 +202,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
       <FamilyMemoryVaultView
         result={result}
         caps={caps}
+        extraVaultCapacity={extraVaultCapacity}
         userId={userId}
         userEmail={userEmail}
         userAvatarUrl={userAvatarUrl}
@@ -217,6 +238,7 @@ export const PremiumTabViews: React.FC<PremiumTabViewsProps> = ({
           setOpenTreeSettingsOnMount(true);
           onNavigateTab(DashboardTab.MyTree);
         }}
+        onNavigateToMyTree={() => onNavigateTab(DashboardTab.MyTree)}
         onLogActivity={onLogActivity}
       />
     );

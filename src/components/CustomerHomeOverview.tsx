@@ -8,13 +8,16 @@ import {
   Crown,
   Route,
   ShieldCheck,
-  Wallet,
+  Sparkles,
 } from 'lucide-react';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
+import { SUBSCRIPTION_PLANS } from '../config/subscriptionPlans';
 import {
   AccountLegalType,
   DashboardAccessCapabilities,
   DashboardTab,
+  FreeLeadRadarSignal,
+  LineageConnectionDecisionStatus,
   LineageSearchResult,
   NotificationItem,
 } from '../types/juthori';
@@ -64,9 +67,6 @@ import {
 } from './HomeBentoMicroVisuals';
 import {
   HeritagePlaqueOrnamentLayer,
-  WORKSPACE_ICON_BTN_CLASS,
-  WORKSPACE_PRIMARY_ICON_BTN_CLASS,
-  WorkspaceIconTooltip,
 } from './UnifiedWorkspaceHeader';
 import {
   RoyalRoleFamilyBadge,
@@ -77,8 +77,14 @@ interface CustomerHomeOverviewProps {
   result: LineageSearchResult;
   accountType: AccountLegalType;
   caps: DashboardAccessCapabilities;
-  walletBalance: number;
+  walletBalance?: number;
   extraTreeCapacity?: number;
+  extraVaultCapacity?: number;
+  ambassadorFreeMonths?: number;
+  ambassadorCapacityBonus?: number;
+  freeLeadRadarSignal?: FreeLeadRadarSignal | null;
+  lineageResearchStatus?: LineageConnectionDecisionStatus;
+  lineageResearchStatusNote?: string;
   unlockedCapsules: string[];
   unlockedAddonSourceIds: string[];
   userId?: string;
@@ -155,8 +161,13 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   result,
   accountType,
   caps,
-  walletBalance,
   extraTreeCapacity = 0,
+  extraVaultCapacity = 0,
+  ambassadorFreeMonths = 0,
+  ambassadorCapacityBonus = 0,
+  freeLeadRadarSignal = null,
+  lineageResearchStatus,
+  lineageResearchStatusNote,
   unlockedCapsules,
   userId,
   userEmail,
@@ -452,11 +463,20 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
   const latestKashafiItem = kashafiItems[0] || null;
   const unreadKashafiItemsCount = kashafiItems.filter((i) => !i.isRead).length;
 
-  const isTreePlanActivated = Boolean(caps.isVip || caps.hasRegistrarBadge);
-  const displayedTreeMembersCount = isTreePlanActivated ? treeMembersCount : 0;
-  const totalTreeCapacity = isTreePlanActivated
-    ? (caps.maxTreeMembers || 250) + extraTreeCapacity
-    : 250;
+  const isFreePlan = caps.subscriptionPlan === 'free';
+  const isBasicPlan = caps.subscriptionPlan === 'basic';
+  const isPremiumPlan = caps.subscriptionPlan === 'premium';
+  const activePlanDef = SUBSCRIPTION_PLANS[caps.subscriptionPlan];
+  const isLineageRootRevealed = !isFreePlan;
+  const displayedTreeMembersCount = treeMembersCount;
+  const baseTreeCapacity = activePlanDef.limits.maxTreeNodes;
+  const totalTreeCapacity =
+    baseTreeCapacity + Math.max(0, extraTreeCapacity);
+  const baseVaultCapacity = activePlanDef.limits.maxVaultItems;
+  const totalVaultCapacity =
+    baseVaultCapacity === null
+      ? null
+      : baseVaultCapacity + Math.max(0, extraVaultCapacity);
   const totalCapsules = result.capsules?.length || 0;
   const unlockedCapsulesCount = unlockedCapsules?.length || 0;
 
@@ -475,7 +495,13 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     isVerifiedOrVip: caps.isVip || caps.isRootUnlocked,
   });
 
-  // Interactive 5-Milestone Family Legacy Journey (100% Real Firestore State)
+  const activePlanStatusPillLabel = isPremiumPlan
+    ? 'باقة Premium الملكية'
+    : isBasicPlan
+    ? 'باقة Basic النشطة'
+    : 'الباقة المجانية';
+
+  // Interactive 5-Milestone Family Legacy Journey (Aligned with 3-Tier Product-Led Pivot)
   const legacyMilestones = useMemo(() => {
     const list: Array<{
       id: string;
@@ -485,25 +511,25 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
       tab: DashboardTab;
     }> = [
       {
-        id: 'root',
-        stepNum: 1,
-        label: 'توثيق الجذر',
-        completed: Boolean(caps.isRootUnlocked || (result.matched && caps.isVip)),
-        tab: DashboardTab.Lineage,
-      },
-      {
         id: 'tree',
-        stepNum: 2,
+        stepNum: 1,
         label: 'تأسيس المشجرة',
-        completed: isTreePlanActivated && displayedTreeMembersCount > 0,
+        completed: displayedTreeMembersCount > 0,
         tab: DashboardTab.MyTree,
       },
       {
         id: 'vault',
-        stepNum: 3,
+        stepNum: 2,
         label: 'إيداع الخزانة',
         completed: vaultState.itemsCount > 0,
         tab: DashboardTab.MyVault,
+      },
+      {
+        id: 'root',
+        stepNum: 3,
+        label: 'ربط عمود النسب',
+        completed: Boolean(isLineageRootRevealed && result.matched),
+        tab: DashboardTab.Lineage,
       },
       {
         id: 'site',
@@ -522,12 +548,10 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     ];
     return list;
   }, [
-    caps.isRootUnlocked,
-    caps.isVip,
-    result.matched,
-    isTreePlanActivated,
     displayedTreeMembersCount,
     vaultState.itemsCount,
+    isLineageRootRevealed,
+    result.matched,
     siteInfo.isPublished,
     relativesCount,
   ]);
@@ -550,7 +574,11 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
     ? getTicketProgressPercent(activeTicket)
     : null;
 
-  const verifiedRootDisplay = result.matched
+  const verifiedRootDisplay = !isLineageRootRevealed
+    ? result.matched
+      ? 'جذر تاريخي مرصود · يُكشف بباقة Basic'
+      : 'رادار البحث يعمل بالخلفية'
+    : result.matched
     ? result.rootTribeName || result.rootBranchName || 'موثق بالمرصد'
     : 'قيد الفحص والتحقيق المرجعي';
 
@@ -567,7 +595,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
         <HeritagePlaqueOrnamentLayer scale="hero" />
 
         <div className="relative z-10 p-5 sm:p-7 space-y-6">
-          {/* Top Row: Pure Greeting + Royal Role/Family Badge | Wallet & Subscriptions */}
+          {/* Top Row: Pure Greeting + Royal Role/Family Badge | Active Plan Capsule & Upgrade CTA */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="inline-flex items-center flex-wrap gap-3 min-w-0">
               <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1F1F1C] leading-normal">
@@ -581,30 +609,33 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <WorkspaceIconTooltip
-                label={`رصيد المحفظة: $${walletBalance.toFixed(2)}`}
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <div
+                data-testid="home-active-plan-capsule"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]"
               >
-                <button
-                  type="button"
-                  aria-label={`رصيد المحفظة: $${walletBalance.toFixed(2)}`}
-                  onClick={onOpenWalletDrawer}
-                  className={WORKSPACE_ICON_BTN_CLASS}
-                >
-                  <Wallet className="w-4 h-4 shrink-0" />
-                </button>
-              </WorkspaceIconTooltip>
+                <Crown className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
+                <span>{activePlanStatusPillLabel}</span>
+                {ambassadorFreeMonths > 0 && (
+                  <span className="px-2 py-0.5 rounded-md bg-[#E8DED2] text-[#D97757] text-[10.5px] font-bold tabular-nums">
+                    +{ambassadorFreeMonths} شهر هدية
+                  </span>
+                )}
+              </div>
 
-              <WorkspaceIconTooltip label="الاشتراكات والمكافآت" align="left">
-                <button
-                  type="button"
-                  aria-label="الاشتراكات والمكافآت"
-                  onClick={onOpenWalletDrawer}
-                  className={WORKSPACE_PRIMARY_ICON_BTN_CLASS}
-                >
-                  <Crown className="w-4 h-4 shrink-0" />
-                </button>
-              </WorkspaceIconTooltip>
+              <button
+                type="button"
+                data-testid="home-manage-subscription-btn"
+                onClick={onOpenWalletDrawer}
+                className={`px-4 py-2 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  isPremiumPlan
+                    ? 'bg-[#E8DED2] hover:bg-[#D8C7B2]/80 border border-[#D8C7B2] text-[#1F1F1C]'
+                    : 'bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] shadow-xs'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                <span>{isPremiumPlan ? 'إدارة اشتراكي' : 'ترقية الباقة ✦'}</span>
+              </button>
             </div>
           </div>
 
@@ -729,7 +760,17 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                 </div>
               </div>
               <span className="text-[11px] font-display font-bold text-[#D97757] whitespace-nowrap">
-                {result.matched ? 'ربط مرجعي موثق' : 'قيد التحقيق'}
+                {!isLineageRootRevealed
+                  ? freeLeadRadarSignal?.active || result.matched
+                    ? 'رادار الجذور: رصد إشارة واعدة ✦'
+                    : 'رادار الجذور نشط'
+                  : lineageResearchStatus === 'verified_connected' || result.matched
+                  ? 'ربط مرجعي موثق ✓'
+                  : lineageResearchStatus === 'partial_investigating'
+                  ? 'تقاطع جزئي — قيد الاستقصاء'
+                  : lineageResearchStatus === 'needs_client_info'
+                  ? 'مطلوب إيضاح منكم'
+                  : 'قيد التحقيق'}
               </span>
             </div>
 
@@ -737,24 +778,63 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
             <LineageGlowPathVisual
               familyName={result.familyName || 'العائلة'}
               rootLabel={verifiedRootDisplay}
-              matched={result.matched}
+              matched={isLineageRootRevealed && result.matched}
               totalCapsules={totalCapsules}
-              unlockedCapsulesCount={unlockedCapsulesCount}
+              unlockedCapsulesCount={isLineageRootRevealed ? unlockedCapsulesCount : 0}
             />
 
+            {!isLineageRootRevealed && freeLeadRadarSignal?.active && (
+              <div className="rounded-xl bg-[#FAF7F2] border border-[#D97757]/55 px-3.5 py-2.5 text-xs text-[#1F1F1C] leading-relaxed">
+                <span className="font-display font-bold text-[#D97757] block mb-0.5">
+                  ✦ إشارة مرجعية واعدة من مرصد جذوري
+                </span>
+                {freeLeadRadarSignal.teaserNoteAr ||
+                  `رصد مرصد جذوري مؤشراً مرجعياً واعداً يرتبط ببيانات عائلة (${result.familyName}) — رقِّ إلى Basic أو Premium لفتح التحقيق الموثق.`}
+              </div>
+            )}
+
+            {isLineageRootRevealed &&
+              lineageResearchStatus &&
+              lineageResearchStatus !== 'verified_connected' &&
+              lineageResearchStatusNote && (
+                <div className="rounded-xl bg-[#FAF7F2] border border-[#D8C7B2] px-3.5 py-2.5 text-xs text-[#1F1F1C]/85 leading-relaxed">
+                  {lineageResearchStatusNote}
+                </div>
+              )}
+
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]/70">
-              <div>
-                الجذر الموثق:{' '}
-                <strong className="font-display text-[#1F1F1C]">
-                  {verifiedRootDisplay}
-                </strong>
-              </div>
-              <div className="tabular-nums">
-                الحلقات الوسطية:{' '}
-                <strong className="font-display text-[#D97757]">
-                  {unlockedCapsulesCount} مفتوحة من {totalCapsules}
-                </strong>
-              </div>
+              {isLineageRootRevealed ? (
+                <>
+                  <div>
+                    الجذر الموثق:{' '}
+                    <strong className="font-display text-[#1F1F1C]">
+                      {verifiedRootDisplay}
+                    </strong>
+                  </div>
+                  <div className="tabular-nums">
+                    الحلقات الوسطية:{' '}
+                    <strong className="font-display text-[#D97757]">
+                      {unlockedCapsulesCount} مفتوحة من {totalCapsules}
+                    </strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    حالة الرادار:{' '}
+                    <strong className="font-display text-[#1F1F1C]">
+                      {freeLeadRadarSignal?.active || result.matched
+                        ? 'إشارة تاريخية جاهزة للكشف'
+                        : 'البحث الخلفي نشط في الأرشيف'}
+                    </strong>
+                  </div>
+                  <div>
+                    <strong className="font-display text-[#D97757]">
+                      يُفتح بباقة Basic
+                    </strong>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -763,7 +843,11 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
             onClick={() => onNavigateTab(DashboardTab.Lineage)}
             className="w-full py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center justify-center transition-all duration-300 cursor-pointer"
           >
-            <span>استعراض عمود النسب الموثق</span>
+            <span>
+              {isLineageRootRevealed
+                ? 'استعراض عمود النسب الموثق'
+                : 'معاينة رادار عمود نسبي'}
+            </span>
           </button>
         </article>
 
@@ -785,9 +869,7 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
                 </div>
               </div>
               <span className="text-[11px] font-display font-bold text-[#1F1F1C] tabular-nums whitespace-nowrap">
-                {!isTreePlanActivated
-                  ? 'لم تبدأ بعد'
-                  : displayedTreeMembersCount === 0
+                {displayedTreeMembersCount === 0
                   ? '0 أفراد'
                   : displayedTreeMembersCount === 1
                   ? 'فرد واحد'
@@ -803,41 +885,24 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
             <TreeBranchGaugeVisual
               treeMembersCount={displayedTreeMembersCount}
               totalTreeCapacity={totalTreeCapacity}
-              isTreeUnlocked={isTreePlanActivated}
+              isTreeUnlocked={true}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#1F1F1C]/70 tabular-nums">
-              {!isTreePlanActivated ? (
-                <>
-                  <span>
-                    الأفراد المسجلون:{' '}
-                    <strong className="font-display text-[#1F1F1C]">
-                      0 (لم تُنشأ المشجرة بعد)
-                    </strong>
-                  </span>
-                  <span>
-                    السعة عند الترقية:{' '}
-                    <strong className="font-display text-[#1F1F1C]">
-                      {totalTreeCapacity} فرداً
-                    </strong>
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>
-                    الأفراد المسجلون:{' '}
-                    <strong className="font-display text-[#1F1F1C]">
-                      {displayedTreeMembersCount} من سعة {totalTreeCapacity}
-                    </strong>
-                  </span>
-                  <span>
-                    السعة المتاحة:{' '}
-                    <strong className="font-display text-[#1F1F1C]">
-                      {Math.max(0, totalTreeCapacity - displayedTreeMembersCount)} مقعداً
-                    </strong>
-                  </span>
-                </>
-              )}
+              <span>
+                الأفراد المسجلون:{' '}
+                <strong className="font-display text-[#1F1F1C]">
+                  {isFreePlan
+                    ? `${displayedTreeMembersCount} من سعة ${totalTreeCapacity}${ambassadorCapacityBonus > 0 ? ` (+${ambassadorCapacityBonus} هدية سفير)` : ''}`
+                    : `${displayedTreeMembersCount} · سعة موسّعة (${totalTreeCapacity.toLocaleString('en-US')})`}
+                </strong>
+              </span>
+              <span>
+                السعة المتاحة:{' '}
+                <strong className="font-display text-[#1F1F1C]">
+                  {Math.max(0, totalTreeCapacity - displayedTreeMembersCount).toLocaleString('en-US')} مقعداً
+                </strong>
+              </span>
             </div>
           </div>
 
@@ -875,9 +940,13 @@ export const CustomerHomeOverview: React.FC<CustomerHomeOverviewProps> = ({
 
             <div className="space-y-1 text-xs text-[#1F1F1C]/70 tabular-nums">
               <div>
-                الصور والوثائق:{' '}
+                السعة المتاحة:{' '}
                 <strong className="text-[#1F1F1C]">
-                  {vaultState.itemsCount} ملفاً
+                  {totalVaultCapacity === null
+                    ? 'سعة موسّعة مفتوحة'
+                    : isFreePlan
+                    ? `${vaultState.itemsCount} من سعة ${totalVaultCapacity}${ambassadorCapacityBonus > 0 ? ` (+${ambassadorCapacityBonus} هدية)` : ''}`
+                    : `${vaultState.itemsCount} من ${totalVaultCapacity.toLocaleString('en-US')} مقتنى`}
                 </strong>
               </div>
               <div>

@@ -1146,7 +1146,7 @@ export const LuxuryReferenceLibrary: React.FC<LuxuryReferenceLibraryProps> = ({
                       className="text-xs sm:text-sm font-display font-extrabold"
                       style={{ color: theme.textPrimaryHex }}
                     >
-                      مراجع تاريخية إضافية موثقة من فريق الخبراء (قابلة للفتح عبر المحفظة)
+                      مراجع تاريخية إضافية موثقة من فريق الخبراء (قابلة للفتح ضمن اشتراكك)
                     </span>
                   </div>
                   <span
@@ -1219,7 +1219,7 @@ export const LuxuryReferenceLibrary: React.FC<LuxuryReferenceLibraryProps> = ({
                                 className="text-[11px] font-display font-bold"
                                 style={{ color: theme.statusText }}
                               >
-                                تم الفتح من المحفظة ✓
+                                تم فتح المرجع وتوثيقه ✓
                               </span>
                             </div>
                             <div

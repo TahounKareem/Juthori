@@ -28,6 +28,10 @@ import {
   JUTHORI_LINEAGE_SEARCH_URL,
   JUTHORI_PROXY_LINEAGE_SEARCH_URL,
 } from '../config/juthoriApiConfig';
+import {
+  SUBSCRIPTION_PLANS,
+  resolvePlanFromStateMode,
+} from '../config/subscriptionPlans';
 
 export const GERMAN_ENGINE_BASE_URL = JUTHORI_ENGINE_BASE_URL;
 const DIRECT_ENGINE_URL = JUTHORI_LINEAGE_SEARCH_URL;
@@ -7127,19 +7131,21 @@ export function resolveDeterministicLineage(
 }
 
 /**
- * Pure capability matrix for the 4 exact Customer Dashboard states + Account Legal Role rules.
+ * Pure capability matrix for the 3-Tier SaaS Subscription Model (`free` | `basic` | `premium`)
+ * mapped cleanly over DashboardStateMode + Account Legal Role rules.
  */
 export function getDashboardCapabilities(
   stateMode: DashboardStateMode,
   accountType: AccountLegalType
 ): DashboardAccessCapabilities {
-  const isVip = stateMode === DashboardStateMode.AnnualVip;
+  const subscriptionPlan = resolvePlanFromStateMode(stateMode);
+  const planDef = SUBSCRIPTION_PLANS[subscriptionPlan];
+  const isVip = subscriptionPlan === 'premium';
+  const isBasicOrAbove = subscriptionPlan === 'basic' || subscriptionPlan === 'premium';
   const isMatched = stateMode !== DashboardStateMode.State3Unmatched;
-  const isRootUnlocked =
-    stateMode === DashboardStateMode.State1Paid5Basic ||
-    stateMode === DashboardStateMode.AnnualVip;
-  const areUpperAncestorsUnlocked = isVip;
-  const showFifthBridgeNode = isVip;
+  const isRootUnlocked = isBasicOrAbove;
+  const areUpperAncestorsUnlocked = isBasicOrAbove;
+  const showFifthBridgeNode = isBasicOrAbove;
   const arePremiumTabsUnlocked = isVip;
   const isRecordKeeper = accountType === AccountLegalType.RecordKeeper;
 
@@ -7147,51 +7153,46 @@ export function getDashboardCapabilities(
     ? 'registrar'
     : isVip
     ? 'annual_vip'
-    : isRootUnlocked
+    : isBasicOrAbove
     ? 'basic_5usd'
     : 'free';
 
-  const maxTreeMembers = isRecordKeeper || isVip
-    ? 250
-    : isRootUnlocked
-    ? 50
-    : 15;
-
-  const maxVaultDocuments = isRecordKeeper
+  const maxTreeMembers = planDef.limits.maxTreeNodes;
+  const maxVaultDocuments = isRecordKeeper && isVip
     ? null
-    : isVip
-    ? 100
-    : isRootUnlocked
-    ? 20
-    : 5;
+    : planDef.limits.maxVaultItems;
 
   return {
+    subscriptionPlan,
     isVip,
     isMatched,
     isRootUnlocked,
     areUpperAncestorsUnlocked,
     showFifthBridgeNode,
     arePremiumTabsUnlocked,
-    canAccessTreeDirectly: isVip && isRecordKeeper,
-    requiresCharterUpgradeForTree: isVip && !isRecordKeeper,
+    canUseKashafi: planDef.limits.canUseKashafi,
+    hasDirectCustomerSupport: planDef.limits.hasDirectCustomerSupport,
+    canExportHighResTree: planDef.limits.canExportHighResTree,
+    canAccessTreeDirectly: true,
+    requiresCharterUpgradeForTree: false,
     tierHeaderTitle: isRecordKeeper
       ? isVip
-        ? 'أمين سجل العائلة · بريميوم السنوية'
-        : isRootUnlocked
-        ? 'أمين سجل العائلة · الباقة الأساسية ($5)'
-        : 'أمين سجل العائلة'
+        ? 'أمين سجل العائلة · باقة Premium'
+        : isBasicOrAbove
+        ? 'أمين سجل العائلة · باقة Basic'
+        : 'أمين سجل العائلة · الباقة المجانية'
       : isVip
-      ? 'عضوية بريميوم السنوية'
-      : isRootUnlocked
-      ? 'الباقة الأساسية ($5)'
-      : 'حساب مجاني',
+      ? 'باقة Premium'
+      : isBasicOrAbove
+      ? 'باقة Basic'
+      : 'الباقة المجانية',
     membershipTierKey,
     maxTreeMembers,
     maxVaultDocuments,
-    canPublishPublicSite: isRecordKeeper,
-    canInviteFamilyContributors: isRecordKeeper,
+    canPublishPublicSite: isVip && isRecordKeeper,
+    canInviteFamilyContributors: isBasicOrAbove,
     hasRegistrarBadge: isRecordKeeper,
-    hasPriorityResearchObservatory: isRecordKeeper,
+    hasPriorityResearchObservatory: isVip && isRecordKeeper,
   };
 }
 

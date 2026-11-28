@@ -12,6 +12,8 @@ import {
   RotateCcw,
   Compass,
   HelpCircle,
+  Crown,
+  Lock,
 } from 'lucide-react';
 import {
   HELP_CENTER_SECTIONS,
@@ -19,6 +21,10 @@ import {
   resolveLocalSmartGuideAnswer,
 } from '../data/helpCenterData';
 import { createSupportTicketInFirebase } from '../services/firestoreService';
+import {
+  SUBSCRIPTION_PLANS,
+  formatPlanPriceUsd,
+} from '../config/subscriptionPlans';
 
 interface SupportAndHelpCenterViewProps {
   onBackHome?: () => void;
@@ -26,6 +32,8 @@ interface SupportAndHelpCenterViewProps {
   defaultUserName?: string;
   defaultUserEmail?: string;
   compactMode?: boolean;
+  hasDirectCustomerSupport?: boolean;
+  onRequireDirectSupportUpgrade?: () => void;
 }
 
 interface SmartGuideChatMessage {
@@ -45,6 +53,8 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
   defaultUserName = '',
   defaultUserEmail = '',
   compactMode = false,
+  hasDirectCustomerSupport = true,
+  onRequireDirectSupportUpgrade,
 }) => {
   const [activeTab, setActiveTab] = useState<'guide' | 'smart_guide' | 'contact'>('guide');
   const [openSection, setOpenSection] = useState<string | null>(
@@ -239,7 +249,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
 
   return (
     <div dir="rtl" className={compactMode ? 'py-2' : 'py-6 sm:py-10'}>
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className={compactMode ? 'w-full space-y-8' : 'w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8'}>
         {/* Top Back Link & Quick Context Bar */}
         {onBackHome && !compactMode && (
           <div className="flex items-center justify-between gap-4">
@@ -322,14 +332,24 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
 
             <button
               type="button"
-              onClick={() => setActiveTab('contact')}
+              data-testid="support-direct-ticket-tab-btn"
+              onClick={() => {
+                if (!hasDirectCustomerSupport && onRequireDirectSupportUpgrade) {
+                  onRequireDirectSupportUpgrade();
+                }
+                setActiveTab('contact');
+              }}
               className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-display font-bold inline-flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'contact'
                   ? 'bg-[#D97757] text-[#F5F1E8] shadow-xs'
-                  : 'bg-[#E8DED2] text-[#1F1F1C] hover:bg-[#E8DED2]'
+                  : 'bg-[#E8DED2] text-[#1F1F1C] hover:bg-[#D8C7B2]/60'
               }`}
             >
-              <Mail className="w-4 h-4 shrink-0" />
+              {hasDirectCustomerSupport ? (
+                <Mail className="w-4 h-4 shrink-0" />
+              ) : (
+                <Lock className="w-4 h-4 shrink-0 text-[#D97757]" />
+              )}
               <span>تذكرة تواصل ودعم مباشر</span>
             </button>
           </div>
@@ -741,7 +761,48 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
             </div>
 
             <div className="lg:col-span-7">
-              {supportSent ? (
+              {!hasDirectCustomerSupport ? (
+                <div
+                  data-testid="support-direct-upgrade-gate"
+                  className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-6 sm:p-8 text-right space-y-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                      <Crown className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-display font-bold text-[#D97757]">
+                        خدمة العملاء المباشرة · بدءاً من باقة Basic
+                      </div>
+                      <h3 className="text-base sm:text-lg font-display font-extrabold text-[#1F1F1C]">
+                        التواصل المباشر وفتح تذاكر الدعم متاح لمشتركي Basic وPremium
+                      </h3>
+                    </div>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed">
+                    يمكنك الاستفادة مجاناً على مدار الساعة من الدليل الإرشادي الشامل (12 قسماً) والمرشد الذكي للإجابة الفورية. وللحصول على تواصل مباشر مع فريق خدمة العملاء ومتابعة استفسارات التوثيق، رقِّ حسابك إلى الباقة الأساسية ({formatPlanPriceUsd(SUBSCRIPTION_PLANS.basic.monthlyPriceUsd)}/شهر أو {formatPlanPriceUsd(SUBSCRIPTION_PLANS.basic.annualPriceUsd)}/سنة).
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                    {onRequireDirectSupportUpgrade && (
+                      <button
+                        type="button"
+                        onClick={onRequireDirectSupportUpgrade}
+                        className="px-5 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <Crown className="w-4 h-4 shrink-0" />
+                        <span>الترقية إلى Basic لفتح خدمة العملاء المباشرة</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('smart_guide')}
+                      className="px-4 py-2.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/60 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold cursor-pointer transition-colors"
+                    >
+                      استخدام المرشد الذكي مجاناً
+                    </button>
+                  </div>
+                </div>
+              ) : supportSent ? (
                 <div className="rounded-2xl bg-[#F5F1E8] border border-[#D97757]/45 p-6 sm:p-8 text-right space-y-3">
                   <div className="w-11 h-11 rounded-xl bg-[#D97757]/15 text-[#D97757] flex items-center justify-center">
                     <CheckCircle2 className="w-6 h-6" />
@@ -825,7 +886,7 @@ export const SupportAndHelpCenterView: React.FC<SupportAndHelpCenterViewProps> =
                         استفسار نسبي أو توثيق مشجرة عائلية / السجل الأساسي
                       </option>
                       <option value="مشكلة دفع">
-                        المدفوعات والباقات والمحفظة الرقمية
+                        المدفوعات والاشتراكات والباقات
                       </option>
                       <option value="رمز التحقق OTP">
                         الحسابات والصلاحيات أو رمز التحقق (OTP)

@@ -27,9 +27,17 @@ import {
 } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
+  SUBSCRIPTION_FOOTNOTES,
+  SUBSCRIPTION_PLANS,
+  formatPlanPriceUsd,
+} from '../config/subscriptionPlans';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
+import {
   AccountLegalType,
   AncestorCapsule,
   DashboardStateMode,
+  FreeLeadRadarSignal,
+  LineageConnectionDecisionStatus,
   LineageSearchResult,
   UpperAncestorNode,
   VerifiedAddonSourceItem,
@@ -143,7 +151,11 @@ interface LineageSpineColumnProps {
   onOpenVaultForPerson?: (personId: string) => void;
   onOpenResearchTicketsTab?: () => void;
   onSignCharterAndEnableTree?: () => void;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onLogActivity?: (action: string, detail: string) => void;
+  freeLeadRadarSignal?: FreeLeadRadarSignal | null;
+  lineageResearchStatus?: LineageConnectionDecisionStatus;
+  lineageResearchStatusNote?: string;
 }
 
 const LOCKED_UPPER_LINEAGE_LAYERS: Array<{
@@ -305,6 +317,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   result,
   onUnlockRoot5Usd,
   onUpgradeAnnualVip,
+  onRequirePremiumAction,
   unlockedCapsules,
   onRequestUnlockCapsule,
   onRequestUnlockAllCapsulesBundle,
@@ -322,6 +335,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   onOpenResearchTicketsTab,
   onSignCharterAndEnableTree,
   onLogActivity,
+  freeLeadRadarSignal = null,
+  lineageResearchStatus,
+  lineageResearchStatusNote,
 }) => {
   const caps = getDashboardCapabilities(stateMode, accountType);
   const [selectedAncestor, setSelectedAncestor] =
@@ -1111,16 +1127,20 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     };
   };
 
+  const hasLineageConnectionAccess = Boolean(
+    caps.isRootUnlocked || caps.isVip || isResearcherDirectPreview
+  );
+
   const hasSpecialUpperPaywallOrVerification =
-    isUnmatchedCase || isVerificationPending || !caps.isRootUnlocked;
+    !hasLineageConnectionAccess || isUnmatchedCase || isVerificationPending;
 
   const topDownUnifiedItems: UnifiedSpineItem[] = useMemo(() => {
     const upperTopDown: UnifiedSpineItem[] = [];
 
     if (!hasSpecialUpperPaywallOrVerification) {
       if (effectiveResult.isAlphaOnlyBeforeMerge) {
-        if (!caps.isVip && !isResearcherDirectPreview) {
-          // $5 Basic Tier on Alpha-only
+        if (!hasLineageConnectionAccess) {
+          // Locked upper lineage layers
           LOCKED_UPPER_LINEAGE_LAYERS.forEach((layer) => {
             upperTopDown.push({
               id: layer.id,
@@ -1153,7 +1173,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             upperTopDown.push(toAncestorItem(subRootStation, false));
           }
         } else {
-          // Alpha VIP or Researcher Direct Preview
+          // Basic / Premium / Researcher Direct Preview
           const ascending: UnifiedSpineItem[] = [];
           const handledRings = new Set<string>();
           for (const node of spineNodes) {
@@ -1163,7 +1183,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             } else if (node.capsuleId) {
               const ringObj = capsulesList.find((c) => c.id === node.capsuleId);
               const isUnlockedForCustomer =
-                caps.isVip && unlockedCapsules.includes(node.capsuleId);
+                hasLineageConnectionAccess &&
+                unlockedCapsules.includes(node.capsuleId);
               const isUnlockedForResearcher =
                 isResearcherDirectPreview &&
                 (researcherExpandedCapsules.length === 0 ||
@@ -1191,8 +1212,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           }
           upperTopDown.push(...reversed);
         }
-      } else if (caps.isVip || isResearcherDirectPreview) {
-        // Case 1 VIP Full Adam Spine
+      } else if (hasLineageConnectionAccess) {
+        // Basic & Premium Full Adam Spine
         const ascending: UnifiedSpineItem[] = [];
         const handledRings = new Set<string>();
         for (const node of spineNodes) {
@@ -1232,7 +1253,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           !effectiveResult.isAlphaMergedIntoAdam &&
           remainingLockedCapsules.length > 0 &&
           onRequestUnlockAllCapsulesBundle &&
-          caps.isVip
+          hasLineageConnectionAccess &&
+          !isResearcherDirectPreview
         ) {
           reversed.splice(midIdx, 0, {
             id: 'inline-unlock-all-intermediates',
@@ -1253,7 +1275,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         }
         upperTopDown.push(...reversed);
       } else {
-        // Case 1 Non-VIP ($5 Root Unlocked)
+        // Locked fallback
         LOCKED_UPPER_LINEAGE_LAYERS.forEach((layer) => {
           upperTopDown.push({
             id: layer.id,
@@ -1265,26 +1287,6 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             entityKind: 'locked',
           });
         });
-        const { subRootStation, motherTribeStation, capsuleBetweenB2AndB0 } =
-          resolveStrictTwoRootStationsFor5UsdTier();
-        if (motherTribeStation) {
-          upperTopDown.push(toAncestorItem(motherTribeStation, false));
-        }
-        if (capsuleBetweenB2AndB0) {
-          upperTopDown.push({
-            id: capsuleBetweenB2AndB0.id,
-            kind: 'capsule_pill',
-            ringGroup: capsuleBetweenB2AndB0,
-            entityKind: 'capsule',
-          });
-        }
-        if (
-          motherTribeStation &&
-          subRootStation &&
-          subRootStation.id !== motherTribeStation.id
-        ) {
-          upperTopDown.push(toAncestorItem(subRootStation, false));
-        }
       }
     }
 
@@ -1322,6 +1324,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     hasSpecialUpperPaywallOrVerification,
     effectiveResult,
     caps.isVip,
+    hasLineageConnectionAccess,
     isResearcherDirectPreview,
     spineNodes,
     capsulesList,
@@ -1383,7 +1386,22 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // ============================================================================
   // VERIFIED SOURCES LIST (Strictly computed for VIP/Researcher & Export Charter)
   // ============================================================================
-  const isSourcesUnlocked = Boolean(caps.isVip || isResearcherDirectPreview);
+  const isSourcesUnlocked = hasLineageConnectionAccess;
+  const officialMatchingDisclaimer =
+    SUBSCRIPTION_FOOTNOTES.find((f) => f.id === 'matching_note')?.textAr ||
+    'يعتمد ربط سلاسل الأنساب على مدى توفر وكفاية المعلومات والمصادر الموثوقة، ولا يُعدّ العثور على اتصال أمراً مضموناً بالضرورة.';
+
+  const triggerLineageBasicUpgrade = (customTitle?: string) => {
+    if (onRequirePremiumAction) {
+      onRequirePremiumAction({
+        feature: 'lineage_connection',
+        requiredTier: 'basic',
+        title: customTitle,
+      });
+    } else {
+      onUnlockRoot5Usd();
+    }
+  };
 
   const aggregatedSources: string[] = useMemo(() => {
     if (!isSourcesUnlocked) return [];
@@ -1477,86 +1495,55 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     return (
       <div
         data-testid="root-unlock-5usd-card"
-        onClick={onUnlockRoot5Usd}
+        onClick={() =>
+          triggerLineageBasicUpgrade(
+            `افتح البحث عن ربط الجذور واستعرض السلسلة المرصودة لعائلة ${effectiveResult.familyName}`
+          )
+        }
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            onUnlockRoot5Usd();
+            triggerLineageBasicUpgrade(
+              `افتح البحث عن ربط الجذور واستعرض السلسلة المرصودة لعائلة ${effectiveResult.familyName}`
+            );
           }
         }}
-        title="افتح جذر العائلة الموثق الآن ($5)"
-        className="max-w-[440px] w-full mx-auto rounded-2xl p-4 sm:p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group relative z-20 text-right overflow-hidden space-y-3.5"
-        style={{
-          background: theme.isDark
-            ? 'linear-gradient(135deg, #1E2F4A 0%, #2B3B54 100%)'
-            : 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 55%, #FDE68A 100%)',
-          border: `2px solid ${theme.goldBorderHex}`,
-        }}
+        title="رقِّ إلى Basic أو Premium لفتح البحث عن ربط الجذور"
+        className="max-w-[480px] w-full mx-auto rounded-2xl p-5 sm:p-6 bg-[#FAF7F2] border-2 border-[#D97757]/60 shadow-[0_10px_28px_-14px_rgba(31,31,28,0.14)] hover:border-[#D97757] transition-all cursor-pointer group relative z-20 text-right overflow-hidden space-y-4"
       >
-        <div className="flex items-center justify-start relative z-10">
-          <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-display font-bold"
-            style={{
-              backgroundColor: theme.surfaceBg,
-              border: `1px solid ${theme.goldBorderHex}80`,
-              color: theme.accentTextHex,
-            }}
-          >
-            <CheckCircle2
-              className="w-3.5 h-3.5"
-              style={{ color: theme.goldHex }}
-            />
-            <span>سجل نسبي موثق في المعاجم التاريخية</span>
+        <div className="flex items-center justify-between gap-2 relative z-10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-display font-bold bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757]">
+            <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
+            <span>رادار جذوري للربط المرجعي</span>
+          </span>
+          <span className="text-[11px] font-display font-bold text-[#1F1F1C]/65">
+            متاح بدءاً من Basic ({formatPlanPriceUsd(SUBSCRIPTION_PLANS.basic.monthlyPriceUsd)}/شهر)
           </span>
         </div>
 
-        <div className="space-y-1 relative z-10">
-          <h3
-            className="text-sm sm:text-base font-display font-extrabold leading-snug"
-            style={{ color: theme.textPrimaryHex }}
-          >
-            تم رصد وتوثيق جذر عائلة ({effectiveResult.familyName}) في أمهات المعاجم التاريخية{locationSuffix}
+        <div className="space-y-1.5 relative z-10">
+          <h3 className="text-sm sm:text-base font-display font-extrabold leading-relaxed text-[#1F1F1C]">
+            ✦ رصد رادار جذوري تقاطعاً مرجعياً محتملاً يرتبط ببيانات عائلة ({effectiveResult.familyName}){locationSuffix} — رقِّ إلى الباقة الأساسية (Basic) أو المميزة (Premium) لفتح البحث عن ربط الجذور واستعراض السلسلة المرصودة
           </h3>
-          <p
-            className="text-xs font-medium leading-relaxed"
-            style={{ color: theme.textSecondaryHex }}
-          >
-            نقطة اتصال عائلتك بعمودها التاريخي الموثق جاهزة للكشف الفوري في سجلك الخاص.
-          </p>
         </div>
 
         <div className="relative z-10">
-          <div
-            className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
-            style={{
-              backgroundColor: theme.surfaceBg,
-              border: `1px solid ${theme.goldBorderHex}80`,
-            }}
-          >
+          <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 bg-[#F5F1E8] border border-[#D8C7B2]">
             <div className="min-w-0 space-y-1">
-              <div
-                className="text-[11px] font-display font-extrabold"
-                style={{ color: theme.accentTextHex }}
-              >
-                🔒 جذر تاريخي مرصود — مخفي حتى التفعيل
+              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                🔒 الجذر التاريخي المرصود — مقفل على الباقة المجانية
               </div>
               <div
-                className="text-sm font-display font-extrabold blur-[5px] select-none"
-                style={{ color: theme.textPrimaryHex }}
+                className="text-sm font-display font-extrabold blur-sm select-none text-[#1F1F1C]"
                 aria-hidden="true"
               >
-                امتداد النسب الموثق في السجل التاريخي للعائلة
+                سلسلة النسب الموثقة والقبيلة الأم المرتبطة بالعائلة
               </div>
             </div>
             <span
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-              style={{
-                backgroundColor: theme.goldSoftBg,
-                border: `1px solid ${theme.goldBorderHex}`,
-                color: theme.accentTextHex,
-              }}
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757]"
               aria-hidden="true"
             >
               <Lock className="w-4 h-4" />
@@ -1564,16 +1551,13 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           </div>
         </div>
 
-        <div className="pt-1 relative z-10">
-          <div
-            className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold shadow-xs flex items-center justify-center transition-all"
-            style={{
-              backgroundColor: theme.buttonPrimaryBg,
-              color: theme.buttonPrimaryText,
-            }}
-          >
-            <span>افتح جذر العائلة الموثق الآن ($5)</span>
+        <div className="pt-1 relative z-10 space-y-2">
+          <div className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold bg-[#D97757] group-hover:bg-[#C46546] text-[#F5F1E8] shadow-xs flex items-center justify-center transition-colors">
+            <span>الترقية إلى Basic أو Premium لفتح البحث عن ربط الجذور</span>
           </div>
+          <p className="text-[10.5px] text-[#1F1F1C]/65 leading-relaxed">
+            {officialMatchingDisclaimer}
+          </p>
         </div>
       </div>
     );
@@ -1895,46 +1879,81 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   };
 
   const renderUnmatchedFamilyUpperSection = () => {
-    if (!caps.isVip) {
+    if (!hasLineageConnectionAccess) {
       return (
         <div
           data-testid="unmatched-special-research-paywall-card"
-          className="max-w-[440px] w-full mx-auto rounded-2xl p-5 bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_6px_22px_-10px_rgba(31,31,28,0.12)] relative z-20 text-right space-y-4"
+          className="max-w-[480px] w-full mx-auto rounded-2xl p-5 sm:p-6 bg-[#FAF7F2] border border-[#D8C7B2] shadow-[0_6px_22px_-10px_rgba(31,31,28,0.12)] relative z-20 text-right space-y-4"
         >
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-display font-bold bg-[#F5F1E8] border border-[#D8C7B2] text-[#D97757]">
+              <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
+              <span>رادار الجذور · البحث عن ربط الجذور</span>
+            </span>
+            <span className="text-[11px] font-display font-bold text-[#1F1F1C]/65">
+              بدءاً من Basic
+            </span>
+          </div>
+
           <div className="space-y-1.5">
             <h3 className="text-sm sm:text-base font-display font-extrabold leading-snug text-[#1F1F1C]">
-              لم يظهر تطابق آلي مباشر لعائلة ({result.familyName}) في الفهرس الفوري
+              {freeLeadRadarSignal?.active
+                ? `✦ رصد مرصد جذوري إشارة مرجعية واعدة لعائلة (${result.familyName})`
+                : `كيف يعمل البحث عن ربط الجذور لعائلة (${result.familyName})؟`}
             </h3>
-            <p className="text-xs font-medium leading-relaxed text-[#1F1F1C]/75">
-              اشترك في الباقة السنوية ليقوم فريق الباحثين المتخصصين بالبحث المعمّق في أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلتك وربطه حتى آدم عليه السلام.
+            <p className="text-xs font-medium leading-relaxed text-[#1F1F1C]/80">
+              {freeLeadRadarSignal?.active
+                ? freeLeadRadarSignal.teaserNoteAr ||
+                  `رصد مرصد جذوري تقاطعاً مرجعياً واعداً يرتبط ببيانات عائلة (${result.familyName}) — رقِّ إلى الباقة الأساسية (Basic) أو المميزة (Premium) لفتح البحث الموثق واستعراض الجذر التاريخي دون قيود.`
+                : 'يُطابق رادار جذوري بيانات عائلتك مع فهرس الأنساب والمعاجم التاريخية الموثّقة. لم تُسجَّل مطابقة فورية حالياً، ويمكنك الترقية إلى الباقة الأساسية (Basic) لفتح أداة البحث الكامل عن ربط الجذور وتقديم طلب التحقق النسبي.'}
             </p>
           </div>
 
           <button
             type="button"
-            onClick={onUpgradeAnnualVip}
-            className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] transition-colors cursor-pointer shadow-xs"
+            onClick={() =>
+              triggerLineageBasicUpgrade(
+                `رقِّ إلى باقة Basic لفتح أداة البحث عن ربط الجذور لعائلة ${result.familyName}`
+              )
+            }
+            className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-display font-extrabold bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] transition-colors cursor-pointer shadow-xs"
           >
-            اشترك في الباقة السنوية لتوثيق عمود نسب عائلتك
+            الترقية إلى Basic لفتح البحث عن ربط الجذور ({formatPlanPriceUsd(SUBSCRIPTION_PLANS.basic.monthlyPriceUsd)}/شهر)
           </button>
+
+          <p className="text-[10.5px] text-[#1F1F1C]/65 leading-relaxed">
+            {officialMatchingDisclaimer}
+          </p>
         </div>
       );
     }
 
+    const decisionHeadline =
+      lineageResearchStatus === 'partial_investigating'
+        ? 'تقاطع جزئي واعد — ملف عائلتك قيد الاستقصاء المعمق لدى هيئة البحوث'
+        : lineageResearchStatus === 'needs_client_info'
+        ? 'تحتاج هيئة البحوث إلى إيضاح أو وثيقة إضافية لإكمال ربط الجذر'
+        : lineageResearchStatus === 'insufficient_sources'
+        ? 'تعذّر إثبات الربط المرجعي حالياً لعدم كفاية المصادر — ملفك محفوظ في الرصد المستمر'
+        : `لم يظهر اتصال مباشر لعائلة (${result.familyName}) في الفهرس الآلي حالياً`;
+
     return (
       <div
         data-testid="unmatched-active-p1-ticket-card"
-        className="max-w-[440px] w-full mx-auto rounded-2xl p-5 bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_6px_22px_-10px_rgba(31,31,28,0.12)] relative z-20 text-right space-y-3.5"
+        className="max-w-[480px] w-full mx-auto rounded-2xl p-5 bg-[#FAF7F2] border border-[#D8C7B2] shadow-[0_6px_22px_-10px_rgba(31,31,28,0.12)] relative z-20 text-right space-y-3.5"
       >
         <div className="space-y-1.5">
           <div className="text-[11px] font-display font-extrabold text-[#D97757]">
-            تذكرة أولوية قصوى P1 · مفعّلة ✓
+            {lineageResearchStatus
+              ? 'تحديث رسمي من مدير البحوث وهيئة الأنساب'
+              : 'البحث عن ربط الجذور · مفعّل في باقتك ✓'}
           </div>
           <h3 className="text-sm sm:text-base font-display font-extrabold leading-snug text-[#1F1F1C]">
-            تذكرة بحث وتوثيق نشطة لدى فريق الباحثين — جاري استخراج وتوثيق عمود نسب العائلة
+            {decisionHeadline}
           </h3>
           <p className="text-xs leading-relaxed text-[#1F1F1C]/75">
-            يعمل فريق النسابين والمحققين حالياً على مراجعة أرشيف المخطوطات وأمهات الكتب لتوثيق جذر وعمود نسب عائلة ({result.familyName}). يمكنك الآن البدء ببناء شجرة عائلتك القريبة في تبويب «شجرتي» ريثما يعتمد الباحثون عمودك الكامل.
+            {lineageResearchStatusNote ||
+              'يمكنك متابعة توثيق شجرة عائلتك القريبة في تبويب «شجرتي» أو فتح طلب تحقق مرجعي لدى فريق الباحثين، وسيُحدَّث عمود نسبك تلقائياً فور توفر مصدر موثوق.'}
           </p>
         </div>
 
@@ -1943,9 +1962,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <button
               type="button"
               onClick={onOpenResearchTicketsTab}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] transition-colors cursor-pointer shadow-2xs"
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-display font-bold bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] transition-colors cursor-pointer shadow-2xs"
             >
-              متابعة حالة طلب التحقيق والرد على مراسلات الباحثين
+              متابعة طلب التحقق النسبي ومراسلة الباحثين
             </button>
           )}
           {onOpenMyTreeTab && (
@@ -1958,6 +1977,10 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             </button>
           )}
         </div>
+
+        <p className="text-[10.5px] text-[#1F1F1C]/65 leading-relaxed pt-1 border-t border-[#D8C7B2]/70">
+          {officialMatchingDisclaimer}
+        </p>
       </div>
     );
   };
@@ -2034,8 +2057,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       );
       return;
     }
-    if (!caps.isVip) {
-      onUpgradeAnnualVip();
+    if (!hasLineageConnectionAccess) {
+      triggerLineageBasicUpgrade();
       return;
     }
     onRequestUnlockCapsule(ringGroup);
@@ -2084,8 +2107,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             onClick={() => handleCapsuleClick(item.ringGroup)}
             title={
               caps.isVip
-                ? `اضغط لفتح أسماء الأجداد الفرعيين من رصيد المحفظة (${item.ringGroup.betweenLabel})`
-                : `تُفتح بالباقة السنوية والمحفظة (${item.ringGroup.betweenLabel})`
+                ? `اضغط لفتح أسماء الأجداد الفرعيين (${item.ringGroup.betweenLabel})`
+                : `تُفتح بالباقة المدفوعة (${item.ringGroup.betweenLabel})`
             }
             className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-xs font-display font-extrabold transition-all duration-150 cursor-pointer shadow-2xs ${
               isCompact ? 'w-full h-full min-h-[92px] flex-col text-center' : ''
@@ -2403,6 +2426,11 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
   // ============================================================================
   const renderSpecialTopBlock = () => {
     if (!hasSpecialUpperPaywallOrVerification) return null;
+    if (!hasLineageConnectionAccess) {
+      return effectiveResult.matched
+        ? renderLockedRoot5UsdCard()
+        : renderUnmatchedFamilyUpperSection();
+    }
     if (isUnmatchedCase) return renderUnmatchedFamilyUpperSection();
     if (isVerificationPending) return renderPost5UsdProgressiveVerificationCard();
     return renderLockedRoot5UsdCard();
@@ -3299,7 +3327,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     Boolean(
       effectiveResult.isAlphaOnlyBeforeMerge &&
         !effectiveResult.isAlphaMergedIntoAdam &&
-        (caps.isVip || isResearcherDirectPreview)
+        hasLineageConnectionAccess
     );
 
   const effectiveWalletBalance = Math.max(
@@ -3329,9 +3357,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       return;
     }
     if (effectiveWalletBalance < priceUsd) {
-      const shortfall = Math.max(0, priceUsd - effectiveWalletBalance);
       setAddonWalletWarning(
-        `رصيد المحفظة الحالي ($${effectiveWalletBalance.toFixed(2)}) غير كافٍ لفتح المرجع الإضافي ($${priceUsd.toFixed(2)}). المبلغ المتبقي بدقة: $${shortfall.toFixed(2)}.`
+        `فتح هذا المرجع الإضافي ($${priceUsd.toFixed(2)}) يتطلب إتمام الفوترة عبر مركز إدارة الاشتراك.`
       );
       return;
     }
@@ -3570,30 +3597,43 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           {/* ================================================================ */}
           {/* 6. LUXURY REFERENCE LIBRARY (خزانة الشواهد والمصادر التاريخية)   */}
           {/* ================================================================ */}
-          {!isUnmatchedCase && !isVerificationPending && !isFullscreen && (
-            <LuxuryReferenceLibrary
-              familyName={effectiveResult.familyName}
-              isUnlocked={isSourcesUnlocked}
-              lockedSourcesCount={Math.max(
-                1,
-                effectiveResult.verified_sources?.length ||
-                  effectiveResult.secondarySources?.length ||
-                  1
-              )}
-              aggregatedSources={aggregatedSources}
-              verifiedAddonList={verifiedAddonList}
-              unlockedAddonSourceIds={unlockedAddonSourceIds}
-              localUnlockedAddonIds={localUnlockedAddonIds}
-              processingAddonKey={processingAddonKey}
-              addonWalletWarning={addonWalletWarning}
-              onUnlockAddon={handleUnlockAddonFromLibrary}
-              siblingBranches={aggregatedSiblings}
-              enrichedLocations={effectiveResult.enrichedLocations || []}
-              selectedAncestor={selectedAncestor}
-              onUpgradeAnnualVip={onUpgradeAnnualVip}
-              theme={theme}
-              fontId={studioPrefs.fontId}
-            />
+          {!isUnmatchedCase &&
+            !isVerificationPending &&
+            hasLineageConnectionAccess &&
+            !isFullscreen && (
+              <LuxuryReferenceLibrary
+                familyName={effectiveResult.familyName}
+                isUnlocked={isSourcesUnlocked}
+                lockedSourcesCount={Math.max(
+                  1,
+                  effectiveResult.verified_sources?.length ||
+                    effectiveResult.secondarySources?.length ||
+                    1
+                )}
+                aggregatedSources={aggregatedSources}
+                verifiedAddonList={verifiedAddonList}
+                unlockedAddonSourceIds={unlockedAddonSourceIds}
+                localUnlockedAddonIds={localUnlockedAddonIds}
+                processingAddonKey={processingAddonKey}
+                addonWalletWarning={addonWalletWarning}
+                onUnlockAddon={handleUnlockAddonFromLibrary}
+                siblingBranches={aggregatedSiblings}
+                enrichedLocations={effectiveResult.enrichedLocations || []}
+                selectedAncestor={selectedAncestor}
+                onUpgradeAnnualVip={onUpgradeAnnualVip}
+                theme={theme}
+                fontId={studioPrefs.fontId}
+              />
+            )}
+
+          {/* Official Calm Credibility Disclaimer for Basic & Premium Lineage Search */}
+          {hasLineageConnectionAccess && !isFullscreen && (
+            <p
+              data-testid="lineage-official-credibility-disclaimer"
+              className="relative z-20 max-w-4xl mx-auto w-full text-center text-[11px] text-[#1F1F1C]/65 leading-relaxed pt-1"
+            >
+              {officialMatchingDisclaimer}
+            </p>
           )}
 
           {/* ================================================================ */}

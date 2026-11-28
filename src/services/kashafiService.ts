@@ -23,7 +23,11 @@ import {
   isRuntimeStaffSession,
   sendCustomerNotification,
 } from './firestoreService';
-import { DashboardTab } from '../types/juthori';
+import {
+  DashboardTab,
+  KashafiDiscoveryCategory,
+  ResearchDraftApprovalStatus,
+} from '../types/juthori';
 
 // =============================================================================
 // TYPES — REAL FIRESTORE MODELS FOR KASHAFI (ZERO CLIENT MOCKUPS)
@@ -50,6 +54,15 @@ export interface KashafiItemRecord {
   relatedOrderId?: string;
   authorName: string;
   authorRole?: string;
+  discoveryCategory?: KashafiDiscoveryCategory;
+  bookAuthor?: string;
+  centuryOrYear?: string;
+  pageReference?: string;
+  excerptQuote?: string;
+  documentImageUrl?: string;
+  approvalStatus?: ResearchDraftApprovalStatus;
+  approvedByName?: string;
+  approvedAt?: string;
   isRead: boolean;
   readAt?: string;
   createdAt: string;
@@ -463,6 +476,15 @@ export async function createKashafiItem(params: {
   relatedOrderId?: string;
   authorName: string;
   authorRole?: string;
+  discoveryCategory?: KashafiDiscoveryCategory;
+  bookAuthor?: string;
+  centuryOrYear?: string;
+  pageReference?: string;
+  excerptQuote?: string;
+  documentImageUrl?: string;
+  approvalStatus?: ResearchDraftApprovalStatus;
+  approvedByName?: string;
+  approvedAt?: string;
 }): Promise<KashafiItemRecord | null> {
   const cleanUserId = (
     params.targetUserId ||
@@ -488,6 +510,15 @@ export async function createKashafiItem(params: {
     relatedOrderId: params.relatedOrderId?.slice(0, 128) || undefined,
     authorName: (params.authorName || 'مرصد بحوث جذوري').slice(0, 140),
     authorRole: (params.authorRole || 'مدير البحوث').slice(0, 80),
+    discoveryCategory: params.discoveryCategory || undefined,
+    bookAuthor: params.bookAuthor?.trim().slice(0, 180) || undefined,
+    centuryOrYear: params.centuryOrYear?.trim().slice(0, 80) || undefined,
+    pageReference: params.pageReference?.trim().slice(0, 120) || undefined,
+    excerptQuote: params.excerptQuote?.trim().slice(0, 2000) || undefined,
+    documentImageUrl: params.documentImageUrl?.trim().slice(0, 350000) || undefined,
+    approvalStatus: params.approvalStatus || 'approved',
+    approvedByName: params.approvedByName?.trim().slice(0, 140) || undefined,
+    approvedAt: params.approvedAt || nowIso,
     isRead: false,
     createdAt: nowIso,
   };
@@ -566,9 +597,12 @@ export async function fetchCustomerKashafiItems(
       }
     }
   }
-  return Array.from(byId.values()).sort((a, b) =>
-    (b.createdAt || '').localeCompare(a.createdAt || '')
-  );
+  return Array.from(byId.values())
+    .filter(
+      (item) =>
+        !item.approvalStatus || item.approvalStatus === 'approved'
+    )
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
 export async function markKashafiItemRead(itemId: string): Promise<void> {

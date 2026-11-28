@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Check,
   CheckCircle2,
   Crown,
   FileSignature,
@@ -11,8 +12,21 @@ import {
 } from 'lucide-react';
 import { RECORD_KEEPER_CONTRACT_METADATA } from '../data/recordKeeperContractData';
 import type { LegalAuditTrailEntry } from '../services/firestoreService';
+import {
+  ANNUAL_BILLING_SAVINGS_PERCENT,
+  BillingCycle,
+  SUBSCRIPTION_PLANS,
+  SubscriptionPlanId,
+  formatPlanPriceUsd,
+  getPlanPriceUsd,
+  getPlanRank,
+  getRequiredPlanForFeature,
+} from '../config/subscriptionPlans';
 
 export type UpgradeActionFeatureKey =
+  | 'lineage_connection'
+  | 'kashafi'
+  | 'customer_support'
   | 'tree_add_relative'
   | 'tree_export'
   | 'tree_invite'
@@ -23,10 +37,12 @@ export type UpgradeActionFeatureKey =
   | 'community_invite'
   | 'community_qr'
   | 'community_quest'
-  | 'community_event';
+  | 'community_event'
+  | 'site_enrichment_review';
 
 export interface UpgradePromptRequest {
   feature: UpgradeActionFeatureKey;
+  requiredTier?: 'basic' | 'premium';
   title?: string;
   description?: string;
   actionLabel?: string;
@@ -38,9 +54,14 @@ interface UpgradeToPremiumModalProps {
   request: UpgradePromptRequest | null;
   familyName: string;
   isVip: boolean;
+  currentPlanId?: SubscriptionPlanId;
   isCharterSigned: boolean;
   onClose: () => void;
   onStartVipCheckout: () => void;
+  onSelectPlanCheckout?: (
+    planId: 'basic' | 'premium',
+    billingCycle: BillingCycle
+  ) => void;
   onConfirmCharterSignature: () => Promise<LegalAuditTrailEntry>;
   onOpenFullContractModal: () => void;
 }
@@ -52,138 +73,172 @@ const FEATURE_DEFAULTS: Record<
     title: string;
     description: string;
     highlights: string[];
+    requiresCharter?: boolean;
   }
 > = {
-  tree_add_relative: {
-    eyebrow: 'توسيع مشجرة العائلة — عضوية بريميوم وأمين السجل',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل للبدء في بناء وتوسيع شجرة عائلتك',
+  lineage_connection: {
+    eyebrow: 'البحث عن ربط الجذور — عمود نسبي',
+    title: 'افتح البحث الكامل عن ربط الجذور وعمود النسب الموثّق لعائلتك',
     description:
-      'بعد الترقية واعتماد ميثاق أمين السجل ستُفتح لك مباشرة نافذة إضافة الأقارب لتوثيق الآباء والأبناء والفروع وربطهم بعمود النسب.',
+      'رقِّ عضويتك إلى باقة Basic أو Premium لاستعراض ربط عائلتك بالمصادر التاريخية، وكشف المحطات القبلية وعمود النسب الموثّق.',
     highlights: [
-      'إضافة الأفراد والفروع والزوجات وتخصيص مظهر المشجرة بالكامل',
-      'التوثيق الرسمي بصفة «أمين سجل العائلة» مع شهادة ميثاق إلكترونية',
-      'هدية فورية بقيمة $20 رصيد في المحفظة الرقمية ضمن الاشتراك السنوي',
+      'فتح البحث الكامل عن ربط الجذور وعرض عمود النسب الموثّق',
+      `توسيع سعة شجرتي وخزانتي لتجاوز الحد المجاني (${SUBSCRIPTION_PLANS.free.limits.maxTreeNodes} فرد / ${SUBSCRIPTION_PLANS.free.limits.maxVaultItems} مقتنىً)`,
+      'تفعيل خدمة العملاء المباشرة لمساندتك في التوثيق',
+    ],
+  },
+  kashafi: {
+    eyebrow: 'كشّافي (My Discoveries) — حصري لباقة Premium',
+    title: 'اكتشف ما وراء شجرة عائلتك عبر باقة Premium',
+    description:
+      'باقة Premium تفتح لك «كشّافي» للوصول إلى معلومات عائلية أعمق، ومصادر ومراجع، ووثائق تاريخية، وقصص وسير، واكتشافات مستمرة تبعاً لتوفر المصادر.',
+    highlights: [
+      'الوصول الكامل إلى «كشّافي» والمصادر والمراجع والوثائق التاريخية',
+      'تفعيل نشر موقع العائلة المستقل «موقعي» فور استيفاء الميثاق والحد الأدنى',
+      'يشمل جميع مزايا باقة Basic (ربط الجذور، الشجرة والخزانة الموسّعة، خدمة العملاء)',
+    ],
+  },
+  customer_support: {
+    eyebrow: 'خدمة العملاء المباشرة — باقة Basic وما فوق',
+    title: 'تواصل مباشرة مع فريق خدمة العملاء في جذوري',
+    description:
+      'تتوفر خدمة العملاء المباشرة بدءاً من باقة Basic، إلى جانب فتح ربط الجذور وتوسيع سعة شجرتي وخزانتي.',
+    highlights: [
+      'دعم مباشر من فريق جذوري لإرشادك في التوثيق وإدارة السجل',
+      'فتح البحث الكامل عن ربط الجذور وعمود النسب الموثّق',
+      'توسيع سعة شجرتي وخزانتي بما يتجاوز الحد المجاني',
+    ],
+  },
+  tree_add_relative: {
+    eyebrow: 'توسيع مشجرة العائلة — شجرتي',
+    title: `وسّع شجرة عائلتك وتجاوز الحد المجاني (${SUBSCRIPTION_PLANS.free.limits.maxTreeNodes} فرد)`,
+    description: `تتيح لك الباقة المجانية بناء شجرتك حتى ${SUBSCRIPTION_PLANS.free.limits.maxTreeNodes} فرد مجاناً. للانتقال إلى السعة الموسّعة والتصدير والطباعة، اختر باقة Basic أو Premium.`,
+    highlights: [
+      `تجاوز حد ${SUBSCRIPTION_PLANS.free.limits.maxTreeNodes} فرد في شجرتي وإضافة الأجيال والفروع بحرية`,
+      'تصدير وطباعة المشجرة بجودة فائقة الدقة للمجالس العائلية',
+      'فتح ربط الجذور وخدمة العملاء المباشرة ضمن الباقة',
     ],
   },
   tree_export: {
     eyebrow: 'التصدير والطباعة الفاخرة — شجرتي',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لتصدير وطباعة شجرة عائلتك',
+    title: 'رقِّ عضويتك لتصدير وطباعة شجرة عائلتك بجودة عالية',
     description:
-      'احفظ مشجرة العائلة كلوحة فنية فائقة الدقة (PNG / PDF) جاهزة للطباعة والمجالس العائلية بختم منصة جذوري.',
+      'احفظ مشجرة العائلة كلوحة فنية عالية الدقة (PNG / PDF) جاهزة للطباعة والمجالس العائلية، متاحة بدءاً من باقة Basic.',
     highlights: [
       'تصدير بجودة طباعة عالية وأحجام لوحات جدارية جاهزة',
       'ختم التوثيق الرقمي وهوية العائلة المعتمدة',
-      'إمكانية التصدير غير المحدود بعد كل تحديث في الشجرة',
+      'توسيع سعة شجرتي وخزانتي مع فتح ربط الجذور',
     ],
   },
   tree_invite: {
     eyebrow: 'مشاركة المشجرة ودعوة الأهل',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لمشاركة الشجرة ودعوة أقاربك',
+    title: 'شارك شجرة عائلتك ووسّع التوثيق مع أقاربك',
     description:
-      'أنشئ روابط دعوة رسمية وبطاقات QR موثّقة ليطّلع أبناء العائلة على المشجرة ويشاركوا في إثرائها.',
+      'اختر باقة Basic أو Premium لفتح التصدير وربط الجذور، أو ترقَّ إلى Premium لإطلاق بوابة عائلتك ومجتمعك العائلي بالكامل.',
     highlights: [
-      'دعوات موثقة للأقارب بصلاحيات تحكم وخصوصية دقيقة',
-      'بطاقة دعوة عائلية فاخرة مع رمز QR مباشر',
-      'سجل كامل لأعضاء الدائرة المنضمين للمشجرة',
+      'توسيع شجرتي وخزانتي وتفعيل التصدير والطباعة',
+      'فتح البحث الكامل عن ربط الجذور وعمود النسب',
+      'باقة Premium تضيف «كشّافي» ونشر بوابة «موقعي» المستقلة',
     ],
   },
   vault_upload: {
-    eyebrow: 'خزانة ذاكرة العائلة — الأرشفة السحابية',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لرفع وحفظ صور ووثائق عائلتك',
-    description:
-      'احتفظ بصور الأجداد والمخطوطات والوثائق النادرة في خزانة مشفرة ومرتبطة بأفراد شجرة العائلة معزولة بالكامل لحسابك.',
+    eyebrow: 'توسيع خزانة ذاكرة العائلة — خزانتي',
+    title: `وسّع خزانة عائلتك وتجاوز الحد المجاني (${SUBSCRIPTION_PLANS.free.limits.maxVaultItems} مقتنىً)`,
+    description: `تتيح لك الباقة المجانية حفظ حتى ${SUBSCRIPTION_PLANS.free.limits.maxVaultItems} صورة ووثيقة مجاناً. لتوسيع السعة والاستفادة من ربط الجذور وخدمة العملاء، اختر Basic أو Premium.`,
     highlights: [
-      'رفع الصور والوثائق والقصص التاريخية وربطها بأفراد الشجرة',
+      `تجاوز حد ${SUBSCRIPTION_PLANS.free.limits.maxVaultItems} مقتنىً لحفظ كافة صور ووثائق ومخطوطات العائلة`,
       'عزل وخصوصية تامة لمقتنيات عائلتك مع نسخ سحابي آمن',
-      'إنشاء مجلدات وألبومات مخصصة لكل فرع أو مناسبة',
+      'ربط المقتنيات بأفراد الشجرة وبوابة العائلة (في Premium)',
     ],
   },
   vault_create_folder: {
     eyebrow: 'تنظيم خزانة العائلة — المجلدات الخاصة',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لإنشاء مجلدات أرشفة مخصصة',
+    title: 'وسّع خزانتك وأنشئ مجلدات أرشفة مخصصة لعائلتك',
     description:
-      'رتّب ذاكرة عائلتك في مجلدات مصنفة حسب الفروع والحقب الزمنية والوثائق الرسمية بمرونة كاملة.',
+      'رتّب ذاكرة عائلتك في مجلدات مصنفة حسب الفروع والحقب الزمنية والوثائق الرسمية مع سعة موسّعة في Basic وPremium.',
     highlights: [
-      'إنشاء عدد مفتوح من المجلدات المصنفة لمقتنيات العائلة',
-      'تحكم كامل بخصوصية المجلدات وإظهارها في موقع العائلة',
-      'تزامن فوري بين الخزانة والمشجرة وموقع العائلة',
+      'تنظيم غير محدود للمجلدات المصنفة حسب الفروع والمناسبات',
+      'سعة خزانة موسّعة (حتى بلا حدود في باقة Premium)',
+      'تزامن فوري بين الخزانة والمشجرة',
     ],
   },
   site_publish: {
-    eyebrow: 'نشر البوابة الرقمية للعائلة — موقعي',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لنشر وتفعيل موقع عائلتك الإلكتروني',
+    eyebrow: 'نشر البوابة الرقمية المستقلة — موقعي (Premium)',
+    title: 'رقِّ إلى باقة Premium ووقّع ميثاق أمين السجل لنشر موقع عائلتك',
     description:
-      'تعديلاتك وتصميماتك محفوظة بالكامل؛ أكمل الترقية واعتماد الميثاق لإطلاق رابط موقع العائلة الرسمي للعالم والأقارب.',
+      'تعديلاتك وتصميماتك في الاستوديو محفوظة بالكامل؛ يتاح نشر موقع العائلة المستقل ضمن باقة Premium فور استيفاء ميثاق النشر والحد الأدنى من البيانات.',
     highlights: [
       'رابط رسمي دائم ومستقل لبوابة العائلة الإلكترونية',
       'تحكم كامل بالخصوصية والرمز السري وترتيب أقسام الموقع',
-      'تحديثات فورية للمحتوى والصور والمشجرة التفاعلية',
+      'يشمل «كشّافي» وربط الجذور وسعات شجرتي وخزانتي الموسّعة',
     ],
+    requiresCharter: true,
   },
   site_qr: {
-    eyebrow: 'بطاقة الدعوة ورمز QR لبوابة العائلة',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لإصدار بطاقة الدعوة ورمز QR',
+    eyebrow: 'بطاقة الدعوة ورمز QR لبوابة العائلة — Premium',
+    title: 'فعّل باقة Premium وميثاق أمين السجل لإصدار بطاقة الدعوة وQR',
     description:
       'أصدر بطاقة دعوة رقمية ورمز QR جاهز للمشاركة في المجالس والمناسبات لفتح بوابة عائلتك بضغطة واحدة.',
     highlights: [
       'بطاقة دعوة مصممة بهوية العائلة جاهزة للطباعة والواتساب',
-      'رمز QR مرتبط مباشرة ببوابة العائلة أو الدعوة السرية',
-      'تحكم كامل بتفعيل أو إيقاف الدعوات في أي وقت',
+      'رمز QR مرتبط مباشرة ببوابة العائلة المنشورة',
+      'يشمل جميع مزايا باقة Premium وكشّافي',
     ],
+    requiresCharter: true,
   },
   community_invite: {
-    eyebrow: 'دائرة الرحم والتواصل العائلي — مجتمعي',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لإرسال دعوات رسمية لأقاربك',
+    eyebrow: 'دائرة الأقارب والتواصل العائلي — بدءاً من Basic',
+    title: 'رقِّ إلى باقة Basic لإرسال دعوات رسمية لأقاربك وإدارة دائرة العائلة',
     description:
-      'ابنِ دائرة رحم عائلتك وادعُ الأقارب للانضمام والمشاركة في التوثيق وتبادل الذكريات ضمن بيئة موثوقة.',
+      'ابنِ دائرة رحم عائلتك وادعُ الأقارب للانضمام والمشاركة في التوثيق وتبادل الذكريات بدءاً من الباقة الأساسية (Basic) أو المميزة (Premium).',
     highlights: [
       'إرسال دعوات رسمية موثقة للأقارب عبر البريد والروابط الخاصة',
-      'ربط كل قريب بموقعه المباشر داخل شجرة العائلة',
-      'إدارة طلبات الانضمام وصلاحيات الإضافة بيد أمين السجل',
+      'ربط كل قريب بموقعه المباشر داخل شجرة العائلة وتحديد صلاحياته',
+      'يشمل فتح ربط الجذور وتوسيع شجرتي وخزانتي وخدمة العملاء المباشرة',
     ],
   },
   community_qr: {
-    eyebrow: 'بطاقة دعوة دائرة العائلة ورمز QR',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لإصدار بطاقة دعوة الدائرة وQR',
+    eyebrow: 'بطاقة دعوة دائرة العائلة ورمز QR — بدءاً من Basic',
+    title: 'رقِّ إلى باقة Basic لإصدار بطاقة دعوة دائرة العائلة ورمز QR',
     description:
-      'شارك بطاقة الدعوة الرسمية مع أقاربك لربطهم بدائرة عائلتك واستعراض الشجرة والخزانة بسهولة.',
+      'شارك بطاقة الدعوة الرسمية مع أقاربك لربطهم بدائرة عائلتك بضغطة واحدة، متاحة بدءاً من الباقة الأساسية (Basic).',
     highlights: [
       'بطاقة فاخرة مع رمز QR مباشر للانضمام لدائرة العائلة',
-      'صلاحيات دخول مضبوطة ومحمية بهوية أمين السجل',
-      'إدارة فورية لقائمة الأعضاء المنضمين لدائرة الرحم',
+      'إدارة فورية لقائمة الأقارب المنضمين وصلاحياتهم',
+      'توسيع سعة الشجرة والخزانة وفتح ربط الجذور وخدمة العملاء',
     ],
   },
   community_quest: {
-    eyebrow: 'حملات ذاكرة العائلة — مجتمعي',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لإطلاق حملة ذاكرة عائلية',
+    eyebrow: 'حملات ذاكرة العائلة — بدءاً من Basic',
+    title: 'رقِّ إلى باقة Basic لإطلاق حملات جمع صور وذكريات العائلة',
     description:
-      'أطلق حملة جمع صور وذكريات الأجداد ليشارك فيها جميع أفراد العائلة وتُحفظ تلقائياً في أرشيفكم.',
+      'أطلق حملة جمع صور وذكريات الأجداد ليشارك فيها أفراد العائلة وتُحفظ في أرشيفكم، متاحة بدءاً من باقة Basic.',
     highlights: [
       'إطلاق حملات توثيق لجمع الصور والقصص النادرة من الأقارب',
-      'متابعة المساهمات الواردة واعتمادها قبل إضافتها للخزانة',
-      'توثيق أسماء المساهمين في سجل شرف العائلة',
+      'مشاركة نداء التوثيق مباشرة في مجموعات العائلة وواتساب',
+      'حفظ المقتنيات بسعة موسّعة في خزانتي مع ربط الجذور',
     ],
   },
   community_event: {
-    eyebrow: 'المناسبات العائلية الرسمية — مجتمعي',
-    title:
-      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل لإنشاء مناسبة عائلية رسمية',
+    eyebrow: 'المناسبات العائلية وصلة الرحم — بدءاً من Basic',
+    title: 'رقِّ إلى باقة Basic لإنشاء مناسبة عائلية وتتبع تأكيدات الحضور',
     description:
-      'نظّم اللقاءات السنوية والمناسبات العائلية وأرسل الدعوات الرسمية وتتبع تأكيدات الحضور من مكان واحد.',
+      'نظّم اللقاءات السنوية والمناسبات العائلية وأرسل الدعوات الرسمية وتتبع تأكيدات الحضور، متاحة بدءاً من باقة Basic.',
     highlights: [
       'إنشاء مناسبات واجتماعات عائلية مع الموقع والتوقيت التفصيلي',
       'تأكيد حضور الأقارب ومتابعة القائمة لحظياً',
-      'أرشفة صور وذكريات المناسبة مباشرة في خزانة العائلة',
+      'فتح ربط الجذور وسعة موسّعة لشجرتي وخزانتي',
+    ],
+  },
+  site_enrichment_review: {
+    eyebrow: 'مراجعة مقترحات إثراء موقع العائلة — حصري لباقة Premium',
+    title: 'رقِّ إلى باقة Premium لمراجعة واعتماد مقترحات الإثراء الواردة لموقع الديوان',
+    description:
+      'إدارة واعتماد مقترحات الإثراء الواردة من زوار وأقارب موقع عائلتك المنشور ودمجها مباشرة في السجل متاحة حصرياً ضمن باقة Premium.',
+    highlights: [
+      'مراجعة واعتماد مقترحات إضافة الأفراد والصور والقصص الواردة من موقع العائلة',
+      'نشر وتفعيل موقع العائلة المستقل «موقعي» برابط دائم',
+      'الوصول الكامل إلى «كشّافي» والمصادر والوثائق التاريخية',
     ],
   },
 };
@@ -193,23 +248,82 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
   request,
   familyName,
   isVip,
+  currentPlanId,
   isCharterSigned,
   onClose,
   onStartVipCheckout,
+  onSelectPlanCheckout,
   onConfirmCharterSignature,
   onOpenFullContractModal,
 }) => {
+  const effectivePlanId: SubscriptionPlanId =
+    currentPlanId ?? (isVip ? 'premium' : 'free');
+  const requiredPlan: 'basic' | 'premium' = request
+    ? (request.requiredTier ?? getRequiredPlanForFeature(request.feature))
+    : 'premium';
+
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
+  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'premium'>(
+    requiredPlan
+  );
   const [consentChecked, setConsentChecked] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [signError, setSignError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen || !request) return;
+    const reqPlan =
+      request.requiredTier ?? getRequiredPlanForFeature(request.feature);
+    if (effectivePlanId === 'basic' || reqPlan === 'premium') {
+      setSelectedPlan('premium');
+    } else {
+      setSelectedPlan('basic');
+    }
+    setSignError('');
+  }, [isOpen, request, effectivePlanId]);
 
   if (!isOpen || !request) return null;
 
   const meta = FEATURE_DEFAULTS[request.feature];
   const headline = request.title || meta.title;
   const description = request.description || meta.description;
-  const currentStep: 1 | 2 = !isVip ? 1 : 2;
+  const hasSufficientPlan =
+    getPlanRank(effectivePlanId) >= getPlanRank(requiredPlan);
+  const needsCharterStep = Boolean(meta.requiresCharter) && !isCharterSigned;
+  const currentStep: 1 | 2 = !hasSufficientPlan ? 1 : 2;
   const cleanFamily = familyName?.trim() || 'عائلتك';
+
+  const canChooseBasic =
+    requiredPlan === 'basic' && effectivePlanId === 'free';
+  const selectablePlans: Array<'basic' | 'premium'> = canChooseBasic
+    ? ['basic', 'premium']
+    : ['premium'];
+
+  const isBasicSteppingUpToPremium =
+    effectivePlanId === 'basic' && requiredPlan === 'premium';
+  const monthlyStepUpDiffUsd = Number(
+    (
+      SUBSCRIPTION_PLANS.premium.monthlyPriceUsd -
+      SUBSCRIPTION_PLANS.basic.monthlyPriceUsd
+    ).toFixed(2)
+  );
+  const annualStepUpDiffUsd = Number(
+    (
+      SUBSCRIPTION_PLANS.premium.annualPriceUsd -
+      SUBSCRIPTION_PLANS.basic.annualPriceUsd
+    ).toFixed(2)
+  );
+
+  const activePlanDef = SUBSCRIPTION_PLANS[selectedPlan];
+  const activePriceUsd = getPlanPriceUsd(selectedPlan, billingCycle);
+
+  const handleCheckoutNow = () => {
+    if (onSelectPlanCheckout) {
+      onSelectPlanCheckout(selectedPlan, billingCycle);
+    } else {
+      onStartVipCheckout();
+    }
+  };
 
   const handleSignNow = async () => {
     if (!consentChecked || isSigning) return;
@@ -244,7 +358,7 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
       aria-modal="true"
       aria-labelledby="upgrade-premium-modal-title"
     >
-      <div className="w-full max-w-xl rounded-3xl bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_28px_70px_-20px_rgba(31,31,28,0.28)] overflow-hidden my-auto">
+      <div className="w-full max-w-2xl rounded-3xl bg-[#F5F1E8] border border-[#D8C7B2] shadow-[0_28px_70px_-20px_rgba(31,31,28,0.28)] overflow-hidden my-auto">
         {/* Warm Ivory & Soft Beige Top Header */}
         <div className="relative px-6 pt-6 pb-5 bg-[#E8DED2] border-b border-[#D8C7B2]">
           <button
@@ -268,79 +382,218 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
             {headline}
           </h2>
 
-          {/* 2-Step Journey Stepper (Premium VIP -> Registrar Charter) */}
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <div
-              className={`rounded-2xl px-3.5 py-2.5 border flex items-center gap-2.5 transition-colors ${
-                isVip
-                  ? 'bg-[#FAF7F2] border-[#D97757]/50'
-                  : 'bg-[#FAF7F2] border-[#D97757] shadow-xs'
-              }`}
-            >
-              <span
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
-                  isVip
-                    ? 'bg-[#D97757] text-[#F5F1E8]'
-                    : 'bg-[#D97757] text-[#F5F1E8]'
+          {/* Optional 2-Step Stepper when Registrar Charter is also required */}
+          {meta.requiresCharter && (
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              <div
+                className={`rounded-2xl px-3.5 py-2.5 border flex items-center gap-2.5 transition-colors ${
+                  hasSufficientPlan
+                    ? 'bg-[#FAF7F2] border-[#D97757]/50'
+                    : 'bg-[#FAF7F2] border-[#D97757] shadow-xs'
                 }`}
               >
-                {isVip ? <CheckCircle2 className="w-3.5 h-3.5" /> : '1'}
-              </span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] truncate">
-                  عضوية بريميوم السنوية
-                </div>
-                <div className="text-[10px] font-bold text-[#D97757]">
-                  {isVip ? 'مفعّلة بنجاح ✓' : '$60 / سنة (+ $20 هدية)'}
+                <span className="w-6 h-6 rounded-full bg-[#D97757] text-[#F5F1E8] flex items-center justify-center text-xs font-mono font-bold shrink-0">
+                  {hasSufficientPlan ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    '1'
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] truncate">
+                    تفعيل باقة {SUBSCRIPTION_PLANS[requiredPlan].code}
+                  </div>
+                  <div className="text-[10px] font-bold text-[#D97757] tabular-nums">
+                    {hasSufficientPlan
+                      ? 'مفعّلة بنجاح ✓'
+                      : `بدءاً من ${formatPlanPriceUsd(
+                          SUBSCRIPTION_PLANS[requiredPlan].monthlyPriceUsd
+                        )}/شهر`}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div
-              className={`rounded-2xl px-3.5 py-2.5 border flex items-center gap-2.5 transition-colors ${
-                isCharterSigned
-                  ? 'bg-[#FAF7F2] border-[#D97757]/50'
-                  : currentStep === 2
-                    ? 'bg-[#FAF7F2] border-[#D97757] shadow-xs'
-                    : 'bg-[#F5F1E8]/80 border-[#D8C7B2]'
-              }`}
-            >
-              <span
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
-                  isCharterSigned || currentStep === 2
-                    ? 'bg-[#D97757] text-[#F5F1E8]'
-                    : 'bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2]'
+              <div
+                className={`rounded-2xl px-3.5 py-2.5 border flex items-center gap-2.5 transition-colors ${
+                  isCharterSigned
+                    ? 'bg-[#FAF7F2] border-[#D97757]/50'
+                    : currentStep === 2
+                      ? 'bg-[#FAF7F2] border-[#D97757] shadow-xs'
+                      : 'bg-[#F5F1E8]/80 border-[#D8C7B2]'
                 }`}
               >
-                {isCharterSigned ? (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                ) : (
-                  '2'
-                )}
-              </span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] truncate">
-                  توقيع ميثاق أمين السجل
-                </div>
-                <div className="text-[10px] font-semibold text-[#1F1F1C]/70">
-                  {isCharterSigned
-                    ? 'تم الاعتماد ✓'
-                    : currentStep === 2
-                      ? 'الخطوة الأخيرة للتفعيل'
-                      : 'مباشرة بعد الترقية'}
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
+                    isCharterSigned || currentStep === 2
+                      ? 'bg-[#D97757] text-[#F5F1E8]'
+                      : 'bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2]'
+                  }`}
+                >
+                  {isCharterSigned ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    '2'
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-display font-extrabold text-[#1F1F1C] truncate">
+                    توقيع ميثاق أمين السجل
+                  </div>
+                  <div className="text-[10px] font-semibold text-[#1F1F1C]/70">
+                    {isCharterSigned
+                      ? 'تم الاعتماد ✓'
+                      : currentStep === 2
+                        ? 'الخطوة الأخيرة للتفعيل'
+                        : 'مباشرة بعد الترقية'}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-5 bg-[#F5F1E8]">
           {currentStep === 1 ? (
             <>
-              <p className="text-xs sm:text-sm text-[#1F1F1C]/85 leading-relaxed font-medium">
-                {description}
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs sm:text-sm text-[#1F1F1C]/85 leading-relaxed font-medium flex-1">
+                  {description}
+                </p>
+
+                {/* Monthly / Annual Billing Toggle */}
+                <div
+                  role="group"
+                  aria-label="دورة الدفع"
+                  className="inline-flex items-center p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] self-start sm:self-center shrink-0"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle('monthly')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                      billingCycle === 'monthly'
+                        ? 'bg-[#FDFBF7] text-[#1F1F1C] border border-[#D8C7B2]'
+                        : 'text-[#1F1F1C]/70 hover:text-[#1F1F1C]'
+                    }`}
+                  >
+                    شهري
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle('annual')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                      billingCycle === 'annual'
+                        ? 'bg-[#D97757] text-[#F5F1E8]'
+                        : 'text-[#1F1F1C]/75 hover:text-[#1F1F1C]'
+                    }`}
+                  >
+                    سنوي · وفّر {ANNUAL_BILLING_SAVINGS_PERCENT}%
+                  </button>
+                </div>
+              </div>
+
+              {/* Step-up difference callout for Basic subscribers moving to Premium */}
+              {isBasicSteppingUpToPremium && (
+                <div className="rounded-2xl bg-[#FAF7F2] border border-[#D97757]/55 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="font-display font-bold text-[#1F1F1C]">
+                    أنت مشترك حالياً في الباقة الأساسية (Basic) — يمكنك الترقية إلى Premium بفارق بسيط فقط:
+                  </div>
+                  <div
+                    dir="ltr"
+                    className="font-display font-extrabold text-[#D97757] tabular-nums"
+                  >
+                    +
+                    {formatPlanPriceUsd(
+                      billingCycle === 'annual'
+                        ? annualStepUpDiffUsd
+                        : monthlyStepUpDiffUsd
+                    )}{' '}
+                    {billingCycle === 'annual' ? '/ سنة' : '/ شهر'}
+                  </div>
+                </div>
+              )}
+
+              {/* Selectable Plan Cards (Basic & Premium, or Premium only) */}
+              <div
+                className={`grid grid-cols-1 ${
+                  selectablePlans.length > 1 ? 'sm:grid-cols-2' : ''
+                } gap-3.5`}
+              >
+                {selectablePlans.map((pid) => {
+                  const p = SUBSCRIPTION_PLANS[pid];
+                  const isSelected = selectedPlan === pid;
+                  const price = getPlanPriceUsd(pid, billingCycle);
+                  const isReq = requiredPlan === pid;
+
+                  return (
+                    <button
+                      key={pid}
+                      type="button"
+                      onClick={() => setSelectedPlan(pid)}
+                      className={`text-right rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                        isSelected
+                          ? 'bg-[#FDFBF7] border-2 border-[#D97757] shadow-xs'
+                          : 'bg-[#FAF7F2] border-[#D8C7B2] hover:border-[#D97757]/60'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-display font-extrabold text-[#D97757]">
+                            {p.code} · {p.nameAr}
+                          </span>
+                          <span
+                            className={`text-[11px] font-display font-bold ${
+                              isReq ? 'text-[#D97757]' : 'text-[#1F1F1C]/70'
+                            }`}
+                          >
+                            {isReq
+                              ? pid === 'basic'
+                                ? 'الخيار الأنسب لهذه الميزة'
+                                : 'الباقة المطلوبة لهذه الميزة'
+                              : 'للتغطية الشاملة مع كشّافي وموقعي'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1.5">
+                          <span
+                            dir="ltr"
+                            className="text-2xl font-display font-extrabold text-[#1F1F1C] tabular-nums"
+                          >
+                            {formatPlanPriceUsd(price)}
+                          </span>
+                          <span className="text-xs text-[#1F1F1C]/65">
+                            {billingCycle === 'annual' ? '/ سنة' : '/ شهر'}
+                          </span>
+                        </div>
+
+                        {billingCycle === 'annual' && (
+                          <div className="text-[11px] font-medium text-[#D97757] tabular-nums">
+                            ~${p.annualMonthlyEquivalentUsd.toFixed(2)} / شهرياً · توفير{' '}
+                            {p.annualSavingsPercent}%
+                          </div>
+                        )}
+
+                        <p className="text-[11.5px] text-[#1F1F1C]/80 leading-relaxed pt-1">
+                          {p.taglineAr}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-[#D8C7B2]/60 flex items-center justify-between text-[11px] font-display font-bold">
+                        <span
+                          className={
+                            isSelected ? 'text-[#D97757]' : 'text-[#1F1F1C]/60'
+                          }
+                        >
+                          {isSelected ? 'الباقة المختارة ✓' : 'اضغط لاختيار هذه الباقة'}
+                        </span>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-[#D97757]" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Benefits List */}
               <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-4 space-y-2.5">
@@ -361,35 +614,20 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
                 </ul>
               </div>
 
-              {/* Pricing Strip */}
-              <div className="rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
-                    باقة جذوري بريميوم السنوية + صفة أمين السجل
-                  </div>
-                  <div className="text-[11px] text-[#1F1F1C]/70 mt-0.5">
-                    تشمل الشجرة والخزانة والموقع والمجتمع + بحث الأنساب المعمّق
-                  </div>
-                </div>
-                <div className="text-left">
-                  <div className="text-xl font-mono font-extrabold text-[#D97757] leading-none">
-                    $60
-                    <span className="text-[11px] font-display font-bold text-[#1F1F1C]/70 mr-1">
-                      / سنة
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               {/* Primary CTA */}
               <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
                 <button
                   type="button"
-                  onClick={onStartVipCheckout}
+                  onClick={handleCheckoutNow}
                   className="w-full sm:flex-1 py-3.5 px-5 rounded-2xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Crown className="w-4 h-4 shrink-0" />
-                  <span>الترقية الآن إلى بريميوم ($60/سنة) ومتابعة التوقيع</span>
+                  <span>
+                    الترقية إلى {activePlanDef.code} (
+                    {formatPlanPriceUsd(activePriceUsd)}
+                    {billingCycle === 'annual' ? '/سنة' : '/شهر'})
+                    {needsCharterStep ? ' ومتابعة التوقيع' : ''}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -414,7 +652,7 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
                         اعتماد ميثاق أمين سجل عائلة ({cleanFamily})
                       </div>
                       <div className="text-[11px] text-[#1F1F1C]/70">
-                        خطوة واحدة لتفعيل صلاحيات الإضافة والنشر والدعوة فوراً
+                        خطوة واحدة لتفعيل صلاحيات النشر والدعوة الرسمية فوراً
                       </div>
                     </div>
                   </div>
@@ -503,3 +741,5 @@ export const UpgradeToPremiumModal: React.FC<UpgradeToPremiumModalProps> = ({
     </div>
   );
 };
+
+export const SubscriptionUpgradeModal = UpgradeToPremiumModal;

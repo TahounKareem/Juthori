@@ -648,8 +648,25 @@ export type TeamRoleType =
   | 'المايسترو'
   | 'مدير عام'
   | 'مدير البحوث'
+  | 'باحث مختص'
   | 'مدير إدارة الطلبات وخدمة العملاء'
   | 'مدير تحرير المركز المعرفي';
+
+export function resolveStaffRbacRole(
+  role?: TeamRoleType | string | null
+): 'super_admin' | 'research_manager' | 'researcher' | 'customer' {
+  switch (role) {
+    case 'المايسترو':
+    case 'مدير عام':
+      return 'super_admin';
+    case 'مدير البحوث':
+      return 'research_manager';
+    case 'باحث مختص':
+      return 'researcher';
+    default:
+      return 'customer';
+  }
+}
 
 export interface UserProfileData {
   userId: string;
@@ -706,6 +723,22 @@ export interface UserProfileData {
     name: string;
     blockedAt: string;
   }>;
+  freeLeadRadarSignal?: {
+    active: boolean;
+    activatedAt: string;
+    activatedByName: string;
+    matchStrengthLabel?: string;
+    teaserNoteAr?: string;
+    matchedRootPreviewInternal?: string;
+    convertedToTier?: 'basic' | 'premium' | null;
+    convertedAt?: string;
+  };
+  lineageResearchStatus?:
+    | 'verified_connected'
+    | 'partial_investigating'
+    | 'needs_client_info'
+    | 'insufficient_sources';
+  lineageResearchStatusNote?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1109,6 +1142,8 @@ export interface TeamMemberRecord {
   completedTickets: number;
   avgCompletionTime: string;
   permissions: string[];
+  specialtyRegion?: string;
+  specialtyTribes?: string;
   canonicalMemberId?: string;
   isAuthUidBinding?: boolean;
   createdAt: string;
@@ -1258,22 +1293,69 @@ export const DEFAULT_KNOWLEDGE_EDITOR_MEMBER: TeamMemberRecord = {
   createdAt: '2026-11-19T00:00:00.000Z',
 };
 
+export const DEFAULT_RESEARCH_MANAGER_MEMBER: TeamMemberRecord = {
+  id: 'team_usr_research_manager_juthori',
+  name: 'د. عبد الرحمن الشريف',
+  email: 'research.manager@adamresearchcenter.net',
+  passwordHash: 'Research@2026',
+  role: 'مدير البحوث',
+  status: 'نشط',
+  assignedTickets: 0,
+  completedTickets: 0,
+  avgCompletionTime: '18 دقيقة',
+  specialtyRegion: 'الجزيرة العربية والشام ومصر والعراق',
+  specialtyTribes: 'الإشراف العام واعتماد سلاسل النسب ومواد كشّافي',
+  permissions: [
+    'لوحة قيادة مدير البحوث والأنساب الكاملة (5 تبويبات تشغيلية)',
+    'إسناد المهام للباحثين واعتماد ربط الجذور ونشر مواد كشّافي',
+    'تفعيل رادار التحويل للحسابات المجانية وإدارة جمهرة المصادر المرجعية',
+    'معزول تماماً عن إعدادات التسعير المالي وبوابات الدفع وحذف المدراء',
+  ],
+  createdAt: '2026-02-01T00:00:00.000Z',
+};
+
+export const DEFAULT_SPECIALIST_RESEARCHER_MEMBER: TeamMemberRecord = {
+  id: 'team_usr_specialist_researcher_juthori',
+  name: 'أ. فيصل التميمي',
+  email: 'researcher@adamresearchcenter.net',
+  passwordHash: 'Researcher@2026',
+  role: 'باحث مختص',
+  status: 'نشط',
+  assignedTickets: 0,
+  completedTickets: 0,
+  avgCompletionTime: '26 دقيقة',
+  specialtyRegion: 'نجد والحجاز والعراق والشام',
+  specialtyTribes: 'قبائل مضر وقحطان وتحقيق المخطوطات العثمانية',
+  permissions: [
+    'استعراض الملفات والتذاكر المسندة إليه فقط من مدير البحوث',
+    'إعداد مسودات ربط الجذور ومواد كشّافي ورفعها لاعتماد مدير البحوث',
+    'تصفح بوصلة الجذور ومكتبة المصادر المرجعية دون صلاحية النشر المباشر',
+  ],
+  createdAt: '2026-02-05T00:00:00.000Z',
+};
+
 export function getPermissionsForTeamRole(role: TeamRoleType): string[] {
   switch (role) {
     case 'المايسترو':
     case 'مدير عام':
       return [
-        'فتح كافة لوحات التحكم الخمس',
-        'إضافة ودعوة أعضاء الفريق عبر Resend',
-        'اعتماد إثراء ودمج شجرة آدم',
-        'إدارة الطلبات والمركز المعرفي والتقارير',
+        'فتح كافة لوحات التحكم الإدارية والبحثية والمالية',
+        'إضافة ودعوة أعضاء الفريق وتعيين مدراء البحوث والباحثين',
+        'اعتماد إثراء ودمج شجرة آدم وإدارة التقارير العليا',
+        'إدارة التسعير والطلبات والمركز المعرفي',
       ];
     case 'مدير البحوث':
       return [
-        'لوحة تحكم إدارة البحوث (Researcher Studio)',
-        'لوحة إدارة شجرة آدم (ADAM ANCESTRAL TREE™)',
-        'لوحة البحث والفحص (تحقيق المخطوطات ومشاريع ألفا)',
-        'ربط وإثراء وتكويد عُقد شجرة آدم',
+        'لوحة قيادة مدير البحوث والأنساب (طابور الجذور، كشّافي، رادار المجاني، صندوق الاعتماد، جمهرة المصادر)',
+        'إسناد الملفات للباحثين ومراجعة واعتماد النشر للعملاء',
+        'إدارة شجرة آدم للأجداد وبوصلة الجذور',
+        'عزل تام عن التسعير المالي والفواتير وحسابات المدراء العامين',
+      ];
+    case 'باحث مختص':
+      return [
+        'عرض الملفات والطلبات المسندة إليه فقط من مدير البحوث',
+        'إعداد مسودات سلاسل الربط ومواد كشّافي ورفعها بحالة بانتظار اعتماد مدير البحوث',
+        'الاطلاع على جمهرة المصادر وبوصلة الجذور دون صلاحية النشر المباشر للعميل',
       ];
     case 'مدير إدارة الطلبات وخدمة العملاء':
       return [
@@ -7339,8 +7421,7 @@ export interface CustomerSiteSettingsData {
   enableDynamicWatermark?: boolean;
   cmsModulesJson?: string;
   visualBrandingJson?: string;
-  accessGateMode?: 'PUBLIC_INDEXABLE' | 'UNLISTED_LINK' | 'FAMILY_PIN' | 'PRIVATE_WHITELIST';
-  familyPinCode?: string;
+  accessGateMode?: 'PUBLIC_INDEXABLE' | 'UNLISTED_LINK' | 'PRIVATE_WHITELIST';
   femalePrivacyPolicy?:
     | 'FULL_DISPLAY'
     | 'COUNT_ONLY_SYMBOL'

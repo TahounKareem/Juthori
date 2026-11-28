@@ -1,15 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertCircle,
+  ArrowLeft,
   Camera,
   Check,
+  CheckCircle2,
   ChevronDown,
   Copy,
+  Crown,
   Eye,
   FileText,
+  GitBranch,
   Globe,
   Heart,
   Image as ImageIcon,
   Layers,
+  Link2,
   Loader2,
   Lock,
   Monitor,
@@ -23,6 +29,7 @@ import {
   Type,
   Upload,
   UploadCloud,
+  X,
 } from 'lucide-react';
 import {
   UnifiedWorkspaceHeader,
@@ -123,6 +130,7 @@ interface MySiteStudioViewProps {
   onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onOpenEmailVerification?: () => void;
   onOpenTreeSettings?: () => void;
+  onNavigateToMyTree?: () => void;
   onLogActivity: (action: string, detail: string) => void;
 }
 
@@ -229,6 +237,7 @@ function CalmInspectorAccordion({
 
 export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   result,
+  accountType,
   caps,
   userId,
   userEmail,
@@ -240,6 +249,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   onRequirePremiumAction,
   onOpenEmailVerification,
   onOpenTreeSettings,
+  onNavigateToMyTree,
   onLogActivity,
 }) => {
   const defaultSlug = useMemo(() => {
@@ -262,6 +272,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
     useState<IdentityInspectorSectionId | null>('hero_cover');
   const [focusedSectionKey, setFocusedSectionKey] =
     useState<PortalSectionKey | null>(null);
+  const [showLaunchPrerequisitesModal, setShowLaunchPrerequisitesModal] =
+    useState<boolean>(false);
 
   // Core Site Identity & Access State
   const [siteSlug, setSiteSlug] = useState<string>(defaultSlug);
@@ -273,13 +285,9 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
   const [siteAccessMode, setSiteAccessMode] = useState<SiteAccessMode>(
     initialSiteSettings?.siteAccessMode || 'PUBLIC'
   );
-  const [familyAccessCode, setFamilyAccessCode] = useState<string>(
-    initialSiteSettings?.familyPinCode || ''
-  );
   const [allowCircleMembersEnrichment, setAllowCircleMembersEnrichment] =
     useState<boolean>(true);
-  const [allowVisitorEnrichment, setAllowVisitorEnrichment] =
-    useState<boolean>(false);
+  const [allowPublicMajlis, setAllowPublicMajlis] = useState<boolean>(false);
   const [themeId, setThemeId] = useState<FamilySiteThemeId>(
     normalizeFamilySiteThemeId(initialSiteSettings?.themeId)
   );
@@ -562,9 +570,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           setEnablePhotoFacePrompt(
             existingSite.privacyConfig.enablePhotoFacePrompt ?? true
           );
-          if (typeof existingSite.privacyConfig.familyAccessCode === 'string') {
-            setFamilyAccessCode(existingSite.privacyConfig.familyAccessCode);
-          }
           if (
             typeof existingSite.privacyConfig.allowCircleMembersEnrichment ===
             'boolean'
@@ -574,12 +579,9 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             );
           }
           if (
-            typeof existingSite.privacyConfig.allowVisitorEnrichment ===
-            'boolean'
+            typeof existingSite.privacyConfig.allowPublicMajlis === 'boolean'
           ) {
-            setAllowVisitorEnrichment(
-              existingSite.privacyConfig.allowVisitorEnrichment
-            );
+            setAllowPublicMajlis(existingSite.privacyConfig.allowPublicMajlis);
           }
         }
         if (existingSite.cmsModules) {
@@ -782,9 +784,9 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       selectedVaultItemIds,
       enableDynamicWatermark,
       enablePhotoFacePrompt,
-      familyAccessCode: familyAccessCode.trim() || undefined,
       allowCircleMembersEnrichment,
-      allowVisitorEnrichment,
+      allowPublicMajlis,
+      hideFromSearchEngines: siteAccessMode === 'UNLISTED',
     }),
     [
       bioVisibility,
@@ -799,41 +801,57 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       selectedVaultItemIds,
       enableDynamicWatermark,
       enablePhotoFacePrompt,
-      familyAccessCode,
       allowCircleMembersEnrichment,
-      allowVisitorEnrichment,
+      allowPublicMajlis,
+      siteAccessMode,
     ]
   );
 
+  // 3-Tier Subscription & Independent Launch Prerequisites for «موقعي»
+  const isPremiumSitePublisher = caps.subscriptionPlan === 'premium';
+  const hasSignedRecordKeeperCharter =
+    accountType === AccountLegalType.RecordKeeper || caps.hasRegistrarBadge;
+  const MIN_REQUIRED_TREE_MEMBERS_FOR_LAUNCH = 5;
+  const contemporaryTreeMembersCount = useMemo(
+    () =>
+      (rawTreeMembers || []).filter(
+        (m) => m && m.isCertifiedReference !== true
+      ).length,
+    [rawTreeMembers]
+  );
+  const hasMinimumTreeMembersForLaunch =
+    contemporaryTreeMembersCount >= MIN_REQUIRED_TREE_MEMBERS_FOR_LAUNCH;
+  const normalizedSiteSlugForLaunch = normalizePublicSiteSlug(siteSlug);
+  const hasValidSlugForLaunch = normalizedSiteSlugForLaunch.length >= 3;
+  const allLaunchPrerequisitesMet =
+    hasSignedRecordKeeperCharter &&
+    hasMinimumTreeMembersForLaunch &&
+    hasValidSlugForLaunch;
+
   const handlePersistAndPublish = async (
     nextPublishState: boolean,
-    bypassGate?: boolean
+    bypassTierGate?: boolean
   ) => {
-    if (
-      nextPublishState &&
-      !bypassGate &&
-      (!caps.isVip || !caps.hasRegistrarBadge)
-    ) {
-      if (onRequirePremiumAction) {
-        onRequirePremiumAction({
-          feature: 'site_publish',
-          onAuthorizedContinue: () => {
-            handlePersistAndPublish(true, true).catch(() => {});
-          },
-        });
-      } else {
-        onUpgradeAnnualVip();
+    if (nextPublishState) {
+      if (!bypassTierGate && !isPremiumSitePublisher) {
+        if (onRequirePremiumAction) {
+          onRequirePremiumAction({
+            feature: 'site_publish',
+            requiredTier: 'premium',
+            onAuthorizedContinue: () => {
+              handlePersistAndPublish(true, true).catch(() => {});
+            },
+          });
+        } else {
+          onUpgradeAnnualVip();
+        }
+        return;
       }
-      return;
-    }
 
-    if (siteAccessMode === 'PRIVATE_WHITELIST' && !familyAccessCode.trim()) {
-      setStudioTab('link_privacy');
-      setFeedbackBanner({
-        tone: 'warning',
-        text: 'يرجى كتابة «رمز الدخول السري للعائلة» أولاً عند اختيار نطاق «محمي لدائرة العائلة برمز دخول»، ثم إعادة الضغط على الحفظ أو النشر.',
-      });
-      return;
+      if (!allLaunchPrerequisitesMet) {
+        setShowLaunchPrerequisitesModal(true);
+        return;
+      }
     }
 
     setSaving(true);
@@ -848,7 +866,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
       isPublished: nextPublishState,
       themeId,
       siteAccessMode,
-      familyPinCode: familyAccessCode.trim() || undefined,
       emblemTag,
       bioTitle,
       bioDescription,
@@ -1134,15 +1151,26 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 type="button"
                 aria-label="بطاقة الدعوة وQR"
                 onClick={() => {
-                  if (!caps.isVip || !caps.hasRegistrarBadge) {
+                  if (!isPremiumSitePublisher) {
                     if (onRequirePremiumAction) {
                       onRequirePremiumAction({
                         feature: 'site_qr',
-                        onAuthorizedContinue: () => setShowRoyalQrModal(true),
+                        requiredTier: 'premium',
+                        onAuthorizedContinue: () => {
+                          if (!allLaunchPrerequisitesMet) {
+                            setShowLaunchPrerequisitesModal(true);
+                          } else {
+                            setShowRoyalQrModal(true);
+                          }
+                        },
                       });
                     } else {
                       onUpgradeAnnualVip();
                     }
+                    return;
+                  }
+                  if (!isPublished && !allLaunchPrerequisitesMet) {
+                    setShowLaunchPrerequisitesModal(true);
                     return;
                   }
                   setShowRoyalQrModal(true);
@@ -1255,13 +1283,22 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 تأكيد البريد الآن
               </button>
             )}
-            {!caps.canPublishPublicSite && (
+            {!isPremiumSitePublisher && (
               <button
                 type="button"
-                onClick={onUpgradeAnnualVip}
+                onClick={() => {
+                  if (onRequirePremiumAction) {
+                    onRequirePremiumAction({
+                      feature: 'site_publish',
+                      requiredTier: 'premium',
+                    });
+                  } else {
+                    onUpgradeAnnualVip();
+                  }
+                }}
                 className="px-3 py-1 rounded-lg bg-[#D97757] text-[#F5F1E8] text-[11px] font-bold cursor-pointer"
               >
-                ترقية الباقة
+                ترقية إلى بريميوم
               </button>
             )}
           </div>
@@ -2269,8 +2306,6 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 onOpenQrModal={() => setShowRoyalQrModal(true)}
                 siteAccessMode={siteAccessMode}
                 onChangeSiteAccessMode={setSiteAccessMode}
-                familyAccessCode={familyAccessCode}
-                onChangeFamilyAccessCode={setFamilyAccessCode}
                 femaleDisplayPolicy={femaleDisplayPolicy}
                 onChangeFemaleDisplayPolicy={setFemaleDisplayPolicy}
                 hideLivingNamesForGuests={hideLivingNamesForGuests}
@@ -2281,8 +2316,8 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                 onChangeAllowCircleMembersEnrichment={
                   setAllowCircleMembersEnrichment
                 }
-                allowVisitorEnrichment={allowVisitorEnrichment}
-                onChangeAllowVisitorEnrichment={setAllowVisitorEnrichment}
+                allowPublicMajlis={allowPublicMajlis}
+                onChangeAllowPublicMajlis={setAllowPublicMajlis}
                 majlisEnabled={cmsModules.majlisAndGuardiansModule.enabled}
                 onChangeMajlisEnabled={(next) =>
                   setCmsModules((prev) => ({
@@ -2293,6 +2328,11 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
                     },
                   }))
                 }
+                ownerId={userId || ''}
+                ownerName={`${result.clientName} ${result.familyName}`.trim()}
+                familyName={result.familyName}
+                originCountry={result.originCountry}
+                originRegion={result.originRegion}
               />
             )}
           </div>
@@ -2352,6 +2392,250 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
           registrarName={`${result.clientName} ${result.familyName}`.trim()}
           referralCode={buildDeterministicReferralCode(userId || 'usr_guest')}
         />
+      )}
+
+      {/* Independent Launch Prerequisites Modal (Premium Subscribers) */}
+      {showLaunchPrerequisitesModal && (
+        <div
+          dir="rtl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mysite-launch-prerequisites-title"
+          className="fixed inset-0 z-50 bg-[#1F1F1C]/45 backdrop-blur-[2px] flex items-center justify-center p-4"
+        >
+          <div className="w-full max-w-lg rounded-3xl bg-[#FDFBF7] border border-[#D8C7B2] shadow-[0_28px_64px_-24px_rgba(31,31,28,0.3)] overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-5 bg-[#FAF7F2] border-b border-[#D8C7B2] flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#E8DED2] border border-[#D8C7B2] flex items-center justify-center text-[#D97757] shrink-0">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="inline-block text-[11px] font-display font-bold text-[#D97757] mb-0.5">
+                    متطلبات إطلاق البوابة العائلية الرسمية
+                  </span>
+                  <h3
+                    id="mysite-launch-prerequisites-title"
+                    className="text-base sm:text-lg font-display font-extrabold text-[#1F1F1C]"
+                  >
+                    استكمل الشروط المسبقة قبل نشر موقع العائلة
+                  </h3>
+                  <p className="text-xs text-[#6B665D] mt-1 leading-relaxed">
+                    لضمان ظهور ديوان عائلة {result.familyName} بصورة موثّقة وجاهزة للزوار، يرجى استيفاء المتطلبات التالية:
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLaunchPrerequisitesModal(false)}
+                aria-label="إغلاق"
+                className="w-8 h-8 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Prerequisites Checklist */}
+            <div className="p-6 space-y-3 bg-[#F5F1E8]/55">
+              {/* 1. Record Keeper Charter */}
+              <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${
+                      hasSignedRecordKeeperCharter
+                        ? 'bg-[#E8DED2] border-[#D8C7B2] text-[#1F1F1C]'
+                        : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#D97757]'
+                    }`}
+                  >
+                    {hasSignedRecordKeeperCharter ? (
+                      <CheckCircle2 className="w-4 h-4 text-[#D97757]" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
+                        توقيع ميثاق أمين السجل العائلي
+                      </p>
+                      <span
+                        className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border ${
+                          hasSignedRecordKeeperCharter
+                            ? 'bg-[#E8DED2] border-[#D8C7B2] text-[#1F1F1C]'
+                            : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#D97757]'
+                        }`}
+                      >
+                        {hasSignedRecordKeeperCharter ? 'مكتمل' : 'مطلوب'}
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-[#6B665D] mt-1 leading-relaxed">
+                      يعتمد حسابك كأمين سجل مسؤول عن المحتوى العائلي المنشور وخصوصية الأحياء.
+                    </p>
+                  </div>
+                </div>
+                {!hasSignedRecordKeeperCharter && onSignCharterAndEnableTree && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowLaunchPrerequisitesModal(false);
+                      onSignCharterAndEnableTree();
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer shrink-0 transition-colors"
+                  >
+                    توقيع الميثاق
+                  </button>
+                )}
+              </div>
+
+              {/* 2. Minimum 5 Tree Members */}
+              <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${
+                      hasMinimumTreeMembersForLaunch
+                        ? 'bg-[#E8DED2] border-[#D8C7B2] text-[#1F1F1C]'
+                        : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#D97757]'
+                    }`}
+                  >
+                    {hasMinimumTreeMembersForLaunch ? (
+                      <CheckCircle2 className="w-4 h-4 text-[#D97757]" />
+                    ) : (
+                      <GitBranch className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
+                        إضافة {MIN_REQUIRED_TREE_MEMBERS_FOR_LAUNCH} أفراد على الأقل في «شجرتي»
+                      </p>
+                      <span
+                        className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border ${
+                          hasMinimumTreeMembersForLaunch
+                            ? 'bg-[#E8DED2] border-[#D8C7B2] text-[#1F1F1C]'
+                            : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#D97757]'
+                        }`}
+                      >
+                        {contemporaryTreeMembersCount} /{' '}
+                        {MIN_REQUIRED_TREE_MEMBERS_FOR_LAUNCH} أفراد
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-[#6B665D] mt-1 leading-relaxed">
+                      لتظهر شجرة عائلتك متكاملة في البوابة المنشورة، أضف على الأقل {MIN_REQUIRED_TREE_MEMBERS_FOR_LAUNCH} أفراد معاصرين داخل «شجرتي».
+                    </p>
+                  </div>
+                </div>
+                {!hasMinimumTreeMembersForLaunch && onNavigateToMyTree && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowLaunchPrerequisitesModal(false);
+                      onNavigateToMyTree();
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer shrink-0 inline-flex items-center gap-1 transition-colors"
+                  >
+                    <span>الذهاب لشجرتي</span>
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* 3. Valid URL Slug */}
+              <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${
+                      hasValidSlugForLaunch
+                        ? 'bg-[#E8DED2] border-[#D8C7B2] text-[#1F1F1C]'
+                        : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#D97757]'
+                    }`}
+                  >
+                    {hasValidSlugForLaunch ? (
+                      <CheckCircle2 className="w-4 h-4 text-[#D97757]" />
+                    ) : (
+                      <Link2 className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
+                        تعيين رابط عائلي صالح للبوابة
+                      </p>
+                      <span
+                        className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border ${
+                          hasValidSlugForLaunch
+                            ? 'bg-[#E8DED2] border-[#D8C7B2] text-[#1F1F1C]'
+                            : 'bg-[#F5F1E8] border-[#D97757]/40 text-[#D97757]'
+                        }`}
+                      >
+                        {hasValidSlugForLaunch ? 'مكتمل' : 'مطلوب'}
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-[#6B665D] mt-1 leading-relaxed">
+                      {hasValidSlugForLaunch ? (
+                        <>
+                          الرابط الحالي جاهز:{' '}
+                          <span dir="ltr" className="font-mono text-[#1F1F1C] font-bold">
+                            {OFFICIAL_BRAND_HOST}/{normalizedSiteSlugForLaunch}
+                          </span>
+                        </>
+                      ) : (
+                        'اختر رابطاً إنجليزياً واضحاً من 3 أحرف على الأقل في تبويب «الرابط والخصوصية».'
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {!hasValidSlugForLaunch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowLaunchPrerequisitesModal(false);
+                      setStudioTab('link_privacy');
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold whitespace-nowrap cursor-pointer shrink-0 transition-colors"
+                  >
+                    ضبط الرابط
+                  </button>
+                )}
+              </div>
+
+              {!allLaunchPrerequisitesMet && (
+                <div className="rounded-xl bg-[#E8DED2]/65 border border-[#D8C7B2] px-3.5 py-2.5 flex items-center gap-2 text-[11.5px] text-[#1F1F1C]">
+                  <AlertCircle className="w-4 h-4 text-[#D97757] shrink-0" />
+                  <span>
+                    يمكنك في أي وقت حفظ تصميمك كمسودة ومعاينته بالكامل ريثما تستكمل المتطلبات أعلاه.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-[#FAF7F2] border-t border-[#D8C7B2] flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLaunchPrerequisitesModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] cursor-pointer transition-colors"
+              >
+                إغلاق والعودة للاستوديو
+              </button>
+              <button
+                type="button"
+                disabled={!allLaunchPrerequisitesMet || saving}
+                onClick={() => {
+                  setShowLaunchPrerequisitesModal(false);
+                  handlePersistAndPublish(true, true).catch(() => {});
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-display font-bold inline-flex items-center gap-1.5 transition-colors ${
+                  allLaunchPrerequisitesMet && !saving
+                    ? 'bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] cursor-pointer shadow-xs'
+                    : 'bg-[#E8DED2] text-[#8E867B] cursor-not-allowed'
+                }`}
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>إتمام النشر والتفعيل الآن</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

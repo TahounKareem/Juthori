@@ -1,13 +1,13 @@
 import { DashboardStateMode, LineageSearchResult } from '../types/juthori';
+import { normalizeSubscriptionPlanId } from '../config/subscriptionPlans';
 import type { PublicMicrositeData, SiteAccessMode } from '../services/priority4Service';
 
 export const SESSION_AUTHORIZED_EMAIL_KEY = 'juthori_microsite_auth_email_v1';
-export const SESSION_PASSCODE_UNLOCK_PREFIX = 'juthori_microsite_passcode_v1:';
+const LEGACY_PASSCODE_SESSION_PREFIX = 'juthori_microsite_passcode_v1:';
 
 /**
  * Pure deterministic SHA-256 (returns 64-char lowercase hex).
- * Works synchronously in all browser contexts (including non-HTTPS preview/static hosts)
- * and Node.js test environments without relying on crypto.subtle availability.
+ * Works synchronously in all browser contexts and Node.js test environments.
  */
 const SHA256_K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -130,56 +130,16 @@ export function sha256Hex(message: string): string {
 }
 
 /**
- * Normalizes a family passcode (trim + case-insensitive) and binds it to the site slug
- * using domain separation to produce an unenumerable 256-bit capability key.
+ * Clears session-scoped portal identity markers and purges any retired legacy keys.
  */
-export function hashFamilyPasscode(siteSlug: string, rawPasscode: string): string {
-  const cleanSlug = (siteSlug || '').trim().toLowerCase();
-  const cleanPasscode = (rawPasscode || '').trim().toLowerCase();
-  if (!cleanPasscode) return '';
-  return sha256Hex(`juthori-passcode-v1::${cleanSlug}::${cleanPasscode}`);
-}
-
-export function buildPasscodeSessionStorageKey(siteSlug: string): string {
-  return `${SESSION_PASSCODE_UNLOCK_PREFIX}${(siteSlug || '').trim().toLowerCase()}`;
-}
-
-export function readStoredPasscodeHashForSlug(siteSlug: string): string | null {
-  if (typeof window === 'undefined' || !siteSlug) return null;
-  try {
-    const raw = window.sessionStorage.getItem(buildPasscodeSessionStorageKey(siteSlug));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { hash?: string };
-    return typeof parsed?.hash === 'string' && /^[a-f0-9]{64}$/.test(parsed.hash) ? parsed.hash : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveStoredPasscodeHashForSlug(siteSlug: string, passcodeHash: string): void {
-  if (typeof window === 'undefined' || !siteSlug || !passcodeHash) return;
-  try {
-    window.sessionStorage.setItem(
-      buildPasscodeSessionStorageKey(siteSlug),
-      JSON.stringify({ hash: passcodeHash, unlockedAt: Date.now() }),
-    );
-  } catch {
-    // ignore storage quota errors
-  }
-}
-
-export function clearAllPortalSessionUnlocks(siteSlug?: string): void {
+export function clearAllPortalSessionUnlocks(): void {
   if (typeof window === 'undefined') return;
   try {
     window.sessionStorage.removeItem(SESSION_AUTHORIZED_EMAIL_KEY);
-    if (siteSlug) {
-      window.sessionStorage.removeItem(buildPasscodeSessionStorageKey(siteSlug));
-      return;
-    }
     const keysToRemove: string[] = [];
     for (let i = 0; i < window.sessionStorage.length; i += 1) {
       const key = window.sessionStorage.key(i);
-      if (key && key.startsWith(SESSION_PASSCODE_UNLOCK_PREFIX)) {
+      if (key && key.startsWith(LEGACY_PASSCODE_SESSION_PREFIX)) {
         keysToRemove.push(key);
       }
     }
@@ -197,7 +157,6 @@ export interface PortalAccessGateInput {
       | 'isPublished'
       | 'siteAccessMode'
       | 'accessGateMode'
-      | 'hasFamilyPasscode'
       | 'ownerId'
       | 'ownerEmail'
       | 'whitelistedEmails'
@@ -207,24 +166,26 @@ export interface PortalAccessGateInput {
   > | null;
   viewerUid?: string | null;
   viewerEmail?: string | null;
-  passcodeUnlocked: boolean;
 }
 
 export interface PortalAccessGateDecision {
   isRestrictedSite: boolean;
-  requiresPasscode: boolean;
   isOwner: boolean;
   isAuthorizedMember: boolean;
   shouldShowRestrictedGate: boolean;
-  reason: 'preview' | 'public_open' | 'owner' | 'circle_member' | 'passcode_unlocked' | 'blocked_private' | 'blocked_unpublished';
+  reason: 'preview' | 'public_open' | 'owner' | 'circle_member' | 'blocked_private' | 'blocked_unpublished';
 }
 
+/**
+ * Strict Identity-Based Access Gate evaluator (Zero Passcodes).
+ * - PUBLIC / UNLISTED: open to visitors.
+ * - PRIVATE_WHITELIST: strictly closed unless viewer is the signed-in owner or an approved circle member.
+ */
 export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput): PortalAccessGateDecision {
-  const { isPreviewMode, siteData, viewerUid, viewerEmail, passcodeUnlocked } = input;
+  const { isPreviewMode, siteData, viewerUid, viewerEmail } = input;
   if (isPreviewMode) {
     return {
       isRestrictedSite: false,
-      requiresPasscode: false,
       isOwner: true,
       isAuthorizedMember: true,
       shouldShowRestrictedGate: false,
@@ -235,7 +196,6 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
   if (!siteData) {
     return {
       isRestrictedSite: true,
-      requiresPasscode: false,
       isOwner: false,
       isAuthorizedMember: false,
       shouldShowRestrictedGate: true,
@@ -265,24 +225,16 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
 
   const siteMode: SiteAccessMode = siteData.siteAccessMode || 'PUBLIC';
   const gateMode = siteData.accessGateMode;
-  const hasPasscode = Boolean(
-    siteData.hasFamilyPasscode ||
-    siteData.privacyConfig?.familyPasscodeHash ||
-    siteData.privacyConfig?.familyAccessCode?.trim(),
-  );
 
   const isRestrictedSite = Boolean(
     siteData.isPublished === false ||
     siteMode === 'PRIVATE_WHITELIST' ||
-    gateMode === 'FAMILY_PIN' ||
-    gateMode === 'PRIVATE_WHITELIST' ||
-    hasPasscode,
+    gateMode === 'PRIVATE_WHITELIST',
   );
 
   if (!isRestrictedSite) {
     return {
       isRestrictedSite: false,
-      requiresPasscode: false,
       isOwner,
       isAuthorizedMember,
       shouldShowRestrictedGate: false,
@@ -294,7 +246,6 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
     if (isOwner) {
       return {
         isRestrictedSite: true,
-        requiresPasscode: hasPasscode,
         isOwner: true,
         isAuthorizedMember: true,
         shouldShowRestrictedGate: false,
@@ -303,7 +254,6 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
     }
     return {
       isRestrictedSite: true,
-      requiresPasscode: false,
       isOwner: false,
       isAuthorizedMember: false,
       shouldShowRestrictedGate: true,
@@ -314,7 +264,6 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
   if (isOwner) {
     return {
       isRestrictedSite: true,
-      requiresPasscode: hasPasscode,
       isOwner: true,
       isAuthorizedMember: true,
       shouldShowRestrictedGate: false,
@@ -325,7 +274,6 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
   if (isAuthorizedMember) {
     return {
       isRestrictedSite: true,
-      requiresPasscode: hasPasscode,
       isOwner: false,
       isAuthorizedMember: true,
       shouldShowRestrictedGate: false,
@@ -333,20 +281,8 @@ export function evaluatePublicMicrositeAccessGate(input: PortalAccessGateInput):
     };
   }
 
-  if (hasPasscode && passcodeUnlocked) {
-    return {
-      isRestrictedSite: true,
-      requiresPasscode: true,
-      isOwner: false,
-      isAuthorizedMember: false,
-      shouldShowRestrictedGate: false,
-      reason: 'passcode_unlocked',
-    };
-  }
-
   return {
     isRestrictedSite: true,
-    requiresPasscode: hasPasscode,
     isOwner: false,
     isAuthorizedMember: false,
     shouldShowRestrictedGate: true,
@@ -374,31 +310,18 @@ export function resolveCustomerTierStateMode(
     isHistoricalMatch?: boolean;
   } | null,
 ): DashboardStateMode {
-  const tier = (profile?.subscriptionTier || '').toLowerCase();
   const status = (profile?.subscriptionStatus || '').toLowerCase();
-  const paidRev =
-    typeof profile?.paidRevenueUsd === 'number' ? profile.paidRevenueUsd : 0;
+  const plan = normalizeSubscriptionPlanId(
+    profile?.subscriptionTier,
+    profile?.paidRevenueUsd,
+    profile?.isRootUnlocked,
+  );
 
-  const isPaidAnnual =
-    status === 'active' ||
-    tier === 'annual_vip' ||
-    tier === 'premium_monthly' ||
-    tier === 'premium_annual' ||
-    tier === 'lifetime_patron' ||
-    paidRev >= 55;
-
-  if (isPaidAnnual) {
+  if (plan === 'premium' || status === 'active') {
     return DashboardStateMode.AnnualVip;
   }
 
-  const isPaidBasicRoot =
-    Boolean(profile?.isRootUnlocked) ||
-    tier === 'basic_verified' ||
-    tier === 'basic_5' ||
-    tier === 'basic_root' ||
-    paidRev >= 5;
-
-  if (isPaidBasicRoot) {
+  if (plan === 'basic') {
     return DashboardStateMode.State1Paid5Basic;
   }
 

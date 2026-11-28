@@ -59,6 +59,7 @@ import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 interface FamilyMemoryVaultViewProps {
   result: LineageSearchResult;
   caps?: DashboardAccessCapabilities;
+  extraVaultCapacity?: number;
   userId?: string;
   userEmail?: string;
   userAvatarUrl?: string;
@@ -165,6 +166,7 @@ function getSmartVaultItemDisplayTitle(
 export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   result,
   caps,
+  extraVaultCapacity = 0,
   userId,
   userEmail,
   userAvatarUrl,
@@ -177,26 +179,10 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   onSignCharterAndEnableTree,
   onRequirePremiumAction,
 }) => {
-  const isVaultAuthorized = Boolean(caps?.isVip && caps?.hasRegistrarBadge);
-  const triggerVaultProtectedAction = (
-    feature: 'vault_upload' | 'vault_create_folder',
-    onAuthorizedContinue: () => void
-  ) => {
-    if (isVaultAuthorized) {
-      onAuthorizedContinue();
-      return;
-    }
-    if (onRequirePremiumAction) {
-      onRequirePremiumAction({
-        feature,
-        onAuthorizedContinue,
-      });
-    } else if (!caps?.isVip && onUpgradeAnnualVip) {
-      onUpgradeAnnualVip();
-    } else if (onSignCharterAndEnableTree) {
-      onSignCharterAndEnableTree();
-    }
-  };
+  const effectiveMaxVaultDocuments: number | null =
+    caps?.maxVaultDocuments === null || caps?.maxVaultDocuments === undefined
+      ? null
+      : caps.maxVaultDocuments + Math.max(0, extraVaultCapacity);
   const initialLocal = useMemo(
     () => readVaultArchiveFromLocal(userId, result.familyName, userEmail),
     [userId, result.familyName, userEmail]
@@ -208,6 +194,34 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
       : DEFAULT_STARTER_VAULT_FOLDERS
   );
   const [items, setItems] = useState<FamilyVaultMediaItem[]>(initialLocal.items);
+
+  const triggerVaultProtectedAction = (
+    feature: 'vault_upload' | 'vault_create_folder',
+    onAuthorizedContinue: () => void
+  ) => {
+    if (feature === 'vault_create_folder') {
+      onAuthorizedContinue();
+      return;
+    }
+    const maxDocs = effectiveMaxVaultDocuments;
+    if (maxDocs !== null && items.length >= maxDocs) {
+      if (onRequirePremiumAction) {
+        onRequirePremiumAction({
+          feature: 'vault_upload',
+          requiredTier: 'basic',
+          title: `وصلت خزانتك إلى الحد المتاح (${maxDocs} مقتنىً) — رقِّ إلى Basic لمواصلة الأرشفة`,
+          description: `حفظت ${items.length} مقتنىً في خزانة عائلتك بنجاح. رقِّ إلى الباقة الأساسية (Basic) أو المميزة (Premium) لتوسيع سعة خزانتك وحفظ المزيد من الصور والوثائق.`,
+          onAuthorizedContinue,
+        });
+      } else if (onUnlockRoot5Usd) {
+        onUnlockRoot5Usd();
+      } else if (onUpgradeAnnualVip) {
+        onUpgradeAnnualVip();
+      }
+      return;
+    }
+    onAuthorizedContinue();
+  };
   const [treePeople, setTreePeople] = useState<TreePersonSummaryForVault[]>(() =>
     readSyncedTreePeopleList(userId, {
       clientName: result.clientName,
@@ -433,7 +447,8 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
   // Handle dropped or selected files via Smart Media Pipeline (WebP/JPEG + Thumbnail)
   const handleFilesSelected = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    if (!isVaultAuthorized) {
+    const maxDocs = effectiveMaxVaultDocuments;
+    if (maxDocs !== null && items.length >= maxDocs) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -546,14 +561,22 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
     // Enforce tier document quota BEFORE saving — keep all pendingDrafts intact so zero user work is lost
     if (
       caps &&
-      caps.maxVaultDocuments !== null &&
-      items.length + pendingDrafts.length > caps.maxVaultDocuments
+      effectiveMaxVaultDocuments !== null &&
+      items.length + pendingDrafts.length > effectiveMaxVaultDocuments
     ) {
       setVaultQuotaAlert({
         currentCount: items.length,
         tryingToAdd: pendingDrafts.length,
-        maxAllowed: caps.maxVaultDocuments,
+        maxAllowed: effectiveMaxVaultDocuments,
       });
+      if (caps.subscriptionPlan === 'free' && onRequirePremiumAction) {
+        onRequirePremiumAction({
+          feature: 'vault_upload',
+          requiredTier: 'basic',
+          title: `تجاوزت الحد المتاح للخزانة (${effectiveMaxVaultDocuments} مقتنىً) — رقِّ إلى Basic لحفظ ملفاتك`,
+          description: `ملفاتك الجاهزة (${pendingDrafts.length}) محفوظة في قائمة الانتظار ولن تضيع. رقِّ إلى الباقة الأساسية (Basic) أو المميزة (Premium) لتوسيع سعة خزانتك وحفظها فوراً.`,
+        });
+      }
       return;
     }
 
@@ -934,6 +957,24 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
         testId="vault-unified-header"
         icon={<JUTHORI_SERVICE_ICONS.vault className="w-5 h-5" />}
         title={`خزانة عائلة ${result.familyName}`}
+        metaItems={[
+          <span
+            key="vault-capacity-indicator"
+            data-testid="vault-capacity-indicator"
+            className={`text-xs font-display font-bold tabular-nums ${
+              effectiveMaxVaultDocuments !== null &&
+              items.length >= effectiveMaxVaultDocuments
+                ? 'text-[#D97757]'
+                : 'text-[#1F1F1C]/75'
+            }`}
+          >
+            {effectiveMaxVaultDocuments === null
+              ? `${items.length.toLocaleString('en-US')} مقتنى · سعة بلا حدود`
+              : caps?.subscriptionPlan === 'free'
+              ? `${items.length} / ${effectiveMaxVaultDocuments} مقتنى متاح${extraVaultCapacity > 0 ? ` (يشمل +${extraVaultCapacity} هدية سفير)` : ' في الباقة المجانية'}`
+              : `${items.length.toLocaleString('en-US')} / ${effectiveMaxVaultDocuments.toLocaleString('en-US')} مقتنى`}
+          </span>,
+        ]}
         centerSlot={
           <div className="inline-flex items-center gap-1.5">
             {/* Compact Expanding Quick Search */}
@@ -1167,31 +1208,41 @@ export const FamilyMemoryVaultView: React.FC<FamilyMemoryVaultViewProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                {caps && !caps.isRootUnlocked && onUnlockRoot5Usd && (
+                {caps && caps.subscriptionPlan === 'free' && (
                   <button
                     type="button"
-                    onClick={onUnlockRoot5Usd}
-                    className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
-                  >
-                    فتح الجذر ($5) — رفع السعة إلى 20 وثيقة
-                  </button>
-                )}
-                {caps && !caps.isVip && onUpgradeAnnualVip && (
-                  <button
-                    type="button"
-                    onClick={onUpgradeAnnualVip}
+                    onClick={() => {
+                      if (onRequirePremiumAction) {
+                        onRequirePremiumAction({
+                          feature: 'vault_upload',
+                          requiredTier: 'basic',
+                        });
+                      } else if (onUnlockRoot5Usd) {
+                        onUnlockRoot5Usd();
+                      }
+                    }}
                     className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
                   >
-                    الباقة السنوية بريميوم — 100 وثيقة
+                    الترقية إلى Basic — توسيع سعة الخزانة والشجرة
                   </button>
                 )}
-                {caps && !caps.hasRegistrarBadge && onSignCharterAndEnableTree && (
+                {caps && caps.subscriptionPlan !== 'premium' && (
                   <button
                     type="button"
-                    onClick={onSignCharterAndEnableTree}
-                    className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
+                    onClick={() => {
+                      if (onRequirePremiumAction) {
+                        onRequirePremiumAction({
+                          feature: 'kashafi',
+                          requiredTier: 'premium',
+                          title: 'الترقية إلى باقة Premium لسعة خزانة بلا حدود',
+                        });
+                      } else if (onUpgradeAnnualVip) {
+                        onUpgradeAnnualVip();
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold cursor-pointer"
                   >
-                    تفعيل أمين سجل العائلة ✦ — سعة غير محدودة
+                    الترقية إلى Premium — سعة بلا حدود + كشّافي وموقعي
                   </button>
                 )}
               </div>

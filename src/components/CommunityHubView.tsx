@@ -51,7 +51,6 @@ import {
 import {
   ACTIVE_PUBLIC_SITE_DISPLAY_HOST,
   buildDeterministicReferralCode,
-  REFERRAL_REWARD_USD,
   resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
 import {
@@ -61,6 +60,7 @@ import {
 } from '../services/firestoreService';
 import {
   AuthorizedFamilyPortalSummary,
+  CircleJoinRequestDoc,
   FamilyMemoryQuest,
   KinshipCircleDoc,
   KinshipCircleMember,
@@ -68,11 +68,14 @@ import {
   MemoryQuestCategory,
   PublicMicrositeData,
   RawTreePersonForPublicProjection,
+  RecommendedRelativeCandidate,
   ReferralDashboardStats,
   SiteAccessRequestDoc,
   TreeEnrichmentRequestDoc,
+  addPlatformMemberToKinshipCircle,
   addRelativeToKinshipCircleAndSendInvite,
   createFamilyMemoryQuest,
+  fetchAndRankPlatformRelatives,
   fetchAuthorizedFamilyPortalsForEmail,
   fetchKinshipCircleForOwner,
   fetchOwnerMicrositeForCommunity,
@@ -82,20 +85,34 @@ import {
   resolveSiteAccessRequest,
   reviewAndMergeEnrichmentRequest,
   subscribeToOwnerEnrichmentRequests,
+  subscribeToOwnerPendingJoinRequests,
   updateFamilyMemoryQuestStatus,
   updateKinshipCircleMemberMeta,
+  upsertOwnMemberDiscoveryCard,
 } from '../services/priority4Service';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { CommunityAmbassadorPass } from './CommunityAmbassadorPass';
 import { CommunityKinshipEventsView } from './CommunityKinshipEventsView';
 import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
 import { PublicVisualTreeMirror } from './FamilySiteHeritageVisuals';
+import { SocialJoinRequestsList } from './CircleJoinRequestsPanel';
+import {
+  PlatformSearchFirstInviteWing,
+  RelativesYouMayKnowSection,
+  SocialKinshipNetworkGrid,
+} from './KinshipSocialDiscoverySection';
 import {
   ArabicHonorificTitle,
   InteractiveFamilyTreeBuilder,
   InteractiveTreePerson,
 } from './InteractiveFamilyTreeBuilder';
-import { mergeStagingTreeProposalIntoAuthoritativeTree } from '../utils/enrichmentStagingUtils';
+import {
+  CIRCLE_PERMISSION_TIERS,
+  JUTHORI_KINSHIP_CIRCLE_SYNC_EVENT,
+  mergeStagingTreeProposalIntoAuthoritativeTree,
+  normalizeCircleRoleKey,
+} from '../utils/enrichmentStagingUtils';
+import { getPlanRank } from '../config/subscriptionPlans';
 import {
   TreePrestigeBadgeId,
   normalizeTreeDisplaySettings,
@@ -115,12 +132,16 @@ const DIFF_PREVIEW_CAPS: DashboardAccessCapabilities = {
   requiresCharterUpgradeForTree: false,
   tierHeaderTitle: 'معاينة الفروقات البصرية للشجرة',
   membershipTierKey: 'annual_vip',
+  subscriptionPlan: 'premium',
   maxTreeMembers: 5000,
   maxVaultDocuments: null,
   canPublishPublicSite: false,
   canInviteFamilyContributors: false,
   hasRegistrarBadge: true,
   hasPriorityResearchObservatory: false,
+  canUseKashafi: false,
+  hasDirectCustomerSupport: true,
+  canExportHighResTree: true,
 };
 
 interface CommunityHubViewProps {
@@ -152,26 +173,12 @@ const ROLE_OPTIONS: Array<{
   labelAr: string;
   shortLabelAr: string;
   descriptionAr: string;
-}> = [
-  {
-    id: 'assistant_registrar',
-    labelAr: 'مساعد أمين السجل (محرر مساند)',
-    shortLabelAr: 'مساعد أمين السجل',
-    descriptionAr: 'أولوية في اقتراح تحديثات الشجرة والوثائق ومساعدة أمين السجل.',
-  },
-  {
-    id: 'memory_contributor',
-    labelAr: 'راوي ومُساهم في الذاكرة',
-    shortLabelAr: 'راوي ومُساهم',
-    descriptionAr: 'إضافة الصور والقصص والمواليد والتعرف على الوجوه في خزانة العائلة.',
-  },
-  {
-    id: 'family_viewer',
-    labelAr: 'عضو دائرة العائلة (مُطّلع خاص)',
-    shortLabelAr: 'عضو مُطّلع خاص',
-    descriptionAr: 'تصفح الأقسام العائلية الخاصة في «موقعي» فقط بسرية تامة.',
-  },
-];
+}> = CIRCLE_PERMISSION_TIERS.map((tier) => ({
+  id: tier.id,
+  labelAr: tier.labelAr,
+  shortLabelAr: tier.shortLabelAr,
+  descriptionAr: tier.descriptionAr,
+}));
 
 const KINSHIP_PRESETS = [
   'ابن عم',
@@ -221,8 +228,9 @@ function getArabicInitials(name: string): string {
 }
 
 function resolveRoleLabel(role?: KinshipCircleMemberRole): string {
-  const found = ROLE_OPTIONS.find((r) => r.id === role);
-  return found ? found.shortLabelAr : 'راوي ومُساهم';
+  const normalized = normalizeCircleRoleKey(role);
+  const found = ROLE_OPTIONS.find((r) => r.id === normalized);
+  return found ? found.shortLabelAr : 'تصفح الديوان';
 }
 
 export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
@@ -256,21 +264,34 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     [result.clientName, result.familyName]
   );
 
-  const isRegistrar =
-    caps.hasRegistrarBadge || accountType === AccountLegalType.RecordKeeper;
-  const isOwnRegistrarWorkspace = Boolean(caps.isVip && isRegistrar);
+  const canUseBasicCommunityTools =
+    getPlanRank(caps.subscriptionPlan) >= 1;
+  const canManagePublishedSiteEnrichments =
+    caps.subscriptionPlan === 'premium';
+  const isOwnRegistrarWorkspace = canUseBasicCommunityTools;
 
   const requireCommunityPremiumAction = (
-    feature: 'community_invite' | 'community_qr' | 'community_quest' | 'community_event',
+    feature:
+      | 'community_invite'
+      | 'community_qr'
+      | 'community_quest'
+      | 'community_event'
+      | 'site_enrichment_review',
     onAuthorizedContinue: () => void
   ) => {
-    if (isOwnRegistrarWorkspace) {
+    const isAllowed =
+      feature === 'site_enrichment_review'
+        ? canManagePublishedSiteEnrichments
+        : canUseBasicCommunityTools;
+    if (isAllowed) {
       onAuthorizedContinue();
       return;
     }
     if (onRequirePremiumAction) {
       onRequirePremiumAction({
         feature,
+        requiredTier:
+          feature === 'site_enrichment_review' ? 'premium' : 'basic',
         onAuthorizedContinue,
       });
     } else {
@@ -298,6 +319,9 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   });
   const [enrichments, setEnrichments] = useState<TreeEnrichmentRequestDoc[]>([]);
   const [accessRequests, setAccessRequests] = useState<SiteAccessRequestDoc[]>([]);
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<
+    CircleJoinRequestDoc[]
+  >([]);
   const [authorizedPortals, setAuthorizedPortals] = useState<
     AuthorizedFamilyPortalSummary[]
   >([]);
@@ -313,6 +337,8 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     registeredCount: 0,
     rewardedAnnualCount: 0,
     totalEarnedUsd: 0,
+    earnedCapacityBonus: 0,
+    earnedFreeMonths: 0,
     invitees: [],
   });
 
@@ -330,6 +356,37 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
   const [removingEmail, setRemovingEmail] = useState<string | null>(null);
   const [resolvingAccessId, setResolvingAccessId] = useState<string | null>(
     null
+  );
+
+  // Pillar 1B: Platform Member Discovery & Smart Kinship Recommendations
+  const [recommendedRelatives, setRecommendedRelatives] = useState<
+    RecommendedRelativeCandidate[]
+  >([]);
+  const [searchablePlatformPool, setSearchablePlatformPool] = useState<
+    RecommendedRelativeCandidate[]
+  >([]);
+  const [loadingDiscovery, setLoadingDiscovery] = useState(true);
+  const [addingPlatformCandidateId, setAddingPlatformCandidateId] = useState<
+    string | null
+  >(null);
+  const [recentlyAddedCandidateIds, setRecentlyAddedCandidateIds] = useState<
+    Set<string>
+  >(() => new Set());
+  const [dismissedCandidateIds, setDismissedCandidateIds] = useState<string[]>(
+    () => {
+      if (typeof window === 'undefined') return [];
+      try {
+        const raw = window.localStorage.getItem(
+          `juthori_dismissed_relatives_${effectiveUserId}`
+        );
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed)
+          ? parsed.filter((x): x is string => typeof x === 'string')
+          : [];
+      } catch {
+        return [];
+      }
+    }
   );
 
   // Pillar 2: Memory Quests & Categorized Enrichment Moderation
@@ -528,11 +585,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             ? treeFromCloud
             : localTree;
         setRawTreeMembers(finalTree);
-
-        // Auto-open invite studio smoothly if registrar has 0 members yet
-        if (isOwnRegistrarWorkspace && (circleDoc.members || []).length === 0) {
-          setInviteStudioOpen(true);
-        }
       } finally {
         if (active) setIsLoading(false);
       }
@@ -545,9 +597,31 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       }
     );
 
+    const unsubJoinRequests = subscribeToOwnerPendingJoinRequests(
+      effectiveUserId,
+      (items) => {
+        if (active) setPendingJoinRequests(items);
+      }
+    );
+
+    const onCircleSynced = (ev: Event) => {
+      const detail = (
+        ev as CustomEvent<{ ownerId?: string; circle?: KinshipCircleDoc }>
+      ).detail;
+      if (detail?.circle && active) {
+        setCircle(detail.circle);
+      }
+    };
+    window.addEventListener(JUTHORI_KINSHIP_CIRCLE_SYNC_EVENT, onCircleSynced);
+
     return () => {
       active = false;
       unsubEnrichments();
+      unsubJoinRequests();
+      window.removeEventListener(
+        JUTHORI_KINSHIP_CIRCLE_SYNC_EVENT,
+        onCircleSynced
+      );
     };
   }, [
     effectiveUserId,
@@ -555,7 +629,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
     ownerDisplayName,
     result.familyName,
     publishedSiteSlug,
-    isRegistrar,
+    isOwnRegistrarWorkspace,
   ]);
 
   // Derived real metrics (strictly from Firestore)
@@ -577,6 +651,143 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       })
       .filter((opt) => Boolean(opt.id) && Boolean(opt.label));
   }, [rawTreeMembers]);
+
+  // Keep own Zero-PII discovery card synced & compute smart kinship recommendations
+  useEffect(() => {
+    let active = true;
+
+    upsertOwnMemberDiscoveryCard({
+      userId: effectiveUserId,
+      fullName: ownerDisplayName,
+      firstName: result.clientName,
+      fatherName: result.fatherName,
+      grandfatherName: result.grandfatherName,
+      familyName: result.familyName,
+      tribeName: result.rootTribeName,
+      familyBranch: result.rootBranchName,
+      originCountry: result.originCountry,
+      originRegion: result.originRegion,
+      residenceCity: result.originRegion,
+      publishedSiteSlug: activeSiteSlug || undefined,
+      isVerifiedMember: caps.isRootUnlocked || caps.subscriptionPlan !== 'free',
+    }).catch(() => {});
+
+    setLoadingDiscovery(true);
+    fetchAndRankPlatformRelatives({
+      currentUserId: effectiveUserId,
+      familyName: result.familyName,
+      tribeName: result.rootTribeName,
+      familyBranch: result.rootBranchName,
+      originCountry: result.originCountry,
+      originRegion: result.originRegion,
+      fatherName: result.fatherName,
+      grandfatherName: result.grandfatherName,
+      contemporaryTreeNames: contemporaryTreeOptions.map((o) => o.label),
+      existingCircleMembers: circle.members || [],
+      dismissedCandidateIds,
+    })
+      .then(({ recommended, searchablePool }) => {
+        if (!active) return;
+        setRecommendedRelatives(recommended);
+        setSearchablePlatformPool(searchablePool);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRecommendedRelatives([]);
+        setSearchablePlatformPool([]);
+      })
+      .finally(() => {
+        if (active) setLoadingDiscovery(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    effectiveUserId,
+    ownerDisplayName,
+    result.clientName,
+    result.fatherName,
+    result.grandfatherName,
+    result.familyName,
+    result.rootTribeName,
+    result.rootBranchName,
+    result.originCountry,
+    result.originRegion,
+    activeSiteSlug,
+    caps.isRootUnlocked,
+    caps.subscriptionPlan,
+    contemporaryTreeOptions,
+    circle.members,
+    dismissedCandidateIds,
+  ]);
+
+  const excludedDiscoveryUids = useMemo(() => {
+    const s = new Set<string>([effectiveUserId]);
+    for (const m of circle.members || []) {
+      if (m.status !== 'OPTED_OUT' && m.claimedByUid) {
+        s.add(m.claimedByUid);
+      }
+    }
+    return s;
+  }, [effectiveUserId, circle.members]);
+
+  const handleDismissCandidate = (candidateId: string) => {
+    setDismissedCandidateIds((prev) => {
+      if (prev.includes(candidateId)) return prev;
+      const next = [...prev, candidateId];
+      try {
+        window.localStorage.setItem(
+          `juthori_dismissed_relatives_${effectiveUserId}`,
+          JSON.stringify(next)
+        );
+      } catch {
+        // ignore storage quota errors
+      }
+      return next;
+    });
+  };
+
+  const handleAddPlatformCandidate = async (
+    candidate: RecommendedRelativeCandidate,
+    role: KinshipCircleMemberRole,
+    bypassGate?: boolean
+  ) => {
+    if (!bypassGate && !isOwnRegistrarWorkspace) {
+      requireCommunityPremiumAction('community_invite', () => {
+        void handleAddPlatformCandidate(candidate, role, true);
+      });
+      return;
+    }
+
+    setAddingPlatformCandidateId(candidate.userId);
+    try {
+      const res = await addPlatformMemberToKinshipCircle({
+        ownerId: effectiveUserId,
+        ownerName: ownerDisplayName,
+        familyName: result.familyName,
+        siteSlug: activeSiteSlug || undefined,
+        candidate,
+        role,
+      });
+
+      setRecentlyAddedCandidateIds((prev) => {
+        const next = new Set(prev);
+        next.add(candidate.userId);
+        return next;
+      });
+      setCircle(res.circle);
+      showToast('success', res.messageAr);
+      onLogActivity?.(
+        'ضم قريب مسجل لدائرة العائلة',
+        `تم ضم ${candidate.fullName} إلى دائرة عائلة ${result.familyName} بصلاحية «${resolveRoleLabel(role)}»`
+      );
+    } catch {
+      showToast('error', 'تعذر ضم القريب حالياً، يرجى المحاولة مجدداً.');
+    } finally {
+      setAddingPlatformCandidateId(null);
+    }
+  };
 
   const pendingEnrichments = useMemo(
     () =>
@@ -904,8 +1115,15 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
 
   const handleReviewEnrichment = async (
     req: TreeEnrichmentRequestDoc,
-    approve: boolean
+    approve: boolean,
+    bypassGate?: boolean
   ) => {
+    if (!bypassGate && !canManagePublishedSiteEnrichments) {
+      requireCommunityPremiumAction('site_enrichment_review', () => {
+        handleReviewEnrichment(req, approve, true).catch(() => {});
+      });
+      return;
+    }
     setReviewingId(req.id);
     try {
       const res = await reviewAndMergeEnrichmentRequest({
@@ -1172,14 +1390,28 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             />
             <span className="truncate">1. دائرة الأقارب</span>
           </span>
-          <span
-            className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
-              activeTab === 'circle'
-                ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
-                : 'bg-[#E8DED2] text-[#D97757]'
-            }`}
-          >
-            {circle.members.length}
+          <span className="inline-flex items-center gap-1 shrink-0">
+            {pendingJoinRequests.length > 0 && (
+              <span
+                title="طلبات انضمام جديدة بانتظار قبولك"
+                className={`px-1.5 py-0.5 rounded-md text-[10.5px] font-extrabold tabular-nums ${
+                  activeTab === 'circle'
+                    ? 'bg-[#FDFBF7] text-[#D97757]'
+                    : 'bg-[#D97757] text-[#FDFBF7]'
+                }`}
+              >
+                +{pendingJoinRequests.length}
+              </span>
+            )}
+            <span
+              className={`px-2 py-0.5 rounded-md text-[11px] tabular-nums shrink-0 ${
+                activeTab === 'circle'
+                  ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                  : 'bg-[#E8DED2] text-[#D97757]'
+              }`}
+            >
+              {circle.members.length}
+            </span>
           </span>
         </button>
 
@@ -1265,14 +1497,15 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             <span className="truncate">4. سفير جذوري ومكافآت</span>
           </span>
           <span
-            dir="ltr"
-            className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold tabular-nums shrink-0 ${
+            className={`px-2 py-0.5 rounded-md text-[11px] font-display font-bold tabular-nums shrink-0 ${
               activeTab === 'ambassador'
                 ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
                 : 'bg-[#E8DED2] text-[#D97757]'
             }`}
           >
-            ${REFERRAL_REWARD_USD}
+            {referralStats.earnedFreeMonths > 0
+              ? `+${referralStats.earnedFreeMonths} شهر`
+              : '✦ هدايا'}
           </span>
         </button>
       </div>
@@ -1311,89 +1544,77 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
       ====================================================================== */}
       {!isLoading && activeTab === 'circle' && (
         <div className="space-y-5">
-          {/* Section 1: Sculpted Invitation Atelier */}
-          <div
-            ref={inviteStudioRef}
-            className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] via-[#FDFBF7] to-[#F5EFE4] border border-[#D8C7B2]/80 relative overflow-hidden shadow-[0_2px_14px_rgba(31,31,28,0.03)] transition-all"
-          >
-            {/* Soft decorative top highlight hairline */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-l from-[#D97757]/55 via-[#D8C7B2]/60 to-transparent" />
-
-            {/* Subtle family branch watermark in right corner */}
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 220 110"
-              fill="none"
-              className="pointer-events-none absolute -top-2 -right-3 w-48 h-24 text-[#1F1F1C] opacity-[0.05]"
-            >
-              <path
-                d="M210 95 C175 75, 155 58, 130 48 C105 38, 88 22, 68 12"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M155 62 C150 42, 162 28, 178 18"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M122 45 C106 52, 92 64, 78 78"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M96 31 C90 19, 97 10, 108 5"
-                stroke="currentColor"
-                strokeWidth="1.1"
-                strokeLinecap="round"
-              />
-              <circle cx="178" cy="18" r="3" fill="currentColor" />
-              <circle cx="68" cy="12" r="3" fill="currentColor" />
-              <circle cx="78" cy="78" r="2.5" fill="currentColor" />
-              <circle cx="108" cy="5" r="2.5" fill="currentColor" />
-              <circle cx="130" cy="48" r="2.5" fill="currentColor" />
-            </svg>
-
-            {/* Collapsed / Header Plaque */}
-            <div className="relative z-10 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-11 h-11 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(217,119,87,0.12)]">
-                  <UserPlus className="w-4.5 h-4.5" />
-                </div>
-                <h3 className="text-[15px] font-display font-bold text-[#1F1F1C] tracking-tight">
-                  دعوة قريب لدائرة العائلة وتحديد الصلاحيات
-                </h3>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!inviteStudioOpen && !isOwnRegistrarWorkspace) {
-                    requireCommunityPremiumAction('community_invite', () =>
-                      setInviteStudioOpen(true)
-                    );
-                    return;
-                  }
-                  setInviteStudioOpen((v) => !v);
+          {/* Section 0: Live Authenticated Social Join Requests (Synced with Bell & «موقعي») */}
+          {pendingJoinRequests.length > 0 && (
+            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D97757]/45 p-5 shadow-[0_2px_14px_rgba(31,31,28,0.03)]">
+              <SocialJoinRequestsList
+                requests={pendingJoinRequests}
+                ownerName={ownerDisplayName}
+                variant="full"
+                title="طلبات انضمام جديدة لدائرة العائلة"
+                onApproved={(req, role, updatedCircle) => {
+                  setCircle(updatedCircle);
+                  setBanner({
+                    type: 'success',
+                    text: `تم قبول انضمام «${req.requesterName}» إلى دائرة العائلة بصلاحية «${resolveRoleLabel(role)}» ومزامنة وصوله فوراً ✓`,
+                  });
+                  onLogActivity?.(
+                    'اعتماد طلب انضمام لدائرة العائلة',
+                    `قُبل ${req.requesterName} (${req.kinshipNote}) في دائرة عائلة ${result.familyName}`
+                  );
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-display font-bold cursor-pointer transition-all shrink-0 ${
-                  inviteStudioOpen
-                    ? 'bg-[#E8DED2]/90 hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C]'
-                    : 'bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] shadow-[0_2px_10px_rgba(217,119,87,0.22)]'
-                }`}
-              >
-                {inviteStudioOpen ? 'طي النموذج' : '+ دعوة قريب جديد'}
-              </button>
+                onRejected={(req) => {
+                  setBanner({
+                    type: 'info',
+                    text: `تم حذف طلب انضمام «${req.requesterName}».`,
+                  });
+                }}
+                onError={(msg) => setBanner({ type: 'error', text: msg })}
+              />
             </div>
+          )}
 
-            {/* Smooth Unfolding Invitation Form */}
-            {inviteStudioOpen && (
+          {/* Section 1: Relatives You May Know on Juthori (Top Priority Social Discovery) */}
+          <RelativesYouMayKnowSection
+            familyName={result.familyName}
+            candidates={recommendedRelatives}
+            loading={loadingDiscovery}
+            addingCandidateId={addingPlatformCandidateId}
+            recentlyAddedIds={recentlyAddedCandidateIds}
+            onAddCandidate={(candidate, role) =>
+              void handleAddPlatformCandidate(candidate, role)
+            }
+            onDismissCandidate={handleDismissCandidate}
+          />
+
+          {/* Section 2: Live Platform Member Search First + Expandable External Email/WhatsApp Invite */}
+          <PlatformSearchFirstInviteWing
+            containerRef={inviteStudioRef}
+            familyName={result.familyName}
+            searchablePool={searchablePlatformPool}
+            excludedUids={excludedDiscoveryUids}
+            addingCandidateId={addingPlatformCandidateId}
+            recentlyAddedIds={recentlyAddedCandidateIds}
+            externalInviteOpen={inviteStudioOpen}
+            onToggleExternalInvite={() => {
+              if (!inviteStudioOpen && !isOwnRegistrarWorkspace) {
+                requireCommunityPremiumAction('community_invite', () =>
+                  setInviteStudioOpen(true)
+                );
+                return;
+              }
+              setInviteStudioOpen((v) => !v);
+            }}
+            onPrefillExternalInviteName={(typedName) => {
+              setRelName(typedName);
+            }}
+            onAddPlatformCandidate={(candidate, role) =>
+              void handleAddPlatformCandidate(candidate, role)
+            }
+            externalInviteForm={
               <form
                 onSubmit={handleAddRelative}
-                className="relative z-10 px-6 pb-6 pt-5 border-t border-[#D8C7B2]/60 bg-[#FDFBF7]/70 space-y-5"
+                className="relative z-10 px-6 pb-6 pt-5 border-t border-[#D8C7B2]/60 bg-[#FDFBF7]/75 space-y-5"
               >
                 {/* Basic Relative Details */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1476,7 +1697,6 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               : 'bg-[#FDFBF7] border-[#D8C7B2]/80 hover:border-[#D97757]/55 hover:bg-[#FAF6EE]/70'
                           }`}
                         >
-                          {/* Subtle heritage corner motif */}
                           <span
                             aria-hidden="true"
                             className={`pointer-events-none absolute -bottom-3 -left-3 w-12 h-12 rounded-full border transition-opacity ${
@@ -1575,11 +1795,11 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                   </div>
                 </div>
               </form>
-            )}
-          </div>
+            }
+          />
 
           {/* Pending Private Site Access Requests (Only when real pending requests exist) */}
-          {isRegistrar && accessRequests.length > 0 && (
+          {canManagePublishedSiteEnrichments && accessRequests.length > 0 && (
             <div className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] to-[#FDFBF7] border border-[#D97757]/40 overflow-hidden shadow-[0_2px_12px_rgba(217,119,87,0.06)]">
               <div className="px-6 py-3.5 bg-[#E8DED2]/55 border-b border-[#D8C7B2]/80 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-display font-bold text-[#D97757]">
@@ -1636,401 +1856,18 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
             </div>
           )}
 
-          {/* Section 2: Bespoke Relative Membership Passes (Zero Outer Dry Box) */}
-          <section className="space-y-3.5">
-            {/* Editorial Header with Capsule Count & Gradient Hairline */}
-            <div className="flex items-center gap-3 pt-1">
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                <div className="w-8 h-8 rounded-full bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
-                  <Users className="w-4 h-4" />
-                </div>
-                <h3 className="text-[15px] font-display font-bold text-[#1F1F1C]">
-                  أفراد دائرة عائلة {result.familyName} المعتمدون
-                </h3>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2]/85 border border-[#D8C7B2] text-[11px] font-display font-bold text-[#1F1F1C]/80 tabular-nums">
-                  {circle.members.length === 0
-                    ? '0 أقارب معتمدين'
-                    : circle.members.length === 1
-                    ? '1 قريب معتمد'
-                    : circle.members.length === 2
-                    ? 'قريبان معتمدان'
-                    : `${circle.members.length} أقارب معتمدين`}
-                </span>
-              </div>
-              <div className="hidden sm:block flex-1 h-px bg-gradient-to-l from-[#D8C7B2] via-[#D8C7B2]/45 to-transparent" />
-            </div>
-
-            {circle.members.length === 0 ? (
-              <div className="rounded-2xl bg-gradient-to-l from-[#FAF6EE] via-[#FDFBF7] to-[#F5EFE4] border border-dashed border-[#D8C7B2] px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-right">
-                  <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-display font-bold text-[#1F1F1C]">
-                      دائرة عائلتك جاهزة لاستقبال أول أفرادها
-                    </h4>
-                    <p className="text-xs text-[#1F1F1C]/65 leading-relaxed max-w-xl">
-                      ادعُ أول قريب موثوق بصلاحية «مساعد أمين السجل» أو «راوي ومُساهم في الذاكرة» لبدء إثراء الشجرة والخزانة معاً.
-                    </p>
-                  </div>
-                </div>
-                {!inviteStudioOpen && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenInviteStudioAction()}
-                    className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors shrink-0 shadow-[0_2px_10px_rgba(217,119,87,0.2)]"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>دعوة أول قريب الآن</span>
-                  </button>
-                )}
-              </div>
-            ) : circle.members.length === 1 ? (
-              (() => {
-                const member = circle.members[0];
-                const isActive = member.status === 'ACTIVE';
-                const currentRole: KinshipCircleMemberRole =
-                  member.role || 'memory_contributor';
-                const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
-                  `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
-                )}`;
-
-                return (
-                  <div
-                    key={member.id}
-                    className="w-full rounded-2xl bg-gradient-to-l from-[#FDFBF7] via-[#FAF6EE] to-[#F5EFE4]/90 border border-[#D8C7B2]/90 hover:border-[#D97757]/55 px-6 py-5 relative overflow-hidden shadow-[0_3px_16px_rgba(31,31,28,0.03)] transition-all"
-                  >
-                    {/* Subtle terracotta heritage accent hairline at top-right */}
-                    <div className="pointer-events-none absolute top-0 right-0 w-28 h-[2px] bg-gradient-to-l from-[#D97757]/75 to-transparent" />
-
-                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto] items-center gap-5">
-                      {/* Zone 1 (Right): Relative Identity */}
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] font-display font-extrabold text-base flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(31,31,28,0.05)]">
-                          {getArabicInitials(member.name)}
-                        </div>
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-[15px] font-display font-extrabold text-[#1F1F1C] truncate">
-                              {member.name}
-                            </h4>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#E8DED2]/90 border border-[#D8C7B2] text-[11px] font-display font-bold text-[#D97757]">
-                              {member.kinshipRelation}
-                            </span>
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                isActive
-                                  ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
-                                  : 'bg-[#FAF6EE] border-[#D97757]/35 text-[#D97757]'
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  isActive ? 'bg-[#1F1F1C]' : 'bg-[#D97757]'
-                                }`}
-                              />
-                              {isActive ? 'عضو مفعّل' : 'تم إرسال الدعوة'}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[#1F1F1C]/60">
-                            <span dir="ltr" className="font-mono truncate">
-                              {member.email}
-                            </span>
-                            <span aria-hidden="true" className="text-[#D8C7B2]">
-                              •
-                            </span>
-                            <span>
-                              أُضيف{' '}
-                              {new Date(member.addedAt).toLocaleDateString(
-                                'ar-SA'
-                              )}
-                            </span>
-                            {member.approvedEnrichmentsCount > 0 && (
-                              <>
-                                <span
-                                  aria-hidden="true"
-                                  className="text-[#D8C7B2]"
-                                >
-                                  •
-                                </span>
-                                <span className="text-[#D97757] font-semibold">
-                                  {member.approvedEnrichmentsCount} مساهمة معتمدة
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Zone 2 (Center): Sleek Compact Pill Dropdowns */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:px-5 xl:border-x xl:border-[#D8C7B2]/60">
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
-                            الصلاحية
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={currentRole}
-                              disabled={updatingMemberId === member.id}
-                              onChange={(e) =>
-                                handleUpdateMemberRoleOrTree(member, {
-                                  role: e.target
-                                    .value as KinshipCircleMemberRole,
-                                })
-                              }
-                              className="w-full appearance-none pr-3.5 pl-8 py-2 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
-                            >
-                              {ROLE_OPTIONS.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.shortLabelAr}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
-                            الربط ببطاقة شجرتي
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={member.linkedTreePersonId || ''}
-                              disabled={
-                                updatingMemberId === member.id ||
-                                contemporaryTreeOptions.length === 0
-                              }
-                              onChange={(e) => {
-                                const selectedId = e.target.value;
-                                const found = contemporaryTreeOptions.find(
-                                  (o) => o.id === selectedId
-                                );
-                                handleUpdateMemberRoleOrTree(member, {
-                                  linkedTreePersonId: selectedId || null,
-                                  linkedTreePersonName: found?.label || null,
-                                });
-                              }}
-                              className="w-full appearance-none pr-3.5 pl-8 py-2 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-xs font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
-                            >
-                              <option value="">غير مربوط بعد</option>
-                              {contemporaryTreeOptions.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Zone 3 (Left): Quick Actions */}
-                      <div className="flex items-center justify-between xl:justify-end gap-2 shrink-0">
-                        <a
-                          href={memberWhatsappHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#FAF6EE] hover:bg-[#D97757] border border-[#D97757]/45 hover:border-[#D97757] text-[#D97757] hover:text-[#F5F1E8] text-xs font-display font-bold transition-all shadow-[0_1px_4px_rgba(217,119,87,0.08)] whitespace-nowrap"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>إرسال تذكير عبر واتساب</span>
-                        </a>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRelative(member)}
-                          disabled={removingEmail === member.email}
-                          title="إلغاء صلاحية القريب"
-                          aria-label={`إلغاء صلاحية ${member.name}`}
-                          className="w-9 h-9 rounded-full border border-transparent hover:border-[#D97757]/35 text-[#1F1F1C]/40 hover:text-[#D97757] hover:bg-[#D97757]/10 disabled:opacity-40 flex items-center justify-center cursor-pointer transition-all shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {circle.members.map((member) => {
-                  const isActive = member.status === 'ACTIVE';
-                  const currentRole: KinshipCircleMemberRole =
-                    member.role || 'memory_contributor';
-                  const memberWhatsappHref = `https://wa.me/?text=${encodeURIComponent(
-                    `السلام عليكم ${member.name}، يسعدنا تواجدك معنا في دائرة عائلة ${result.familyName} على منصة جذوري ✦\nرابط دخول بوابة العائلة:\n${cleanMajlisUrl}`
-                  )}`;
-
-                  return (
-                    <div
-                      key={member.id}
-                      className="rounded-2xl bg-gradient-to-l from-[#FDFBF7] via-[#FAF6EE] to-[#F5EFE4]/90 border border-[#D8C7B2]/90 hover:border-[#D97757]/55 p-5 relative overflow-hidden shadow-[0_2px_14px_rgba(31,31,28,0.025)] flex flex-col justify-between gap-4 transition-all"
-                    >
-                      <div className="pointer-events-none absolute top-0 right-0 w-20 h-[2px] bg-gradient-to-l from-[#D97757]/65 to-transparent" />
-
-                      {/* Identity Row */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3.5 min-w-0">
-                          <div className="w-12 h-12 rounded-full bg-[#E8DED2] border-2 border-white ring-1 ring-[#D8C7B2] text-[#D97757] font-display font-extrabold text-base flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(31,31,28,0.05)]">
-                            {getArabicInitials(member.name)}
-                          </div>
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <h4 className="text-[15px] font-display font-extrabold text-[#1F1F1C] truncate">
-                                {member.name}
-                              </h4>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#E8DED2]/90 border border-[#D8C7B2] text-[10px] font-display font-bold text-[#D97757]">
-                                {member.kinshipRelation}
-                              </span>
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  isActive
-                                    ? 'bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]'
-                                    : 'bg-[#FAF6EE] border-[#D97757]/35 text-[#D97757]'
-                                }`}
-                              >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    isActive ? 'bg-[#1F1F1C]' : 'bg-[#D97757]'
-                                  }`}
-                                />
-                                {isActive ? 'عضو مفعّل' : 'تم إرسال الدعوة'}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[#1F1F1C]/60">
-                              <span dir="ltr" className="font-mono truncate">
-                                {member.email}
-                              </span>
-                              {member.approvedEnrichmentsCount > 0 && (
-                                <>
-                                  <span
-                                    aria-hidden="true"
-                                    className="text-[#D8C7B2]"
-                                  >
-                                    •
-                                  </span>
-                                  <span className="text-[#D97757] font-semibold">
-                                    {member.approvedEnrichmentsCount} مساهمة معتمدة
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRelative(member)}
-                          disabled={removingEmail === member.email}
-                          title="إلغاء صلاحية القريب"
-                          aria-label={`إلغاء صلاحية ${member.name}`}
-                          className="w-8 h-8 rounded-full border border-transparent hover:border-[#D97757]/35 text-[#1F1F1C]/40 hover:text-[#D97757] hover:bg-[#D97757]/10 disabled:opacity-40 flex items-center justify-center cursor-pointer transition-all shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Compact Pill Dropdowns */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-[#D8C7B2]/55">
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
-                            الصلاحية
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={currentRole}
-                              disabled={updatingMemberId === member.id}
-                              onChange={(e) =>
-                                handleUpdateMemberRoleOrTree(member, {
-                                  role: e.target
-                                    .value as KinshipCircleMemberRole,
-                                })
-                              }
-                              className="w-full appearance-none pr-3.5 pl-8 py-1.5 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-[11px] font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
-                            >
-                              {ROLE_OPTIONS.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.shortLabelAr}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-display font-bold text-[#1F1F1C]/55 pr-1">
-                            الربط ببطاقة شجرتي
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={member.linkedTreePersonId || ''}
-                              disabled={
-                                updatingMemberId === member.id ||
-                                contemporaryTreeOptions.length === 0
-                              }
-                              onChange={(e) => {
-                                const selectedId = e.target.value;
-                                const found = contemporaryTreeOptions.find(
-                                  (o) => o.id === selectedId
-                                );
-                                handleUpdateMemberRoleOrTree(member, {
-                                  linkedTreePersonId: selectedId || null,
-                                  linkedTreePersonName: found?.label || null,
-                                });
-                              }}
-                              className="w-full appearance-none pr-3.5 pl-8 py-1.5 rounded-full bg-[#F5F1E8] hover:bg-[#FAF6EE] border border-[#D8C7B2] focus:border-[#D97757] text-[11px] font-display font-bold text-[#1F1F1C] focus:outline-none disabled:opacity-50 cursor-pointer transition-colors"
-                            >
-                              <option value="">غير مربوط بعد</option>
-                              {contemporaryTreeOptions.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-[#D97757] pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer Meta & WhatsApp Pill */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <span className="text-[11px] text-[#1F1F1C]/55">
-                          {member.linkedTreePersonName ? (
-                            <span className="inline-flex items-center gap-1.5 text-[#1F1F1C] font-semibold">
-                              <JUTHORI_SERVICE_ICONS.tree className="w-3.5 h-3.5 text-[#D97757]" />
-                              مربوط: {member.linkedTreePersonName}
-                            </span>
-                          ) : (
-                            <span>
-                              أُضيف{' '}
-                              {new Date(member.addedAt).toLocaleDateString(
-                                'ar-SA'
-                              )}
-                            </span>
-                          )}
-                        </span>
-
-                        <a
-                          href={memberWhatsappHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FAF6EE] hover:bg-[#D97757] border border-[#D97757]/45 hover:border-[#D97757] text-[#D97757] hover:text-[#F5F1E8] text-[11px] font-display font-bold transition-all whitespace-nowrap"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>إرسال تذكير عبر واتساب</span>
-                        </a>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          {/* Section 3: Facebook-Inspired Luxury Kinship Network Grid */}
+          <SocialKinshipNetworkGrid
+            familyName={result.familyName}
+            members={circle.members}
+            cleanMajlisUrl={cleanMajlisUrl}
+            contemporaryTreeOptions={contemporaryTreeOptions}
+            updatingMemberId={updatingMemberId}
+            removingEmail={removingEmail}
+            onUpdateMember={handleUpdateMemberRoleOrTree}
+            onRemoveMember={handleRemoveRelative}
+            onOpenExternalInvite={() => handleOpenInviteStudioAction()}
+          />
 
           {/* Section 3: Authorized Family Portals Gallery */}
           {authorizedPortals.length === 0 ? (
@@ -2404,7 +2241,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                               </button>
                             </div>
 
-                            {isRegistrar && (
+                            {isOwnRegistrarWorkspace && (
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
@@ -2703,7 +2540,7 @@ export const CommunityHubView: React.FC<CommunityHubViewProps> = ({
                         </div>
 
                         {/* Decisive Registrar Moderation Actions */}
-                        {isRegistrar && (
+                        {isOwnRegistrarWorkspace && (
                           <div className="flex flex-wrap items-center justify-between gap-2.5">
                             <div>
                               {isTreeProposal && proposedCount > 0 && (

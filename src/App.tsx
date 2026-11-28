@@ -49,7 +49,7 @@ import {
   readPendingTicketDraft,
   savePendingLineageHandoff,
 } from './utils/handoffStorage';
-import { LandingPage } from './components/LandingPage';
+import { LandingPage, SelectedPlanIntent } from './components/LandingPage';
 import { SearchProgressScreen } from './components/SearchProgressScreen';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { LoginModal } from './components/LoginModal';
@@ -182,12 +182,16 @@ function isTeamRouteInWindow(): boolean {
   return (
     pathname === '/team' ||
     pathname.startsWith('/team/') ||
+    pathname === '/research-manager' ||
+    pathname.startsWith('/research-manager/') ||
     hash === '#/team' ||
     hash === '#team' ||
+    hash === '#/research-manager' ||
     viewParam === 'team' ||
     viewParam === 'staff' ||
     viewParam === 'admin' ||
-    viewParam === 'researcher'
+    viewParam === 'researcher' ||
+    viewParam === 'research_manager'
   );
 }
 
@@ -308,6 +312,8 @@ export function App() {
     useState<string>('');
   const [autoOpenVipUpgradeInDashboard, setAutoOpenVipUpgradeInDashboard] =
     useState<boolean>(false);
+  const [selectedPlanIntentForDashboard, setSelectedPlanIntentForDashboard] =
+    useState<SelectedPlanIntent | null>(null);
   const [optOutFeedbackModal, setOptOutFeedbackModal] = useState<{
     ok: boolean;
     familyName?: string;
@@ -1325,6 +1331,358 @@ export function App() {
     } else {
       setInitialDashboardTab(DashboardTab.Lineage);
     }
+  };
+
+  // Product-Led Direct Free Signup from Landing Page -> Enters Dashboard immediately as Free member + runs silent background lineage radar
+  const handleDirectFreeSignup = async ({
+    email,
+    password,
+    selectedPlanIntent,
+  }: {
+    email: string;
+    password: string;
+    selectedPlanIntent?: SelectedPlanIntent | null;
+  }) => {
+    const cleanEmail = email.trim();
+    if (
+      isCorporateStaffEmail(cleanEmail) ||
+      Boolean(await findTeamMemberByEmail(cleanEmail))
+    ) {
+      await signOut(auth).catch(() => {});
+      throw new Error('TEAM_ACCOUNT_ISOLATED');
+    }
+
+    let uid = '';
+    try {
+      const cred = await createUserWithEmailAndPassword(
+        auth,
+        cleanEmail,
+        password
+      );
+      uid = cred.user.uid;
+    } catch (regErr: unknown) {
+      const regMsg = regErr instanceof Error ? regErr.message : String(regErr);
+      if (regMsg.includes('email-already-in-use')) {
+        try {
+          const signCred = await signInWithEmailAndPassword(
+            auth,
+            cleanEmail,
+            password
+          );
+          uid = signCred.user.uid;
+        } catch {
+          throw new Error('WRONG_PASSWORD_EXISTING');
+        }
+      } else {
+        uid = canonicalCustomerEmailUid(cleanEmail) || `usr_${Date.now()}`;
+      }
+    }
+
+    const safeUid = uid || `usr_${Date.now()}`;
+    setUserId(safeUid);
+
+    const starterForm: RegistrationFormState = {
+      ...form,
+      accountType: AccountLegalType.Individual,
+      originCountry: form.originCountry || selectedPortalCountry || 'السعودية',
+      email: cleanEmail,
+      password,
+      agreedToTerms: true,
+    };
+    setForm(starterForm);
+
+    const fullName = [
+      starterForm.firstName,
+      starterForm.fatherName,
+      starterForm.grandfatherName,
+      starterForm.familyName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    // Instant deterministic baseline so the user enters the dashboard immediately with zero wait
+    const immediateBaseline = resolveDeterministicLineage(starterForm);
+    const existingByUid = await fetchUserProfile(safeUid);
+    const existingProfile =
+      existingByUid || (await fetchUserProfileByEmail(cleanEmail));
+
+    const resolvedInitialMode = resolveCustomerTierStateMode(
+      existingProfile,
+      immediateBaseline
+    );
+    const resolvedAccountType =
+      existingProfile?.accountType === 'record_keeper'
+        ? AccountLegalType.RecordKeeper
+        : AccountLegalType.Individual;
+
+    setLineageResult(immediateBaseline);
+    setDashboardStateMode(resolvedInitialMode);
+
+    const agreedIso = new Date().toISOString();
+    const initialSnap = buildVerifiedLineageSnapshot(immediateBaseline);
+
+    await createUserProfileIfMissing(
+      { uid: safeUid, email: cleanEmail, displayName: fullName },
+      {
+        fullName,
+        firstName: starterForm.firstName,
+        fatherName: starterForm.fatherName,
+        grandfatherName: starterForm.grandfatherName,
+        familyName: starterForm.familyName,
+        email: cleanEmail,
+        accountType:
+          resolvedAccountType === AccountLegalType.RecordKeeper
+            ? 'record_keeper'
+            : 'individual',
+        subscriptionTier: existingProfile?.subscriptionTier || 'free',
+        defaultCountry: starterForm.originCountry,
+        originCountry: starterForm.originCountry,
+        originRegion: starterForm.originRegion,
+        tribeName: starterForm.tribeName,
+        familyBranch: starterForm.branchName,
+        verifiedLineageSnapshot:
+          existingProfile?.verifiedLineageSnapshot || initialSnap,
+        lineageSnapshot: existingProfile?.lineageSnapshot || initialSnap,
+        agreedToTermsAndPrivacy: true,
+        termsAndPrivacyAgreedAt: agreedIso,
+        termsAndPrivacyVersion: TERMS_AND_PRIVACY_VERSION,
+        termsIpAddress: silentGeo.ip || '127.0.0.1',
+        emailVerified: existingProfile?.emailVerified ?? false,
+        emailVerifiedAt: existingProfile?.emailVerifiedAt,
+      },
+      {
+        knownExistingProfile: existingByUid,
+        skipTeamCheck: true,
+      }
+    );
+
+    recordLegalAuditTrailInFirebase({
+      userId: safeUid,
+      userEmail: cleanEmail,
+      userFullName: fullName || starterForm.familyName,
+      familyName: starterForm.familyName,
+      eventType: 'TERMS_AND_PRIVACY_CONSENT',
+      documentTitle:
+        'شروط الاستخدام وسياسة الخصوصية وميثاق حفظ الأنساب — منصة جذوري',
+      documentVersion: TERMS_AND_PRIVACY_VERSION,
+      consentStatement:
+        'أوافق إلكترونياً على شروط الاستخدام وسياسة الخصوصية في منصة جذوري عند إنشاء الحساب المجاني.',
+      ipAddress: silentGeo.ip || '127.0.0.1',
+      ipCountry:
+        silentGeo.ip_country || starterForm.originCountry || 'السعودية',
+      ipCity: silentGeo.ip_city || starterForm.originRegion || '',
+      verificationMethod: 'email_registration',
+    }).catch(() => {});
+
+    clearPendingLineageHandoff();
+    setInitialDashboardTab(DashboardTab.Home);
+    if (selectedPlanIntent) {
+      setSelectedPlanIntentForDashboard(selectedPlanIntent);
+    }
+    setHasActiveSession(true);
+    setSearchStep(3);
+    setPreviousPlatformView('dashboard');
+    setActiveView('dashboard');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
+    // Silent Background Lineage Radar: enroll the family & hydrate any verified match asynchronously
+    searchJuthoriLineage(starterForm, {
+      ip_country: silentGeo.ip_country,
+      ip_city: silentGeo.ip_city,
+    })
+      .then((liveResult) => {
+        if (!liveResult) return;
+        const enriched: LineageSearchResult = {
+          ...liveResult,
+          clientName: starterForm.firstName || liveResult.clientName,
+          fatherName: starterForm.fatherName || liveResult.fatherName,
+          grandfatherName:
+            starterForm.grandfatherName || liveResult.grandfatherName,
+          familyName: starterForm.familyName || liveResult.familyName,
+        };
+        setLineageResult(enriched);
+        setDashboardStateMode((prevMode) => {
+          if (
+            prevMode === DashboardStateMode.AnnualVip ||
+            prevMode === DashboardStateMode.State1Paid5Basic
+          ) {
+            return prevMode;
+          }
+          return enriched.matched
+            ? DashboardStateMode.State2MatchedUnpaid
+            : DashboardStateMode.State3Unmatched;
+        });
+        const snap = buildVerifiedLineageSnapshot(enriched);
+        updateUserProfile(safeUid, {
+          tribeName: enriched.rootTribeName || starterForm.tribeName,
+          familyBranch: enriched.rootBranchName || starterForm.branchName,
+          verifiedLineageSnapshot: snap,
+          lineageSnapshot: snap,
+        }).catch(() => {});
+      })
+      .catch(() => {});
+  };
+
+  // Product-Led Google One-Click Direct Free Signup from Landing Page
+  const handleGoogleDirectFreeSignup = async (
+    selectedPlanIntent?: SelectedPlanIntent | null
+  ) => {
+    const res = await signInWithPopup(auth, googleProvider);
+    const user = res.user;
+    const cleanEmail = (user.email || '').trim();
+    if (
+      isCorporateStaffEmail(cleanEmail) ||
+      Boolean(await findTeamMemberByEmail(cleanEmail))
+    ) {
+      await signOut(auth).catch(() => {});
+      throw new Error('TEAM_ACCOUNT_ISOLATED');
+    }
+
+    const existingByUid = await fetchUserProfile(user.uid);
+    const existingProfile =
+      existingByUid ||
+      (cleanEmail ? await fetchUserProfileByEmail(cleanEmail) : null);
+
+    const displayParts = (user.displayName || '').trim().split(/\s+/).filter(Boolean);
+    const resolvedFirst =
+      form.firstName.trim() ||
+      existingProfile?.firstName ||
+      displayParts[0] ||
+      'عضو';
+    const resolvedFather =
+      form.fatherName.trim() || existingProfile?.fatherName || '';
+    const resolvedGrandfather =
+      form.grandfatherName.trim() || existingProfile?.grandfatherName || '';
+    const resolvedFamily =
+      form.familyName.trim() ||
+      existingProfile?.familyName ||
+      (displayParts.length > 1
+        ? displayParts.slice(1).join(' ')
+        : resolvedFirst);
+    const resolvedCountry =
+      form.originCountry ||
+      existingProfile?.originCountry ||
+      selectedPortalCountry ||
+      'السعودية';
+
+    const starterForm: RegistrationFormState = {
+      ...form,
+      firstName: resolvedFirst,
+      fatherName: resolvedFather,
+      grandfatherName: resolvedGrandfather,
+      familyName: resolvedFamily,
+      originCountry: resolvedCountry,
+      email: cleanEmail || 'user@juthori.com',
+      accountType:
+        existingProfile?.accountType === 'record_keeper'
+          ? AccountLegalType.RecordKeeper
+          : AccountLegalType.Individual,
+      agreedToTerms: true,
+    };
+
+    setUserId(user.uid);
+    if (user.photoURL) setUserAvatarUrl(user.photoURL);
+    setForm(starterForm);
+
+    const immediateBaseline = resolveDeterministicLineage(starterForm);
+    const initialSnap = buildVerifiedLineageSnapshot(immediateBaseline);
+    const resolvedMode = resolveCustomerTierStateMode(
+      existingProfile,
+      immediateBaseline
+    );
+    const fullName = [
+      resolvedFirst,
+      resolvedFather,
+      resolvedGrandfather,
+      resolvedFamily,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    setLineageResult(immediateBaseline);
+    setDashboardStateMode(resolvedMode);
+
+    await createUserProfileIfMissing(
+      { uid: user.uid, email: cleanEmail, displayName: fullName },
+      {
+        fullName,
+        firstName: resolvedFirst,
+        fatherName: resolvedFather,
+        grandfatherName: resolvedGrandfather,
+        familyName: resolvedFamily,
+        email: cleanEmail || 'user@juthori.com',
+        avatarUrl: user.photoURL || existingProfile?.avatarUrl || '',
+        accountType:
+          starterForm.accountType === AccountLegalType.RecordKeeper
+            ? 'record_keeper'
+            : 'individual',
+        subscriptionTier: existingProfile?.subscriptionTier || 'free',
+        defaultCountry: resolvedCountry,
+        originCountry: resolvedCountry,
+        originRegion: starterForm.originRegion || existingProfile?.originRegion,
+        tribeName: starterForm.tribeName || existingProfile?.tribeName,
+        familyBranch: starterForm.branchName || existingProfile?.familyBranch,
+        verifiedLineageSnapshot:
+          existingProfile?.verifiedLineageSnapshot || initialSnap,
+        lineageSnapshot: existingProfile?.lineageSnapshot || initialSnap,
+        emailVerified: true,
+        emailVerifiedAt:
+          existingProfile?.emailVerifiedAt || new Date().toISOString(),
+      },
+      {
+        knownExistingProfile: existingByUid,
+        skipTeamCheck: true,
+      }
+    );
+
+    clearPendingLineageHandoff();
+    setInitialDashboardTab(DashboardTab.Home);
+    if (selectedPlanIntent) {
+      setSelectedPlanIntentForDashboard(selectedPlanIntent);
+    }
+    setHasActiveSession(true);
+    setSearchStep(3);
+    setPreviousPlatformView('dashboard');
+    setActiveView('dashboard');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
+    // Silent Background Lineage Radar
+    searchJuthoriLineage(starterForm, {
+      ip_country: silentGeo.ip_country,
+      ip_city: silentGeo.ip_city,
+    })
+      .then((liveResult) => {
+        if (!liveResult) return;
+        const enriched: LineageSearchResult = {
+          ...liveResult,
+          clientName: resolvedFirst || liveResult.clientName,
+          fatherName: resolvedFather || liveResult.fatherName,
+          grandfatherName: resolvedGrandfather || liveResult.grandfatherName,
+          familyName: resolvedFamily || liveResult.familyName,
+        };
+        setLineageResult(enriched);
+        setDashboardStateMode((prevMode) => {
+          if (
+            prevMode === DashboardStateMode.AnnualVip ||
+            prevMode === DashboardStateMode.State1Paid5Basic
+          ) {
+            return prevMode;
+          }
+          return enriched.matched
+            ? DashboardStateMode.State2MatchedUnpaid
+            : DashboardStateMode.State3Unmatched;
+        });
+        const snap = buildVerifiedLineageSnapshot(enriched);
+        updateUserProfile(user.uid, {
+          tribeName: enriched.rootTribeName || starterForm.tribeName,
+          familyBranch: enriched.rootBranchName || starterForm.branchName,
+          verifiedLineageSnapshot: snap,
+          lineageSnapshot: snap,
+        }).catch(() => {});
+      })
+      .catch(() => {});
   };
 
   // Step 1: Submit search from Landing Page -> launches intermediate Verification Screen (Step 2)
@@ -2951,9 +3309,20 @@ export function App() {
             setSelectedPortalCountry(countryName);
           }}
           onSubmitSearch={handleSubmitSearch}
+          onDirectFreeSignup={handleDirectFreeSignup}
+          onGoogleFreeSignup={handleGoogleDirectFreeSignup}
           isSearching={isSearching}
           searchStep={searchStep}
           onOpenLogin={() => setLoginModalOpen(true)}
+          isAuthenticated={hasActiveSession}
+          onOpenDashboardForPlan={(intent) => {
+            if (intent) {
+              setSelectedPlanIntentForDashboard(intent);
+            }
+            setInitialDashboardTab(DashboardTab.Home);
+            setActiveView('dashboard');
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
           silentGeo={silentGeo}
         />
       ) : activeView === 'searching' ? (
@@ -3019,6 +3388,10 @@ export function App() {
           initialAutoOpenVipUpgrade={autoOpenVipUpgradeInDashboard}
           onClearAutoOpenVipUpgrade={() =>
             setAutoOpenVipUpgradeInDashboard(false)
+          }
+          initialSelectedPlanIntent={selectedPlanIntentForDashboard}
+          onClearInitialPlanIntent={() =>
+            setSelectedPlanIntentForDashboard(null)
           }
           onResyncLineageFromEngine={handleManualResyncLineage}
           isResyncingLineage={isResyncingLineage}

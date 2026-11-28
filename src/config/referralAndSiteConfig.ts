@@ -1,9 +1,9 @@
 /**
  * Priority 4 Architectural Configuration:
  * 1. Public Root Slug Reservation & Validation (`Juthori.com/{FamilySlug}`)
- * 2. 5 Scoped Heritage Family Microsite Themes (`FAMILY_SITE_THEMES`)
+ * 2. Scoped Heritage Family Microsite Themes (`FAMILY_SITE_THEMES`)
  * 3. Unified Public App Base URL Resolver (`ais-dev-*` -> `ais-pre-*` / `PUBLIC_APP_URL`)
- * 4. Capability-Token Kinship Invitation & $10 Referral Engine Constants
+ * 4. Capability-Token Kinship Invitation & Ambassador Time/Capacity Rewards
  */
 
 import {
@@ -12,6 +12,9 @@ import {
 } from '../utils/treeStudioConfig';
 
 export const REFERRAL_REWARD_USD = 10;
+export const AMBASSADOR_CAPACITY_PER_FREE_INVITE = 25;
+export const AMBASSADOR_MAX_CAPACITY_BONUS = 100;
+export const AMBASSADOR_FREE_MONTHS_PER_PAID_INVITE = 1;
 export const PENDING_REFERRAL_STORAGE_KEY = 'juthori_pending_referral_code_v1';
 export const PENDING_INVITE_TOKEN_STORAGE_KEY =
   'juthori_pending_invite_token_v1';

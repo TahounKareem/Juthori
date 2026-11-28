@@ -126,6 +126,17 @@ import {
   tagConsensusWinnersOnEvidence,
   verifyAndAttachSecondarySourceToAdamPrime,
 } from '../utils/lineageEngine';
+import {
+  ADAM_STAGING_SYNC_EVENT,
+  AdamStagingProposalRecord,
+  fetchAdamStagingProposals,
+  formatRelativeArabicTime,
+  getAdamStagingActionMeta,
+  isMaestroSovereignRole,
+  loadMaestroApprovedAdamNodes,
+  stageAdamTreeProposal,
+  validateHistoricalNodeOnly,
+} from '../services/adamSovereignFirewallService';
 import { LineageSpineColumn } from './LineageSpineColumn';
 import {
   CanonicalTicketLifecycleStage,
@@ -5464,7 +5475,103 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   // =========================================================================
   const [nodesById, setNodesById] = useState<
     Record<string, AdamTreeInteractiveNode>
-  >(() => getInitialAdamTreeNodesById());
+  >(() => {
+    const base = getInitialAdamTreeNodesById();
+    const approvedNodes = loadMaestroApprovedAdamNodes();
+    if (approvedNodes.length === 0) return base;
+    const merged: Record<string, AdamTreeInteractiveNode> = { ...base };
+    for (const node of approvedNodes) {
+      if (!node?.node_id) continue;
+      merged[node.node_id] = {
+        node_id: node.node_id,
+        name: node.name,
+        parent_id: node.parent_id ?? null,
+        parent_name: node.parent_name,
+        arc_code: node.arc_code || 'FE0',
+        representation: (node.representation ||
+          'FAMILY') as AdamTreeInteractiveNode['representation'],
+        relation_nature: (node.relation_nature === 'DIRECT'
+          ? 'DIRECT'
+          : 'DIRECT_DESCENDANT') as AdamTreeInteractiveNode['relation_nature'],
+        geo_footprint: node.geo_footprint || [],
+        enriched_sources: node.enriched_sources || [],
+        enriched_branches: node.enriched_branches || [],
+      };
+    }
+    return merged;
+  });
+
+  // Sovereign Adam Tree Protection: Only Maestro / General Manager commits directly;
+  // Research Manager & Specialist Researchers operate in protected Adam Sandbox (Staging Layer).
+  const isMaestroDirectAdamWrite = isMaestroSovereignRole(
+    activeStaffMember?.role
+  );
+  const [pendingAdamSandboxProposals, setPendingAdamSandboxProposals] =
+    useState<AdamStagingProposalRecord[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const syncSandboxAndApprovedNodes = async () => {
+      try {
+        const list = await fetchAdamStagingProposals();
+        if (!active) return;
+        setPendingAdamSandboxProposals(
+          list.filter((p) => p.status === 'pending_maestro')
+        );
+      } catch {
+        // Ignore transient offline errors
+      }
+      const approvedNodes = loadMaestroApprovedAdamNodes();
+      if (approvedNodes.length > 0 && active) {
+        setNodesById((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const node of approvedNodes) {
+            if (!node?.node_id) continue;
+            const existing = next[node.node_id];
+            if (
+              !existing ||
+              existing.name !== node.name ||
+              (node.enriched_sources?.length || 0) >
+                (existing.enriched_sources?.length || 0)
+            ) {
+              next[node.node_id] = {
+                node_id: node.node_id,
+                name: node.name,
+                parent_id: node.parent_id ?? null,
+                parent_name: node.parent_name,
+                arc_code: node.arc_code || existing?.arc_code || 'FE0',
+                representation: (node.representation ||
+                  existing?.representation ||
+                  'FAMILY') as AdamTreeInteractiveNode['representation'],
+                relation_nature: (node.relation_nature === 'DIRECT'
+                  ? 'DIRECT'
+                  : existing?.relation_nature ||
+                    'DIRECT_DESCENDANT') as AdamTreeInteractiveNode['relation_nature'],
+                geo_footprint:
+                  node.geo_footprint || existing?.geo_footprint || [],
+                enriched_sources:
+                  node.enriched_sources || existing?.enriched_sources || [],
+                enriched_branches:
+                  node.enriched_branches || existing?.enriched_branches || [],
+              };
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+      }
+    };
+    void syncSandboxAndApprovedNodes();
+    const onSync = () => {
+      void syncSandboxAndApprovedNodes();
+    };
+    window.addEventListener(ADAM_STAGING_SYNC_EVENT, onSync);
+    return () => {
+      active = false;
+      window.removeEventListener(ADAM_STAGING_SYNC_EVENT, onSync);
+    };
+  }, []);
 
   const adamGraphNodes = useMemo(
     () => Object.values(nodesById),
@@ -7071,6 +7178,86 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         .filter(Boolean),
     };
 
+    // Strict Living-Persons Firewall guard even inside Adam Tree Editor
+    const firewallCheck = validateHistoricalNodeOnly({
+      name: updatedNode.name,
+      relationLabel: updatedNode.name,
+      isAlive: false,
+      isHistoricalAncestor: true,
+    });
+    if (!firewallCheck.allowed) {
+      setShowAdamSaveConfirmModal(false);
+      showToast(`🛡️ ${firewallCheck.reasonAr}`);
+      return;
+    }
+
+    // Non-Maestro Sandbox Protection: Stage edit instead of mutating Adam Master Tree directly
+    if (!isMaestroDirectAdamWrite) {
+      const parentNode = selectedAdamNode.parent_id
+        ? nodesById[selectedAdamNode.parent_id]
+        : undefined;
+      const staged = await stageAdamTreeProposal({
+        actionType: 'update_reference_node',
+        targetNodeId: updatedNode.node_id,
+        targetNodeName: updatedNode.name,
+        parentNodeId: updatedNode.parent_id || undefined,
+        parentNodeName: parentNode?.name || updatedNode.parent_name,
+        ancestralChainPreview: parentNode?.name
+          ? `${updatedNode.name} ← ${parentNode.name}`
+          : updatedNode.name,
+        sourceReferenceText:
+          updatedNode.enriched_sources && updatedNode.enriched_sources.length > 0
+            ? updatedNode.enriched_sources.join(' | ')
+            : 'تحديث تكويد وبيانات عقدة مرجعية من محرر شجرة آدم',
+        proposedNodePayload: {
+          node_id: updatedNode.node_id,
+          name: updatedNode.name,
+          parent_id: updatedNode.parent_id ?? null,
+          parent_name: parentNode?.name || updatedNode.parent_name,
+          arc_code: updatedNode.arc_code,
+          representation: updatedNode.representation,
+          relation_nature: updatedNode.relation_nature,
+          geo_footprint: updatedNode.geo_footprint,
+          enriched_sources: updatedNode.enriched_sources,
+          enriched_branches: updatedNode.enriched_branches,
+        },
+        previousNodeSnapshot: {
+          node_id: selectedAdamNode.node_id,
+          name: selectedAdamNode.name,
+          parent_id: selectedAdamNode.parent_id ?? null,
+          parent_name: selectedAdamNode.parent_name,
+          arc_code: selectedAdamNode.arc_code,
+          representation: selectedAdamNode.representation,
+          relation_nature: selectedAdamNode.relation_nature,
+          geo_footprint: selectedAdamNode.geo_footprint,
+          enriched_sources: selectedAdamNode.enriched_sources,
+          enriched_branches: selectedAdamNode.enriched_branches,
+        },
+        submittedByResearcherId: activeStaffMember?.id || 'staff_research_sandbox',
+        submittedByResearcherName:
+          activeStaffMember?.name || 'باحث هيئة الأنساب',
+        approvedByManagerId:
+          activeStaffMember?.role === 'مدير البحوث'
+            ? activeStaffMember.id
+            : undefined,
+        approvedByManagerName:
+          activeStaffMember?.role === 'مدير البحوث'
+            ? activeStaffMember.name
+            : undefined,
+      });
+
+      setShowAdamSaveConfirmModal(false);
+      setIsNodeEditorUnlocked(false);
+      if (!staged.ok) {
+        showToast(`🛡️ ${staged.errorAr || 'تعذّر إرسال التعديل لطبقة الحماية.'}`);
+        return;
+      }
+      showToast(
+        `⏳ تم حفظ تعديل (${updatedNode.name}) في طبقة الحماية (Sandbox) — قيد التصديق النهائي للمايسترو ⏳`
+      );
+      return;
+    }
+
     try {
       await fetch(
         `${GERMAN_ENGINE_BASE_URL}/api/v1/juthori/adam-tree/update-node`,
@@ -7098,6 +7285,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
 
   const handleAddChildNodeToAdam = async () => {
     if (!selectedAdamNode || !newChildName.trim()) return;
+    const trimmedChildName = newChildName.trim();
+
+    // Strict Living-Persons Firewall check: block any contemporary/living markers from entering Adam Tree
+    const firewallCheck = validateHistoricalNodeOnly({
+      name: trimmedChildName,
+      relationLabel: trimmedChildName,
+      isAlive: false,
+      isHistoricalAncestor: true,
+    });
+    if (!firewallCheck.allowed) {
+      showToast(`🛡️ ${firewallCheck.reasonAr}`);
+      return;
+    }
+
     const newId = `ADAM-CUSTOM-${Date.now().toString().slice(-5)}`;
     const childConflict = checkArcCodeRepresentationConflict(
       newChildArcCode,
@@ -7105,7 +7306,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     );
     const childNode: AdamTreeInteractiveNode = {
       node_id: newId,
-      name: newChildName.trim(),
+      name: trimmedChildName,
       parent_id: selectedAdamNode.node_id,
       parent_name: selectedAdamNode.name,
       arc_code: newChildArcCode,
@@ -7120,6 +7321,53 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       enriched_sources: [],
       enriched_branches: [],
     };
+
+    // Non-Maestro Sandbox Protection: Stage proposed vertical historical node instead of direct master write
+    if (!isMaestroDirectAdamWrite) {
+      const staged = await stageAdamTreeProposal({
+        actionType: 'add_vertical_link',
+        targetNodeId: childNode.node_id,
+        targetNodeName: childNode.name,
+        parentNodeId: selectedAdamNode.node_id,
+        parentNodeName: selectedAdamNode.name,
+        ancestralChainPreview: `${childNode.name} ← ${selectedAdamNode.name}`,
+        sourceReferenceText: `اقتراح إضافة حلقة تاريخية أسفل (${selectedAdamNode.name}) من محرر شجرة آدم`,
+        proposedNodePayload: {
+          node_id: childNode.node_id,
+          name: childNode.name,
+          parent_id: selectedAdamNode.node_id,
+          parent_name: selectedAdamNode.name,
+          arc_code: childNode.arc_code,
+          representation: childNode.representation,
+          relation_nature: childNode.relation_nature,
+          geo_footprint: childNode.geo_footprint,
+          enriched_sources: childNode.enriched_sources,
+          enriched_branches: childNode.enriched_branches,
+        },
+        submittedByResearcherId: activeStaffMember?.id || 'staff_research_sandbox',
+        submittedByResearcherName:
+          activeStaffMember?.name || 'باحث هيئة الأنساب',
+        approvedByManagerId:
+          activeStaffMember?.role === 'مدير البحوث'
+            ? activeStaffMember.id
+            : undefined,
+        approvedByManagerName:
+          activeStaffMember?.role === 'مدير البحوث'
+            ? activeStaffMember.name
+            : undefined,
+      });
+
+      setNewChildName('');
+      setShowAddChildForm(false);
+      if (!staged.ok) {
+        showToast(`🛡️ ${staged.errorAr || 'تعذّر حفظ العقدة في طبقة الحماية.'}`);
+        return;
+      }
+      showToast(
+        `⏳ تم إرسال العقدة التاريخية (${childNode.name}) أسفل (${selectedAdamNode.name}) إلى طبقة الحماية — قيد التصديق النهائي للمايسترو ⏳`
+      );
+      return;
+    }
 
     try {
       await fetch(
@@ -7260,10 +7508,53 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
       enriched_branches: [resolvedSubRoot],
     };
 
-    setNodesById((prev) => ({
-      ...prev,
-      [newAdamNodeId]: newlyLinkedAdamNode,
-    }));
+    if (isMaestroDirectAdamWrite) {
+      setNodesById((prev) => ({
+        ...prev,
+        [newAdamNodeId]: newlyLinkedAdamNode,
+      }));
+    } else {
+      // Non-Maestro Sandbox: Stage the historical Adam Tree merge proposal for Maestro sovereign confirmation
+      await stageAdamTreeProposal({
+        actionType: 'relink_branch',
+        targetNodeId: newAdamNodeId,
+        targetNodeName: ticket.familyName,
+        parentNodeId: parentAdamNodeId,
+        parentNodeName: resolvedMotherTribe,
+        ancestralChainPreview: `${ticket.familyName} ← ${resolvedSubRoot} ← ${resolvedMotherTribe}`,
+        sourceReferenceText:
+          selectedCitations.join(' | ') ||
+          `توثيق مرصد البحوث للتذكرة ${ticket.id}`,
+        proposedNodePayload: {
+          node_id: newAdamNodeId,
+          name: ticket.familyName,
+          parent_id: parentAdamNodeId,
+          parent_name: resolvedMotherTribe,
+          arc_code: 'FE0',
+          representation: 'FAMILY',
+          relation_nature: 'DIRECT_DESCENDANT',
+          geo_footprint: ticket.inferredCountries || [ticket.locationLabel],
+          enriched_sources: selectedCitations,
+          enriched_branches: [resolvedSubRoot],
+        },
+        submittedByResearcherId:
+          activeStaffMember?.id || 'staff_research_observatory',
+        submittedByResearcherName:
+          activeStaffMember?.name ||
+          ticket.assignedResearcherName ||
+          'باحث مرصد جذوري',
+        approvedByManagerId:
+          activeStaffMember?.role === 'مدير البحوث'
+            ? activeStaffMember.id
+            : undefined,
+        approvedByManagerName:
+          activeStaffMember?.role === 'مدير البحوث'
+            ? activeStaffMember.name
+            : undefined,
+        sourceTicketId: ticket.id,
+        sourceFamilyName: ticket.familyName,
+      });
+    }
 
     // 2. Call German Engine HTTPS endpoint + mark-alpha-bridged for Neo4j deduplication
     const closePayload = {
@@ -7853,17 +8144,11 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
   return (
     <div
       dir="rtl"
-      className="min-h-screen pb-16 transition-colors duration-300 bg-[#F5F1E8] text-[#1F1F1C]"
+      className="w-full min-h-[60vh] pb-6 transition-colors duration-300 bg-[#F5F1E8] text-[#1F1F1C]"
     >
       {/* TOAST FEEDBACK BANNER */}
       {toastBanner && (
-        <div
-          className={
-            activeSubTab === 'adam_tree_explorer'
-              ? 'w-full max-w-none px-1 sm:px-2 mt-2'
-              : 'max-w-7xl mx-auto px-4 sm:px-6 mt-4'
-          }
-        >
+        <div className="w-full mb-4">
           <div className="bg-[#F5F1E8] text-[#1F1F1C] border border-[#D97757] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-[#D97757] shrink-0" />
@@ -7880,13 +8165,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
         </div>
       )}
 
-      <div
-        className={
-          activeSubTab === 'adam_tree_explorer'
-            ? 'w-full max-w-none px-1 sm:px-2 mt-2'
-            : 'max-w-7xl mx-auto px-4 sm:px-6 mt-6'
-        }
-      >
+      <div className="w-full">
         {/* ===================================================================
             SUB-TAB 1: 🧭 بوصلة الجذور (BOSLET AL-JUTHOR™ — DIAGNOSTIC COMPASS)
             Unified Warm Heritage Header Banner Matching Platform Identity
@@ -12112,6 +12391,72 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               </div>
             </div>
 
+            {/* Adam Tree Sovereign Sandbox Status Strip (Warm Heritage Ivory — Zero Dark Backgrounds) */}
+            {(!isMaestroDirectAdamWrite ||
+              pendingAdamSandboxProposals.length > 0) && (
+              <div
+                data-testid="adam-tree-sandbox-banner"
+                className="bg-[#FAF7F2] rounded-2xl border border-[#D8C7B2] px-5 py-4 shadow-2xs space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#F5F1E8] border border-[#D97757]/50 text-[#D97757] flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-extrabold font-display text-[#1F1F1C]">
+                          {isMaestroDirectAdamWrite
+                            ? 'طبقة الحماية السيادية (Adam Staging Layer)'
+                            : 'وضع الحماية السيادية (Sandbox) مفعّل لشجرة آدم'}
+                        </h3>
+                        <span className="text-[11px] font-bold text-[#D97757]">
+                          {isMaestroDirectAdamWrite
+                            ? `· ${pendingAdamSandboxProposals.length} مقترح بانتظار تصديقك في غرفة التصديق السيادي ⏳`
+                            : '· قيد التصديق النهائي للمايسترو ⏳'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#1F1F1C]/75 mt-1 leading-relaxed">
+                        {isMaestroDirectAdamWrite
+                          ? 'تتمتع بصلاحية الحفظ المباشر كمدير عام / مايسترو، بينما تُحفظ مقترحات فريق البحوث في طبقة العزل حتى تصادق عليها بضغطة زر. كما يعمل جدار عزل الأحياء لمنع دخول أي شخص معاصر.'
+                          : 'أي إضافة لحلقة تاريخية أو تعديل لبيانات عقدة مرجعية يُحفظ في طبقة المقترحات الآمنة (Staging Layer) بوسم «قيد التصديق النهائي للمايسترو ⏳» دون المساس بنسخة شجرة آدم المركزية. كما يُحظر برمجياً إدخال بيانات الأحياء والأبناء.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {pendingAdamSandboxProposals.length > 0 && (
+                  <div className="pt-2.5 border-t border-[#E8DED2] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {pendingAdamSandboxProposals.slice(0, 3).map((proposal) => {
+                      const meta = getAdamStagingActionMeta(proposal.actionType);
+                      return (
+                        <div
+                          key={proposal.id}
+                          className="rounded-xl bg-[#F5F1E8] border border-[#D8C7B2]/80 px-3.5 py-2.5 space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="font-extrabold text-[#D97757]">
+                              {meta.labelAr}
+                            </span>
+                            <span className="text-[#1F1F1C]/55 font-medium">
+                              ⏳ قيد التصديق
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold text-[#1F1F1C] line-clamp-2">
+                            {proposal.summaryAr}
+                          </p>
+                          <p className="text-[11px] text-[#1F1F1C]/60">
+                            بواسطة: {proposal.submittedByResearcherName} ·{' '}
+                            {formatRelativeArabicTime(proposal.createdAt)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 1. COLLAPSIBLE TOP SEARCH & FILTER PANEL: 🔍 البحث التفاعلي في شجرة آدم */}
             <div className="bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2]/90 p-5 shadow-xs space-y-4">
               {/* Collapsible Header with Title on Right and Collapse Arrow on Left */}
@@ -12173,10 +12518,10 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
               {/* Collapsible Body: Clean Premium Filter Bar + Conditional Results */}
               {isAdamSearchPanelOpen && (
                 <div className="space-y-4 pt-3 border-t border-[#D8C7B2]/80">
-                  {/* Premium Filter Bar: Clean Single-Row/Grid Without School Numbering or English Terms */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                  {/* Balanced 4-Column Search & Filter Grid Tuned for max-w-7xl */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
                     {/* Field 1: البحث بالاسم أو المعرف */}
-                    <div className="lg:col-span-3">
+                    <div className="min-w-0">
                       <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
                         البحث بالاسم أو المعرف
                       </label>
@@ -12186,14 +12531,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                           type="text"
                           value={adamSearchQuery}
                           onChange={(e) => setAdamSearchQuery(e.target.value)}
-                          placeholder="ابحث باسم العقدة أو القبيلة أو العائلة (مثال: آل قحيم، تميم)..."
-                          className="w-full pr-10 pl-3 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold focus:outline-none focus:border-[#D97757]"
+                          placeholder="اسم العقدة أو القبيلة أو العائلة (مثال: تميم)..."
+                          className="w-full pr-10 pl-3 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                         />
                       </div>
                     </div>
 
                     {/* Field 2: اسم الأب أو الجد الأعلى */}
-                    <div className="lg:col-span-3">
+                    <div className="min-w-0">
                       <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
                         اسم الأب أو الجد الأعلى
                       </label>
@@ -12201,20 +12546,20 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         type="text"
                         value={adamFatherQuery}
                         onChange={(e) => setAdamFatherQuery(e.target.value)}
-                        placeholder="اكتب اسم الأب أو الجد الأعلى (مثال: همدان، طيء، كهلان)..."
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold focus:outline-none focus:border-[#D97757]"
+                        placeholder="الأب أو الجد الأعلى (مثال: همدان، طيء)..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       />
                     </div>
 
                     {/* Field 3: الكود الهيكلي */}
-                    <div className="lg:col-span-2">
+                    <div className="min-w-0">
                       <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
                         الكود الهيكلي
                       </label>
                       <select
                         value={adamArcFilter}
                         onChange={(e) => setAdamArcFilter(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold focus:outline-none focus:border-[#D97757]"
+                        className="w-full px-3 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       >
                         <option value="">جميع الأكواد الهيكلية</option>
                         <option value="MT">MT — قبيلة أم جامعة</option>
@@ -12238,14 +12583,14 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     </div>
 
                     {/* Field 4: التصنيف (Pure Arabic options, default "" = جميع التصنيفات) */}
-                    <div className="lg:col-span-2">
+                    <div className="min-w-0">
                       <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
                         التصنيف
                       </label>
                       <select
                         value={adamRepFilter}
                         onChange={(e) => setAdamRepFilter(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#F5F1E8] text-xs font-bold focus:outline-none focus:border-[#D97757]"
+                        className="w-full px-3 py-2.5 rounded-xl border border-[#D8C7B2] bg-[#FAF7F2] text-xs font-bold text-[#1F1F1C] focus:outline-none focus:border-[#D97757]"
                       >
                         <option value="">جميع التصنيفات</option>
                         <option value="TRIBE">قبيلة</option>
@@ -12253,34 +12598,40 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                         <option value="INDIVIDUAL">فرد</option>
                       </select>
                     </div>
+                  </div>
 
-                    {/* Field 5: Single Clean Toggle Button: 📍 البحث أسفل العقدة المحددة حالياً في الشجرة (Default: false) */}
-                    <div className="lg:col-span-2">
-                      <label className="block text-[11px] font-bold text-[#1F1F1C]/70 mb-1.5">
-                        النطاق الشجري
-                      </label>
-                      <button
-                        type="button"
-                        aria-pressed={searchUnderSelectedNodeOnly}
-                        onClick={() =>
-                          setSearchUnderSelectedNodeOnly((prev) => !prev)
-                        }
-                        className={`w-full px-3 py-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                          searchUnderSelectedNodeOnly
-                            ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-2xs'
-                            : 'bg-[#F5F1E8] hover:bg-[#E8DED2]/70 text-[#D97757] border-[#D8C7B2]/60'
-                        }`}
-                        title={
-                          selectedAdamNode
-                            ? `البحث أسفل العقدة المحددة حالياً في الشجرة (${selectedAdamNode.name})`
-                            : 'البحث أسفل العقدة المحددة حالياً في الشجرة'
-                        }
-                      >
-                        <span className="truncate">
-                          📍 البحث أسفل العقدة المحددة حالياً في الشجرة
+                  {/* Scope Bar: Dedicated Tree-Scope Toggle Without Cramping the 4 Search Fields */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      aria-pressed={searchUnderSelectedNodeOnly}
+                      onClick={() =>
+                        setSearchUnderSelectedNodeOnly((prev) => !prev)
+                      }
+                      className={`px-3.5 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all inline-flex items-center gap-2 ${
+                        searchUnderSelectedNodeOnly
+                          ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-2xs'
+                          : 'bg-[#FAF7F2] hover:bg-[#E8DED2]/70 text-[#1F1F1C] border-[#D8C7B2]'
+                      }`}
+                      title={
+                        selectedAdamNode
+                          ? `البحث أسفل العقدة المحددة حالياً في الشجرة (${selectedAdamNode.name})`
+                          : 'البحث أسفل العقدة المحددة حالياً في الشجرة'
+                      }
+                    >
+                      <span>📍 البحث أسفل العقدة المحددة حالياً في الشجرة</span>
+                      {selectedAdamNode && (
+                        <span
+                          className={`px-2 py-0.5 rounded-lg text-[10.5px] font-extrabold ${
+                            searchUnderSelectedNodeOnly
+                              ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                              : 'bg-[#E8DED2] text-[#D97757]'
+                          }`}
+                        >
+                          {selectedAdamNode.name}
                         </span>
-                      </button>
-                    </div>
+                      )}
+                    </button>
                   </div>
 
                   {/* Active Filters Reset Bar */}
@@ -12509,18 +12860,19 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                   <WorkspaceIconTooltip
                     label={
                       isAdamCinemaMode
-                        ? 'إنهاء العرض بملء الشاشة'
-                        : 'عرض الشجرة بملء الشاشة'
+                        ? 'تصغير وإغلاق ملء الشاشة'
+                        : 'ملء الشاشة للمستكشف الشجري'
                     }
                     placement="bottom"
                   >
                     <button
                       type="button"
+                      data-testid="adam-tree-fullscreen-toggle"
                       onClick={() => setIsAdamCinemaMode((v) => !v)}
                       aria-label={
                         isAdamCinemaMode
-                          ? 'إنهاء العرض بملء الشاشة'
-                          : 'عرض الشجرة بملء الشاشة'
+                          ? 'تصغير وإغلاق ملء الشاشة'
+                          : 'ملء الشاشة للمستكشف الشجري'
                       }
                       aria-pressed={isAdamCinemaMode}
                       className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors cursor-pointer ${
@@ -12851,8 +13203,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                 data-testid="adam-tree-studio-workspace"
                 className={
                   isAdamCinemaMode
-                    ? 'fixed inset-0 z-[80] flex flex-col bg-[#FAF6F0] overflow-hidden'
-                    : `rounded-3xl border-2 ${activeAdamTreeTheme.canvasBorder} shadow-sm relative overflow-hidden transition-colors flex flex-col`
+                    ? 'fixed inset-0 z-50 flex flex-col bg-[#FAF6F0] overflow-hidden'
+                    : `rounded-3xl border border-[#D8C7B2] shadow-sm relative overflow-hidden transition-colors flex flex-col`
                 }
               >
                 {/* Fullscreen Cinema Mode Top Bar (Shown ONLY when fullscreen is active) */}
@@ -12941,7 +13293,7 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                       dir="rtl"
                       data-testid="adam-tree-settings-drawer"
                       aria-label="إعدادات عرض شجرة آدم"
-                      className="fixed inset-x-0 bottom-0 z-[85] max-h-[80vh] rounded-t-3xl border-t-2 border-[#D97757]/60 bg-[#F5F1E8] text-[#1F1F1C] shadow-2xl flex flex-col lg:static lg:z-20 lg:w-[340px] lg:shrink-0 lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-e lg:border-[#D97757]/35 lg:shadow-none overflow-hidden"
+                      className="fixed inset-x-0 bottom-0 z-[85] max-h-[80vh] rounded-t-3xl border-t-2 border-[#D97757]/60 bg-[#F5F1E8] text-[#1F1F1C] shadow-2xl flex flex-col lg:static lg:z-20 lg:w-[292px] xl:w-[308px] lg:shrink-0 lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-e lg:border-[#D8C7B2] lg:shadow-none overflow-hidden"
                     >
                       <div className="px-2.5 py-2 bg-[#F5F1E8] border-b border-[#D8C7B2] shrink-0 flex items-stretch gap-1.5">
                         <div className="flex-1 grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#E8DED2] border border-[#D8C7B2]">

@@ -9,11 +9,13 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react';
 import { FamilySiteThemeDefinition } from '../config/referralAndSiteConfig';
 import {
+  CircleJoinRequestDoc,
   FamilyCrestStyle,
   FamilyPortalVisualBranding,
   HeroCoverPresetId,
@@ -908,12 +910,16 @@ const READ_ONLY_MIRROR_CAPS: DashboardAccessCapabilities = {
   requiresCharterUpgradeForTree: false,
   tierHeaderTitle: 'دوحة نسب العائلة التفاعلية',
   membershipTierKey: 'annual_vip',
+  subscriptionPlan: 'premium',
   maxTreeMembers: 5000,
   maxVaultDocuments: null,
   canPublishPublicSite: false,
   canInviteFamilyContributors: false,
   hasRegistrarBadge: false,
   hasPriorityResearchObservatory: false,
+  canUseKashafi: false,
+  hasDirectCustomerSupport: false,
+  canExportHighResTree: false,
 };
 
 interface PublicVisualTreeMirrorProps {
@@ -925,6 +931,12 @@ interface PublicVisualTreeMirrorProps {
   compactPreview?: boolean;
   velvetBandMode?: boolean;
   canProposeEnrichment?: boolean;
+  isCircleMember?: boolean;
+  canRequestUpgrade?: boolean;
+  pendingJoinRequest?: CircleJoinRequestDoc | null;
+  onRequestJoinCircle?: () => void;
+  onRequestUpgradePermission?: () => void;
+  onCancelJoinRequest?: () => void;
   siteSlug?: string;
   ownerId?: string;
   viewerDefaultName?: string;
@@ -945,6 +957,12 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
   compactPreview = false,
   velvetBandMode = false,
   canProposeEnrichment = false,
+  isCircleMember = false,
+  canRequestUpgrade = false,
+  pendingJoinRequest = null,
+  onRequestJoinCircle,
+  onRequestUpgradePermission,
+  onCancelJoinRequest,
   siteSlug = '',
   ownerId = '',
   viewerDefaultName = '',
@@ -1320,6 +1338,45 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
                     </button>
                   )}
 
+                {!isProposalSandboxActive &&
+                  !canProposeEnrichment &&
+                  !compactPreview &&
+                  (pendingJoinRequest?.status === 'PENDING' ? (
+                    <div className="inline-flex items-center gap-1.5 rounded-xl bg-[#FDFBF7] border border-[#D8C7B2] px-3 h-9 text-[11px] font-display font-bold text-[#1F1F1C]">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
+                      <span>تم إرسال طلبك — بانتظار قبول أمين السجل</span>
+                      {onCancelJoinRequest && (
+                        <button
+                          type="button"
+                          onClick={onCancelJoinRequest}
+                          className="mr-1 px-2 py-0.5 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2] text-[#1F1F1C] text-[10.5px] font-bold cursor-pointer"
+                        >
+                          إلغاء الطلب
+                        </button>
+                      )}
+                    </div>
+                  ) : isCircleMember && canRequestUpgrade && onRequestUpgradePermission ? (
+                    <button
+                      type="button"
+                      data-testid="tree-theater-request-upgrade-btn"
+                      onClick={onRequestUpgradePermission}
+                      className="h-9 px-3.5 rounded-xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D97757]/50 text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>✦ طلب صلاحية إثراء الشجرة</span>
+                    </button>
+                  ) : !isCircleMember && onRequestJoinCircle ? (
+                    <button
+                      type="button"
+                      data-testid="tree-theater-join-circle-btn"
+                      onClick={onRequestJoinCircle}
+                      className="h-9 px-3.5 rounded-xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D97757]/55 text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-[#D97757]" />
+                      <span>🤝 هل أنت من أفراد العائلة؟ اطلب الانضمام للدائرة</span>
+                    </button>
+                  ) : null)}
+
                 {isProposalSandboxActive && (
                   <>
                     {proposedCount > 0 && (
@@ -1391,9 +1448,9 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
 
             {/* Post-Submission Success Toast Banner inside Theater */}
             {submitSuccessText && !showSubmitProposalModal && (
-              <div className="shrink-0 bg-emerald-900 text-emerald-50 border-b border-emerald-400/40 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
+              <div className="shrink-0 bg-[#FDFBF7] text-[#1F1F1C] border-b border-[#D97757]/45 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
                   <span>{submitSuccessText}</span>
                 </div>
                 <button
@@ -1790,7 +1847,7 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
             )}
           </div>
 
-          {/* Gatehouse Primary Action Button (Enrichment moved strictly inside Theater) */}
+          {/* Gatehouse Primary Action Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1 w-full">
             <button
               type="button"
@@ -1816,6 +1873,44 @@ export const PublicVisualTreeMirror: React.FC<PublicVisualTreeMirrorProps> = ({
               <Maximize2 className="w-4 h-4 shrink-0" />
               <span>✦ فتح واستعراض دوحة العائلة التفاعلية</span>
             </button>
+
+            {!compactPreview && !canProposeEnrichment && (
+              pendingJoinRequest?.status === 'PENDING' ? (
+                <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-[#FDFBF7] border border-[#D8C7B2] px-4 py-2.5 text-xs font-display font-bold text-[#1F1F1C]">
+                  <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
+                  <span>✓ تم إرسال طلب انضمامك — بانتظار قبول أمين السجل</span>
+                  {onCancelJoinRequest && (
+                    <button
+                      type="button"
+                      onClick={onCancelJoinRequest}
+                      className="px-2.5 py-1 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] text-[#1F1F1C] text-[11px] font-bold cursor-pointer transition-colors"
+                    >
+                      إلغاء الطلب
+                    </button>
+                  )}
+                </div>
+              ) : isCircleMember && canRequestUpgrade && onRequestUpgradePermission ? (
+                <button
+                  type="button"
+                  data-testid="tree-gatehouse-request-upgrade-btn"
+                  onClick={onRequestUpgradePermission}
+                  className="px-4 py-3 rounded-2xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D97757]/45 text-[#D97757] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>✦ طلب صلاحية إثراء</span>
+                </button>
+              ) : !isCircleMember && onRequestJoinCircle ? (
+                <button
+                  type="button"
+                  data-testid="tree-gatehouse-join-circle-btn"
+                  onClick={onRequestJoinCircle}
+                  className="px-4 py-3 rounded-2xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <UserPlus className="w-4 h-4 text-[#D97757]" />
+                  <span>🤝 هل أنت من أفراد العائلة؟ اطلب الانضمام للدائرة</span>
+                </button>
+              ) : null
+            )}
           </div>
         </div>
       </div>

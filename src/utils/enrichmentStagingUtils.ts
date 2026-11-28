@@ -1,14 +1,89 @@
 /**
- * Granular Enrichment Permissions, Staging Tree Sandbox Diff Extraction,
+ * Granular 3-Tier Circle RBAC Permissions, Staging Tree Sandbox Diff Extraction,
  * and Collision-Safe Visual Diff / Authoritative Tree Merge Utilities.
+ *
+ * ZERO Anonymous Enrichment: Only authenticated, approved circle members with
+ * explicit role entitlements (`memory_contributor` for Vault, `assistant_registrar`
+ * for Tree + Vault) or the Site Owner may propose enrichments.
  */
 
 export const FAMILY_TREE_SYNC_EVENT = 'juthori:family-tree-merged';
+export const JUTHORI_KINSHIP_CIRCLE_SYNC_EVENT = 'juthori:kinship-circle-synced';
 
 export type CircleRoleKey =
   | 'assistant_registrar'
   | 'memory_contributor'
   | 'family_viewer';
+
+export interface CirclePermissionTierMeta {
+  id: CircleRoleKey;
+  labelAr: string;
+  shortLabelAr: string;
+  descriptionAr: string;
+  requestIntentLabelAr: string;
+  requestSummaryAr: string;
+  canEnrichVault: boolean;
+  canEnrichTree: boolean;
+}
+
+export const CIRCLE_PERMISSION_TIERS: ReadonlyArray<CirclePermissionTierMeta> = [
+  {
+    id: 'family_viewer',
+    labelAr: 'تصفح الديوان والمشاركة',
+    shortLabelAr: 'تصفح الديوان',
+    descriptionAr:
+      'دخول البوابة الخاصة والعامة، تصفح الشجرة والخزانة، والمشاركة في المجلس وتأكيد المناسبات (بدون صلاحية إثراء).',
+    requestIntentLabelAr: 'تصفح الديوان وصلة الرحم',
+    requestSummaryAr: 'يرغب بتصفح الديوان وصلة الرحم',
+    canEnrichVault: false,
+    canEnrichTree: false,
+  },
+  {
+    id: 'memory_contributor',
+    labelAr: 'راوي الذاكرة — إثراء الخزانة',
+    shortLabelAr: 'راوي الذاكرة',
+    descriptionAr:
+      'كل صلاحيات التصفح والمشاركة + إهداء واقتراح الصور والوثائق والقصص في خزانة العائلة فقط.',
+    requestIntentLabelAr: 'لدي صور ووثائق للخزانة',
+    requestSummaryAr: 'يرغب بإثراء خزانة الصور والوثائق',
+    canEnrichVault: true,
+    canEnrichTree: false,
+  },
+  {
+    id: 'assistant_registrar',
+    labelAr: 'مساعد أمين السجل — إثراء الشجرة والخزانة',
+    shortLabelAr: 'مساعد أمين السجل',
+    descriptionAr:
+      'كل الصلاحيات السابقة + اقتراح إضافة فروع وأفراد على الشجرة التفاعلية وإثراء خزانة العائلة.',
+    requestIntentLabelAr: 'لدي معلومات لإثراء فروع الشجرة',
+    requestSummaryAr: 'يرغب بإثراء فروع الشجرة والخزانة',
+    canEnrichVault: true,
+    canEnrichTree: true,
+  },
+];
+
+export function normalizeCircleRoleKey(rawRole?: string | null): CircleRoleKey {
+  const clean = (rawRole || '').trim().toLowerCase();
+  if (clean === 'assistant_registrar' || clean === 'co_registrar') {
+    return 'assistant_registrar';
+  }
+  if (clean === 'memory_contributor' || clean === 'vault_contributor') {
+    return 'memory_contributor';
+  }
+  return 'family_viewer';
+}
+
+export function getCircleRoleTierMeta(role?: string | null): CirclePermissionTierMeta {
+  const normalized = normalizeCircleRoleKey(role);
+  return (
+    CIRCLE_PERMISSION_TIERS.find((t) => t.id === normalized) ||
+    CIRCLE_PERMISSION_TIERS[0]
+  );
+}
+
+export function mapCircleRoleToArabicLabel(role?: CircleRoleKey | string): string {
+  return getCircleRoleTierMeta(role).shortLabelAr;
+}
 
 export interface CircleMemberAccessMeta {
   email: string;
@@ -60,7 +135,7 @@ export interface StagingParentLinkPatch {
 export interface EnrichmentPermissionInput {
   privacyConfig?: {
     allowCircleMembersEnrichment?: boolean;
-    allowVisitorEnrichment?: boolean;
+    allowPublicMajlis?: boolean;
   };
   siteOwnerId?: string;
   whitelistedEmails?: string[];
@@ -69,44 +144,44 @@ export interface EnrichmentPermissionInput {
   viewerUid?: string | null;
   viewerEmail?: string | null;
   isOwnerPreview?: boolean;
-  accessCodeUnlocked?: boolean;
   activeInvitationStatus?: 'PENDING' | 'SENT' | 'ACTIVE' | 'OPTED_OUT' | null;
   activeInvitationEmail?: string | null;
   justClaimedEmail?: string | null;
 }
 
 export interface ResolvedEnrichmentPermission {
+  /** True only when viewer can propose tree branches (Owner or assistant_registrar) */
+  canProposeTreeEnrichment: boolean;
+  /** True only when viewer can gift/propose vault media (Owner, assistant_registrar, or memory_contributor) */
+  canProposeVaultEnrichment: boolean;
+  /** Convenience flag: true if viewer has either tree or vault enrichment rights */
   canProposeEnrichment: boolean;
+  /** True when viewer is allowed to post in Majlis & RSVP to events */
+  canInteractInMajlis: boolean;
   isCircleMember: boolean;
   isSiteOwner: boolean;
   allowCircleMembersEnrichment: boolean;
-  allowVisitorEnrichment: boolean;
+  allowPublicMajlis: boolean;
   viewerCircleRole?: CircleRoleKey;
   viewerRoleLabel: string;
   matchedCircleMember?: CircleMemberAccessMeta;
 }
 
-export function mapCircleRoleToArabicLabel(role?: CircleRoleKey): string {
-  if (role === 'assistant_registrar') return 'مساعد أمين السجل';
-  if (role === 'memory_contributor') return 'راوي ومساهم في الذاكرة';
-  return 'عضو دائرة العائلة';
-}
-
 /**
- * Single source of truth for deciding whether a public microsite viewer may propose
- * tree branches or gift vault photos.
- *
- * Defaults:
- * - `allowCircleMembersEnrichment`: true (unless explicitly false)
- * - `allowVisitorEnrichment`: false (only true when explicitly true)
+ * Single source of truth for enforcing the 3-Tier Circle Permissions Matrix
+ * with ZERO anonymous enrichment:
+ * - Site Owner: full tree + vault + Majlis rights.
+ * - `assistant_registrar`: tree sandbox + vault gift + Majlis/RSVP (when circle enrichment enabled).
+ * - `memory_contributor`: vault gift + Majlis/RSVP ONLY (no tree sandbox).
+ * - `family_viewer`: browse + Majlis/RSVP ONLY (no tree or vault enrichment).
+ * - Non-member visitor: NO tree or vault enrichment ever; Majlis/RSVP only if `allowPublicMajlis === true`.
  */
 export function resolvePublicSiteEnrichmentPermission(
   input: EnrichmentPermissionInput
 ): ResolvedEnrichmentPermission {
   const allowCircleMembersEnrichment =
     input.privacyConfig?.allowCircleMembersEnrichment !== false;
-  const allowVisitorEnrichment =
-    input.privacyConfig?.allowVisitorEnrichment === true;
+  const allowPublicMajlis = input.privacyConfig?.allowPublicMajlis === true;
 
   const cleanUid = (input.viewerUid || '').trim();
   const cleanEmail = (input.viewerEmail || '').trim().toLowerCase();
@@ -118,24 +193,31 @@ export function resolvePublicSiteEnrichmentPermission(
 
   if (isSiteOwner) {
     return {
-      canProposeEnrichment:
-        allowVisitorEnrichment || allowCircleMembersEnrichment,
+      canProposeTreeEnrichment: true,
+      canProposeVaultEnrichment: true,
+      canProposeEnrichment: true,
+      canInteractInMajlis: true,
       isCircleMember: true,
       isSiteOwner: true,
       allowCircleMembersEnrichment,
-      allowVisitorEnrichment,
+      allowPublicMajlis,
+      viewerCircleRole: 'assistant_registrar',
       viewerRoleLabel: 'أمين السجل',
     };
   }
 
-  if (input.activeInvitationStatus === 'OPTED_OUT') {
+  // Unauthenticated visitors or opted-out invitees NEVER receive enrichment rights
+  if (!cleanUid || input.activeInvitationStatus === 'OPTED_OUT') {
     return {
-      canProposeEnrichment: allowVisitorEnrichment,
+      canProposeTreeEnrichment: false,
+      canProposeVaultEnrichment: false,
+      canProposeEnrichment: false,
+      canInteractInMajlis: allowPublicMajlis,
       isCircleMember: false,
       isSiteOwner: false,
       allowCircleMembersEnrichment,
-      allowVisitorEnrichment,
-      viewerRoleLabel: 'قريب زائر',
+      allowPublicMajlis,
+      viewerRoleLabel: 'زائر',
     };
   }
 
@@ -158,9 +240,7 @@ export function resolvePublicSiteEnrichmentPermission(
     .map((u) => (u || '').trim())
     .filter(Boolean);
 
-  const matchedByUid = Boolean(
-    cleanUid && whitelistedUidsClean.includes(cleanUid)
-  );
+  const matchedByUid = Boolean(cleanUid && whitelistedUidsClean.includes(cleanUid));
   const matchedByEmail = Boolean(
     cleanEmail && whitelistedEmailsLower.includes(cleanEmail)
   );
@@ -174,29 +254,46 @@ export function resolvePublicSiteEnrichmentPermission(
   );
 
   const isCircleMember = Boolean(
-    matchedMeta ||
-      matchedByUid ||
-      matchedByEmail ||
-      matchedByClaimedInvite ||
-      input.accessCodeUnlocked
+    matchedMeta || matchedByUid || matchedByEmail || matchedByClaimedInvite
   );
 
-  const viewerCircleRole = matchedMeta?.role;
-  const viewerRoleLabel = isCircleMember
-    ? mapCircleRoleToArabicLabel(viewerCircleRole)
-    : 'قريب زائر';
+  if (!isCircleMember) {
+    return {
+      canProposeTreeEnrichment: false,
+      canProposeVaultEnrichment: false,
+      canProposeEnrichment: false,
+      canInteractInMajlis: allowPublicMajlis,
+      isCircleMember: false,
+      isSiteOwner: false,
+      allowCircleMembersEnrichment,
+      allowPublicMajlis,
+      viewerRoleLabel: 'عضو جذوري',
+    };
+  }
 
-  const canProposeEnrichment =
-    allowVisitorEnrichment || (allowCircleMembersEnrichment && isCircleMember);
+  const viewerCircleRole: CircleRoleKey = normalizeCircleRoleKey(
+    matchedMeta?.role || 'family_viewer'
+  );
+  const tierMeta = getCircleRoleTierMeta(viewerCircleRole);
+
+  const canProposeTreeEnrichment = Boolean(
+    allowCircleMembersEnrichment && tierMeta.canEnrichTree
+  );
+  const canProposeVaultEnrichment = Boolean(
+    allowCircleMembersEnrichment && tierMeta.canEnrichVault
+  );
 
   return {
-    canProposeEnrichment,
-    isCircleMember,
+    canProposeTreeEnrichment,
+    canProposeVaultEnrichment,
+    canProposeEnrichment: canProposeTreeEnrichment || canProposeVaultEnrichment,
+    canInteractInMajlis: true,
+    isCircleMember: true,
     isSiteOwner: false,
     allowCircleMembersEnrichment,
-    allowVisitorEnrichment,
+    allowPublicMajlis,
     viewerCircleRole,
-    viewerRoleLabel,
+    viewerRoleLabel: tierMeta.shortLabelAr,
     matchedCircleMember: matchedMeta,
   };
 }
@@ -419,9 +516,6 @@ export interface GenericTreeRecord {
 
 /**
  * Collision-safe merge of staging proposed nodes & link patches into an authoritative tree.
- * Used for BOTH:
- * 1) Visual Diff Preview in «مجتمعي» (virtual non-destructive merge)
- * 2) Authoritative 1-Click Approval Merge into Firestore «شجرتي»
  */
 export function mergeStagingTreeProposalIntoAuthoritativeTree<
   T extends GenericTreeRecord
@@ -439,7 +533,6 @@ export function mergeStagingTreeProposalIntoAuthoritativeTree<
   const idRemap: Record<string, string> = {};
   const insertedIds: string[] = [];
 
-  // 1. Allocate collision-free IDs for all proposed nodes
   proposedNodes.forEach((p, idx) => {
     let targetId = p.id || `node_enr_${Date.now()}_${idx}`;
     if (existingIds.has(targetId)) {
@@ -459,7 +552,6 @@ export function mergeStagingTreeProposalIntoAuthoritativeTree<
     return idRemap[rawId] || rawId;
   };
 
-  // 2. Collect all reciprocal spouse additions targeting existing base nodes
   const extraSpousesByBaseId = new Map<string, Set<string>>();
   const patchByBaseId = new Map<string, StagingParentLinkPatch>();
 
@@ -490,7 +582,6 @@ export function mergeStagingTreeProposalIntoAuthoritativeTree<
     });
   }
 
-  // 3. Apply non-destructive link patches onto existing base nodes
   const patchedBase = baseTree.map((node) => {
     const patch = patchByBaseId.get(node.id);
     const addedSpouses = extraSpousesByBaseId.get(node.id);
@@ -523,7 +614,6 @@ export function mergeStagingTreeProposalIntoAuthoritativeTree<
     } as T;
   });
 
-  // 4. Materialize proposed nodes with remapped references & both schema conventions
   const materializedProposed = proposedNodes.map((p) => {
     const mappedId = idRemap[p.id];
     const isDeceased = p.vitalStatus === 'deceased';

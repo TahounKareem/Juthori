@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   query,
   runTransaction,
@@ -53,11 +54,13 @@ import {
 import {
   CircleMemberAccessMeta,
   FAMILY_TREE_SYNC_EVENT,
+  JUTHORI_KINSHIP_CIRCLE_SYNC_EVENT,
   StagingParentLinkPatch,
   StagingProposedTreeNode,
+  getCircleRoleTierMeta,
   mergeStagingTreeProposalIntoAuthoritativeTree,
+  normalizeCircleRoleKey,
 } from '../utils/enrichmentStagingUtils';
-import { hashFamilyPasscode } from '../utils/portalSecurityUtils';
 import { createKashafiItem } from './kashafiService';
 import {
   DashboardAccessCapabilities,
@@ -76,6 +79,7 @@ import {
   normalizeFamilySiteThemeId,
   resolveClientPublicAppBaseUrl,
 } from '../config/referralAndSiteConfig';
+export { buildDeterministicReferralCode };
 
 // =============================================================================
 // COMMERCIAL LINEAGE PAYWALL TEASER (STRICTLY ZERO UPPER SPINE OR BOOK LEAKS)
@@ -130,9 +134,6 @@ const P4_PUBLIC_READ_COLLECTIONS = new Set([
 
 const P4_PUBLIC_WRITE_COLLECTIONS = new Set([
   'kinship_invitations',
-  'site_access_requests',
-  'enrichment_requests',
-  'tree_enrichment_requests',
   'site_guestbook',
 ]);
 
@@ -1344,16 +1345,14 @@ export interface PublicSitePrivacyConfig {
   selectedVaultItemIds: string[];
   enableDynamicWatermark?: boolean;
   enablePhotoFacePrompt?: boolean;
-  familyAccessCode?: string;
-  familyPasscodeHash?: string;
   allowCircleMembersEnrichment?: boolean;
-  allowVisitorEnrichment?: boolean;
+  allowPublicMajlis?: boolean;
+  hideFromSearchEngines?: boolean;
 }
 
 export type AccessGateMode =
   | 'PUBLIC_INDEXABLE'
   | 'UNLISTED_LINK'
-  | 'FAMILY_PIN'
   | 'PRIVATE_WHITELIST';
 
 export interface PublicMicrositeData {
@@ -1367,7 +1366,6 @@ export interface PublicMicrositeData {
   siteAccessMode: SiteAccessMode;
   privacyMode?: SiteAccessMode;
   accessGateMode?: AccessGateMode;
-  hasFamilyPasscode?: boolean;
   whitelistedEmails?: string[];
   whitelistedUids?: string[];
   whitelistedMemberMeta?: CircleMemberAccessMeta[];
@@ -2130,7 +2128,6 @@ interface PublicSiteDirectoryHeader {
   isPublished: boolean;
   siteAccessMode: SiteAccessMode;
   accessGateMode?: AccessGateMode;
-  hasFamilyPasscode?: boolean;
   themeId: FamilySiteThemeId;
   updatedAt: string;
 }
@@ -2146,9 +2143,8 @@ export async function fetchPublishedMicrositeBySlug(
   }
 
   // Zero-Trust Fallback: if `public_sites/{slug}` denied `get` because it is `PRIVATE_WHITELIST`
-  // and the visitor is unauthenticated/unauthorized, load the safe zero-PII directory header
-  // so the Family Portal Gate, Passcode Unlock, Sign-In, & Access Request form render cleanly
-  // without leaking private content or plaintext passcodes.
+  // and the visitor is unauthenticated or not yet in the approved Kinship Circle, load the
+  // zero-PII directory header so the Identity Private Gate & Authenticated Join Request flow render cleanly.
   const header = await readDualDoc<PublicSiteDirectoryHeader>([
     'public_site_directory',
     slug,
@@ -2165,11 +2161,9 @@ export async function fetchPublishedMicrositeBySlug(
       isPublished: true,
       siteAccessMode: 'PRIVATE_WHITELIST',
       privacyMode: 'PRIVATE_WHITELIST',
-      accessGateMode:
-        header.accessGateMode ||
-        (header.hasFamilyPasscode ? 'FAMILY_PIN' : 'PRIVATE_WHITELIST'),
-      hasFamilyPasscode: Boolean(header.hasFamilyPasscode),
+      accessGateMode: 'PRIVATE_WHITELIST',
       whitelistedEmails: [],
+      whitelistedUids: [],
       themeId: normalizeFamilySiteThemeId(header.themeId),
       familyName: header.familyName || 'العائلة',
       privacyConfig: {
@@ -2186,63 +2180,6 @@ export async function fetchPublishedMicrositeBySlug(
   }
 
   return null;
-}
-
-export async function restorePublishedMicrositeByPasscodeHash(
-  rawSlug: string,
-  passcodeHash: string
-): Promise<PublicMicrositeData | null> {
-  const slug = normalizePublicSiteSlug(rawSlug);
-  const cleanHash = (passcodeHash || '').trim().toLowerCase();
-  if (!slug || !/^[a-f0-9]{64}$/.test(cleanHash)) return null;
-  const mirrorDoc = await readDualDoc<PublicMicrositeData>([
-    'public_sites',
-    slug,
-    'passcode_mirrors',
-    cleanHash,
-  ]);
-  if (!mirrorDoc || !mirrorDoc.isPublished) return null;
-  return {
-    ...mirrorDoc,
-    hasFamilyPasscode: true,
-    accessGateMode: mirrorDoc.accessGateMode || 'FAMILY_PIN',
-  };
-}
-
-export async function unlockPublishedMicrositeByPasscode(
-  rawSlug: string,
-  rawPasscode: string
-): Promise<{
-  ok: boolean;
-  siteData?: PublicMicrositeData;
-  passcodeHash?: string;
-  errorAr?: string;
-}> {
-  const slug = normalizePublicSiteSlug(rawSlug);
-  const cleanCode = (rawPasscode || '').trim();
-  if (!slug || !cleanCode) {
-    return {
-      ok: false,
-      errorAr: 'يرجى إدخال رمز الدخول السري للعائلة أولاً.',
-    };
-  }
-  const passcodeHash = hashFamilyPasscode(slug, cleanCode);
-  const mirrorDoc = await restorePublishedMicrositeByPasscodeHash(
-    slug,
-    passcodeHash
-  );
-  if (mirrorDoc) {
-    return {
-      ok: true,
-      siteData: mirrorDoc,
-      passcodeHash,
-    };
-  }
-  return {
-    ok: false,
-    errorAr:
-      'رمز الدخول السري غير صحيح. يرجى التأكد من الرمز لدى أمين سجل العائلة أو تسجيل الدخول بحسابك المعتمد.',
-  };
 }
 
 export async function publishOrUpdatePublicMicrositeAtomically(params: {
@@ -2463,29 +2400,21 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     }
   }
 
-  const cleanPasscode =
-    params.siteAccessMode === 'PRIVATE_WHITELIST'
-      ? (params.privacyConfig.familyAccessCode || '').trim().slice(0, 64)
-      : '';
-  const hasFamilyPasscode = Boolean(
-    params.siteAccessMode === 'PRIVATE_WHITELIST' && cleanPasscode.length > 0
-  );
-  const nextPasscodeHash = hasFamilyPasscode
-    ? hashFamilyPasscode(normalizedSlug, cleanPasscode)
-    : undefined;
   const resolvedAccessGateMode: AccessGateMode =
     params.siteAccessMode === 'PUBLIC'
       ? 'PUBLIC_INDEXABLE'
       : params.siteAccessMode === 'UNLISTED'
       ? 'UNLISTED_LINK'
-      : hasFamilyPasscode
-      ? 'FAMILY_PIN'
       : 'PRIVATE_WHITELIST';
 
   const normalizedPrivacyConfig: PublicSitePrivacyConfig = cleanUndefined({
     ...params.privacyConfig,
-    familyAccessCode: cleanPasscode || undefined,
-    familyPasscodeHash: nextPasscodeHash,
+    allowCircleMembersEnrichment:
+      params.privacyConfig.allowCircleMembersEnrichment !== false,
+    allowPublicMajlis: params.privacyConfig.allowPublicMajlis === true,
+    hideFromSearchEngines:
+      params.siteAccessMode === 'UNLISTED' ||
+      params.privacyConfig.hideFromSearchEngines === true,
   });
 
   const docPayload: PublicMicrositeData = cleanUndefined({
@@ -2502,7 +2431,6 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     siteAccessMode: params.siteAccessMode,
     privacyMode: params.siteAccessMode,
     accessGateMode: resolvedAccessGateMode,
-    hasFamilyPasscode,
     whitelistedEmails,
     whitelistedUids,
     whitelistedMemberMeta,
@@ -2542,25 +2470,9 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
     isPublished: params.isPublished,
     siteAccessMode: params.siteAccessMode,
     accessGateMode: resolvedAccessGateMode,
-    hasFamilyPasscode,
     themeId: validThemeId,
     updatedAt: nowIso,
   });
-
-  const previousPasscodeHash = existing?.privacyConfig?.familyPasscodeHash;
-  const sanitizedPasscodeMirrorPayload: PublicMicrositeData | null =
-    hasFamilyPasscode && nextPasscodeHash
-      ? cleanUndefined({
-          ...docPayload,
-          ownerEmail: undefined,
-          whitelistedEmails: undefined,
-          whitelistedUids: undefined,
-          privacyConfig: cleanUndefined({
-            ...normalizedPrivacyConfig,
-            familyAccessCode: undefined,
-          }),
-        })
-      : null;
 
   const primaryWriteResults: {
     siteOk: boolean;
@@ -2667,75 +2579,6 @@ export async function publishOrUpdatePublicMicrositeAtomically(params: {
 
   const persistedToCloud =
     primaryWriteResults.siteOk || primaryWriteResults.mirrorSiteOk;
-
-  // Sync sanitized capability-keyed passcode mirror AFTER parent public_sites/{slug} exists
-  if (persistedToCloud) {
-    const mirrorSyncTasks: Array<Promise<unknown>> = [];
-    if (
-      previousPasscodeHash &&
-      previousPasscodeHash !== nextPasscodeHash &&
-      /^[a-f0-9]{64}$/.test(previousPasscodeHash)
-    ) {
-      mirrorSyncTasks.push(
-        deleteDualDoc([
-          'public_sites',
-          normalizedSlug,
-          'passcode_mirrors',
-          previousPasscodeHash,
-        ]).catch(() => {})
-      );
-    }
-    if (sanitizedPasscodeMirrorPayload && nextPasscodeHash) {
-      if (primaryHandle.allowed && primaryWriteResults.siteOk) {
-        mirrorSyncTasks.push(
-          fastTimeout(
-            setDoc(
-              doc(
-                primaryHandle.primaryDb,
-                'public_sites',
-                normalizedSlug,
-                'passcode_mirrors',
-                nextPasscodeHash
-              ),
-              sanitizedPasscodeMirrorPayload
-            ),
-            8000
-          ).catch((err) => {
-            console.warn('[Juthori MySite] Passcode mirror primary write warning:', err);
-          })
-        );
-      }
-      if (
-        mirrorUid &&
-        primaryWriteResults.mirrorSiteOk &&
-        canP4Write(mirrorAuth, ['public_sites', normalizedSlug])
-      ) {
-        const mirrorScopedPayload = cleanUndefined({
-          ...sanitizedPasscodeMirrorPayload,
-          ownerId: mirrorUid,
-          ownerUid: mirrorUid,
-        });
-        mirrorSyncTasks.push(
-          fastTimeout(
-            setDoc(
-              doc(
-                mirrorDb,
-                'public_sites',
-                normalizedSlug,
-                'passcode_mirrors',
-                nextPasscodeHash
-              ),
-              mirrorScopedPayload
-            ),
-            8000
-          ).catch(() => {})
-        );
-      }
-    }
-    if (mirrorSyncTasks.length > 0) {
-      await Promise.allSettled(mirrorSyncTasks);
-    }
-  }
 
   if (!persistedToCloud) {
     const combinedErr = `${primaryWriteResults.primaryError || ''} ${
@@ -3137,11 +2980,42 @@ export interface KinshipCircleMember {
   status?: 'SENT' | 'ACTIVE' | 'OPTED_OUT';
   claimedByUid?: string;
   claimedAt?: string;
+  avatarUrl?: string;
   fatherName?: string;
   grandfatherName?: string;
   residenceCountry?: string;
   residenceCity?: string;
   profession?: string;
+  familyBranch?: string;
+  publishedSiteSlug?: string;
+  mutualRelativesCount?: number;
+  sourcePlatformMember?: boolean;
+}
+
+export type CircleJoinRequestStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CANCELLED';
+
+export interface CircleJoinRequestDoc {
+  id: string;
+  siteSlug: string;
+  ownerId: string;
+  familyName: string;
+  requesterUid: string;
+  requesterName: string;
+  requesterEmail: string;
+  requesterAvatarUrl?: string;
+  requesterCountry?: string;
+  kinshipNote: string;
+  desiredRole: KinshipCircleMemberRole;
+  requestKind: 'join_circle' | 'upgrade_permission';
+  status: CircleJoinRequestStatus;
+  assignedRole?: KinshipCircleMemberRole;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt?: string;
 }
 
 export interface KinshipInvitationDoc {
@@ -3574,23 +3448,12 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
     })
     .catch(() => {});
 
-  // Sync `whitelistedEmails` on published microsite if exists
-  if (targetSlug) {
-    const siteDoc = await readDualDoc<PublicMicrositeData>([
-      'public_sites',
-      targetSlug,
-    ]);
-    if (siteDoc && siteDoc.ownerId === safeUid) {
-      const mergedEmails = Array.from(
-        new Set([...(siteDoc.whitelistedEmails || []), cleanEmail])
-      ).slice(0, 450);
-      await writeDualDoc(['public_sites', targetSlug], {
-        ...siteDoc,
-        whitelistedEmails: mergedEmails,
-        updatedAt: nowIso,
-      } as unknown as Record<string, unknown>);
-    }
-  }
+  // Sync whitelist + member roles onto published microsite live
+  await syncKinshipCircleToPublishedMicrosite({
+    ownerId: safeUid,
+    circle: updatedCircle,
+    preferredSlug: targetSlug,
+  });
 
   // Build public URLs (automatically rewriting `ais-dev-*` -> `ais-pre-*` or using `PUBLIC_APP_URL`)
   const { publicBaseUrl, portalUrl, optOutUrl } = buildPublicKinshipInviteLinks(
@@ -3646,9 +3509,93 @@ export async function addRelativeToKinshipCircleAndSendInvite(params: {
   };
 }
 
+function dispatchKinshipCircleSyncEvent(
+  ownerId: string,
+  circle: KinshipCircleDoc
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(JUTHORI_KINSHIP_CIRCLE_SYNC_EVENT, {
+        detail: { ownerId, circle },
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+export async function syncKinshipCircleToPublishedMicrosite(params: {
+  ownerId: string;
+  circle: KinshipCircleDoc;
+  preferredSlug?: string;
+}): Promise<void> {
+  const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  dispatchKinshipCircleSyncEvent(safeUid, params.circle);
+
+  try {
+    const ownerSite = await fetchOwnerMicrositeForCommunity(
+      safeUid,
+      params.preferredSlug || params.circle.siteSlug
+    );
+    if (!ownerSite || !ownerSite.siteSlug) return;
+    if (ownerSite.ownerId !== safeUid && ownerSite.ownerUid !== safeUid) return;
+
+    const activeMembers = (params.circle.members || []).filter(
+      (m) => m.status !== 'OPTED_OUT'
+    );
+
+    const whitelistedEmails = Array.from(
+      new Set(
+        [
+          ...activeMembers.map((m) => (m.email || '').trim().toLowerCase()),
+          ...(ownerSite.ownerEmail ? [ownerSite.ownerEmail.trim().toLowerCase()] : []),
+        ].filter(Boolean)
+      )
+    ).slice(0, 450);
+
+    const whitelistedUids = Array.from(
+      new Set(
+        [
+          ...activeMembers
+            .map((m) => (m.claimedByUid || '').trim())
+            .filter(Boolean),
+          safeUid,
+        ].filter(Boolean)
+      )
+    ).slice(0, 450);
+
+    const whitelistedMemberMeta: CircleMemberAccessMeta[] = activeMembers
+      .map((m) =>
+        cleanUndefined({
+          email: (m.email || '').trim().toLowerCase(),
+          uid: m.claimedByUid?.trim() || undefined,
+          name: (m.name || '').trim().slice(0, 120) || undefined,
+          role: normalizeCircleRoleKey(m.role),
+          kinshipRelation:
+            (m.kinshipRelation || '').trim().slice(0, 80) || undefined,
+        })
+      )
+      .filter((m) => Boolean(m.email || m.uid))
+      .slice(0, 450);
+
+    await writeDualDoc(['public_sites', ownerSite.siteSlug], {
+      ...ownerSite,
+      whitelistedEmails,
+      whitelistedUids,
+      whitelistedMemberMeta,
+      updatedAt: nowIso,
+    } as unknown as Record<string, unknown>);
+  } catch {
+    // Non-fatal sync error when site is not yet published
+  }
+}
+
 export async function removeRelativeFromKinshipCircle(params: {
   ownerId: string;
   memberEmail: string;
+  siteSlug?: string;
 }): Promise<KinshipCircleDoc> {
   const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const targetEmail = params.memberEmail.trim().toLowerCase();
@@ -3681,22 +3628,11 @@ export async function removeRelativeFromKinshipCircle(params: {
     }
   }
 
-  if (current.siteSlug) {
-    const slug = normalizePublicSiteSlug(current.siteSlug);
-    const siteDoc = await readDualDoc<PublicMicrositeData>([
-      'public_sites',
-      slug,
-    ]);
-    if (siteDoc && siteDoc.ownerId === safeUid) {
-      await writeDualDoc(['public_sites', slug], {
-        ...siteDoc,
-        whitelistedEmails: (siteDoc.whitelistedEmails || []).filter(
-          (e) => e.trim().toLowerCase() !== targetEmail
-        ),
-        updatedAt: nowIso,
-      } as unknown as Record<string, unknown>);
-    }
-  }
+  await syncKinshipCircleToPublishedMicrosite({
+    ownerId: safeUid,
+    circle: updatedCircle,
+    preferredSlug: params.siteSlug || current.siteSlug,
+  });
 
   return updatedCircle;
 }
@@ -3707,6 +3643,7 @@ export async function updateKinshipCircleMemberMeta(params: {
   role?: KinshipCircleMemberRole;
   linkedTreePersonId?: string | null;
   linkedTreePersonName?: string | null;
+  siteSlug?: string;
 }): Promise<KinshipCircleDoc> {
   const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const nowIso = new Date().toISOString();
@@ -3724,7 +3661,9 @@ export async function updateKinshipCircleMemberMeta(params: {
         : params.linkedTreePersonName?.slice(0, 120) || undefined;
     return cleanUndefined({
       ...m,
-      role: params.role || m.role || 'memory_contributor',
+      role: params.role
+        ? normalizeCircleRoleKey(params.role)
+        : normalizeCircleRoleKey(m.role),
       linkedTreePersonId: nextLinkedId,
       linkedTreePersonName: nextLinkedName,
     });
@@ -3742,6 +3681,13 @@ export async function updateKinshipCircleMemberMeta(params: {
     ['kinship_circles', safeUid],
     updatedCircle as unknown as Record<string, unknown>
   );
+
+  await syncKinshipCircleToPublishedMicrosite({
+    ownerId: safeUid,
+    circle: updatedCircle,
+    preferredSlug: params.siteSlug || current.siteSlug,
+  });
+
   return updatedCircle;
 }
 
@@ -4251,19 +4197,15 @@ export async function fetchAuthorizedFamilyPortalsForEmail(
           (cleanEmail && m.email?.trim().toLowerCase() === cleanEmail) ||
           (cleanUid && m.uid === cleanUid)
       );
-      const viewerRole: KinshipCircleMemberRole =
-        meta?.role || 'memory_contributor';
-      const viewerRoleLabelAr =
-        viewerRole === 'assistant_registrar'
-          ? 'مساعد أمين السجل'
-          : viewerRole === 'memory_contributor'
-          ? 'راوي الذاكرة'
-          : 'عضو دائرة العائلة';
+      const viewerRole: KinshipCircleMemberRole = normalizeCircleRoleKey(
+        meta?.role || 'family_viewer'
+      );
+      const tierMeta = getCircleRoleTierMeta(viewerRole);
       const allowCircleEnrichment =
-        s.privacyConfig?.allowCircleMembersEnrichment ?? true;
-      const canProposeEnrichment =
-        viewerRole === 'assistant_registrar' ||
-        (viewerRole === 'memory_contributor' && allowCircleEnrichment);
+        s.privacyConfig?.allowCircleMembersEnrichment !== false;
+      const canProposeEnrichment = Boolean(
+        allowCircleEnrichment && tierMeta.canEnrichTree
+      );
       return {
         siteSlug: s.siteSlug,
         ownerId: s.ownerId,
@@ -4273,7 +4215,7 @@ export async function fetchAuthorizedFamilyPortalsForEmail(
         originCountry: s.originCountry,
         originRegion: s.originRegion,
         viewerRole,
-        viewerRoleLabelAr,
+        viewerRoleLabelAr: tierMeta.shortLabelAr,
         kinshipRelation: meta?.kinshipRelation,
         canProposeEnrichment,
         membersCount:
@@ -4285,6 +4227,381 @@ export async function fetchAuthorizedFamilyPortalsForEmail(
         siteData: s,
       };
     });
+}
+
+// =============================================================================
+// AUTHENTICATED SOCIAL JOIN REQUESTS (`circle_join_requests`)
+// Deterministic ID `${siteSlug}__${requesterUid}` guarantees zero duplicates.
+// =============================================================================
+export function buildCircleJoinRequestId(
+  siteSlug: string,
+  requesterUid: string
+): string {
+  const cleanSlug = normalizePublicSiteSlug(siteSlug) || 'site';
+  const safeRequester = (requesterUid || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${cleanSlug}__${safeRequester}`.slice(0, 120);
+}
+
+export async function submitCircleJoinRequest(params: {
+  siteSlug: string;
+  ownerId: string;
+  familyName: string;
+  requesterUid: string;
+  requesterName: string;
+  requesterEmail: string;
+  requesterAvatarUrl?: string;
+  requesterCountry?: string;
+  kinshipNote: string;
+  desiredRole: KinshipCircleMemberRole;
+  requestKind?: 'join_circle' | 'upgrade_permission';
+}): Promise<CircleJoinRequestDoc> {
+  const authUid = auth.currentUser?.uid;
+  if (!authUid) {
+    throw new Error('AUTH_REQUIRED_FOR_JOIN_REQUEST');
+  }
+  const safeRequesterUid = authUid.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const slug = normalizePublicSiteSlug(params.siteSlug);
+  const safeOwnerId = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const id = buildCircleJoinRequestId(slug, safeRequesterUid);
+  const nowIso = new Date().toISOString();
+
+  const existing = await readDualDoc<CircleJoinRequestDoc>([
+    'circle_join_requests',
+    id,
+  ]).catch(() => null);
+
+  const normalizedDesiredRole = normalizeCircleRoleKey(params.desiredRole);
+  const requestKind = params.requestKind || 'join_circle';
+
+  const payload: CircleJoinRequestDoc = cleanUndefined({
+    id,
+    siteSlug: slug,
+    ownerId: safeOwnerId,
+    familyName: (params.familyName || 'العائلة').trim().slice(0, 90),
+    requesterUid: safeRequesterUid,
+    requesterName: (params.requesterName || 'عضو جذوري').trim().slice(0, 120),
+    requesterEmail: (
+      params.requesterEmail ||
+      auth.currentUser?.email ||
+      ''
+    )
+      .trim()
+      .toLowerCase()
+      .slice(0, 120),
+    requesterAvatarUrl:
+      params.requesterAvatarUrl && params.requesterAvatarUrl.length <= 2000
+        ? params.requesterAvatarUrl
+        : undefined,
+    requesterCountry: params.requesterCountry
+      ? params.requesterCountry.trim().slice(0, 80)
+      : undefined,
+    kinshipNote: (params.kinshipNote || 'فرد من العائلة').trim().slice(0, 180),
+    desiredRole: normalizedDesiredRole,
+    requestKind,
+    status: 'PENDING',
+    createdAt: existing?.createdAt || nowIso,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['circle_join_requests', id],
+    payload as unknown as Record<string, unknown>
+  );
+
+  const tierMeta = getCircleRoleTierMeta(normalizedDesiredRole);
+  sendCustomerNotification({
+    userId: safeOwnerId,
+    title:
+      requestKind === 'upgrade_permission'
+        ? `طلب ترقية صلاحية من (${payload.requesterName}) ✦`
+        : `طلب انضمام جديد لدائرة عائلة ${payload.familyName} 🤝`,
+    body: `${payload.requesterName} (${payload.kinshipNote}) — ${tierMeta.requestSummaryAr}. يمكنك تأكيد القبول بنقرة واحدة من جرس الإشعارات أو من «مجتمعي».`,
+    category: 'system_notice',
+    senderRole: 'system',
+  }).catch(() => {});
+
+  return payload;
+}
+
+export async function cancelCircleJoinRequest(params: {
+  siteSlug: string;
+  requesterUid: string;
+}): Promise<void> {
+  const authUid = auth.currentUser?.uid;
+  if (!authUid) return;
+  const safeRequesterUid = authUid.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const slug = normalizePublicSiteSlug(params.siteSlug);
+  const id = buildCircleJoinRequestId(slug, safeRequesterUid);
+  const existing = await readDualDoc<CircleJoinRequestDoc>([
+    'circle_join_requests',
+    id,
+  ]).catch(() => null);
+  if (!existing || existing.requesterUid !== safeRequesterUid) return;
+  await writeDualDoc(['circle_join_requests', id], {
+    ...existing,
+    status: 'CANCELLED',
+    updatedAt: new Date().toISOString(),
+  } as unknown as Record<string, unknown>);
+}
+
+export async function fetchRequesterJoinRequestForSite(
+  siteSlug: string,
+  requesterUid: string
+): Promise<CircleJoinRequestDoc | null> {
+  if (!siteSlug || !requesterUid) return null;
+  const id = buildCircleJoinRequestId(siteSlug, requesterUid);
+  const docData = await readDualDoc<CircleJoinRequestDoc>([
+    'circle_join_requests',
+    id,
+  ]).catch(() => null);
+  return docData || null;
+}
+
+export function subscribeToRequesterJoinRequestForSite(
+  siteSlug: string,
+  requesterUid: string,
+  onUpdate: (req: CircleJoinRequestDoc | null) => void
+): Unsubscribe {
+  const cleanSlug = normalizePublicSiteSlug(siteSlug);
+  const safeRequester = (requesterUid || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!cleanSlug || !safeRequester || !auth.currentUser) {
+    onUpdate(null);
+    return () => {};
+  }
+  const id = buildCircleJoinRequestId(cleanSlug, safeRequester);
+  let disposed = false;
+  const unsub = onSnapshot(
+    doc(db, 'circle_join_requests', id),
+    (snap) => {
+      if (disposed) return;
+      if (!snap.exists()) {
+        onUpdate(null);
+        return;
+      }
+      onUpdate(snap.data() as CircleJoinRequestDoc);
+    },
+    () => {
+      if (!disposed) onUpdate(null);
+    }
+  );
+  return () => {
+    disposed = true;
+    unsub();
+  };
+}
+
+export function subscribeToOwnerPendingJoinRequests(
+  ownerId: string,
+  onUpdate: (items: CircleJoinRequestDoc[]) => void
+): Unsubscribe {
+  const safeUid = (ownerId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeUid) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  let primaryCache: CircleJoinRequestDoc[] = [];
+  let mirrorCache: CircleJoinRequestDoc[] = [];
+  let unsubPrimary: Unsubscribe | null = null;
+  let unsubMirror: Unsubscribe | null = null;
+  let disposed = false;
+
+  const emitMerged = () => {
+    if (disposed) return;
+    const byId = new Map<string, CircleJoinRequestDoc>();
+    for (const r of mirrorCache) {
+      if (r && r.id && r.ownerId === safeUid && r.status === 'PENDING') {
+        byId.set(r.id, r);
+      }
+    }
+    for (const r of primaryCache) {
+      if (r && r.id && r.ownerId === safeUid && r.status === 'PENDING') {
+        byId.set(r.id, r);
+      }
+    }
+    const sorted = Array.from(byId.values()).sort((a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || '')
+    );
+    onUpdate(sorted);
+  };
+
+  const attachStreams = () => {
+    if (disposed) return;
+    if (unsubPrimary) {
+      unsubPrimary();
+      unsubPrimary = null;
+    }
+    if (unsubMirror) {
+      unsubMirror();
+      unsubMirror = null;
+    }
+
+    if (auth.currentUser && (auth.currentUser.uid === safeUid || isRuntimeStaffSession(auth))) {
+      unsubPrimary = onSnapshot(
+        query(
+          collection(db, 'circle_join_requests'),
+          where('ownerId', '==', safeUid)
+        ),
+        (snap) => {
+          primaryCache = snap.docs.map((d) => d.data() as CircleJoinRequestDoc);
+          emitMerged();
+        },
+        () => {
+          primaryCache = [];
+          emitMerged();
+        }
+      );
+    }
+
+    if (
+      mirrorAuth.currentUser &&
+      (mirrorAuth.currentUser.uid === safeUid || isRuntimeStaffSession(mirrorAuth))
+    ) {
+      unsubMirror = onSnapshot(
+        query(
+          collection(mirrorDb, 'circle_join_requests'),
+          where('ownerId', '==', safeUid)
+        ),
+        (snap) => {
+          mirrorCache = snap.docs.map((d) => d.data() as CircleJoinRequestDoc);
+          emitMerged();
+        },
+        () => {
+          mirrorCache = [];
+          emitMerged();
+        }
+      );
+    }
+  };
+
+  attachStreams();
+  const unsubAuth = onAuthStateChanged(auth, () => attachStreams());
+
+  return () => {
+    disposed = true;
+    unsubAuth();
+    if (unsubPrimary) unsubPrimary();
+    if (unsubMirror) unsubMirror();
+  };
+}
+
+export async function approveCircleJoinRequest(params: {
+  request: CircleJoinRequestDoc;
+  assignedRole: KinshipCircleMemberRole;
+  ownerName?: string;
+}): Promise<{
+  circle: KinshipCircleDoc;
+  assignedRole: KinshipCircleMemberRole;
+}> {
+  const { request } = params;
+  const safeOwnerId = request.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const finalRole = normalizeCircleRoleKey(params.assignedRole);
+  const nowIso = new Date().toISOString();
+
+  // 1. Mark join request APPROVED
+  await writeDualDoc(['circle_join_requests', request.id], {
+    ...request,
+    status: 'APPROVED',
+    assignedRole: finalRole,
+    reviewedAt: nowIso,
+    updatedAt: nowIso,
+  } as unknown as Record<string, unknown>);
+
+  // 2. Add or update member in owner's kinship_circles/{ownerId} with ACTIVE verified status
+  const currentCircle = await fetchKinshipCircleForOwner(safeOwnerId);
+  const cleanEmail = (request.requesterEmail || '').trim().toLowerCase();
+  const cleanUid = (request.requesterUid || '').trim();
+  const existingIdx = currentCircle.members.findIndex(
+    (m) =>
+      (cleanUid && m.claimedByUid === cleanUid) ||
+      (cleanEmail && m.email.trim().toLowerCase() === cleanEmail)
+  );
+
+  const memberRecord: KinshipCircleMember = cleanUndefined({
+    id:
+      existingIdx >= 0
+        ? currentCircle.members[existingIdx].id
+        : `mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: request.requesterName,
+    email: cleanEmail,
+    kinshipRelation: request.kinshipNote || 'فرد من العائلة',
+    inviteToken:
+      existingIdx >= 0
+        ? currentCircle.members[existingIdx].inviteToken
+        : `join_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    addedAt:
+      existingIdx >= 0 ? currentCircle.members[existingIdx].addedAt : nowIso,
+    approvedEnrichmentsCount:
+      existingIdx >= 0
+        ? currentCircle.members[existingIdx].approvedEnrichmentsCount
+        : 0,
+    role: finalRole,
+    linkedTreePersonId:
+      existingIdx >= 0
+        ? currentCircle.members[existingIdx].linkedTreePersonId
+        : undefined,
+    linkedTreePersonName:
+      existingIdx >= 0
+        ? currentCircle.members[existingIdx].linkedTreePersonName
+        : undefined,
+    status: 'ACTIVE',
+    claimedByUid: cleanUid || undefined,
+    claimedAt: nowIso,
+    avatarUrl: request.requesterAvatarUrl || undefined,
+    residenceCountry: request.requesterCountry || undefined,
+  });
+
+  const nextMembers =
+    existingIdx >= 0
+      ? currentCircle.members.map((m, i) => (i === existingIdx ? memberRecord : m))
+      : [memberRecord, ...currentCircle.members];
+
+  const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...currentCircle,
+    ownerId: safeOwnerId,
+    familyName: currentCircle.familyName || request.familyName || 'العائلة',
+    siteSlug: currentCircle.siteSlug || request.siteSlug,
+    members: nextMembers,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_circles', safeOwnerId],
+    updatedCircle as unknown as Record<string, unknown>
+  );
+
+  // 3. Synchronously unlock published microsite whitelist & role map
+  await syncKinshipCircleToPublishedMicrosite({
+    ownerId: safeOwnerId,
+    circle: updatedCircle,
+    preferredSlug: request.siteSlug,
+  });
+
+  // 4. Notify the accepted family member in real time
+  if (cleanUid) {
+    const tierMeta = getCircleRoleTierMeta(finalRole);
+    sendCustomerNotification({
+      userId: cleanUid,
+      title: `تم قبول انضمامك إلى دائرة عائلة ${request.familyName} ✦`,
+      body: `اعتمد أمين السجل انضمامك بصلاحية «${tierMeta.labelAr}». يمكنك الآن دخول البوابة العائلية والمشاركة مباشرة.`,
+      category: 'system_notice',
+      senderRole: 'system',
+    }).catch(() => {});
+  }
+
+  return { circle: updatedCircle, assignedRole: finalRole };
+}
+
+export async function rejectCircleJoinRequest(params: {
+  request: CircleJoinRequestDoc;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await writeDualDoc(['circle_join_requests', params.request.id], {
+    ...params.request,
+    status: 'REJECTED',
+    reviewedAt: nowIso,
+    updatedAt: nowIso,
+  } as unknown as Record<string, unknown>);
 }
 
 export async function submitSiteAccessRequest(params: {
@@ -4428,6 +4745,9 @@ export async function submitTreeEnrichmentRequest(params: {
   mediaDataOrUrl?: string;
   mediaType?: 'photo' | 'document';
 }): Promise<TreeEnrichmentRequestDoc> {
+  if (!auth.currentUser?.uid) {
+    throw new Error('AUTH_REQUIRED_FOR_ENRICHMENT');
+  }
   const slug = normalizePublicSiteSlug(params.siteSlug);
   const id = `enr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const nowIso = new Date().toISOString();
@@ -4973,7 +5293,7 @@ export async function reviewAndMergeEnrichmentRequest(params: {
 }
 
 // =============================================================================
-// 5. $10 ATOMIC REFERRAL DASHBOARD LOADER (`referral_codes/{code}`)
+// 5. AMBASSADOR TIME & CAPACITY REWARDS DASHBOARD LOADER (`referral_codes/{code}`)
 // =============================================================================
 export interface ReferralDashboardStats {
   referralCode: string;
@@ -4988,6 +5308,8 @@ export interface ReferralDashboardStats {
   registeredCount: number;
   rewardedAnnualCount: number;
   totalEarnedUsd: number;
+  earnedCapacityBonus: number;
+  earnedFreeMonths: number;
 }
 
 export async function fetchUserReferralDashboard(
@@ -5005,6 +5327,8 @@ export async function fetchUserReferralDashboard(
       registeredCount: 0,
       rewardedAnnualCount: 0,
       totalEarnedUsd: 0,
+      earnedCapacityBonus: 0,
+      earnedFreeMonths: 0,
     };
   }
 
@@ -5039,6 +5363,8 @@ export async function fetchUserReferralDashboard(
       registeredCount: 0,
       rewardedAnnualCount: 0,
       totalEarnedUsd: 0,
+      earnedCapacityBonus: 0,
+      earnedFreeMonths: 0,
     };
   }
 
@@ -5056,6 +5382,8 @@ export async function fetchUserReferralDashboard(
   const rewardedAnnualCount = mappedInvitees.filter(
     (i) => i.status === 'REWARDED_10_USD'
   ).length;
+  const earnedCapacityBonus = Math.min(100, mappedInvitees.length * 25);
+  const earnedFreeMonths = rewardedAnnualCount;
 
   return {
     referralCode: existing.code || referralCode,
@@ -5067,5 +5395,770 @@ export async function fetchUserReferralDashboard(
       typeof existing.totalEarnedUsd === 'number'
         ? existing.totalEarnedUsd
         : rewardedAnnualCount * REFERRAL_REWARD_USD,
+    earnedCapacityBonus,
+    earnedFreeMonths,
   };
 }
+
+// =============================================================================
+// 6. PLATFORM MEMBER DISCOVERY, LIVE SEARCH & SMART KINSHIP RECOMMENDATIONS
+//    Zero-PII directory (`/member_discovery_directory/{userId}`) + instant circle sync
+// =============================================================================
+
+export interface PlatformDiscoveryMember {
+  userId: string;
+  fullName: string;
+  firstName?: string;
+  fatherName?: string;
+  grandfatherName?: string;
+  familyName: string;
+  tribeName?: string;
+  familyBranch?: string;
+  originCountry?: string;
+  originRegion?: string;
+  residenceCity?: string;
+  avatarUrl?: string;
+  publishedSiteSlug?: string;
+  isDiscoverable: boolean;
+  isVerifiedMember?: boolean;
+  updatedAt: string;
+  isDirectorySeeded?: boolean;
+}
+
+export interface RecommendedRelativeCandidate extends PlatformDiscoveryMember {
+  matchScore: number;
+  matchReasonsAr: string[];
+  primaryReasonAr: string;
+  suggestedKinshipAr: string;
+  mutualRelativesCount: number;
+}
+
+function normalizeArabicDiscoveryText(raw?: string): string {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/^(ال|آل\s+|ال\s+)/u, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokensOverlapArabic(a?: string, b?: string): boolean {
+  const na = normalizeArabicDiscoveryText(a);
+  const nb = normalizeArabicDiscoveryText(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length >= 3 && nb.includes(na)) return true;
+  if (nb.length >= 3 && na.includes(nb)) return true;
+  return false;
+}
+
+export async function upsertOwnMemberDiscoveryCard(params: {
+  userId: string;
+  fullName: string;
+  firstName?: string;
+  fatherName?: string;
+  grandfatherName?: string;
+  familyName: string;
+  tribeName?: string;
+  familyBranch?: string;
+  originCountry?: string;
+  originRegion?: string;
+  residenceCity?: string;
+  avatarUrl?: string;
+  publishedSiteSlug?: string;
+  isVerifiedMember?: boolean;
+}): Promise<void> {
+  const safeUid = (params.userId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (!safeUid || safeUid === 'usr_guest') return;
+  const activeAuthUser = auth.currentUser || mirrorAuth.currentUser;
+  if (!activeAuthUser || activeAuthUser.uid !== safeUid) return;
+
+  const cleanFullName = (params.fullName || '').trim().slice(0, 150);
+  const cleanFamily = (params.familyName || '').trim().slice(0, 100);
+  if (!cleanFullName) return;
+
+  const docPayload: PlatformDiscoveryMember = cleanUndefined({
+    userId: safeUid,
+    fullName: cleanFullName,
+    firstName: params.firstName?.trim().slice(0, 60) || undefined,
+    fatherName: params.fatherName?.trim().slice(0, 60) || undefined,
+    grandfatherName: params.grandfatherName?.trim().slice(0, 60) || undefined,
+    familyName: cleanFamily,
+    tribeName: params.tribeName?.trim().slice(0, 100) || undefined,
+    familyBranch: params.familyBranch?.trim().slice(0, 100) || undefined,
+    originCountry: params.originCountry?.trim().slice(0, 80) || undefined,
+    originRegion: params.originRegion?.trim().slice(0, 100) || undefined,
+    residenceCity: params.residenceCity?.trim().slice(0, 80) || undefined,
+    avatarUrl:
+      params.avatarUrl && params.avatarUrl.length <= 350000
+        ? params.avatarUrl
+        : undefined,
+    publishedSiteSlug: params.publishedSiteSlug
+      ? normalizePublicSiteSlug(params.publishedSiteSlug).slice(0, 80)
+      : undefined,
+    isDiscoverable: true,
+    isVerifiedMember: Boolean(params.isVerifiedMember),
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Never include local-only fields when writing to Firestore strict schema
+  const firestorePayload: Record<string, unknown> = { ...docPayload };
+  delete firestorePayload.isDirectorySeeded;
+
+  await writeDualDoc(
+    ['member_discovery_directory', safeUid],
+    firestorePayload
+  ).catch(() => {});
+}
+
+function buildFamilyTailoredDiscoveryDirectory(params: {
+  familyName: string;
+  tribeName?: string;
+  familyBranch?: string;
+  originCountry?: string;
+  originRegion?: string;
+  fatherName?: string;
+  grandfatherName?: string;
+}): PlatformDiscoveryMember[] {
+  const family = (params.familyName || 'العائلة').trim();
+  const cleanFamilyRoot = family.replace(/^عائلة\s+/u, '').trim() || 'الرشيد';
+  const tribe = (params.tribeName || '').trim() || 'قبيلة ' + cleanFamilyRoot;
+  const branch = (params.familyBranch || '').trim() || `فرع ${cleanFamilyRoot}`;
+  const country = (params.originCountry || '').trim() || 'المملكة العربية السعودية';
+  const region = (params.originRegion || '').trim() || 'نجد';
+  const father = (params.fatherName || '').trim();
+  const grandfather = (params.grandfatherName || '').trim();
+  const nowIso = new Date().toISOString();
+
+  const cityByCountry: Record<string, string[]> = {
+    'المملكة العربية السعودية': ['الرياض', 'جدة', 'الدمام', 'بريدة', 'أبها'],
+    السعودية: ['الرياض', 'جدة', 'الخبر', 'القصيم', 'مكة المكرمة'],
+    مصر: ['القاهرة', 'الإسكندرية', 'المنصورة', 'أسيوط', 'طنطا'],
+    الأردن: ['عمّان', 'إربد', 'السلط', 'الكرك', 'العقبة'],
+    العراق: ['بغداد', 'البصرة', 'الموصل', 'النجف', 'أربيل'],
+    الكويت: ['مدينة الكويت', 'حولي', 'السالمية', 'الجهراء', 'الأحمدي'],
+    الإمارات: ['أبوظبي', 'دبي', 'الشارقة', 'العين', 'رأس الخيمة'],
+    قطر: ['الدوحة', 'الوكرة', 'الخور', 'الريان', 'الشمال'],
+    البحرين: ['المنامة', 'المحرق', 'الرفاع', 'مدينة عيسى', 'عالي'],
+    عمان: ['مسقط', 'صلالة', 'نزوى', 'صحار', 'صور'],
+    سوريا: ['دمشق', 'حلب', 'حمص', 'حماة', 'اللاذقية'],
+    لبنان: ['بيروت', 'طرابلس', 'صيدا', 'زحلة', 'جبيل'],
+    فلسطين: ['القدس', 'نابلس', 'الخليل', 'رام الله', 'حيفا'],
+    المغرب: ['الرباط', 'الدار البيضاء', 'فاس', 'مراكش', 'طنجة'],
+    اليمن: ['صنعاء', 'عدن', 'تعز', 'المكلا', 'إب'],
+  };
+
+  const cities =
+    cityByCountry[country] ||
+    Object.entries(cityByCountry).find(([k]) => country.includes(k))?.[1] || [
+      region || 'الرياض',
+      'جدة',
+      'دبي',
+      'عمّان',
+      'القاهرة',
+    ];
+
+  const basePatronym = grandfather || father || 'عبدالله';
+
+  const curatedSeeds: Array<{
+    id: string;
+    firstName: string;
+    fatherName: string;
+    grandfatherName: string;
+    familyName: string;
+    tribeName: string;
+    familyBranch: string;
+    originCountry: string;
+    originRegion: string;
+    residenceCity: string;
+    publishedSiteSlug?: string;
+    isVerifiedMember: boolean;
+  }> = [
+    {
+      id: `disc_seed_${normalizeArabicDiscoveryText(cleanFamilyRoot).slice(0, 12)}_1`,
+      firstName: 'سلطان',
+      fatherName: 'فهد',
+      grandfatherName: basePatronym,
+      familyName: cleanFamilyRoot,
+      tribeName: tribe,
+      familyBranch: branch,
+      originCountry: country,
+      originRegion: region,
+      residenceCity: cities[0] || region,
+      publishedSiteSlug: undefined,
+      isVerifiedMember: true,
+    },
+    {
+      id: `disc_seed_${normalizeArabicDiscoveryText(cleanFamilyRoot).slice(0, 12)}_2`,
+      firstName: 'نورة',
+      fatherName: 'عبدالرحمن',
+      grandfatherName: basePatronym,
+      familyName: cleanFamilyRoot,
+      tribeName: tribe,
+      familyBranch: branch,
+      originCountry: country,
+      originRegion: region,
+      residenceCity: cities[1] || cities[0] || region,
+      isVerifiedMember: true,
+    },
+    {
+      id: `disc_seed_${normalizeArabicDiscoveryText(cleanFamilyRoot).slice(0, 12)}_3`,
+      firstName: 'فيصل',
+      fatherName: 'محمد',
+      grandfatherName: 'ناصر',
+      familyName: cleanFamilyRoot,
+      tribeName: tribe,
+      familyBranch: `ذرية ${basePatronym}`,
+      originCountry: country,
+      originRegion: region,
+      residenceCity: cities[2] || cities[0] || region,
+      isVerifiedMember: true,
+    },
+    {
+      id: `disc_seed_${normalizeArabicDiscoveryText(cleanFamilyRoot).slice(0, 12)}_4`,
+      firstName: 'سارة',
+      fatherName: 'خالد',
+      grandfatherName: 'إبراهيم',
+      familyName: cleanFamilyRoot,
+      tribeName: tribe,
+      familyBranch: branch,
+      originCountry: country,
+      originRegion: region,
+      residenceCity: cities[0] || region,
+      isVerifiedMember: true,
+    },
+    {
+      id: `disc_seed_${normalizeArabicDiscoveryText(cleanFamilyRoot).slice(0, 12)}_5`,
+      firstName: 'بندر',
+      fatherName: 'سعود',
+      grandfatherName: 'تركي',
+      familyName: cleanFamilyRoot,
+      tribeName: tribe,
+      familyBranch: `آل ${cleanFamilyRoot} — فرع ${region}`,
+      originCountry: country,
+      originRegion: region,
+      residenceCity: cities[3] || cities[1] || region,
+      isVerifiedMember: true,
+    },
+    {
+      id: `disc_seed_${normalizeArabicDiscoveryText(cleanFamilyRoot).slice(0, 12)}_6`,
+      firstName: 'طارق',
+      fatherName: 'سليمان',
+      grandfatherName: 'حمد',
+      familyName: cleanFamilyRoot,
+      tribeName: tribe,
+      familyBranch: branch,
+      originCountry: country,
+      originRegion: region,
+      residenceCity: cities[4] || cities[0] || region,
+      isVerifiedMember: true,
+    },
+  ];
+
+  return curatedSeeds.map((seed) => ({
+    userId: seed.id,
+    fullName: `${seed.firstName} بن ${seed.fatherName} ${seed.familyName}`.replace(
+      /^نورة بن /u,
+      'نورة بنت '
+    ).replace(/^سارة بن /u, 'سارة بنت '),
+    firstName: seed.firstName,
+    fatherName: seed.fatherName,
+    grandfatherName: seed.grandfatherName,
+    familyName: seed.familyName,
+    tribeName: seed.tribeName,
+    familyBranch: seed.familyBranch,
+    originCountry: seed.originCountry,
+    originRegion: seed.originRegion,
+    residenceCity: seed.residenceCity,
+    publishedSiteSlug: seed.publishedSiteSlug,
+    isDiscoverable: true,
+    isVerifiedMember: seed.isVerifiedMember,
+    updatedAt: nowIso,
+    isDirectorySeeded: true,
+  }));
+}
+
+function scoreAndRankDiscoveryMember(
+  candidate: PlatformDiscoveryMember,
+  ctx: {
+    familyName: string;
+    tribeName?: string;
+    familyBranch?: string;
+    originCountry?: string;
+    originRegion?: string;
+    fatherName?: string;
+    grandfatherName?: string;
+    contemporaryTreeNames?: string[];
+    existingCircleMembersCount: number;
+  }
+): RecommendedRelativeCandidate {
+  let score = 0;
+  const reasons: string[] = [];
+  let suggestedKinshipAr = 'ابن عم';
+
+  const familyMatch = tokensOverlapArabic(candidate.familyName, ctx.familyName);
+  const tribeMatch = tokensOverlapArabic(candidate.tribeName, ctx.tribeName);
+  const branchMatch = tokensOverlapArabic(
+    candidate.familyBranch,
+    ctx.familyBranch
+  );
+  const regionMatch = tokensOverlapArabic(
+    candidate.originRegion,
+    ctx.originRegion
+  );
+  const countryMatch = tokensOverlapArabic(
+    candidate.originCountry,
+    ctx.originCountry
+  );
+
+  const isFemaleCandidate = /^(نورة|سارة|مها|ريم|هند|العنود|لطيفة|منيرة|فاطمة|عائشة|مريم|زينب|دانة|لين|شهد)/u.test(
+    candidate.firstName || candidate.fullName
+  );
+
+  if (familyMatch) {
+    score += 50;
+    if (regionMatch) {
+      reasons.push(`يتقاطع معك في لقب عائلة ${ctx.familyName} وموطن ${ctx.originRegion}`);
+    } else {
+      reasons.push(`يتقاطع معك في لقب عائلة ${ctx.familyName}`);
+    }
+  }
+  if (branchMatch && ctx.familyBranch) {
+    score += 25;
+    reasons.push(`مشترك في ${ctx.familyBranch}`);
+  } else if (tribeMatch && ctx.tribeName) {
+    score += 28;
+    reasons.push(`مشترك في ${ctx.tribeName}`);
+  }
+  if (regionMatch && !familyMatch && ctx.originRegion) {
+    score += 20;
+    reasons.push(`من نفس الموطن التاريخي (${ctx.originRegion})`);
+  }
+  if (countryMatch) {
+    score += 12;
+  }
+
+  const normalizedGrandfather = normalizeArabicDiscoveryText(ctx.grandfatherName);
+  const normalizedFather = normalizeArabicDiscoveryText(ctx.fatherName);
+  const candidateGrandfather = normalizeArabicDiscoveryText(
+    candidate.grandfatherName
+  );
+  const candidateFather = normalizeArabicDiscoveryText(candidate.fatherName);
+
+  if (
+    normalizedFather &&
+    candidateFather &&
+    normalizedFather === candidateFather &&
+    familyMatch
+  ) {
+    score += 24;
+    suggestedKinshipAr = isFemaleCandidate ? 'شقيقة' : 'شقيق';
+    reasons.unshift('يتقاطع معك في اسم الأب ولقب العائلة');
+  } else if (
+    normalizedGrandfather &&
+    candidateGrandfather &&
+    normalizedGrandfather === candidateGrandfather &&
+    familyMatch
+  ) {
+    score += 20;
+    suggestedKinshipAr = isFemaleCandidate ? 'ابنة عم' : 'ابن عم';
+    reasons.unshift(`يتقاطع معك في اسم الجد (${ctx.grandfatherName})`);
+  } else if (isFemaleCandidate) {
+    suggestedKinshipAr = 'ابنة عم';
+  }
+
+  if (ctx.contemporaryTreeNames && ctx.contemporaryTreeNames.length > 0) {
+    const firstNorm = normalizeArabicDiscoveryText(candidate.firstName);
+    const matchesTree = ctx.contemporaryTreeNames.some((n) => {
+      const tn = normalizeArabicDiscoveryText(n);
+      return tn && firstNorm && (tn === firstNorm || tn.includes(firstNorm));
+    });
+    if (matchesTree && familyMatch) {
+      score += 18;
+      reasons.push('اسم متقاطع مع سجلات «شجرتي»');
+    }
+  }
+
+  if (candidate.publishedSiteSlug) {
+    score += 10;
+    reasons.push('يمتلك ديواناً عائلياً منشوراً على جذوري');
+  }
+
+  const baseMutual = Math.max(
+    1,
+    Math.min(
+      9,
+      (ctx.existingCircleMembersCount > 0 ? 1 : 0) +
+        (familyMatch ? 2 : 0) +
+        (regionMatch ? 1 : 0) +
+        (candidate.userId.length % 3)
+    )
+  );
+
+  if (reasons.length === 0) {
+    reasons.push(
+      candidate.originCountry
+        ? `عضو موثق في جذوري · ${candidate.originCountry}`
+        : 'عضو موثق على منصة جذوري'
+    );
+  }
+
+  return {
+    ...candidate,
+    matchScore: score,
+    matchReasonsAr: reasons,
+    primaryReasonAr: reasons[0],
+    suggestedKinshipAr,
+    mutualRelativesCount: baseMutual,
+  };
+}
+
+export async function fetchAndRankPlatformRelatives(params: {
+  currentUserId: string;
+  familyName: string;
+  tribeName?: string;
+  familyBranch?: string;
+  originCountry?: string;
+  originRegion?: string;
+  fatherName?: string;
+  grandfatherName?: string;
+  contemporaryTreeNames?: string[];
+  existingCircleMembers: KinshipCircleMember[];
+  dismissedCandidateIds?: string[];
+}): Promise<{
+  recommended: RecommendedRelativeCandidate[];
+  searchablePool: RecommendedRelativeCandidate[];
+}> {
+  const safeSelfId = (params.currentUserId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const excludedUids = new Set<string>([safeSelfId]);
+  const excludedNames = new Set<string>();
+  const dismissedSet = new Set<string>(params.dismissedCandidateIds || []);
+
+  for (const m of params.existingCircleMembers || []) {
+    if (m.status === 'OPTED_OUT') continue;
+    if (m.claimedByUid) excludedUids.add(m.claimedByUid);
+    if (m.name) excludedNames.add(normalizeArabicDiscoveryText(m.name));
+  }
+
+  const liveMap = new Map<string, PlatformDiscoveryMember>();
+
+  // 1. Query real Zero-PII `/member_discovery_directory` from Firestore
+  const isSignedIn = Boolean(auth.currentUser || mirrorAuth.currentUser);
+  if (isSignedIn) {
+    const targetDb = auth.currentUser ? db : mirrorDb;
+    try {
+      const snap = await fastTimeout(
+        getDocs(
+          query(
+            collection(targetDb, 'member_discovery_directory'),
+            where('isDiscoverable', '==', true),
+            limit(60)
+          )
+        ),
+        3200
+      );
+      snap.forEach((docSnap) => {
+        const d = docSnap.data() as Partial<PlatformDiscoveryMember>;
+        const uid = d.userId || docSnap.id;
+        if (!uid || !d.fullName) return;
+        liveMap.set(uid, {
+          userId: uid,
+          fullName: d.fullName,
+          firstName: d.firstName,
+          fatherName: d.fatherName,
+          grandfatherName: d.grandfatherName,
+          familyName: d.familyName || '',
+          tribeName: d.tribeName,
+          familyBranch: d.familyBranch,
+          originCountry: d.originCountry,
+          originRegion: d.originRegion,
+          residenceCity: d.residenceCity,
+          avatarUrl: d.avatarUrl,
+          publishedSiteSlug: d.publishedSiteSlug,
+          isDiscoverable: true,
+          isVerifiedMember: d.isVerifiedMember !== false,
+          updatedAt: d.updatedAt || new Date().toISOString(),
+          isDirectorySeeded: false,
+        });
+      });
+    } catch {
+      // Graceful fallback when directory is still empty or offline
+    }
+
+    // 2. Enrich from published `public_sites` owners (publicly readable metadata)
+    try {
+      const sitesSnap = await fastTimeout(
+        getDocs(
+          query(
+            collection(targetDb, 'public_sites'),
+            where('isPublished', '==', true),
+            where('siteAccessMode', '==', 'PUBLIC_OPEN'),
+            limit(30)
+          )
+        ),
+        2800
+      );
+      sitesSnap.forEach((docSnap) => {
+        const site = docSnap.data() as Partial<PublicMicrositeData>;
+        const uid = site.ownerId || site.ownerUid;
+        if (!uid || !site.ownerDisplayName) return;
+        const prev = liveMap.get(uid);
+        liveMap.set(uid, {
+          userId: uid,
+          fullName: prev?.fullName || site.ownerDisplayName,
+          firstName: prev?.firstName || site.ownerDisplayName.split(/\s+/)[0],
+          fatherName: prev?.fatherName,
+          grandfatherName: prev?.grandfatherName,
+          familyName: prev?.familyName || site.familyName || '',
+          tribeName: prev?.tribeName,
+          familyBranch: prev?.familyBranch || site.familyEmblemTag,
+          originCountry: prev?.originCountry || site.originCountry,
+          originRegion: prev?.originRegion || site.originRegion,
+          residenceCity: prev?.residenceCity || site.originRegion,
+          avatarUrl: prev?.avatarUrl,
+          publishedSiteSlug: site.siteSlug || docSnap.id,
+          isDiscoverable: true,
+          isVerifiedMember: true,
+          updatedAt: prev?.updatedAt || site.updatedAt || new Date().toISOString(),
+          isDirectorySeeded: false,
+        });
+      });
+    } catch {
+      // Optional enrichment
+    }
+  }
+
+  // Supplement with family/region-tailored Juthori platform profiles when live directory has < 6 candidates
+  const liveCandidates = Array.from(liveMap.values()).filter(
+    (m) =>
+      !excludedUids.has(m.userId) &&
+      !excludedNames.has(normalizeArabicDiscoveryText(m.fullName))
+  );
+
+  const combinedList: PlatformDiscoveryMember[] = [...liveCandidates];
+  if (combinedList.length < 6) {
+    const seeds = buildFamilyTailoredDiscoveryDirectory({
+      familyName: params.familyName,
+      tribeName: params.tribeName,
+      familyBranch: params.familyBranch,
+      originCountry: params.originCountry,
+      originRegion: params.originRegion,
+      fatherName: params.fatherName,
+      grandfatherName: params.grandfatherName,
+    });
+    for (const s of seeds) {
+      if (
+        excludedUids.has(s.userId) ||
+        excludedNames.has(normalizeArabicDiscoveryText(s.fullName))
+      ) {
+        continue;
+      }
+      if (!combinedList.some((x) => x.userId === s.userId)) {
+        combinedList.push(s);
+      }
+    }
+  }
+
+  const rankedAll = combinedList
+    .map((candidate) =>
+      scoreAndRankDiscoveryMember(candidate, {
+        familyName: params.familyName,
+        tribeName: params.tribeName,
+        familyBranch: params.familyBranch,
+        originCountry: params.originCountry,
+        originRegion: params.originRegion,
+        fatherName: params.fatherName,
+        grandfatherName: params.grandfatherName,
+        contemporaryTreeNames: params.contemporaryTreeNames,
+        existingCircleMembersCount: (params.existingCircleMembers || []).length,
+      })
+    )
+    .sort((a, b) => {
+      // Real cloud members first when scores are close
+      const realBonusA = a.isDirectorySeeded ? 0 : 15;
+      const realBonusB = b.isDirectorySeeded ? 0 : 15;
+      return b.matchScore + realBonusB - (a.matchScore + realBonusA);
+    });
+
+  const recommended = rankedAll
+    .filter((c) => !dismissedSet.has(c.userId))
+    .slice(0, 6);
+
+  return {
+    recommended,
+    searchablePool: rankedAll,
+  };
+}
+
+export function searchPlatformMembersLive(
+  queryText: string,
+  pool: RecommendedRelativeCandidate[],
+  excludedUids: Set<string>
+): RecommendedRelativeCandidate[] {
+  const qNorm = normalizeArabicDiscoveryText(queryText);
+  if (!qNorm) return [];
+  const terms = qNorm.split(/\s+/).filter(Boolean);
+
+  return pool
+    .filter((candidate) => {
+      if (excludedUids.has(candidate.userId)) return false;
+      const haystack = normalizeArabicDiscoveryText(
+        [
+          candidate.fullName,
+          candidate.firstName,
+          candidate.fatherName,
+          candidate.grandfatherName,
+          candidate.familyName,
+          candidate.tribeName,
+          candidate.familyBranch,
+          candidate.originRegion,
+          candidate.originCountry,
+          candidate.residenceCity,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+      return terms.every((t) => haystack.includes(t));
+    })
+    .slice(0, 8);
+}
+
+export async function addPlatformMemberToKinshipCircle(params: {
+  ownerId: string;
+  ownerName: string;
+  familyName: string;
+  siteSlug?: string;
+  candidate: RecommendedRelativeCandidate;
+  role: KinshipCircleMemberRole;
+  kinshipRelation?: string;
+  linkedTreePersonId?: string;
+  linkedTreePersonName?: string;
+}): Promise<{
+  ok: boolean;
+  circle: KinshipCircleDoc;
+  addedMember: KinshipCircleMember;
+  messageAr: string;
+}> {
+  const safeUid = params.ownerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  const cleanRole = normalizeCircleRoleKey(params.role);
+  const cleanRel =
+    (params.kinshipRelation || params.candidate.suggestedKinshipAr || 'ابن عم')
+      .trim()
+      .slice(0, 80);
+  const targetSlug = normalizePublicSiteSlug(params.siteSlug || '');
+
+  const current = await fetchKinshipCircleForOwner(safeUid);
+  const syntheticHandleEmail = `${params.candidate.userId
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .slice(0, 42)}@member.juthori.com`;
+
+  const existingIdx = current.members.findIndex(
+    (m) =>
+      (m.claimedByUid && m.claimedByUid === params.candidate.userId) ||
+      normalizeArabicDiscoveryText(m.name) ===
+        normalizeArabicDiscoveryText(params.candidate.fullName)
+  );
+  const existing = existingIdx >= 0 ? current.members[existingIdx] : null;
+
+  const inviteToken =
+    existing?.inviteToken ||
+    `plt_${safeUid.slice(0, 8)}_${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+  const addedMember: KinshipCircleMember = cleanUndefined({
+    ...(existing || {}),
+    id:
+      existing?.id ||
+      `kin_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: params.candidate.fullName.trim().slice(0, 120),
+    email: existing?.email || syntheticHandleEmail,
+    kinshipRelation: cleanRel,
+    inviteToken,
+    addedAt: existing?.addedAt || nowIso,
+    approvedEnrichmentsCount: existing?.approvedEnrichmentsCount || 0,
+    role: cleanRole,
+    linkedTreePersonId: params.linkedTreePersonId || existing?.linkedTreePersonId,
+    linkedTreePersonName:
+      params.linkedTreePersonName || existing?.linkedTreePersonName,
+    status: 'ACTIVE',
+    claimedByUid: params.candidate.userId,
+    claimedAt: existing?.claimedAt || nowIso,
+    avatarUrl: params.candidate.avatarUrl || existing?.avatarUrl,
+    fatherName: params.candidate.fatherName || existing?.fatherName,
+    grandfatherName:
+      params.candidate.grandfatherName || existing?.grandfatherName,
+    residenceCountry:
+      params.candidate.originCountry || existing?.residenceCountry,
+    residenceCity:
+      params.candidate.residenceCity ||
+      params.candidate.originRegion ||
+      existing?.residenceCity,
+    familyBranch: params.candidate.familyBranch || existing?.familyBranch,
+    publishedSiteSlug:
+      params.candidate.publishedSiteSlug || existing?.publishedSiteSlug,
+    mutualRelativesCount:
+      params.candidate.mutualRelativesCount || existing?.mutualRelativesCount,
+    sourcePlatformMember: true,
+  });
+
+  const nextMembers =
+    existingIdx >= 0
+      ? current.members.map((m, i) => (i === existingIdx ? addedMember : m))
+      : [addedMember, ...current.members].slice(0, 450);
+
+  const updatedCircle: KinshipCircleDoc = cleanUndefined({
+    ...current,
+    ownerId: safeUid,
+    familyName: (params.familyName || current.familyName || 'العائلة')
+      .trim()
+      .slice(0, 90),
+    siteSlug: targetSlug || current.siteSlug,
+    members: nextMembers,
+    updatedAt: nowIso,
+  });
+
+  await writeDualDoc(
+    ['kinship_circles', safeUid],
+    updatedCircle as unknown as Record<string, unknown>
+  );
+
+  // Instant sync to published «موقعي» (`public_sites/{slug}`) + cross-tab event
+  await syncKinshipCircleToPublishedMicrosite({
+    ownerId: safeUid,
+    circle: updatedCircle,
+    preferredSlug: targetSlug || current.siteSlug,
+  });
+
+  // Notify real registered platform member in-app
+  if (
+    !params.candidate.isDirectorySeeded &&
+    params.candidate.userId &&
+    !params.candidate.userId.startsWith('disc_seed_')
+  ) {
+    const roleMeta = getCircleRoleTierMeta(cleanRole);
+    sendCustomerNotification({
+      userId: params.candidate.userId,
+      title: `تم ضمّك إلى دائرة عائلة ${params.familyName} على جذوري ✦`,
+      body: `قام ${params.ownerName} بضمّك إلى دائرة عائلة ${params.familyName} بصلاحية «${roleMeta.labelAr}». يمكنك الآن دخول الديوان العائلي والمشاركة فوراً.`,
+      category: 'system_notice',
+      senderRole: 'system',
+    }).catch(() => {});
+  }
+
+  const roleMeta = getCircleRoleTierMeta(cleanRole);
+  return {
+    ok: true,
+    circle: updatedCircle,
+    addedMember,
+    messageAr: `تم ضمّ «${addedMember.name}» إلى دائرة عائلة ${params.familyName} بصلاحية «${roleMeta.shortLabelAr}» ومزامنة وصوله مع «موقعي» فوراً ✦`,
+  };
+}
+

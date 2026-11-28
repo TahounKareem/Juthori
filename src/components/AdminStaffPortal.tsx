@@ -45,6 +45,8 @@ import {
 import {
   CharterRequestRecord,
   CustomerOrderRecord,
+  DEFAULT_RESEARCH_MANAGER_MEMBER,
+  DEFAULT_SPECIALIST_RESEARCHER_MEMBER,
   FOUNDING_MAESTRO_MEMBER,
   KnowledgeArticleRecord,
   KnowledgeContentType,
@@ -78,7 +80,13 @@ import {
 import { JuthoriLogo } from './JuthoriLogo';
 import { ResilientImage } from './ResilientImage';
 import { ResearcherStudio } from './ResearcherStudio';
+import { ResearchManagerDashboard } from './ResearchManagerDashboard';
+import { MaestroSovereignApprovalView } from './MaestroSovereignApprovalView';
 import { KashafiAdminStudio } from './KashafiAdminStudio';
+import {
+  ADAM_STAGING_SYNC_EVENT,
+  fetchAdamStagingProposals,
+} from '../services/adamSovereignFirewallService';
 import { fetchAllKashafiOrdersForStaff } from '../services/kashafiService';
 import { resolveTicketLifecycleStage } from '../services/priority4Service';
 import {
@@ -97,6 +105,8 @@ import {
 
 export type AdminModuleTab =
   | 'command_hub'
+  | 'maestro_sovereign_approval'
+  | 'research_manager_hub'
   | 'users_rbac'
   | 'research_studio'
   | 'adam_tree_management'
@@ -304,6 +314,7 @@ const ALL_TEAM_ROLES: TeamRoleType[] = [
   'المايسترو',
   'مدير عام',
   'مدير البحوث',
+  'باحث مختص',
   'مدير إدارة الطلبات وخدمة العملاء',
   'مدير تحرير المركز المعرفي',
 ];
@@ -314,6 +325,8 @@ function getAllowedTabsForRole(role: TeamRoleType): AdminModuleTab[] {
     case 'مدير عام':
       return [
         'command_hub',
+        'maestro_sovereign_approval',
+        'research_manager_hub',
         'direct_search_inspection',
         'research_studio',
         'adam_tree_management',
@@ -326,9 +339,16 @@ function getAllowedTabsForRole(role: TeamRoleType): AdminModuleTab[] {
     case 'مدير البحوث':
       return [
         'command_hub',
+        'research_manager_hub',
         'direct_search_inspection',
         'research_studio',
         'adam_tree_management',
+      ];
+    case 'باحث مختص':
+      return [
+        'command_hub',
+        'research_manager_hub',
+        'direct_search_inspection',
       ];
     case 'مدير إدارة الطلبات وخدمة العملاء':
       return ['command_hub', 'orders_support'];
@@ -403,26 +423,35 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // 2. Active Module Tab (governed strictly by RBAC, defaults to 'command_hub')
+  const effectiveActiveRole: TeamRoleType | null = loggedInMember
+    ? (loggedInMember.role === 'المايسترو' || loggedInMember.role === 'مدير عام') &&
+      previewRoleOverride
+      ? previewRoleOverride
+      : loggedInMember.role
+    : null;
+
   const allowedTabs = useMemo<AdminModuleTab[]>(
-    () => (loggedInMember ? getAllowedTabsForRole(loggedInMember.role) : []),
-    [loggedInMember]
+    () => (effectiveActiveRole ? getAllowedTabsForRole(effectiveActiveRole) : []),
+    [effectiveActiveRole]
   );
 
   const [activeTab, setActiveTab] = useState<AdminModuleTab>('command_hub');
 
   useEffect(() => {
-    if (loggedInMember) {
-      const allowed = getAllowedTabsForRole(loggedInMember.role);
+    if (effectiveActiveRole) {
+      const allowed = getAllowedTabsForRole(effectiveActiveRole);
       if (!allowed.includes(activeTab)) {
         setActiveTab('command_hub');
       }
     }
-  }, [loggedInMember, activeTab]);
+  }, [effectiveActiveRole, activeTab]);
 
   // 3. Firebase Live Data Collections (Zero Mock Data)
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [staffList, setStaffList] = useState<TeamMemberRecord[]>([
     FOUNDING_MAESTRO_MEMBER,
+    DEFAULT_RESEARCH_MANAGER_MEMBER,
+    DEFAULT_SPECIALIST_RESEARCHER_MEMBER,
   ]);
   const [orders, setOrders] = useState<CustomerOrderRecord[]>([]);
   const [charterRequests, setCharterRequests] = useState<CharterRequestRecord[]>([]);
@@ -498,6 +527,34 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     setToastBanner(msg);
     setTimeout(() => setToastBanner(null), 5000);
   };
+
+  // Exclusive Maestro Sovereign Approval live pending counter
+  const [pendingSovereignAdamCount, setPendingSovereignAdamCount] =
+    useState<number>(0);
+
+  useEffect(() => {
+    let active = true;
+    const syncPendingSovereignCount = async () => {
+      try {
+        const list = await fetchAdamStagingProposals();
+        if (!active) return;
+        setPendingSovereignAdamCount(
+          list.filter((p) => p.status === 'pending_maestro').length
+        );
+      } catch {
+        // Ignore offline errors
+      }
+    };
+    void syncPendingSovereignCount();
+    const onSync = () => {
+      void syncPendingSovereignCount();
+    };
+    window.addEventListener(ADAM_STAGING_SYNC_EVENT, onSync);
+    return () => {
+      active = false;
+      window.removeEventListener(ADAM_STAGING_SYNC_EVENT, onSync);
+    };
+  }, [loggedInMember]);
 
   // Load real data from Firebase when authenticated (non-blocking bootstrap)
   const refreshAllFirebaseData = async () => {
@@ -1301,6 +1358,29 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
     customLogoUrl?: string;
   }> = [
     {
+      id: 'maestro_sovereign_approval',
+      emoji: '👑',
+      title: '👑 التصديق السيادي لإثراء شجرة آدم',
+      description:
+        'غرفة التصديق السيادي الحصرية للمايسترو والمدير العام لمراجعة وتأكيد إضافات وتعديلات فريق البحوث على شجرة آدم بضغطة زر واحدة، مع سجل تدقيق كامل.',
+      liveCounterLabel: 'طبقة الحماية (Adam Staging)',
+      liveCounterValue:
+        pendingSovereignAdamCount > 0
+          ? `${pendingSovereignAdamCount} تعديل جاهز للتصديق ⏳`
+          : 'الطابور صافٍ · شجرة آدم محصّنة ✓',
+      accentBadge: 'حصري للمايسترو والمدير العام',
+    },
+    {
+      id: 'research_manager_hub',
+      emoji: '📜',
+      title: '📜 لوحة قيادة مدير البحوث وهيئة الأنساب',
+      description:
+        'إدارة طابور طلبات ربط الجذور (Basic & Premium)، استوديو كشّافي، رادار التحويل للمجاني، صندوق الاعتماد العلمي، وجمهرة المصادر المرجعية.',
+      liveCounterLabel: 'العمليات البحثية والاعتمادات',
+      liveCounterValue: `${researchTicketsCount} ملف · 5 أقسام تشغيلية`,
+      accentBadge: 'القيادة البحثية الموحدة',
+    },
+    {
       id: 'direct_search_inspection',
       emoji: '🧭',
       title: '🧭 بوصلة الجذور',
@@ -1960,7 +2040,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(217,119,87,0.12),transparent_65%)]" />
 
         {/* Top Bar */}
-        <header className="relative z-10 max-w-6xl w-full mx-auto flex items-center justify-between px-6 pt-6 py-2">
+        <header className="relative z-10 w-full max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 pt-6 py-2">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" onClick={onBackToPlatform} confirmHomeNavigation />
             <span className="px-3 py-1 rounded-full bg-[#E8DED2] border border-[#D97757]/45 text-[#D97757] text-[11px] font-bold">
@@ -2043,12 +2123,43 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                 {isLoggingIn ? 'جاري التحقق من الصلاحيات...' : 'دخول بوابة الفريق (/Team)'}
               </button>
             </form>
+
+            {/* Quick Research Role Credentials Helper */}
+            <div className="mt-5 pt-4 border-t border-[#D8C7B2] space-y-2">
+              <p className="text-[11px] font-bold text-[#1F1F1C]/65 text-center">
+                اختبار سريع لأدوار هيئة البحوث (تعبئة فورية للبيانات):
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginEmail(DEFAULT_RESEARCH_MANAGER_MEMBER.email);
+                    setLoginPassword(DEFAULT_RESEARCH_MANAGER_MEMBER.passwordHash);
+                    setLoginError(null);
+                  }}
+                  className="py-2 px-2.5 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-display font-bold text-[#1F1F1C] transition cursor-pointer"
+                >
+                  حساب مدير البحوث
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginEmail(DEFAULT_SPECIALIST_RESEARCHER_MEMBER.email);
+                    setLoginPassword(DEFAULT_SPECIALIST_RESEARCHER_MEMBER.passwordHash);
+                    setLoginError(null);
+                  }}
+                  className="py-2 px-2.5 rounded-xl bg-[#FAF7F2] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[11px] font-display font-bold text-[#1F1F1C] transition cursor-pointer"
+                >
+                  حساب باحث مختص
+                </button>
+              </div>
+            </div>
           </div>
         </main>
 
         {/* Quiet Editorial Footer (Matches Platform Homepage Footer) */}
         <footer className="relative z-10 border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 w-full">
-          <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center text-center space-y-3.5">
               <JuthoriLogo
                 size="sm"
@@ -2086,16 +2197,19 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           Unified Warm Heritage Ivory & Terracotta Visual Identity (Zero Black Backgrounds)
          ===================================================================== */}
       <header className="sticky top-0 z-40 bg-[#F5F1E8]/95 backdrop-blur-md text-[#1F1F1C] border-b border-[#D8C7B2] shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <JuthoriLogo size="sm" onClick={onBackToPlatform} confirmHomeNavigation />
             <span className="hidden md:inline-block h-6 w-px bg-[#E8DED2]" />
             <button
               type="button"
               data-testid="back-to-command-hub-btn"
-              onClick={() => setActiveTab('command_hub')}
+              onClick={() => {
+                setPreviewRoleOverride(null);
+                setActiveTab('command_hub');
+              }}
               className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer ${
-                activeTab !== 'command_hub'
+                activeTab !== 'command_hub' || previewRoleOverride !== null
                   ? 'bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8]'
                   : 'bg-[#F5F1E8] hover:bg-[#E8DED2] text-[#D97757] border border-[#D97757]/50'
               }`}
@@ -2105,6 +2219,87 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {allowedTabs.includes('maestro_sovereign_approval') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('maestro_sovereign_approval')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
+                  activeTab === 'maestro_sovereign_approval'
+                    ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                    : 'bg-[#FAF7F2] hover:bg-[#E8DED2] text-[#1F1F1C] border-[#D97757]/55'
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5 shrink-0" />
+                <span>التصديق السيادي</span>
+                {pendingSovereignAdamCount > 0 && (
+                  <span
+                    className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                      activeTab === 'maestro_sovereign_approval'
+                        ? 'bg-[#F5F1E8]/20 text-[#F5F1E8]'
+                        : 'bg-[#D97757]/15 text-[#D97757]'
+                    }`}
+                  >
+                    {pendingSovereignAdamCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {allowedTabs.includes('research_manager_hub') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('research_manager_hub')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
+                  activeTab === 'research_manager_hub'
+                    ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                    : 'bg-[#FAF7F2] hover:bg-[#E8DED2] text-[#1F1F1C] border-[#D8C7B2]'
+                }`}
+              >
+                <span>لوحة مدير البحوث</span>
+              </button>
+            )}
+
+            {isMaestroOrGeneralManager && (
+              <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-[#E8DED2]/80 border border-[#D8C7B2]">
+                <span className="hidden sm:inline-block px-2 text-[10.5px] font-bold text-[#1F1F1C]/60">
+                  معاينة:
+                </span>
+                {(
+                  [
+                    { label: 'المدير العام', role: null },
+                    { label: 'مدير البحوث', role: 'مدير البحوث' as TeamRoleType },
+                    { label: 'باحث مختص', role: 'باحث مختص' as TeamRoleType },
+                  ] as const
+                ).map((opt) => {
+                  const isActivePreview = previewRoleOverride === opt.role;
+                  return (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => {
+                        setPreviewRoleOverride(opt.role);
+                        if (opt.role === null) {
+                          setActiveTab('command_hub');
+                        } else if (
+                          opt.role === 'مدير البحوث' ||
+                          opt.role === 'باحث مختص'
+                        ) {
+                          setActiveTab('research_manager_hub');
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-display font-bold transition cursor-pointer ${
+                        isActivePreview
+                          ? 'bg-[#FAF7F2] text-[#D97757] shadow-2xs border border-[#D97757]/40'
+                          : 'text-[#1F1F1C]/70 hover:text-[#1F1F1C]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleTeamLogout}
@@ -2117,6 +2312,32 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         </div>
       </header>
 
+      {/* Active Role Preview Banner — Clarifies why portals are filtered & offers 1-click full restore */}
+      {isMaestroOrGeneralManager && previewRoleOverride !== null && (
+        <div className="bg-[#FAF7F2] border-b border-[#D97757]/40">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-bold text-[#1F1F1C]">
+              أنت في وضع معاينة دور{' '}
+              <span className="text-[#D97757] font-extrabold">
+                «{previewRoleOverride}»
+              </span>{' '}
+              — تُعرض فقط البوابات المصرّح بها لهذا الدور (
+              {visibleWorkspaceWindows.length} من أصل {ALL_WORKSPACE_WINDOWS.length}).
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewRoleOverride(null);
+                setActiveTab('command_hub');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-extrabold shadow-2xs transition cursor-pointer"
+            >
+              <span>استعادة كافة البوابات ({ALL_WORKSPACE_WINDOWS.length}) — وضع المدير العام</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toast Banner */}
       {toastBanner && (
         <div className="bg-[#F5F1E8] text-[#1F1F1C] border-b border-[#D97757]/45 px-4 py-2.5 text-center text-xs font-bold flex items-center justify-center gap-2">
@@ -2125,17 +2346,12 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* Main Content Area — Strictly aligned to Header max-w-7xl edges across ALL /team panels */}
       <main
-        className={`flex-1 w-full mx-auto ${
-          activeTab === 'adam_tree_management'
-            ? 'max-w-none px-3 sm:px-5 py-4'
-            : `max-w-7xl px-4 sm:px-6 ${
-                activeTab === 'command_hub' &&
-                visibleWorkspaceWindows.length === 1
-                  ? 'py-3.5'
-                  : 'py-6'
-              }`
+        className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
+          activeTab === 'command_hub' && visibleWorkspaceWindows.length === 1
+            ? 'py-3.5'
+            : 'py-6'
         }`}
       >
         {/* =====================================================================
@@ -2351,7 +2567,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                   <div className="w-2.5 h-2.5 rounded-full bg-[#D97757] border border-[#D97757] shadow-xs mt-0.5" />
                 </div>
               ) : (
-              <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
+              <div className="relative w-full mx-auto">
                 {/* Central Vertical Tree Trunk (Desktop Center / Mobile Right-Aligned) */}
                 <div
                   aria-hidden="true"
@@ -2755,19 +2971,80 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
         )}
 
         {/* =====================================================================
+            PANEL 1.4: غرفة التصديق السيادي لإثراء شجرة آدم (حصرية للمايسترو والمدير العام)
+           ===================================================================== */}
+        {activeTab === 'maestro_sovereign_approval' &&
+          allowedTabs.includes('maestro_sovereign_approval') &&
+          loggedInMember && (
+            <MaestroSovereignApprovalView
+              maestroName={loggedInMember.name}
+              effectiveRole={effectiveHubRole}
+              onApprovedProposalCommitted={(proposal) => {
+                if (proposal.sourceFamilyName && proposal.parentNodeName) {
+                  onApproveAlphaMergeIntoAdam({
+                    familyName: proposal.sourceFamilyName,
+                    subRootName: proposal.targetNodeName,
+                    motherTribeName: proposal.parentNodeName,
+                    approveSources: true,
+                    isAdamEnrichmentOnly:
+                      proposal.actionType === 'update_reference_node',
+                    addedVerifiedSources: [proposal.sourceReferenceText],
+                  });
+                }
+                triggerToast(
+                  `👑 تم التصديق السيادي ودمج (${proposal.targetNodeName}) رسمياً في شجرة آدم المرجعية ✓`
+                );
+              }}
+              onBackToCommandHub={() => setActiveTab('command_hub')}
+              onOpenAdamTree={() => setActiveTab('adam_tree_management')}
+            />
+          )}
+
+        {/* =====================================================================
+            PANEL 1.5: لوحة قيادة مدير البحوث وفريق الباحثين (RBAC Phase 4)
+           ===================================================================== */}
+        {activeTab === 'research_manager_hub' &&
+          allowedTabs.includes('research_manager_hub') &&
+          loggedInMember && (
+            <ResearchManagerDashboard
+              activeMember={loggedInMember}
+              effectiveRole={effectiveHubRole}
+              staffList={staffList}
+              researchTickets={researchTicketsList}
+              onRefreshStaffData={() => {
+                triggerToast('تمت مزامنة بيانات طابور البحوث والمشتركين.');
+              }}
+              onUpdateResearchTicket={(updated) => {
+                setResearchTicketsList((prev) =>
+                  prev.map((t) => (t.id === updated.id ? updated : t))
+                );
+              }}
+              onUpdateStaffMember={(updated) => {
+                setStaffList((prev) =>
+                  prev.map((m) => (m.id === updated.id ? updated : m))
+                );
+              }}
+              onOpenAdamTree={
+                allowedTabs.includes('adam_tree_management')
+                  ? () => setActiveTab('adam_tree_management')
+                  : undefined
+              }
+              onOpenCompass={
+                allowedTabs.includes('direct_search_inspection')
+                  ? () => setActiveTab('direct_search_inspection')
+                  : undefined
+              }
+            />
+          )}
+
+        {/* =====================================================================
             PANEL 2: أقسام البحوث الثلاثة (مرصد البحوث / شجرة آدم للأجداد / بوصلة الأنساب)
            ===================================================================== */}
         {(activeTab === 'research_studio' ||
           activeTab === 'adam_tree_management' ||
           activeTab === 'direct_search_inspection') &&
           allowedTabs.includes(activeTab) && (
-            <div
-              className={`bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2] shadow-sm ${
-                activeTab === 'adam_tree_management'
-                  ? 'p-3 sm:p-4'
-                  : 'p-4 sm:p-6'
-              }`}
-            >
+            <div className="bg-[#F5F1E8] rounded-3xl border border-[#D8C7B2] shadow-sm p-4 sm:p-6">
               <ResearcherStudio
                 activePortalSection={activeTab}
                 onSelectPortalSection={(sec) => {
@@ -2780,7 +3057,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
                     ? {
                         id: loggedInMember.id,
                         name: loggedInMember.name,
-                        role: loggedInMember.role,
+                        role: effectiveHubRole,
                       }
                     : undefined
                 }
@@ -4061,7 +4338,7 @@ export const AdminStaffPortal: React.FC<AdminStaffPortalProps> = ({
 
       {/* Quiet Editorial Footer (Matches Platform Homepage Footer) */}
       <footer className="border-t border-[#D97757]/30 bg-[#E8DED2]/70 py-12 mt-auto">
-        <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center text-center space-y-3.5">
             <JuthoriLogo
               size="sm"

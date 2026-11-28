@@ -29,6 +29,8 @@ import {
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  contextBanner?: string;
+  defaultRegisterMode?: boolean;
   onLoginSuccess: (payload: {
     uid?: string;
     email: string;
@@ -109,9 +111,11 @@ function inferArabicNameFromEmailOrDisplay(
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
+  contextBanner,
+  defaultRegisterMode,
   onLoginSuccess,
 }) => {
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(Boolean(defaultRegisterMode));
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -126,6 +130,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    if (typeof defaultRegisterMode === 'boolean') {
+      setIsRegisterMode(defaultRegisterMode);
+    }
     const handoff = readPendingLineageHandoff();
     const ticket = readPendingTicketDraft();
     setPendingHandoff(handoff);
@@ -147,7 +154,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setFullName(candidateFull);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, defaultRegisterMode]);
 
   if (!isOpen) return null;
 
@@ -761,6 +768,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {contextBanner && (
+          <div className="mb-4 rounded-xl bg-[#FDFBF7] text-[#1F1F1C] border border-[#D97757]/45 p-3.5 text-right flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
+            <p className="text-[11.5px] leading-relaxed font-medium text-[#1F1F1C]">
+              {contextBanner}
+            </p>
+          </div>
+        )}
 
         {(pendingTicket || pendingHandoff) && (
           <div className="mb-4 rounded-xl bg-[#E8DED2] text-[#1F1F1C] border border-[#D8C7B2] p-3.5 text-right flex items-start gap-2.5">

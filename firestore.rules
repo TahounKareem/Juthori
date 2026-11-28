@@ -72,6 +72,18 @@ service cloud.firestore {
       return isStaffOrAdmin();
     }
 
+    // Exclusive Maestro / General Manager sovereign gatekeeper check
+    function isSovereignMaestroOrGeneralManager() {
+      return isSignedIn()
+        && (
+          isCorporateStaffToken()
+          || (
+            isActiveTeamMemberUid()
+            && get(/databases/$(database)/documents/team_members/$(request.auth.uid)).data.role in ['المايسترو', 'مدير عام']
+          )
+        );
+    }
+
     // Strict Isolation Wall: Block `/team` & corporate staff emails/IDs from ever entering `/users`
     function isForbiddenStaffCustomerRecord(userId, email) {
       return userId.matches('^team_.*')
@@ -433,8 +445,7 @@ service cloud.firestore {
         && (!('themeId' in data) || data.themeId in ['heritage', 'emerald_gold', 'andalusian_navy', 'olive_sand', 'royal_burgundy', 'royal_kiswah', 'pearl_bronze', 'papyrus_lapis', 'diriyah_oasis', 'manuscript_ink', 'golden_parchment', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
         && (!('siteAccessMode' in data) || data.siteAccessMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
         && (!('privacyMode' in data) || data.privacyMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST'])
-        && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'FAMILY_PIN', 'PRIVATE_WHITELIST'])
-        && (!('hasFamilyPasscode' in data) || data.hasFamilyPasscode is bool)
+        && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'PRIVATE_WHITELIST'])
         && (!('whitelistedEmails' in data) || (data.whitelistedEmails is list && data.whitelistedEmails.size() <= 500))
         && (!('whitelistedUids' in data) || (data.whitelistedUids is list && data.whitelistedUids.size() <= 500))
         && (!('whitelistedMemberMeta' in data) || (data.whitelistedMemberMeta is list && data.whitelistedMemberMeta.size() <= 500))
@@ -445,15 +456,6 @@ service cloud.firestore {
         && (!('publishedVaultItems' in data) || (data.publishedVaultItems is list && data.publishedVaultItems.size() <= 150))
         && data.createdAt is string && data.createdAt.size() <= 60
         && data.updatedAt is string && data.updatedAt.size() <= 60;
-    }
-
-    function isValidPasscodeMirror(data, slug) {
-      return isValidPublicSite(data)
-        && data.siteSlug == slug
-        && !('whitelistedEmails' in data)
-        && !('whitelistedUids' in data)
-        && !('ownerEmail' in data)
-        && !('familyAccessCode' in data.privacyConfig);
     }
 
     function isSiteOwnerData(data) {
@@ -508,7 +510,6 @@ service cloud.firestore {
           'isPublished',
           'siteAccessMode',
           'accessGateMode',
-          'hasFamilyPasscode',
           'themeId',
           'updatedAt'
         ])
@@ -518,8 +519,7 @@ service cloud.firestore {
         && data.familyName is string && data.familyName.size() > 0 && data.familyName.size() <= 100
         && data.isPublished is bool
         && data.siteAccessMode in ['PUBLIC', 'UNLISTED', 'PRIVATE_WHITELIST']
-        && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'FAMILY_PIN', 'PRIVATE_WHITELIST'])
-        && (!('hasFamilyPasscode' in data) || data.hasFamilyPasscode is bool)
+        && (!('accessGateMode' in data) || data.accessGateMode in ['PUBLIC_INDEXABLE', 'UNLISTED_LINK', 'PRIVATE_WHITELIST'])
         && (!('themeId' in data) || data.themeId in ['heritage', 'emerald_gold', 'andalusian_navy', 'olive_sand', 'royal_burgundy', 'royal_kiswah', 'pearl_bronze', 'papyrus_lapis', 'diriyah_oasis', 'manuscript_ink', 'golden_parchment', 'andalusian_emerald', 'sultanic_burgundy', 'classical_marble'])
         && data.updatedAt is string && data.updatedAt.size() <= 60;
     }
@@ -640,30 +640,78 @@ service cloud.firestore {
     }
 
     function isAuthorizedEnrichmentCreator(data) {
-      return (
-          isSignedIn()
-          && (!('requesterUid' in data) || data.requesterUid == request.auth.uid)
-        )
-        || (
-          !('requesterUid' in data)
-          && exists(/databases/$(database)/documents/public_sites/$(data.siteSlug))
-          && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.isPublished == true
-          && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.ownerId == data.ownerId
-          && (
-            (
-              'requesterEmail' in data
-              && data.requesterEmail is string && data.requesterEmail.size() > 0 && data.requesterEmail.size() <= 120
-              && 'whitelistedEmails' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data
-              && data.requesterEmail.lower() in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.whitelistedEmails
-            )
-            || (
-              'privacyConfig' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data
-              && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig is map
-              && 'allowVisitorEnrichment' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig
-              && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig.allowVisitorEnrichment == true
+      return isSignedIn()
+        && 'requesterUid' in data
+        && data.requesterUid == request.auth.uid
+        && exists(/databases/$(database)/documents/public_sites/$(data.siteSlug))
+        && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.isPublished == true
+        && get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.ownerId == data.ownerId
+        && (
+          isSiteOwnerData(get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data)
+          || (
+            isWhitelistedViewer(get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data)
+            && (
+              !('privacyConfig' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data)
+              || !(get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig is map)
+              || !('allowCircleMembersEnrichment' in get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig)
+              || get(/databases/$(database)/documents/public_sites/$(data.siteSlug)).data.privacyConfig.allowCircleMembersEnrichment == true
             )
           )
         );
+    }
+
+    function isValidCircleJoinRequest(data) {
+      return data.keys().hasAll([
+          'id',
+          'siteSlug',
+          'ownerId',
+          'familyName',
+          'requesterUid',
+          'requesterName',
+          'requesterEmail',
+          'kinshipNote',
+          'desiredRole',
+          'requestKind',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'siteSlug',
+          'ownerId',
+          'familyName',
+          'requesterUid',
+          'requesterName',
+          'requesterEmail',
+          'requesterAvatarUrl',
+          'requesterCountry',
+          'kinshipNote',
+          'desiredRole',
+          'requestKind',
+          'status',
+          'assignedRole',
+          'reviewedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidSlug(data.siteSlug)
+        && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
+        && data.familyName is string && data.familyName.size() > 0 && data.familyName.size() <= 100
+        && data.requesterUid is string && data.requesterUid.size() > 0 && data.requesterUid.size() <= 128
+        && data.requesterName is string && data.requesterName.size() > 0 && data.requesterName.size() <= 140
+        && data.requesterEmail is string && data.requesterEmail.size() <= 120
+        && (!('requesterAvatarUrl' in data) || (data.requesterAvatarUrl is string && data.requesterAvatarUrl.size() <= 2000))
+        && (!('requesterCountry' in data) || (data.requesterCountry is string && data.requesterCountry.size() <= 80))
+        && data.kinshipNote is string && data.kinshipNote.size() > 0 && data.kinshipNote.size() <= 200
+        && data.desiredRole in ['family_viewer', 'memory_contributor', 'assistant_registrar']
+        && data.requestKind in ['join_circle', 'upgrade_permission']
+        && data.status in ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']
+        && (!('assignedRole' in data) || data.assignedRole in ['family_viewer', 'memory_contributor', 'assistant_registrar'])
+        && (!('reviewedAt' in data) || (data.reviewedAt is string && data.reviewedAt.size() <= 60))
+        && data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() > 0 && data.updatedAt.size() <= 60;
     }
 
     function isValidSiteAccessRequest(data) {
@@ -745,6 +793,57 @@ service cloud.firestore {
         && data.body is string && data.body.size() > 0 && data.body.size() <= 3000
         && (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 20))
         && data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
+    function isValidMemberDiscoveryProfile(data, userId) {
+      return data.keys().hasAll(['userId', 'fullName', 'familyName', 'isDiscoverable', 'updatedAt'])
+        && data.keys().hasOnly([
+          'userId', 'fullName', 'firstName', 'fatherName', 'grandfatherName',
+          'familyName', 'tribeName', 'familyBranch', 'originCountry', 'originRegion',
+          'residenceCity', 'avatarUrl', 'publishedSiteSlug', 'isDiscoverable',
+          'isVerifiedMember', 'updatedAt'
+        ])
+        && data.userId == userId
+        && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 150
+        && data.familyName is string && data.familyName.size() <= 100
+        && data.isDiscoverable is bool
+        && data.updatedAt is string && data.updatedAt.size() <= 60
+        && (!('firstName' in data) || (data.firstName is string && data.firstName.size() <= 60))
+        && (!('fatherName' in data) || (data.fatherName is string && data.fatherName.size() <= 60))
+        && (!('grandfatherName' in data) || (data.grandfatherName is string && data.grandfatherName.size() <= 60))
+        && (!('tribeName' in data) || (data.tribeName is string && data.tribeName.size() <= 100))
+        && (!('familyBranch' in data) || (data.familyBranch is string && data.familyBranch.size() <= 100))
+        && (!('originCountry' in data) || (data.originCountry is string && data.originCountry.size() <= 80))
+        && (!('originRegion' in data) || (data.originRegion is string && data.originRegion.size() <= 100))
+        && (!('residenceCity' in data) || (data.residenceCity is string && data.residenceCity.size() <= 80))
+        && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 350000))
+        && (!('publishedSiteSlug' in data) || (data.publishedSiteSlug is string && data.publishedSiteSlug.size() <= 80))
+        && (!('isVerifiedMember' in data) || data.isVerifiedMember is bool);
+    }
+
+    function isValidAdamStagingProposal(data) {
+      return data.keys().hasAll([
+          'id', 'actionType', 'status', 'summaryAr', 'targetNodeName',
+          'historicalFirewallVerified', 'submittedByResearcherName',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.actionType in ['add_vertical_link', 'relink_branch', 'update_reference_node']
+        && data.status in ['pending_maestro', 'approved_by_maestro', 'rejected_by_maestro']
+        && data.summaryAr is string && data.summaryAr.size() > 0 && data.summaryAr.size() <= 400
+        && data.targetNodeName is string && data.targetNodeName.size() > 0 && data.targetNodeName.size() <= 180
+        && data.historicalFirewallVerified == true
+        && data.submittedByResearcherName is string && data.submittedByResearcherName.size() <= 140
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() <= 60
+        && (!('targetNodeId' in data) || (data.targetNodeId is string && data.targetNodeId.size() <= 128))
+        && (!('parentNodeId' in data) || (data.parentNodeId is string && data.parentNodeId.size() <= 128))
+        && (!('parentNodeName' in data) || (data.parentNodeName is string && data.parentNodeName.size() <= 180))
+        && (!('ancestralChainPreview' in data) || (data.ancestralChainPreview is string && data.ancestralChainPreview.size() <= 500))
+        && (!('sourceReferenceText' in data) || (data.sourceReferenceText is string && data.sourceReferenceText.size() <= 800))
+        && (!('approvedByManagerName' in data) || (data.approvedByManagerName is string && data.approvedByManagerName.size() <= 140))
+        && (!('maestroDecidedByName' in data) || (data.maestroDecidedByName is string && data.maestroDecidedByName.size() <= 140))
+        && (!('maestroRejectionNote' in data) || (data.maestroRejectionNote is string && data.maestroRejectionNote.size() <= 600));
     }
 
     // =========================================================================
@@ -937,36 +1036,6 @@ service cloud.firestore {
           (isSiteOwnerData(existing()) && isRecordKeeperUser(request.auth.uid))
           || isStaffOrAdmin()
         );
-
-      // Capability-token passcode mirror: unenumerable 256-bit SHA-256 hash doc for family passcode gate
-      match /passcode_mirrors/{passcodeHash} {
-        allow get: if isValidSlug(siteSlug)
-          && passcodeHash.matches('^[a-f0-9]{64}$')
-          && exists(/databases/$(database)/documents/public_sites/$(siteSlug))
-          && get(/databases/$(database)/documents/public_sites/$(siteSlug)).data.isPublished == true;
-
-        allow list: if false;
-
-        allow create, update: if isValidSlug(siteSlug)
-          && passcodeHash.matches('^[a-f0-9]{64}$')
-          && isSignedIn()
-          && isRecordKeeperUser(request.auth.uid)
-          && isValidPasscodeMirror(incoming(), siteSlug)
-          && exists(/databases/$(database)/documents/public_sites/$(siteSlug))
-          && isSiteOwnerData(get(/databases/$(database)/documents/public_sites/$(siteSlug)).data);
-
-        allow delete: if isValidSlug(siteSlug)
-          && passcodeHash.matches('^[a-f0-9]{64}$')
-          && isSignedIn()
-          && (
-            (
-              exists(/databases/$(database)/documents/public_sites/$(siteSlug))
-              && isSiteOwnerData(get(/databases/$(database)/documents/public_sites/$(siteSlug)).data)
-              && isRecordKeeperUser(request.auth.uid)
-            )
-            || isStaffOrAdmin()
-          );
-      }
     }
 
     match /public_site_directory/{siteSlug} {
@@ -1070,6 +1139,86 @@ service cloud.firestore {
       allow delete: if isValidId(inviteToken) && (isOwner(existing().ownerId) || isStaffOrAdmin());
     }
 
+    match /circle_join_requests/{requestId} {
+      allow get: if isValidId(requestId)
+        && isSignedIn()
+        && (
+          existing().requesterUid == request.auth.uid
+          || existing().ownerId == request.auth.uid
+          || isStaffOrAdmin()
+        );
+
+      allow list: if isSignedIn()
+        && (
+          existing().ownerId == request.auth.uid
+          || existing().requesterUid == request.auth.uid
+          || isVerifiedStaffEmail()
+        );
+
+      allow create: if isValidId(requestId)
+        && isSignedIn()
+        && isValidCircleJoinRequest(incoming())
+        && incoming().id == requestId
+        && incoming().requesterUid == request.auth.uid
+        && incoming().status == 'PENDING'
+        && exists(/databases/$(database)/documents/public_site_directory/$(incoming().siteSlug))
+        && get(/databases/$(database)/documents/public_site_directory/$(incoming().siteSlug)).data.ownerId == incoming().ownerId;
+
+      allow update: if isValidId(requestId)
+        && isSignedIn()
+        && isValidCircleJoinRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().siteSlug == existing().siteSlug
+        && incoming().ownerId == existing().ownerId
+        && incoming().requesterUid == existing().requesterUid
+        && incoming().createdAt == existing().createdAt
+        && (
+          // Action 1: Site Owner approves or rejects pending join/upgrade request
+          (
+            existing().ownerId == request.auth.uid
+            && existing().status == 'PENDING'
+            && incoming().status in ['APPROVED', 'REJECTED']
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'assignedRole', 'reviewedAt', 'updatedAt'])
+          )
+          // Action 2: Authenticated Requester cancels pending request
+          || (
+            existing().requesterUid == request.auth.uid
+            && existing().status == 'PENDING'
+            && incoming().status == 'CANCELLED'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+          // Action 3: Authenticated Requester re-submits after cancel/reject or requests permission upgrade after approval
+          || (
+            existing().requesterUid == request.auth.uid
+            && existing().status in ['CANCELLED', 'REJECTED', 'APPROVED']
+            && incoming().status == 'PENDING'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'status',
+              'kinshipNote',
+              'desiredRole',
+              'requestKind',
+              'requesterName',
+              'requesterEmail',
+              'requesterAvatarUrl',
+              'requesterCountry',
+              'familyName',
+              'assignedRole',
+              'reviewedAt',
+              'updatedAt'
+            ])
+          )
+          || isStaffOrAdmin()
+        );
+
+      allow delete: if isValidId(requestId)
+        && isSignedIn()
+        && (
+          existing().ownerId == request.auth.uid
+          || existing().requesterUid == request.auth.uid
+          || isStaffOrAdmin()
+        );
+    }
+
     match /enrichment_requests/{requestId} {
       allow get: if isValidId(requestId)
         && isSignedIn()
@@ -1135,6 +1284,7 @@ service cloud.firestore {
       allow list: if isSignedIn()
         && (existing().ownerId == request.auth.uid || isVerifiedStaffEmail());
       allow create: if isValidId(requestId)
+        && isSignedIn()
         && isValidSiteAccessRequest(incoming())
         && incoming().id == requestId
         && incoming().status == 'PENDING';
@@ -1314,7 +1464,7 @@ service cloud.firestore {
         )
         && incoming().name is string && incoming().name.size() <= 120
         && incoming().email is string && incoming().email.size() <= 120
-        && incoming().role in ['المايسترو', 'مدير عام', 'مدير البحوث', 'مدير إدارة الطلبات وخدمة العملاء', 'مدير تحرير المركز المعرفي'];
+        && incoming().role in ['المايسترو', 'مدير عام', 'مدير البحوث', 'باحث مختص', 'مدير إدارة الطلبات وخدمة العملاء', 'مدير تحرير المركز المعرفي'];
       allow delete: if isValidId(memberId) && isStaffOrAdmin();
     }
 
@@ -1473,6 +1623,69 @@ service cloud.firestore {
         && isStaffOrAdmin()
         && incoming().status in ['NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
       allow delete: if isValidId(orderId) && isStaffOrAdmin();
+    }
+
+    match /research_approval_drafts/{draftId} {
+      allow get, list: if isStaffOrAdmin();
+      allow create, update: if isValidId(draftId)
+        && isStaffOrAdmin()
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().draftKind in ['lineage_connection', 'kashafi_discovery']
+        && incoming().status in ['draft', 'pending_manager_approval', 'approved', 'returned']
+        && incoming().targetUserId is string && incoming().targetUserId.size() <= 128
+        && incoming().targetFamilyName is string && incoming().targetFamilyName.size() <= 120
+        && incoming().submittedByResearcherName is string && incoming().submittedByResearcherName.size() <= 140
+        && incoming().submittedAt is string && incoming().submittedAt.size() <= 60;
+      allow delete: if isValidId(draftId) && isStaffOrAdmin();
+    }
+
+    match /master_lineage_catalog/{entryId} {
+      allow get, list: if isStaffOrAdmin();
+      allow create, update: if isValidId(entryId)
+        && isStaffOrAdmin()
+        && incoming().id is string && incoming().id.size() <= 128
+        && incoming().entryKind in ['historical_root', 'reference_book']
+        && incoming().rootName is string && incoming().rootName.size() > 0 && incoming().rootName.size() <= 200
+        && incoming().motherTribe is string && incoming().motherTribe.size() <= 220
+        && incoming().bookTitle is string && incoming().bookTitle.size() > 0 && incoming().bookTitle.size() <= 260
+        && incoming().authorName is string && incoming().authorName.size() <= 180
+        && incoming().regions is list && incoming().regions.size() <= 40
+        && incoming().updatedAt is string && incoming().updatedAt.size() <= 60;
+      allow delete: if isValidId(entryId) && isStaffOrAdmin();
+    }
+
+    // Zero-PII Discoverable Member Directory for Kinship Search & Smart Recommendations
+    match /member_discovery_directory/{userId} {
+      allow get: if isValidId(userId)
+        && isSignedIn()
+        && (
+          existing().isDiscoverable == true
+          || isOwner(userId)
+          || isStaffOrAdmin()
+        );
+      allow list: if isSignedIn()
+        && (
+          existing().isDiscoverable == true
+          || isOwner(userId)
+          || isVerifiedStaffEmail()
+        );
+      allow create, update: if isValidId(userId)
+        && (isOwner(userId) || isStaffOrAdmin())
+        && isValidMemberDiscoveryProfile(incoming(), userId);
+      allow delete: if isValidId(userId) && (isOwner(userId) || isStaffOrAdmin());
+    }
+
+    // Adam Master Tree Sandbox Staging Proposals — Maestro Exclusive Sovereign Gatekeeper
+    match /adam_tree_staging_proposals/{proposalId} {
+      allow get, list: if isStaffOrAdmin();
+      allow create: if isValidId(proposalId)
+        && isStaffOrAdmin()
+        && isValidAdamStagingProposal(incoming())
+        && incoming().status == 'pending_maestro';
+      allow update: if isValidId(proposalId)
+        && isSovereignMaestroOrGeneralManager()
+        && isValidAdamStagingProposal(incoming());
+      allow delete: if isValidId(proposalId) && isSovereignMaestroOrGeneralManager();
     }
 
     match /test/{docId} {

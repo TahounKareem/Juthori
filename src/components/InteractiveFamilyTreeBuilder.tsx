@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { SUBSCRIPTION_PLANS } from '../config/subscriptionPlans';
 import {
   ArrowDown,
   ArrowLeft,
@@ -444,7 +445,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     if (!onPurchaseExtraTreeCapacity) {
       setCapacityPurchaseFeedback({
         type: 'error',
-        message: 'خدمة إضافة السعة من المحفظة غير متاحة حالياً.',
+        message: 'يمكنك توسيع سعة الشجرة عبر ترقية باقتك أو كسب مقاعد إضافية من سفير جذوري.',
       });
       return;
     }
@@ -455,15 +456,13 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         setCapacityPurchaseFeedback({
           type: 'error',
           message:
-            res.shortfallUsd && res.shortfallUsd > 0
-              ? `رصيد المحفظة غير كافٍ. تحتاج إلى شحن $${res.shortfallUsd} إضافية لإتمام العملية.`
-              : res.errorMessage || 'تعذر إتمام الخصم من المحفظة.',
+            res.errorMessage || 'تعذر توسيع السعة حالياً. يمكنك الترقية إلى باقة أعلى من مركز إدارة الاشتراك.',
           shortfallUsd: res.shortfallUsd,
         });
       } else {
         setCapacityPurchaseFeedback({
           type: 'success',
-          message: `تمت إضافة ${pkg.extraSlots} فرداً إلى سعة الشجرة بنجاح (خُصم $${pkg.priceUsd} من رصيد المحفظة).`,
+          message: `تمت إضافة ${pkg.extraSlots} فرداً إلى سعة الشجرة بنجاح.`,
         });
         setQuotaUpgradePrompt(null);
       }
@@ -749,19 +748,15 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           skipNextAutoSaveRef.current = true;
           setPeople(initialSeed);
           isTreeHydratedRef.current = true;
-          if (caps.isVip || isRecordKeeperCharterSigned) {
-            const wrote = await saveUserFamilyTreeToFirebase(
-              userId || '',
-              result.familyName,
-              initialSeed,
-              userEmail
-            );
-            if (active) {
-              setTreeSaveState(wrote ? 'saved' : 'local_only');
-              setLastSavedLabel(formatSavedDateTime(new Date()));
-            }
-          } else if (active) {
-            setTreeSaveState('local_only');
+          const wrote = await saveUserFamilyTreeToFirebase(
+            userId || '',
+            result.familyName,
+            initialSeed,
+            userEmail
+          );
+          if (active) {
+            setTreeSaveState(wrote ? 'saved' : 'local_only');
+            setLastSavedLabel(formatSavedDateTime(new Date()));
           }
         }
       } catch {
@@ -851,13 +846,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     }
 
     if (!isTreeHydratedRef.current || people.length === 0) {
-      return;
-    }
-
-    if (!caps.isVip && !isRecordKeeperCharterSigned) {
-      if (skipNextAutoSaveRef.current) {
-        skipNextAutoSaveRef.current = false;
-      }
       return;
     }
 
@@ -2158,22 +2146,27 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     setRadialTargetNodeId(null);
     setActiveUnionQuickAddKey(null);
 
-    // 1. Product-Led Premium + Charter Gate (bypassed in Sandbox Proposal Mode or immediately post-authorization)
+    // 1. Tier Capacity Check: Free users build freely up to 100 members; member #101 triggers Basic upgrade modal
     if (
       !bypassGate &&
       !isProposalSandboxMode &&
-      (!caps.isVip || !isRecordKeeperCharterSigned)
+      people.length >= effectiveMaxTreeMembers
     ) {
-      if (onRequirePremiumAction) {
+      if (caps.subscriptionPlan === 'free' && onRequirePremiumAction) {
         onRequirePremiumAction({
           feature: 'tree_add_relative',
-          title:
-            'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل للبدء في بناء وتوسيع شجرة عائلتك',
+          requiredTier: 'basic',
+          title: `وصلت شجرة عائلتك إلى الحد المجاني (${effectiveMaxTreeMembers} فرد) — رقِّ إلى Basic لمواصلة البناء`,
+          description: `أنجزت إضافة ${people.length} فرداً في الباقة المجانية بنجاح. رقِّ إلى الباقة الأساسية (Basic) أو المميزة (Premium) لتوسيع سعة شجرتك وفتح ربط الجذور والتصدير الطباعي.`,
           onAuthorizedContinue: () =>
             openAddRelativeModal(targetNode, relationKind, preselectedMotherId, true),
         });
       } else {
-        onSignCharterAndEnableTree();
+        setQuotaUpgradePrompt({
+          kind: 'tree_members',
+          currentCount: people.length,
+          maxAllowed: effectiveMaxTreeMembers,
+        });
       }
       return;
     }
@@ -2335,8 +2328,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   ) => {
     setRadialTargetNodeId(null);
     setActiveUnionQuickAddKey(null);
-    if (!isRecordKeeperCharterSigned) {
-      onSignCharterAndEnableTree();
+    if (!isProposalSandboxMode && people.length >= effectiveMaxTreeMembers) {
+      if (caps.subscriptionPlan === 'free' && onRequirePremiumAction) {
+        onRequirePremiumAction({
+          feature: 'tree_add_relative',
+          requiredTier: 'basic',
+          title: `وصلت شجرة عائلتك إلى الحد المجاني (${effectiveMaxTreeMembers} فرد) — رقِّ إلى Basic لمواصلة البناء`,
+        });
+      } else {
+        setQuotaUpgradePrompt({
+          kind: 'tree_members',
+          currentCount: people.length,
+          maxAllowed: effectiveMaxTreeMembers,
+        });
+      }
       return;
     }
 
@@ -2385,11 +2390,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
 
     // Strictly lock pre-existing baseline nodes in Proposal Sandbox Mode
     if (isProposalSandboxMode && baseSnapshotIdSet.has(person.id)) {
-      return;
-    }
-
-    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
-      onSignCharterAndEnableTree();
       return;
     }
 
@@ -2660,12 +2660,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
   const executeSavePersonModal = (keepOpenForNext: boolean) => {
     if (!modalConfig) return;
 
-    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
-      setModalConfig(null);
-      onSignCharterAndEnableTree();
-      return;
-    }
-
     // ------------------------------------------------------------------
     // BRANCH 0: SMART ADD-MOTHER (Bind existing wife of father — ZERO DUPLICATE)
     // ------------------------------------------------------------------
@@ -2755,11 +2749,19 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         wantsInlineMotherOnEdit &&
         people.length + 1 > effectiveMaxTreeMembers
       ) {
-        setQuotaUpgradePrompt({
-          kind: 'tree_members',
-          currentCount: people.length,
-          maxAllowed: effectiveMaxTreeMembers,
-        });
+        if (caps.subscriptionPlan === 'free' && onRequirePremiumAction) {
+          onRequirePremiumAction({
+            feature: 'tree_add_relative',
+            requiredTier: 'basic',
+            title: `وصلت شجرة عائلتك إلى الحد المجاني (${effectiveMaxTreeMembers} فرد) — رقِّ إلى Basic لإضافة المزيد`,
+          });
+        } else {
+          setQuotaUpgradePrompt({
+            kind: 'tree_members',
+            currentCount: people.length,
+            maxAllowed: effectiveMaxTreeMembers,
+          });
+        }
         return;
       }
 
@@ -2954,11 +2956,20 @@ export const InteractiveFamilyTreeBuilder: React.FC<
         return;
       }
     } else if (people.length + requiredSlots > effectiveMaxTreeMembers) {
-      setQuotaUpgradePrompt({
-        kind: 'tree_members',
-        currentCount: people.length,
-        maxAllowed: effectiveMaxTreeMembers,
-      });
+      if (caps.subscriptionPlan === 'free' && onRequirePremiumAction) {
+        onRequirePremiumAction({
+          feature: 'tree_add_relative',
+          requiredTier: 'basic',
+          title: `وصلت شجرة عائلتك إلى الحد المجاني (${effectiveMaxTreeMembers} فرد) — رقِّ إلى Basic لإضافة المزيد`,
+          description: `بيانات الفرد الذي أدخلته محفوظة ولن تضيع. رقِّ إلى الباقة الأساسية (Basic) أو المميزة (Premium) لتوسيع سعة شجرتك ومواصلة الإضافة فوراً.`,
+        });
+      } else {
+        setQuotaUpgradePrompt({
+          kind: 'tree_members',
+          currentCount: people.length,
+          maxAllowed: effectiveMaxTreeMembers,
+        });
+      }
       return;
     }
 
@@ -3368,10 +3379,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
     if (isProposalSandboxMode && baseSnapshotIdSet.has(person.id)) {
       return;
     }
-    if (!isProposalSandboxMode && !isRecordKeeperCharterSigned) {
-      onSignCharterAndEnableTree();
-      return;
-    }
     if (person.isRecordKeeper) return;
 
     const { allDeletedIds, descendantNodes, isProtectedSpineAncestor } =
@@ -3755,18 +3762,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 data-testid="direct-family-edit-vault-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!caps.isVip || !isRecordKeeperCharterSigned) {
-                    if (onRequirePremiumAction) {
-                      onRequirePremiumAction({
-                        feature: 'vault_upload',
-                        onAuthorizedContinue: () =>
-                          setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID),
-                      });
-                    } else if (!isRecordKeeperCharterSigned) {
-                      onSignCharterAndEnableTree();
-                    }
-                    return;
-                  }
                   setQuickVaultPreviewPersonId(DIRECT_FAMILY_VAULT_NODE_ID);
                 }}
                 title="إضافة وإدارة وثائق وصور العائلة في خزانتي"
@@ -3794,18 +3789,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 data-testid="direct-family-plus-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!caps.isVip || !isRecordKeeperCharterSigned) {
-                    if (onRequirePremiumAction) {
-                      onRequirePremiumAction({
-                        feature: 'tree_add_relative',
-                        onAuthorizedContinue: () =>
-                          setRadialTargetNodeId(DIRECT_FAMILY_VAULT_NODE_ID),
-                      });
-                    } else if (!isRecordKeeperCharterSigned) {
-                      onSignCharterAndEnableTree();
-                    }
-                    return;
-                  }
                   setRadialTargetNodeId((cur) =>
                     cur === DIRECT_FAMILY_VAULT_NODE_ID
                       ? null
@@ -4516,10 +4499,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            if (!isRecordKeeperCharterSigned) {
-              onSignCharterAndEnableTree();
-              return;
-            }
             setPhotoPickerNodeId(person.id);
             setCustomPhotoUrlInput(person.photoUrl || '');
           }}
@@ -4574,11 +4553,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           <button
             type="button"
             onClick={() => openEditPersonModal(person)}
-            title={
-              isRecordKeeperCharterSigned
-                ? 'تعديل بيانات الفرد'
-                : 'يلزم التوقيع على ميثاق أمين السجل لتعديل السجلات'
-            }
+            title="تعديل بيانات الفرد"
             aria-label={`تعديل ${person.firstName}`}
             className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
               isDark
@@ -4647,18 +4622,22 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               e.stopPropagation();
               if (
                 !isProposalSandboxMode &&
-                (!caps.isVip || !isRecordKeeperCharterSigned)
+                people.length >= effectiveMaxTreeMembers
               ) {
-                if (onRequirePremiumAction) {
+                if (caps.subscriptionPlan === 'free' && onRequirePremiumAction) {
                   onRequirePremiumAction({
                     feature: 'tree_add_relative',
-                    title:
-                      'رقِّ عضويتك إلى بريميوم ووقّع ميثاق أمين السجل للبدء في بناء وتوسيع شجرة عائلتك',
+                    requiredTier: 'basic',
+                    title: `وصلت شجرة عائلتك إلى الحد المجاني (${effectiveMaxTreeMembers} فرد) — رقِّ إلى Basic لمواصلة البناء`,
                     onAuthorizedContinue: () =>
                       setRadialTargetNodeId(person.id),
                   });
                 } else {
-                  onSignCharterAndEnableTree();
+                  setQuotaUpgradePrompt({
+                    kind: 'tree_members',
+                    currentCount: people.length,
+                    maxAllowed: effectiveMaxTreeMembers,
+                  });
                 }
                 return;
               }
@@ -4669,9 +4648,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             title={
               isProposalSandboxMode
                 ? 'اقتراح إضافة قريب (+)'
-                : caps.isVip && isRecordKeeperCharterSigned
-                ? 'إضافة قريب (+)'
-                : 'رقِّ لبريميوم ووقّع ميثاق أمين السجل لإضافة الأقارب'
+                : 'إضافة قريب (+)'
             }
             aria-label={`إضافة قريب لـ ${person.firstName}`}
             className={`w-[22px] h-[22px] rounded-full flex items-center justify-center font-bold shadow-xs border-[1.5px] border-[#F5F1E8] transition-all cursor-pointer ${
@@ -6778,6 +6755,21 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             testId="tree-unified-header"
             icon={<JUTHORI_SERVICE_ICONS.tree className="w-5 h-5" />}
             title={`شجرة عائلة ${result.familyName}`}
+            metaItems={[
+              <span
+                key="tree-capacity-indicator"
+                data-testid="tree-capacity-indicator"
+                className={`text-xs font-display font-bold tabular-nums ${
+                  people.length >= effectiveMaxTreeMembers
+                    ? 'text-[#D97757]'
+                    : 'text-[#1F1F1C]/75'
+                }`}
+              >
+                {caps.subscriptionPlan === 'free'
+                  ? `${people.length} / ${effectiveMaxTreeMembers} فرد متاح في الباقة المجانية`
+                  : `${people.length.toLocaleString('en-US')} / ${effectiveMaxTreeMembers.toLocaleString('en-US')} فرد`}
+              </span>,
+            ]}
             centerSlot={
               <div className="inline-flex items-center gap-1.5">
                 <TreeFloatingStudioDock
@@ -6864,10 +6856,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                     data-testid="open-tree-official-export-btn"
                     aria-label="تصدير وطباعة الشجرة"
                     onClick={() => {
-                      if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                      if (!caps.canExportHighResTree) {
                         if (onRequirePremiumAction) {
                           onRequirePremiumAction({
                             feature: 'tree_export',
+                            requiredTier: 'basic',
                             onAuthorizedContinue: () =>
                               setShowOfficialExportModal(true),
                           });
@@ -6886,40 +6879,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </>
             }
           />
-
-          {/* ==================================================================== */}
-          {/* 1B. MANDATORY RECORD KEEPER CHARTER GATE BANNER (VIP Unsigned Only)  */}
-          {/* ==================================================================== */}
-          {caps.isVip && !isRecordKeeperCharterSigned && (
-            <div
-              data-testid="tree-charter-required-banner"
-              className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-2xs"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0 mt-0.5">
-                  <FileSignature className="w-4 h-4" />
-                </div>
-                <div className="space-y-0.5">
-                  <h3 className="text-xs sm:text-sm font-display font-extrabold text-[#1F1F1C]">
-                    يلزم التوقيع على «ميثاق أمين السجل» قبل إضافة أي عقدة أو تعديل سجلات المشجرة
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-[#1F1F1C]/75 leading-relaxed">
-                    حفاظاً على أمانة التوثيق النَّسبي، تُفعَّل صلاحية إضافة الأفراد والفروع والحلقات العمودية فور اعتماد توقيعك الإلكتروني على ميثاق أمين السجل.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                data-testid="require-charter-before-add-btn"
-                onClick={onSignCharterAndEnableTree}
-                className="px-4 py-2.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-extrabold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors shadow-2xs"
-              >
-                <FileSignature className="w-3.5 h-3.5" />
-                <span>التوقيع على ميثاق أمين السجل وتفعيل الإضافة</span>
-              </button>
-            </div>
-          )}
 
           {exportedBanner && (
             <div className="rounded-2xl bg-[#EDE6DA] border-2 border-[#D8755B] px-5 py-3.5 flex items-center justify-between gap-3 text-xs sm:text-sm text-[#252321]">
@@ -7162,10 +7121,11 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               mirrorPresetFeedback={mirrorPresetFeedback}
               familyName={result.familyName}
               onOpenExportModal={() => {
-                if (!caps.isVip || !isRecordKeeperCharterSigned) {
+                if (!caps.canExportHighResTree) {
                   if (onRequirePremiumAction) {
                     onRequirePremiumAction({
                       feature: 'tree_export',
+                      requiredTier: 'basic',
                       onAuthorizedContinue: () =>
                         setShowOfficialExportModal(true),
                     });
@@ -7242,10 +7202,6 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 isPublicMirror
                   ? undefined
                   : (p) => {
-                      if (!isRecordKeeperCharterSigned) {
-                        onSignCharterAndEnableTree();
-                        return;
-                      }
                       openAddRelativeModal(p, 'son');
                     }
               }
@@ -7661,37 +7617,37 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       {/* ==================================================================== */}
       {quotaUpgradePrompt && (
         <div
-          className="fixed inset-0 z-[70] bg-[#252321]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-[70] bg-[#1F1F1C]/45 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >
           <div
             dir="rtl"
-            className="bg-white border-2 border-[#D4AF37] rounded-3xl max-w-lg w-full p-6 space-y-4 text-right shadow-2xl"
+            className="bg-[#F5F1E8] border border-[#D8C7B2] rounded-3xl max-w-lg w-full p-6 space-y-4 text-right shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+            <div className="flex items-center justify-between border-b border-[#D8C7B2] pb-3">
               <div className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-[#D8755B]" />
-                <h4 className="text-base font-display font-extrabold text-[#252321]">
+                <Crown className="w-5 h-5 text-[#D97757]" />
+                <h4 className="text-base font-display font-extrabold text-[#1F1F1C]">
                   {quotaUpgradePrompt.kind === 'tree_members'
                     ? 'وصلت إلى الحد الأقصى لأفراد الشجرة في باقتك الحالية'
-                    : 'وصلت إلى الحد الأقصى لوثائق الخزانة في باقتك الحالية'}
+                    : 'وصلت إلى الحد الأقصى لمقتنيات الخزانة في باقتك الحالية'}
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setQuotaUpgradePrompt(null)}
-                className="w-7 h-7 rounded-lg bg-[#F7F2E9] flex items-center justify-center text-[#252321] cursor-pointer"
+                className="w-7 h-7 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2]/60 flex items-center justify-center text-[#1F1F1C] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 p-3.5 text-xs text-[#252321]/85 leading-relaxed space-y-1">
-              <div className="font-bold text-[#8D4925]">
+            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 text-xs text-[#1F1F1C]/85 leading-relaxed space-y-1">
+              <div className="font-bold text-[#D97757] tabular-nums">
                 الاستخدام الحالي: {quotaUpgradePrompt.currentCount} من أصل{' '}
                 {quotaUpgradePrompt.maxAllowed}{' '}
-                {quotaUpgradePrompt.kind === 'tree_members' ? 'فرداً' : 'ملفاً'}
+                {quotaUpgradePrompt.kind === 'tree_members' ? 'فرداً' : 'مقتنىً'}
               </div>
               <p>
                 اطمئن: جميع البيانات التي أدخلتها في النموذج محفوظة كما هي ولن تضيع عند الترقية.
@@ -7699,95 +7655,91 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             </div>
 
             <div className="space-y-2.5">
-              {!caps.isRootUnlocked && onUnlockRoot5Usd && (
-                <div className="rounded-2xl bg-[#FFFDF9] border border-[#D8755B]/50 p-3.5 flex items-center justify-between gap-3">
+              {caps.subscriptionPlan === 'free' && onUnlockRoot5Usd && (
+                <div className="rounded-2xl bg-[#FDFBF7] border border-[#D8C7B2] p-3.5 flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs font-display font-extrabold text-[#252321]">
-                      الباقة الأساسية ($5 — فتح الجذر الموثق)
+                    <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
+                      {SUBSCRIPTION_PLANS.basic.nameAr} (${SUBSCRIPTION_PLANS.basic.monthlyPriceUsd}/شهر أو ${SUBSCRIPTION_PLANS.basic.annualPriceUsd}/سنة)
                     </div>
-                    <div className="text-[11px] text-[#252321]/70">
-                      ترفع السعة إلى 50 فرداً في شجرتي + 20 وثيقة في خزانتي
+                    <div className="text-[11px] text-[#1F1F1C]/70">
+                      سعة موسّعة لشجرتي وخزانتي مع فتح ربط الجذور والتصدير وخدمة العملاء
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       setQuotaUpgradePrompt(null);
-                      onUnlockRoot5Usd();
+                      if (onRequirePremiumAction) {
+                        onRequirePremiumAction({
+                          feature: 'tree_add_relative',
+                          requiredTier: 'basic',
+                        });
+                      } else {
+                        onUnlockRoot5Usd();
+                      }
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-[#D8755B] hover:bg-[#c5644b] text-white text-xs font-display font-bold shrink-0 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold shrink-0 cursor-pointer"
                   >
-                    ترقية ($5)
+                    الترقية إلى Basic
                   </button>
                 </div>
               )}
 
-              {!caps.isVip && (
-                <div className="rounded-2xl bg-[#FFFDF9] border border-[#8D4925]/45 p-3.5 flex items-center justify-between gap-3">
+              {caps.subscriptionPlan !== 'premium' && (
+                <div className="rounded-2xl bg-[#FDFBF7] border border-[#D97757]/55 p-3.5 flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs font-display font-extrabold text-[#252321]">
-                      الباقة السنوية الشاملة — بريميوم ($60/سنة)
+                    <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
+                      {SUBSCRIPTION_PLANS.premium.nameAr} (${SUBSCRIPTION_PLANS.premium.monthlyPriceUsd}/شهر أو ${SUBSCRIPTION_PLANS.premium.annualPriceUsd}/سنة)
                     </div>
-                    <div className="text-[11px] text-[#252321]/70">
-                      ترفع السعة إلى 250 فرداً + 100 وثيقة + فتح المصادر ونشر «موقعي»
+                    <div className="text-[11px] text-[#1F1F1C]/70">
+                      أعلى سعة في شجرتي وخزانتي + كشّافي + إطلاق موقع العائلة المستقل
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       setQuotaUpgradePrompt(null);
-                      onUpgradeAnnualVip();
+                      if (onRequirePremiumAction) {
+                        onRequirePremiumAction({
+                          feature: 'kashafi',
+                          requiredTier: 'premium',
+                          title: 'الترقية إلى باقة Premium للسعة الفائقة وكشّافي وموقعي',
+                        });
+                      } else {
+                        onUpgradeAnnualVip();
+                      }
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#D8755B]/75 text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
+                    className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D8C7B2] text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
                   >
-                    ترقية VIP
+                    الترقية إلى Premium
                   </button>
                 </div>
               )}
 
               {quotaUpgradePrompt.kind === 'tree_members' && (
-                <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] to-[#F5E6DC]/60 border border-[#D8755B]/55 p-3.5 flex items-center justify-between gap-3">
+                <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs font-display font-extrabold text-[#8D4925]">
-                      إضافة سعة إضافية من رصيد المحفظة
+                    <div className="text-xs font-display font-extrabold text-[#1F1F1C]">
+                      توسيع السعة عبر باقتك أو سفير جذوري
                     </div>
-                    <div className="text-[11px] text-[#252321]/75">
-                      الحد الأساسي الأقصى هو 250 فرداً — يمكنك زيادة السعة فوراً بخصم من المحفظة (رصيدك: ${walletBalance})
+                    <div className="text-[11px] text-[#1F1F1C]/75">
+                      اكسب +25 مقعداً مجانياً عن كل قريب يسجّل برابطك (حتى +100 مقعد) أو انتقل لإدارة الاشتراك
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       setQuotaUpgradePrompt(null);
-                      setCapacityPurchaseFeedback(null);
-                      setShowCapacityAddonModal(true);
+                      if (onOpenWalletDrawer) {
+                        onOpenWalletDrawer();
+                      } else {
+                        setCapacityPurchaseFeedback(null);
+                        setShowCapacityAddonModal(true);
+                      }
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#D8755B]/75 text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
+                    className="px-3.5 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D97757] text-[#1F1F1C] hover:text-[#F5F1E8] border border-[#D8C7B2] text-xs font-display font-bold shrink-0 cursor-pointer transition-colors"
                   >
-                    إضافة سعة
-                  </button>
-                </div>
-              )}
-
-              {!caps.hasRegistrarBadge && quotaUpgradePrompt.kind !== 'tree_members' && (
-                <div className="rounded-2xl bg-gradient-to-l from-[#FFFDF9] to-[#FEF3C7]/45 border border-[#D4AF37] p-3.5 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-display font-extrabold text-[#8D4925]">
-                      عضوية أمين سجل العائلة ✦
-                    </div>
-                    <div className="text-[11px] text-[#252321]/75">
-                      رفع سعة الشجرة حتى 250 فرداً + دعوة أفراد العائلة للمساهمة
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuotaUpgradePrompt(null);
-                      onSignCharterAndEnableTree();
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-[#8D4925] hover:bg-[#733a1c] text-white text-xs font-display font-bold shrink-0 cursor-pointer"
-                  >
-                    تفعيل أمين السجل
+                    إدارة الاشتراك
                   </button>
                 </div>
               )}
@@ -7797,125 +7749,83 @@ export const InteractiveFamilyTreeBuilder: React.FC<
       )}
 
       {/* ==================================================================== */}
-      {/* 2C-EXTRA. PAID TREE CAPACITY EXPANSION MODAL (إضافة سعة من المحفظة)  */}
+      {/* 2C-EXTRA. TREE CAPACITY EXPANSION MODAL                              */}
       {/* ==================================================================== */}
       {showCapacityAddonModal && (
         <div
-          className="fixed inset-0 z-[72] bg-[#252321]/55 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-[72] bg-[#1F1F1C]/45 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           data-testid="tree-capacity-addon-modal"
         >
           <div
             dir="rtl"
-            className="bg-white border-2 border-[#D8755B]/60 rounded-3xl max-w-lg w-full p-6 space-y-4 text-right shadow-2xl"
+            className="bg-[#FDFBF7] border-2 border-[#D8C7B2] rounded-3xl max-w-lg w-full p-6 space-y-4 text-right shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-[#B98A78]/30 pb-3">
+            <div className="flex items-center justify-between border-b border-[#D8C7B2]/60 pb-3">
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#D8755B]" />
-                <h4 className="text-base font-display font-extrabold text-[#252321]">
-                  إضافة سعة إضافية للشجرة
+                <Users className="w-5 h-5 text-[#D97757]" />
+                <h4 className="text-base font-display font-extrabold text-[#1F1F1C]">
+                  توسيع سعة الشجرة العائلية
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCapacityAddonModal(false)}
-                className="w-7 h-7 rounded-lg bg-[#FAF6F0] hover:bg-[#F5E6DC] flex items-center justify-center text-[#8D4925] cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-lg bg-[#E8DED2] hover:bg-[#D97757] hover:text-[#F5F1E8] flex items-center justify-center text-[#1F1F1C] cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="rounded-2xl bg-[#FAF6F0] border border-[#B98A78]/40 p-3.5 text-xs text-[#252321]/85 leading-relaxed space-y-2">
+            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 text-xs text-[#1F1F1C]/85 leading-relaxed space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-display font-extrabold text-[#8D4925]">
+                <span className="font-display font-extrabold text-[#1F1F1C]">
                   السعة الحالية: {people.length} / {effectiveMaxTreeMembers} فرداً
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] font-display font-bold">
-                  <Wallet className="w-3.5 h-3.5 text-[#D97757]" />
-                  <span>رصيد المحفظة: ${walletBalance}</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] font-display font-bold">
+                  <span>{SUBSCRIPTION_PLANS[caps.subscriptionPlan].nameAr}</span>
                 </span>
               </div>
               <p className="text-[11px] text-[#1F1F1C]/75">
-                الحد الأقصى الأساسي للشجرة هو <strong>250 فرداً</strong>، ولإضافة أكثر من ذلك يمكنك توسيع السعة فوراً عبر إحدى الباقات التالية بخصم مباشر من رصيد محفظتك.
+                يمكنك توسيع سعة شجرتك عبر الترقية إلى باقة Basic أو Premium، أو كسب حتى +100 مقعد مجاني عبر دعوة أقاربك من تبويب «سفير جذوري».
               </p>
               {extraTreeCapacity > 0 && (
                 <div className="text-[11px] font-bold text-[#D97757]">
-                  سعة إضافية مفعّلة لديك حالياً: +{extraTreeCapacity} فرداً
+                  مقاعد سعة إضافية مفعّلة لديك حالياً: +{extraTreeCapacity} فرداً
                 </div>
               )}
             </div>
 
             {capacityPurchaseFeedback && (
-              <div
-                className="rounded-2xl p-3 text-xs font-medium flex flex-col gap-2 border bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]"
-              >
+              <div className="rounded-2xl p-3 text-xs font-medium flex flex-col gap-2 border bg-[#F5F1E8] border-[#D8C7B2] text-[#1F1F1C]">
                 <div className="flex items-start gap-2">
-                  {capacityPurchaseFeedback.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
-                  ) : (
-                    <Wallet className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
-                  )}
+                  <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0 mt-0.5" />
                   <span>{capacityPurchaseFeedback.message}</span>
                 </div>
-                {capacityPurchaseFeedback.type === 'error' &&
-                  capacityPurchaseFeedback.shortfallUsd &&
-                  capacityPurchaseFeedback.shortfallUsd > 0 &&
-                  onOpenWalletDrawer && (
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCapacityAddonModal(false);
-                          onOpenWalletDrawer();
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#F5E6DC] hover:bg-[#D8755B] text-[#8D4925] hover:text-white border border-[#D8755B]/75 text-xs font-display font-bold cursor-pointer transition-colors"
-                      >
-                        شحن رصيد المحفظة
-                      </button>
-                    </div>
-                  )}
               </div>
             )}
 
-            <div className="space-y-2.5">
-              {TREE_CAPACITY_ADDON_PACKAGES.map((pkg) => {
-                const isBuying = capacityPurchaseLoadingId === pkg.id;
-                return (
-                  <div
-                    key={pkg.id}
-                    className="rounded-2xl bg-[#FFFDF9] border border-[#B98A78]/45 hover:border-[#D8755B]/70 p-3.5 flex items-center justify-between gap-3 transition-colors"
-                  >
-                    <div>
-                      <div className="text-xs sm:text-sm font-display font-extrabold text-[#252321]">
-                        {pkg.label}
-                      </div>
-                      <div className="text-[11px] text-[#252321]/70">
-                        ترفع السعة الإجمالية إلى{' '}
-                        <strong className="text-[#8D4925]">
-                          {effectiveMaxTreeMembers + pkg.extraSlots}
-                        </strong>{' '}
-                        فرداً · يُخصم ${pkg.priceUsd} من رصيد المحفظة
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={capacityPurchaseLoadingId !== null}
-                      onClick={() => handleBuyCapacityAddon(pkg)}
-                      className="px-3.5 py-2 rounded-xl bg-[#F5E6DC] hover:bg-[#D8755B] disabled:opacity-60 text-[#8D4925] hover:text-white border border-[#D8755B]/75 text-xs font-display font-extrabold shrink-0 inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                      {isBuying ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>جاري الخصم...</span>
-                        </>
-                      ) : (
-                        <span>إضافة (${pkg.priceUsd})</span>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowCapacityAddonModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] text-xs font-bold text-[#1F1F1C] cursor-pointer transition-colors"
+              >
+                إغلاق
+              </button>
+              {onOpenWalletDrawer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCapacityAddonModal(false);
+                    onOpenWalletDrawer();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-display font-bold cursor-pointer transition-colors"
+                >
+                  فتح مركز إدارة الاشتراك ✦
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -8036,8 +7946,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-xs sm:text-sm text-[#252321]/80 leading-relaxed">
-                  ميزة <strong>«دعوة أفراد العائلة للمساهمة أو المعاينة»</strong> عبر رابط عائلي موحد هي إحدى صلاحيات الحوكمة المخصصة لحاملي صفة <strong>«أمين سجل العائلة»</strong>، وتشمل أيضاً سعة تصل إلى 250 فرداً (مع إمكانية إضافة سعة إضافية من المحفظة) وصلاحية النشر العائلي الموثق.
+                <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed">
+                  ميزة <strong>«دعوة أفراد العائلة للمساهمة أو المعاينة»</strong> عبر رابط عائلي موحد هي إحدى صلاحيات الحوكمة المخصصة لحاملي صفة <strong>«أمين سجل العائلة»</strong>، وتشمل أيضاً توسيع سعة الشجرة عبر باقات الاشتراك أو برنامج سفير جذوري وصلاحية النشر العائلي الموثق.
                 </p>
                 <div className="flex items-center justify-end gap-2.5 pt-1">
                   <button

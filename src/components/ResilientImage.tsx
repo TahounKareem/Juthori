@@ -7,6 +7,8 @@ interface ResilientImageProps {
   alt: string;
   className?: string;
   fallbackLabel?: string;
+  fallbackSrc?: string;
+  loading?: 'lazy' | 'eager';
 }
 
 export const ResilientImage: React.FC<ResilientImageProps> = ({
@@ -14,15 +16,22 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   alt,
   className = '',
   fallbackLabel,
+  fallbackSrc,
+  loading = 'lazy',
 }) => {
   const normalizedSrc = normalizeExternalImageUrl(src || '');
+  const normalizedFallback = normalizeExternalImageUrl(fallbackSrc || '');
+  const [usedFallback, setUsedFallback] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    setUsedFallback(false);
     setHasError(false);
-  }, [normalizedSrc]);
+  }, [normalizedSrc, normalizedFallback]);
 
-  if (hasError || !normalizedSrc) {
+  const activeSrc = usedFallback ? normalizedFallback : normalizedSrc;
+
+  if (hasError || !activeSrc) {
     return (
       <div
         role="img"
@@ -37,16 +46,22 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
     );
   }
 
-  const isRemoteHttp = /^https?:\/\//i.test(normalizedSrc);
+  const isRemoteHttp = /^https?:\/\//i.test(activeSrc);
 
   return (
     <img
-      src={normalizedSrc}
+      src={activeSrc}
       alt={alt}
       referrerPolicy={isRemoteHttp ? 'no-referrer' : undefined}
-      loading="lazy"
+      loading={loading}
       decoding="async"
-      onError={() => setHasError(true)}
+      onError={() => {
+        if (!usedFallback && normalizedFallback && normalizedFallback !== normalizedSrc) {
+          setUsedFallback(true);
+        } else {
+          setHasError(true);
+        }
+      }}
       className={className}
     />
   );

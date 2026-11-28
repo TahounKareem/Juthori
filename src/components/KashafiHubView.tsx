@@ -11,13 +11,25 @@ import {
   Sparkles,
   FileCheck2,
   AlertCircle,
+  Crown,
+  ScrollText,
+  FileSearch,
+  History,
+  Lock,
 } from 'lucide-react';
 import { UnifiedWorkspaceHeader } from './UnifiedWorkspaceHeader';
 import { JUTHORI_SERVICE_ICONS } from '../config/serviceIcons';
 import {
+  SUBSCRIPTION_FOOTNOTES,
+  SUBSCRIPTION_PLANS,
+  formatPlanPriceUsd,
+} from '../config/subscriptionPlans';
+import type { UpgradePromptRequest } from './UpgradeToPremiumModal';
+import {
   AccountLegalType,
   DashboardAccessCapabilities,
   DashboardTab,
+  KashafiDiscoveryCategory,
   LineageSearchResult,
 } from '../types/juthori';
 import {
@@ -55,6 +67,7 @@ interface KashafiHubViewProps {
   onNavigateTab: (tab: DashboardTab) => void;
   onOpenWalletDrawer: () => void;
   onUpgradeAnnualVip: () => void;
+  onRequirePremiumAction?: (req: UpgradePromptRequest) => void;
   onWalletBalanceUpdated?: (nextBalance: number) => void;
   onLogActivity: (action: string, detail: string) => void;
   onAdoptResolvedLineage?: (enrichedResult: LineageSearchResult) => void;
@@ -76,6 +89,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
   onNavigateTab,
   onOpenWalletDrawer,
   onUpgradeAnnualVip,
+  onRequirePremiumAction,
   onWalletBalanceUpdated,
   onLogActivity,
   onAdoptResolvedLineage,
@@ -124,6 +138,9 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
 
   // Expanded discovery item details
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState<
+    'all' | KashafiDiscoveryCategory
+  >('all');
 
   const loadKashafiData = async () => {
     setIsLoadingData(true);
@@ -241,9 +258,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
       if (effectivePrice > 0) {
         if (walletBalance < effectivePrice) {
           setOrderError(
-            `رصيد محفظتك الحالي ($${walletBalance.toFixed(
-              2
-            )}) غير كافٍ لتغطية رسوم الخدمة ($${effectivePrice}). يرجى شحن المحفظة أولاً.`
+            `تتطلب هذه الخدمة الإضافية تفعيل الفوترة المباشرة بقيمة $${effectivePrice} أو الترقية إلى باقة Premium المشمولة بها.`
           );
           setIsSubmittingOrder(false);
           return;
@@ -349,6 +364,190 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
   const activeMissionsCount =
     activeOrdersCount + (hasActiveResearchTicket ? 1 : 0);
 
+  const kashafiFootnote =
+    SUBSCRIPTION_FOOTNOTES.find((f) => f.id === 'kashafi_note')?.textAr ||
+    'كشّافي (Kashafi): قد يتضمن معلومات عائلية أعمق، ومصادر ومراجع، ووثائق ومواد تاريخية، وقصصاً وسيراً، واكتشافات مستمرة — وذلك تبعاً لتوفر وكفاية المصادر والمعلومات ذات الصلة.';
+
+  const triggerKashafiPremiumUpgrade = (customTitle?: string) => {
+    if (onRequirePremiumAction) {
+      onRequirePremiumAction({
+        feature: 'kashafi',
+        requiredTier: 'premium',
+        title: customTitle,
+      });
+    } else {
+      onUpgradeAnnualVip();
+    }
+  };
+
+  if (!caps.canUseKashafi) {
+    const kashafiPillars = [
+      {
+        id: 'sources',
+        icon: BookOpen,
+        title: 'المصادر والمراجع المعتمدة',
+        description:
+          'إحالات موثّقة من أمهات كتب الأنساب والتراجم والمعاجم التاريخية المرتبطة باسم عائلتك وفروعها.',
+      },
+      {
+        id: 'documents',
+        icon: ScrollText,
+        title: 'الوثائق والمواد التاريخية',
+        description:
+          'أرشيف المخطوطات والسجلات والوثائق التاريخية التي يوثّقها مرصد البحوث عند توفرها لعائلتك.',
+      },
+      {
+        id: 'stories',
+        icon: History,
+        title: 'القصص والسير والتراجم',
+        description:
+          'سير الأعلام والمواضع والهجرات والوقائع التاريخية التي تضيء عمق التاريخ العائلي ما وراء الأسماء.',
+      },
+      {
+        id: 'continuous',
+        icon: Compass,
+        title: 'اكتشافات مستمرة ما وراء الشجرة',
+        description:
+          'متابعة دورية وبشارات بحثية تصلك تلقائياً في مرصد عائلتك كلما توافرت مادة أو مرجع جديد.',
+      },
+    ];
+
+    const isBasicUser = caps.subscriptionPlan === 'basic';
+    const monthlyDiff = Number(
+      (
+        SUBSCRIPTION_PLANS.premium.monthlyPriceUsd -
+        SUBSCRIPTION_PLANS.basic.monthlyPriceUsd
+      ).toFixed(2)
+    );
+
+    return (
+      <div
+        data-testid="kashafi-premium-showcase"
+        className="w-full space-y-5 text-[#1F1F1C]"
+      >
+        <UnifiedWorkspaceHeader
+          testId="kashafi-unified-header"
+          icon={<JUTHORI_SERVICE_ICONS.kashafi className="w-5 h-5" />}
+          title={`كشّافي — اكتشافات عائلة ${result.familyName} *`}
+        />
+
+        {/* Editorial Warm Ivory Showcase Hero */}
+        <section className="rounded-3xl bg-[#FAF7F2] border border-[#D8C7B2] p-6 sm:p-8 space-y-6 shadow-xs">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#D8C7B2]">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 text-xs font-display font-extrabold text-[#D97757]">
+                <Crown className="w-4 h-4 shrink-0" />
+                <span>ميزة حصرية ضمن الباقة المميزة (Premium)</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#1F1F1C] leading-snug">
+                اكتشف ما وراء شجرة عائلة ({result.familyName}) عبر مرصد «كشّافي» *
+              </h2>
+              <p className="text-xs sm:text-sm text-[#1F1F1C]/80 leading-relaxed">
+                يفتح لك «كشّافي» نافذة بحثية وتاريخية عميقة تتجاوز مجرد تدوين الأسماء؛ لتصل إلى المصادر والمراجع، والوثائق والمواد التاريخية، والقصص والسير، والاكتشافات المستمرة المرتبطة بعائلتك.
+              </p>
+              {isBasicUser && (
+                <p className="text-xs font-display font-bold text-[#D97757]">
+                  أنت على الباقة الأساسية (Basic) حالياً — يمكنك الانتقال إلى Premium بفارق +{formatPlanPriceUsd(monthlyDiff)}/شهر فقط لفتح «كشّافي» ونشر «موقعي».
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 w-full lg:w-80 shrink-0 space-y-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs font-display font-extrabold text-[#D97757]">
+                  الباقة المميزة · Premium
+                </span>
+                <span
+                  dir="ltr"
+                  className="text-xl font-display font-extrabold text-[#1F1F1C] tabular-nums"
+                >
+                  {formatPlanPriceUsd(SUBSCRIPTION_PLANS.premium.monthlyPriceUsd)}
+                  <span className="text-xs font-normal text-[#1F1F1C]/65"> / شهر</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-[#1F1F1C]/75 leading-relaxed">
+                أو {formatPlanPriceUsd(SUBSCRIPTION_PLANS.premium.annualPriceUsd)} سنوياً (توفير {SUBSCRIPTION_PLANS.premium.annualSavingsPercent}%) · تشمل كشّافي ونشر موقعي وكافة مزايا Basic.
+              </p>
+              <button
+                type="button"
+                data-testid="kashafi-upgrade-premium-cta"
+                onClick={() =>
+                  triggerKashafiPremiumUpgrade(
+                    `رقِّ إلى باقة Premium لفتح مرصد «كشّافي» لعائلة ${result.familyName}`
+                  )
+                }
+                className="w-full py-3 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs sm:text-sm font-display font-extrabold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+              >
+                <Crown className="w-4 h-4 shrink-0" />
+                <span>الترقية إلى Premium وفتح كشّافي</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4 Editorial Value Pillars */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {kashafiPillars.map((pillar) => {
+              const PillarIcon = pillar.icon;
+              return (
+                <div
+                  key={pillar.id}
+                  className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-5 flex items-start gap-3.5"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#E8DED2] border border-[#D8C7B2] text-[#D97757] flex items-center justify-center shrink-0">
+                    <PillarIcon className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h3 className="text-sm font-display font-extrabold text-[#1F1F1C]">
+                      {pillar.title}
+                    </h3>
+                    <p className="text-xs text-[#1F1F1C]/75 leading-relaxed">
+                      {pillar.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Interactive Locked Actions directing exclusively to Premium */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  triggerKashafiPremiumUpgrade(
+                    'استكشف الوثائق والمصادر التاريخية عبر باقة Premium'
+                  )
+                }
+                className="px-4 py-2.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Lock className="w-3.5 h-3.5 text-[#D97757]" />
+                <span>استكشف الوثائق والمصادر التاريخية</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  triggerKashafiPremiumUpgrade(
+                    'طلب مهمة بحثية وتوثيقية في «كشّافي» حصري لباقة Premium'
+                  )
+                }
+                className="px-4 py-2.5 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2]/70 border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <FileSearch className="w-3.5 h-3.5 text-[#D97757]" />
+                <span>طلب بحث في كشّافي</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Official Kashafi Footnote */}
+        <p className="text-[11.5px] text-[#1F1F1C]/70 leading-relaxed px-2">
+          * {kashafiFootnote}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
       data-testid="kashafi-hub-view"
@@ -413,11 +612,38 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                 رادار الاكتشافات والبشارات العلمية لعائلتكم
               </h2>
               <p className="text-xs text-[#1F1F1C]/70">
-                التحديثات الفعلية المعتمدة من مرصد البحوث لعائلة {result.familyName}
+                التحديثات الفعلية المعتمدة من مدير البحوث لعائلة {result.familyName}
                 {unreadItemsCount > 0 ? ` · ${unreadItemsCount} جديد غير مقروء` : ''}
               </p>
             </div>
           </div>
+
+          {kashafiItems.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: 'all', label: 'الكل' },
+                  { id: 'sources', label: 'المصادر والمراجع' },
+                  { id: 'documents', label: 'الوثائق والمواد التاريخية' },
+                  { id: 'stories', label: 'السير والقصص' },
+                  { id: 'ongoing', label: 'الاكتشافات المستمرة' },
+                ] as const
+              ).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedDiscoveryCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold border transition cursor-pointer ${
+                    selectedDiscoveryCategory === cat.id
+                      ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757]'
+                      : 'bg-[#FAF7F2] text-[#1F1F1C]/75 border-[#D8C7B2] hover:bg-[#E8DED2]'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {isLoadingData ? (
@@ -435,117 +661,168 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {kashafiItems.map((item) => {
-              const isExpanded = expandedItemId === item.id;
-              return (
-                <article
-                  key={item.id}
-                  className={`rounded-2xl border p-5 transition-colors ${
-                    item.isRead
-                      ? 'bg-[#F5F1E8] border-[#D8C7B2]'
-                      : 'bg-[#F5F1E8] border-[#D97757]'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#D97757]">
-                        <span className="font-display font-bold">
-                          {getItemTypeLabelAr(item.type)}
-                        </span>
-                        <span aria-hidden="true" className="text-[#D8C7B2]">
-                          ·
-                        </span>
-                        <span className="text-[#1F1F1C]/70">{item.authorName}</span>
-                        <span aria-hidden="true" className="text-[#D8C7B2]">
-                          ·
-                        </span>
-                        <span className="text-[#1F1F1C]/70 tabular-nums">
-                          {new Date(item.createdAt).toLocaleDateString('ar-SA', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </span>
-                        {!item.isRead && (
-                          <>
-                            <span aria-hidden="true" className="text-[#D8C7B2]">
-                              ·
-                            </span>
-                            <span className="font-display font-bold text-[#D97757]">
-                              جديد
-                            </span>
-                          </>
+            {kashafiItems
+              .filter(
+                (it) =>
+                  selectedDiscoveryCategory === 'all' ||
+                  it.discoveryCategory === selectedDiscoveryCategory
+              )
+              .map((item) => {
+                const isExpanded = expandedItemId === item.id;
+                const categoryBadge =
+                  item.discoveryCategory === 'sources'
+                    ? 'المصادر والمراجع التاريخية'
+                    : item.discoveryCategory === 'documents'
+                    ? 'الوثائق والمواد التاريخية'
+                    : item.discoveryCategory === 'stories'
+                    ? 'السير والقصص العائلية التاريخية'
+                    : item.discoveryCategory === 'ongoing'
+                    ? 'الاكتشافات المستمرة'
+                    : getItemTypeLabelAr(item.type);
+
+                return (
+                  <article
+                    key={item.id}
+                    className={`rounded-2xl border p-5 transition-colors ${
+                      item.isRead
+                        ? 'bg-[#F5F1E8] border-[#D8C7B2]'
+                        : 'bg-[#FAF7F2] border-[#D97757]'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#D97757]">
+                          <span className="font-display font-bold">
+                            {categoryBadge}
+                          </span>
+                          <span aria-hidden="true" className="text-[#D8C7B2]">
+                            ·
+                          </span>
+                          <span className="text-[#1F1F1C]/70">
+                            {item.approvedByName
+                              ? `معتمد: ${item.approvedByName}`
+                              : item.authorName}
+                          </span>
+                          <span aria-hidden="true" className="text-[#D8C7B2]">
+                            ·
+                          </span>
+                          <span className="text-[#1F1F1C]/70 tabular-nums">
+                            {new Date(item.createdAt).toLocaleDateString('ar-SA', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                          {!item.isRead && (
+                            <>
+                              <span aria-hidden="true" className="text-[#D8C7B2]">
+                                ·
+                              </span>
+                              <span className="font-display font-bold text-[#D97757]">
+                                جديد
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        <h3 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]">
+                          {item.title}
+                        </h3>
+
+                        <p className="text-xs sm:text-sm text-[#1F1F1C]/75 leading-relaxed">
+                          {item.summary}
+                        </p>
+
+                        {item.excerptQuote && (
+                          <blockquote className="mt-2 rounded-xl bg-[#FDFBF7] border-r-4 border-[#D97757] px-3.5 py-2.5 text-xs italic text-[#1F1F1C]/85">
+                            «{item.excerptQuote}»
+                          </blockquote>
                         )}
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-display font-bold text-[#1F1F1C]">
-                        {item.title}
-                      </h3>
-
-                      <p className="text-xs sm:text-sm text-[#1F1F1C]/70 leading-relaxed">
-                        {item.summary}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {(item.details || item.sourceCitation || item.deliverableUrl) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setExpandedItemId(isExpanded ? null : item.id);
-                            if (!item.isRead) handleMarkItemRead(item);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] cursor-pointer whitespace-nowrap shrink-0"
-                        >
-                          {isExpanded ? 'إخفاء التفاصيل' : 'عرض التقرير والمصادر'}
-                        </button>
-                      )}
-                      {!item.isRead && (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkItemRead(item)}
-                          className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]/70 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>تمت القراءة</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-[#D8C7B2] space-y-2.5 text-xs">
-                      {item.details && (
-                        <div className="text-[#1F1F1C] leading-relaxed whitespace-pre-line">
-                          {item.details}
-                        </div>
-                      )}
-                      {item.sourceCitation && (
-                        <div className="text-[#1F1F1C]/70">
-                          <strong className="text-[#D97757]">
-                            المصدر والمرجع المعتمد:
-                          </strong>{' '}
-                          {item.sourceCitation}
-                        </div>
-                      )}
-                      {item.deliverableUrl && (
-                        <div>
-                          <a
-                            href={item.deliverableUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[#D97757] hover:text-[#D97757] font-display font-bold underline"
+                      <div className="flex items-center gap-2 shrink-0">
+                        {(item.details ||
+                          item.sourceCitation ||
+                          item.documentImageUrl ||
+                          item.deliverableUrl) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExpandedItemId(isExpanded ? null : item.id);
+                              if (!item.isRead) handleMarkItemRead(item);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#D97757] cursor-pointer whitespace-nowrap shrink-0"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>فتح الملف أو الوثيقة المرفقة</span>
-                          </a>
-                        </div>
-                      )}
+                            {isExpanded ? 'إخفاء التفاصيل' : 'عرض التقرير والمصادر'}
+                          </button>
+                        )}
+                        {!item.isRead && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkItemRead(item)}
+                            className="px-3 py-1.5 rounded-xl bg-[#F5F1E8] hover:bg-[#E8DED2] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C]/70 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>تمت القراءة</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </article>
-              );
-            })}
+
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-[#D8C7B2] space-y-3 text-xs">
+                        {item.documentImageUrl && (
+                          <div className="rounded-xl overflow-hidden border border-[#D8C7B2] bg-[#FDFBF7] p-2">
+                            <img
+                              src={item.documentImageUrl}
+                              alt={item.title}
+                              className="max-h-72 mx-auto rounded-lg object-contain"
+                            />
+                          </div>
+                        )}
+                        {item.details && (
+                          <div className="text-[#1F1F1C] leading-relaxed whitespace-pre-line">
+                            {item.details}
+                          </div>
+                        )}
+                        {(item.sourceCitation ||
+                          item.bookAuthor ||
+                          item.centuryOrYear ||
+                          item.pageReference) && (
+                          <div className="rounded-xl bg-[#FDFBF7] border border-[#D8C7B2] p-3 text-[#1F1F1C]/80 space-y-1">
+                            <strong className="text-[#D97757] block">
+                              التوثيق والمرجع العلمي المعتمد:
+                            </strong>
+                            <div>
+                              {item.sourceCitation ||
+                                [
+                                  item.bookAuthor,
+                                  item.centuryOrYear,
+                                  item.pageReference,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                            </div>
+                          </div>
+                        )}
+                        {item.deliverableUrl && (
+                          <div>
+                            <a
+                              href={item.deliverableUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-[#D97757] hover:text-[#D97757] font-display font-bold underline"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>فتح الملف أو الوثيقة المرفقة</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
           </div>
         )}
       </section>
@@ -598,9 +875,9 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                     <span>·</span>
                     <span className="tabular-nums">
                       {ord.includedInPremium
-                        ? 'مشمول ضمن الباقة السنوية'
+                        ? 'مشمول ضمن باقة Premium'
                         : ord.pricePaidUsd > 0
-                        ? `$${ord.pricePaidUsd} من المحفظة`
+                        ? `$${ord.pricePaidUsd} (فاتورة مستقلة)`
                         : 'مجاني'}
                     </span>
                   </div>
@@ -651,9 +928,9 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
               const existingOrder = ordersByCampaignId.get(cmp.id);
               const isCoveredByVip = cmp.freeForPremium && caps.isVip;
               const priceText = isCoveredByVip
-                ? 'مشمول للبريميوم'
+                ? 'مشمول لبريميوم'
                 : cmp.priceUsd > 0
-                ? `$${cmp.priceUsd} من المحفظة`
+                ? `$${cmp.priceUsd}`
                 : 'مجاني';
 
               return (
@@ -724,6 +1001,11 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
         )}
       </section>
 
+      {/* Subtle Official Credibility Footnote for Premium Kashafi */}
+      <p className="text-[11px] text-[#1F1F1C]/65 leading-relaxed pt-2 border-t border-[#D8C7B2]/70">
+        * {kashafiFootnote}
+      </p>
+
       {/* ===================================================================
           RESEARCH SERVICE ORDER CONFIRMATION MODAL
          =================================================================== */}
@@ -768,16 +1050,10 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                 <span className="text-[#1F1F1C]/70">التكلفة المطلوبة:</span>
                 <strong className="font-mono tabular-nums text-[#D97757]">
                   {selectedCampaignForOrder.freeForPremium && caps.isVip
-                    ? '$0 (مشمول في الباقة السنوية)'
+                    ? '$0 (مشمول في باقة Premium)'
                     : selectedCampaignForOrder.priceUsd > 0
-                    ? `$${selectedCampaignForOrder.priceUsd} (خصم من المحفظة)`
+                    ? `$${selectedCampaignForOrder.priceUsd}`
                     : 'مجاني ($0)'}
-                </strong>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#1F1F1C]/70">رصيد محفظتك الحالي:</span>
-                <strong className="font-mono tabular-nums text-[#1F1F1C]">
-                  ${walletBalance.toFixed(2)}
                 </strong>
               </div>
             </div>
@@ -808,7 +1084,7 @@ export const KashafiHubView: React.FC<KashafiHubViewProps> = ({
                     }}
                     className="underline font-bold text-[#D97757] cursor-pointer"
                   >
-                    فتح المحفظة لشحن الرصيد
+                    الانتقال إلى إدارة الباقة والاشتراك
                   </button>
                 </div>
               </div>

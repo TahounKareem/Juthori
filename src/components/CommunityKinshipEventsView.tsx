@@ -49,6 +49,7 @@ export const CommunityKinshipEventsView: React.FC<
     if (!isAuthorizedOwner && onRequirePremiumAction) {
       onRequirePremiumAction({
         feature: 'community_event',
+        requiredTier: 'basic',
         onAuthorizedContinue: () => onNavigateTab?.(DashboardTab.MySite),
       });
       return;

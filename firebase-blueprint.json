@@ -709,9 +709,8 @@
         "bioDescription": { "type": "string", "maxLength": 4000 },
         "accessGateMode": {
           "type": "string",
-          "enum": ["PUBLIC_INDEXABLE", "UNLISTED_LINK", "FAMILY_PIN", "PRIVATE_WHITELIST"]
+          "enum": ["PUBLIC_INDEXABLE", "UNLISTED_LINK", "PRIVATE_WHITELIST"]
         },
-        "familyPinCode": { "type": "string", "maxLength": 20 },
         "whitelistEmails": { "type": "array" },
         "privacyConfig": { "type": "object" },
         "sectionPrivacyMap": { "type": "object" },
@@ -864,9 +863,8 @@
         },
         "accessGateMode": {
           "type": "string",
-          "enum": ["PUBLIC_INDEXABLE", "UNLISTED_LINK", "FAMILY_PIN", "PRIVATE_WHITELIST"]
+          "enum": ["PUBLIC_INDEXABLE", "UNLISTED_LINK", "PRIVATE_WHITELIST"]
         },
-        "hasFamilyPasscode": { "type": "boolean" },
         "themeId": {
           "type": "string",
           "enum": ["heritage", "emerald_gold", "andalusian_navy", "olive_sand", "royal_burgundy", "royal_kiswah", "pearl_bronze", "papyrus_lapis", "diriyah_oasis", "manuscript_ink", "golden_parchment", "andalusian_emerald", "sultanic_burgundy", "classical_marble"]
@@ -892,6 +890,57 @@
         "reviewedAt": { "type": "string", "maxLength": 60 }
       },
       "required": ["id", "siteSlug", "ownerId", "requesterName", "requesterEmail", "status", "createdAt"]
+    },
+    "CircleJoinRequest": {
+      "title": "CircleJoinRequest",
+      "description": "Authenticated social join or permission-upgrade request submitted by a signed-in Juthori user for a family microsite circle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "siteSlug": { "type": "string", "maxLength": 60 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "requesterUid": { "type": "string", "maxLength": 128 },
+        "requesterName": { "type": "string", "maxLength": 140 },
+        "requesterEmail": { "type": "string", "maxLength": 120 },
+        "requesterAvatarUrl": { "type": "string", "maxLength": 2000 },
+        "requesterCountry": { "type": "string", "maxLength": 80 },
+        "kinshipNote": { "type": "string", "maxLength": 200 },
+        "desiredRole": {
+          "type": "string",
+          "enum": ["family_viewer", "memory_contributor", "assistant_registrar"]
+        },
+        "requestKind": {
+          "type": "string",
+          "enum": ["join_circle", "upgrade_permission"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"]
+        },
+        "assignedRole": {
+          "type": "string",
+          "enum": ["family_viewer", "memory_contributor", "assistant_registrar"]
+        },
+        "reviewedAt": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": [
+        "id",
+        "siteSlug",
+        "ownerId",
+        "familyName",
+        "requesterUid",
+        "requesterName",
+        "requesterEmail",
+        "kinshipNote",
+        "desiredRole",
+        "requestKind",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
     },
     "SiteGuestbookEntry": {
       "title": "SiteGuestbookEntry",
@@ -1337,6 +1386,66 @@
         "updatedAt": { "type": "string", "maxLength": 60 }
       },
       "required": ["id", "orderNumber", "campaignId", "campaignTitle", "userId", "userFullName", "familyName", "pricePaidUsd", "status", "assignedRole", "createdAt"]
+    },
+    "MemberDiscoveryProfile": {
+      "title": "MemberDiscoveryProfile",
+      "description": "Zero-PII public discovery card for registered Juthori members enabling live platform search and smart kinship recommendations without exposing private user PII.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 150 },
+        "firstName": { "type": "string", "maxLength": 60 },
+        "fatherName": { "type": "string", "maxLength": 60 },
+        "grandfatherName": { "type": "string", "maxLength": 60 },
+        "familyName": { "type": "string", "maxLength": 100 },
+        "tribeName": { "type": "string", "maxLength": 100 },
+        "familyBranch": { "type": "string", "maxLength": 100 },
+        "originCountry": { "type": "string", "maxLength": 80 },
+        "originRegion": { "type": "string", "maxLength": 100 },
+        "residenceCity": { "type": "string", "maxLength": 80 },
+        "avatarUrl": { "type": "string", "maxLength": 350000 },
+        "publishedSiteSlug": { "type": "string", "maxLength": 80 },
+        "isDiscoverable": { "type": "boolean" },
+        "isVerifiedMember": { "type": "boolean" },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["userId", "fullName", "familyName", "isDiscoverable", "updatedAt"]
+    },
+    "AdamTreeStagingProposal": {
+      "title": "AdamTreeStagingProposal",
+      "description": "Sandbox staging proposal for Adam Master Tree enrichments (strictly historical/deceased nodes only) awaiting Maestro sovereign approval.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "actionType": {
+          "type": "string",
+          "enum": ["add_vertical_link", "relink_branch", "update_reference_node"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending_maestro", "approved_by_maestro", "rejected_by_maestro"]
+        },
+        "summaryAr": { "type": "string", "maxLength": 400 },
+        "targetNodeId": { "type": "string", "maxLength": 128 },
+        "targetNodeName": { "type": "string", "maxLength": 180 },
+        "parentNodeId": { "type": "string", "maxLength": 128 },
+        "parentNodeName": { "type": "string", "maxLength": 180 },
+        "ancestralChainPreview": { "type": "string", "maxLength": 500 },
+        "sourceReferenceText": { "type": "string", "maxLength": 800 },
+        "historicalFirewallVerified": { "type": "boolean" },
+        "submittedByResearcherId": { "type": "string", "maxLength": 128 },
+        "submittedByResearcherName": { "type": "string", "maxLength": 140 },
+        "approvedByManagerId": { "type": "string", "maxLength": 128 },
+        "approvedByManagerName": { "type": "string", "maxLength": 140 },
+        "sourceTicketId": { "type": "string", "maxLength": 128 },
+        "sourceFamilyName": { "type": "string", "maxLength": 120 },
+        "maestroDecidedByName": { "type": "string", "maxLength": 140 },
+        "maestroDecidedAt": { "type": "string", "maxLength": 60 },
+        "maestroRejectionNote": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "actionType", "status", "summaryAr", "targetNodeName", "historicalFirewallVerified", "submittedByResearcherName", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -1384,13 +1493,13 @@
       "schema": { "$ref": "entities/PublicMicrosite" },
       "description": "Filtered Mirror family microsites strictly isolated from private lineage and reference sources."
     },
-    "/public_sites/{siteSlug}/passcode_mirrors/{passcodeHash}": {
-      "schema": { "$ref": "entities/PublicMicrosite" },
-      "description": "Sanitized capability-keyed microsite mirror unlocked exclusively with the exact SHA-256 hash of the family passcode (list disabled, PII stripped)."
-    },
     "/public_site_directory/{siteSlug}": {
       "schema": { "$ref": "entities/PublicSiteDirectoryHeader" },
       "description": "Zero-PII slug existence and access-mode directory header for PRIVATE_WHITELIST portals."
+    },
+    "/circle_join_requests/{requestId}": {
+      "schema": { "$ref": "entities/CircleJoinRequest" },
+      "description": "Authenticated social join and permission-upgrade requests synced in real time to the family owner."
     },
     "/kinship_circles/{ownerId}": {
       "schema": { "$ref": "entities/KinshipCircle" },
@@ -1439,6 +1548,14 @@
     "/kashafi_service_orders/{orderId}": {
       "schema": { "$ref": "entities/KashafiServiceOrder" },
       "description": "Customer Kashafi research service orders auto-assigned to the Research Manager inbox."
+    },
+    "/member_discovery_directory/{userId}": {
+      "schema": { "$ref": "entities/MemberDiscoveryProfile" },
+      "description": "Zero-PII discoverable member directory powering live platform search and smart kinship recommendations."
+    },
+    "/adam_tree_staging_proposals/{proposalId}": {
+      "schema": { "$ref": "entities/AdamTreeStagingProposal" },
+      "description": "Adam Tree Sandbox staging proposals (strictly historical nodes) queued for Maestro sovereign approval."
     }
   }
 }

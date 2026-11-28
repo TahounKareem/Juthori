@@ -242,13 +242,22 @@ export interface ConsensusClusterGroup {
 
 export interface CheckoutOrderRequest {
   id: string;
-  type: 'unlock_root_5' | 'upgrade_vip_60' | 'unlock_capsule' | 'unlock_all_capsules_12' | 'wallet_topup';
+  type:
+    | 'unlock_root_5'
+    | 'upgrade_vip_60'
+    | 'upgrade_basic'
+    | 'upgrade_premium'
+    | 'unlock_capsule'
+    | 'unlock_all_capsules_12'
+    | 'wallet_topup';
   title: string;
   subtitle: string;
   amountUsd: number;
   allowWalletPayment: boolean;
   capsuleId?: string;
   bonusWalletUsd?: number;
+  targetPlanId?: 'basic' | 'premium';
+  billingCycle?: 'monthly' | 'annual';
 }
 
 export interface LineageSearchResult {
@@ -336,12 +345,16 @@ export type StructuredWalletTxType =
 export type WalletTransactionStatus = 'COMPLETED' | 'PENDING' | 'FAILED';
 
 export interface DashboardAccessCapabilities {
+  subscriptionPlan: 'free' | 'basic' | 'premium';
   isVip: boolean;
   isMatched: boolean;
   isRootUnlocked: boolean;
   areUpperAncestorsUnlocked: boolean;
   showFifthBridgeNode: boolean;
   arePremiumTabsUnlocked: boolean;
+  canUseKashafi: boolean;
+  hasDirectCustomerSupport: boolean;
+  canExportHighResTree: boolean;
   canAccessTreeDirectly: boolean;
   requiresCharterUpgradeForTree: boolean;
   tierHeaderTitle: string;
@@ -395,3 +408,100 @@ export interface VaultItem {
   restored: boolean;
   description: string;
 }
+
+// =============================================================================
+// PHASE 4: RESEARCH MANAGER RBAC, 4-STATE LINEAGE DECISIONS, KASHAFI STUDIO
+// & FREE LEAD RADAR TYPES
+// =============================================================================
+
+export type StaffRbacRole =
+  | 'super_admin'
+  | 'research_manager'
+  | 'researcher'
+  | 'customer';
+
+export type LineageConnectionDecisionStatus =
+  | 'verified_connected'
+  | 'partial_investigating'
+  | 'needs_client_info'
+  | 'insufficient_sources';
+
+export type KashafiDiscoveryCategory =
+  | 'sources'
+  | 'documents'
+  | 'stories'
+  | 'ongoing';
+
+export type ResearchDraftApprovalStatus =
+  | 'draft'
+  | 'pending_manager_approval'
+  | 'approved'
+  | 'returned';
+
+export interface FreeLeadRadarSignal {
+  active: boolean;
+  activatedAt: string;
+  activatedByName: string;
+  matchStrengthLabel?: string;
+  teaserNoteAr?: string;
+  matchedRootPreviewInternal?: string; // Staff-only reference, NEVER shown to Free client
+  convertedToTier?: 'basic' | 'premium' | null;
+  convertedAt?: string;
+}
+
+export interface ResearchApprovalDraftRecord {
+  id: string;
+  draftKind: 'lineage_connection' | 'kashafi_discovery';
+  status: ResearchDraftApprovalStatus;
+  targetUserId: string;
+  targetUserEmail?: string;
+  targetClientName: string;
+  targetFamilyName: string;
+  targetPlanTier: 'free' | 'basic' | 'premium';
+  relatedTicketId?: string;
+  submittedByResearcherId: string;
+  submittedByResearcherName: string;
+  submittedAt: string;
+  reviewedByManagerId?: string;
+  reviewedByManagerName?: string;
+  reviewedAt?: string;
+  managerReviewNotes?: string;
+  // Lineage Connection payload
+  lineageDecision?: LineageConnectionDecisionStatus;
+  verifiedRootBranch?: string;
+  verifiedMotherTribe?: string;
+  intermediateChainText?: string;
+  verifiedSourcesText?: string;
+  scholarlyNotes?: string;
+  clientQuestionText?: string;
+  // Kashafi Discovery payload (4 official categories)
+  kashafiCategory?: KashafiDiscoveryCategory;
+  kashafiTitle?: string;
+  kashafiSummary?: string;
+  kashafiDetails?: string;
+  kashafiBookTitle?: string;
+  kashafiBookAuthor?: string;
+  kashafiCenturyOrYear?: string;
+  kashafiPageReference?: string;
+  kashafiExcerptQuote?: string;
+  kashafiDocumentImageUrl?: string;
+  kashafiDeliverableUrl?: string;
+}
+
+export interface MasterLineageCatalogEntry {
+  id: string;
+  entryKind: 'historical_root' | 'reference_book';
+  rootName: string;
+  motherTribe?: string;
+  ancestralChainSummary?: string;
+  regions: string[];
+  bookTitle?: string;
+  authorName?: string;
+  centuryOrEra?: string;
+  volumeOrPagesHint?: string;
+  scholarlyNotes?: string;
+  addedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+

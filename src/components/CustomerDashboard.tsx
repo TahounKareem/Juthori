@@ -21,11 +21,11 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  ShoppingCart,
   Trash2,
   User,
   UserRound,
   Users,
-  Wallet,
   X,
   ArrowRight,
 } from 'lucide-react';
@@ -64,13 +64,20 @@ import { RecordKeeperContractModal } from './RecordKeeperContractModal';
 import { KashafiHubView } from './KashafiHubView';
 import { fetchCustomerKashafiItems } from '../services/kashafiService';
 import {
+  CircleJoinRequestDoc,
+  fetchUserReferralDashboard,
+  subscribeToOwnerPendingJoinRequests,
+} from '../services/priority4Service';
+import { SocialJoinRequestsList } from './CircleJoinRequestsPanel';
+import {
   AccountLegalType,
   ActivityLogEntry,
   AncestorCapsule,
-  CartItem,
   CheckoutOrderRequest,
   DashboardStateMode,
   DashboardTab,
+  FreeLeadRadarSignal,
+  LineageConnectionDecisionStatus,
   LineageSearchResult,
   NotificationItem,
   SilentGeoMetadata,
@@ -101,6 +108,14 @@ import {
   UpgradePromptRequest,
   UpgradeToPremiumModal,
 } from './UpgradeToPremiumModal';
+import {
+  BillingCycle,
+  SUBSCRIPTION_PLANS,
+  formatPlanPriceUsd,
+  getPlanPriceUsd,
+  getPlanRank,
+  getRequiredPlanForFeature,
+} from '../config/subscriptionPlans';
 
 interface CustomerDashboardProps {
   stateMode: DashboardStateMode;
@@ -139,6 +154,11 @@ interface CustomerDashboardProps {
   onClearInitialTicketDraft?: () => void;
   initialAutoOpenVipUpgrade?: boolean;
   onClearAutoOpenVipUpgrade?: () => void;
+  initialSelectedPlanIntent?: {
+    planId: 'basic' | 'premium';
+    billingCycle: BillingCycle;
+  } | null;
+  onClearInitialPlanIntent?: () => void;
   onResyncLineageFromEngine?: () => Promise<void>;
   isResyncingLineage?: boolean;
 }
@@ -187,6 +207,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   onClearInitialTicketDraft,
   initialAutoOpenVipUpgrade = false,
   onClearAutoOpenVipUpgrade,
+  initialSelectedPlanIntent = null,
+  onClearInitialPlanIntent,
   onResyncLineageFromEngine,
   isResyncingLineage = false,
 }) => {
@@ -287,6 +309,19 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       return 0;
     }
   });
+  const [activeBillingCycle, setActiveBillingCycle] = useState<BillingCycle>(() => {
+    if (typeof window === 'undefined') return 'annual';
+    try {
+      const saved = window.localStorage.getItem(
+        `juthori_billing_cycle_${userEmail || 'guest'}`
+      );
+      return saved === 'monthly' ? 'monthly' : 'annual';
+    } catch {
+      return 'annual';
+    }
+  });
+  const [ambassadorCapacityBonus, setAmbassadorCapacityBonus] = useState<number>(0);
+  const [ambassadorFreeMonths, setAmbassadorFreeMonths] = useState<number>(0);
   const [unlockedCapsules, setUnlockedCapsules] = useState<string[]>(() =>
     initialWorkspaceMatchesFamily && Array.isArray(initialWorkspace?.unlockedCapsules)
       ? initialWorkspace!.unlockedCapsules!
@@ -304,19 +339,46 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     useState<CheckoutOrderRequest | null>(null);
 
   useEffect(() => {
+    if (initialSelectedPlanIntent) {
+      const { planId, billingCycle } = initialSelectedPlanIntent;
+      const plan = SUBSCRIPTION_PLANS[planId];
+      const amountUsd = getPlanPriceUsd(planId, billingCycle);
+      const cycleLabel = billingCycle === 'annual' ? 'سنوياً' : 'شهرياً';
+      setActiveCheckoutOrder({
+        id: `ord-${planId}-${billingCycle}`,
+        type: planId === 'premium' ? 'upgrade_premium' : 'upgrade_basic',
+        targetPlanId: planId,
+        billingCycle,
+        title: `الاشتراك في ${plan.nameAr} (${plan.code}) — ${formatPlanPriceUsd(amountUsd)} ${cycleLabel}`,
+        subtitle: plan.taglineAr,
+        amountUsd,
+        allowWalletPayment: true,
+        bonusWalletUsd: 0,
+      });
+      onClearInitialPlanIntent?.();
+      return;
+    }
     if (!initialAutoOpenVipUpgrade) return;
+    const premiumPlan = SUBSCRIPTION_PLANS.premium;
+    const amountUsd = getPlanPriceUsd('premium', 'annual');
     setActiveCheckoutOrder({
-      id: 'ord-vip-60',
-      type: 'upgrade_vip_60',
-      title: 'الاشتراك السنوي الشامل — عضوية بريميوم (VIP)',
-      subtitle:
-        'يفتح المحطات الرئيسية الموثقة حتى آدم عليه السلام + رفع سعة شجرتي لـ 250 فرداً وخزانتي لـ 100 وثيقة + نشر موقعي + $25 رصيد هدية',
-      amountUsd: 60,
+      id: 'ord-premium-annual',
+      type: 'upgrade_premium',
+      targetPlanId: 'premium',
+      billingCycle: 'annual',
+      title: `الاشتراك في ${premiumPlan.nameAr} (${premiumPlan.code}) — ${formatPlanPriceUsd(amountUsd)} سنوياً`,
+      subtitle: premiumPlan.taglineAr,
+      amountUsd,
       allowWalletPayment: true,
-      bonusWalletUsd: 25,
+      bonusWalletUsd: 0,
     });
     onClearAutoOpenVipUpgrade?.();
-  }, [initialAutoOpenVipUpgrade, onClearAutoOpenVipUpgrade]);
+  }, [
+    initialAutoOpenVipUpgrade,
+    onClearAutoOpenVipUpgrade,
+    initialSelectedPlanIntent,
+    onClearInitialPlanIntent,
+  ]);
   const [verifiedResultOverride, setVerifiedResultOverride] =
     useState<LineageSearchResult | null>(() => {
       if (
@@ -491,6 +553,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [emailNotificationsTree, setEmailNotificationsTree] = useState(true);
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [freeLeadRadarSignal, setFreeLeadRadarSignal] =
+    useState<FreeLeadRadarSignal | null>(null);
+  const [lineageResearchStatus, setLineageResearchStatus] =
+    useState<LineageConnectionDecisionStatus | undefined>(undefined);
+  const [lineageResearchStatusNote, setLineageResearchStatusNote] =
+    useState<string>('');
 
   useEffect(() => {
     if (verificationResendCooldown <= 0) return;
@@ -736,6 +804,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             onUpgradeAccountToRecordKeeper();
           }
 
+          if (profile.freeLeadRadarSignal) {
+            setFreeLeadRadarSignal(profile.freeLeadRadarSignal);
+          }
+          if (profile.lineageResearchStatus) {
+            setLineageResearchStatus(profile.lineageResearchStatus);
+          }
+          if (typeof profile.lineageResearchStatusNote === 'string') {
+            setLineageResearchStatusNote(profile.lineageResearchStatusNote);
+          }
+
           const savedSnap =
             profile.verifiedLineageSnapshot || profile.lineageSnapshot;
           if (
@@ -749,7 +827,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               profile
             );
             if (hydratedFromProfile) {
-              setVerifiedResultOverride((curr) => curr || hydratedFromProfile);
+              const isManagerApproved =
+                Boolean(
+                  savedSnap.confidenceLabel?.includes('معتمد من مدير البحوث')
+                ) || profile.lineageResearchStatus === 'verified_connected';
+              setVerifiedResultOverride((curr) =>
+                isManagerApproved ? hydratedFromProfile : curr || hydratedFromProfile
+              );
             }
           }
         }
@@ -1498,19 +1582,42 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     });
   };
 
-  // Opens 3-Step Realistic Checkout Modal for $60 Annual Premium VIP
-  const handleUpgradeAnnualVip = () => {
+  // Opens 3-Step Checkout Modal for Basic or Premium (Monthly / Annual) using centralized subscriptionPlans.ts
+  const handleUpgradeToPlan = (
+    planId: 'basic' | 'premium',
+    billingCycle: BillingCycle = 'annual'
+  ) => {
     setLockedTabPromptName(null);
+    setActiveBillingCycle(billingCycle);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(
+          `juthori_billing_cycle_${userEmail || 'guest'}`,
+          billingCycle
+        );
+      } catch {
+        // ignore storage errors
+      }
+    }
+    const plan = SUBSCRIPTION_PLANS[planId];
+    const amountUsd = getPlanPriceUsd(planId, billingCycle);
+    const cycleLabel = billingCycle === 'annual' ? 'سنوياً' : 'شهرياً';
     setActiveCheckoutOrder({
-      id: 'ord-vip-60',
-      type: 'upgrade_vip_60',
-      title: 'الاشتراك السنوي الشامل — عضوية بريميوم (VIP)',
-      subtitle:
-        'يفتح المحطات الرئيسية الموثقة حتى آدم عليه السلام + رفع سعة شجرتي لـ 250 فرداً وخزانتي لـ 100 وثيقة + نشر موقعي + $25 رصيد هدية',
-      amountUsd: 60,
-      allowWalletPayment: true,
-      bonusWalletUsd: 25,
+      id: `ord-${planId}-${billingCycle}`,
+      type: planId === 'premium' ? 'upgrade_premium' : 'upgrade_basic',
+      targetPlanId: planId,
+      billingCycle,
+      title: `الاشتراك في ${plan.nameAr} (${plan.code}) — ${formatPlanPriceUsd(amountUsd)} ${cycleLabel}`,
+      subtitle: plan.taglineAr,
+      amountUsd,
+      allowWalletPayment: false,
+      bonusWalletUsd: 0,
     });
+  };
+
+  // Backward-compatible wrapper opening Premium annual checkout
+  const handleUpgradeAnnualVip = () => {
+    handleUpgradeToPlan('premium', 'annual');
   };
 
   // Opens 3-Step Realistic Checkout Modal for a Single Intermediate Ancestor Ring ($2 - $4)
@@ -1622,9 +1729,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     ).map((c) => c.id);
 
     const operationType =
-      order.type === 'unlock_root_5'
+      order.type === 'unlock_root_5' || order.type === 'upgrade_basic'
         ? 'PURCHASE_ROOT_5USD'
-        : order.type === 'upgrade_vip_60'
+        : order.type === 'upgrade_vip_60' || order.type === 'upgrade_premium'
         ? 'UPGRADE_ANNUAL_VIP'
         : order.type === 'wallet_topup'
         ? 'TOPUP'
@@ -1638,7 +1745,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         : undefined;
 
     const bonusWalletCreditUsd =
-      order.type === 'upgrade_vip_60' ? order.bonusWalletUsd ?? 25 : 0;
+      order.type === 'upgrade_vip_60' ? order.bonusWalletUsd ?? 0 : 0;
 
     const atomicRes = await executeAtomicWalletOperation({
       userId: activeUid,
@@ -1724,7 +1831,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         .catch(() => {});
     };
 
-    if (order.type === 'unlock_root_5') {
+    if (order.type === 'unlock_root_5' || order.type === 'upgrade_basic') {
       if (stateMode !== DashboardStateMode.AnnualVip) {
         onChangeStateMode(DashboardStateMode.State1Paid5Basic);
       }
@@ -1750,7 +1857,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           legalRole: accountType,
           accountStatus: 'paid_5_root',
           walletBalanceUsd: atomicRes.balanceAfter,
-          paidRevenueUsd: 5,
+          paidRevenueUsd: order.amountUsd,
           matchStatus: !result.matched
             ? 'open_research_ticket'
             : result.isAlphaOnlyBeforeMerge
@@ -1767,11 +1874,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           nodesCountLabel: `${result.adamSpineNodes?.length || 1} محطة موثقة`,
         }).catch(() => {});
         appendActivity(
-          `سداد ذري ناجح (${txRef}) — فتح الجذر ($5)`,
-          `تم الكشف عن الفرع الجامع (${result.rootBranchName}) والقبيلة الأم (${result.rootTribeName})`
+          `سداد ذري ناجح (${txRef}) — تفعيل باقة Basic (${formatPlanPriceUsd(order.amountUsd)})`,
+          `تم فتح البحث الكامل عن ربط الجذور وعمود النسب + توسيع سعة شجرتي وخزانتي وخدمة العملاء`
         );
       }
-    } else if (order.type === 'upgrade_vip_60') {
+    } else if (
+      order.type === 'upgrade_vip_60' ||
+      order.type === 'upgrade_premium'
+    ) {
       onChangeStateMode(DashboardStateMode.AnnualVip);
       updateUserProfile(activeUid, {
         verifiedLineageSnapshot: currentSnapshot,
@@ -1795,7 +1905,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           legalRole: accountType,
           accountStatus: 'annual_vip',
           walletBalanceUsd: atomicRes.balanceAfter,
-          paidRevenueUsd: 60,
+          paidRevenueUsd: order.amountUsd,
           matchStatus: !result.matched
             ? 'open_research_ticket'
             : result.isAlphaOnlyBeforeMerge
@@ -1840,8 +1950,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           })
           .catch(() => {});
         appendActivity(
-          `سداد ذري ناجح (${txRef}) — عضوية بريميوم السنوية ($60)`,
-          `فتح المحطات الرئيسية في شجرة آدم والمصادر + رفع السعات وإيداع $${bonusWalletCreditUsd} رصيد هدية`
+          `سداد ذري ناجح (${txRef}) — تفعيل باقة Premium (${formatPlanPriceUsd(order.amountUsd)})`,
+          'تم تفعيل جميع مزايا Basic بالإضافة إلى كشّافي (My Discoveries) ونشر موقع العائلة المستقل'
         );
       }
     } else if (order.type === 'unlock_capsule' && order.capsuleId) {
@@ -1855,8 +1965,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       }).catch(() => {});
       if (atomicRes.status === 'COMPLETED') {
         appendActivity(
-          `سداد ذري ناجح (${txRef}) — ${order.title}`,
-          `تم فتح حلقة الأجداد الوسيطين بالخصم من ${paymentMethod === 'wallet' ? 'المحفظة الرقمية' : 'البطاقة البنكية'}`
+          `سداد ناجح (${txRef}) — ${order.title}`,
+          'تم فتح حلقة الأجداد الوسيطين بنجاح عبر السداد المباشر'
         );
       }
     } else if (order.type === 'unlock_all_capsules_12') {
@@ -1895,8 +2005,27 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     setActiveUtilityDrawer(null);
 
     const pendingPrompt = pendingUpgradePromptRef.current;
-    if (order.type === 'upgrade_vip_60' && pendingPrompt) {
-      if (accountType === AccountLegalType.RecordKeeper) {
+    if (
+      (order.type === 'upgrade_vip_60' ||
+        order.type === 'upgrade_premium' ||
+        order.type === 'upgrade_basic') &&
+      pendingPrompt
+    ) {
+      const upgradedPlan =
+        order.type === 'upgrade_basic' ? 'basic' : 'premium';
+      const reqPlan = getRequiredPlanForFeature(pendingPrompt.feature);
+      const needsCharter =
+        pendingPrompt.feature === 'site_publish' ||
+        pendingPrompt.feature === 'site_qr' ||
+        pendingPrompt.feature === 'community_invite' ||
+        pendingPrompt.feature === 'community_qr' ||
+        pendingPrompt.feature === 'community_quest' ||
+        pendingPrompt.feature === 'community_event';
+
+      if (
+        getPlanRank(upgradedPlan) >= getPlanRank(reqPlan) &&
+        (!needsCharter || accountType === AccountLegalType.RecordKeeper)
+      ) {
         const continueFn = pendingPrompt.onAuthorizedContinue;
         pendingUpgradePromptRef.current = null;
         setActiveUpgradePrompt(null);
@@ -1914,12 +2043,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   };
 
   const requestPremiumAction = (req: UpgradePromptRequest) => {
-    if (caps.isVip && accountType === AccountLegalType.RecordKeeper) {
+    const reqPlan = req.requiredTier ?? getRequiredPlanForFeature(req.feature);
+    const hasPlan =
+      getPlanRank(caps.subscriptionPlan) >= getPlanRank(reqPlan);
+    const needsCharter =
+      req.feature === 'site_publish' || req.feature === 'site_qr';
+    if (hasPlan && (!needsCharter || accountType === AccountLegalType.RecordKeeper)) {
       req.onAuthorizedContinue?.();
       return;
     }
     pendingUpgradePromptRef.current = req;
-    setActiveUpgradePrompt(req);
+    setActiveUpgradePrompt({ ...req, requiredTier: reqPlan });
   };
 
   const handleTabClick = (tab: (typeof DASHBOARD_TABS)[number]) => {
@@ -2323,33 +2457,53 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     );
   };
 
-  const availableCartItems: CartItem[] = [];
-  if (
-    !caps.isRootUnlocked &&
-    (stateMode === DashboardStateMode.State2MatchedUnpaid || result.matched) &&
-    !result.requiresBlindDisambiguation
-  ) {
-    availableCartItems.push({
-      id: 'root_5_usd',
-      title: 'فتح نقطة الربط بالجذر (دفعة لمرة واحدة)',
-      subtitle:
-        'يكشف عقدتي الجذر الموثق (الفرع الجامع والقبيلة الأم) لعائلتك في السجل التاريخي',
-      priceUsd: 5,
-      billingLabel: 'لمرة واحدة',
-    });
-  }
-  if (!caps.isVip) {
-    availableCartItems.push({
-      id: 'vip_annual_60_usd',
-      title: 'الاشتراك السنوي الشامل — بريميوم (VIP)',
-      subtitle:
-        'يفتح المحطات المرمّزة في شجرة آدم والمصادر + التبويبات الخمسة + $25 رصيد محفظة',
-      priceUsd: 60,
-      billingLabel: 'سنوياً',
-    });
-  }
+  // Load real Ambassador Time & Capacity rewards (`+25` seats per free invite up to `+100`, `+1` free month per paid subscriber)
+  useEffect(() => {
+    let active = true;
+    const ownerName = `${result.clientName || ''} ${result.familyName || ''}`.trim();
+    fetchUserReferralDashboard(resolvedCustomerUid, ownerName)
+      .then((stats) => {
+        if (!active) return;
+        setAmbassadorCapacityBonus(stats.earnedCapacityBonus || 0);
+        setAmbassadorFreeMonths(stats.earnedFreeMonths || 0);
+      })
+      .catch(() => {
+        // Ignore gracefully when unauthenticated
+      });
+    return () => {
+      active = false;
+    };
+  }, [resolvedCustomerUid, result.clientName, result.familyName, activeTab]);
+
+  const effectiveTotalExtraTreeCapacity =
+    extraTreeCapacity + ambassadorCapacityBonus;
+  const activePlanShortBadgeLabel =
+    caps.subscriptionPlan === 'premium'
+      ? 'باقة بريميوم Premium'
+      : caps.subscriptionPlan === 'basic'
+      ? 'الباقة الأساسية Basic'
+      : 'الباقة المجانية';
+
+  const [pendingCircleJoinRequests, setPendingCircleJoinRequests] = useState<
+    CircleJoinRequestDoc[]
+  >([]);
+
+  useEffect(() => {
+    if (!resolvedCustomerUid) {
+      setPendingCircleJoinRequests([]);
+      return;
+    }
+    const unsub = subscribeToOwnerPendingJoinRequests(
+      resolvedCustomerUid,
+      (items) => {
+        setPendingCircleJoinRequests(items);
+      }
+    );
+    return () => unsub();
+  }, [resolvedCustomerUid]);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
+  const bellBadgeCount = unreadCount + pendingCircleJoinRequests.length;
 
   // Separate user first name from family name cleanly for the Sculpted Profile Identity Capsule
   const cleanClientFirstName = (result.clientName || '').trim() || 'عضو جذوري';
@@ -2461,50 +2615,37 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               </nav>
             </div>
 
-            {/* 3. LEFT UTILITY & PROFILE CLUSTER (RTL END): Flush with left edge of page content */}
+            {/* 3. LEFT UTILITY & PROFILE CLUSTER (RTL END): Cart + Bell + Divider + Profile */}
             <div className="order-2 xl:order-4 flex items-center gap-1.5 sm:gap-2 shrink-0 md:py-2.5 xl:py-0">
-              {/* 3a. Cart & Wallet (Quiet when empty, gilded border & badge when populated) */}
+              {/* 3a. Subscription & Plan Cart Icon (RTL right of Notifications Bell) */}
               <button
                 type="button"
+                data-testid="header-subscription-cart-btn"
                 onClick={() => {
                   setUserDropdownOpen(false);
-                  setActiveUtilityDrawer((cur) => (cur === 'cart' ? null : 'cart'));
+                  setActiveUtilityDrawer((cur) =>
+                    cur === 'cart' ? null : 'cart'
+                  );
                 }}
-                title="الاشتراكات والسلة"
-                aria-label="الاشتراكات والسلة"
+                title="باقتي وإدارة الاشتراك"
+                aria-label="باقتي وإدارة الاشتراك"
+                aria-pressed={activeUtilityDrawer === 'cart'}
                 className={`group/util relative w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer shrink-0 ${
                   activeUtilityDrawer === 'cart'
-                    ? 'bg-[#D97757]/15 text-[#D97757] border-[#D97757]/35 shadow-2xs'
-                    : availableCartItems.length > 0
-                    ? 'bg-[#F5F1E8]/90 text-[#D97757] border-[#D97757]/50 hover:bg-[#E8DED2] hover:border-[#D97757]/70 shadow-[0_2px_8px_-4px_rgba(217,119,87,0.45)]'
-                    : 'bg-transparent border-transparent text-[#D97757]/70 hover:bg-[#D97757]/10 hover:text-[#D97757]'
+                    ? 'bg-[#D97757] text-[#F5F1E8] border-[#D97757] shadow-xs ring-2 ring-[#D97757]/20'
+                    : 'bg-[#F5F1E8]/85 border-[#D8C7B2]/45 text-[#D97757]/85 hover:bg-[#E8DED2]/75 hover:border-[#D97757]/50 hover:text-[#D97757]'
                 }`}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.85"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-[18px] h-[18px] transition-transform duration-200 group-hover/util:scale-105"
+                <ShoppingCart
+                  className="w-[17px] h-[17px] transition-transform duration-200 group-hover/util:scale-105"
+                  strokeWidth={1.6}
                   aria-hidden="true"
-                >
-                  <path d="M2.5 4h2.6l2.1 10.2a1.6 1.6 0 0 0 1.56 1.3h9.6a1.6 1.6 0 0 0 1.55-1.22L21.5 7.5H6.2" />
-                  <path d="M8.5 11.2h11.3" strokeWidth="1.35" opacity="0.65" />
-                  <circle cx="9.5" cy="19.5" r="1.5" fill="currentColor" stroke="none" />
-                  <circle cx="17.5" cy="19.5" r="1.5" fill="currentColor" stroke="none" />
-                </svg>
-                {availableCartItems.length > 0 && (
-                  <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#D97757] text-[#F5F1E8] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#F5F1E8] shadow-2xs">
-                    {availableCartItems.length}
-                  </span>
-                )}
+                />
                 <span
                   role="tooltip"
                   className="hidden md:block pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-[#FAF7F2] text-[#1F1F1C] border border-[#D8C7B2] text-[10.5px] font-display font-semibold whitespace-nowrap shadow-md opacity-0 translate-y-1 group-hover/util:opacity-100 group-hover/util:translate-y-0 transition-all duration-200 z-50"
                 >
-                  السلة والاشتراكات
+                  باقتي وإدارة الاشتراك
                 </span>
               </button>
 
@@ -2525,7 +2666,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 className={`group/util relative w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer shrink-0 ${
                   activeUtilityDrawer === 'notifications'
                     ? 'bg-[#D97757]/15 text-[#D97757] border-[#D97757]/35 shadow-2xs'
-                    : unreadCount > 0
+                    : bellBadgeCount > 0
                     ? 'bg-[#F5F1E8]/85 text-[#D97757] border-[#D8C7B2]/30 hover:bg-[#D97757]/12 hover:border-[#D97757]/50 hover:text-[#D97757]'
                     : 'bg-transparent border-transparent text-[#D97757]/75 hover:bg-[#D97757]/10 hover:text-[#D97757]'
                 }`}
@@ -2535,9 +2676,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   strokeWidth={1.55}
                   aria-hidden="true"
                 />
-                {unreadCount > 0 && (
+                {bellBadgeCount > 0 && (
                   <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#D97757] text-[#F5F1E8] text-[9.5px] font-mono font-bold flex items-center justify-center tabular-nums ring-[1.5px] ring-[#F5F1E8] shadow-2xs">
-                    {unreadCount}
+                    {bellBadgeCount}
                   </span>
                 )}
                 <span
@@ -2655,12 +2796,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {caps.isVip && (
-                            <span className="inline-flex items-center gap-1 px-2 py-[1px] rounded-full bg-transparent border border-[#D97757] text-[#D97757] text-[9.5px] font-display font-bold leading-normal">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-[1px] rounded-full border text-[9.5px] font-display font-bold leading-normal ${
+                              caps.subscriptionPlan === 'premium'
+                                ? 'bg-transparent border-[#D97757] text-[#D97757]'
+                                : caps.subscriptionPlan === 'basic'
+                                ? 'bg-[#FAF7F2] border-[#D97757]/60 text-[#1F1F1C]'
+                                : 'bg-[#FAF7F2] border-[#D8C7B2] text-[#1F1F1C]/80'
+                            }`}
+                          >
+                            {caps.subscriptionPlan === 'premium' && (
                               <Crown className="w-2.5 h-2.5 text-[#D97757]" />
-                              <span>بريميوم</span>
-                            </span>
-                          )}
+                            )}
+                            <span>{activePlanShortBadgeLabel}</span>
+                          </span>
                           {isEmailVerified ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F5F1E8] border border-[#D8C7B2] text-[#1F1F1C] text-[10.5px] font-bold leading-normal">
                               <CheckCircle2 className="w-3 h-3 text-[#D97757]" />
@@ -2716,19 +2865,19 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F1E8] flex items-center gap-3 text-right transition-colors cursor-pointer"
                       >
                         <div className="w-8 h-8 rounded-lg bg-[#E8DED2] text-[#D97757] flex items-center justify-center shrink-0">
-                          <Wallet className="w-4 h-4" strokeWidth={1.75} />
+                          <Crown className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-1.5">
                             <span className="text-xs font-display font-bold text-[#1F1F1C]">
-                              الاشتراكات والمحفظة
+                              باقتي وإدارة الاشتراك
                             </span>
-                            <span className="text-[11px] font-mono tabular-nums font-bold text-[#D97757]">
-                              ${walletBalance}
+                            <span className="text-[10px] font-display font-bold px-2 py-0.5 rounded-full bg-[#FAF7F2] border border-[#D8C7B2] text-[#D97757] shrink-0">
+                              {SUBSCRIPTION_PLANS[caps.subscriptionPlan].code}
                             </span>
                           </div>
                           <div className="text-[11px] text-[#1F1F1C]/65 truncate">
-                            عرض الرصيد الحالي، شحن المحفظة، وترقية الباقة
+                            استعراض مزايا باقتك الحالية، الترقية الشهريّة أو السنويّة، وسجل الفواتير
                           </div>
                         </div>
                       </button>
@@ -2951,7 +3100,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     'الملف الشخصي والبيانات العائلية والجغرافية'}
                   {activeUtilityDrawer === 'settings' &&
                     'إعدادات الحساب والأمان والخصوصية'}
-                  {activeUtilityDrawer === 'cart' && 'الترقيات والمحفظة الرقمية'}
+                  {activeUtilityDrawer === 'cart' &&
+                    'مركز إدارة الاشتراك والفواتير ومكافآت السفير'}
                   {activeUtilityDrawer === 'notifications' &&
                     'التنبيهات والتحديثات الأرشيفية'}
                   {activeUtilityDrawer === 'activity' && 'الأرشيف الزمني للعمليات'}
@@ -2962,8 +3112,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     'الملف الشخصي والبيانات الجغرافية وصورة الحساب'}
                   {activeUtilityDrawer === 'settings' &&
                     'إعدادات الحساب والأمان والإشعارات'}
-                  {activeUtilityDrawer === 'cart' &&
-                    'الاشتراكات والمحفظة الرقمية'}
+                  {activeUtilityDrawer === 'cart' && 'باقتي وإدارة الاشتراك'}
                   {activeUtilityDrawer === 'notifications' &&
                     'مركز الإشعارات والتنبيهات النسبية'}
                   {activeUtilityDrawer === 'activity' &&
@@ -3344,7 +3493,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                               emailVerifiedAt
                                 ? ` منذ ${new Date(emailVerifiedAt).toLocaleDateString('ar-SA')}`
                                 : ''
-                            } — النشر العام وحماية المحفظة مفعّلان بالكامل.`
+                            } — النشر العام وإيصالات الفوترة مفعّلان بالكامل.`
                           : 'التوثيق اختياري ولا يعيق استخدامك لشجرتي أو خزانتي أو عمود النسب، ويُطلب فقط قبل النشر العام في «موقعي» (يُرسل الرمز عبر: منصة جذوري · info@Juthori.com).'}
                       </p>
                     </div>
@@ -3713,85 +3862,55 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             )}
 
             {activeUtilityDrawer === 'cart' && (
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <div className="text-xs font-display font-bold text-[#D97757] flex items-center gap-1.5">
-                    <Crown className="w-4 h-4" />
-                    <span>تفعيل باقة بريميوم والترقيات الأساسية</span>
-                  </div>
-                  {availableCartItems.length === 0 ? (
-                    <div className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/40 p-4 text-sm text-[#1F1F1C] font-semibold flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#D97757] shrink-0" />
-                      <span>
-                        أنت مشترك بالفعل في أعلى باقة (عضوية بريميوم) وجميع المزايا مفعّلة في حسابك.
-                      </span>
-                    </div>
-                  ) : (
-                    availableCartItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-xl bg-[#F5F1E8] border border-[#D97757]/35 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                      >
-                        <div>
-                          <div className="text-sm font-display font-bold text-[#1F1F1C]">
-                            {item.title}
-                          </div>
-                          <div className="text-xs text-[#1F1F1C]/75 mt-0.5">
-                            {item.subtitle}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-lg font-display font-bold text-[#1F1F1C] tabular-nums">
-                            ${item.priceUsd}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={
-                              item.id === 'root_5_usd'
-                                ? handleUnlockRoot5Usd
-                                : handleUpgradeAnnualVip
-                            }
-                            className="px-4 py-2 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-xs font-display font-bold cursor-pointer"
-                          >
-                            إتمام التفعيل الآن
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="pt-5 border-t border-[#D97757]/30">
-                  <WalletView
-                    result={result}
-                    userId={resolvedCustomerUid}
-                    userEmail={userEmail}
-                    isVip={caps.isVip}
-                    onUpgradeSuccess={handleUpgradeAnnualVip}
-                    onLogActivity={appendActivity}
-                    externalBalance={walletBalance}
-                    highlightedShortfallUsd={walletShortfallUsd}
-                    onClearShortfall={() => setWalletShortfallUsd(null)}
-                    emailVerified={isEmailVerified}
-                    showEmailReminderBanner={
-                      !isEmailVerified && !dismissedEmailBannerInWallet
-                    }
-                    onDismissEmailReminderBanner={() =>
-                      setDismissedEmailBannerInWallet(true)
-                    }
-                    onOpenEmailVerification={() =>
-                      setActiveUtilityDrawer('settings')
-                    }
-                    onBalanceChange={(nextBal) => {
-                      setWalletBalance(nextBal);
-                    }}
-                  />
-                </div>
-              </div>
+              <WalletView
+                result={result}
+                userId={resolvedCustomerUid}
+                userEmail={userEmail}
+                isVip={caps.isVip}
+                currentPlanId={caps.subscriptionPlan}
+                billingCycle={activeBillingCycle}
+                ambassadorFreeMonths={ambassadorFreeMonths}
+                ambassadorCapacityBonus={ambassadorCapacityBonus}
+                onUpgradeSuccess={handleUpgradeAnnualVip}
+                onSelectPlanUpgrade={handleUpgradeToPlan}
+                onNavigateToAmbassador={() => {
+                  setActiveUtilityDrawer(null);
+                  setActiveTab(DashboardTab.MyCommunity);
+                }}
+                onLogActivity={appendActivity}
+                emailVerified={isEmailVerified}
+                showEmailReminderBanner={
+                  !isEmailVerified && !dismissedEmailBannerInWallet
+                }
+                onDismissEmailReminderBanner={() =>
+                  setDismissedEmailBannerInWallet(true)
+                }
+                onOpenEmailVerification={() =>
+                  setActiveUtilityDrawer('settings')
+                }
+              />
             )}
 
             {activeUtilityDrawer === 'notifications' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {pendingCircleJoinRequests.length > 0 && (
+                  <div className="rounded-2xl bg-[#FAF7F2] border border-[#D97757]/45 p-4">
+                    <SocialJoinRequestsList
+                      requests={pendingCircleJoinRequests}
+                      ownerName={`${result.clientName || ''} ${result.familyName || ''}`.trim()}
+                      variant="compact"
+                      title="طلبات الانضمام لدائرة العائلة"
+                      onApproved={(req) => {
+                        appendActivity(
+                          'اعتماد طلب انضمام لدائرة العائلة',
+                          `تمت إضافة ${req.requesterName} (${req.kinshipNote}) إلى دائرة عائلة ${result.familyName}`
+                        );
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3">
                 {notifications.map((n) => (
                   <div
                     key={n.id}
@@ -3839,6 +3958,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                       )}
                   </div>
                 ))}
+                </div>
               </div>
             )}
 
@@ -3975,6 +4095,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                   .filter((s) => s && s !== '—')
                   .join(' ')}
                 defaultUserEmail={userEmail}
+                hasDirectCustomerSupport={caps.hasDirectCustomerSupport}
+                onRequireDirectSupportUpgrade={() =>
+                  requestPremiumAction({
+                    feature: 'customer_support',
+                    requiredTier: 'basic',
+                  })
+                }
               />
             )}
           </div>
@@ -3993,6 +4120,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
             onUnlockRoot5Usd={handleUnlockRoot5Usd}
             onUpgradeAnnualVip={handleUpgradeAnnualVip}
+            onRequirePremiumAction={requestPremiumAction}
             unlockedCapsules={unlockedCapsules}
             onRequestUnlockCapsule={handleRequestUnlockCapsule}
             onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
@@ -4024,6 +4152,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
             onSignCharterAndEnableTree={handleSignCharterAndOpenTree}
             onLogActivity={appendActivity}
+            freeLeadRadarSignal={freeLeadRadarSignal}
+            lineageResearchStatus={lineageResearchStatus}
+            lineageResearchStatusNote={lineageResearchStatusNote}
           />
         ) : activeTab === DashboardTab.MyExplorer ? (
           <KashafiHubView
@@ -4045,6 +4176,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             }}
             onOpenWalletDrawer={() => setActiveUtilityDrawer('cart')}
             onUpgradeAnnualVip={handleUpgradeAnnualVip}
+            onRequirePremiumAction={requestPremiumAction}
             onWalletBalanceUpdated={(nextBal) => setWalletBalance(nextBal)}
             onLogActivity={appendActivity}
             onAdoptResolvedLineage={(enriched) => {
@@ -4145,7 +4277,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               onRequestUnlockCapsule={handleRequestUnlockCapsule}
               onRequestUnlockAllCapsulesBundle={handleRequestUnlockAllCapsulesBundle}
               walletBalance={walletBalance}
-              extraTreeCapacity={extraTreeCapacity}
+              extraTreeCapacity={effectiveTotalExtraTreeCapacity}
+              extraVaultCapacity={ambassadorCapacityBonus}
+              ambassadorFreeMonths={ambassadorFreeMonths}
+              ambassadorCapacityBonus={ambassadorCapacityBonus}
+              freeLeadRadarSignal={freeLeadRadarSignal}
+              lineageResearchStatus={lineageResearchStatus}
+              lineageResearchStatusNote={lineageResearchStatusNote}
               onPurchaseExtraTreeCapacity={async (
                 extraSlots: number,
                 priceUsd: number
@@ -4196,8 +4334,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 }).catch(() => {});
                 appendActivity(
                   `إضافة سعة شجرة (+${extraSlots} فرداً · $${priceUsd})`,
-                  `تم خصم $${priceUsd} من رصيد المحفظة ورفع السعة الإجمالية للشجرة إلى ${
-                    (caps.maxTreeMembers || 250) + nextExtra
+                  `تم رفع السعة الإجمالية للشجرة إلى ${
+                    (caps.maxTreeMembers || 100) + nextExtra + ambassadorCapacityBonus
                   } فرداً`
                 );
                 return {
@@ -4308,26 +4446,35 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               id="locked-tab-modal-title"
               className="text-lg font-display font-bold text-[#1F1F1C]"
             >
-              تبويب «{lockedTabPromptName}» ضمن مزايا باقة بريميوم السنوية
+              ميزة «{lockedTabPromptName}» متاحة عبر باقات الترقية
             </h3>
             <p className="text-sm text-[#1F1F1C]/80 leading-relaxed">
-              أنت حالياً على العضوية الأساسية. رقِّ حسابك إلى الاشتراك السنوي (بريميوم) لفتح عمود النسب الكامل فوق الجذر وتفعيل خدمات (شجرتي، خزانتي، موقعي، مجتمعي).
+              رقِّ اشتراكك إلى الباقة الأساسية أو باقة بريميوم للاستفادة الكاملة من عمود النسب، كشّافي، موقع العائلة، والتوسّع السحابي الموثّق.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
               <button
                 type="button"
-                onClick={handleUpgradeAnnualVip}
+                onClick={() => {
+                  const featureTitle = lockedTabPromptName || 'مزايا جذوري المتقدمة';
+                  setLockedTabPromptName(null);
+                  setActiveUpgradePrompt({
+                    feature: 'site_publish',
+                    title: featureTitle,
+                    description:
+                      'اختر الباقة الأنسب لاحتياجك (الأساسية أو بريميوم) بفوترة شهرية أو سنوية بتوفير 17%.',
+                  });
+                }}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-[#F5F1E8] text-sm font-display font-bold cursor-pointer"
               >
-                الترقية الآن إلى بريميوم ($60/سنة)
+                استعراض باقات الترقية (ابتداءً من ${SUBSCRIPTION_PLANS.basic.monthlyPriceUsd}/شهر)
               </button>
               <button
                 type="button"
                 onClick={() => setLockedTabPromptName(null)}
                 className="py-2.5 px-4 rounded-xl bg-[#E8DED2] text-[#1F1F1C] text-sm font-semibold cursor-pointer"
               >
-                البقاء في الباقة الأساسية
+                إغلاق
               </button>
             </div>
           </div>
@@ -4388,50 +4535,34 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         }
       />
 
-      {/* MODAL 3: Realistic 3-Step Atomic Checkout & Wallet Payment Modal */}
+      {/* MODAL 3: Direct Subscription Checkout Modal */}
       <CheckoutModal
         order={activeCheckoutOrder}
         walletBalance={walletBalance}
         onClose={() => setActiveCheckoutOrder(null)}
         onExecutePayment={handleExecuteCheckoutPayment}
         onConfirmSuccess={handleConfirmCheckoutSuccess}
-        onQuickTopUpWallet={async (amountUsd) => {
-          const activeUid =
-            userId ||
-            auth.currentUser?.uid ||
-            resolvedCustomerUid ||
-            `usr_${userEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-          const res = await executeAtomicWalletOperation({
-            userId: activeUid,
-            userEmail,
-            operationType: 'TOPUP',
-            amountUsd,
-            paymentMethod: 'external',
-            descriptionAr: `إيداع فوري ($${amountUsd.toFixed(2)}) عبر بوابة الدفع السريع`,
-          });
-          setWalletBalance(res.balanceAfter);
-          setWalletShortfallUsd(null);
-          appendActivity(
-            `شحن فوري للمحفظة (${res.transactionId || 'TXN'})`,
-            `إيداع $${amountUsd.toFixed(2)} عبر بوابة الدفع السريع — الرصيد بعدها: $${res.balanceAfter.toFixed(2)}`
-          );
-        }}
       />
-      {/* MODAL 4: Unified Product-Led Upgrade + Registrar Charter Signature Modal */}
+      {/* MODAL 4: Unified 3-Tier Subscription Upgrade + Registrar Charter Signature Modal */}
       <UpgradeToPremiumModal
         isOpen={Boolean(activeUpgradePrompt)}
         request={activeUpgradePrompt}
         familyName={activeResult.familyName}
         isVip={caps.isVip}
+        currentPlanId={caps.subscriptionPlan}
         isCharterSigned={accountType === AccountLegalType.RecordKeeper}
         onClose={() => {
           setActiveUpgradePrompt(null);
           pendingUpgradePromptRef.current = null;
         }}
         onStartVipCheckout={() => {
-          // Close modal temporarily while CheckoutModal runs, keeping pendingUpgradePromptRef intact
           setActiveUpgradePrompt(null);
           handleUpgradeAnnualVip();
+        }}
+        onSelectPlanCheckout={(planId, billingCycle) => {
+          // Close modal temporarily while CheckoutModal runs, keeping pendingUpgradePromptRef intact
+          setActiveUpgradePrompt(null);
+          handleUpgradeToPlan(planId, billingCycle);
         }}
         onConfirmCharterSignature={handleConfirmRecordKeeperContractSignature}
         onOpenFullContractModal={() => {

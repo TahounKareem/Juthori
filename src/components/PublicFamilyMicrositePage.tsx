@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Award,
+  BadgeCheck,
   BookOpen,
   Briefcase,
   Calendar,
@@ -15,7 +16,6 @@ import {
   GitBranch,
   Globe,
   Heart,
-  KeyRound,
   Landmark,
   LayoutDashboard,
   Loader2,
@@ -34,10 +34,12 @@ import {
   ShieldCheck,
   Sparkles,
   ThumbsUp,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react';
 import {
+  CircleJoinRequestDoc,
   KinshipInvitationDoc,
   MajlisReactionKey,
   ModuleVisibility,
@@ -46,17 +48,16 @@ import {
   addBlessingToFamilyNews,
   addReplyToGuidedMajlisTopic,
   buildDefaultCmsModules,
+  cancelCircleJoinRequest,
   fetchKinshipInvitationByToken,
   fetchPublishedMicrositeBySlug,
   incrementElderMemorialPrayer,
   incrementMajlisTopicReaction,
   normalizeVisualBranding,
-  restorePublishedMicrositeByPasscodeHash,
   submitEventRsvpOnMicrosite,
-  submitSiteAccessRequest,
   submitTreeEnrichmentRequest,
   submitVaultPhotoFaceIdentification,
-  unlockPublishedMicrositeByPasscode,
+  subscribeToRequesterJoinRequestForSite,
 } from '../services/priority4Service';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { normalizeFamilySiteThemeId } from '../config/referralAndSiteConfig';
@@ -69,11 +70,10 @@ import {
   SESSION_AUTHORIZED_EMAIL_KEY,
   clearAllPortalSessionUnlocks,
   evaluatePublicMicrositeAccessGate,
-  readStoredPasscodeHashForSlug,
-  saveStoredPasscodeHashForSlug,
 } from '../utils/portalSecurityUtils';
 import { RoyalQrInvitationModal } from './RoyalQrInvitationModal';
 import { LoginModal } from './LoginModal';
+import { JoinCircleRequestModal } from './CircleJoinRequestsPanel';
 import { CANONICAL_BRAND_DISPLAY_HOST } from '../config/referralAndSiteConfig';
 import {
   ClaimedKinshipSessionPayload,
@@ -331,9 +331,23 @@ export const PublicFamilyMicrositePage: React.FC<
   const [loading, setLoading] = useState<boolean>(!previewData);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showPortalLoginModal, setShowPortalLoginModal] = useState(false);
+  const [loginModalContextBanner, setLoginModalContextBanner] = useState<
+    string | undefined
+  >(undefined);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement | null>(null);
-  const [accessCodeBusy, setAccessCodeBusy] = useState(false);
+
+  // Authenticated Social Join-Request & Upgrade State (Zero Anonymous Forms)
+  const [myJoinRequest, setMyJoinRequest] =
+    useState<CircleJoinRequestDoc | null>(null);
+  const [showJoinCircleModal, setShowJoinCircleModal] = useState(false);
+  const [joinCircleModalMode, setJoinCircleModalMode] = useState<
+    'join_circle' | 'upgrade_permission'
+  >('join_circle');
+  const [pendingJoinAfterAuth, setPendingJoinAfterAuth] = useState<
+    'join_circle' | 'upgrade_permission' | null
+  >(null);
+  const [cancellingJoinRequest, setCancellingJoinRequest] = useState(false);
 
   // Kinship Capability-Token Invitation State (`?invite={inviteToken}`)
   const [activeInvitation, setActiveInvitation] =
@@ -348,7 +362,7 @@ export const PublicFamilyMicrositePage: React.FC<
     string | null
   >(null);
 
-  // Visitor Circle Verification State
+  // Visitor Circle Email State
   const [circleEmailInput, setCircleEmailInput] = useState<string>(() => {
     if (viewerEmail) return viewerEmail.trim().toLowerCase();
     if (typeof window !== 'undefined') {
@@ -370,18 +384,6 @@ export const PublicFamilyMicrositePage: React.FC<
   const [circleVerifyFeedback, setCircleVerifyFeedback] = useState<
     string | null
   >(null);
-  const [accessCodeInput, setAccessCodeInput] = useState<string>('');
-  const [accessCodeUnlocked, setAccessCodeUnlocked] = useState<boolean>(false);
-  const [accessCodeFeedback, setAccessCodeFeedback] = useState<string | null>(
-    null
-  );
-
-  // Private Whitelist Access Request Form
-  const [accessReqName, setAccessReqName] = useState('');
-  const [accessReqEmail, setAccessReqEmail] = useState('');
-  const [accessReqKinship, setAccessReqKinship] = useState('');
-  const [accessReqSent, setAccessReqSent] = useState(false);
-  const [accessReqBusy, setAccessReqBusy] = useState(false);
 
   // Dedicated Photo/Document Vault Gift Modal State
   const [showEnrichmentModal, setShowEnrichmentModal] = useState(false);
@@ -521,38 +523,10 @@ export const PublicFamilyMicrositePage: React.FC<
     let mounted = true;
     setLoading(true);
     fetchPublishedMicrositeBySlug(siteSlug)
-      .then(async (res) => {
+      .then((res) => {
         if (!mounted) return;
-        if (res && res.siteAccessMode === 'PRIVATE_WHITELIST') {
-          const decision = evaluatePublicMicrositeAccessGate({
-            isPreviewMode: Boolean(isOwnerPreview),
-            siteData: res,
-            viewerUid: auth.currentUser?.uid,
-            viewerEmail: auth.currentUser?.email || viewerEmail || '',
-            passcodeUnlocked: false,
-          });
-          if (decision.shouldShowRestrictedGate && decision.requiresPasscode) {
-            const storedHash = readStoredPasscodeHashForSlug(siteSlug);
-            if (storedHash) {
-              const unlockedMirror =
-                await restorePublishedMicrositeByPasscodeHash(
-                  siteSlug,
-                  storedHash
-                );
-              if (mounted && unlockedMirror) {
-                setSiteData(unlockedMirror);
-                setAccessCodeUnlocked(true);
-                setLoading(false);
-                return;
-              }
-              clearAllPortalSessionUnlocks(siteSlug);
-            }
-          }
-        }
-        if (mounted) {
-          setSiteData(res);
-          setLoading(false);
-        }
+        setSiteData(res);
+        setLoading(false);
       })
       .catch(() => {
         if (mounted) setLoading(false);
@@ -676,7 +650,6 @@ export const PublicFamilyMicrositePage: React.FC<
         siteData,
         viewerUid: signedInUser?.uid,
         viewerEmail: effectiveAuthenticatedEmail,
-        passcodeUnlocked: accessCodeUnlocked,
       }),
     [
       previewData,
@@ -684,7 +657,6 @@ export const PublicFamilyMicrositePage: React.FC<
       siteData,
       signedInUser?.uid,
       effectiveAuthenticatedEmail,
-      accessCodeUnlocked,
     ]
   );
 
@@ -699,7 +671,6 @@ export const PublicFamilyMicrositePage: React.FC<
         viewerUid: signedInUser?.uid,
         viewerEmail: effectiveAuthenticatedEmail,
         isOwnerPreview: isOwnerPreview || Boolean(previewData),
-        accessCodeUnlocked,
         activeInvitationStatus: activeInvitation?.status,
         activeInvitationEmail: activeInvitation?.invitedEmail,
         justClaimedEmail: justClaimedRelative?.email,
@@ -711,17 +682,39 @@ export const PublicFamilyMicrositePage: React.FC<
       authSyncKey,
       isOwnerPreview,
       previewData,
-      accessCodeUnlocked,
       activeInvitation,
       justClaimedRelative,
     ]
   );
 
+  // Live subscription to the signed-in viewer's join request for this site;
+  // automatically refreshes the microsite the instant the owner approves!
+  useEffect(() => {
+    if (previewData || isOwnerPreview || !signedInUser?.uid || !siteSlug) {
+      setMyJoinRequest(null);
+      return;
+    }
+    const unsub = subscribeToRequesterJoinRequestForSite(
+      siteSlug,
+      signedInUser.uid,
+      (req) => {
+        setMyJoinRequest(req);
+        if (req && req.status === 'APPROVED') {
+          fetchPublishedMicrositeBySlug(siteSlug)
+            .then((refreshed) => {
+              if (refreshed) setSiteData(refreshed);
+            })
+            .catch(() => {});
+        }
+      }
+    );
+    return () => unsub();
+  }, [siteSlug, signedInUser?.uid, previewData, isOwnerPreview]);
+
   const isAuthorizedFamilyCircle =
     accessGate.isOwner ||
     accessGate.isAuthorizedMember ||
-    enrichmentPermission.isCircleMember ||
-    accessCodeUnlocked;
+    enrichmentPermission.isCircleMember;
 
   const portalViewerDisplayName = useMemo(() => {
     const candidate = (
@@ -739,7 +732,7 @@ export const PublicFamilyMicrositePage: React.FC<
       return 'مساعد أمين السجل';
     if (enrichmentPermission.viewerCircleRole === 'memory_contributor')
       return 'راوي الذاكرة';
-    if (accessGate.isAuthorizedMember) return 'عضو الدائرة';
+    if (accessGate.isAuthorizedMember) return 'تصفح الديوان';
     return 'عضو جذوري';
   }, [
     accessGate.isOwner,
@@ -754,90 +747,46 @@ export const PublicFamilyMicrositePage: React.FC<
     return true;
   };
 
-  const handleVerifyFamilyAccessCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!siteData) return;
-    const candidate = accessCodeInput.trim();
-    if (!candidate) {
-      setAccessCodeFeedback('يرجى إدخال رمز الدخول السري للعائلة أولاً.');
-      return;
-    }
-
-    // Preview / local fallback when siteData already carries the code
-    const localExpected = (siteData.privacyConfig?.familyAccessCode || '').trim();
-    if (localExpected) {
-      if (candidate.toLowerCase() === localExpected.toLowerCase()) {
-        setAccessCodeUnlocked(true);
-        setAccessCodeFeedback(null);
-        setAccessCodeInput('');
-      } else {
-        setAccessCodeFeedback(
-          'رمز الدخول السري غير صحيح. يرجى التأكد منه لدى أمين سجل العائلة.'
-        );
-      }
-      return;
-    }
-
-    setAccessCodeBusy(true);
-    setAccessCodeFeedback(null);
-    try {
-      const outcome = await unlockPublishedMicrositeByPasscode(
-        siteData.siteSlug,
-        candidate
+  const openJoinCircleFlow = (mode: 'join_circle' | 'upgrade_permission') => {
+    if (!signedInUser) {
+      setPendingJoinAfterAuth(mode);
+      setLoginModalContextBanner(
+        `سجّل دخولك أو أنشئ حسابك المجاني في جذوري خلال ثوانٍ لتوثيق صلتك وطلب الانضمام لدائرة عائلة ${
+          siteData?.familyName || ''
+        }.`
       );
-      if (outcome.ok && outcome.siteData && outcome.passcodeHash) {
-        saveStoredPasscodeHashForSlug(siteData.siteSlug, outcome.passcodeHash);
-        setSiteData(outcome.siteData);
-        setAccessCodeUnlocked(true);
-        setAccessCodeInput('');
-        setAccessCodeFeedback(null);
-      } else {
-        setAccessCodeFeedback(
-          outcome.errorAr ||
-            'رمز الدخول السري غير صحيح. يرجى التأكد منه لدى أمين سجل العائلة.'
-        );
-      }
-    } finally {
-      setAccessCodeBusy(false);
+      setShowPortalLoginModal(true);
+      return;
     }
+    setJoinCircleModalMode(mode);
+    setShowJoinCircleModal(true);
   };
 
-  const handleLockPasscodeSession = async () => {
-    clearAllPortalSessionUnlocks(siteData?.siteSlug || siteSlug);
-    setAccessCodeUnlocked(false);
-    setAccessCodeInput('');
-    setAccessCodeFeedback(null);
-    if (!previewData && siteData) {
-      setSiteData((prev) =>
-        prev
-          ? {
-              ...prev,
-              bioTitle: undefined,
-              bioDescription: undefined,
-              publishedTreeMembers: [],
-              publishedVaultItems: [],
-              cmsModules: undefined,
-              whitelistedEmails: [],
-              whitelistedUids: [],
-              ownerEmail: undefined,
-            }
-          : null
+  const handleCancelMyJoinRequest = async () => {
+    if (!signedInUser?.uid || !siteData) return;
+    setCancellingJoinRequest(true);
+    try {
+      await cancelCircleJoinRequest({
+        siteSlug: siteData.siteSlug,
+        requesterUid: signedInUser.uid,
+      });
+      setMyJoinRequest((prev) =>
+        prev ? { ...prev, status: 'CANCELLED' } : null
       );
-      const lockedStub = await fetchPublishedMicrositeBySlug(siteSlug);
-      if (lockedStub) setSiteData(lockedStub);
+    } finally {
+      setCancellingJoinRequest(false);
     }
   };
 
   const handlePortalLogout = async () => {
     setShowProfileDropdown(false);
     clearAllPortalSessionUnlocks();
-    setAccessCodeUnlocked(false);
-    setAccessCodeInput('');
-    setAccessCodeFeedback(null);
     setActiveCircleEmail('');
     setCircleEmailInput('');
     setCircleVerifyFeedback(null);
     setJustClaimedRelative(null);
+    setMyJoinRequest(null);
+    setPendingJoinAfterAuth(null);
 
     // Synchronously strip private payload on restricted sites for zero-flash instant lock
     if (accessGate.isRestrictedSite && !previewData) {
@@ -878,35 +827,42 @@ export const PublicFamilyMicrositePage: React.FC<
     payload: PortalLoginSuccessPayload
   ) => {
     setShowPortalLoginModal(false);
+    setLoginModalContextBanner(undefined);
     onPortalLoginSuccess?.(payload);
-    setAuthSyncKey(auth.currentUser?.uid || payload.uid || 'signed_in');
-    if (payload.email) {
-      setActiveCircleEmail(payload.email.trim().toLowerCase());
+    const nextUid = auth.currentUser?.uid || payload.uid || 'signed_in';
+    const nextEmail = (payload.email || auth.currentUser?.email || '')
+      .trim()
+      .toLowerCase();
+    setAuthSyncKey(nextUid);
+    if (nextEmail) {
+      setActiveCircleEmail(nextEmail);
     }
+    let latestSite = siteData;
     if (!previewData) {
       const refreshed = await fetchPublishedMicrositeBySlug(siteSlug);
       if (refreshed) {
         setSiteData(refreshed);
+        latestSite = refreshed;
       }
     }
-  };
 
-  const handleRequestWhitelistAccess = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!siteData || !accessReqName.trim() || !accessReqEmail.trim()) return;
-    setAccessReqBusy(true);
-    try {
-      await submitSiteAccessRequest({
-        siteSlug: siteData.siteSlug,
-        ownerId: siteData.ownerId,
-        familyName: siteData.familyName,
-        visitorName: accessReqName,
-        visitorEmail: accessReqEmail,
-        kinshipNote: accessReqKinship,
+    if (pendingJoinAfterAuth && latestSite) {
+      const nextGate = evaluatePublicMicrositeAccessGate({
+        isPreviewMode: Boolean(previewData) || isOwnerPreview,
+        siteData: latestSite,
+        viewerUid: nextUid,
+        viewerEmail: nextEmail,
       });
-      setAccessReqSent(true);
-    } finally {
-      setAccessReqBusy(false);
+      const shouldOpenModal =
+        pendingJoinAfterAuth === 'upgrade_permission'
+          ? !nextGate.isOwner
+          : !nextGate.isOwner && !nextGate.isAuthorizedMember;
+      const modeToOpen = pendingJoinAfterAuth;
+      setPendingJoinAfterAuth(null);
+      if (shouldOpenModal) {
+        setJoinCircleModalMode(modeToOpen);
+        setShowJoinCircleModal(true);
+      }
     }
   };
 
@@ -1089,36 +1045,38 @@ export const PublicFamilyMicrositePage: React.FC<
       originRegion: siteData.originRegion || '',
     });
 
-  // Royal Restricted Portal Gate for unauthorized visitors
+  // Warm Heritage Ivory Identity-Based Private Gate (Zero Passcodes, Zero Anonymous Forms)
   if (accessGate.shouldShowRestrictedGate) {
+    const isPendingJoin = myJoinRequest?.status === 'PENDING';
     return (
       <div
         dir="rtl"
-        data-family-site-theme={activeTheme}
-        data-family-site-typography={branding.typographyId}
         data-testid="royal-restricted-portal-gate"
-        className="min-h-screen fs-canvas flex flex-col justify-between"
+        className="min-h-screen bg-[#F5F1E8] text-[#1F1F1C] flex flex-col justify-between"
       >
-        <header className="border-b fs-border fs-surface px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 text-xs font-bold">
-            <Lock className="w-4 h-4 fs-accent-text shrink-0" />
-            <span>بوابة عائلية محمية · دائرة العائلة المعتمدة</span>
+        <header className="border-b border-[#D8C7B2] bg-[#FAF7F2] px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs font-display font-extrabold text-[#1F1F1C]">
+            <Lock className="w-4 h-4 text-[#D97757] shrink-0" />
+            <span>بوابة عائلية خاصة · دائرة العائلة المعتمدة فقط</span>
           </div>
           <div className="flex items-center gap-2">
             {signedInUser ? (
               <button
                 type="button"
                 onClick={handlePortalLogout}
-                className="h-8 px-3 rounded-lg border fs-border text-xs font-bold text-red-700 hover:bg-red-50 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="h-8 px-3 rounded-xl bg-[#FDFBF7] border border-[#D8C7B2] text-xs font-display font-bold text-[#1F1F1C] hover:bg-[#E8DED2] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-3.5 h-3.5 text-[#D97757]" />
                 <span>تسجيل الخروج</span>
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => setShowPortalLoginModal(true)}
-                className="h-8 px-3 rounded-lg fs-accent-bg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                onClick={() => {
+                  setLoginModalContextBanner(undefined);
+                  setShowPortalLoginModal(true);
+                }}
+                className="h-8 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#FDFBF7] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>تسجيل الدخول</span>
@@ -1127,20 +1085,15 @@ export const PublicFamilyMicrositePage: React.FC<
             <button
               type="button"
               onClick={onExitToMainApp}
-              className="text-xs font-semibold fs-accent-text hover:underline inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              className="text-xs font-display font-bold text-[#D97757] hover:underline inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
             >
               <span>منصة جذوري</span>
             </button>
           </div>
         </header>
 
-        <main className="max-w-xl mx-auto w-full px-4 py-10 sm:py-14 space-y-6">
-          <div
-            className="rounded-3xl fs-surface border p-6 sm:p-8 space-y-5 shadow-[0_24px_60px_-28px_rgba(44,30,20,0.3)]"
-            style={{
-              borderColor: 'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-            }}
-          >
+        <main className="max-w-xl mx-auto w-full px-4 py-10 sm:py-16 space-y-6">
+          <div className="rounded-3xl bg-[#FDFBF7] border border-[#D8C7B2] p-6 sm:p-9 space-y-6 shadow-[0_24px_60px_-28px_rgba(31,31,28,0.12)]">
             <div className="flex flex-col items-center text-center space-y-3">
               <FamilyCrestEmblem
                 familyName={siteData.familyName}
@@ -1149,171 +1102,153 @@ export const PublicFamilyMicrositePage: React.FC<
                 customCrestUrl={branding.customCrestUrl}
                 size="md"
               />
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold fs-accent-text">
+              <div className="inline-flex items-center gap-1.5 text-xs font-display font-bold text-[#D97757]">
                 <ShieldCheck className="w-4 h-4" />
                 <span>
                   {siteData.familyEmblemTag || `ديوان عائلة ${siteData.familyName}`}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold fs-display-font">
-                بوابة عائلة {siteData.familyName} المحمية
+              <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-[#1F1F1C]">
+                بوابة عائلة {siteData.familyName} الخاصة
               </h1>
-              <p className="text-xs sm:text-sm fs-muted leading-relaxed">
-                خصّص أمين سجل العائلة هذا الديوان لأفراد دائرة العائلة والمدعوين
-                فقط حفاظاً على خصوصية الشجرة والذكريات العائلية.
+              <p className="text-xs sm:text-sm text-[#1F1F1C]/75 leading-relaxed max-w-md">
+                خصّص أمين سجل العائلة هذا الديوان لأفراد دائرة العائلة المعتمدين
+                فقط عبر حساباتهم الموثّقة في «جذوري» حفاظاً على خصوصية الشجرة
+                والذكريات العائلية.
               </p>
             </div>
 
-            {signedInUser && !accessGate.isAuthorizedMember && (
-              <div className="rounded-2xl bg-amber-50 border border-amber-300 px-4 py-3 text-xs text-amber-950 leading-relaxed">
-                أنت مسجّل الدخول حالياً بالبريد{' '}
-                <span dir="ltr" className="font-mono font-bold">
-                  {signedInUser.email}
-                </span>
-                ، وهذا الحساب غير مدرج بعد في دائرة عائلة {siteData.familyName}.
-                يمكنك إدخال رمز الدخول السري للعائلة أدناه أو إرسال طلب انضمام.
-              </div>
-            )}
-
-            {/* 1. Family Secret Passcode Unlock */}
-            {accessGate.requiresPasscode && (
-              <form
-                onSubmit={handleVerifyFamilyAccessCode}
-                data-testid="portal-passcode-form"
-                className="rounded-2xl fs-muted-surface border fs-border p-4 space-y-3"
-              >
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <KeyRound className="w-4 h-4 fs-accent-text shrink-0" />
-                  <span>لديك رمز الدخول السري للعائلة؟ أدخله لفتح الديوان:</span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="password"
-                    dir="ltr"
-                    required
-                    value={accessCodeInput}
-                    onChange={(e) => setAccessCodeInput(e.target.value)}
-                    placeholder="أدخل رمز العائلة السري..."
-                    aria-label="رمز الدخول السري للعائلة"
-                    data-testid="portal-passcode-input"
-                    className="flex-1 h-10 px-3.5 rounded-xl bg-white text-[#252321] border fs-border text-xs font-mono font-bold focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={accessCodeBusy}
-                    data-testid="portal-passcode-submit"
-                    className="h-10 px-5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer shrink-0 disabled:opacity-60 inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
-                  >
-                    {accessCodeBusy ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>جاري التحقق...</span>
-                      </>
-                    ) : (
-                      <span>فتح ديوان العائلة</span>
-                    )}
-                  </button>
-                </div>
-                {accessCodeFeedback && (
-                  <p className="text-xs text-red-700 font-semibold">
-                    {accessCodeFeedback}
-                  </p>
-                )}
-              </form>
-            )}
-
-            {/* 2. Verified Account Sign-In CTA */}
-            {!signedInUser && (
-              <div className="rounded-2xl fs-muted-surface border fs-border p-4 space-y-3">
-                <div className="text-xs font-bold">
-                  هل أنت أمين السجل أو أحد أفراد دائرة العائلة المعتمدين؟
-                </div>
-                <p className="text-[11px] fs-muted leading-relaxed">
-                  سجّل دخولك بحسابك الموثّق في جذوري ليتم فتح ديوان العائلة
-                  والشجرة المشتركة لك تلقائياً بصلاحياتك الكاملة.
+            {!signedInUser ? (
+              <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-5 space-y-4 text-center">
+                <p className="text-xs text-[#1F1F1C]/80 leading-relaxed">
+                  إذا كنت من أفراد العائلة المضافين في الدائرة سيُفتح لك الديوان
+                  تلقائياً فور تسجيل الدخول، وإن لم تكن مضافاً بعد يمكنك إرسال
+                  طلب انضمام موثّق بنقرة واحدة.
                 </p>
                 <button
                   type="button"
-                  onClick={() => setShowPortalLoginModal(true)}
+                  onClick={() => openJoinCircleFlow('join_circle')}
                   data-testid="portal-gate-login-btn"
-                  className="w-full h-10 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  className="w-full h-11 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#FDFBF7] text-xs sm:text-sm font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span>تسجيل الدخول لحسابك في جذوري</span>
+                  <LogIn className="w-4 h-4 shrink-0" />
+                  <span>تسجيل الدخول / إنشاء حساب مجاني في جذوري لطلب الانضمام</span>
                 </button>
               </div>
-            )}
-
-            {/* 3. Polite Access Request Form */}
-            <div className="border-t fs-border pt-4">
-              {accessReqSent ? (
-                <div className="rounded-2xl fs-muted-surface border fs-border p-4 text-center space-y-1.5">
-                  <CheckCircle2 className="w-6 h-6 fs-accent-text mx-auto" />
-                  <div className="text-sm font-bold fs-display-font">
-                    تم رفع طلب الانضمام إلى أمين سجل عائلة {siteData.familyName}
+            ) : (
+              <div className="space-y-4">
+                {/* Verified signed-in identity summary */}
+                <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-4 flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    {viewerAvatarUrl ? (
+                      <img
+                        src={viewerAvatarUrl}
+                        alt={portalViewerDisplayName}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-[#D97757]/60 bg-[#FDFBF7]"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full border-2 border-[#D97757]/60 bg-[#E8DED2] text-[#1F1F1C] font-display font-extrabold text-base flex items-center justify-center">
+                        {portalViewerDisplayName.charAt(0)}
+                      </div>
+                    )}
+                    <span className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-[#FDFBF7] text-[#D97757] flex items-center justify-center border border-[#D8C7B2]">
+                      <BadgeCheck className="w-3.5 h-3.5" />
+                    </span>
                   </div>
-                  <p className="text-xs fs-muted">
-                    ستصلك دعوة الدخول إلى بريدك فور مراجعة واعتماد أمين السجل.
-                  </p>
-                </div>
-              ) : (
-                <form
-                  onSubmit={handleRequestWhitelistAccess}
-                  className="space-y-3"
-                >
-                  <div className="text-xs font-bold">
-                    أو أرسل طلب انضمام لدائرة العائلة إلى أمين السجل:
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={accessReqName}
-                      onChange={(e) => setAccessReqName(e.target.value)}
-                      placeholder="الاسم الكامل"
-                      className="px-3 py-2 rounded-xl bg-white text-[#252321] border fs-border text-xs"
-                    />
-                    <input
-                      type="email"
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-display font-extrabold text-[#1F1F1C] truncate">
+                      {portalViewerDisplayName}
+                    </div>
+                    <div
                       dir="ltr"
-                      required
-                      value={accessReqEmail}
-                      onChange={(e) => setAccessReqEmail(e.target.value)}
-                      placeholder="البريد الإلكتروني"
-                      className="px-3 py-2 rounded-xl bg-white text-[#252321] border fs-border text-xs"
-                    />
+                      className="text-[11px] font-mono text-[#1F1F1C]/65 truncate"
+                    >
+                      {effectiveAuthenticatedEmail}
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    value={accessReqKinship}
-                    onChange={(e) => setAccessReqKinship(e.target.value)}
-                    placeholder="صلة القرابة بالعائلة (مثال: ابن عم، من فرع الرياض...)"
-                    className="w-full px-3 py-2 rounded-xl bg-white text-[#252321] border fs-border text-xs"
-                  />
-                  <button
-                    type="submit"
-                    disabled={accessReqBusy}
-                    className="w-full py-2.5 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer disabled:opacity-60"
+                </div>
+
+                {isPendingJoin ? (
+                  <div
+                    data-testid="private-gate-pending-card"
+                    className="rounded-2xl bg-[#FAF7F2] border border-[#D97757]/50 p-5 text-center space-y-3"
                   >
-                    {accessReqBusy
-                      ? 'جاري إرسال طلب الانضمام...'
-                      : 'طلب انضمام لدائرة العائلة'}
-                  </button>
-                </form>
-              )}
-            </div>
+                    <div className="w-10 h-10 rounded-full bg-[#D97757]/12 text-[#D97757] mx-auto flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-display font-extrabold text-[#1F1F1C]">
+                        ✓ تم إرسال طلب انضمامك — بانتظار قبول أمين السجل
+                      </div>
+                      <p className="text-xs text-[#1F1F1C]/70 leading-relaxed">
+                        سيُفتح ديوان عائلة {siteData.familyName} لك تلقائياً فور
+                        تأكيد أمين السجل لطلبك، كما سيصلك إشعار فوري في حسابك.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={cancellingJoinRequest}
+                      onClick={handleCancelMyJoinRequest}
+                      className="h-9 px-4 rounded-xl bg-[#E8DED2] hover:bg-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold cursor-pointer disabled:opacity-60 transition-colors"
+                    >
+                      {cancellingJoinRequest ? 'جاري الإلغاء...' : 'إلغاء الطلب'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-5 space-y-3 text-center">
+                    <p className="text-xs text-[#1F1F1C]/75 leading-relaxed">
+                      حسابك الموثّق غير مدرج بعد في دائرة عائلة{' '}
+                      <strong>{siteData.familyName}</strong>. أرسل طلب انضمام
+                      مباشر لأمين السجل لتأكيد صلتك وفتح البوابة لك.
+                    </p>
+                    <button
+                      type="button"
+                      data-testid="private-gate-send-join-request-btn"
+                      onClick={() => openJoinCircleFlow('join_circle')}
+                      className="w-full h-11 px-4 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#FDFBF7] text-xs sm:text-sm font-display font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
+                    >
+                      <UserPlus className="w-4 h-4 shrink-0" />
+                      <span>
+                        🤝 إرسال طلب انضمام لدائرة عائلة {siteData.familyName}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
 
-        <footer className="py-5 text-center text-xs fs-muted border-t fs-border">
+        <footer className="py-5 text-center text-xs text-[#1F1F1C]/65 border-t border-[#D8C7B2] bg-[#FAF7F2]">
           موثق رقمياً عبر منصة جذوري للأنساب والإرث العائلي العربي · Juthori.com
         </footer>
 
         {showPortalLoginModal && (
           <LoginModal
             isOpen={showPortalLoginModal}
-            onClose={() => setShowPortalLoginModal(false)}
+            contextBanner={loginModalContextBanner}
+            onClose={() => {
+              setShowPortalLoginModal(false);
+              setLoginModalContextBanner(undefined);
+            }}
             onLoginSuccess={handlePortalLoginModalSuccess}
+          />
+        )}
+
+        {showJoinCircleModal && signedInUser && (
+          <JoinCircleRequestModal
+            isOpen={showJoinCircleModal}
+            onClose={() => setShowJoinCircleModal(false)}
+            siteSlug={siteData.siteSlug}
+            ownerId={siteData.ownerId}
+            familyName={siteData.familyName}
+            mode={joinCircleModalMode}
+            currentRole={enrichmentPermission.viewerCircleRole}
+            viewerUid={signedInUser.uid}
+            viewerName={portalViewerDisplayName}
+            viewerEmail={effectiveAuthenticatedEmail}
+            viewerAvatarUrl={viewerAvatarUrl}
+            onSubmitted={(created) => setMyJoinRequest(created)}
           />
         )}
 
@@ -1335,7 +1270,9 @@ export const PublicFamilyMicrositePage: React.FC<
   const treeMembers = siteData.publishedTreeMembers || [];
   const vaultItems = siteData.publishedVaultItems || [];
   const guardians = siteData.guardiansOfMemory || [];
-  const canProposeEnrichment = enrichmentPermission.canProposeEnrichment;
+  const canProposeTreeEnrichment = enrichmentPermission.canProposeTreeEnrichment;
+  const canProposeVaultEnrichment = enrichmentPermission.canProposeVaultEnrichment;
+  const canInteractInMajlis = enrichmentPermission.canInteractInMajlis;
 
   const sectionReadiness: Record<
     PortalSectionKey,
@@ -2554,17 +2491,31 @@ export const PublicFamilyMicrositePage: React.FC<
 
                   {!compactPreview && (
                     <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRsvpOpenEventId(
-                            rsvpOpenEventId === ev.id ? null : ev.id
-                          )
-                        }
-                        className="w-full py-2.5 px-4 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity shadow-xs"
-                      >
-                        تأكيد الحضور (RSVP)
-                      </button>
+                      {canInteractInMajlis ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRsvpOpenEventId(
+                              rsvpOpenEventId === ev.id ? null : ev.id
+                            )
+                          }
+                          className="w-full py-2.5 px-4 rounded-xl fs-accent-bg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity shadow-xs"
+                        >
+                          تأكيد الحضور (RSVP)
+                        </button>
+                      ) : myJoinRequest?.status === 'PENDING' ? (
+                        <div className="w-full py-2 px-3 rounded-xl bg-[#FDFBF7] border border-[#D8C7B2] text-[11px] font-bold text-[#1F1F1C] text-center">
+                          ✓ طلب انضمامك بانتظار القبول لتأكيد الحضور
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openJoinCircleFlow('join_circle')}
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-[11px] font-display font-bold cursor-pointer transition-colors"
+                        >
+                          🤝 انضم لدائرة العائلة لتأكيد الحضور
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleCopyEventDetails(ev)}
@@ -2587,7 +2538,7 @@ export const PublicFamilyMicrositePage: React.FC<
                 </div>
               </div>
 
-              {rsvpOpenEventId === ev.id && (
+              {canInteractInMajlis && rsvpOpenEventId === ev.id && (
                 <div className="relative z-10 border-t fs-border fs-surface-alt px-5 sm:px-7 py-4 space-y-2.5">
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                     <input
@@ -2897,7 +2848,19 @@ export const PublicFamilyMicrositePage: React.FC<
                   isAuthorizedFamilyViewer={isAuthorizedFamilyCircle}
                   compactPreview={compactPreview}
                   velvetBandMode={false}
-                  canProposeEnrichment={canProposeEnrichment}
+                  canProposeEnrichment={canProposeTreeEnrichment}
+                  isCircleMember={enrichmentPermission.isCircleMember}
+                  canRequestUpgrade={
+                    enrichmentPermission.isCircleMember &&
+                    !canProposeTreeEnrichment &&
+                    !enrichmentPermission.isSiteOwner
+                  }
+                  pendingJoinRequest={myJoinRequest}
+                  onRequestJoinCircle={() => openJoinCircleFlow('join_circle')}
+                  onRequestUpgradePermission={() =>
+                    openJoinCircleFlow('upgrade_permission')
+                  }
+                  onCancelJoinRequest={handleCancelMyJoinRequest}
                   siteSlug={siteData.siteSlug}
                   ownerId={siteData.ownerId}
                   viewerDefaultName={
@@ -2938,22 +2901,56 @@ export const PublicFamilyMicrositePage: React.FC<
               title="معرض خزانة الصور والوثائق"
               icon={<Camera className="w-3.5 h-3.5" />}
               action={
-                !compactPreview && canProposeEnrichment ? (
-                  <button
-                    type="button"
-                    data-testid="open-vault-gift-modal-btn"
-                    onClick={() => {
-                      setEnrSuccessMessage(null);
-                      setShowEnrichmentModal(true);
-                    }}
-                    className="px-3.5 py-2 rounded-xl fs-surface border text-xs font-bold fs-accent-text cursor-pointer hover:opacity-90 transition-opacity shadow-2xs"
-                    style={{
-                      borderColor:
-                        'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
-                    }}
-                  >
-                    + إهداء صورة للخزانة
-                  </button>
+                !compactPreview ? (
+                  canProposeVaultEnrichment ? (
+                    <button
+                      type="button"
+                      data-testid="open-vault-gift-modal-btn"
+                      onClick={() => {
+                        setEnrSuccessMessage(null);
+                        setShowEnrichmentModal(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl fs-surface border text-xs font-bold fs-accent-text cursor-pointer hover:opacity-90 transition-opacity shadow-2xs"
+                      style={{
+                        borderColor:
+                          'color-mix(in srgb, var(--fs-gold) 45%, transparent)',
+                      }}
+                    >
+                      + إهداء صورة للخزانة
+                    </button>
+                  ) : myJoinRequest?.status === 'PENDING' ? (
+                    <div className="inline-flex items-center gap-1.5 rounded-xl bg-[#FDFBF7] border border-[#D8C7B2] px-3 py-1.5 text-[11px] font-display font-bold text-[#1F1F1C]">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#D97757] shrink-0" />
+                      <span>✓ طلبك بانتظار قبول أمين السجل</span>
+                      <button
+                        type="button"
+                        onClick={handleCancelMyJoinRequest}
+                        className="mr-1 px-2 py-0.5 rounded-lg bg-[#E8DED2] hover:bg-[#D8C7B2] text-[#1F1F1C] text-[10.5px] font-bold cursor-pointer"
+                      >
+                        إلغاء الطلب
+                      </button>
+                    </div>
+                  ) : enrichmentPermission.isCircleMember &&
+                    !enrichmentPermission.isSiteOwner ? (
+                    <button
+                      type="button"
+                      data-testid="vault-request-upgrade-btn"
+                      onClick={() => openJoinCircleFlow('upgrade_permission')}
+                      className="px-3.5 py-2 rounded-xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D97757]/45 text-[#D97757] text-xs font-display font-bold cursor-pointer transition-colors"
+                    >
+                      ✦ طلب صلاحية إثراء
+                    </button>
+                  ) : !enrichmentPermission.isCircleMember ? (
+                    <button
+                      type="button"
+                      data-testid="vault-join-circle-btn"
+                      onClick={() => openJoinCircleFlow('join_circle')}
+                      className="px-3.5 py-2 rounded-xl bg-[#FDFBF7] hover:bg-[#E8DED2] border border-[#D8C7B2] text-[#1F1F1C] text-xs font-display font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-[#D97757]" />
+                      <span>🤝 هل أنت من أفراد العائلة؟ اطلب الانضمام للدائرة</span>
+                    </button>
+                  ) : undefined
                 ) : undefined
               }
             />
@@ -3572,80 +3569,107 @@ export const PublicFamilyMicrositePage: React.FC<
                         </div>
                       )}
 
-                      {/* Guestbook Reply Composer with One-Click Quick Phrases */}
+                      {/* Guestbook Reply Composer (Gated on Circle Membership or allowPublicMajlis) */}
                       {!topic.isLocked && !compactPreview && (
-                        <div className="pt-4 border-t border-dashed fs-border space-y-3">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] font-bold fs-muted ml-1">
-                              عبارات سريعة:
-                            </span>
-                            {MAJLIS_QUICK_PHRASES.map((phrase) => (
-                              <button
-                                key={phrase}
-                                type="button"
-                                onClick={() =>
+                        canInteractInMajlis ? (
+                          <div className="pt-4 border-t border-dashed fs-border space-y-3">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] font-bold fs-muted ml-1">
+                                عبارات سريعة:
+                              </span>
+                              {MAJLIS_QUICK_PHRASES.map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() =>
+                                    setMajlisReplyInputs((prev) => ({
+                                      ...prev,
+                                      [topic.id]: {
+                                        name:
+                                          prev[topic.id]?.name ||
+                                          portalViewerDisplayName ||
+                                          '',
+                                        body: phrase,
+                                      },
+                                    }))
+                                  }
+                                  className="px-2.5 py-1 rounded-lg fs-surface-alt border fs-border text-[11px] font-semibold fs-accent-text hover:opacity-85 transition-opacity cursor-pointer"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                              <input
+                                type="text"
+                                value={majlisReplyInputs[topic.id]?.name || ''}
+                                onChange={(e) =>
+                                  setMajlisReplyInputs((prev) => ({
+                                    ...prev,
+                                    [topic.id]: {
+                                      name: e.target.value,
+                                      body: prev[topic.id]?.body || '',
+                                    },
+                                  }))
+                                }
+                                placeholder="اسمك الكريم"
+                                className="sm:col-span-4 px-3.5 py-2.5 rounded-xl fs-surface-alt border fs-border text-xs focus:outline-none focus:ring-1"
+                                style={{
+                                  ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                                }}
+                              />
+                              <input
+                                type="text"
+                                value={majlisReplyInputs[topic.id]?.body || ''}
+                                onChange={(e) =>
                                   setMajlisReplyInputs((prev) => ({
                                     ...prev,
                                     [topic.id]: {
                                       name: prev[topic.id]?.name || '',
-                                      body: phrase,
+                                      body: e.target.value,
                                     },
                                   }))
                                 }
-                                className="px-2.5 py-1 rounded-lg fs-surface-alt border fs-border text-[11px] font-semibold fs-accent-text hover:opacity-85 transition-opacity cursor-pointer"
+                                placeholder="أضف مشاركتك وذكرياتك في المجلس..."
+                                className="sm:col-span-6 px-3.5 py-2.5 rounded-xl fs-surface-alt border fs-border text-xs focus:outline-none focus:ring-1"
+                                style={{
+                                  ['--tw-ring-color' as string]: 'var(--fs-gold)',
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSubmitMajlisReply(topic.id)}
+                                className="sm:col-span-2 py-2.5 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-95 transition-opacity shadow-xs"
                               >
-                                + {phrase}
+                                <Send className="w-3.5 h-3.5" />
+                                <span>إرسال</span>
                               </button>
-                            ))}
+                            </div>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                            <input
-                              type="text"
-                              value={majlisReplyInputs[topic.id]?.name || ''}
-                              onChange={(e) =>
-                                setMajlisReplyInputs((prev) => ({
-                                  ...prev,
-                                  [topic.id]: {
-                                    name: e.target.value,
-                                    body: prev[topic.id]?.body || '',
-                                  },
-                                }))
-                              }
-                              placeholder="اسمك الكريم"
-                              className="sm:col-span-4 px-3.5 py-2.5 rounded-xl fs-surface-alt border fs-border text-xs focus:outline-none focus:ring-1"
-                              style={{
-                                ['--tw-ring-color' as string]: 'var(--fs-gold)',
-                              }}
-                            />
-                            <input
-                              type="text"
-                              value={majlisReplyInputs[topic.id]?.body || ''}
-                              onChange={(e) =>
-                                setMajlisReplyInputs((prev) => ({
-                                  ...prev,
-                                  [topic.id]: {
-                                    name: prev[topic.id]?.name || '',
-                                    body: e.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="أضف مشاركتك وذكرياتك في المجلس..."
-                              className="sm:col-span-6 px-3.5 py-2.5 rounded-xl fs-surface-alt border fs-border text-xs focus:outline-none focus:ring-1"
-                              style={{
-                                ['--tw-ring-color' as string]: 'var(--fs-gold)',
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleSubmitMajlisReply(topic.id)}
-                              className="sm:col-span-2 py-2.5 px-3.5 rounded-xl fs-accent-bg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-95 transition-opacity shadow-xs"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              <span>إرسال</span>
-                            </button>
+                        ) : (
+                          <div className="pt-4 border-t border-dashed fs-border">
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                              <span className="text-xs font-medium text-[#1F1F1C]/80">
+                                المشاركة في حوارات المجلس متاحة لأعضاء دائرة عائلة{' '}
+                                <strong>{siteData.familyName}</strong> المعتمدين.
+                              </span>
+                              {myJoinRequest?.status === 'PENDING' ? (
+                                <span className="text-[11px] font-display font-bold text-[#D97757]">
+                                  ✓ طلب انضمامك بانتظار قبول أمين السجل
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => openJoinCircleFlow('join_circle')}
+                                  className="h-8 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#FDFBF7] text-xs font-display font-bold cursor-pointer transition-colors whitespace-nowrap"
+                                >
+                                  🤝 اطلب الانضمام للدائرة
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )
                       )}
                     </div>
                   </article>
@@ -4215,22 +4239,13 @@ export const PublicFamilyMicrositePage: React.FC<
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {accessCodeUnlocked && accessGate.isRestrictedSite && (
-                      <button
-                        type="button"
-                        data-testid="public-header-lock-session-btn"
-                        onClick={handleLockPasscodeSession}
-                        title="قفل جلسة رمز العائلة"
-                        className="h-9 px-3 rounded-xl fs-surface border fs-border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:bg-red-50 hover:text-red-800 whitespace-nowrap shrink-0 transition-colors"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">قفل الجلسة</span>
-                      </button>
-                    )}
                     <button
                       type="button"
                       data-testid="public-header-login-btn"
-                      onClick={() => setShowPortalLoginModal(true)}
+                      onClick={() => {
+                        setLoginModalContextBanner(undefined);
+                        setShowPortalLoginModal(true);
+                      }}
                       className="h-9 px-3.5 rounded-xl bg-[#D97757] hover:bg-[#C46546] text-[#F5F1E8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs transition-colors"
                     >
                       <LogIn className="w-3.5 h-3.5" />
@@ -4842,10 +4857,10 @@ export const PublicFamilyMicrositePage: React.FC<
       {/* MODALS: ENRICHMENT PROPOSAL, QR CARD, INVITE CLAIM                */}
       {/* ================================================================= */}
 
-      {showEnrichmentModal && !compactPreview && canProposeEnrichment && (
+      {showEnrichmentModal && !compactPreview && canProposeVaultEnrichment && (
         <div
           data-testid="vault-gift-modal"
-          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[#1F1F1C]/45 backdrop-blur-[2px] flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
         >
@@ -4997,8 +5012,29 @@ export const PublicFamilyMicrositePage: React.FC<
       {showPortalLoginModal && !compactPreview && (
         <LoginModal
           isOpen={showPortalLoginModal}
-          onClose={() => setShowPortalLoginModal(false)}
+          contextBanner={loginModalContextBanner}
+          onClose={() => {
+            setShowPortalLoginModal(false);
+            setLoginModalContextBanner(undefined);
+          }}
           onLoginSuccess={handlePortalLoginModalSuccess}
+        />
+      )}
+
+      {showJoinCircleModal && signedInUser && !compactPreview && (
+        <JoinCircleRequestModal
+          isOpen={showJoinCircleModal}
+          onClose={() => setShowJoinCircleModal(false)}
+          siteSlug={siteData.siteSlug}
+          ownerId={siteData.ownerId}
+          familyName={siteData.familyName}
+          mode={joinCircleModalMode}
+          currentRole={enrichmentPermission.viewerCircleRole}
+          viewerUid={signedInUser.uid}
+          viewerName={portalViewerDisplayName}
+          viewerEmail={effectiveAuthenticatedEmail}
+          viewerAvatarUrl={viewerAvatarUrl}
+          onSubmitted={(created) => setMyJoinRequest(created)}
         />
       )}
     </div>
